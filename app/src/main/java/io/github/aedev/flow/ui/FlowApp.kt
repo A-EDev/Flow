@@ -476,6 +476,8 @@ fun FlowApp(
                     playerUiState.streamInfo == null &&
                     !musicPlayerSheetState.isDismissed &&
                     !musicPlayerSheetState.isExpanded
+            val musicMiniPlayerInset =
+                if (isMusicMiniPlayerObscuringContent) MusicMiniPlayerHeight + MusicMiniPlayerBottomSpacer else 0.dp
             val musicMiniPlayerContentPadding by animateDpAsState(
                 targetValue =
                     if (shouldReserveMusicMiniPlayerSpace && isMusicMiniPlayerObscuringContent) {
@@ -503,7 +505,7 @@ fun FlowApp(
                 label = "bottomNavContentPadding",
             )
 
-            ProvideMusicPlaybackState {
+            ProvideMusicPlaybackState(miniPlayerInset = musicMiniPlayerInset) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor =

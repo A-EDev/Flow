@@ -884,6 +884,7 @@ fun NavGraphBuilder.flowAppGraph(
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
 
         EnhancedMusicScreen(
+            bottomNavOverlayPadding = bottomNavOverlayPadding,
             onSongClick = { track, queue, source ->
                 musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
 

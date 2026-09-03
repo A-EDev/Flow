@@ -19,16 +19,19 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -38,18 +41,35 @@ import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.pages.HomePage
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
-import io.github.aedev.flow.ui.components.ContentFilterChip
-import io.github.aedev.flow.ui.components.MoodAndGenresButton
 import io.github.aedev.flow.ui.components.currentGridThumbnailHeight
+import io.github.aedev.flow.ui.components.music.card.DailyDiscoverCaptionHeight
 import io.github.aedev.flow.ui.components.music.card.DailyDiscoverCard
 import io.github.aedev.flow.ui.components.music.common.MusicChartRankBadge
+import io.github.aedev.flow.ui.components.music.common.MusicFilterChip
+import io.github.aedev.flow.ui.components.music.common.MusicMoodButton
+import io.github.aedev.flow.ui.components.music.common.MusicMoodTone
 import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
+import io.github.aedev.flow.ui.components.music.common.musicArtistShape
+import io.github.aedev.flow.ui.components.music.common.musicGridCellWidth
+import io.github.aedev.flow.ui.components.music.common.musicGridColumns
+import io.github.aedev.flow.ui.components.music.common.musicLaneItemWidth
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.theme.Dimensions
+
+private val ArtistPortraitSize = 108.dp
+private val SeedThumbnailSize = 40.dp
+private val QuickPickMaxWidth = 360.dp
+private val QuickPickPeek = 48.dp
+private val ChartMaxWidth = 320.dp
+private val ChartPeek = 56.dp
+private val DailyDiscoverMaxWidth = 300.dp
+private val DailyDiscoverPeek = 72.dp
+private val DailyDiscoverItemSpacing = 8.dp
+private const val MOOD_ROWS = 3
 
 /**
  * True when a shelf entry is really a collection wearing a track's shape — InnerTube returns albums
@@ -118,6 +138,7 @@ fun MusicCollectionShelf(
     onCollectionMenu: (MusicPlaylist) -> Unit,
     modifier: Modifier = Modifier,
     action: MusicSectionAction? = null,
+    collectionSubtitle: @Composable (MusicPlaylist) -> String? = { it.author },
 ) {
     val thumbnailHeight = currentGridThumbnailHeight()
 
@@ -130,7 +151,7 @@ fun MusicCollectionShelf(
     ) { collection ->
         MusicCollectionCard(
             title = collection.title,
-            subtitle = collection.author,
+            subtitle = collectionSubtitle(collection),
             thumbnailUrl = collection.thumbnailUrl,
             thumbnailHeight = thumbnailHeight,
             onClick = { onCollectionClick(collection) },
@@ -140,35 +161,42 @@ fun MusicCollectionShelf(
 }
 
 /**
- * A lane of circular artist portraits.
+ * A lane of artist portraits in the artist shape, for any model that carries a name and artwork.
  */
 @Composable
-fun MusicArtistShelf(
+fun <T> MusicArtistShelf(
     title: String,
-    artists: List<MusicTrack>,
-    keyNamespace: String,
-    onArtistClick: (String) -> Unit,
+    artists: List<T>,
+    key: (T) -> Any,
+    name: (T) -> String,
+    thumbnailUrl: (T) -> String?,
+    onArtistClick: (T) -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: @Composable (T) -> String? = { null },
 ) {
+    val artistShape = musicArtistShape()
+
     MusicShelf(
         title = title,
         items = artists,
-        key = { "$keyNamespace:${it.videoId}" },
+        key = key,
         modifier = modifier,
     ) { artist ->
         MusicCollectionCard(
-            title = artist.artist,
-            thumbnailUrl = artist.thumbnailUrl,
-            thumbnailHeight = 100.dp,
-            shape = CircleShape,
+            title = name(artist),
+            subtitle = subtitle(artist),
+            thumbnailUrl = thumbnailUrl(artist),
+            thumbnailHeight = ArtistPortraitSize,
+            shape = artistShape,
             horizontalAlignment = Alignment.CenterHorizontally,
-            onClick = { onArtistClick(artist.channelId) },
+            onClick = { onArtistClick(artist) },
         )
     }
 }
 
 /**
- * A four-row lane of track rows — the Quick Picks shape.
+ * A four-row lane of track rows — the Quick Picks shape. Rows fill a phone with the next column
+ * peeking in and stop growing on wider windows.
  */
 @Composable
 fun MusicQuickPicksShelf(
@@ -181,6 +209,8 @@ fun MusicQuickPicksShelf(
     downloadedTrackIds: Set<String> = emptySet(),
     state: LazyGridState = rememberLazyGridState(),
 ) {
+    val rowWidth = musicLaneItemWidth(maxWidth = QuickPickMaxWidth, peek = QuickPickPeek)
+
     MusicTrackShelf(
         title = title,
         items = tracks,
@@ -194,9 +224,10 @@ fun MusicQuickPicksShelf(
             density = MusicItemDensity.Compact,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             showMenu = false,
+            shape = MaterialTheme.shapes.medium,
             onClick = { onTrackClick(track) },
             onLongClick = { onTrackMenu(track) },
-            modifier = Modifier.width(320.dp),
+            modifier = Modifier.width(rowWidth),
         )
     }
 }
@@ -214,6 +245,7 @@ fun MusicChartsShelf(
     downloadedTrackIds: Set<String> = emptySet(),
 ) {
     val ranked = remember(tracks) { tracks.take(20).mapIndexed { index, track -> index + 1 to track } }
+    val rowWidth = musicLaneItemWidth(maxWidth = ChartMaxWidth, peek = ChartPeek)
 
     MusicTrackShelf(
         title = title,
@@ -226,17 +258,20 @@ fun MusicChartsShelf(
             density = MusicItemDensity.Compact,
             leadingContent = { MusicChartRankBadge(rank) },
             showMenu = false,
+            shape = MaterialTheme.shapes.medium,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             onClick = { onTrackClick(track) },
             onLongClick = { onTrackMenu(track) },
-            modifier = Modifier.width(280.dp),
+            modifier = Modifier.width(rowWidth),
         )
     }
 }
 
 /**
- * The tall Daily Discover lane of seed-and-recommendation cards.
+ * The Daily Discover carousel: one recommendation in focus, the next ones peeking in. The caption
+ * fades with the item so preview-sized items show artwork only.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DailyDiscoverShelf(
     items: List<DailyDiscoverItem>,
@@ -246,30 +281,42 @@ fun DailyDiscoverShelf(
     action: MusicSectionAction? = null,
     downloadedTrackIds: Set<String> = emptySet(),
 ) {
-    if (items.isEmpty()) return
+    val uniqueItems = remember(items) { items.distinctBy { it.recommendation.videoId } }
+    if (uniqueItems.isEmpty()) return
+
+    val itemWidth = musicLaneItemWidth(maxWidth = DailyDiscoverMaxWidth, peek = DailyDiscoverPeek)
+    val carouselState = rememberCarouselState { uniqueItems.size }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        MusicSectionHeader(title = stringResource(R.string.section_daily_discover), action = action)
-        LazyRow(
+        MusicSectionHeader(
+            title = stringResource(R.string.section_daily_discover),
+            subtitle = stringResource(R.string.daily_discover_subtitle),
+            action = action,
+        )
+        HorizontalMultiBrowseCarousel(
+            state = carouselState,
+            preferredItemWidth = itemWidth,
+            itemSpacing = DailyDiscoverItemSpacing,
             contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(336.dp)
-                    .padding(bottom = 16.dp),
-        ) {
-            items(
-                items = items.distinctBy { it.recommendation.videoId },
-                key = { "daily_discover:${it.recommendation.videoId}" },
-            ) { item ->
-                DailyDiscoverCard(
-                    item = item,
-                    isDownloaded = downloadedTrackIds.contains(item.recommendation.videoId),
-                    onClick = { onItemClick(item) },
-                    onLongClick = { onItemMenu(item) },
-                )
-            }
+                    .padding(bottom = Dimensions.ContentPaddingVertical)
+                    .height(itemWidth + DailyDiscoverCaptionHeight),
+        ) { index ->
+            val item = uniqueItems[index]
+            DailyDiscoverCard(
+                item = item,
+                isDownloaded = downloadedTrackIds.contains(item.recommendation.videoId),
+                onClick = { onItemClick(item) },
+                onLongClick = { onItemMenu(item) },
+                captionAlpha = {
+                    val info = carouselItemDrawInfo
+                    val range = info.maxSize - info.minSize
+                    if (range <= 0f) 1f else ((info.size - info.minSize) / range).coerceIn(0f, 1f)
+                },
+                modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge),
+            )
         }
     }
 }
@@ -277,6 +324,7 @@ fun DailyDiscoverShelf(
 /**
  * The mood and genre tile grid shown on the home feed.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MusicMoodsShelf(
     moods: List<MoodAndGenres>,
@@ -287,9 +335,9 @@ fun MusicMoodsShelf(
     if (moods.isEmpty()) return
 
     val moodItems = remember(moods) { moods.flatMap { it.items }.distinctBy { it.title } }
-    val rows = 4
-    val buttonWidth = (LocalConfiguration.current.screenWidthDp.dp - 36.dp) / 2
-    val gridHeight = (Dimensions.MoodButtonHeight * rows) + (8.dp * (rows - 1))
+    val columns = musicGridColumns(compact = 2, medium = 3, expanded = 4)
+    val buttonWidth = musicGridCellWidth(columns = columns)
+    val gridHeight = ButtonDefaults.MediumContainerHeight * MOOD_ROWS + Dimensions.ItemSpacing * (MOOD_ROWS - 1)
 
     Column(modifier = modifier.fillMaxWidth()) {
         MusicSectionHeader(
@@ -297,7 +345,7 @@ fun MusicMoodsShelf(
             action = MusicSectionAction.Navigate(onSeeAll),
         )
         LazyHorizontalGrid(
-            rows = GridCells.Fixed(rows),
+            rows = GridCells.Fixed(MOOD_ROWS),
             contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
             horizontalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
             verticalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
@@ -306,10 +354,11 @@ fun MusicMoodsShelf(
                     .height(gridHeight)
                     .fillMaxWidth(),
         ) {
-            items(items = moodItems, key = { it.title }) { item ->
-                MoodAndGenresButton(
+            itemsIndexed(items = moodItems, key = { _, item -> item.title }) { index, item ->
+                MusicMoodButton(
                     title = item.title,
                     onClick = { onMoodClick(item) },
+                    tone = MusicMoodTone.forIndex(index),
                     modifier = Modifier.width(buttonWidth),
                 )
             }
@@ -339,9 +388,9 @@ fun MusicHomeChipRow(
     ) {
         items(items = chips.distinctBy { it.title }, key = { it.title }) { chip ->
             val isSelected = selectedChipTitle == chip.title
-            ContentFilterChip(
-                title = chip.title,
-                isSelected = isSelected,
+            MusicFilterChip(
+                label = chip.title,
+                selected = isSelected,
                 onClick = { onChipToggle(if (isSelected) null else chip) },
             )
         }
@@ -381,8 +430,8 @@ fun MusicSeedThumbnail(
 ) {
     MusicThumbnail(
         thumbnailUrl = url,
-        size = 40.dp,
-        shape = if (isArtist) CircleShape else MaterialTheme.shapes.small,
+        size = SeedThumbnailSize,
+        shape = if (isArtist) musicArtistShape() else MaterialTheme.shapes.small,
         modifier = modifier,
     )
 }
@@ -400,15 +449,16 @@ fun MoodCategorySection(
 ) {
     Column(modifier = modifier.padding(horizontal = 6.dp)) {
         MusicSectionHeader(title = title)
-        items.chunked(itemsPerRow).forEach { row ->
+        items.chunked(itemsPerRow).forEachIndexed { rowIndex, row ->
             Row(
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
             ) {
-                row.forEach { item ->
-                    MoodAndGenresButton(
+                row.forEachIndexed { columnIndex, item ->
+                    MusicMoodButton(
                         title = item.title,
                         onClick = { onMoodClick(item) },
+                        tone = MusicMoodTone.forIndex(rowIndex * itemsPerRow + columnIndex),
                         modifier = Modifier.weight(1f),
                     )
                 }

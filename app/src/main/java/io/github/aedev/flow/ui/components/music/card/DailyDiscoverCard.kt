@@ -3,135 +3,110 @@ package io.github.aedev.flow.ui.components.music.card
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.OfflinePin
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.DailyDiscoverItem
-import io.github.aedev.flow.ui.theme.MusicScrimContent
-import io.github.aedev.flow.ui.theme.musicScrim
-import io.github.aedev.flow.ui.theme.musicScrimContent
+import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
+import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
+import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 
+val DailyDiscoverCaptionHeight = 72.dp
+
+/**
+ * One Daily Discover carousel item: artwork on top, caption on a solid container below it.
+ *
+ * [captionAlpha] is read in the draw phase only, so a carousel can fade the caption out as the
+ * item shrinks into a preview without recomposing anything while it scrolls.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DailyDiscoverCard(
     item: DailyDiscoverItem,
-    isDownloaded: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isDownloaded: Boolean = false,
+    captionAlpha: () -> Float = { 1f },
 ) {
-    Card(
+    val track = item.recommendation
+    val isPlaying = isTrackPlaying(track.videoId)
+
+    Column(
         modifier =
             modifier
-                .width(320.dp)
-                .fillMaxHeight()
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ),
-        shape = RoundedCornerShape(28.dp),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            ),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+        ) {
             AsyncImage(
-                model = item.recommendation.highResThumbnailUrl,
+                model = track.highResThumbnailUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush =
-                                Brush.verticalGradient(
-                                    colors =
-                                        listOf(
-                                            musicScrim(0.28f),
-                                            Color.Transparent,
-                                            musicScrim(0.65f),
-                                            musicScrim(0.92f),
-                                        ),
-                                ),
-                        ),
-            )
-
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(22.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(R.string.daily_discover_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = musicScrimContent(0.78f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Column {
-                    Text(
-                        text = item.recommendation.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MusicScrimContent,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = item.recommendation.artist,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = musicScrimContent(0.8f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+            if (isPlaying) {
+                MusicNowPlayingOverlay()
             }
             if (isDownloaded) {
-                Icon(
-                    imageVector = Icons.Rounded.OfflinePin,
-                    contentDescription = stringResource(R.string.status_downloaded),
-                    tint = MusicScrimContent,
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
                     modifier =
                         Modifier
-                            .padding(14.dp)
-                            .align(androidx.compose.ui.Alignment.TopEnd),
-                )
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp),
+                ) {
+                    MusicDownloadedBadge(modifier = Modifier.padding(6.dp))
+                }
             }
+        }
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(DailyDiscoverCaptionHeight)
+                    .graphicsLayer { alpha = captionAlpha() }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Text(
+                text = track.title,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = track.artist,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

@@ -1,60 +1,60 @@
 package io.github.aedev.flow.ui.screens.music
 
 import android.content.Intent
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.music.model.MUSIC_GENRE_SOURCE_PREFIX
 import io.github.aedev.flow.data.music.model.MusicItemType
-import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
+import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.TabScrollEventBus
-import io.github.aedev.flow.ui.components.*
+import io.github.aedev.flow.ui.components.MusicScreenShimmerLoading
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.music.common.MusicChartRankBadge
+import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
 import io.github.aedev.flow.ui.components.music.common.MusicErrorState
-import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
-import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
-import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
-import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
-import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
-import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.HomeSectionType
 import io.github.aedev.flow.ui.components.music.section.musicHomeFeed
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
-import io.github.aedev.flow.ui.theme.Dimensions
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
+import java.util.Random
+
+private val FeedBottomClearance = 96.dp
 
 private fun MusicTrack.isAudioMusicCandidate(): Boolean {
     val usableDuration = duration == 0 || duration in 30..1200
@@ -63,7 +63,7 @@ private fun MusicTrack.isAudioMusicCandidate(): Boolean {
 
 private fun List<MusicTrack>.audioMusicOnly(): List<MusicTrack> = filter { it.isAudioMusicCandidate() }.distinctBy { it.videoId }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun EnhancedMusicScreen(
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
@@ -72,7 +72,8 @@ fun EnhancedMusicScreen(
     onSearchClick: () -> Unit = {},
     onRecognizeClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
-    onMoodsClick: (io.github.aedev.flow.innertube.pages.MoodAndGenres.Item?) -> Unit = {},
+    onMoodsClick: (MoodAndGenres.Item?) -> Unit = {},
+    bottomNavOverlayPadding: () -> Dp = { 0.dp },
     viewModel: MusicViewModel = sharedMusicViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -84,7 +85,7 @@ fun EnhancedMusicScreen(
     // a cold brain has nothing personal to say, a mature one leads with taste.
     val sectionOrder =
         remember(uiState.sessionSeed, uiState.brainMaturity) {
-            val defaultOrder = HomeSectionType.values().toList()
+            val defaultOrder = HomeSectionType.entries
             val anchored =
                 when (uiState.brainMaturity) {
                     "cold_start" -> {
@@ -112,7 +113,7 @@ fun EnhancedMusicScreen(
                     }
                 }
             val dynamicPool = defaultOrder - anchored
-            anchored + dynamicPool.shuffled(java.util.Random(uiState.sessionSeed))
+            anchored + dynamicPool.shuffled(Random(uiState.sessionSeed))
         }
 
     // Scroll to top and refresh when tapping the music tab while already on this screen
@@ -169,19 +170,32 @@ fun EnhancedMusicScreen(
         )
     }
 
+    val bottomChrome = bottomNavOverlayPadding() + LocalMusicMiniPlayerInset.current
+    val fabLift by
+        animateDpAsState(
+            targetValue = bottomChrome,
+            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+            label = "musicRecognizeFabLift",
+        )
+
     Scaffold(
         topBar = {
             FlowTopBar(
                 title = stringResource(R.string.screen_title_music),
                 actions = {
-                    IconButton(onClick = onRecognizeClick) {
-                        Icon(Icons.Outlined.Mic, stringResource(R.string.recognize_music))
-                    }
                     IconButton(onClick = onSearchClick) {
                         Icon(Icons.Outlined.Search, stringResource(R.string.search))
                     }
                 },
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onRecognizeClick,
+                modifier = Modifier.padding(bottom = fabLift),
+            ) {
+                Icon(Icons.Rounded.Mic, stringResource(R.string.recognize_music))
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0.dp),
@@ -227,19 +241,25 @@ fun EnhancedMusicScreen(
                         remember(uiState.forYouTracks) {
                             uiState.forYouTracks.audioMusicOnly().take(20)
                         }
+                    val pullState = rememberPullToRefreshState()
 
                     PullToRefreshBox(
                         isRefreshing = uiState.isLoading,
                         onRefresh = { viewModel.refresh() },
+                        state = pullState,
                         modifier = Modifier.fillMaxSize(),
+                        indicator = {
+                            PullToRefreshDefaults.LoadingIndicator(
+                                state = pullState,
+                                isRefreshing = uiState.isLoading,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            )
+                        },
                     ) {
                         LazyColumn(
                             state = musicListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding =
-                                PaddingValues(
-                                    bottom = 80.dp,
-                                ),
+                            contentPadding = PaddingValues(bottom = bottomChrome + FeedBottomClearance),
                         ) {
                             musicHomeFeed(
                                 uiState = uiState,
@@ -268,21 +288,3 @@ fun EnhancedMusicScreen(
         }
     }
 }
-
-private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
-    MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = author,
-        thumbnailUrl = thumbnailUrl,
-        description = if (trackCount > 0) "$trackCount tracks" else author,
-        isAlbum = isAlbum,
-    )
-
-private fun rotationTitleRes(bucket: MusicTimeBucket): Int =
-    when (bucket) {
-        MusicTimeBucket.WEEKDAY_MORNING, MusicTimeBucket.WEEKEND_MORNING -> R.string.section_rotation_morning
-        MusicTimeBucket.WEEKDAY_AFTERNOON, MusicTimeBucket.WEEKEND_AFTERNOON -> R.string.section_rotation_afternoon
-        MusicTimeBucket.WEEKDAY_EVENING, MusicTimeBucket.WEEKEND_EVENING -> R.string.section_rotation_evening
-        MusicTimeBucket.WEEKDAY_NIGHT, MusicTimeBucket.WEEKEND_NIGHT -> R.string.section_rotation_night
-    }

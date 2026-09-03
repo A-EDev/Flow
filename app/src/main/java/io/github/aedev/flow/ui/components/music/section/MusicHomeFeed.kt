@@ -7,17 +7,11 @@
 package io.github.aedev.flow.ui.components.music.section
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -30,9 +24,11 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.innertube.pages.HomePage
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
+import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
+import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 import io.github.aedev.flow.ui.screens.music.MusicUiState
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 
@@ -76,7 +72,7 @@ fun LazyListScope.musicHomeFeed(
     fun collectionMenu(
         collection: MusicPlaylist,
         isAlbum: Boolean,
-    ) = onCollectionMenu(collection.toActionItem(isAlbum))
+    ) = onCollectionMenu(collection.toCollectionActionItem(isAlbum))
 
     if (uiState.listenAgain.isNotEmpty()) {
         item(key = "listen_again") {
@@ -103,7 +99,7 @@ fun LazyListScope.musicHomeFeed(
 
     if (uiState.selectedFilter != null) {
         if (uiState.isSearching) {
-            item(key = "filter_loading") { FeedProgress() }
+            item(key = "filter_loading") { MusicFeedProgress() }
         } else {
             items(uiState.allSongs.distinctBy { it.videoId }, key = { "filtered:${it.videoId}" }) { track ->
                 MusicTrackItem(
@@ -281,8 +277,10 @@ fun LazyListScope.musicHomeFeed(
                         MusicArtistShelf(
                             title = stringResource(R.string.section_popular_artists),
                             artists = popularArtists,
-                            keyNamespace = "popular_artists",
-                            onArtistClick = onArtistClick,
+                            key = { "popular_artists:${it.videoId}" },
+                            name = { it.artist },
+                            thumbnailUrl = { it.thumbnailUrl },
+                            onArtistClick = { onArtistClick(it.channelId) },
                         )
                     }
                 }
@@ -316,7 +314,7 @@ fun LazyListScope.musicHomeFeed(
     if (uiState.homeContinuation != null) {
         item(key = "home_continuation") {
             LaunchedEffect(Unit) { onLoadMore() }
-            if (uiState.isMoreLoading) FeedProgress() else Box(modifier = Modifier.height(0.dp))
+            if (uiState.isMoreLoading) MusicFeedProgress() else Box(modifier = Modifier.height(0.dp))
         }
     }
 }
@@ -463,7 +461,7 @@ private fun LazyListScope.community(
             playlists = playlists,
             downloadedTrackIds = downloaded,
             onPlaylistClick = { onAlbumClick(it.playlist.id) },
-            onPlaylistAction = { onCollectionMenu(it.playlist.toActionItem(isAlbum = false)) },
+            onPlaylistAction = { onCollectionMenu(it.playlist.toCollectionActionItem(isAlbum = false)) },
             onTrackClick = { track, tracks -> onSongClick(track, tracks, "from_the_community") },
             onTrackMenu = onTrackMenu,
         )
@@ -602,16 +600,6 @@ private fun String.isDuplicateOfADedicatedShelf(): Boolean =
         "Listen again",
     ).any { contains(it, ignoreCase = true) }
 
-private fun MusicPlaylist.toActionItem(isAlbum: Boolean): MusicCollectionActionItem =
-    MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = author,
-        thumbnailUrl = thumbnailUrl,
-        description = if (trackCount > 0) "$trackCount tracks" else author,
-        isAlbum = isAlbum,
-    )
-
 private fun rotationTitleRes(bucket: MusicTimeBucket): Int =
     when (bucket) {
         MusicTimeBucket.WEEKDAY_MORNING, MusicTimeBucket.WEEKEND_MORNING -> R.string.section_rotation_morning
@@ -619,20 +607,3 @@ private fun rotationTitleRes(bucket: MusicTimeBucket): Int =
         MusicTimeBucket.WEEKDAY_EVENING, MusicTimeBucket.WEEKEND_EVENING -> R.string.section_rotation_evening
         MusicTimeBucket.WEEKDAY_NIGHT, MusicTimeBucket.WEEKEND_NIGHT -> R.string.section_rotation_night
     }
-
-@androidx.compose.runtime.Composable
-private fun FeedProgress() {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(32.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(24.dp),
-            strokeWidth = 2.dp,
-            color = MaterialTheme.colorScheme.primary,
-        )
-    }
-}

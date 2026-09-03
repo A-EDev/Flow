@@ -2,30 +2,27 @@ package io.github.aedev.flow.ui.components.music.section
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.rounded.OfflinePin
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,243 +31,173 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
+import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
+import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
+import io.github.aedev.flow.ui.components.music.common.musicGridCellWidth
+import io.github.aedev.flow.ui.components.music.common.musicGridColumns
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
-import io.github.aedev.flow.ui.theme.MusicScrimContent
-import io.github.aedev.flow.ui.theme.musicScrim
+import io.github.aedev.flow.ui.theme.Dimensions
 
-@OptIn(ExperimentalFoundationApi::class)
+private val SpeedDialRowHeight = 64.dp
+private val SpeedDialGap = 8.dp
+private const val SPEED_DIAL_ROWS = 2
+private const val SPEED_DIAL_MAX_TRACKS = 12
+
+/**
+ * Two rows of compact tiles the listener reaches for most, led by a shuffle tile. The column
+ * count follows the window width, so the section is the same height on every device.
+ */
 @Composable
 fun SpeedDialSection(
     speedDialTracks: List<MusicTrack>,
-    downloadedTrackIds: Set<String> = emptySet(),
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
-    onTrackMenu: (MusicTrack) -> Unit = {},
     modifier: Modifier = Modifier,
+    downloadedTrackIds: Set<String> = emptySet(),
+    onTrackMenu: (MusicTrack) -> Unit = {},
 ) {
     if (speedDialTracks.isEmpty()) return
 
-    val pageCount =
-        remember(speedDialTracks) {
-            1 + ((speedDialTracks.size - 8).coerceAtLeast(0) + 8) / 9
-        }
-    val pagerState = rememberPagerState(pageCount = { pageCount })
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    val horizontalPadding = 24.dp
-    val gap = 8.dp
-    val itemSize = (screenWidth - horizontalPadding - gap * 2) / 3
+    val tiles = remember(speedDialTracks) { speedDialTracks.distinctBy { it.videoId }.take(SPEED_DIAL_MAX_TRACKS) }
+    val columns = musicGridColumns(compact = 2, medium = 3, expanded = 4)
+    val cellWidth = musicGridCellWidth(columns = columns, gap = SpeedDialGap)
 
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp, bottom = 10.dp),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         MusicSectionHeader(title = stringResource(R.string.section_speed_dial))
-
-        HorizontalPager(
-            state = pagerState,
+        LazyHorizontalGrid(
+            rows = GridCells.Fixed(SPEED_DIAL_ROWS),
+            contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
+            horizontalArrangement = Arrangement.spacedBy(SpeedDialGap),
+            verticalArrangement = Arrangement.spacedBy(SpeedDialGap),
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(itemSize * 3 + gap * 2),
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            pageSpacing = 12.dp,
-        ) { page ->
-            val pageTracks =
-                if (page == 0) {
-                    speedDialTracks.take(8)
-                } else {
-                    speedDialTracks.drop(8 + (page - 1) * 9).take(9)
-                }
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(gap),
-            ) {
-                for (rowIndex in 0 until 3) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(gap),
-                    ) {
-                        for (colIndex in 0 until 3) {
-                            val slotIndex = rowIndex * 3 + colIndex
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f),
-                            ) {
-                                if (page == 0 && slotIndex == 8) {
-                                    RandomizeSpeedDialCard(
-                                        onClick = {
-                                            val shuffled = speedDialTracks.shuffled()
-                                            if (shuffled.isNotEmpty()) {
-                                                onSongClick(shuffled.first(), shuffled, "speed_dial_shuffle")
-                                            }
-                                        },
-                                    )
-                                } else {
-                                    pageTracks.getOrNull(slotIndex)?.let { track ->
-                                        SpeedDialArtworkCard(
-                                            track = track,
-                                            isDownloaded = downloadedTrackIds.contains(track.videoId),
-                                            onClick = { onSongClick(track, speedDialTracks, "speed_dial") },
-                                            onLongClick = { onTrackMenu(track) },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                    .height(SpeedDialRowHeight * SPEED_DIAL_ROWS + SpeedDialGap * (SPEED_DIAL_ROWS - 1)),
+        ) {
+            item(key = "speed_dial_shuffle") {
+                SpeedDialShuffleTile(
+                    onClick = {
+                        val shuffled = speedDialTracks.shuffled()
+                        onSongClick(shuffled.first(), shuffled, "speed_dial_shuffle")
+                    },
+                    modifier = Modifier.width(cellWidth),
+                )
             }
-        }
-
-        if (pageCount > 1) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                Modifier
-                    .wrapContentHeight()
-                    .fillMaxWidth()
-                    .align(Alignment.CenterHorizontally),
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                repeat(pageCount) { iteration ->
-                    val color =
-                        if (pagerState.currentPage == iteration) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        }
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(4.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .size(6.dp),
-                    )
-                }
+            items(items = tiles, key = { "speed_dial:${it.videoId}" }) { track ->
+                SpeedDialTile(
+                    track = track,
+                    isDownloaded = downloadedTrackIds.contains(track.videoId),
+                    onClick = { onSongClick(track, speedDialTracks, "speed_dial") },
+                    onLongClick = { onTrackMenu(track) },
+                    modifier = Modifier.width(cellWidth),
+                )
             }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SpeedDialArtworkCard(
+private fun SpeedDialTile(
     track: MusicTrack,
-    isDownloaded: Boolean = false,
+    isDownloaded: Boolean,
     onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
+    val isPlaying = isTrackPlaying(track.videoId)
+
+    Row(
         modifier =
             modifier
-                .fillMaxSize()
+                .fillMaxHeight()
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .aspectRatio(1f),
+        ) {
             AsyncImage(
-                model = track.highResThumbnailUrl,
+                model = track.thumbnailUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    musicScrim(0.12f),
-                                    Color.Transparent,
-                                    musicScrim(0.72f),
-                                ),
-                            ),
-                        ),
-            )
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MusicScrimContent,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(12.dp),
-            )
-            if (isDownloaded) {
-                Icon(
-                    imageVector = Icons.Rounded.OfflinePin,
-                    contentDescription = stringResource(R.string.status_downloaded),
-                    tint = MusicScrimContent,
-                    modifier =
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(10.dp)
-                            .size(18.dp),
-                )
+            if (isPlaying) {
+                MusicNowPlayingOverlay(waveformWidth = 20.dp, waveformHeight = 16.dp)
             }
+        }
+        Text(
+            text = track.title,
+            style = MaterialTheme.typography.labelLargeEmphasized,
+            color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+        )
+        if (isDownloaded) {
+            MusicDownloadedBadge(modifier = Modifier.padding(end = 12.dp))
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun RandomizeSpeedDialCard(
+private fun SpeedDialShuffleTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxSize(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        onClick = onClick,
+    Row(
+        modifier =
+            modifier
+                .fillMaxHeight()
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.tertiaryContainer)
+                .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .aspectRatio(1f),
             contentAlignment = Alignment.Center,
         ) {
-            val dotColor = MaterialTheme.colorScheme.onSecondaryContainer
-            val dotSize = 14.dp
-            val dotPadding = 28.dp
-            listOf(
-                Alignment.TopStart,
-                Alignment.TopEnd,
-                Alignment.Center,
-                Alignment.BottomStart,
-                Alignment.BottomEnd,
-            ).forEach { alignment ->
-                Box(
-                    modifier =
-                        Modifier
-                            .align(alignment)
-                            .padding(dotPadding)
-                            .size(dotSize)
-                            .clip(CircleShape)
-                            .background(dotColor),
-                )
-            }
+            Icon(
+                imageVector = Icons.Rounded.Shuffle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(28.dp),
+            )
         }
+        Text(
+            text = stringResource(R.string.shuffle_play),
+            style = MaterialTheme.typography.labelLargeEmphasized,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(end = 12.dp),
+        )
     }
 }
