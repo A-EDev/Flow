@@ -39,6 +39,13 @@ import kotlinx.coroutines.flow.map
 val LocalPlayingVideoId: ProvidableCompositionLocal<String?> = compositionLocalOf { null }
 
 /**
+ * True only while audio is actually playing and the music surfaces are the visible layer. The
+ * now-playing bars animate on this and sit still otherwise, so a paused track, or a track playing
+ * behind the expanded player, never keeps every list that shows it burning frames.
+ */
+val LocalMusicNowPlayingAnimates: ProvidableCompositionLocal<Boolean> = compositionLocalOf { false }
+
+/**
  * Height the collapsed music player currently takes at the bottom of the window, or zero when it
  * is dismissed or expanded. Anything floating at the bottom of a music screen lifts by this much.
  */
@@ -48,11 +55,13 @@ val LocalMusicMiniPlayerInset: ProvidableCompositionLocal<Dp> = compositionLocal
  * Publishes the playing track id to every music item below it.
  *
  * Collected once, here, and mapped down to the id so the value only changes on an actual track
- * change rather than on every emission of the same track.
+ * change rather than on every emission of the same track. [surfacesVisible] is false while a
+ * player sheet covers the screens underneath.
  */
 @Composable
 fun ProvideMusicPlaybackState(
     miniPlayerInset: Dp = 0.dp,
+    surfacesVisible: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val playingIdFlow =
@@ -61,10 +70,18 @@ fun ProvideMusicPlaybackState(
                 .map { it?.videoId }
                 .distinctUntilChanged()
         }
+    val isPlayingFlow =
+        remember {
+            EnhancedMusicPlayerManager.playerState
+                .map { it.isPlaying }
+                .distinctUntilChanged()
+        }
     val playingVideoId by playingIdFlow.collectAsStateWithLifecycle(initialValue = null)
+    val isPlaying by isPlayingFlow.collectAsStateWithLifecycle(initialValue = false)
 
     CompositionLocalProvider(
         LocalPlayingVideoId provides playingVideoId,
+        LocalMusicNowPlayingAnimates provides (isPlaying && surfacesVisible),
         LocalMusicMiniPlayerInset provides miniPlayerInset,
         content = content,
     )
@@ -95,6 +112,7 @@ fun BoxScope.MusicNowPlayingOverlay(
     ) {
         PlayingWaveform(
             color = color,
+            animate = LocalMusicNowPlayingAnimates.current,
             modifier = Modifier.size(width = waveformWidth, height = waveformHeight),
         )
     }

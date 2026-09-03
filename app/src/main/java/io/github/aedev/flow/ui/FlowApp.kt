@@ -505,7 +505,10 @@ fun FlowApp(
                 label = "bottomNavContentPadding",
             )
 
-            ProvideMusicPlaybackState(miniPlayerInset = musicMiniPlayerInset) {
+            ProvideMusicPlaybackState(
+                miniPlayerInset = musicMiniPlayerInset,
+                surfacesVisible = !musicPlayerSheetState.isExpanded && playerSheetState.currentValue != PlayerSheetValue.Expanded,
+            ) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor =

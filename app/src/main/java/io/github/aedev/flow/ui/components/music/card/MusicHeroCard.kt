@@ -7,7 +7,6 @@
 package io.github.aedev.flow.ui.components.music.card
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -32,6 +31,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
+import io.github.aedev.flow.ui.components.music.common.musicTitleMarquee
 
 val MusicHeroCaptionHeight = 60.dp
 
@@ -116,7 +116,7 @@ fun MusicHeroCard(
                 color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
-                modifier = Modifier.basicMarquee(),
+                modifier = Modifier.musicTitleMarquee(),
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(

@@ -7,7 +7,6 @@
 package io.github.aedev.flow.ui.components.music.item
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -42,6 +41,7 @@ import io.github.aedev.flow.ui.components.currentGridThumbnailHeight
 import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
+import io.github.aedev.flow.ui.components.music.common.musicTitleMarquee
 
 /**
  * The single grid card for anything that is not a single track — albums, playlists, artists,
@@ -117,7 +117,7 @@ fun MusicCollectionCard(
             textAlign = textAlign,
             maxLines = 1,
             overflow = TextOverflow.Clip,
-            modifier = Modifier.basicMarquee(),
+            modifier = Modifier.musicTitleMarquee(),
         )
 
         if (!subtitle.isNullOrBlank()) {

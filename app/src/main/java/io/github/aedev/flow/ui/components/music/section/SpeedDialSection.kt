@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.components.music.section
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +43,7 @@ import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 import io.github.aedev.flow.ui.components.music.common.musicGridCellWidth
 import io.github.aedev.flow.ui.components.music.common.musicGridColumns
+import io.github.aedev.flow.ui.components.music.common.musicTitleMarquee
 import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.theme.Dimensions
@@ -161,7 +161,7 @@ private fun SpeedDialTile(
                 color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
-                modifier = Modifier.basicMarquee(),
+                modifier = Modifier.musicTitleMarquee(),
             )
             Text(
                 text = track.artist,

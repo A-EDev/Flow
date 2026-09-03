@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+private val RestingBarFractions = listOf(0.35f, 0.9f, 0.55f, 0.75f)
+
 /**
  * The "now playing" equaliser bars.
  *
@@ -26,6 +28,10 @@ import androidx.compose.ui.unit.dp
  * every animation frame, continuously for as long as audio played — including inside list items
  * while the user scrolled. Reading the animation in the draw scope keeps each frame to a redraw.
  *
+ * With [animate] false the bars sit at fixed heights and no frame work runs at all: callers pass
+ * it whenever audio is paused or their layer is hidden, so a paused track does not keep every list
+ * that shows it animating.
+ *
  * This replaces three near-identical copies that had drifted apart in bar count, size and timing;
  * the call sites keep their own appearance through the parameters below.
  */
@@ -33,6 +39,7 @@ import androidx.compose.ui.unit.dp
 fun PlayingWaveform(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
+    animate: Boolean = true,
     barCount: Int = 4,
     barWidth: Dp = 3.dp,
     barSpacing: Dp = 2.dp,
@@ -41,24 +48,34 @@ fun PlayingWaveform(
     cycleMillis: Int = 350,
     staggerMillis: Int = 100,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "waveform")
-    val bars =
-        List(barCount) { index ->
-            infiniteTransition.animateFloat(
-                initialValue = minBarHeight.value,
-                targetValue = maxBarHeight.value,
-                animationSpec =
-                    infiniteRepeatable(
-                        animation =
-                            tween(
-                                durationMillis = cycleMillis,
-                                delayMillis = index * staggerMillis,
-                                easing = FastOutSlowInEasing,
+    val barHeights: List<() -> Float> =
+        if (animate) {
+            val infiniteTransition = rememberInfiniteTransition(label = "waveform")
+            List(barCount) { index ->
+                val bar =
+                    infiniteTransition.animateFloat(
+                        initialValue = minBarHeight.value,
+                        targetValue = maxBarHeight.value,
+                        animationSpec =
+                            infiniteRepeatable(
+                                animation =
+                                    tween(
+                                        durationMillis = cycleMillis,
+                                        delayMillis = index * staggerMillis,
+                                        easing = FastOutSlowInEasing,
+                                    ),
+                                repeatMode = RepeatMode.Reverse,
                             ),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                label = "bar$index",
-            )
+                        label = "bar$index",
+                    )
+                ({ bar.value })
+            }
+        } else {
+            List(barCount) { index ->
+                val fraction = RestingBarFractions[index % RestingBarFractions.size]
+                val height = minBarHeight.value + (maxBarHeight.value - minBarHeight.value) * fraction
+                ({ height })
+            }
         }
 
     Canvas(
@@ -72,8 +89,8 @@ fun PlayingWaveform(
         val spacingPx = barSpacing.toPx()
         // Matches the RoundedCornerShape(barWidth / 2) the Box versions used.
         val cornerRadius = CornerRadius(barWidthPx / 2f)
-        bars.forEachIndexed { index, bar ->
-            val barHeightPx = bar.value.dp.toPx()
+        barHeights.forEachIndexed { index, barHeight ->
+            val barHeightPx = barHeight().dp.toPx()
             drawRoundRect(
                 color = color,
                 topLeft =
