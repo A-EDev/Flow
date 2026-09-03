@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicItemType
@@ -171,7 +173,7 @@ fun EnhancedMusicScreen(
     }
 
     val bottomChrome = bottomNavOverlayPadding() + LocalMusicMiniPlayerInset.current
-    val fabLift by
+    val fabLift =
         animateDpAsState(
             targetValue = bottomChrome,
             animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
@@ -192,7 +194,7 @@ fun EnhancedMusicScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onRecognizeClick,
-                modifier = Modifier.padding(bottom = fabLift),
+                modifier = Modifier.offset { IntOffset(x = 0, y = -fabLift.value.roundToPx()) },
             ) {
                 Icon(Icons.Rounded.Mic, stringResource(R.string.recognize_music))
             }
