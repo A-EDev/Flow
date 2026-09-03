@@ -1,55 +1,45 @@
 package io.github.aedev.flow.ui.screens.library
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.ShortsCard
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
-import kotlinx.coroutines.flow.collectLatest
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val GridCellMinWidth = 160.dp
+private val GridSpacing = 12.dp
+private val GridContentPadding = PaddingValues(16.dp)
+
 @Composable
 fun SavedShortsGridScreen(
     onBackClick: () -> Unit,
     onVideoClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: SavedShortsViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-    val repository = remember { PlaylistRepository(context) }
-    var savedShorts by remember { mutableStateOf<List<Video>>(emptyList()) }
-
-    LaunchedEffect(Unit) {
-        repository.getVideoOnlySavedShortsFlow().collectLatest { videos ->
-            savedShorts = videos
-        }
-    }
+    val savedShorts by viewModel.savedShorts.collectAsStateWithLifecycle()
 
     Scaffold(
+        modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             FlowTopBar(
@@ -60,122 +50,31 @@ fun SavedShortsGridScreen(
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         if (savedShorts.isEmpty()) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier =
-                            Modifier
-                                .size(64.dp)
-                                .padding(bottom = 16.dp),
-                        tint = MaterialTheme.colorScheme.surfaceVariant,
-                    )
-                    Text(
-                        stringResource(R.string.empty_saved_shorts),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            FlowEmptyState(
+                modifier = Modifier.padding(padding),
+                title = stringResource(R.string.empty_saved_shorts),
+                icon = Icons.Default.PlayArrow,
+            )
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 160.dp),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                columns = GridCells.Adaptive(GridCellMinWidth),
+                contentPadding = GridContentPadding,
+                horizontalArrangement = Arrangement.spacedBy(GridSpacing),
+                verticalArrangement = Arrangement.spacedBy(GridSpacing),
                 modifier = Modifier.padding(padding),
             ) {
-                items(savedShorts, key = { it.id }) { video ->
-                    SavedShortCard(video = video, onClick = { onVideoClick(video.id) })
+                items(
+                    items = savedShorts,
+                    key = Video::id,
+                    contentType = { "short" },
+                ) { video ->
+                    ShortsCard(
+                        video = video,
+                        onClick = { onVideoClick(video.id) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun SavedShortCard(
-    video: Video,
-    onClick: () -> Unit,
-) {
-    Card(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(9f / 16f)
-                .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Thumbnail
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = video.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-
-            // Gradient Overlay
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors =
-                                    listOf(
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.3f),
-                                        Color.Black.copy(alpha = 0.8f),
-                                    ),
-                                startY = 100f,
-                            ),
-                        ),
-            )
-
-            // Content
-            Column(
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(12.dp),
-            ) {
-                Text(
-                    text = video.title,
-                    style =
-                        MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                        ),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = video.channelName,
-                    style =
-                        MaterialTheme.typography.labelSmall.copy(
-                            color = Color.White.copy(alpha = 0.8f),
-                        ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            ShortWatchedIndicator(videoId = video.id)
         }
     }
 }

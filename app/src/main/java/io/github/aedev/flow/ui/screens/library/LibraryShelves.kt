@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -33,6 +36,10 @@ import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.ShortsCard
+import io.github.aedev.flow.ui.components.shared.ShimmerBone
+
+private const val PLACEHOLDER_CARD_COUNT = 2
+private const val PLACEHOLDER_STAGGER_MS = 120
 
 @Composable
 internal fun LibraryShelf(
@@ -172,6 +179,58 @@ internal fun LibraryShortsShelf(
     LibraryShelf(title = title, onTitleClick = onTitleClick) {
         items(shorts, key = Video::id, contentType = { "short" }) { short ->
             ShortsCard(video = short, onClick = { onShortClick(short) })
+        }
+    }
+}
+
+@Composable
+internal fun LibraryShelfPlaceholder(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            repeat(PLACEHOLDER_CARD_COUNT) { index ->
+                Column(
+                    modifier = Modifier.width(LibraryShelfCardWidth),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ShimmerBone(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f),
+                        shape = MaterialTheme.shapes.medium,
+                        delayMillis = index * PLACEHOLDER_STAGGER_MS,
+                    )
+                    ShimmerBone(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(14.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
+                        delayMillis = index * PLACEHOLDER_STAGGER_MS,
+                    )
+                }
+            }
         }
     }
 }

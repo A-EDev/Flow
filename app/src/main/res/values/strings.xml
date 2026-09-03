@@ -1901,6 +1901,8 @@
     <string name="delete_download_dialog_text">%1$s will be removed from this device.</string>
     <string name="library_empty_title">Your library is empty</string>
     <string name="library_empty_body">Videos and music you watch, like, save or download will collect here.</string>
+    <string name="playlist_load_failed">Could not load this playlist</string>
+    <string name="library_settings_subtitle">Playback, downloads, appearance and data</string>
     <string name="remove_incomplete_downloads">Remove incomplete downloads</string>
     <plurals name="remove_incomplete_downloads_message">
         <item quantity="one">Remove %1$d paused, failed, or partial download? Completed downloads will not be touched.</item>

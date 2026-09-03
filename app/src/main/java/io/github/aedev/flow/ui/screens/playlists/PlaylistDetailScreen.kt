@@ -1,85 +1,129 @@
 package io.github.aedev.flow.ui.screens.playlists
 
 import android.content.Context
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.EaseInCubic
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Downloading
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CheckBox
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.PlaylistRepository
-import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.music.YouTubeMusicService
-import io.github.aedev.flow.player.stream.AudioStreamSelector
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
+import io.github.aedev.flow.ui.components.shared.CollectionTarget
+import io.github.aedev.flow.ui.components.shared.DeleteCollectionDialog
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.MediaRow
+import io.github.aedev.flow.ui.components.shared.MediaRowAction
+import io.github.aedev.flow.ui.components.shared.MediaThumbnail
+import io.github.aedev.flow.ui.components.shared.MergeIntoCollectionSheet
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
-import io.github.aedev.flow.ui.components.shared.ThumbnailWatchProgress
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 import io.github.aedev.flow.utils.DateContext
-import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate
 import io.github.aedev.flow.utils.formatViewCount
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private val HeaderPadding: Dp = 16.dp
+private val HeaderArtworkWidthFraction = 0.95f
+private val ActionButtonSize: Dp = 48.dp
+private val ActionIconSize: Dp = 24.dp
+private val ListBottomPadding: Dp = 16.dp
+private val PositionColumnWidth: Dp = 20.dp
+private val SortSheetRowPadding = PaddingValues(horizontal = 24.dp, vertical = 18.dp)
+private val SortSheetBottomPadding: Dp = 24.dp
+private const val ARTWORK_PLACEHOLDER_ALPHA = 0.5f
+
 @Composable
 fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit,
@@ -89,38 +133,47 @@ fun PlaylistDetailScreen(
     onChannelClick: ((String) -> Unit)? = null,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val isDownloadingPlaylist by viewModel.isDownloadingPlaylist.collectAsState()
-    val playlistDownloadProgress by viewModel.playlistDownloadProgress.collectAsState()
-    val currentDownloadingTitle by viewModel.currentDownloadingTitle.collectAsState()
-    val sortOrder by viewModel.sortOrder.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val sortedVideos by viewModel.sortedVideos.collectAsStateWithLifecycle()
+    val isDownloadingPlaylist by viewModel.isDownloadingPlaylist.collectAsStateWithLifecycle()
+    val playlistDownloadProgress by viewModel.playlistDownloadProgress.collectAsStateWithLifecycle()
+    val currentDownloadingTitle by viewModel.currentDownloadingTitle.collectAsStateWithLifecycle()
+    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    val mergeTargets by viewModel.userCreatedPlaylists.collectAsStateWithLifecycle()
 
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }
-    var showMergeDialog by remember { mutableStateOf(false) }
+    var showMergeSheet by remember { mutableStateOf(false) }
     var showDownloadAllDialog by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
+    var showRemoveSelectedDialog by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectionMode by remember { mutableStateOf(false) }
-    var showRemoveSelectedDialog by remember { mutableStateOf(false) }
+    var displayVideos by remember { mutableStateOf(sortedVideos) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val listState = rememberLazyListState()
+
     val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
     val canReorder = isUserCreatedPlaylist && sortOrder == PlaylistSortOrder.MANUAL
     val canModify = uiState.isLocalPlaylist
-    val inSelectionMode = selectionMode
     val exitSelection = {
         selectionMode = false
         selectedIds = emptySet()
     }
-    val listState = rememberLazyListState()
-    var displayVideos by remember { mutableStateOf(uiState.videos) }
-    var heroTitleBottomPx by remember { mutableIntStateOf(Int.MAX_VALUE) }
-    var topBarBottomPx by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(uiState.videos, sortOrder) {
-        displayVideos = uiState.videos.sortedForPlaylist(sortOrder)
-        selectedIds = selectedIds.intersect(uiState.videos.map { it.id }.toSet())
-        if (uiState.videos.isEmpty()) exitSelection()
+    LaunchedEffect(sortedVideos) {
+        displayVideos = sortedVideos
+        selectedIds = selectedIds.intersect(sortedVideos.mapTo(HashSet()) { it.id })
+        if (sortedVideos.isEmpty()) exitSelection()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { message ->
+            snackbarHostState.showSnackbar(message.resolve(context))
+        }
     }
 
     val reorderState =
@@ -142,241 +195,250 @@ fun PlaylistDetailScreen(
             },
         )
 
-    BackHandler(enabled = inSelectionMode) { exitSelection() }
+    BackHandler(enabled = selectionMode) { exitSelection() }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        val heroThumbnail = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl
-        val showCollapsedTopBarTitle by remember {
-            derivedStateOf {
-                heroTitleBottomPx <= topBarBottomPx
-            }
-        }
+    val showCollapsedTitle by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 0 }
+    }
 
-        if (heroThumbnail.isNotEmpty()) {
-            AsyncImage(
-                model = heroThumbnail,
-                contentDescription = null,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(420.dp)
-                        .blur(90.dp),
-                alpha = 0.55f,
-                contentScale = ContentScale.Crop,
-            )
-        }
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(420.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors =
-                                listOf(
-                                    Color.Black.copy(alpha = 0.35f),
-                                    Color.Black.copy(alpha = 0.42f),
-                                    MaterialTheme.colorScheme.background.copy(alpha = 0.88f),
-                                    MaterialTheme.colorScheme.background,
-                                ),
-                        ),
-                    ),
-        )
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(top = 420.dp)
-                    .background(MaterialTheme.colorScheme.background),
-        )
-
-        Scaffold(
-            topBar = {
-                PlaylistDetailTopBar(
-                    title = uiState.playlistName,
-                    showTitle = showCollapsedTopBarTitle,
-                    inSelectionMode = inSelectionMode,
-                    selectedCount = selectedIds.size,
-                    allSelected = selectedIds.size == displayVideos.size && displayVideos.isNotEmpty(),
-                    canSelect = canModify && displayVideos.isNotEmpty(),
-                    isUserCreatedPlaylist = isUserCreatedPlaylist,
-                    isWatchLater = uiState.isWatchLater,
-                    isSaved = uiState.isSaved,
-                    showOptionsMenu = showOptionsMenu,
-                    onNavigateBack = onNavigateBack,
-                    onEnterSelection = { selectionMode = true },
-                    onClearSelection = exitSelection,
-                    onSelectAll = {
-                        selectedIds =
-                            if (selectedIds.size == displayVideos.size) {
-                                emptySet()
-                            } else {
-                                displayVideos.map { it.id }.toSet()
-                            }
-                    },
-                    onDeleteSelected = { showRemoveSelectedDialog = true },
-                    onMergeClick = { showMergeDialog = true },
-                    onSaveToggle = {
-                        if (uiState.isSaved) {
-                            viewModel.unsaveFromLibrary()
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0.dp),
+        topBar = {
+            PlaylistDetailTopBar(
+                title = uiState.playlistName,
+                showTitle = showCollapsedTitle || selectionMode,
+                inSelectionMode = selectionMode,
+                selectedCount = selectedIds.size,
+                allSelected = selectedIds.size == displayVideos.size && displayVideos.isNotEmpty(),
+                canSelect = canModify && displayVideos.isNotEmpty(),
+                isUserCreatedPlaylist = isUserCreatedPlaylist,
+                isWatchLater = uiState.isWatchLater,
+                isSaved = uiState.isSaved,
+                isPrivate = uiState.isPrivate,
+                showOptionsMenu = showOptionsMenu,
+                onNavigateBack = onNavigateBack,
+                onEnterSelection = { selectionMode = true },
+                onClearSelection = exitSelection,
+                onSelectAll = {
+                    selectedIds =
+                        if (selectedIds.size == displayVideos.size) {
+                            emptySet()
                         } else {
-                            viewModel.saveToLibrary()
+                            displayVideos.mapTo(HashSet()) { it.id }
                         }
-                    },
-                    onOptionsClick = { showOptionsMenu = true },
-                    onOptionsDismiss = { showOptionsMenu = false },
-                    onEditClick = {
-                        showOptionsMenu = false
-                        showEditDialog = true
-                    },
-                    onDeletePlaylistClick = {
-                        showOptionsMenu = false
-                        showDeleteDialog = true
-                    },
-                    onTogglePrivacy = {
-                        showOptionsMenu = false
-                        viewModel.togglePrivacy()
-                    },
-                    isPrivate = uiState.isPrivate,
-                    onBottomPositioned = { topBarBottomPx = it },
-                )
-            },
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Color.Transparent,
-        ) { paddingValues ->
-            LazyColumn(
-                state = listState,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                contentPadding = PaddingValues(bottom = 16.dp),
-            ) {
-                item(key = "playlist-header", contentType = "header") {
-                    Column {
-                        PlaylistHeader(
-                            name = uiState.playlistName,
-                            description = uiState.description,
-                            videoCount = uiState.videos.size,
-                            thumbnailUrl = heroThumbnail,
-                            isPrivate = uiState.isPrivate,
-                            isWatchLater = uiState.isWatchLater,
-                            onPlayAll = {
-                                if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0)
-                            },
-                            onShuffle = {
-                                val shuffled = displayVideos.shuffled()
-                                if (shuffled.isNotEmpty()) onPlayPlaylist(shuffled, 0)
-                            },
-                            onDownloadAll = { showDownloadAllDialog = true },
-                            isDownloading = isDownloadingPlaylist,
-                            downloadProgress = playlistDownloadProgress,
-                            currentDownloadingTitle = currentDownloadingTitle,
-                            onTitleBottomPositioned = { heroTitleBottomPx = it },
-                        )
-                        PlaylistSortButton(
-                            sortOrder = sortOrder,
-                            onClick = { showSortSheet = true },
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                        )
-                    }
+                },
+                onDeleteSelected = { showRemoveSelectedDialog = true },
+                onMergeClick = { showMergeSheet = true },
+                onSaveToggle = {
+                    if (uiState.isSaved) viewModel.unsaveFromLibrary() else viewModel.saveToLibrary()
+                },
+                onOptionsClick = { showOptionsMenu = true },
+                onOptionsDismiss = { showOptionsMenu = false },
+                onEditClick = {
+                    showOptionsMenu = false
+                    showEditDialog = true
+                },
+                onDeletePlaylistClick = {
+                    showOptionsMenu = false
+                    showDeleteDialog = true
+                },
+                onTogglePrivacy = {
+                    showOptionsMenu = false
+                    viewModel.togglePrivacy()
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { paddingValues ->
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
                 }
+            }
 
-                if (displayVideos.isEmpty()) {
-                    item(key = "playlist-empty", contentType = "empty") {
-                        EmptyPlaylistState(
-                            modifier = Modifier.padding(32.dp),
-                            isWatchLater = uiState.isWatchLater,
-                        )
+            uiState.errorMessage != null -> {
+                FlowErrorState(
+                    error = uiState.errorMessage.orEmpty(),
+                    onRetry = viewModel::retry,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+
+            else -> {
+                LazyColumn(
+                    state = listState,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                    contentPadding = PaddingValues(bottom = ListBottomPadding),
+                ) {
+                    item(key = "playlist-header", contentType = "header") {
+                        Column {
+                            PlaylistHeader(
+                                name = uiState.playlistName,
+                                description = uiState.description,
+                                videoCount = uiState.videos.size,
+                                thumbnailUrl = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl,
+                                isPrivate = uiState.isPrivate,
+                                onPlayAll = {
+                                    if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0)
+                                },
+                                onShuffle = {
+                                    val shuffled = displayVideos.shuffled()
+                                    if (shuffled.isNotEmpty()) onPlayPlaylist(shuffled, 0)
+                                },
+                                onDownloadAll = { showDownloadAllDialog = true },
+                                isDownloading = isDownloadingPlaylist,
+                                downloadProgress = playlistDownloadProgress,
+                                currentDownloadingTitle = currentDownloadingTitle,
+                            )
+                            PlaylistSortButton(
+                                sortOrder = sortOrder,
+                                onClick = { showSortSheet = true },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                            )
+                        }
                     }
-                } else {
-                    itemsIndexed(
-                        items = displayVideos,
-                        key = { _, video -> video.id },
-                        contentType = { _, _ -> "playlist-video" },
-                    ) { index, video ->
-                        val isSelected = video.id in selectedIds
-                        PlaylistVideoItem(
-                            video = video,
-                            position = index + 1,
-                            isSelected = isSelected,
-                            inSelectionMode = inSelectionMode,
-                            canModify = canModify,
-                            reorderModifier = if (canReorder) reorderState.itemModifier(index) else Modifier,
-                            dragHandleModifier = if (canReorder && !inSelectionMode) reorderState.handleModifier(index) else Modifier,
-                            showDragHandle = canReorder,
-                            onVideoClick = {
-                                if (inSelectionMode) {
-                                    selectedIds = if (isSelected) selectedIds - video.id else selectedIds + video.id
-                                } else {
-                                    onPlayPlaylist(displayVideos, index)
-                                }
-                            },
-                            onRemove = { viewModel.removeVideo(video.id) },
-                            onChannelClick = onChannelClick,
-                            isWatchLater = uiState.isWatchLater,
-                            showAddedDate = isUserCreatedPlaylist,
-                        )
+
+                    if (displayVideos.isEmpty()) {
+                        item(key = "playlist-empty", contentType = "empty") {
+                            FlowEmptyState(
+                                title =
+                                    stringResource(
+                                        if (uiState.isWatchLater) {
+                                            R.string.no_videos_saved
+                                        } else {
+                                            R.string.playlist_empty_title
+                                        },
+                                    ),
+                                subtitle =
+                                    stringResource(
+                                        if (uiState.isWatchLater) {
+                                            R.string.no_videos_saved_body
+                                        } else {
+                                            R.string.playlist_empty_desc
+                                        },
+                                    ),
+                                icon =
+                                    if (uiState.isWatchLater) {
+                                        Icons.Default.WatchLater
+                                    } else {
+                                        Icons.AutoMirrored.Filled.PlaylistPlay
+                                    },
+                            )
+                        }
+                    } else {
+                        itemsIndexed(
+                            items = displayVideos,
+                            key = { _, video -> video.id },
+                            contentType = { _, _ -> "playlist-video" },
+                        ) { index, video ->
+                            val isSelected = video.id in selectedIds
+                            PlaylistVideoRow(
+                                modifier =
+                                    if (canReorder) {
+                                        Modifier
+                                    } else {
+                                        Modifier.animateItem(
+                                            fadeInSpec = tween(300, easing = EaseOutCubic),
+                                            fadeOutSpec = tween(200, easing = EaseInCubic),
+                                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessLow),
+                                        )
+                                    },
+                                video = video,
+                                position = index + 1,
+                                isSelected = isSelected,
+                                inSelectionMode = selectionMode,
+                                canModify = canModify,
+                                reorderModifier = if (canReorder) reorderState.itemModifier(index) else Modifier,
+                                dragHandleModifier =
+                                    if (canReorder && !selectionMode) {
+                                        reorderState.handleModifier(index)
+                                    } else {
+                                        Modifier
+                                    },
+                                showDragHandle = canReorder,
+                                showAddedDate = isUserCreatedPlaylist,
+                                isWatchLater = uiState.isWatchLater,
+                                onChannelClick = onChannelClick,
+                                onRemove = { viewModel.removeVideo(video.id) },
+                                onClick = {
+                                    if (selectionMode) {
+                                        selectedIds =
+                                            if (isSelected) selectedIds - video.id else selectedIds + video.id
+                                    } else {
+                                        onPlayPlaylist(displayVideos, index)
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
         }
     }
 
-    // Edit Dialog
     if (showEditDialog && uiState.playlistName.isNotEmpty()) {
-        EditPlaylistDialog(
-            name = uiState.playlistName,
-            description = uiState.description,
+        CollectionEditDialog(
+            title = stringResource(R.string.edit_playlist_action),
+            confirmLabel = stringResource(R.string.action_save),
+            initialName = uiState.playlistName,
+            initialDescription = uiState.description,
+            icon = Icons.Default.Edit,
             onDismiss = { showEditDialog = false },
-            onSave = { name, description ->
+            onConfirm = { name, description, _ ->
                 viewModel.updatePlaylist(name, description)
                 showEditDialog = false
             },
         )
     }
 
-    // Delete Confirmation Dialog
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            icon = { Icon(Icons.Default.Delete, null) },
-            title = { Text(stringResource(R.string.delete_playlist_dialog_title)) },
-            text = { Text(stringResource(R.string.delete_playlist_dialog_text, uiState.playlistName)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deletePlaylist()
-                        showDeleteDialog = false
-                        onNavigateBack()
-                    },
-                    colors =
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                ) {
-                    Text(stringResource(R.string.action_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
+        DeleteCollectionDialog(
+            collectionName = uiState.playlistName,
+            onDismiss = { showDeleteDialog = false },
+            onConfirm = {
+                viewModel.deletePlaylist()
+                showDeleteDialog = false
+                onNavigateBack()
             },
         )
     }
 
-    if (showMergeDialog) {
-        MergeIntoPlaylistDialog(
-            viewModel = viewModel,
-            onDismiss = { showMergeDialog = false },
+    if (showMergeSheet) {
+        MergeIntoCollectionSheet(
+            targets =
+                remember(mergeTargets) {
+                    mergeTargets.map {
+                        CollectionTarget(
+                            id = it.id,
+                            name = it.name,
+                            thumbnailUrl = it.thumbnailUrl,
+                            itemCount = it.videoCount,
+                        )
+                    }
+                },
+            placeholder = Icons.AutoMirrored.Filled.PlaylistPlay,
+            itemCountLabel = { pluralStringResource(R.plurals.songs_count_template, it, it) },
+            onSelect = { viewModel.mergeIntoPlaylist(it.id) },
+            onDismiss = { showMergeSheet = false },
         )
     }
 
     if (showDownloadAllDialog) {
         AlertDialog(
             onDismissRequest = { showDownloadAllDialog = false },
-            icon = { Icon(Icons.Default.Download, null) },
+            icon = { Icon(Icons.Default.Download, contentDescription = null) },
             title = { Text(stringResource(R.string.download_all)) },
             text = {
                 Text(
@@ -408,7 +470,13 @@ fun PlaylistDetailScreen(
     if (showRemoveSelectedDialog) {
         AlertDialog(
             onDismissRequest = { showRemoveSelectedDialog = false },
-            icon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+            icon = {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            },
             title = {
                 Text(
                     pluralStringResource(
@@ -435,7 +503,10 @@ fun PlaylistDetailScreen(
                         showRemoveSelectedDialog = false
                     },
                 ) {
-                    Text(stringResource(R.string.remove), color = MaterialTheme.colorScheme.error)
+                    Text(
+                        text = stringResource(R.string.remove),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             },
             dismissButton = {
@@ -469,6 +540,7 @@ private fun PlaylistDetailTopBar(
     isUserCreatedPlaylist: Boolean,
     isWatchLater: Boolean,
     isSaved: Boolean,
+    isPrivate: Boolean,
     showOptionsMenu: Boolean,
     onNavigateBack: () -> Unit,
     onEnterSelection: () -> Unit,
@@ -482,61 +554,16 @@ private fun PlaylistDetailTopBar(
     onEditClick: () -> Unit,
     onDeletePlaylistClick: () -> Unit,
     onTogglePrivacy: () -> Unit,
-    isPrivate: Boolean,
-    onBottomPositioned: (Int) -> Unit,
 ) {
-    val backgroundColor =
-        if (inSelectionMode || showTitle) {
-            MaterialTheme.colorScheme.background.copy(alpha = 0.92f)
-        } else {
-            Color.Transparent
-        }
-
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .onGloballyPositioned { coordinates ->
-                    onBottomPositioned(
-                        (coordinates.positionInRoot().y + coordinates.size.height).toInt(),
-                    )
-                },
-        color = backgroundColor,
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = if (inSelectionMode) onClearSelection else onNavigateBack) {
-                Icon(
-                    imageVector = if (inSelectionMode) Icons.Default.Close else Icons.Default.ArrowBack,
-                    contentDescription =
-                        if (inSelectionMode) {
-                            stringResource(R.string.cancel_selection)
-                        } else {
-                            stringResource(R.string.btn_back)
-                        },
-                )
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                if (inSelectionMode || showTitle) {
-                    Text(
-                        text =
-                            if (inSelectionMode) {
-                                pluralStringResource(R.plurals.selected_count_template, selectedCount, selectedCount)
-                            } else {
-                                title
-                            },
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
+    FlowTopBar(
+        title =
+            when {
+                inSelectionMode -> pluralStringResource(R.plurals.selected_count_template, selectedCount, selectedCount)
+                showTitle -> title
+                else -> ""
+            },
+        onBack = if (inSelectionMode) onClearSelection else onNavigateBack,
+        actions = {
             if (inSelectionMode) {
                 IconButton(onClick = onSelectAll) {
                     Icon(
@@ -568,7 +595,7 @@ private fun PlaylistDetailTopBar(
                 if (!isUserCreatedPlaylist) {
                     IconButton(onClick = onMergeClick) {
                         Icon(
-                            imageVector = Icons.Default.PlaylistAdd,
+                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                             contentDescription = stringResource(R.string.add_all_to_playlist),
                         )
                     }
@@ -590,7 +617,10 @@ private fun PlaylistDetailTopBar(
                 if (isUserCreatedPlaylist && !isWatchLater) {
                     Box {
                         IconButton(onClick = onOptionsClick) {
-                            Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = stringResource(R.string.more_options),
+                            )
                         }
                         DropdownMenu(
                             expanded = showOptionsMenu,
@@ -599,12 +629,12 @@ private fun PlaylistDetailTopBar(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.edit_playlist_action)) },
                                 onClick = onEditClick,
-                                leadingIcon = { Icon(Icons.Default.Edit, null) },
+                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.delete_playlist_action)) },
                                 onClick = onDeletePlaylistClick,
-                                leadingIcon = { Icon(Icons.Default.Delete, null) },
+                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                             )
                             DropdownMenuItem(
                                 text = {
@@ -619,8 +649,8 @@ private fun PlaylistDetailTopBar(
                                 onClick = onTogglePrivacy,
                                 leadingIcon = {
                                     Icon(
-                                        if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
-                                        null,
+                                        imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
+                                        contentDescription = null,
                                     )
                                 },
                             )
@@ -628,8 +658,8 @@ private fun PlaylistDetailTopBar(
                     }
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -640,31 +670,29 @@ private fun PlaylistHeader(
     videoCount: Int,
     thumbnailUrl: String,
     isPrivate: Boolean,
-    isWatchLater: Boolean,
     onPlayAll: () -> Unit,
     onShuffle: () -> Unit,
-    onDownloadAll: () -> Unit = {},
-    isDownloading: Boolean = false,
-    downloadProgress: Float = 0f,
-    currentDownloadingTitle: String? = null,
-    onTitleBottomPositioned: (Int) -> Unit = {},
+    onDownloadAll: () -> Unit,
+    isDownloading: Boolean,
+    downloadProgress: Float,
+    currentDownloadingTitle: String?,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(HeaderPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Thumbnail - Hero style
         Box(
             modifier =
                 Modifier
-                    .fillMaxWidth(0.95f)
+                    .fillMaxWidth(HeaderArtworkWidthFraction)
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .clip(MaterialTheme.shapes.large)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
         ) {
             if (thumbnailUrl.isNotEmpty()) {
                 AsyncImage(
@@ -675,20 +703,18 @@ private fun PlaylistHeader(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Default.PlaylistPlay,
+                    imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                     contentDescription = null,
-                    modifier =
-                        Modifier
-                            .size(64.dp)
-                            .align(Alignment.Center),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(64.dp),
+                    tint =
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                            .copy(alpha = ARTWORK_PLACEHOLDER_ALPHA),
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Info Section
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.Start,
@@ -696,22 +722,11 @@ private fun PlaylistHeader(
         ) {
             Text(
                 text = name,
-                modifier =
-                    Modifier.onGloballyPositioned { coordinates ->
-                        onTitleBottomPositioned(
-                            (coordinates.positionInRoot().y + coordinates.size.height).toInt(),
-                        )
-                    },
-                style =
-                    MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp,
-                    ),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            // Dynamic User Name Placeholder removed
-            // Metadata Row
             Text(
                 text =
                     pluralStringResource(
@@ -739,7 +754,6 @@ private fun PlaylistHeader(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -749,62 +763,80 @@ private fun PlaylistHeader(
                     onClick = onPlayAll,
                     modifier =
                         Modifier
-                            .height(48.dp)
+                            .height(ActionButtonSize)
                             .weight(1f),
                     shapes = ButtonDefaults.shapes(),
                 ) {
-                    Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.play_all), fontWeight = FontWeight.Bold)
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(ActionIconSize),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.play_all),
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
 
-                // Random (Dice) Shuffle Action
                 Surface(
                     onClick = onShuffle,
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    modifier = Modifier.size(48.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.size(ActionButtonSize),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Shuffle, stringResource(R.string.shuffle), modifier = Modifier.size(24.dp))
+                        Icon(
+                            imageVector = Icons.Default.Shuffle,
+                            contentDescription = stringResource(R.string.shuffle),
+                            modifier = Modifier.size(ActionIconSize),
+                        )
                     }
                 }
 
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(ActionButtonSize),
                 ) {
                     Surface(
                         onClick = { if (!isDownloading) onDownloadAll() },
                         shape = CircleShape,
                         color =
                             if (isDownloading) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                MaterialTheme.colorScheme.primaryContainer
                             } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                MaterialTheme.colorScheme.surfaceContainerHighest
                             },
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(ActionButtonSize),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = if (isDownloading) Icons.Default.Downloading else Icons.Default.ArrowDownward,
+                                imageVector =
+                                    if (isDownloading) {
+                                        Icons.Default.Downloading
+                                    } else {
+                                        Icons.Default.ArrowDownward
+                                    },
                                 contentDescription =
                                     if (isDownloading) {
                                         stringResource(R.string.ui_downloading_playlist)
                                     } else {
                                         stringResource(R.string.download_all)
                                     },
-                                tint = if (isDownloading) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-                                modifier = Modifier.size(24.dp),
+                                tint =
+                                    if (isDownloading) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        LocalContentColor.current
+                                    },
+                                modifier = Modifier.size(ActionIconSize),
                             )
                         }
                     }
                     if (isDownloading && downloadProgress > 0f) {
                         CircularProgressIndicator(
                             progress = { downloadProgress },
-                            modifier = Modifier.size(48.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(ActionButtonSize),
                         )
                     }
                 }
@@ -816,7 +848,7 @@ private fun PlaylistHeader(
                 exit = fadeOut(),
             ) {
                 Text(
-                    text = stringResource(R.string.playlist_downloading_template, currentDownloadingTitle ?: ""),
+                    text = stringResource(R.string.playlist_downloading_template, currentDownloadingTitle.orEmpty()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -837,8 +869,8 @@ private fun PlaylistSortButton(
     Surface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -851,7 +883,7 @@ private fun PlaylistSortButton(
                 fontWeight = FontWeight.Medium,
             )
             Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
+                imageVector = Icons.Default.Sort,
                 contentDescription = stringResource(R.string.playlist_sort_options),
                 modifier = Modifier.size(18.dp),
             )
@@ -869,29 +901,33 @@ private fun PlaylistSortSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = SortSheetBottomPadding),
         ) {
-            PlaylistSortOrder.values().forEach { option ->
+            PlaylistSortOrder.entries.forEach { option ->
                 Row(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .clickable { onSelected(option) }
-                            .padding(horizontal = 24.dp, vertical = 18.dp),
+                            .padding(SortSheetRowPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Icon(
                         imageVector = if (option == selected) Icons.Default.Check else Icons.Default.Sort,
                         contentDescription = null,
-                        tint = if (option == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint =
+                            if (option == selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
                     Text(
                         text = stringResource(option.labelRes),
@@ -904,191 +940,83 @@ private fun PlaylistSortSheet(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PlaylistVideoItem(
+private fun PlaylistVideoRow(
     video: Video,
     position: Int,
+    modifier: Modifier = Modifier,
     isSelected: Boolean,
     inSelectionMode: Boolean,
     canModify: Boolean,
     reorderModifier: Modifier,
     dragHandleModifier: Modifier,
     showDragHandle: Boolean,
-    onVideoClick: () -> Unit,
-    onRemove: () -> Unit,
-    onChannelClick: ((String) -> Unit)?,
-    isWatchLater: Boolean,
     showAddedDate: Boolean,
-    modifier: Modifier = Modifier,
+    isWatchLater: Boolean,
+    onChannelClick: ((String) -> Unit)?,
+    onRemove: () -> Unit,
+    onClick: () -> Unit,
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
-    val selectionBg = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.24f) else Color.Transparent
 
-    Row(
-        modifier =
-            modifier
-                .then(reorderModifier)
-                .fillMaxWidth()
-                .background(selectionBg)
-                .combinedClickable(
-                    onClick = onVideoClick,
-                    onLongClick =
-                        if (!inSelectionMode) {
-                            { showQuickActions = true }
-                        } else {
-                            null
-                        },
-                ).padding(vertical = 12.dp, horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (inSelectionMode) {
-            Checkbox(
-                checked = isSelected,
-                onCheckedChange = { onVideoClick() },
-                modifier = Modifier.size(24.dp),
-            )
-        } else if (showDragHandle) {
-            ReorderHandle(
-                modifier = dragHandleModifier,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-            )
-        } else {
-            Text(
-                text = position.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.width(20.dp),
-            )
-        }
+    MediaRow(
+        title = video.title,
+        modifier = modifier.then(reorderModifier),
+        subtitle = video.channelName,
+        supporting = video.playlistMetadataLine(showAddedDate),
+        supportingColor =
+            if (video.viewCount < 0L && !showAddedDate) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        selected = isSelected,
+        onClick = onClick,
+        onLongClick =
+            if (!inSelectionMode) {
+                { showQuickActions = true }
+            } else {
+                null
+            },
+        leading = {
+            when {
+                inSelectionMode -> {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onClick() },
+                    )
+                }
 
-        // Thumbnail
-        Box(
-            modifier =
-                Modifier
-                    .width(140.dp)
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
+                showDragHandle -> {
+                    ReorderHandle(modifier = dragHandleModifier)
+                }
 
-            // Duration overlay
-            video.duration?.let { duration ->
-                Box(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .background(
-                                color = Color.Black.copy(alpha = 0.8f),
-                                shape = RoundedCornerShape(4.dp),
-                            ).padding(horizontal = 4.dp, vertical = 2.dp),
-                ) {
+                else -> {
                     Text(
-                        text = formatDuration(duration),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        text = position.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(PositionColumnWidth),
                     )
                 }
             }
-
-            ThumbnailWatchProgress(
-                videoId = video.id,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(3.dp),
-            )
-        }
-
-        // Video Info
-        Column(
-            modifier =
-                Modifier
-                    .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = video.title,
-                style =
-                    MaterialTheme.typography.bodyLarge.copy(
-                        lineHeight = 20.sp,
-                        fontWeight = FontWeight.Medium,
-                    ),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Column {
-                Text(
-                    text = video.channelName,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                val premiereDate = formatPremiereDate(video.uploadDate)
-                val uploadDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
-                val addedAt = video.addedAtInPlaylist
-                val isPremiere = video.viewCount < 0L
-                val showAdded = showAddedDate && addedAt != null
-                Text(
-                    text =
-                        when {
-                            showAdded -> {
-                                stringResource(R.string.playlist_video_added_template, formatYouTubeRelativeTime(addedAt!!))
-                            }
-
-                            isPremiere -> {
-                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) }
-                                    ?: stringResource(R.string.premiere_soon)
-                            }
-
-                            else -> {
-                                stringResource(
-                                    R.string.video_metadata_short_template,
-                                    stringResource(R.string.views_template, formatViewCount(video.viewCount)),
-                                    uploadDate,
-                                )
-                            }
-                        },
-                    style = MaterialTheme.typography.labelSmall,
-                    color =
-                        if (isPremiere && !showAdded) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        },
-                    maxLines = 1,
-                )
-            }
-        }
-
-        if (!inSelectionMode) {
-            IconButton(
-                onClick = { showQuickActions = true },
-                modifier = Modifier.size(24.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
+        },
+        trailing = {
+            if (!inSelectionMode) {
+                MediaRowAction(
+                    icon = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.more_options),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
+                    onClick = { showQuickActions = true },
                 )
             }
-        }
+        },
+    ) {
+        MediaThumbnail(
+            videoId = video.id,
+            thumbnailUrl = video.thumbnailUrl,
+            durationSeconds = video.duration,
+            showWatchProgress = true,
+        )
     }
 
     if (showQuickActions) {
@@ -1114,762 +1042,26 @@ private fun PlaylistVideoItem(
 }
 
 @Composable
-private fun EmptyPlaylistState(
-    modifier: Modifier = Modifier,
-    isWatchLater: Boolean = false,
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Icon(
-            imageVector = if (isWatchLater) Icons.Default.WatchLater else Icons.Default.PlaylistPlay,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-        )
-
-        Text(
-            text = stringResource(if (isWatchLater) R.string.no_videos_saved else R.string.playlist_empty_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-
-        Text(
-            text = stringResource(if (isWatchLater) R.string.no_videos_saved_body else R.string.playlist_empty_desc),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
+private fun Video.playlistMetadataLine(showAddedDate: Boolean): String {
+    val addedAt = addedAtInPlaylist
+    if (showAddedDate && addedAt != null) {
+        return stringResource(R.string.playlist_video_added_template, formatYouTubeRelativeTime(addedAt))
     }
-}
-
-@Composable
-private fun EditPlaylistDialog(
-    name: String,
-    description: String,
-    onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit,
-) {
-    var editedName by remember { mutableStateOf(name) }
-    var editedDescription by remember { mutableStateOf(description) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Edit, null) },
-        title = { Text(stringResource(R.string.edit_playlist_action)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = editedName,
-                    onValueChange = { editedName = it },
-                    label = { Text(stringResource(R.string.playlist_name)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                )
-
-                OutlinedTextField(
-                    value = editedDescription,
-                    onValueChange = { editedDescription = it },
-                    label = { Text(stringResource(R.string.playlist_description_optional)) },
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSave(editedName, editedDescription) },
-                enabled = editedName.isNotBlank(),
-            ) {
-                Text(stringResource(R.string.action_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
+    if (viewCount < 0L) {
+        return formatPremiereDate(uploadDate)?.let { stringResource(R.string.premiere_date_prefix, it) }
+            ?: stringResource(R.string.premiere_soon)
+    }
+    val uploaded = rememberDateDisplaySettings().format(uploadDate, DateContext.LISTS, timestamp)
+    return stringResource(
+        R.string.video_metadata_short_template,
+        stringResource(R.string.views_template, formatViewCount(viewCount)),
+        uploaded,
     )
 }
 
-// Helper Functions
-
-enum class PlaylistSortOrder(
-    val storageValue: String,
-    val labelRes: Int,
-) {
-    MANUAL("manual", R.string.playlist_sort_manual),
-    DATE_ADDED_NEWEST("date_added_newest", R.string.playlist_sort_date_added_newest),
-    DATE_ADDED_OLDEST("date_added_oldest", R.string.playlist_sort_date_added_oldest),
-    MOST_POPULAR("most_popular", R.string.playlist_sort_most_popular),
-    DATE_PUBLISHED_NEWEST("date_published_newest", R.string.playlist_sort_date_published_newest),
-    DATE_PUBLISHED_OLDEST("date_published_oldest", R.string.playlist_sort_date_published_oldest),
-    ;
-
-    companion object {
-        fun fromStorageValue(value: String?): PlaylistSortOrder = values().firstOrNull { it.storageValue == value } ?: MANUAL
-    }
-}
-
-private fun List<Video>.sortedForPlaylist(sortOrder: PlaylistSortOrder): List<Video> =
-    when (sortOrder) {
-        PlaylistSortOrder.MANUAL,
-        PlaylistSortOrder.DATE_ADDED_NEWEST,
-        -> this
-
-        PlaylistSortOrder.DATE_ADDED_OLDEST -> asReversed()
-
-        PlaylistSortOrder.MOST_POPULAR -> sortedByDescending { it.viewCount }
-
-        PlaylistSortOrder.DATE_PUBLISHED_NEWEST -> sortedByDescending { it.effectivePlaylistUploadTimestamp() }
-
-        PlaylistSortOrder.DATE_PUBLISHED_OLDEST -> sortedBy { it.effectivePlaylistUploadTimestamp() }
-    }
-
-private fun Video.effectivePlaylistUploadTimestamp(now: Long = System.currentTimeMillis()): Long {
-    val relativeDuration = parseRelativeDurationMillis(uploadDate)
-    if (timestamp <= 0L) {
-        return relativeDuration?.let { now - it } ?: 0L
-    }
-    if (relativeDuration == null) return timestamp
-
-    val timestampAge = now - timestamp
-    return if (timestampAge > relativeDuration + 30L * 60L * 1000L) {
-        timestamp
-    } else {
-        now - relativeDuration
-    }
-}
-
-private fun parseRelativeDurationMillis(text: String): Long? {
-    val normalized =
-        text
-            .lowercase()
-            .replace("streamed", "")
-            .replace("premiered", "")
-            .replace("ago", "")
-            .trim()
-    if (normalized.isBlank() || normalized == "unknown") return null
-    if (normalized.contains("just now") || normalized == "today") return 0L
-    if (normalized.contains("yesterday")) return 24L * 60L * 60L * 1000L
-
-    val value =
-        Regex("(\\d+)")
-            .find(normalized)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.toLongOrNull()
-            ?: return null
-    val unit =
-        when {
-            normalized.contains("second") || normalized.matches(Regex(".*\\d+\\s*s$")) -> 1_000L
-            normalized.contains("minute") || normalized.matches(Regex(".*\\d+\\s*m$")) -> 60_000L
-            normalized.contains("hour") || normalized.matches(Regex(".*\\d+\\s*h$")) -> 3_600_000L
-            normalized.contains("day") || normalized.matches(Regex(".*\\d+\\s*d$")) -> 86_400_000L
-            normalized.contains("week") || normalized.matches(Regex(".*\\d+\\s*w$")) -> 7L * 86_400_000L
-            normalized.contains("month") || normalized.matches(Regex(".*\\d+\\s*mo$")) -> 30L * 86_400_000L
-            normalized.contains("year") || normalized.matches(Regex(".*\\d+\\s*y$")) -> 365L * 86_400_000L
-            else -> return null
-        }
-    return value * unit
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MergeIntoPlaylistDialog(
-    viewModel: PlaylistDetailViewModel,
-    onDismiss: () -> Unit,
-) {
-    val playlists by viewModel.userCreatedPlaylists.collectAsState()
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberFlowSheetState(),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.merge_playlist_dialog_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-            )
-
-            HorizontalDivider()
-
-            if (playlists.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.merge_playlist_no_playlists),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(24.dp),
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                ) {
-                    items(
-                        items = playlists,
-                        key = { it.id },
-                    ) { playlist ->
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.mergeIntoPlaylist(playlist.id)
-                                        onDismiss()
-                                    }.padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                            ) {
-                                if (playlist.thumbnailUrl.isNotEmpty()) {
-                                    AsyncImage(
-                                        model = playlist.thumbnailUrl,
-                                        contentDescription = null,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop,
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.PlaylistPlay,
-                                        contentDescription = null,
-                                        modifier =
-                                            Modifier
-                                                .size(24.dp)
-                                                .align(Alignment.Center),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                    )
-                                }
-                            }
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = playlist.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text =
-                                        pluralStringResource(
-                                            R.plurals.songs_count_template,
-                                            playlist.videoCount,
-                                            playlist.videoCount,
-                                        ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ViewModel
-
-@HiltViewModel
-class PlaylistDetailViewModel
-    @Inject
-    constructor(
-        @ApplicationContext private val context: Context,
-        private val repository: PlaylistRepository,
-        private val youTubeRepository: io.github.aedev.flow.data.repository.YouTubeRepository,
-        private val playerPreferences: PlayerPreferences,
-        private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
-        savedStateHandle: SavedStateHandle,
-    ) : ViewModel() {
-        private val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
-
-        data class UiState(
-            val playlistName: String = "",
-            val description: String = "",
-            val isPrivate: Boolean = false,
-            val videos: List<Video> = emptyList(),
-            val thumbnailUrl: String = "",
-            val isLocalPlaylist: Boolean = false,
-            val isSaved: Boolean = false,
-            val isWatchLater: Boolean = false,
-        )
-
-        private val _uiState = MutableStateFlow(UiState())
-        val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-
-        val sortOrder: StateFlow<PlaylistSortOrder> =
-            playerPreferences.playlistSortOrder
-                .map { PlaylistSortOrder.fromStorageValue(it) }
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), PlaylistSortOrder.MANUAL)
-
-        // ── Playlist download state ──────────────────────────────────────────────
-        private val _isDownloadingPlaylist = MutableStateFlow(false)
-        val isDownloadingPlaylist: StateFlow<Boolean> = _isDownloadingPlaylist.asStateFlow()
-
-        private val _playlistDownloadProgress = MutableStateFlow(0f)
-        val playlistDownloadProgress: StateFlow<Float> = _playlistDownloadProgress.asStateFlow()
-
-        private val _currentDownloadingTitle = MutableStateFlow<String?>(null)
-        val currentDownloadingTitle: StateFlow<String?> = _currentDownloadingTitle.asStateFlow()
-
-        init {
-            loadPlaylist()
-        }
-
-        fun setSortOrder(order: PlaylistSortOrder) {
-            viewModelScope.launch {
-                playerPreferences.setPlaylistSortOrder(order.storageValue)
-            }
-        }
-
-        /**
-         * Download every video in this playlist sequentially via [FlowDownloadService].
-         * Fetches stream info (NewPipe) for each video, picks the best 720p-compatible MP4
-         * stream with a paired AAC audio track, then hands off to the background service.
-         */
-        fun downloadPlaylist() {
-            if (_isDownloadingPlaylist.value) return
-
-            viewModelScope.launch {
-                val videos = _uiState.value.videos
-                if (videos.isEmpty()) {
-                    Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-
-                _isDownloadingPlaylist.value = true
-                _playlistDownloadProgress.value = 0f
-                Toast
-                    .makeText(
-                        context,
-                        context.resources.getQuantityString(
-                            R.plurals.ui_downloading_videos,
-                            videos.size,
-                            videos.size,
-                        ),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-
-                var successCount = 0
-                var processedCount = 0
-                val total = videos.size
-                val preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first()
-
-                val semaphore = Semaphore(2)
-
-                for (video in videos) {
-                    semaphore.withPermit {
-                        _currentDownloadingTitle.value = video.title
-                        try {
-                            val streamInfo =
-                                withContext(Dispatchers.IO) {
-                                    youTubeRepository.getVideoStreamInfo(video.id)
-                                }
-
-                            if (streamInfo != null) {
-                                // ── Select best video stream (prefer MP4, 720p cap for bandwidth) ──
-                                val videoOnlyStreams =
-                                    streamInfo.videoOnlyStreams
-                                        ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
-                                        ?: emptyList()
-                                val combinedStreams =
-                                    streamInfo.videoStreams
-                                        ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
-                                        ?: emptyList()
-                                val allAudio = streamInfo.audioStreams ?: emptyList()
-
-                                fun isMp4(s: org.schabi.newpipe.extractor.stream.VideoStream): Boolean {
-                                    val mime = (s.format?.mimeType ?: "").lowercase()
-                                    val name = (s.format?.name ?: "").lowercase()
-                                    return mime.contains("mp4") || name.contains("mp4") || name.contains("mpeg")
-                                }
-
-                                fun isAacAudio(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
-                                    val mime = (a.format?.mimeType ?: "").lowercase()
-                                    val name = (a.format?.name ?: "").lowercase()
-                                    return !name.contains("opus") && !name.contains("webm") &&
-                                        !mime.contains("opus") && !mime.contains("webm")
-                                }
-
-                                // Prefer video-only MP4 ≤720p for offline storage efficiency
-                                fun qualityHeight(s: org.schabi.newpipe.extractor.stream.VideoStream): Int =
-                                    io.github.aedev.flow.player.quality.QualityManager.normalizeQualityHeight(
-                                        io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
-                                            .qualityHeightFromStream(s),
-                                    )
-
-                                val bestVideoOnly =
-                                    videoOnlyStreams
-                                        .filter { isMp4(it) && qualityHeight(it) <= 720 }
-                                        .maxByOrNull { qualityHeight(it) }
-                                        ?: videoOnlyStreams.filter { isMp4(it) }.maxByOrNull { qualityHeight(it) }
-
-                                val bestCombined =
-                                    combinedStreams
-                                        .filter { isMp4(it) }
-                                        .maxByOrNull { qualityHeight(it) }
-
-                                val selectedStream =
-                                    bestVideoOnly ?: bestCombined
-                                        ?: (videoOnlyStreams + combinedStreams).maxByOrNull { qualityHeight(it) }
-
-                                if (selectedStream != null) {
-                                    val videoUrl = selectedStream.content ?: selectedStream.url
-                                    val audioUrl =
-                                        if (selectedStream in videoOnlyStreams) {
-                                            val aac =
-                                                AudioStreamSelector.selectPreferredAudioStream(
-                                                    streams = allAudio,
-                                                    preferredAudioLanguage = preferredAudioLanguage,
-                                                    compatibilityFilter = ::isAacAudio,
-                                                )
-                                            aac?.content ?: aac?.url
-                                        } else {
-                                            null
-                                        }
-
-                                    // Detect codec so the service picks the correct container
-                                    // (VP9 → .webm, AV1 → .mkv, H264 → .mp4).
-                                    // Without this, VP9 content written into a .mp4 filename
-                                    // causes MediaMuxer to fail during audio/video merging.
-                                    val videoCodec =
-                                        io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
-                                            .codecKeyFromStream(selectedStream)
-
-                                    val qualityLabel = "${qualityHeight(selectedStream)}p"
-                                    val fullVideo =
-                                        video.copy(
-                                            thumbnailUrl =
-                                                video.thumbnailUrl.ifBlank {
-                                                    streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: ""
-                                                },
-                                        )
-
-                                    if (videoUrl != null) {
-                                        withContext(Dispatchers.Main) {
-                                            io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
-                                                context = context,
-                                                video = fullVideo,
-                                                url = videoUrl,
-                                                quality = qualityLabel,
-                                                audioUrl = audioUrl,
-                                                videoCodec = videoCodec,
-                                            )
-                                            successCount++
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.w("PlaylistDetailVM", "Failed to queue download for ${video.title}", e)
-                        }
-
-                        processedCount++
-                        _playlistDownloadProgress.value = processedCount.toFloat() / total
-                        delay(400L)
-                    }
-                }
-
-                val msg =
-                    if (successCount > 0) {
-                        context.getString(R.string.playlist_downloads_queued, successCount, total)
-                    } else {
-                        context.getString(R.string.playlist_download_queue_empty)
-                    }
-                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-
-                _isDownloadingPlaylist.value = false
-                _currentDownloadingTitle.value = null
-                _playlistDownloadProgress.value = 0f
-            }
-        }
-
-        /**
-         * Fresh online fetch for a saved (not-owned) playlist. Reconciles the local copy with the
-         * creator's current playlist — real view counts / release dates plus any added or removed
-         * videos — then lets the DB flow re-emit the updated list. No-op on failure (stays offline).
-         */
-        private fun refreshSavedPlaylist() {
-            viewModelScope.launch {
-                try {
-                    val details = youTubeRepository.getPlaylistDetails(playlistId) ?: return@launch
-                    repository.syncSavedPlaylistVideos(playlistId, details.videos)
-                    _uiState.update { state ->
-                        state.copy(
-                            playlistName = details.name.ifBlank { state.playlistName },
-                            description = (details.description ?: "").ifBlank { state.description },
-                            thumbnailUrl = details.thumbnailUrl.ifBlank { state.thumbnailUrl },
-                        )
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("PlaylistDetailVM", "Saved playlist refresh failed", e)
-                }
-            }
-        }
-
-        private fun loadPlaylist() {
-            viewModelScope.launch {
-                if (playlistId == PlaylistRepository.WATCH_LATER_ID) {
-                    _uiState.update {
-                        it.copy(
-                            playlistName = context.getString(R.string.watch_later),
-                            description = "",
-                            isPrivate = true,
-                            isLocalPlaylist = true,
-                            isSaved = false,
-                            isWatchLater = true,
-                        )
-                    }
-                    var migrationStarted = false
-                    repository.getVideoOnlyWatchLaterFlow().collect { videos ->
-                        _uiState.update {
-                            it.copy(
-                                videos = videos,
-                                thumbnailUrl = videos.firstOrNull()?.thumbnailUrl.orEmpty(),
-                            )
-                        }
-                        if (!migrationStarted && videos.isNotEmpty()) {
-                            migrationStarted = true
-                            viewModelScope.launch { watchLaterMetadataMigrator.migrate(videos) }
-                        }
-                        val stubs = videos.filter { it.title.isEmpty() }.take(50)
-                        if (stubs.isNotEmpty()) {
-                            enrichMetadata(stubs)
-                        }
-                    }
-                    return@launch
-                }
-
-                // Try Local first
-                val localInfo = repository.getPlaylistInfo(playlistId)
-                if (localInfo != null) {
-                    val isSaved = repository.isExternalPlaylistSaved(playlistId)
-                    _uiState.update {
-                        it.copy(
-                            playlistName = localInfo.name,
-                            description = localInfo.description,
-                            isPrivate = localInfo.isPrivate,
-                            thumbnailUrl = localInfo.thumbnailUrl,
-                            isLocalPlaylist = true,
-                            isSaved = isSaved,
-                            isWatchLater = false,
-                        )
-                    }
-                    if (isSaved) {
-                        refreshSavedPlaylist()
-                    }
-                    repository.getPlaylistVideosWithAddedAtFlow(playlistId).collect { videos ->
-                        _uiState.update { it.copy(videos = videos) }
-                        val stubs = videos.filter { it.title.isEmpty() }.take(50)
-                        if (stubs.isNotEmpty()) {
-                            enrichMetadata(stubs)
-                        }
-                    }
-                } else {
-                    // Try Remote (YouTube)
-                    try {
-                        val details = youTubeRepository.getPlaylistDetails(playlistId)
-                        if (details != null) {
-                            _uiState.update {
-                                it.copy(
-                                    playlistName = details.name,
-                                    description = details.description ?: "",
-                                    isPrivate = false,
-                                    videos = details.videos,
-                                    thumbnailUrl = details.thumbnailUrl,
-                                    isLocalPlaylist = false,
-                                    isSaved = false,
-                                    isWatchLater = false,
-                                )
-                            }
-                        } else {
-                            // Fallback to Music Service if regular fails (e.g. music playlist)
-                            val musicDetails = YouTubeMusicService.fetchPlaylistDetails(playlistId)
-                            if (musicDetails != null) {
-                                val videos =
-                                    musicDetails.tracks.map { track ->
-                                        Video(
-                                            id = track.videoId,
-                                            title = track.title,
-                                            channelName = track.artist,
-                                            channelId = track.channelId,
-                                            thumbnailUrl = track.thumbnailUrl,
-                                            duration = track.duration,
-                                            viewCount = track.views ?: 0,
-                                            uploadDate = "",
-                                            isMusic = true,
-                                        )
-                                    }
-                                _uiState.update {
-                                    it.copy(
-                                        playlistName = musicDetails.title,
-                                        description = musicDetails.description ?: "",
-                                        isPrivate = false,
-                                        videos = videos,
-                                        thumbnailUrl = musicDetails.thumbnailUrl,
-                                        isLocalPlaylist = false,
-                                        isSaved = false,
-                                        isWatchLater = false,
-                                    )
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        // Error handling could be added here
-                    }
-                }
-            }
-        }
-
-        fun saveToLibrary() {
-            viewModelScope.launch {
-                val state = _uiState.value
-                repository.saveExternalVideoPlaylist(
-                    id = playlistId,
-                    name = state.playlistName,
-                    description = state.description,
-                    thumbnailUrl =
-                        state.thumbnailUrl.ifEmpty {
-                            state.videos.firstOrNull()?.thumbnailUrl ?: ""
-                        },
-                )
-                repository.addVideosToPlaylist(playlistId, state.videos)
-                _uiState.update { it.copy(isLocalPlaylist = true, isSaved = true) }
-                android.widget.Toast
-                    .makeText(context, context.getString(R.string.ui_playlist_saved_to_library), android.widget.Toast.LENGTH_SHORT)
-                    .show()
-            }
-        }
-
-        fun unsaveFromLibrary() {
-            viewModelScope.launch {
-                repository.unsaveExternalPlaylist(playlistId)
-                _uiState.update { it.copy(isLocalPlaylist = false, isSaved = false) }
-                android.widget.Toast
-                    .makeText(context, context.getString(R.string.ui_playlist_removed_from_library), android.widget.Toast.LENGTH_SHORT)
-                    .show()
-            }
-        }
-
-        fun removeVideo(videoId: String) {
-            viewModelScope.launch {
-                repository.removeVideoFromPlaylist(playlistId, videoId)
-            }
-        }
-
-        fun removeVideos(videoIds: Set<String>) {
-            if (videoIds.isEmpty()) return
-            viewModelScope.launch {
-                videoIds.forEach { videoId ->
-                    repository.removeVideoFromPlaylist(playlistId, videoId)
-                }
-            }
-        }
-
-        fun reorderVideos(orderedVideoIds: List<String>) {
-            viewModelScope.launch {
-                repository.reorderVideosInPlaylist(playlistId, orderedVideoIds)
-            }
-        }
-
-        fun updatePlaylist(
-            name: String,
-            description: String,
-        ) {
-            viewModelScope.launch {
-                repository.updatePlaylistMetadata(playlistId, name, description, _uiState.value.isPrivate)
-                _uiState.update {
-                    it.copy(
-                        playlistName = name,
-                        description = description,
-                    )
-                }
-            }
-        }
-
-        fun togglePrivacy() {
-            viewModelScope.launch {
-                val state = _uiState.value
-                val newPrivacy = !state.isPrivate
-                repository.updatePlaylistMetadata(playlistId, state.playlistName, state.description, newPrivacy)
-                _uiState.update { it.copy(isPrivate = newPrivacy) }
-            }
-        }
-
-        fun deletePlaylist() {
-            viewModelScope.launch {
-                repository.deletePlaylist(playlistId)
-            }
-        }
-
-        val userCreatedPlaylists: StateFlow<List<PlaylistInfo>> =
-            repository
-                .getUserCreatedVideoPlaylistsFlow()
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
-
-        fun mergeIntoPlaylist(targetPlaylistId: String) {
-            viewModelScope.launch {
-                val videos = _uiState.value.videos
-                try {
-                    repository.addVideosToPlaylist(targetPlaylistId, videos)
-                    val targetInfo = repository.getPlaylistInfo(targetPlaylistId)
-                    Toast
-                        .makeText(
-                            context,
-                            context.resources.getQuantityString(
-                                R.plurals.merge_playlist_success,
-                                videos.size,
-                                videos.size,
-                                targetInfo?.name ?: "",
-                            ),
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                } catch (e: Exception) {
-                    android.util.Log.e("PlaylistDetailVM", "Failed to merge playlist", e)
-                    Toast.makeText(context, context.getString(R.string.toast_failed_to_merge_playlist), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        private val enrichSemaphore = Semaphore(1)
-
-        private fun enrichMetadata(videos: List<Video>) {
-            if (!enrichSemaphore.tryAcquire()) return
-            viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    videos.chunked(5).forEach { chunk ->
-                        chunk.forEach videoLoop@{ video ->
-                            try {
-                                val refreshed = youTubeRepository.getVideo(video.id) ?: return@videoLoop
-                                repository.updateVideoMetadata(refreshed)
-                            } catch (_: Exception) {
-                            }
-                        }
-                        delay(300L)
-                    }
-                } finally {
-                    enrichSemaphore.release()
-                }
-            }
-        }
+private fun PlaylistUiMessage.resolve(context: Context): String =
+    when {
+        pluralRes != 0 -> context.resources.getQuantityString(pluralRes, count, *args.toTypedArray())
+        args.isEmpty() -> context.getString(stringRes)
+        else -> context.getString(stringRes, *args.toTypedArray())
     }
