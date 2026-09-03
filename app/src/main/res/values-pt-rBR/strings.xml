@@ -397,7 +397,7 @@
     <string name="player_appearance_title">Aparência do Reprodutor</string>
     <string name="player_background_style_blur_gradient">Desfoque + Degradê</string>
     <string name="player_background_style_default">Superfície padrão</string>
-    <string name="style_default">Regular</string>
+    <string name="style_default">Expressivo</string>
     <string name="style_metrolist">Espesso</string>
     <string name="style_metrolist_slim">Fino</string>
     <string name="style_squiggly">Ondulado</string>
@@ -2380,4 +2380,21 @@
     <string name="import_music_brain_title">Importar Dados do Mecanismo Musical</string>
     <string name="import_music_brain_desc">Restaure um perfil de gosto musical de um arquivo JSON</string>
     <string name="music_brain_export_success">Dados do Mecanismo Musical foram exportados</string>
+    <plurals name="download_all_confirmation">
+        <item quantity="one">Baixar vídeo %1$d? Isso pode consumir uma quantidade significativa de armazenamento.</item>
+        <item quantity="many">Baixar todos os vídeos do(a) %1$d? Isso pode consumir uma quantidade significativa de armazenamento.</item>
+        <item quantity="other">Baixar todos os vídeos do(a) %1$d? Isso pode consumir uma quantidade significativa de armazenamento.</item>
+    </plurals>
+    <string name="lyrics_save_file">Salvar como arquivo .lrc</string>
+    <plurals name="queue_track_count">
+        <item quantity="one">%1$d faixa</item>
+        <item quantity="many">%1$d faixas</item>
+        <item quantity="other">%1$d faixas</item>
+    </plurals>
+    <string name="lyrics_saved">Letras salvas</string>
+    <string name="lyrics_save_failed">Não foi possível salvar a letra</string>
+    <string name="lyrics_choose_source">Escolha a fonte da letra</string>
+    <string name="lyrics_synced_badge">Sincronizado</string>
+    <string name="lyrics_edit">Editar letras</string>
+    <string name="lyrics_copy">Copiar letras</string>
 </resources>
