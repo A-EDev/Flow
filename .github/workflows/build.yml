@@ -75,10 +75,11 @@ jobs:
             echo "Release keystore secret is not available. Continuing with an unsigned CI build."
           fi
 
+      # Limit concurrent compiler work after Kotlin OOMs on the hosted runner.
       - name: Run unit tests
         run: >
           ./gradlew :app:testGithubDebugUnitTest :app:testFossDebugUnitTest
-          --parallel --build-cache --stacktrace
+          --no-parallel --max-workers=1 --build-cache --stacktrace
 
       # Instrumentation tests are not executed in CI, but they must still
       # compile: breakage here otherwise lands on main unnoticed.
