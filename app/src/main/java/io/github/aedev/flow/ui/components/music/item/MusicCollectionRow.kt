@@ -123,13 +123,9 @@ fun MusicCollectionRow(
 private fun YTItem.rowSubtitle(showPlayCount: Boolean): String =
     when (this) {
         is SongItem -> {
-            val plays =
-                if (showPlayCount) {
-                    viewCountText?.let { stringResource(R.string.plays_count_template, it) } ?: ""
-                } else {
-                    ""
-                }
-            stringResource(R.string.subtitle_song_prefix, artists.joinToString { it.name }) + plays
+            val prefix = stringResource(R.string.subtitle_song_prefix, artists.joinToString { it.name })
+            val plays = viewCountText?.takeIf { showPlayCount }?.let { stringResource(R.string.plays_count_template, it) }
+            listOfNotNull(prefix, plays).joinToString(" ")
         }
 
         is ArtistItem -> {

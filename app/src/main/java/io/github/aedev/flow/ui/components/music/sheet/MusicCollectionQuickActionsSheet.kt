@@ -55,6 +55,7 @@ data class MusicCollectionActionItem(
     val thumbnailUrl: String?,
     val description: String = subtitle,
     val isAlbum: Boolean = false,
+    val trackCount: Int = 0,
 ) {
     val shareUrl: String
         get() =
@@ -71,8 +72,9 @@ fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActio
         title = title,
         subtitle = author,
         thumbnailUrl = thumbnailUrl,
-        description = if (trackCount > 0) "$trackCount tracks" else author,
+        description = author,
         isAlbum = isAlbum,
+        trackCount = trackCount,
     )
 
 fun YTItem.toCollectionActionItem(): MusicCollectionActionItem? =
@@ -194,6 +196,17 @@ fun MusicCollectionQuickActionsSheet(
     }
 }
 
+/**
+ * The description a saved collection gets: its song count when known, otherwise whatever the
+ * source offered, formatted from resources so nothing English is written into the database.
+ */
+private fun MusicCollectionActionItem.savedDescription(context: Context): String =
+    if (trackCount > 0) {
+        context.resources.getQuantityString(R.plurals.songs_count_template, trackCount, trackCount)
+    } else {
+        description
+    }
+
 @HiltViewModel
 class MusicCollectionActionsViewModel
     @Inject
@@ -207,7 +220,7 @@ class MusicCollectionActionsViewModel
                     playlistRepository.saveExternalMusicPlaylist(
                         id = item.id,
                         name = item.title,
-                        description = item.description,
+                        description = item.savedDescription(context),
                         thumbnailUrl = item.thumbnailUrl.orEmpty(),
                     )
                     withContext(Dispatchers.Main) {
