@@ -8,9 +8,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
-import androidx.core.graphics.ColorUtils
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
+import io.github.aedev.flow.ui.theme.contrastRatio
+import io.github.aedev.flow.ui.theme.ensureContrastOn
+import io.github.aedev.flow.ui.theme.tone
+import io.github.aedev.flow.ui.theme.withTone
 
 /**
  * DEFAULT background style follows the app theme; the artwork-based styles hand the whole player
@@ -83,43 +85,6 @@ private fun paletteColorScheme(
         inverseOnSurface = surface,
         inversePrimary = onAccent,
     )
-}
-
-private fun Color.tone(): Double {
-    val lab = DoubleArray(3)
-    ColorUtils.colorToLAB(toArgb(), lab)
-    return lab[0]
-}
-
-private fun Color.withTone(tone: Double): Color {
-    val lab = DoubleArray(3)
-    ColorUtils.colorToLAB(toArgb(), lab)
-    return Color(ColorUtils.LABToColor(tone.coerceIn(0.0, 100.0), lab[1], lab[2]))
-}
-
-/** Lightens [color] until it clears [minRatio] against the dark [surface]. */
-private fun ensureContrastOn(
-    color: Color,
-    surface: Color,
-    minRatio: Float,
-): Color {
-    var candidate = color
-    var tone = candidate.tone()
-    while (contrastRatio(candidate, surface) < minRatio && tone < 98.0) {
-        tone += 4.0
-        candidate = candidate.withTone(tone)
-    }
-    return candidate
-}
-
-/** WCAG contrast ratio between two opaque colors. */
-internal fun contrastRatio(
-    a: Color,
-    b: Color,
-): Float {
-    val la = a.luminance() + 0.05f
-    val lb = b.luminance() + 0.05f
-    return maxOf(la, lb) / minOf(la, lb)
 }
 
 /**
