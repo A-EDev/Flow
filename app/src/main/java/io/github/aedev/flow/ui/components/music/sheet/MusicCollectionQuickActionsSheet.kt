@@ -10,12 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +28,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,6 +38,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.music.model.MusicPlaylist
+import io.github.aedev.flow.innertube.models.AlbumItem
+import io.github.aedev.flow.innertube.models.PlaylistItem
+import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,7 +65,46 @@ data class MusicCollectionActionItem(
             }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
+    MusicCollectionActionItem(
+        id = id,
+        title = title,
+        subtitle = author,
+        thumbnailUrl = thumbnailUrl,
+        description = if (trackCount > 0) "$trackCount tracks" else author,
+        isAlbum = isAlbum,
+    )
+
+fun YTItem.toCollectionActionItem(): MusicCollectionActionItem? =
+    when (this) {
+        is AlbumItem -> {
+            MusicCollectionActionItem(
+                id = id,
+                title = title,
+                subtitle = artists?.joinToString { it.name }.orEmpty(),
+                thumbnailUrl = thumbnail,
+                description = year?.toString().orEmpty(),
+                isAlbum = true,
+            )
+        }
+
+        is PlaylistItem -> {
+            MusicCollectionActionItem(
+                id = id,
+                title = title,
+                subtitle = author?.name.orEmpty(),
+                thumbnailUrl = thumbnail,
+                description = author?.name.orEmpty(),
+                isAlbum = false,
+            )
+        }
+
+        else -> {
+            null
+        }
+    }
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MusicCollectionQuickActionsSheet(
     item: MusicCollectionActionItem,
@@ -96,14 +138,13 @@ fun MusicCollectionQuickActionsSheet(
                     modifier =
                         Modifier
                             .size(56.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(MaterialTheme.shapes.small),
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

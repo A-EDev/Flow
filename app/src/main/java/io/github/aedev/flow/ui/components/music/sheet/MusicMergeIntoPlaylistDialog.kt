@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -28,7 +26,7 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.screens.music.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MusicMergeIntoPlaylistDialog(
     tracks: List<MusicTrack>,
@@ -40,9 +38,6 @@ fun MusicMergeIntoPlaylistDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
-        shape =
-            androidx.compose.foundation.shape
-                .RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
@@ -55,8 +50,7 @@ fun MusicMergeIntoPlaylistDialog(
                 text =
                     androidx.compose.ui.res
                         .stringResource(io.github.aedev.flow.R.string.merge_playlist_dialog_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
 
@@ -93,9 +87,7 @@ fun MusicMergeIntoPlaylistDialog(
                         ) {
                             Surface(
                                 modifier = Modifier.size(48.dp),
-                                shape =
-                                    androidx.compose.foundation.shape
-                                        .RoundedCornerShape(8.dp),
+                                shape = MaterialTheme.shapes.small,
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                             ) {
                                 if (playlist.thumbnailUrl.isNotEmpty()) {
@@ -120,8 +112,7 @@ fun MusicMergeIntoPlaylistDialog(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = playlist.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.bodyLargeEmphasized,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )

@@ -35,7 +35,7 @@ import io.github.aedev.flow.ui.theme.Dimensions
  */
 @Composable
 fun <T> MusicShelf(
-    title: String,
+    title: String?,
     items: List<T>,
     key: (T) -> Any,
     modifier: Modifier = Modifier,
@@ -48,12 +48,14 @@ fun <T> MusicShelf(
     if (uniqueItems.isEmpty()) return
 
     Column(modifier = modifier.fillMaxWidth()) {
-        MusicSectionHeader(
-            title = title,
-            subtitle = subtitle,
-            leading = leading,
-            action = action,
-        )
+        if (title != null) {
+            MusicSectionHeader(
+                title = title,
+                subtitle = subtitle,
+                leading = leading,
+                action = action,
+            )
+        }
         LazyRow(
             contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
             horizontalArrangement = Arrangement.spacedBy(Dimensions.ItemSpacing),
@@ -69,7 +71,7 @@ fun <T> MusicShelf(
  */
 @Composable
 fun <T> MusicTrackShelf(
-    title: String,
+    title: String?,
     items: List<T>,
     key: (T) -> Any,
     modifier: Modifier = Modifier,
@@ -84,7 +86,9 @@ fun <T> MusicTrackShelf(
     if (uniqueItems.isEmpty()) return
 
     Column(modifier = modifier.fillMaxWidth()) {
-        MusicSectionHeader(title = title, subtitle = subtitle, action = action)
+        if (title != null) {
+            MusicSectionHeader(title = title, subtitle = subtitle, action = action)
+        }
         LazyHorizontalGrid(
             rows = GridCells.Fixed(rows),
             state = state,

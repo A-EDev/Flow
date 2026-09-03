@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
@@ -96,6 +95,7 @@ fun MusicTrackItem(
     density: MusicItemDensity = MusicItemDensity.Comfortable,
     index: Int? = null,
     shape: Shape = RectangleShape,
+    containerColor: Color = Color.Transparent,
     thumbnailWidth: Dp = density.thumbnailSize,
     isPlaying: Boolean = isTrackPlaying(track.videoId),
     isDownloaded: Boolean = false,
@@ -114,6 +114,7 @@ fun MusicTrackItem(
                 .fillMaxWidth()
                 .height(density.rowHeight)
                 .clip(shape)
+                .background(containerColor)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
@@ -146,7 +147,7 @@ fun MusicTrackItem(
         }
 
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = MaterialTheme.shapes.small,
             modifier =
                 Modifier
                     .width(thumbnailWidth)

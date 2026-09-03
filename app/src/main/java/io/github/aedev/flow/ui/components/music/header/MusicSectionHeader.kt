@@ -6,30 +6,30 @@
 
 package io.github.aedev.flow.ui.components.music.header
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -58,6 +58,7 @@ sealed interface MusicSectionAction {
  * The single header for every music shelf, page section and lane. Replaces the four competing
  * headers the music surface used to carry, which disagreed on type scale, padding and colour.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MusicSectionHeader(
     title: String,
@@ -103,8 +104,7 @@ fun MusicSectionHeader(
                 leading?.invoke()
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -113,7 +113,7 @@ fun MusicSectionHeader(
 
             when (action) {
                 is MusicSectionAction.PlayAll -> {
-                    PlayAllPill(onClick = action.onClick)
+                    PlayAllButton(onClick = action.onClick)
                 }
 
                 is MusicSectionAction.SeeAll -> {
@@ -122,7 +122,7 @@ fun MusicSectionHeader(
 
                 is MusicSectionAction.Navigate -> {
                     Icon(
-                        imageVector = Icons.Default.ArrowForward,
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                         contentDescription = stringResource(R.string.ui_navigate),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -136,45 +136,43 @@ fun MusicSectionHeader(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun PlayAllPill(onClick: () -> Unit) {
-    Surface(
+private fun PlayAllButton(onClick: () -> Unit) {
+    val height = ButtonDefaults.ExtraSmallContainerHeight
+    FilledTonalButton(
         onClick = onClick,
-        shape = MaterialTheme.shapes.small,
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.height(36.dp),
+        shapes = ButtonDefaults.shapesFor(height),
+        contentPadding = ButtonDefaults.contentPaddingFor(height, hasStartIcon = true),
+        modifier = Modifier.heightIn(min = height),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.size(18.dp),
-            )
-            Text(
-                text = stringResource(R.string.action_play_all),
-                color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
+        Icon(
+            imageVector = Icons.Rounded.PlayArrow,
+            contentDescription = null,
+            modifier = Modifier.size(ButtonDefaults.iconSizeFor(height)),
+        )
+        Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+        Text(
+            text = stringResource(R.string.action_play_all),
+            style = ButtonDefaults.textStyleFor(height),
+        )
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SeeAllButton(onClick: () -> Unit) {
+    val height = ButtonDefaults.ExtraSmallContainerHeight
     TextButton(
         onClick = onClick,
+        shapes = ButtonDefaults.shapesFor(height),
+        contentPadding = ButtonDefaults.contentPaddingFor(height),
         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+        modifier = Modifier.heightIn(min = height),
     ) {
         Text(
             text = stringResource(R.string.action_view_all),
-            style = MaterialTheme.typography.labelLarge,
+            style = ButtonDefaults.textStyleFor(height),
         )
     }
 }

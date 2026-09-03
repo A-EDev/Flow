@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -22,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,7 +32,7 @@ import io.github.aedev.flow.ui.components.rememberFlowSheetState
 /**
  * Playlist Creation Dialog
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CreatePlaylistDialog(
     onDismiss: () -> Unit,
@@ -48,8 +46,7 @@ fun CreatePlaylistDialog(
         title = {
             Text(
                 stringResource(R.string.title_create_playlist),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmallEmphasized,
             )
         },
         text = {
@@ -101,7 +98,7 @@ fun CreatePlaylistDialog(
 /**
  * Add to Playlist Dialog
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AddToPlaylistDialog(
     playlists: List<io.github.aedev.flow.data.music.Playlist>,
@@ -116,7 +113,6 @@ fun AddToPlaylistDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         scrimColor = Color.Transparent,
         dragHandle = { BottomSheetDefaults.DragHandle() },
@@ -131,8 +127,7 @@ fun AddToPlaylistDialog(
         ) {
             Text(
                 stringResource(R.string.title_add_to_playlist),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLargeEmphasized,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
 
@@ -169,35 +164,27 @@ fun AddToPlaylistDialog(
                 }
 
                 item {
-                    Surface(
+                    val buttonHeight = ButtonDefaults.MediumContainerHeight
+                    FilledTonalButton(
+                        onClick = onCreateNew,
+                        shapes = ButtonDefaults.shapesFor(buttonHeight),
+                        contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight, hasStartIcon = true),
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        onClick = onCreateNew,
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .heightIn(min = buttonHeight),
                     ) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                text = stringResource(R.string.create_new_playlist),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(buttonHeight)),
+                        )
+                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(buttonHeight)))
+                        Text(
+                            text = stringResource(R.string.create_new_playlist),
+                            style = ButtonDefaults.textStyleFor(buttonHeight),
+                        )
                     }
                 }
             }
@@ -234,7 +221,7 @@ private fun MusicPlaylistSheetRow(
             modifier =
                 Modifier
                     .size(width = 88.dp, height = 50.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
@@ -262,7 +249,6 @@ private fun MusicPlaylistSheetRow(
             Text(
                 playlist.name,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

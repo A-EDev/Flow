@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +51,7 @@ import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
  * width is [thumbnailHeight] × [aspectRatio], so a lane of cards lines up on the artwork edge
  * whatever its shape.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MusicCollectionCard(
     title: String,
@@ -60,7 +61,7 @@ fun MusicCollectionCard(
     thumbnailUrl: String? = null,
     thumbnailHeight: Dp = currentGridThumbnailHeight(),
     aspectRatio: Float = 1f,
-    shape: Shape = MaterialTheme.shapes.medium,
+    shape: Shape = MaterialTheme.shapes.large,
     fillMaxWidth: Boolean = false,
     mediaId: String? = null,
     isPlaying: Boolean = isTrackPlaying(mediaId),
@@ -110,8 +111,7 @@ fun MusicCollectionCard(
 
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMediumEmphasized,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = textAlign,
             maxLines = 2,

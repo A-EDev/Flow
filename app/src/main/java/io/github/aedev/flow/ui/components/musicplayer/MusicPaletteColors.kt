@@ -31,8 +31,16 @@ data class MusicPaletteColors(
 
 internal val PaletteInkDark = Color(0xFF161616)
 
+/**
+ * [animated] eases the swatches in over a second, which is right for the player and wrong for a
+ * page that re-derives a whole colour scheme from them: a scheme change recomposes everything
+ * under the theme, so pages take the settled colours in one step instead.
+ */
 @Composable
-fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
+fun rememberMusicPalette(
+    thumbnailUrl: String?,
+    animated: Boolean = true,
+): MusicPaletteColors {
     val context = LocalContext.current
     var baseSwatch by remember { mutableStateOf<Color?>(null) }
     var accentSwatch by remember { mutableStateOf<Color?>(null) }
@@ -65,16 +73,20 @@ fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
         }
     }
 
-    val base by animateColorAsState(
-        targetValue = baseSwatch ?: MaterialTheme.colorScheme.surface,
+    val baseTarget = baseSwatch ?: MaterialTheme.colorScheme.surface
+    val accentTarget = accentSwatch ?: MaterialTheme.colorScheme.primary
+    val animatedBase by animateColorAsState(
+        targetValue = baseTarget,
         animationSpec = tween(1000),
         label = "musicPaletteBase",
     )
-    val accent by animateColorAsState(
-        targetValue = accentSwatch ?: MaterialTheme.colorScheme.primary,
+    val animatedAccent by animateColorAsState(
+        targetValue = accentTarget,
         animationSpec = tween(1000),
         label = "musicPaletteAccent",
     )
+    val base = if (animated) animatedBase else baseTarget
+    val accent = if (animated) animatedAccent else accentTarget
     val onBase =
         remember(base) {
             if (base.luminance() < 0.45f) Color.White else PaletteInkDark
