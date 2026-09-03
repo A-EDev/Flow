@@ -15,21 +15,29 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 
+private val StateIconContainerSize = 96.dp
+private val StateIconSize = 44.dp
+
 /**
  * Failure state for any music surface, with a single retry affordance.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MusicErrorState(
     error: String,
@@ -45,19 +53,17 @@ fun MusicErrorState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Error,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.error,
-            )
+            MusicStateIcon(icon = Icons.Outlined.Error, tint = MaterialTheme.colorScheme.error)
             Text(
                 text = error,
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Button(onClick = onRetry) {
+            Button(
+                onClick = onRetry,
+                shapes = ButtonDefaults.shapes(),
+            ) {
                 Text(stringResource(R.string.action_retry))
             }
         }
@@ -85,12 +91,7 @@ fun MusicEmptyState(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(56.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                MusicStateIcon(icon = icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(
                 text = title,
@@ -106,6 +107,27 @@ fun MusicEmptyState(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun MusicStateIcon(
+    icon: ImageVector,
+    tint: Color,
+) {
+    Surface(
+        shape = musicActionShape(),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        modifier = Modifier.size(StateIconContainerSize),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(StateIconSize),
+                tint = tint,
+            )
         }
     }
 }

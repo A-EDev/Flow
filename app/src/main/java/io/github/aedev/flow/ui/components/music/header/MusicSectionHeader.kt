@@ -23,9 +23,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,7 +118,16 @@ fun MusicSectionHeader(
                 }
 
                 is MusicSectionAction.SeeAll -> {
-                    SeeAllButton(onClick = action.onClick)
+                    IconButton(
+                        onClick = action.onClick,
+                        shapes = IconButtonDefaults.shapes(),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = stringResource(R.string.action_view_all),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
 
                 is MusicSectionAction.Navigate -> {
@@ -154,24 +164,6 @@ private fun PlayAllButton(onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(height)))
         Text(
             text = stringResource(R.string.action_play_all),
-            style = ButtonDefaults.textStyleFor(height),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun SeeAllButton(onClick: () -> Unit) {
-    val height = ButtonDefaults.ExtraSmallContainerHeight
-    TextButton(
-        onClick = onClick,
-        shapes = ButtonDefaults.shapesFor(height),
-        contentPadding = ButtonDefaults.contentPaddingFor(height),
-        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
-        modifier = Modifier.heightIn(min = height),
-    ) {
-        Text(
-            text = stringResource(R.string.action_view_all),
             style = ButtonDefaults.textStyleFor(height),
         )
     }

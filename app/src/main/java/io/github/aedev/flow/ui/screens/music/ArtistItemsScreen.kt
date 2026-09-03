@@ -49,8 +49,7 @@ import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickAction
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 
-private val GridCellMinWidth = 160.dp
-private val GridArtworkHeight = 160.dp
+private val GridCellMinWidth = 150.dp
 private const val LOAD_MORE_THRESHOLD = 5
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -193,7 +192,7 @@ fun ArtistItemsScreen(
                                 title = item.title,
                                 subtitle = item.cardSubtitle(),
                                 thumbnailUrl = item.thumbnail,
-                                thumbnailHeight = GridArtworkHeight,
+                                fillMaxWidth = true,
                                 shape = if (item is ArtistItem) artistShape else MaterialTheme.shapes.large,
                                 horizontalAlignment = if (item is ArtistItem) Alignment.CenterHorizontally else Alignment.Start,
                                 onLongClick = onAction,

@@ -23,11 +23,8 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
-import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,8 +39,7 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.pages.HomePage
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.components.currentGridThumbnailHeight
-import io.github.aedev.flow.ui.components.music.card.DailyDiscoverCaptionHeight
-import io.github.aedev.flow.ui.components.music.card.DailyDiscoverCard
+import io.github.aedev.flow.ui.components.music.card.MusicHeroCard
 import io.github.aedev.flow.ui.components.music.common.MusicChartRankBadge
 import io.github.aedev.flow.ui.components.music.common.MusicFilterChip
 import io.github.aedev.flow.ui.components.music.common.MusicMoodButton
@@ -60,15 +56,12 @@ import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.theme.Dimensions
 
-private val ArtistPortraitSize = 108.dp
+private val ArtistPortraitSize = 84.dp
 private val SeedThumbnailSize = 40.dp
 private val QuickPickMaxWidth = 360.dp
 private val QuickPickPeek = 48.dp
 private val ChartMaxWidth = 320.dp
 private val ChartPeek = 56.dp
-private val DailyDiscoverMaxWidth = 300.dp
-private val DailyDiscoverPeek = 72.dp
-private val DailyDiscoverItemSpacing = 8.dp
 private const val MOOD_ROWS = 3
 
 /**
@@ -104,6 +97,7 @@ fun MusicTrackCardShelf(
         title = title,
         items = tracks,
         key = { "$keyNamespace:${it.videoId}" },
+        itemWidth = thumbnailHeight,
         modifier = modifier,
         subtitle = subtitle,
         leading = leading,
@@ -116,14 +110,58 @@ fun MusicTrackCardShelf(
             thumbnailHeight = thumbnailHeight,
             mediaId = track.videoId,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
-            onClick = {
-                if (track.isCollection && onCollectionClick != null) onCollectionClick(track) else onTrackClick(track)
-            },
-            onLongClick = {
-                if (track.isCollection && onCollectionMenu != null) onCollectionMenu(track) else onTrackMenu(track)
-            },
+            onClick = { track.open(onTrackClick, onCollectionClick) },
+            onLongClick = { track.open(onTrackMenu, onCollectionMenu) },
         )
     }
+}
+
+/**
+ * The hero-lane counterpart of [MusicTrackCardShelf]: the same routing, on wide carousel items.
+ */
+@Composable
+fun MusicTrackHeroLane(
+    title: String,
+    tracks: List<MusicTrack>,
+    keyNamespace: String,
+    onTrackClick: (MusicTrack) -> Unit,
+    onTrackMenu: (MusicTrack) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    leading: (@Composable () -> Unit)? = null,
+    action: MusicSectionAction? = null,
+    downloadedTrackIds: Set<String> = emptySet(),
+    onCollectionClick: ((MusicTrack) -> Unit)? = null,
+    onCollectionMenu: ((MusicTrack) -> Unit)? = null,
+    trackSubtitle: @Composable (MusicTrack) -> String = { it.artist },
+) {
+    MusicHeroLane(
+        title = title,
+        items = tracks,
+        key = { "$keyNamespace:${it.videoId}" },
+        modifier = modifier,
+        subtitle = subtitle,
+        leading = leading,
+        action = action,
+    ) { track, captionAlpha ->
+        MusicHeroCard(
+            title = track.title,
+            subtitle = trackSubtitle(track),
+            thumbnailUrl = track.highResThumbnailUrl,
+            mediaId = track.videoId,
+            isDownloaded = downloadedTrackIds.contains(track.videoId),
+            captionAlpha = captionAlpha,
+            onClick = { track.open(onTrackClick, onCollectionClick) },
+            onLongClick = { track.open(onTrackMenu, onCollectionMenu) },
+        )
+    }
+}
+
+private fun MusicTrack.open(
+    asTrack: (MusicTrack) -> Unit,
+    asCollection: ((MusicTrack) -> Unit)?,
+) {
+    if (isCollection && asCollection != null) asCollection(this) else asTrack(this)
 }
 
 /**
@@ -146,6 +184,7 @@ fun MusicCollectionShelf(
         title = title,
         items = collections,
         key = { "$keyNamespace:${it.id}" },
+        itemWidth = thumbnailHeight,
         modifier = modifier,
         action = action,
     ) { collection ->
@@ -154,6 +193,38 @@ fun MusicCollectionShelf(
             subtitle = collectionSubtitle(collection),
             thumbnailUrl = collection.thumbnailUrl,
             thumbnailHeight = thumbnailHeight,
+            onClick = { onCollectionClick(collection) },
+            onLongClick = { onCollectionMenu(collection) },
+        )
+    }
+}
+
+/**
+ * The hero-lane counterpart of [MusicCollectionShelf].
+ */
+@Composable
+fun MusicCollectionHeroLane(
+    title: String,
+    collections: List<MusicPlaylist>,
+    keyNamespace: String,
+    onCollectionClick: (MusicPlaylist) -> Unit,
+    onCollectionMenu: (MusicPlaylist) -> Unit,
+    modifier: Modifier = Modifier,
+    action: MusicSectionAction? = null,
+    collectionSubtitle: @Composable (MusicPlaylist) -> String? = { it.author },
+) {
+    MusicHeroLane(
+        title = title,
+        items = collections,
+        key = { "$keyNamespace:${it.id}" },
+        modifier = modifier,
+        action = action,
+    ) { collection, captionAlpha ->
+        MusicHeroCard(
+            title = collection.title,
+            subtitle = collectionSubtitle(collection),
+            thumbnailUrl = collection.thumbnailUrl,
+            captionAlpha = captionAlpha,
             onClick = { onCollectionClick(collection) },
             onLongClick = { onCollectionMenu(collection) },
         )
@@ -180,6 +251,7 @@ fun <T> MusicArtistShelf(
         title = title,
         items = artists,
         key = key,
+        itemWidth = ArtistPortraitSize,
         modifier = modifier,
     ) { artist ->
         MusicCollectionCard(
@@ -195,8 +267,8 @@ fun <T> MusicArtistShelf(
 }
 
 /**
- * A four-row lane of track rows — the Quick Picks shape. Rows fill a phone with the next column
- * peeking in and stop growing on wider windows.
+ * A four-row lane of grouped track rows — the Quick Picks shape. Columns fill a phone with the
+ * next column peeking in and stop growing on wider windows.
  */
 @Composable
 fun MusicQuickPicksShelf(
@@ -218,13 +290,14 @@ fun MusicQuickPicksShelf(
         modifier = modifier,
         action = action,
         state = state,
-    ) { track ->
+    ) { track, shape ->
         MusicTrackItem(
             track = track,
             density = MusicItemDensity.Compact,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             showMenu = false,
-            shape = MaterialTheme.shapes.medium,
+            shape = shape,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
             onClick = { onTrackClick(track) },
             onLongClick = { onTrackMenu(track) },
             modifier = Modifier.width(rowWidth),
@@ -233,7 +306,7 @@ fun MusicQuickPicksShelf(
 }
 
 /**
- * A four-row lane of ranked track rows — the Charts shape.
+ * A four-row lane of ranked, grouped track rows — the Charts shape.
  */
 @Composable
 fun MusicChartsShelf(
@@ -252,13 +325,14 @@ fun MusicChartsShelf(
         items = ranked,
         key = { (_, track) -> "charts:${track.videoId}" },
         modifier = modifier,
-    ) { (rank, track) ->
+    ) { (rank, track), shape ->
         MusicTrackItem(
             track = track,
             density = MusicItemDensity.Compact,
             leadingContent = { MusicChartRankBadge(rank) },
             showMenu = false,
-            shape = MaterialTheme.shapes.medium,
+            shape = shape,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             onClick = { onTrackClick(track) },
             onLongClick = { onTrackMenu(track) },
@@ -268,10 +342,8 @@ fun MusicChartsShelf(
 }
 
 /**
- * The Daily Discover carousel: one recommendation in focus, the next ones peeking in. The caption
- * fades with the item so preview-sized items show artwork only.
+ * The Daily Discover hero lane: one recommendation in focus, the next ones peeking in.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DailyDiscoverShelf(
     items: List<DailyDiscoverItem>,
@@ -281,43 +353,25 @@ fun DailyDiscoverShelf(
     action: MusicSectionAction? = null,
     downloadedTrackIds: Set<String> = emptySet(),
 ) {
-    val uniqueItems = remember(items) { items.distinctBy { it.recommendation.videoId } }
-    if (uniqueItems.isEmpty()) return
-
-    val itemWidth = musicLaneItemWidth(maxWidth = DailyDiscoverMaxWidth, peek = DailyDiscoverPeek)
-    val carouselState = rememberCarouselState { uniqueItems.size }
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        MusicSectionHeader(
-            title = stringResource(R.string.section_daily_discover),
-            subtitle = stringResource(R.string.daily_discover_subtitle),
-            action = action,
+    MusicHeroLane(
+        title = stringResource(R.string.section_daily_discover),
+        subtitle = stringResource(R.string.daily_discover_subtitle),
+        items = items,
+        key = { "daily_discover:${it.recommendation.videoId}" },
+        modifier = modifier,
+        action = action,
+    ) { item, captionAlpha ->
+        val track = item.recommendation
+        MusicHeroCard(
+            title = track.title,
+            subtitle = track.artist,
+            thumbnailUrl = track.highResThumbnailUrl,
+            mediaId = track.videoId,
+            isDownloaded = downloadedTrackIds.contains(track.videoId),
+            captionAlpha = captionAlpha,
+            onClick = { onItemClick(item) },
+            onLongClick = { onItemMenu(item) },
         )
-        HorizontalMultiBrowseCarousel(
-            state = carouselState,
-            preferredItemWidth = itemWidth,
-            itemSpacing = DailyDiscoverItemSpacing,
-            contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = Dimensions.ContentPaddingVertical)
-                    .height(itemWidth + DailyDiscoverCaptionHeight),
-        ) { index ->
-            val item = uniqueItems[index]
-            DailyDiscoverCard(
-                item = item,
-                isDownloaded = downloadedTrackIds.contains(item.recommendation.videoId),
-                onClick = { onItemClick(item) },
-                onLongClick = { onItemMenu(item) },
-                captionAlpha = {
-                    val info = carouselItemDrawInfo
-                    val range = info.maxSize - info.minSize
-                    if (range <= 0f) 1f else ((info.size - info.minSize) / range).coerceIn(0f, 1f)
-                },
-                modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge),
-            )
-        }
     }
 }
 

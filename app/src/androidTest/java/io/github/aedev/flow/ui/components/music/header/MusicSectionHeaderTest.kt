@@ -63,7 +63,7 @@ class MusicSectionHeaderTest {
             }
         }
 
-        composeRule.onNodeWithText(viewAll).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(viewAll).assertIsDisplayed()
         composeRule.onNodeWithText(playAll).assertDoesNotExist()
         composeRule.onNodeWithContentDescription(navigate).assertDoesNotExist()
     }

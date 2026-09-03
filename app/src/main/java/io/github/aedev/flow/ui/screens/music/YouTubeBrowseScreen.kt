@@ -128,12 +128,13 @@ fun YouTubeBrowseScreen(
                                         title = section.title,
                                         items = section.items.filterIsInstance<SongItem>(),
                                         key = { it.stableLazyKey("browse_grid_$sectionKey") },
-                                    ) { song ->
+                                    ) { song, shape ->
                                         MusicTrackItem(
                                             track = convertSongToMusicTrack(song),
                                             density = MusicItemDensity.Compact,
                                             showMenu = false,
-                                            shape = MaterialTheme.shapes.medium,
+                                            shape = shape,
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                             onClick = { onSongClick(song) },
                                             modifier = Modifier.width(rowWidth),
                                         )
@@ -147,6 +148,7 @@ fun YouTubeBrowseScreen(
                                         title = section.title,
                                         items = section.items,
                                         key = { it.stableLazyKey("browse_row_$sectionKey") },
+                                        itemWidth = thumbnailHeight,
                                     ) { item ->
                                         when (item) {
                                             is SongItem -> {

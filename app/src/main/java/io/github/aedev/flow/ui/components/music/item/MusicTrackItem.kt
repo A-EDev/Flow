@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -86,7 +87,7 @@ private val MusicItemDensity.horizontalPadding: Dp
  * on it, [trailingContent] for an extra affordance before the overflow menu. [leadingContent] wins
  * when both it and [index] are supplied.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MusicTrackItem(
     track: MusicTrack,
@@ -130,8 +131,7 @@ fun MusicTrackItem(
             index != null -> {
                 Text(
                     text = index.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Normal,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                     color =
                         if (isPlaying) {
                             MaterialTheme.colorScheme.primary

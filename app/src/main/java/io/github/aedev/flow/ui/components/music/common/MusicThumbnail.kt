@@ -126,8 +126,9 @@ fun MusicThumbnail(
 fun MusicMosaicThumbnail(
     tracks: List<MusicTrack>,
     modifier: Modifier = Modifier,
+    shape: Shape = MaterialTheme.shapes.medium,
 ) {
-    Box(modifier = modifier.clip(MaterialTheme.shapes.medium)) {
+    Box(modifier = modifier.clip(shape)) {
         Column(modifier = Modifier.fillMaxSize()) {
             repeat(2) { row ->
                 Row(modifier = Modifier.weight(1f)) {
