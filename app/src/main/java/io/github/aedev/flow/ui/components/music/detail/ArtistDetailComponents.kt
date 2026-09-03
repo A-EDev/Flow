@@ -7,88 +7,80 @@
 package io.github.aedev.flow.ui.components.music.detail
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.ArtistDetails
-import io.github.aedev.flow.ui.theme.musicScrim
+import io.github.aedev.flow.ui.components.music.common.musicArtistShape
+import io.github.aedev.flow.ui.components.music.common.musicHeroArtworkSize
 import io.github.aedev.flow.utils.formatViewCount
 
+private const val COLLAPSED_BIO_LINES = 3
+
 /**
- * The artist page's full-bleed artwork header: a blurred backdrop behind a square hero that
- * fades into the page background.
+ * The artist page header: the portrait in the artist shape, the name, and the subscribe, shuffle
+ * and play controls, all on the page scheme the portrait seeded.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ArtistHero(
     artist: ArtistDetails,
+    onFollowClick: () -> Unit,
+    onShuffleClick: () -> Unit,
+    onPlayClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val imageUrl = artist.thumbnailUrl.ifEmpty { artist.bannerUrl }
+    val portraitSize = musicHeroArtworkSize()
+    val buttonHeight = ButtonDefaults.MediumContainerHeight
 
-    Box(modifier = modifier.fillMaxWidth()) {
-        AsyncImage(
-            model =
-                ImageRequest
-                    .Builder(context)
-                    .data(imageUrl)
-                    .crossfade(true)
-                    .build(),
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(400.dp)
-                    .blur(50.dp),
-            contentScale = ContentScale.Crop,
-            alpha = 0.6f,
-        )
-
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(
+            shape = musicArtistShape(),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.size(portraitSize),
         ) {
             AsyncImage(
                 model =
@@ -101,156 +93,106 @@ fun ArtistHero(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors =
-                                    listOf(
-                                        Color.Transparent,
-                                        musicScrim(0.1f),
-                                        musicScrim(0.5f),
-                                        MaterialTheme.colorScheme.background,
-                                    ),
-                                startY = 0.5f,
-                            ),
-                        ),
-            )
         }
-    }
-}
 
-/**
- * Artist name plus the subscribe, shuffle and play controls.
- */
-@Composable
-fun ArtistHeaderActions(
-    name: String,
-    isSubscribed: Boolean,
-    onFollowClick: () -> Unit,
-    onShuffleClick: () -> Unit,
-    onPlayClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .offset(y = (-32).dp)
-                .padding(horizontal = 24.dp),
-    ) {
+        Spacer(modifier = Modifier.height(20.dp))
+
         Text(
-            text = name,
-            style =
-                MaterialTheme.typography.displaySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-1).sp,
-                ),
-            color = MaterialTheme.colorScheme.onBackground,
+            text = artist.name,
+            style = MaterialTheme.typography.headlineLargeEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        if (artist.subscriberCount > 0) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.subscribers_count_template, formatViewCount(artist.subscriberCount)),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
 
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Button(
-                onClick = onFollowClick,
+            ToggleButton(
+                checked = artist.isSubscribed,
+                onCheckedChange = { onFollowClick() },
+                shapes = ToggleButtonDefaults.shapesFor(buttonHeight),
                 colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor =
-                            if (isSubscribed) {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            },
-                        contentColor =
-                            if (isSubscribed) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.onPrimary
-                            },
+                    ToggleButtonDefaults.toggleButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     ),
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                shape = RoundedCornerShape(32.dp),
-                modifier = Modifier.height(44.dp),
+                contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight),
+                modifier = Modifier.heightIn(min = buttonHeight),
             ) {
                 Text(
-                    text = stringResource(if (isSubscribed) R.string.subscribed else R.string.subscribe),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    text = stringResource(if (artist.isSubscribed) R.string.subscribed else R.string.subscribe),
+                    style = ButtonDefaults.textStyleFor(buttonHeight),
                 )
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            FilledIconButton(
+            FilledTonalIconButton(
                 onClick = onShuffleClick,
-                modifier = Modifier.size(48.dp),
-                colors =
-                    IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
+                shapes = IconButtonDefaults.shapes(),
+                modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
             ) {
-                Icon(Icons.Default.Shuffle, stringResource(R.string.shuffle))
+                Icon(
+                    imageVector = Icons.Rounded.Shuffle,
+                    contentDescription = stringResource(R.string.shuffle),
+                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                )
             }
 
             FilledIconButton(
                 onClick = onPlayClick,
-                modifier = Modifier.size(48.dp),
-                colors =
-                    IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
+                shapes = IconButtonDefaults.shapes(),
+                modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
             ) {
-                Icon(Icons.Default.PlayArrow, stringResource(R.string.play))
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(R.string.play),
+                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                )
             }
         }
     }
 }
 
 /**
- * Subscriber count and the expandable artist description.
+ * The expandable artist description.
  */
 @Composable
 fun ArtistBio(
-    subscriberCount: Long,
     description: String,
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Text(
+        text = description,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = if (isExpanded) Int.MAX_VALUE else COLLAPSED_BIO_LINES,
+        overflow = TextOverflow.Ellipsis,
         modifier =
             modifier
                 .fillMaxWidth()
+                .clickable(onClick = onToggleExpanded)
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 16.dp)
                 .animateContentSize(),
-    ) {
-        if (subscriberCount > 0) {
-            Text(
-                text = stringResource(R.string.subscribers_count_template, formatViewCount(subscriberCount)),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        if (description.isNotEmpty()) {
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = if (isExpanded) Int.MAX_VALUE else 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.clickable(onClick = onToggleExpanded),
-            )
-        }
-    }
+    )
 }

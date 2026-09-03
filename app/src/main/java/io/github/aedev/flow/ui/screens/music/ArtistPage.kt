@@ -1,101 +1,101 @@
 package io.github.aedev.flow.ui.screens.music
 
-import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.components.AddToPlaylistDialog
+import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarDefaults
+import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
+import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
+import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
+import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.ArtistBio
-import io.github.aedev.flow.ui.components.music.detail.ArtistHeaderActions
 import io.github.aedev.flow.ui.components.music.detail.ArtistHero
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
-import io.github.aedev.flow.ui.components.music.item.MusicCardOverflowButton
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
+import io.github.aedev.flow.ui.components.music.section.MusicArtistShelf
+import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
+import io.github.aedev.flow.ui.components.music.section.MusicShelf
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
-import io.github.aedev.flow.ui.theme.MusicScrimContent
+import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
+import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatViewCount
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private const val TOP_TRACKS_SHOWN = 5
+private val VideoCardHeight = 124.dp
+private const val VIDEO_ASPECT_RATIO = 16f / 9f
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistPage(
     artistDetails: ArtistDetails,
-    downloadedTrackIds: Set<String> = emptySet(),
-    insights: io.github.aedev.flow.data.recommendation.music.MusicArtistInsights? = null,
-    knownRelatedArtistIds: Set<String> = emptySet(),
     onBackClick: () -> Unit,
     onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onAlbumClick: (MusicPlaylist) -> Unit,
     onArtistClick: (String) -> Unit,
     onFollowClick: () -> Unit,
-    onSeeAllClick: (String, String?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
+    downloadedTrackIds: Set<String> = emptySet(),
+    insights: MusicArtistInsights? = null,
+    knownRelatedArtistIds: Set<String> = emptySet(),
+    onSeeAllClick: (String, String?) -> Unit = { _, _ -> },
 ) {
     val scrollState = rememberLazyListState()
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    val density = LocalDensity.current
 
-    val transparentAppBar by remember {
-        derivedStateOf {
-            scrollState.firstVisibleItemIndex == 0 && scrollState.firstVisibleItemScrollOffset < 100
-        }
+    val showBarTitle by remember {
+        derivedStateOf { scrollState.firstVisibleItemIndex > 0 }
     }
 
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
     var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
     var descriptionExpanded by remember { mutableStateOf(false) }
+
+    fun showTrackMenu(track: MusicTrack) {
+        selectedTrack = track
+        showBottomSheet = true
+    }
 
     if (showBottomSheet && selectedTrack != null) {
         MusicQuickActionsSheet(
@@ -154,67 +154,52 @@ fun ArtistPage(
         )
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                title = {
-                    if (!transparentAppBar) {
-                        Text(
-                            text = artistDetails.name,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back),
-                            tint = if (transparentAppBar) MusicScrimContent else MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        val shareText = "https://music.youtube.com/channel/${artistDetails.channelId}"
-                        clipboardManager.setText(AnnotatedString(shareText))
-                        Toast.makeText(context, context.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Link,
-                            contentDescription = stringResource(R.string.share_link_cd),
-                            tint = if (transparentAppBar) MusicScrimContent else MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                },
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (transparentAppBar) Color.Transparent else MaterialTheme.colorScheme.background,
-                        scrolledContainerColor = MaterialTheme.colorScheme.background,
-                    ),
-            )
-        },
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize()) {
+    val pageScheme = rememberMusicCollectionColorScheme(artistDetails.thumbnailUrl.ifEmpty { artistDetails.bannerUrl })
+
+    MaterialTheme(colorScheme = pageScheme) {
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                FlowTopBar(
+                    title = {
+                        AnimatedVisibility(visible = showBarTitle, enter = fadeIn(), exit = fadeOut()) {
+                            Text(
+                                text = artistDetails.name,
+                                style = FlowTopBarDefaults.titleStyle,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    },
+                    onBack = onBackClick,
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString("https://music.youtube.com/channel/${artistDetails.channelId}"))
+                                Toast.makeText(context, context.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Link,
+                                contentDescription = stringResource(R.string.share_link_cd),
+                            )
+                        }
+                    },
+                )
+            },
+        ) { paddingValues ->
             LazyColumn(
                 state = scrollState,
                 contentPadding = PaddingValues(bottom = 32.dp),
-                modifier = Modifier.fillMaxSize(),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
             ) {
-                item {
-                    ArtistHero(artist = artistDetails)
-                }
-
-                item {
-                    ArtistHeaderActions(
-                        name = artistDetails.name,
-                        isSubscribed = artistDetails.isSubscribed,
+                item(key = "hero") {
+                    ArtistHero(
+                        artist = artistDetails,
                         onFollowClick = onFollowClick,
                         onShuffleClick = {
                             if (artistDetails.topTracks.isNotEmpty()) {
@@ -229,261 +214,130 @@ fun ArtistPage(
                     )
                 }
 
-                item {
-                    ArtistBio(
-                        subscriberCount = artistDetails.subscriberCount,
-                        description = artistDetails.description,
-                        isExpanded = descriptionExpanded,
-                        onToggleExpanded = { descriptionExpanded = !descriptionExpanded },
+                if (artistDetails.description.isNotEmpty()) {
+                    item(key = "bio") {
+                        ArtistBio(
+                            description = artistDetails.description,
+                            isExpanded = descriptionExpanded,
+                            onToggleExpanded = { descriptionExpanded = !descriptionExpanded },
+                        )
+                    }
+                }
+
+                if (artistDetails.topTracks.isNotEmpty()) {
+                    item(key = "top_songs_header") {
+                        val browseId = artistDetails.topTracksBrowseId
+                        MusicSectionHeader(
+                            title = stringResource(R.string.filter_popular),
+                            action =
+                                if (browseId != null) {
+                                    MusicSectionAction.SeeAll { onSeeAllClick(browseId, artistDetails.topTracksParams) }
+                                } else {
+                                    null
+                                },
+                        )
+                    }
+                    segmentedTracks(
+                        id = "top_songs",
+                        tracks = artistDetails.topTracks.take(TOP_TRACKS_SHOWN),
+                        queue = artistDetails.topTracks,
+                        downloadedTrackIds = downloadedTrackIds,
+                        onTrackClick = onTrackClick,
+                        onTrackMenu = ::showTrackMenu,
                     )
                 }
 
-                // Top Songs
-                if (artistDetails.topTracks.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.filter_popular),
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            )
-                            if (artistDetails.topTracks.size > 5 || artistDetails.topTracksBrowseId != null) {
-                                TextButton(onClick = {
-                                    artistDetails.topTracksBrowseId?.let { onSeeAllClick(it, artistDetails.topTracksParams) }
-                                }) {
-                                    Text(stringResource(R.string.action_view_all))
-                                }
-                            }
-                        }
-                    }
-
-                    itemsIndexed(artistDetails.topTracks.take(5)) { index, track ->
-                        MusicTrackItem(
-                            track = track,
-                            isDownloaded = downloadedTrackIds.contains(track.videoId),
-                            leadingContent = {
-                                Text(
-                                    text = (index + 1).toString(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.width(32.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                )
-                            },
-                            onClick = { onTrackClick(track, artistDetails.topTracks) },
-                            onLongClick = {
-                                selectedTrack = track
-                                showBottomSheet = true
-                            },
-                            onMenuClick = {
-                                selectedTrack = track
-                                showBottomSheet = true
-                            },
-                        )
-                    }
-                }
-
-                // Your history — the local brain's record of this artist, zero network
                 if (insights != null && insights.topTracks.isNotEmpty()) {
-                    item {
-                        MusicSectionHeader(title = stringResource(R.string.section_your_history))
-                        Text(
-                            text =
-                                buildString {
-                                    append(stringResource(R.string.artist_insights_played_times, insights.plays))
-                                    if (insights.liked) {
-                                        append(" · ")
-                                        append(stringResource(R.string.artist_insights_liked))
-                                    }
-                                },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 24.dp),
+                    item(key = "history_header") {
+                        MusicSectionHeader(
+                            title = stringResource(R.string.section_your_history),
+                            subtitle = insights.summaryLine(),
                         )
                     }
-                    itemsIndexed(insights.topTracks.take(5)) { index, track ->
-                        MusicTrackItem(
-                            track = track,
-                            isDownloaded = downloadedTrackIds.contains(track.videoId),
-                            leadingContent = {
-                                Text(
-                                    text = (index + 1).toString(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.width(32.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                )
-                            },
-                            onClick = { onTrackClick(track, insights.topTracks) },
-                            onLongClick = {
-                                selectedTrack = track
-                                showBottomSheet = true
-                            },
-                            onMenuClick = {
-                                selectedTrack = track
-                                showBottomSheet = true
-                            },
-                        )
-                    }
+                    segmentedTracks(
+                        id = "history",
+                        tracks = insights.topTracks.take(TOP_TRACKS_SHOWN),
+                        queue = insights.topTracks,
+                        downloadedTrackIds = downloadedTrackIds,
+                        onTrackClick = onTrackClick,
+                        onTrackMenu = ::showTrackMenu,
+                    )
                 }
 
-                // Singles & EPs
                 if (artistDetails.singles.isNotEmpty()) {
-                    item {
-                        MusicSectionHeader(
+                    item(key = "singles") {
+                        MusicCollectionShelf(
                             title = stringResource(R.string.section_singles),
-                            action =
-                                MusicSectionAction.SeeAll {
-                                    artistDetails.singlesBrowseId?.let {
-                                        onSeeAllClick(
-                                            it,
-                                            artistDetails.singlesParams,
-                                        )
-                                    }
-                                },
+                            collections = artistDetails.singles,
+                            keyNamespace = "singles",
+                            onCollectionClick = onAlbumClick,
+                            onCollectionMenu = { selectedCollection = it.toCollectionActionItem(isAlbum = true) },
+                            action = seeAllAction(artistDetails.singlesBrowseId, artistDetails.singlesParams, onSeeAllClick),
+                            collectionSubtitle = { it.collectionSubtitle(showAuthor = false) },
                         )
-                    }
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            items(artistDetails.singles) { album ->
-                                MusicCollectionCard(
-                                    title = album.title,
-                                    subtitle = album.collectionSubtitle(showAuthor = false),
-                                    thumbnailUrl = album.thumbnailUrl,
-                                    thumbnailHeight = 160.dp,
-                                    onClick = { onAlbumClick(album) },
-                                    onLongClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
-                                    trailingContent = {
-                                        MusicCardOverflowButton(
-                                            onClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
-                                        )
-                                    },
-                                )
-                            }
-                        }
                     }
                 }
 
-                // Albums
                 if (artistDetails.albums.isNotEmpty()) {
-                    item {
-                        MusicSectionHeader(
+                    item(key = "albums") {
+                        MusicCollectionShelf(
                             title = stringResource(R.string.filter_albums),
-                            action =
-                                MusicSectionAction.SeeAll {
-                                    artistDetails.albumsBrowseId?.let {
-                                        onSeeAllClick(
-                                            it,
-                                            artistDetails.albumsParams,
-                                        )
-                                    }
-                                },
+                            collections = artistDetails.albums,
+                            keyNamespace = "albums",
+                            onCollectionClick = onAlbumClick,
+                            onCollectionMenu = { selectedCollection = it.toCollectionActionItem(isAlbum = true) },
+                            action = seeAllAction(artistDetails.albumsBrowseId, artistDetails.albumsParams, onSeeAllClick),
+                            collectionSubtitle = { it.collectionSubtitle(showAuthor = false) },
                         )
                     }
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            items(artistDetails.albums) { album ->
-                                MusicCollectionCard(
-                                    title = album.title,
-                                    subtitle = album.collectionSubtitle(showAuthor = false),
-                                    thumbnailUrl = album.thumbnailUrl,
-                                    thumbnailHeight = 160.dp,
-                                    onClick = { onAlbumClick(album) },
-                                    onLongClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
-                                    trailingContent = {
-                                        MusicCardOverflowButton(
-                                            onClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) },
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                    }
                 }
 
-                // Videos
                 if (artistDetails.videos.isNotEmpty()) {
-                    item { MusicSectionHeader(title = stringResource(R.string.tab_videos)) }
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            items(artistDetails.videos, key = { it.videoId }) { video ->
-                                MusicCollectionCard(
-                                    title = video.title,
-                                    subtitle = video.videoSubtitle(),
-                                    thumbnailUrl = video.thumbnailUrl,
-                                    thumbnailHeight = 124.dp,
-                                    aspectRatio = 16f / 9f,
-                                    onClick = { onTrackClick(video, listOf(video)) },
-                                )
-                            }
+                    item(key = "videos") {
+                        MusicShelf(
+                            title = stringResource(R.string.tab_videos),
+                            items = artistDetails.videos,
+                            key = { "videos:${it.videoId}" },
+                        ) { video ->
+                            MusicCollectionCard(
+                                title = video.title,
+                                subtitle = video.videoSubtitle(),
+                                thumbnailUrl = video.thumbnailUrl,
+                                thumbnailHeight = VideoCardHeight,
+                                aspectRatio = VIDEO_ASPECT_RATIO,
+                                onClick = { onTrackClick(video, listOf(video)) },
+                            )
                         }
                     }
                 }
 
-                // Featured On
                 if (artistDetails.featuredOn.isNotEmpty()) {
-                    item { MusicSectionHeader(title = stringResource(R.string.section_featured_on)) }
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            items(artistDetails.featuredOn) { playlist ->
-                                MusicCollectionCard(
-                                    title = playlist.title,
-                                    subtitle = playlist.collectionSubtitle(showAuthor = true),
-                                    thumbnailUrl = playlist.thumbnailUrl,
-                                    thumbnailHeight = 160.dp,
-                                    onClick = { onAlbumClick(playlist) },
-                                    onLongClick = { selectedCollection = playlist.toCollectionActionItem(isAlbum = false) },
-                                    trailingContent = {
-                                        MusicCardOverflowButton(
-                                            onClick = { selectedCollection = playlist.toCollectionActionItem(isAlbum = false) },
-                                        )
-                                    },
-                                )
-                            }
-                        }
+                    item(key = "featured_on") {
+                        MusicCollectionShelf(
+                            title = stringResource(R.string.section_featured_on),
+                            collections = artistDetails.featuredOn,
+                            keyNamespace = "featured_on",
+                            onCollectionClick = onAlbumClick,
+                            onCollectionMenu = { selectedCollection = it.toCollectionActionItem(isAlbum = false) },
+                            collectionSubtitle = { it.collectionSubtitle(showAuthor = true) },
+                        )
                     }
                 }
 
-                // Related Artists
                 if (artistDetails.relatedArtists.isNotEmpty()) {
-                    item { MusicSectionHeader(title = stringResource(R.string.section_fans_also_like)) }
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            items(artistDetails.relatedArtists) { artist ->
-                                MusicCollectionCard(
-                                    title = artist.name,
-                                    subtitle =
-                                        stringResource(R.string.artist_known_related_badge)
-                                            .takeIf { artist.channelId in knownRelatedArtistIds },
-                                    thumbnailUrl = artist.thumbnailUrl,
-                                    thumbnailHeight = 100.dp,
-                                    shape = CircleShape,
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    onClick = { onArtistClick(artist.channelId) },
-                                )
-                            }
-                        }
+                    item(key = "related_artists") {
+                        MusicArtistShelf(
+                            title = stringResource(R.string.section_fans_also_like),
+                            artists = artistDetails.relatedArtists,
+                            key = { "related:${it.channelId}" },
+                            name = { it.name },
+                            thumbnailUrl = { it.thumbnailUrl },
+                            subtitle = { artist ->
+                                stringResource(R.string.artist_known_related_badge)
+                                    .takeIf { artist.channelId in knownRelatedArtistIds }
+                            },
+                            onArtistClick = { onArtistClick(it.channelId) },
+                        )
                     }
                 }
             }
@@ -491,17 +345,49 @@ fun ArtistPage(
     }
 }
 
-private fun Modifier.mediaQuery(comparator: androidx.compose.ui.layout.ContentScale): Modifier = this
+private fun LazyListScope.segmentedTracks(
+    id: String,
+    tracks: List<MusicTrack>,
+    queue: List<MusicTrack>,
+    downloadedTrackIds: Set<String>,
+    onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
+    onTrackMenu: (MusicTrack) -> Unit,
+) {
+    itemsIndexed(tracks, key = { index, track -> "$id:$index:${track.videoId}" }) { index, track ->
+        val isPlaying = isTrackPlaying(track.videoId)
+        MusicTrackItem(
+            track = track,
+            index = index + 1,
+            shape = musicSegmentShape(index = index, count = tracks.size, selected = isPlaying),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            isPlaying = isPlaying,
+            isDownloaded = downloadedTrackIds.contains(track.videoId),
+            onClick = { onTrackClick(track, queue) },
+            onLongClick = { onTrackMenu(track) },
+            onMenuClick = { onTrackMenu(track) },
+            modifier =
+                Modifier
+                    .padding(horizontal = Dimensions.ContentPaddingHorizontal)
+                    .padding(bottom = MusicSegmentedGap),
+        )
+    }
+}
 
-private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
-    MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = author,
-        thumbnailUrl = thumbnailUrl,
-        description = if (trackCount > 0) "$trackCount tracks" else author,
-        isAlbum = isAlbum,
-    )
+private fun seeAllAction(
+    browseId: String?,
+    params: String?,
+    onSeeAllClick: (String, String?) -> Unit,
+): MusicSectionAction? = browseId?.let { MusicSectionAction.SeeAll { onSeeAllClick(it, params) } }
+
+@Composable
+private fun MusicArtistInsights.summaryLine(): String {
+    val plays = stringResource(R.string.artist_insights_played_times, this.plays)
+    return if (liked) {
+        "$plays ${stringResource(R.string.metadata_separator)} ${stringResource(R.string.artist_insights_liked)}"
+    } else {
+        plays
+    }
+}
 
 @Composable
 private fun MusicPlaylist.collectionSubtitle(showAuthor: Boolean): String =
