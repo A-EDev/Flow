@@ -20,15 +20,12 @@ val MusicSegmentedGap: Dp = ListItemDefaults.SegmentedGap
 
 /**
  * Shape of row [index] in a segmented list of [count] rows: the outer rows carry the group's
- * rounded ends, and the [selected] row (the one playing) stands out with the full radius.
+ * rounded ends, the middle rows the small corners. The playing row keeps the group shape and is
+ * told apart by its artwork colours instead.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun musicSegmentShape(
     index: Int,
     count: Int,
-    selected: Boolean = false,
-): Shape {
-    val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
-    return if (selected) shapes.selectedShape else shapes.shape
-}
+): Shape = ListItemDefaults.segmentedShapes(index = index, count = count).shape

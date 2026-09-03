@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -50,15 +49,17 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicExplicitBadge
 import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
+import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
 import io.github.aedev.flow.ui.theme.Dimensions
-import io.github.aedev.flow.ui.theme.MusicScrimNowPlaying
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatViewCount
+
+private const val SUBTITLE_ALPHA = 0.6f
+private const val HIGHLIGHT_SUBTITLE_ALPHA = 0.8f
 
 /**
  * Row height and artwork size. Comfortable is the default browse density; Compact is for dense
@@ -86,6 +87,9 @@ private val MusicItemDensity.horizontalPadding: Dp
  * [leadingContent] for anything before the artwork, [thumbnailOverlay] for progress or state drawn
  * on it, [trailingContent] for an extra affordance before the overflow menu. [leadingContent] wins
  * when both it and [index] are supplied.
+ *
+ * The playing row keeps its shape and takes its container and text colours from its own artwork,
+ * so the highlight is the record's colour rather than the theme's.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -108,6 +112,12 @@ fun MusicTrackItem(
     onMenuClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+    val highlight = if (isPlaying) rememberMusicArtworkColors(track.thumbnailUrl) else null
+    val rowColor = highlight?.container ?: containerColor
+    val titleColor = highlight?.onContainer ?: scheme.onBackground
+    val subtitleColor = highlight?.onContainer?.copy(alpha = HIGHLIGHT_SUBTITLE_ALPHA) ?: scheme.onBackground.copy(alpha = SUBTITLE_ALPHA)
+    val accentColor = highlight?.accent ?: scheme.onSurfaceVariant
 
     Row(
         modifier =
@@ -115,7 +125,7 @@ fun MusicTrackItem(
                 .fillMaxWidth()
                 .height(density.rowHeight)
                 .clip(shape)
-                .background(containerColor)
+                .background(rowColor)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
@@ -132,12 +142,7 @@ fun MusicTrackItem(
                 Text(
                     text = index.toString(),
                     style = MaterialTheme.typography.titleMediumEmphasized,
-                    color =
-                        if (isPlaying) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                    color = accentColor,
                     modifier = Modifier.width(32.dp),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
@@ -169,8 +174,8 @@ fun MusicTrackItem(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
-                if (isPlaying) {
-                    MusicNowPlayingOverlay()
+                if (highlight != null) {
+                    MusicNowPlayingOverlay(color = highlight.accent)
                 }
                 thumbnailOverlay?.invoke(this)
             }
@@ -186,7 +191,7 @@ fun MusicTrackItem(
                 text = track.title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -202,7 +207,7 @@ fun MusicTrackItem(
                 Text(
                     text = track.metadataLine(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                    color = subtitleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -220,7 +225,7 @@ fun MusicTrackItem(
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.more_options),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (highlight != null) highlight.onContainer else scheme.onSurfaceVariant,
                 )
             }
         }

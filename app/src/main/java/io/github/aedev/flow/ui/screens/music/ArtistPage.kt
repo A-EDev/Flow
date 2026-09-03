@@ -35,7 +35,6 @@ import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
 import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
-import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.ArtistBio
@@ -340,13 +339,11 @@ private fun LazyListScope.segmentedTracks(
     onTrackMenu: (MusicTrack) -> Unit,
 ) {
     itemsIndexed(tracks, key = { index, track -> "$id:$index:${track.videoId}" }) { index, track ->
-        val isPlaying = isTrackPlaying(track.videoId)
         MusicTrackItem(
             track = track,
             index = index + 1,
-            shape = musicSegmentShape(index = index, count = tracks.size, selected = isPlaying),
+            shape = musicSegmentShape(index = index, count = tracks.size),
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            isPlaying = isPlaying,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             onClick = { onTrackClick(track, queue) },
             onLongClick = { onTrackMenu(track) },

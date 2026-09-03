@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,6 +84,7 @@ fun isTrackPlaying(videoId: String?): Boolean = !videoId.isNullOrEmpty() && Loca
 fun BoxScope.MusicNowPlayingOverlay(
     waveformWidth: Dp = 28.dp,
     waveformHeight: Dp = 24.dp,
+    color: Color = MaterialTheme.colorScheme.primary,
 ) {
     Box(
         modifier =
@@ -92,7 +94,7 @@ fun BoxScope.MusicNowPlayingOverlay(
         contentAlignment = Alignment.Center,
     ) {
         PlayingWaveform(
-            color = MaterialTheme.colorScheme.primary,
+            color = color,
             modifier = Modifier.size(width = waveformWidth, height = waveformHeight),
         )
     }
