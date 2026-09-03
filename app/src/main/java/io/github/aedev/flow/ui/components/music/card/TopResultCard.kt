@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,7 +29,6 @@ import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,12 +50,14 @@ import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.music.common.musicArtistShape
+import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
 
-private val TopResultArtworkSize = 96.dp
+private val TopResultArtworkSize = 104.dp
+private const val SUBTITLE_ALPHA = 0.8f
 
 /**
- * The first search hit, given a card of its own. Artists also get shuffle and radio actions as a
- * button group whose pressed member widens.
+ * The first search hit, given a card of its own in the colours of its artwork. Artists also get
+ * shuffle and radio actions as a button group whose pressed member widens.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -68,6 +70,9 @@ fun TopResultCard(
     onLongClick: (() -> Unit)? = null,
     onMenuClick: (() -> Unit)? = null,
 ) {
+    val colors = rememberMusicArtworkColors(item.thumbnail)
+    val buttonHeight = ButtonDefaults.MediumContainerHeight
+
     Card(
         modifier =
             modifier
@@ -78,7 +83,11 @@ fun TopResultCard(
                     onLongClick = onLongClick,
                 ),
         shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = colors.container,
+                contentColor = colors.onContainer,
+            ),
     ) {
         Column(
             modifier =
@@ -101,14 +110,14 @@ fun TopResultCard(
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.headlineSmallEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = colors.onContainer,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = item.topResultSubtitle(),
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = colors.onContainer.copy(alpha = SUBTITLE_ALPHA),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -118,14 +127,14 @@ fun TopResultCard(
                         Icon(
                             imageVector = Icons.Rounded.MoreVert,
                             contentDescription = stringResource(R.string.more_options),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = colors.onContainer,
                         )
                     }
                 } else {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = colors.onContainer,
                     )
                 }
             }
@@ -140,42 +149,60 @@ fun TopResultCard(
                         val interaction = remember { MutableInteractionSource() }
                         Button(
                             onClick = onShuffleClick,
-                            shapes = ButtonDefaults.shapes(),
+                            shapes = ButtonDefaults.shapesFor(buttonHeight),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = colors.accent,
+                                    contentColor = colors.onAccent,
+                                ),
                             interactionSource = interaction,
-                            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
+                            contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight, hasStartIcon = true),
                             modifier =
                                 Modifier
                                     .weight(1f)
+                                    .heightIn(min = buttonHeight)
                                     .animateWidth(interaction),
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Shuffle,
                                 contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                                modifier = Modifier.size(ButtonDefaults.iconSizeFor(buttonHeight)),
                             )
-                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                            Text(text = stringResource(R.string.shuffle))
+                            Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(buttonHeight)))
+                            Text(
+                                text = stringResource(R.string.shuffle),
+                                style = ButtonDefaults.textStyleFor(buttonHeight),
+                            )
                         }
                     }) {}
                     customItem({
                         val interaction = remember { MutableInteractionSource() }
-                        FilledTonalButton(
+                        Button(
                             onClick = onRadioClick,
-                            shapes = ButtonDefaults.shapes(),
+                            shapes = ButtonDefaults.shapesFor(buttonHeight),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = colors.tonalContainer,
+                                    contentColor = colors.onContainer,
+                                ),
                             interactionSource = interaction,
-                            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
+                            contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight, hasStartIcon = true),
                             modifier =
                                 Modifier
                                     .weight(1f)
+                                    .heightIn(min = buttonHeight)
                                     .animateWidth(interaction),
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Radio,
                                 contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                                modifier = Modifier.size(ButtonDefaults.iconSizeFor(buttonHeight)),
                             )
-                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                            Text(text = stringResource(R.string.radio))
+                            Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(buttonHeight)))
+                            Text(
+                                text = stringResource(R.string.radio),
+                                style = ButtonDefaults.textStyleFor(buttonHeight),
+                            )
                         }
                     }) {}
                 }
