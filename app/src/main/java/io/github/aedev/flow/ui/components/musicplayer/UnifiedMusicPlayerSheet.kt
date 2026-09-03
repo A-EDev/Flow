@@ -55,6 +55,7 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.musicplayer.motion.MiniPlayerDismissGestureHandler
 import io.github.aedev.flow.ui.components.musicplayer.motion.MusicSheetDragGestureHandler
@@ -63,7 +64,6 @@ import io.github.aedev.flow.ui.components.musicplayer.motion.miniPlayerDismissHo
 import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetSettleSpring
 import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetVerticalDragGesture
 import io.github.aedev.flow.ui.components.musicplayer.motion.rememberMiniPlayerDismissGestureHandler
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException

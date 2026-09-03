@@ -1,24 +1,25 @@
 package io.github.aedev.flow.ui.screens.music
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
@@ -26,13 +27,27 @@ import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
-import io.github.aedev.flow.innertube.models.YTItem
-import io.github.aedev.flow.player.EnhancedMusicPlayerManager
-import io.github.aedev.flow.ui.components.*
+import io.github.aedev.flow.ui.components.ShimmerGridItem
+import io.github.aedev.flow.ui.components.ShimmerHost
+import io.github.aedev.flow.ui.components.ShimmerSectionTitle
+import io.github.aedev.flow.ui.components.currentGridThumbnailHeight
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
+import io.github.aedev.flow.ui.components.music.common.MusicErrorState
+import io.github.aedev.flow.ui.components.music.common.musicArtistShape
+import io.github.aedev.flow.ui.components.music.common.musicLaneItemWidth
+import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
+import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
+import io.github.aedev.flow.ui.components.music.section.MusicShelf
+import io.github.aedev.flow.ui.components.music.section.MusicTrackShelf
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private val BrowseRowMaxWidth = 360.dp
+private val BrowseRowPeek = 48.dp
+private const val SHIMMER_SECTIONS = 3
+private const val SHIMMER_ITEMS = 5
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun YouTubeBrowseScreen(
     onBackClick: () -> Unit,
@@ -43,7 +58,6 @@ fun YouTubeBrowseScreen(
     viewModel: YouTubeBrowseViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
 
     Scaffold(
         topBar = {
@@ -68,7 +82,7 @@ fun YouTubeBrowseScreen(
                     ) {
                         item {
                             ShimmerHost {
-                                repeat(3) {
+                                repeat(SHIMMER_SECTIONS) {
                                     ShimmerSectionTitle(
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                     )
@@ -76,7 +90,7 @@ fun YouTubeBrowseScreen(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     ) {
-                                        items(5) {
+                                        items(SHIMMER_ITEMS) {
                                             ShimmerGridItem()
                                         }
                                     }
@@ -88,37 +102,14 @@ fun YouTubeBrowseScreen(
                 }
 
                 uiState.error != null -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Text(
-                            text = uiState.error ?: stringResource(R.string.unknown_error),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.retry() }) {
-                            Text(stringResource(R.string.action_retry))
-                        }
-                    }
+                    MusicErrorState(
+                        error = uiState.error ?: stringResource(R.string.unknown_error),
+                        onRetry = { viewModel.retry() },
+                    )
                 }
 
                 uiState.sections.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.empty_browse_content),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    MusicEmptyState(title = stringResource(R.string.empty_browse_content))
                 }
 
                 else -> {
@@ -126,109 +117,78 @@ fun YouTubeBrowseScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 80.dp),
                     ) {
-                        uiState.sections.forEach { section ->
-                            if (section.items.isNotEmpty()) {
-                                section.title?.let { title ->
-                                    item(key = "title_${title.hashCode()}") {
-                                        SectionTitle(
-                                            title = title,
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        uiState.sections.forEachIndexed { index, section ->
+                            if (section.items.isEmpty()) return@forEachIndexed
+                            val sectionKey = "${index}_${section.title?.hashCode() ?: 0}"
+
+                            if (section.items.all { it is SongItem }) {
+                                item(key = "songs_$sectionKey") {
+                                    val rowWidth = musicLaneItemWidth(maxWidth = BrowseRowMaxWidth, peek = BrowseRowPeek)
+                                    MusicTrackShelf(
+                                        title = section.title,
+                                        items = section.items.filterIsInstance<SongItem>(),
+                                        key = { it.stableLazyKey("browse_grid_$sectionKey") },
+                                    ) { song, shape ->
+                                        MusicTrackItem(
+                                            track = convertSongToMusicTrack(song),
+                                            density = MusicItemDensity.Compact,
+                                            showMenu = false,
+                                            shape = shape,
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                            onClick = { onSongClick(song) },
+                                            modifier = Modifier.width(rowWidth),
                                         )
                                     }
                                 }
-
-                                if (section.items.all { it is SongItem }) {
-                                    item(key = "songs_${section.title?.hashCode() ?: section.hashCode()}") {
-                                        val gridState = rememberLazyGridState()
-                                        LazyHorizontalGrid(
-                                            rows = GridCells.Fixed(4),
-                                            state = gridState,
-                                            contentPadding = PaddingValues(horizontal = 12.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier =
-                                                Modifier
-                                                    .height(Dimensions.ListItemHeight * 4 + 12.dp)
-                                                    .fillMaxWidth(),
-                                        ) {
-                                            items(
-                                                items = section.items,
-                                                key = { it.stableLazyKey("browse_grid_${section.title}") },
-                                            ) { item ->
-                                                val song = item as SongItem
-                                                ListItem(
-                                                    title = song.title,
-                                                    subtitle = song.artists.joinToString(", ") { it.name },
-                                                    thumbnailUrl = song.thumbnail,
-                                                    isPlaying = currentTrack?.videoId == song.id,
-                                                    onClick = { onSongClick(song) },
-                                                    modifier = Modifier.width(300.dp),
+                            } else {
+                                item(key = "items_$sectionKey") {
+                                    val artistShape = musicArtistShape()
+                                    val thumbnailHeight = currentGridThumbnailHeight()
+                                    MusicShelf(
+                                        title = section.title,
+                                        items = section.items,
+                                        key = { it.stableLazyKey("browse_row_$sectionKey") },
+                                    ) { item ->
+                                        when (item) {
+                                            is SongItem -> {
+                                                MusicCollectionCard(
+                                                    title = item.title,
+                                                    subtitle = item.artists.joinToString { it.name },
+                                                    thumbnailUrl = item.thumbnail,
+                                                    thumbnailHeight = thumbnailHeight,
+                                                    onClick = { onSongClick(item) },
                                                 )
                                             }
-                                        }
-                                    }
-                                } else {
-                                    item(key = "items_${section.title?.hashCode() ?: section.hashCode()}") {
-                                        LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 12.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        ) {
-                                            items(
-                                                items = section.items,
-                                                key = { it.stableLazyKey("browse_row_${section.title}") },
-                                            ) { item ->
-                                                when (item) {
-                                                    is SongItem -> {
-                                                        GridItem(
-                                                            title = item.title,
-                                                            subtitle = item.artists.joinToString(", ") { it.name },
-                                                            thumbnailUrl = item.thumbnail,
-                                                            thumbnailHeight = currentGridThumbnailHeight(),
-                                                            onClick = { onSongClick(item) },
-                                                        )
-                                                    }
 
-                                                    is AlbumItem -> {
-                                                        GridItem(
-                                                            title = item.title,
-                                                            subtitle = item.artists?.joinToString(", ") { it.name } ?: "",
-                                                            thumbnailUrl = item.thumbnail,
-                                                            thumbnailHeight = currentGridThumbnailHeight(),
-                                                            onClick = { onAlbumClick(item.id) },
-                                                        )
-                                                    }
+                                            is AlbumItem -> {
+                                                MusicCollectionCard(
+                                                    title = item.title,
+                                                    subtitle = item.artists?.joinToString { it.name }.orEmpty(),
+                                                    thumbnailUrl = item.thumbnail,
+                                                    thumbnailHeight = thumbnailHeight,
+                                                    onClick = { onAlbumClick(item.id) },
+                                                )
+                                            }
 
-                                                    is ArtistItem -> {
-                                                        Column(
-                                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                                            modifier =
-                                                                Modifier
-                                                                    .width(100.dp)
-                                                                    .clickable { onArtistClick(item.id) },
-                                                        ) {
-                                                            ArtistThumbnail(
-                                                                thumbnailUrl = item.thumbnail,
-                                                                size = 100.dp,
-                                                            )
-                                                            Spacer(modifier = Modifier.height(4.dp))
-                                                            Text(
-                                                                text = item.title,
-                                                                style = MaterialTheme.typography.bodySmall,
-                                                                maxLines = 1,
-                                                            )
-                                                        }
-                                                    }
+                                            is ArtistItem -> {
+                                                MusicCollectionCard(
+                                                    title = item.title,
+                                                    thumbnailUrl = item.thumbnail,
+                                                    thumbnailHeight = thumbnailHeight,
+                                                    shape = artistShape,
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    onClick = { onArtistClick(item.id) },
+                                                )
+                                            }
 
-                                                    is PlaylistItem -> {
-                                                        GridItem(
-                                                            title = item.title,
-                                                            subtitle = item.author?.name ?: "",
-                                                            thumbnailUrl = item.thumbnail,
-                                                            thumbnailHeight = currentGridThumbnailHeight(),
-                                                            onClick = { onPlaylistClick(item.id) },
-                                                        )
-                                                    }
-                                                }
+                                            is PlaylistItem -> {
+                                                MusicCollectionCard(
+                                                    title = item.title,
+                                                    subtitle = item.author?.name.orEmpty(),
+                                                    thumbnailUrl = item.thumbnail,
+                                                    thumbnailHeight = thumbnailHeight,
+                                                    onClick = { onPlaylistClick(item.id) },
+                                                )
                                             }
                                         }
                                     }

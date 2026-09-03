@@ -22,6 +22,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.shorts.queue.openAtVideoId
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -38,7 +39,6 @@ import io.github.aedev.flow.ui.screens.likedvideos.LikesScreen
 import io.github.aedev.flow.ui.screens.music.ArtistPage
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicScreen
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationScreen
 import io.github.aedev.flow.ui.screens.onboarding.OnboardingScreen
@@ -850,7 +850,7 @@ fun NavGraphBuilder.flowAppGraph(
             onMusicClick = { items, index ->
                 val tracks =
                     items.map { item ->
-                        io.github.aedev.flow.ui.screens.music.MusicTrack(
+                        MusicTrack(
                             videoId =
                                 io.github.aedev.flow.ui.screens.library.LocalMediaViewModel
                                     .localMediaId(item),
@@ -884,6 +884,7 @@ fun NavGraphBuilder.flowAppGraph(
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
 
         EnhancedMusicScreen(
+            bottomNavOverlayPadding = bottomNavOverlayPadding,
             onSongClick = { track, queue, source ->
                 musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
 
@@ -1021,7 +1022,7 @@ fun NavGraphBuilder.flowAppGraph(
                 val videoId = item.youtubeVideoId
                 if (!videoId.isNullOrBlank()) {
                     val track =
-                        io.github.aedev.flow.ui.screens.music.MusicTrack(
+                        MusicTrack(
                             videoId = videoId,
                             title = item.title,
                             artist = item.artist,
@@ -1068,7 +1069,7 @@ fun NavGraphBuilder.flowAppGraph(
             onBackClick = { navController.popBackStack() },
             onSongClick = { song ->
                 val track =
-                    io.github.aedev.flow.ui.screens.music.MusicTrack(
+                    MusicTrack(
                         videoId = song.id,
                         title = song.title,
                         artist = song.artists.joinToString(", ") { it.name },
@@ -1091,24 +1092,6 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onPlaylistClick = { playlistId ->
                 navController.navigate("musicPlaylist/$playlistId")
-            },
-        )
-    }
-
-    composable("musicLibrary") {
-        currentRoute.value = "musicLibrary"
-        showBottomNav.value = false
-
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-
-        io.github.aedev.flow.ui.screens.music.LibraryScreen(
-            onBackClick = { navController.popBackStack() },
-            onTrackClick = { track, queue ->
-                musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                val encodedTitle = android.net.Uri.encode(track.title)
-                val encodedArtist = android.net.Uri.encode(track.artist)
-                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
             },
         )
     }
@@ -1195,7 +1178,7 @@ fun NavGraphBuilder.flowAppGraph(
             viewModel = musicViewModel,
             onTrackClick = { songItem ->
                 val track =
-                    io.github.aedev.flow.ui.screens.music.MusicTrack(
+                    MusicTrack(
                         videoId = songItem.id,
                         title = songItem.title,
                         artist = songItem.artists.joinToString(", ") { it.name },

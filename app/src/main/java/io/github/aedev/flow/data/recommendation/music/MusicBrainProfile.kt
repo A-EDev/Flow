@@ -6,7 +6,7 @@
 
 package io.github.aedev.flow.data.recommendation.music
 
-import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.data.music.model.MusicTrack
 
 /** The brain's view of one artist, rendered on that artist's page. */
 data class MusicArtistInsights(
