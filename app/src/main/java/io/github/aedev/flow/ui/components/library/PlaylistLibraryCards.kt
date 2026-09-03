@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.playlists
+package io.github.aedev.flow.ui.components.library
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 
 @Composable

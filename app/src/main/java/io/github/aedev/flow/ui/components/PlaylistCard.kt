@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
-import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
+import io.github.aedev.flow.data.model.PlaylistInfo
 
 enum class PlaylistCardLayout {
     LIST,

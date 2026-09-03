@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.library
+package io.github.aedev.flow.ui.components.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

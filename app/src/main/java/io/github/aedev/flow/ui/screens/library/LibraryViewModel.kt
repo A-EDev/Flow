@@ -8,6 +8,9 @@ import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.ui.components.library.LIBRARY_SHELF_ITEM_LIMIT
+import io.github.aedev.flow.ui.components.library.LibraryMediaItem
+import io.github.aedev.flow.ui.components.library.toLibraryMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine

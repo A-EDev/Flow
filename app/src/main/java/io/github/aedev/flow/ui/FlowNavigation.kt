@@ -38,8 +38,8 @@ import io.github.aedev.flow.ui.screens.library.LibraryScreen
 import io.github.aedev.flow.ui.screens.likedvideos.LikesScreen
 import io.github.aedev.flow.ui.screens.music.ArtistPage
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicScreen
-import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
+import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationScreen
 import io.github.aedev.flow.ui.screens.onboarding.OnboardingScreen
 import io.github.aedev.flow.ui.screens.personality.FlowPersonalityScreen
@@ -231,7 +231,7 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "library"
         showBottomNav.value = true
         selectedBottomNavIndex.intValue = 4
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
         val downloadsSourceName =
             androidx.compose.ui.res.stringResource(
                 io.github.aedev.flow.R.string.library_downloads_label,
@@ -647,7 +647,7 @@ fun NavGraphBuilder.flowAppGraph(
     composable("history") {
         currentRoute.value = "history"
         showBottomNav.value = false
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
         HistoryScreen(
             onVideoClick = { track ->
                 val localId = track.videoId.removePrefix("local_").toLongOrNull()
@@ -715,7 +715,7 @@ fun NavGraphBuilder.flowAppGraph(
     composable("likes") {
         currentRoute.value = "likes"
         showBottomNav.value = false
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
         LikesScreen(
             onVideoClick = { track ->
                 navController.navigateToPlayer(track.videoId)
@@ -792,7 +792,7 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "downloads"
         showBottomNav.value = false
 
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
 
         io.github.aedev.flow.ui.screens.library.DownloadsScreen(
             onBackClick = { navController.popBackStack() },
@@ -825,7 +825,7 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "localMedia"
         showBottomNav.value = false
 
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
 
         io.github.aedev.flow.ui.screens.library.LocalMediaScreen(
             onBackClick = { navController.popBackStack() },
@@ -881,7 +881,7 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = true
         selectedBottomNavIndex.intValue = 2
 
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
 
         EnhancedMusicScreen(
             bottomNavOverlayPadding = bottomNavOverlayPadding,
@@ -948,7 +948,7 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "musicSearch"
         showBottomNav.value = false
 
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
         val initialQuery = backStackEntry.arguments?.getString("query")
 
         io.github.aedev.flow.ui.screens.music.MusicSearchScreen(
@@ -978,7 +978,7 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "musicRecognize"
         showBottomNav.value = false
 
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
 
         fun playRecognized(result: io.github.aedev.flow.data.recognition.RecognitionResult) {
             val track =
@@ -1014,7 +1014,7 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "recognitionHistory"
         showBottomNav.value = false
 
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
 
         io.github.aedev.flow.ui.screens.recognition.RecognitionHistoryScreen(
             onBackClick = { navController.popBackStack() },
@@ -1063,7 +1063,7 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "youtube_browse"
         showBottomNav.value = false
 
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
 
         io.github.aedev.flow.ui.screens.music.YouTubeBrowseScreen(
             onBackClick = { navController.popBackStack() },
@@ -1102,7 +1102,7 @@ fun NavGraphBuilder.flowAppGraph(
         val musicViewModel: MusicViewModel =
             io.github.aedev.flow.ui.screens.music
                 .sharedMusicViewModel()
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
         val uiState by musicViewModel.uiState.collectAsState()
 
         LaunchedEffect(channelId) {
@@ -1169,7 +1169,7 @@ fun NavGraphBuilder.flowAppGraph(
         val musicViewModel: MusicViewModel =
             io.github.aedev.flow.ui.screens.music
                 .sharedMusicViewModel()
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
 
         io.github.aedev.flow.ui.screens.music.ArtistItemsScreen(
             browseId = browseId,
@@ -1209,7 +1209,7 @@ fun NavGraphBuilder.flowAppGraph(
         val musicViewModel: MusicViewModel =
             io.github.aedev.flow.ui.screens.music
                 .sharedMusicViewModel()
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
         val musicPlaylistsViewModel: io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel = hiltViewModel()
         val uiState by musicViewModel.uiState.collectAsState()
         val isSaved by musicPlaylistsViewModel.isSavedPlaylist.collectAsState()

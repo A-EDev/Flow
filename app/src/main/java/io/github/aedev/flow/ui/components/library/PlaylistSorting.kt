@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.playlists
+package io.github.aedev.flow.ui.components.library
 
 import androidx.annotation.StringRes
 import io.github.aedev.flow.R

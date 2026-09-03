@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.library
+package io.github.aedev.flow.ui.components.library
 
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.VideoHistoryEntry

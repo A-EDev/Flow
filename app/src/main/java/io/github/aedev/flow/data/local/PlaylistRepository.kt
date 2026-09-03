@@ -6,8 +6,8 @@ import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.local.entity.VideoEntity
+import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
