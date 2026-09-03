@@ -163,7 +163,6 @@ class SyncManager
                 _state.value =
                     SyncState.ShowingQr(
                         qrText = qrText,
-                        sas = sas,
                         expiresAtEpochSeconds = exp,
                         sending = role == SyncRole.SENDER,
                         address = "$ip:$port",
