@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SearchPagingSourceTest {
-
     @Test
     fun testExtractVideoIdFormats() {
         val standardUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
