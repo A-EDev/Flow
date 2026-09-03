@@ -252,7 +252,7 @@ fun PlaylistDetailScreen(
                         .padding(paddingValues),
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
-                item {
+                item(key = "playlist-header", contentType = "header") {
                     Column {
                         PlaylistHeader(
                             name = uiState.playlistName,
@@ -283,7 +283,7 @@ fun PlaylistDetailScreen(
                 }
 
                 if (displayVideos.isEmpty()) {
-                    item {
+                    item(key = "playlist-empty", contentType = "empty") {
                         EmptyPlaylistState(
                             modifier = Modifier.padding(32.dp),
                             isWatchLater = uiState.isWatchLater,
@@ -292,7 +292,8 @@ fun PlaylistDetailScreen(
                 } else {
                     itemsIndexed(
                         items = displayVideos,
-                        key = { index, video -> "${video.id}_$index" },
+                        key = { _, video -> video.id },
+                        contentType = { _, _ -> "playlist-video" },
                     ) { index, video ->
                         val isSelected = video.id in selectedIds
                         PlaylistVideoItem(
@@ -631,6 +632,7 @@ private fun PlaylistDetailTopBar(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PlaylistHeader(
     name: String,
@@ -745,13 +747,11 @@ private fun PlaylistHeader(
             ) {
                 Button(
                     onClick = onPlayAll,
-                    modifier = Modifier.height(48.dp).weight(1f),
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black,
-                        ),
-                    shape = RoundedCornerShape(24.dp),
+                    modifier =
+                        Modifier
+                            .height(48.dp)
+                            .weight(1f),
+                    shapes = ButtonDefaults.shapes(),
                 ) {
                     Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
@@ -1753,9 +1753,7 @@ class PlaylistDetailViewModel
                             state.videos.firstOrNull()?.thumbnailUrl ?: ""
                         },
                 )
-                state.videos.forEachIndexed { index, video ->
-                    repository.addVideoToPlaylist(playlistId, video)
-                }
+                repository.addVideosToPlaylist(playlistId, state.videos)
                 _uiState.update { it.copy(isLocalPlaylist = true, isSaved = true) }
                 android.widget.Toast
                     .makeText(context, context.getString(R.string.ui_playlist_saved_to_library), android.widget.Toast.LENGTH_SHORT)
@@ -1799,14 +1797,7 @@ class PlaylistDetailViewModel
             description: String,
         ) {
             viewModelScope.launch {
-                val currentInfo = repository.getPlaylistInfo(playlistId) ?: return@launch
-                val videos = _uiState.value.videos
-                repository.deletePlaylist(playlistId)
-                repository.createPlaylist(playlistId, name, description, _uiState.value.isPrivate)
-                // Re-add all videos
-                videos.forEach { video ->
-                    repository.addVideoToPlaylist(playlistId, video)
-                }
+                repository.updatePlaylistMetadata(playlistId, name, description, _uiState.value.isPrivate)
                 _uiState.update {
                     it.copy(
                         playlistName = name,
@@ -1818,8 +1809,9 @@ class PlaylistDetailViewModel
 
         fun togglePrivacy() {
             viewModelScope.launch {
-                val newPrivacy = !_uiState.value.isPrivate
-                updatePlaylist(_uiState.value.playlistName, _uiState.value.description)
+                val state = _uiState.value
+                val newPrivacy = !state.isPrivate
+                repository.updatePlaylistMetadata(playlistId, state.playlistName, state.description, newPrivacy)
                 _uiState.update { it.copy(isPrivate = newPrivacy) }
             }
         }

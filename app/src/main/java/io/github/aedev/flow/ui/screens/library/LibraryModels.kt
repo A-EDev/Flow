@@ -3,6 +3,8 @@ package io.github.aedev.flow.ui.screens.library
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.toMusicTrack
+import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
@@ -39,55 +41,14 @@ internal sealed interface LibraryMediaItem {
 
 internal fun VideoHistoryEntry.toLibraryMediaItem(): LibraryMediaItem =
     if (isMusic) {
-        LibraryMediaItem.MusicItem(
-            MusicTrack(
-                videoId = videoId,
-                title = title,
-                artist = channelName,
-                thumbnailUrl = thumbnailUrl,
-                duration = (duration / 1_000L).toInt(),
-                channelId = channelId,
-            ),
-        )
+        LibraryMediaItem.MusicItem(toMusicTrack())
     } else {
-        LibraryMediaItem.VideoItem(
-            Video(
-                id = videoId,
-                title = title,
-                channelName = channelName,
-                channelId = channelId,
-                thumbnailUrl = thumbnailUrl,
-                duration = (duration / 1_000L).toInt(),
-                viewCount = -1L,
-                uploadDate = "",
-                timestamp = timestamp,
-            ),
-        )
+        LibraryMediaItem.VideoItem(toVideo())
     }
 
 internal fun LikedVideoInfo.toLibraryMediaItem(): LibraryMediaItem =
     if (isMusic) {
-        LibraryMediaItem.MusicItem(
-            MusicTrack(
-                videoId = videoId,
-                title = title,
-                artist = channelName,
-                thumbnailUrl = thumbnail,
-                duration = 0,
-            ),
-        )
+        LibraryMediaItem.MusicItem(toMusicTrack())
     } else {
-        LibraryMediaItem.VideoItem(
-            Video(
-                id = videoId,
-                title = title,
-                channelName = channelName,
-                channelId = "",
-                thumbnailUrl = thumbnail,
-                duration = 0,
-                viewCount = -1L,
-                uploadDate = "",
-                timestamp = likedAt,
-            ),
-        )
+        LibraryMediaItem.VideoItem(toVideo())
     }

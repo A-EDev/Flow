@@ -66,6 +66,7 @@ import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
+import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
@@ -1440,76 +1441,6 @@ fun ShortsCard(
             onChannelClick = null,
             onDismiss = { showQuickActions = false },
         )
-    }
-}
-
-@Composable
-fun VideoThumbnailImage(
-    videoId: String,
-    model: Any?,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit,
-) {
-    val models =
-        remember(videoId, model) {
-            when {
-                model is String || model == null -> {
-                    ThumbnailUrlResolver.resolveVideoThumbnailCandidates(videoId, model as? String)
-                }
-
-                else -> {
-                    listOf(model)
-                }
-            }
-        }
-
-    SafeAsyncImage(
-        models = models,
-        contentDescription = contentDescription,
-        modifier = modifier,
-        contentScale = contentScale,
-    )
-}
-
-@Composable
-private fun SafeAsyncImage(
-    models: List<Any>,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit,
-) {
-    var index by remember(models) { mutableStateOf(0) }
-    val currentModel = models.getOrNull(index)
-
-    when {
-        currentModel is ImageVector -> {
-            Image(
-                imageVector = currentModel,
-                contentDescription = contentDescription,
-                modifier = modifier,
-                contentScale = contentScale,
-                colorFilter =
-                    androidx.compose.ui.graphics.ColorFilter
-                        .tint(MaterialTheme.colorScheme.onSurfaceVariant),
-            )
-        }
-
-        (currentModel is String && currentModel.isNotEmpty()) || currentModel is Int -> {
-            AsyncImage(
-                model = currentModel,
-                contentDescription = contentDescription,
-                modifier = modifier,
-                contentScale = contentScale,
-                onError = {
-                    index = if (index < models.lastIndex) index + 1 else models.size
-                },
-            )
-        }
-
-        else -> {
-            Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
-        }
     }
 }
 

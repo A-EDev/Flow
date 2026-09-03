@@ -1,65 +1,57 @@
 package io.github.aedev.flow.ui.screens.likedvideos
 
+import androidx.compose.animation.core.EaseInCubic
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
+import io.github.aedev.flow.data.model.toMusicTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.MediaKind
+import io.github.aedev.flow.ui.components.shared.MediaKindSelector
+import io.github.aedev.flow.ui.components.shared.MediaRow
+import io.github.aedev.flow.ui.components.shared.MediaRowAction
+import io.github.aedev.flow.ui.components.shared.MediaThumbnail
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val ListContentPadding = PaddingValues(bottom = 80.dp)
+
 @Composable
 fun LikesScreen(
     onVideoClick: (MusicTrack) -> Unit,
@@ -68,25 +60,45 @@ fun LikesScreen(
     modifier: Modifier = Modifier,
     viewModel: LikedVideosViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var selectedFilter by rememberSaveable { mutableStateOf(LikesFilter.Videos) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var selectedKind by rememberSaveable { mutableStateOf(MediaKind.Videos) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val displayLikes =
-        remember(uiState.likedVideos, selectedFilter) {
-            uiState.likedVideos.filter { selectedFilter.matches(it) }
+        remember(uiState.likedVideos, selectedKind) {
+            uiState.likedVideos.filter { it.isMusic == (selectedKind == MediaKind.Music) }
         }
     val musicQueue =
         remember(uiState.likedVideos) {
             uiState.likedVideos.filter { it.isMusic }.map { it.toMusicTrack() }
         }
 
+    val removedLabel = stringResource(R.string.removed_from_likes)
+    val undoLabel = stringResource(R.string.action_undo)
+    val onUnlike: (LikedVideoInfo) -> Unit = { like ->
+        viewModel.removeLike(like.videoId)
+        scope.launch {
+            val result =
+                snackbarHostState.showSnackbar(
+                    message = removedLabel,
+                    actionLabel = undoLabel,
+                )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.restoreLike(like)
+            }
+        }
+    }
+
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             FlowTopBar(
                 title = stringResource(R.string.likes),
                 onBack = onBackClick,
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
     ) { paddingValues ->
         Column(
@@ -96,9 +108,12 @@ fun LikesScreen(
                     .background(MaterialTheme.colorScheme.background)
                     .padding(paddingValues),
         ) {
-            LikesFilterRow(
-                selectedFilter = selectedFilter,
-                onFilterSelected = { selectedFilter = it },
+            MediaKindSelector(
+                options = MediaKind.entries,
+                selected = selectedKind,
+                onSelected = { selectedKind = it },
+                label = { stringResource(it.labelRes) },
+                icon = { it.icon },
             )
 
             when {
@@ -111,51 +126,38 @@ fun LikesScreen(
                     }
                 }
 
-                uiState.likedVideos.isEmpty() -> {
-                    EmptyLikesState(modifier = Modifier.fillMaxSize())
-                }
-
                 displayLikes.isEmpty() -> {
-                    EmptyLikesState(
+                    FlowEmptyState(
                         modifier = Modifier.fillMaxSize(),
-                        title = selectedFilter.emptyTitle(),
-                        body = selectedFilter.emptyBody(),
+                        title = stringResource(selectedKind.emptyTitleRes()),
+                        subtitle = stringResource(selectedKind.emptyBodyRes()),
+                        icon = Icons.Outlined.ThumbUp,
                     )
                 }
 
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                        contentPadding = ListContentPadding,
                     ) {
                         items(
                             items = displayLikes,
                             key = { it.videoId },
+                            contentType = { if (it.isMusic) "track" else "video" },
                         ) { like ->
-                            if (like.isMusic) {
-                                val track = like.toMusicTrack()
-                                MusicTrackItem(
-                                    track = track,
-                                    onClick = { onMusicClick(track, musicQueue) },
-                                    showMenu = false,
-                                    trailingContent = {
-                                        IconButton(onClick = { viewModel.removeLike(like.videoId) }) {
-                                            Icon(
-                                                imageVector = Icons.Default.Favorite,
-                                                contentDescription = stringResource(R.string.unlike),
-                                                tint = MaterialTheme.colorScheme.primary,
-                                            )
-                                        }
-                                    },
-                                )
-                            } else {
-                                LikedVideoCard(
-                                    video = like,
-                                    onClick = { onVideoClick(like.toMusicTrack()) },
-                                    onUnlikeClick = { viewModel.removeLike(like.videoId) },
-                                )
-                            }
+                            LikedRow(
+                                like = like,
+                                musicQueue = musicQueue,
+                                onVideoClick = onVideoClick,
+                                onMusicClick = onMusicClick,
+                                onUnlike = { onUnlike(like) },
+                                modifier =
+                                    Modifier.animateItem(
+                                        fadeInSpec = tween(300, easing = EaseOutCubic),
+                                        fadeOutSpec = tween(200, easing = EaseInCubic),
+                                        placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessLow),
+                                    ),
+                            )
                         }
                     }
                 }
@@ -165,174 +167,64 @@ fun LikesScreen(
 }
 
 @Composable
-private fun LikesFilterRow(
-    selectedFilter: LikesFilter,
-    onFilterSelected: (LikesFilter) -> Unit,
-) {
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(LikesFilter.values().toList()) { filter ->
-            FilterChip(
-                selected = selectedFilter == filter,
-                onClick = { onFilterSelected(filter) },
-                label = { Text(filter.label()) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun LikedVideoCard(
-    video: LikedVideoInfo,
-    onClick: () -> Unit,
-    onUnlikeClick: () -> Unit,
+private fun LikedRow(
+    like: LikedVideoInfo,
+    musicQueue: List<MusicTrack>,
+    onVideoClick: (MusicTrack) -> Unit,
+    onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit,
+    onUnlike: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(vertical = 8.dp, horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .width(156.dp)
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+    val track = remember(like) { like.toMusicTrack() }
+    val unlikeLabel = stringResource(R.string.unlike)
+
+    if (like.isMusic) {
+        MusicTrackItem(
+            track = track,
+            onClick = { onMusicClick(track, musicQueue) },
+            showMenu = false,
+            modifier = modifier,
+            trailingContent = {
+                MediaRowAction(
+                    icon = Icons.Filled.ThumbUp,
+                    contentDescription = unlikeLabel,
+                    onClick = onUnlike,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            },
+        )
+    } else {
+        MediaRow(
+            title = like.title,
+            modifier = modifier,
+            subtitle = like.channelName.takeIf { it.isNotBlank() },
+            onClick = { onVideoClick(track) },
+            trailing = {
+                MediaRowAction(
+                    icon = Icons.Filled.ThumbUp,
+                    contentDescription = unlikeLabel,
+                    onClick = onUnlike,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            },
         ) {
-            AsyncImage(
-                model = video.thumbnail,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
+            MediaThumbnail(
+                videoId = like.videoId,
+                thumbnailUrl = like.thumbnail,
+                showWatchProgress = true,
             )
         }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-            ) {
-                Text(
-                    text = video.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(end = 4.dp),
-                )
-
-                IconButton(
-                    onClick = onUnlikeClick,
-                    modifier = Modifier.size(32.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.ThumbUp,
-                        contentDescription = stringResource(R.string.unlike),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-
-            if (video.channelName.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = video.channelName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
     }
 }
 
-@Composable
-private fun EmptyLikesState(
-    modifier: Modifier = Modifier,
-    title: String = stringResource(R.string.empty_liked),
-    body: String = stringResource(R.string.empty_liked_body),
-) {
-    Column(
-        modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.ThumbUp,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = body,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-private enum class LikesFilter {
-    Videos,
-    Music,
-    ;
-
-    fun matches(like: LikedVideoInfo): Boolean =
-        when (this) {
-            Videos -> !like.isMusic
-            Music -> like.isMusic
-        }
-}
-
-@Composable
-private fun LikesFilter.label(): String =
+private fun MediaKind.emptyTitleRes(): Int =
     when (this) {
-        LikesFilter.Videos -> stringResource(R.string.history_tab_videos)
-        LikesFilter.Music -> stringResource(R.string.nav_music)
+        MediaKind.Videos -> R.string.empty_liked_videos
+        MediaKind.Music -> R.string.empty_liked_music
     }
 
-@Composable
-private fun LikesFilter.emptyTitle(): String =
+private fun MediaKind.emptyBodyRes(): Int =
     when (this) {
-        LikesFilter.Videos -> stringResource(R.string.empty_liked_videos)
-        LikesFilter.Music -> stringResource(R.string.empty_liked_music)
+        MediaKind.Videos -> R.string.empty_liked_body
+        MediaKind.Music -> R.string.empty_liked_music_body
     }
-
-@Composable
-private fun LikesFilter.emptyBody(): String =
-    when (this) {
-        LikesFilter.Videos -> stringResource(R.string.empty_liked_body)
-        LikesFilter.Music -> stringResource(R.string.empty_liked_music_body)
-    }
-
-private fun LikedVideoInfo.toMusicTrack(): MusicTrack =
-    MusicTrack(
-        videoId = videoId,
-        title = title,
-        artist = channelName,
-        thumbnailUrl = thumbnail,
-        duration = 0,
-        channelId = "",
-    )

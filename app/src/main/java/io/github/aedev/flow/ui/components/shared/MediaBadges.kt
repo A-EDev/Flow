@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,8 +21,35 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.utils.formatDuration
 
 private val BadgeSpacing = 4.dp
+private val DurationBadgeHorizontalPadding = 5.dp
+private val DurationBadgeVerticalPadding = 2.dp
+
+@Composable
+fun DurationBadge(
+    seconds: Int,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraSmall,
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+    ) {
+        Text(
+            text = formatDuration(seconds),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier =
+                Modifier.padding(
+                    horizontal = DurationBadgeHorizontalPadding,
+                    vertical = DurationBadgeVerticalPadding,
+                ),
+        )
+    }
+}
 
 /**
  * Marks a track as explicit. The only explicit badge in the app.

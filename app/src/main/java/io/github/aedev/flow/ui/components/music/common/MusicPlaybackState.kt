@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.PlayingWaveform
-import io.github.aedev.flow.ui.theme.MusicScrimNowPlaying
+import io.github.aedev.flow.ui.theme.ArtworkScrimNowPlaying
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
@@ -107,7 +107,7 @@ fun BoxScope.MusicNowPlayingOverlay(
         modifier =
             Modifier
                 .matchParentSize()
-                .background(MusicScrimNowPlaying),
+                .background(ArtworkScrimNowPlaying),
         contentAlignment = Alignment.Center,
     ) {
         PlayingWaveform(

@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.VideoThumbnailImage
+import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.utils.formatDuration
 
 internal val LibraryShelfCardWidth = 220.dp

@@ -1890,6 +1890,17 @@
     <string name="download_status_paused">Paused</string>
     <string name="download_status_failed">Failed</string>
     <string name="download_status_cancelled">Cancelled</string>
+    <string name="download_progress_percent">%1$d%%</string>
+    <string name="download_status_paused_template">%1$d%% • %2$s</string>
+    <string name="file_size_kb">%1$s KB</string>
+    <string name="file_size_mb">%1$s MB</string>
+    <string name="file_size_gb">%1$s GB</string>
+    <string name="removed_from_history">Removed from history</string>
+    <string name="removed_from_likes">Removed from likes</string>
+    <string name="delete_download_dialog_title">Delete download?</string>
+    <string name="delete_download_dialog_text">%1$s will be removed from this device.</string>
+    <string name="library_empty_title">Your library is empty</string>
+    <string name="library_empty_body">Videos and music you watch, like, save or download will collect here.</string>
     <string name="remove_incomplete_downloads">Remove incomplete downloads</string>
     <plurals name="remove_incomplete_downloads_message">
         <item quantity="one">Remove %1$d paused, failed, or partial download? Completed downloads will not be touched.</item>

@@ -57,8 +57,8 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.state.SubtitleOption
-import io.github.aedev.flow.ui.components.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.parseHtmlDescription
+import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvCard

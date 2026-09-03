@@ -78,6 +78,14 @@ interface PlaylistDao {
         name: String,
     )
 
+    @Query("UPDATE playlists SET name = :name, description = :description, isPrivate = :isPrivate WHERE id = :id")
+    suspend fun updatePlaylistMetadata(
+        id: String,
+        name: String,
+        description: String,
+        isPrivate: Boolean,
+    )
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylistVideoCrossRef(crossRef: PlaylistVideoCrossRef)
 

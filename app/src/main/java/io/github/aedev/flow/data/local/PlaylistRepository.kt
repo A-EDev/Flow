@@ -273,6 +273,15 @@ class PlaylistRepository
             playlistDao.updatePlaylistName(playlistId, name)
         }
 
+        suspend fun updatePlaylistMetadata(
+            playlistId: String,
+            name: String,
+            description: String,
+            isPrivate: Boolean,
+        ) {
+            playlistDao.updatePlaylistMetadata(playlistId, name, description, isPrivate)
+        }
+
         suspend fun deletePlaylist(playlistId: String) {
             playlistDao.deletePlaylist(playlistId)
         }

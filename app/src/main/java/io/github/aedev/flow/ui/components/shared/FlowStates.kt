@@ -80,6 +80,7 @@ fun FlowEmptyState(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     icon: ImageVector? = null,
+    action: (@Composable () -> Unit)? = null,
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
@@ -107,6 +108,7 @@ fun FlowEmptyState(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            action?.invoke()
         }
     }
 }

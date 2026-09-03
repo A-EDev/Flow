@@ -9,53 +9,71 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.utils.formatDuration
+import io.github.aedev.flow.ui.components.shared.ArtworkThumbnail
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.MediaKind
+import io.github.aedev.flow.ui.components.shared.MediaKindSelector
+import io.github.aedev.flow.ui.components.shared.MediaRow
+import io.github.aedev.flow.ui.components.shared.MediaThumbnail
+import io.github.aedev.flow.utils.formatDurationMillis
+import java.util.Locale
+
+private val ListContentPadding = PaddingValues(vertical = 8.dp)
+private val ListItemSpacing = 2.dp
+private val ScanIndicatorSize = 36.dp
+private val ScanIndicatorStroke = 3.dp
+private val EmptyActionWidthFraction = 0.6f
+private val EmptyActionHeight = 48.dp
+private const val BYTES_PER_UNIT = 1024.0
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,8 +84,8 @@ fun LocalMediaScreen(
     modifier: Modifier = Modifier,
     viewModel: LocalMediaViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var selectedKind by remember { mutableStateOf(MediaKind.Videos) }
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
 
@@ -129,17 +147,16 @@ fun LocalMediaScreen(
                     .fillMaxSize()
                     .padding(padding),
         ) {
-            LocalMediaTabSelector(
-                selectedTabIndex = selectedTabIndex,
-                onTabSelected = {
-                    if (it != selectedTabIndex) {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        selectedTabIndex = it
-                    }
+            MediaKindSelector(
+                options = MediaKind.entries,
+                selected = selectedKind,
+                onSelected = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    selectedKind = it
                 },
+                label = { stringResource(it.labelRes) },
+                icon = { it.icon },
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             if (uiState.permissionDenied && !hasAnyPermission()) {
                 LocalMediaPermissionState(
@@ -161,140 +178,35 @@ fun LocalMediaScreen(
                 )
             } else {
                 Crossfade(
-                    targetState = selectedTabIndex,
+                    targetState = selectedKind,
                     animationSpec = tween(250, easing = EaseOutCubic),
-                    label = "local_tab_crossfade",
+                    label = "local_kind_crossfade",
                     modifier =
                         Modifier
                             .fillMaxSize()
                             .weight(1f),
-                ) { targetIndex ->
-                    when (targetIndex) {
-                        0 -> {
-                            LocalMediaList(
-                                items = uiState.videos,
-                                isVideo = true,
-                                isScanning = uiState.isScanning,
-                                hasScanned = uiState.hasScanned,
-                                onRefresh = { viewModel.scan() },
-                                onItemClick = { items, index -> onVideoClick(items[index]) },
-                            )
-                        }
-
-                        1 -> {
-                            LocalMediaList(
-                                items = uiState.music,
-                                isVideo = false,
-                                isScanning = uiState.isScanning,
-                                hasScanned = uiState.hasScanned,
-                                onRefresh = { viewModel.scan() },
-                                onItemClick = { items, index -> onMusicClick(items, index) },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─── Tab selector ────────────────────────────────
-
-@Composable
-private fun LocalMediaTabSelector(
-    selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit,
-) {
-    val tabs =
-        listOf(
-            stringResource(R.string.tab_videos) to Icons.Outlined.VideoLibrary,
-            stringResource(R.string.tab_music) to Icons.Outlined.MusicNote,
-        )
-
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .height(52.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
-                .padding(4.dp),
-    ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val tabWidth = maxWidth / tabs.size
-            val indicatorOffset by animateDpAsState(
-                targetValue = tabWidth * selectedTabIndex,
-                animationSpec = spring(dampingRatio = 0.75f, stiffness = 400f),
-                label = "local_indicator_offset",
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .width(tabWidth)
-                        .fillMaxHeight()
-                        .offset(x = indicatorOffset)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surface),
-            )
-        }
-
-        Row(modifier = Modifier.fillMaxSize()) {
-            tabs.forEachIndexed { index, (title, icon) ->
-                val isSelected = selectedTabIndex == index
-                val contentColor by animateColorAsState(
-                    targetValue =
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                ) { kind ->
+                    LocalMediaList(
+                        items = if (kind == MediaKind.Videos) uiState.videos else uiState.music,
+                        kind = kind,
+                        isScanning = uiState.isScanning,
+                        hasScanned = uiState.hasScanned,
+                        onRefresh = { viewModel.scan() },
+                        onItemClick = { items, index ->
+                            if (kind == MediaKind.Videos) onVideoClick(items[index]) else onMusicClick(items, index)
                         },
-                    animationSpec = tween(250),
-                    label = "local_tab_color_$index",
-                )
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                role = Role.Tab,
-                            ) { onTabSelected(index) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = contentColor,
-                            modifier = Modifier.size(19.dp),
-                        )
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = contentColor,
-                        )
-                    }
+                    )
                 }
             }
         }
     }
 }
-
-// ─── List ──────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LocalMediaList(
     items: List<LocalMediaItem>,
-    isVideo: Boolean,
+    kind: MediaKind,
     isScanning: Boolean,
     hasScanned: Boolean,
     onRefresh: () -> Unit,
@@ -309,334 +221,152 @@ private fun LocalMediaList(
         modifier = modifier.fillMaxSize(),
     ) {
         if (items.isEmpty()) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-            ) {
-                LocalMediaEmptyState(
-                    type = stringResource(if (isVideo) R.string.tab_videos else R.string.tab_music),
-                    icon = if (isVideo) Icons.Outlined.VideoLibrary else Icons.Outlined.MusicNote,
-                    isScanning = isScanning && !hasScanned,
-                )
-            }
+            LocalMediaEmptyState(kind = kind, isScanning = isScanning && !hasScanned)
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                contentPadding = ListContentPadding,
+                verticalArrangement = Arrangement.spacedBy(ListItemSpacing),
             ) {
-                itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                    if (isVideo) {
-                        LocalVideoCard(item = item, onClick = { onItemClick(items, index) })
-                    } else {
-                        LocalMusicCard(item = item, onClick = { onItemClick(items, index) })
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─── Cards ───────────────────────────────────────────────────────────────────
-
-@Composable
-private fun LocalVideoCard(
-    item: LocalMediaItem,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick, role = Role.Button)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .width(152.dp)
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.VideoLibrary,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(28.dp),
-            )
-            AsyncImage(
-                model =
-                    ImageRequest
-                        .Builder(LocalContext.current)
-                        .data(item.contentUri)
-                        .crossfade(true)
-                        .build(),
-                contentDescription = item.title,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-            if (item.durationMs > 0) {
-                Surface(
-                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.85f),
-                    shape = RoundedCornerShape(4.dp),
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(6.dp),
-                ) {
-                    Text(
-                        text = formatDuration((item.durationMs / 1000).toInt()),
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                itemsIndexed(
+                    items = items,
+                    key = { _, item -> item.id },
+                    contentType = { _, _ -> kind.name },
+                ) { index, item ->
+                    LocalMediaRow(
+                        item = item,
+                        kind = kind,
+                        onClick = { onItemClick(items, index) },
                     )
                 }
             }
         }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 20.sp,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = buildSubtitle(item.subtitle, formatSize(item.sizeBytes)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
     }
 }
 
 @Composable
-private fun LocalMusicCard(
+private fun LocalMediaRow(
     item: LocalMediaItem,
+    kind: MediaKind,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick, role = Role.Button)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.MusicNote,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(24.dp),
-            )
-            if (item.artworkUri != null) {
-                AsyncImage(
-                    model =
-                        ImageRequest
-                            .Builder(LocalContext.current)
-                            .data(item.artworkUri)
-                            .crossfade(true)
-                            .build(),
-                    contentDescription = item.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            }
+    val trailingLabel =
+        if (kind == MediaKind.Videos) {
+            fileSizeLabel(item.sizeBytes)
+        } else {
+            if (item.durationMs > 0) formatDurationMillis(item.durationMs) else ""
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+    MediaRow(
+        title = item.title,
+        modifier = modifier,
+        subtitle = mediaSubtitle(item.subtitle, trailingLabel),
+        titleMaxLines = if (kind == MediaKind.Videos) 2 else 1,
+        onClick = onClick,
+    ) {
+        if (kind == MediaKind.Videos) {
+            MediaThumbnail(
+                videoId = item.contentUri,
+                thumbnailUrl = item.contentUri,
+                durationSeconds = (item.durationMs / 1000L).toInt(),
+                placeholder = Icons.Outlined.VideoLibrary,
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text =
-                    buildSubtitle(
-                        item.subtitle,
-                        if (item.durationMs > 0) formatDuration((item.durationMs / 1000).toInt()) else "",
-                    ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        } else {
+            ArtworkThumbnail(
+                thumbnailUrl = item.artworkUri,
+                placeholder = Icons.Outlined.MusicNote,
             )
         }
     }
 }
-
-// ─── Empty & permission states ───────────────────────────────────────────────
 
 @Composable
 private fun LocalMediaEmptyState(
-    type: String,
-    icon: ImageVector,
+    kind: MediaKind,
     isScanning: Boolean,
 ) {
-    Column(
+    val label = stringResource(kind.labelRes)
+    Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+                .verticalScroll(rememberScrollState()),
     ) {
-        Surface(
-            modifier = Modifier.size(100.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (isScanning) {
+        if (isScanning) {
+            FlowEmptyState(
+                title = stringResource(R.string.local_media_scanning),
+                action = {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(36.dp),
-                        strokeWidth = 3.dp,
-                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(ScanIndicatorSize),
+                        strokeWidth = ScanIndicatorStroke,
                     )
-                } else {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(28.dp))
-        Text(
-            text =
-                if (isScanning) {
-                    stringResource(R.string.local_media_scanning)
-                } else {
-                    stringResource(R.string.local_media_empty_title, type)
                 },
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
-        if (!isScanning) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.local_media_empty_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                lineHeight = 22.sp,
+            )
+        } else {
+            FlowEmptyState(
+                title = stringResource(R.string.local_media_empty_title, label),
+                subtitle = stringResource(R.string.local_media_empty_body),
+                icon = kind.icon,
             )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LocalMediaPermissionState(onGrant: () -> Unit) {
+    FlowEmptyState(
+        title = stringResource(R.string.local_media_permission_title),
+        subtitle = stringResource(R.string.local_media_permission_body),
+        icon = Icons.Outlined.VideoLibrary,
+        action = {
+            FilledTonalButton(
+                onClick = onGrant,
+                shapes = ButtonDefaults.shapes(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth(EmptyActionWidthFraction)
+                        .height(EmptyActionHeight),
+            ) {
+                Text(stringResource(R.string.local_media_grant))
+            }
+        },
+    )
 }
 
 @Composable
-private fun LocalMediaPermissionState(onGrant: () -> Unit) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            modifier = Modifier.size(100.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Outlined.VideoLibrary,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(28.dp))
-        Text(
-            text = stringResource(R.string.local_media_permission_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.local_media_permission_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-        )
-        Spacer(modifier = Modifier.height(36.dp))
-        FilledTonalButton(
-            onClick = onGrant,
-            shape = RoundedCornerShape(12.dp),
-            modifier =
-                Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(48.dp),
-            colors =
-                ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-        ) {
-            Text(
-                text = stringResource(R.string.local_media_grant),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-private fun buildSubtitle(
+private fun mediaSubtitle(
     primary: String,
     secondary: String,
 ): String =
     when {
-        primary.isNotBlank() && secondary.isNotBlank() -> "$primary · $secondary"
-        primary.isNotBlank() -> primary
-        else -> secondary
+        primary.isNotBlank() && secondary.isNotBlank() -> {
+            stringResource(R.string.video_metadata_short_template, primary, secondary)
+        }
+
+        primary.isNotBlank() -> {
+            primary
+        }
+
+        else -> {
+            secondary
+        }
     }
 
-private fun formatSize(bytes: Long): String {
-    if (bytes <= 0) return ""
-    val kb = bytes / 1024.0
-    if (kb < 1024) return "%.0f KB".format(kb)
-    val mb = kb / 1024.0
-    if (mb < 1024) return "%.1f MB".format(mb)
-    return "%.2f GB".format(mb / 1024.0)
+@Composable
+private fun fileSizeLabel(bytes: Long): String {
+    if (bytes <= 0L) return ""
+    val kilobytes = bytes / BYTES_PER_UNIT
+    if (kilobytes < BYTES_PER_UNIT) {
+        return stringResource(R.string.file_size_kb, String.format(Locale.getDefault(), "%.0f", kilobytes))
+    }
+    val megabytes = kilobytes / BYTES_PER_UNIT
+    if (megabytes < BYTES_PER_UNIT) {
+        return stringResource(R.string.file_size_mb, String.format(Locale.getDefault(), "%.1f", megabytes))
+    }
+    return stringResource(
+        R.string.file_size_gb,
+        String.format(Locale.getDefault(), "%.2f", megabytes / BYTES_PER_UNIT),
+    )
 }
