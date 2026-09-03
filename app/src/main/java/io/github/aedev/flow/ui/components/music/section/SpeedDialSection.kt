@@ -43,16 +43,18 @@ import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 import io.github.aedev.flow.ui.components.music.common.musicGridCellWidth
 import io.github.aedev.flow.ui.components.music.common.musicGridColumns
+import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.theme.Dimensions
 
 private val SpeedDialRowHeight = 64.dp
 private val SpeedDialGap = 8.dp
-private const val SPEED_DIAL_ROWS = 2
-private const val SPEED_DIAL_MAX_TRACKS = 12
+private const val SPEED_DIAL_ROWS = 3
+private const val SPEED_DIAL_MAX_TRACKS = 18
+private const val SUBTITLE_ALPHA = 0.8f
 
 /**
- * Two rows of compact tiles the listener reaches for most, led by a shuffle tile. The column
+ * Three rows of compact tiles the listener reaches for most, led by a shuffle tile. The column
  * count follows the window width, so the section is the same height on every device.
  */
 @Composable
@@ -113,13 +115,17 @@ private fun SpeedDialTile(
     modifier: Modifier = Modifier,
 ) {
     val isPlaying = isTrackPlaying(track.videoId)
+    val highlight = if (isPlaying) rememberMusicArtworkColors(track.thumbnailUrl) else null
+    val scheme = MaterialTheme.colorScheme
+    val titleColor = highlight?.onContainer ?: scheme.onSurface
+    val subtitleColor = highlight?.onContainer?.copy(alpha = SUBTITLE_ALPHA) ?: scheme.onSurfaceVariant
 
     Row(
         modifier =
             modifier
                 .fillMaxHeight()
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .background(highlight?.container ?: scheme.surfaceContainerHigh)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
@@ -138,21 +144,31 @@ private fun SpeedDialTile(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            if (isPlaying) {
-                MusicNowPlayingOverlay(waveformWidth = 20.dp, waveformHeight = 16.dp)
+            if (highlight != null) {
+                MusicNowPlayingOverlay(waveformWidth = 20.dp, waveformHeight = 16.dp, color = highlight.accent)
             }
         }
-        Text(
-            text = track.title,
-            style = MaterialTheme.typography.labelLargeEmphasized,
-            color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+        Column(
             modifier =
                 Modifier
                     .weight(1f)
                     .padding(horizontal = 12.dp),
-        )
+        ) {
+            Text(
+                text = track.title,
+                style = MaterialTheme.typography.labelLargeEmphasized,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = track.artist,
+                style = MaterialTheme.typography.bodySmall,
+                color = subtitleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         if (isDownloaded) {
             MusicDownloadedBadge(modifier = Modifier.padding(end = 12.dp))
         }
