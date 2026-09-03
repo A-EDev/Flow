@@ -7,6 +7,7 @@
 package io.github.aedev.flow.ui.components.music.item
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -114,8 +115,9 @@ fun MusicCollectionCard(
             style = MaterialTheme.typography.bodyMediumEmphasized,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = textAlign,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
+            modifier = Modifier.basicMarquee(),
         )
 
         if (!subtitle.isNullOrBlank()) {

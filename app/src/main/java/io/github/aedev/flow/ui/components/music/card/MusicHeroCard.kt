@@ -7,7 +7,7 @@
 package io.github.aedev.flow.ui.components.music.card
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -33,11 +33,12 @@ import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 
-val MusicHeroCaptionHeight = 72.dp
+val MusicHeroCaptionHeight = 60.dp
 
 /**
- * One item of a hero lane: artwork on top, caption on a solid container below it. Fills whatever
- * size the lane gives it, so the same card serves square mixes and 16:9 videos.
+ * One item of a hero lane: artwork on top, the caption on the page below it. Only the artwork is
+ * masked, through [artModifier], so the caption never loses its corners to the mask. Fills
+ * whatever size the lane gives it, so the same card serves square mixes and 16:9 videos.
  *
  * [captionAlpha] is read in the draw phase only, so the lane can fade the caption out as the item
  * shrinks into a preview without recomposing anything while it scrolls.
@@ -48,6 +49,7 @@ fun MusicHeroCard(
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    artModifier: Modifier = Modifier,
     subtitle: String? = null,
     thumbnailUrl: String? = null,
     artwork: (@Composable BoxScope.() -> Unit)? = null,
@@ -62,7 +64,6 @@ fun MusicHeroCard(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
@@ -72,7 +73,8 @@ fun MusicHeroCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f)
+                    .then(artModifier),
         ) {
             if (artwork != null) {
                 artwork()
@@ -106,14 +108,15 @@ fun MusicHeroCard(
                     .fillMaxWidth()
                     .height(MusicHeroCaptionHeight)
                     .graphicsLayer { alpha = captionAlpha() }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMediumEmphasized,
                 color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Clip,
+                modifier = Modifier.basicMarquee(),
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
