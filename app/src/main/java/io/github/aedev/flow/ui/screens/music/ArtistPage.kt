@@ -2,10 +2,8 @@ package io.github.aedev.flow.ui.screens.music
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -31,28 +28,26 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
-import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarDefaults
+import io.github.aedev.flow.ui.components.music.card.MusicHeroCard
 import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.ArtistBio
 import io.github.aedev.flow.ui.components.music.detail.ArtistHero
+import io.github.aedev.flow.ui.components.music.detail.MusicHeroTopBar
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
-import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.MusicArtistShelf
 import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
-import io.github.aedev.flow.ui.components.music.section.MusicShelf
+import io.github.aedev.flow.ui.components.music.section.MusicHeroLane
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
@@ -61,7 +56,6 @@ import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatViewCount
 
 private const val TOP_TRACKS_SHOWN = 5
-private val VideoCardHeight = 124.dp
 private const val VIDEO_ASPECT_RATIO = 16f / 9f
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -160,42 +154,32 @@ fun ArtistPage(
         Scaffold(
             modifier = modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                FlowTopBar(
-                    title = {
-                        AnimatedVisibility(visible = showBarTitle, enter = fadeIn(), exit = fadeOut()) {
-                            Text(
-                                text = artistDetails.name,
-                                style = FlowTopBarDefaults.titleStyle,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    },
+                MusicHeroTopBar(
+                    title = artistDetails.name,
+                    showTitle = showBarTitle,
                     onBack = onBackClick,
-                    actions = {
-                        IconButton(
-                            onClick = {
-                                clipboardManager.setText(AnnotatedString("https://music.youtube.com/channel/${artistDetails.channelId}"))
-                                Toast.makeText(context, context.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
-                            },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Link,
-                                contentDescription = stringResource(R.string.share_link_cd),
-                            )
-                        }
-                    },
-                )
+                ) { iconColors ->
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString("https://music.youtube.com/channel/${artistDetails.channelId}"))
+                            Toast.makeText(context, context.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
+                        },
+                        colors = iconColors,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Link,
+                            contentDescription = stringResource(R.string.share_link_cd),
+                        )
+                    }
+                }
             },
-        ) { paddingValues ->
+        ) { _ ->
             LazyColumn(
                 state = scrollState,
                 contentPadding = PaddingValues(bottom = 32.dp),
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 item(key = "hero") {
                     ArtistHero(
@@ -294,17 +278,18 @@ fun ArtistPage(
 
                 if (artistDetails.videos.isNotEmpty()) {
                     item(key = "videos") {
-                        MusicShelf(
+                        MusicHeroLane(
                             title = stringResource(R.string.tab_videos),
                             items = artistDetails.videos,
                             key = { "videos:${it.videoId}" },
-                        ) { video ->
-                            MusicCollectionCard(
+                            artAspectRatio = VIDEO_ASPECT_RATIO,
+                        ) { video, captionAlpha ->
+                            MusicHeroCard(
                                 title = video.title,
                                 subtitle = video.videoSubtitle(),
                                 thumbnailUrl = video.thumbnailUrl,
-                                thumbnailHeight = VideoCardHeight,
-                                aspectRatio = VIDEO_ASPECT_RATIO,
+                                mediaId = video.videoId,
+                                captionAlpha = captionAlpha,
                                 onClick = { onTrackClick(video, listOf(video)) },
                             )
                         }
