@@ -42,7 +42,16 @@ import io.github.aedev.flow.sync.protocol.SyncRole
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 
 /** Where the user is in the pre-session setup. Once a session starts, [SyncState] drives the UI. */
-private enum class Step { CHOOSER, SEND_SELECT, SEND_TRANSPORT, SEND_SCAN, RECEIVE_TRANSPORT, RECEIVE_SCAN }
+private enum class Step {
+    CHOOSER,
+    SEND_SELECT,
+    SEND_TRANSPORT,
+    SEND_SCAN,
+    SEND_MANUAL,
+    RECEIVE_TRANSPORT,
+    RECEIVE_SCAN,
+    RECEIVE_MANUAL,
+}
 
 /** The step to return to, or null when there is nothing left to back out of but the screen itself. */
 private fun Step.previous(): Step? =
@@ -51,8 +60,10 @@ private fun Step.previous(): Step? =
         Step.SEND_SELECT -> Step.CHOOSER
         Step.SEND_TRANSPORT -> Step.SEND_SELECT
         Step.SEND_SCAN -> Step.SEND_TRANSPORT
+        Step.SEND_MANUAL -> Step.SEND_TRANSPORT
         Step.RECEIVE_TRANSPORT -> Step.CHOOSER
         Step.RECEIVE_SCAN -> Step.RECEIVE_TRANSPORT
+        Step.RECEIVE_MANUAL -> Step.RECEIVE_TRANSPORT
     }
 
 @Composable
@@ -62,6 +73,7 @@ private fun Step.title(): String =
         Step.SEND_SELECT -> stringResource(R.string.sync_choose_what_to_send)
         Step.SEND_TRANSPORT, Step.RECEIVE_TRANSPORT -> stringResource(R.string.sync_step_title_pair)
         Step.SEND_SCAN, Step.RECEIVE_SCAN -> stringResource(R.string.sync_step_title_scan)
+        Step.SEND_MANUAL, Step.RECEIVE_MANUAL -> stringResource(R.string.sync_step_title_manual)
     }
 
 /** Identifies the visible step for the cross-fade, without the volatile parts of the state. */
@@ -291,6 +303,7 @@ private fun SyncSetupStep(
                 scanHint = stringResource(R.string.sync_send_scan_hint),
                 onShowQr = { onHost(SyncRole.SENDER) },
                 onScan = { onStepChange(Step.SEND_SCAN) },
+                onManual = { onStepChange(Step.SEND_MANUAL) },
             )
         }
 
@@ -298,6 +311,12 @@ private fun SyncSetupStep(
             SyncScanContent(
                 prompt = stringResource(R.string.sync_scan_prompt_receive_code),
                 onScanned = { onJoin(SyncRole.SENDER, it) },
+            )
+        }
+
+        Step.SEND_MANUAL -> {
+            SyncManualEntryContent(
+                onSubmit = { onJoin(SyncRole.SENDER, it) },
             )
         }
 
@@ -309,6 +328,7 @@ private fun SyncSetupStep(
                 scanHint = stringResource(R.string.sync_receive_show_qr_hint),
                 onShowQr = { onStepChange(Step.RECEIVE_SCAN) },
                 onScan = { onHost(SyncRole.RECEIVER) },
+                onManual = { onStepChange(Step.RECEIVE_MANUAL) },
             )
         }
 
@@ -316,6 +336,12 @@ private fun SyncSetupStep(
             SyncScanContent(
                 prompt = stringResource(R.string.sync_scan_prompt_send_code),
                 onScanned = { onJoin(SyncRole.RECEIVER, it) },
+            )
+        }
+
+        Step.RECEIVE_MANUAL -> {
+            SyncManualEntryContent(
+                onSubmit = { onJoin(SyncRole.RECEIVER, it) },
             )
         }
     }

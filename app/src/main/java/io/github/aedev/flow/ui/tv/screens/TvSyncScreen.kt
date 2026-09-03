@@ -305,11 +305,6 @@ private fun TvSyncQr(
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                text = stringResource(R.string.sync_confirmation_code, s.sas),
-                style = MaterialTheme.typography.headlineSmall,
-                fontFamily = FontFamily.Monospace,
-            )
-            Text(
                 text = stringResource(R.string.sync_qr_advertised_address, s.address),
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = FontFamily.Monospace,
@@ -322,6 +317,11 @@ private fun TvSyncQr(
             )
             Text(
                 text = stringResource(R.string.sync_qr_network_note),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.sync_verification_after_connect),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
