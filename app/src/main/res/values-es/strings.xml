@@ -731,10 +731,10 @@
     <string name="player_settings_audio_original">Original (Nativo)</string>
     <string name="player_settings_play_during_calls_subtitle">Continuar la reproducción durante llamadas telefónicas o VoIP (por ejemplo, WhatsApp)</string>
     <string name="player_settings_header_gestures">gestos</string>
-    <string name="player_settings_double_tap_seek_dialog_title">Duración de la búsqueda con doble toque</string>
+    <string name="player_settings_double_tap_seek_dialog_title">Duración del doble toque</string>
     <string name="player_settings_audio_original_desc">Utiliza la pista de audio nativa del vídeo</string>
     <string name="player_settings_double_tap_seek_subtitle_template">%ds por lado doble toque</string>
-    <string name="player_settings_double_tap_seek_dialog_body">Elija cuántos segundos buscar al tocar dos veces el lado izquierdo o derecho del reproductor.</string>
+    <string name="player_settings_double_tap_seek_dialog_body">Elige cuantos segundos saltar al tocar dos veces el lado izquierdo o derecho del reproductor.</string>
     <string name="video_quality_title">Calidad de vídeo</string>
     <string name="video_quality_wifi_header">Calidad wifi</string>
     <string name="video_quality_cellular_header">Calidad celular</string>
@@ -2331,4 +2331,151 @@
     <string name="player_settings_auto_enable_subtitles_subtitle">Empieza cada vídeo con subtítulos en tu idioma preferido</string>
     <string name="sync_collection_subscription_groups_body">Las carpetas en las que organizas tus canales.</string>
     <string name="sync_step_title_scan">Escanear el código</string>
+    <string name="top_bar_clear_search">Limpiar búsqueda</string>
+    <string name="top_bar_close_search">Cerrar búsqueda</string>
+    <string name="import_yt_watch_later">Importar \"Ver más tarde\"</string>
+    <string name="download_size_estimate_mb">~%1$s MB</string>
+    <string name="download_size_estimate_gb">~%1$s GB</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">Actualizando %1$d de %2$d canal</item>
+        <item quantity="many">Actualizando %1$d de %2$d canales</item>
+        <item quantity="other">Actualizando %1$d de %2$d canales</item>
+    </plurals>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="one">Última actualización %1$s - %2$d vídeo comprobado</item>
+        <item quantity="many">Última actualización %1$s - %2$d vídeos comprobados</item>
+        <item quantity="other">Última actualización %1$s - %2$d vídeos comprobados</item>
+    </plurals>
+    <string name="conjunction_and">y</string>
+    <string name="streamed_date_template">Emitido %1$s</string>
+    <plurals name="download_all_confirmation">
+        <item quantity="one">¿Descargar %1$d vídeo? Esto puede ocupar una cantidad considerable de almacenamiento.</item>
+        <item quantity="many">¿Descargar los %1$d vídeos? Esto puede ocupar una cantidad considerable de almacenamiento.</item>
+        <item quantity="other">¿Descargar los %1$d vídeos? Esto puede ocupar una cantidad considerable de almacenamiento.</item>
+    </plurals>
+    <string name="explicit_badge">E</string>
+    <plurals name="view_replies_template">
+        <item quantity="one">Ver %1$d respuesta</item>
+        <item quantity="many">Ver %1$d respuestas</item>
+        <item quantity="other">Ver %1$d respuestas</item>
+    </plurals>
+    <plurals name="videos_curated_template">
+        <item quantity="one">%1$d vídeo recomendado para ti</item>
+        <item quantity="many">%1$d vídeos recomendados para ti</item>
+        <item quantity="other">%1$d vídeos recomendados para ti</item>
+    </plurals>
+    <plurals name="videos_count_template">
+        <item quantity="one">%1$d vídeo</item>
+        <item quantity="many">%1$d vídeos</item>
+        <item quantity="other">%1$d vídeos</item>
+    </plurals>
+    <plurals name="songs_count_template">
+        <item quantity="one">%1$d canción</item>
+        <item quantity="many">%1$d canciones</item>
+        <item quantity="other">%1$d canciones</item>
+    </plurals>
+    <string name="metadata_separator">·</string>
+    <string name="player_time_separator">/</string>
+    <string name="search_voice_prompt">Hablar para buscar…</string>
+    <string name="shared_video">Vídeo Compartido</string>
+    <string name="search_failed">Error en la búsqueda</string>
+    <string name="loading_more">Cargando más…</string>
+    <string name="load_failed">Error en la carga</string>
+    <string name="import_success_count">Importado %1$d %2$s</string>
+    <string name="import_success">%1$s importado correctamente</string>
+    <plurals name="deep_flow_duration_hours">
+        <item quantity="one">%1$d hora</item>
+        <item quantity="many">%1$d horas</item>
+        <item quantity="other">%1$d horas</item>
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+        <item quantity="one">%1$d tema</item>
+        <item quantity="many">%1$d temas</item>
+        <item quantity="other">%1$d temas</item>
+    </plurals>
+    <plurals name="lyrics_providers_enabled">
+        <item quantity="one">%1$d / %2$d proveedores activos</item>
+        <item quantity="many">%1$d / %2$d proveedores activos</item>
+        <item quantity="other">%1$d / %2$d proveedores activos</item>
+    </plurals>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+        <item quantity="one">Desplazamiento automático cada %1$d segundo</item>
+        <item quantity="many">Desplazamiento automático cada %1$d segundos</item>
+        <item quantity="other">Desplazamiento automático cada %1$d segundos</item>
+    </plurals>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+        <item quantity="one">%1$d segundo</item>
+        <item quantity="many">%1$d segundos</item>
+        <item quantity="other">%1$d segundos</item>
+    </plurals>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+        <item quantity="one">%1$d segundo</item>
+        <item quantity="many">%1$d segundos</item>
+        <item quantity="other">%1$d segundos</item>
+    </plurals>
+    <string name="player_settings_video_codec_fallback">Codec de respaldo</string>
+    <string name="player_settings_video_codec_fallback_auto">Automático</string>
+    <string name="player_settings_video_codec_fallback_dialog_body">Códec que se usará cuando un vídeo no esté disponible en tu códec preferido. Automático se revertirá a lo que la app considere más compatible, que suele ser H.264.</string>
+    <string name="player_settings_video_codec_fallback_auto_desc">Dejar que la aplicación decida (H.264 preferido)</string>
+    <plurals name="player_settings_double_tap_seek_subtitle">
+        <item quantity="one">%1$d segundo por lado en doble toque</item>
+        <item quantity="many">%1$d segundos por lado en doble toque</item>
+        <item quantity="other">%1$d segundos por lado en doble toque</item>
+    </plurals>
+    <plurals name="selected_count_template">
+        <item quantity="one">%1$d seleccionado</item>
+        <item quantity="many">%1$d seleccionados</item>
+        <item quantity="other">%1$d seleccionados</item>
+    </plurals>
+    <plurals name="every_min_template">
+        <item quantity="one">Cada %1$d minuto</item>
+        <item quantity="many">Cada %1$d minutos</item>
+        <item quantity="other">Cada %1$d minutos</item>
+    </plurals>
+    <plurals name="every_minutes_template">
+        <item quantity="one">Cada %1$d minuto</item>
+        <item quantity="many">Cada %1$d minutos</item>
+        <item quantity="other">Cada %1$d minutos</item>
+    </plurals>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="many">%1$d minutos</item>
+        <item quantity="other">%1$d minutos</item>
+    </plurals>
+    <plurals name="currently_searches_template">
+        <item quantity="one">Actualmente: %1$d búsqueda</item>
+        <item quantity="many">Actualmente: %1$d búsquedas</item>
+        <item quantity="other">Actualmente: %1$d búsquedas</item>
+    </plurals>
+    <plurals name="delete_after_days_template">
+        <item quantity="one">Eliminar tras %1$d día</item>
+        <item quantity="many">Eliminar tras %1$d días</item>
+        <item quantity="other">Eliminar tras %1$d días</item>
+    </plurals>
+    <plurals name="delete_older_than_template">
+        <item quantity="one">Eliminar búsquedas anteriores a %1$d día</item>
+        <item quantity="many">Eliminar búsquedas anteriores a %1$d días</item>
+        <item quantity="other">Eliminar búsquedas anteriores a %1$d días</item>
+    </plurals>
+    <plurals name="searches_count_template">
+        <item quantity="one">%1$d búsqueda</item>
+        <item quantity="many">%1$d búsquedas</item>
+        <item quantity="other">%1$d búsquedas</item>
+    </plurals>
+    <plurals name="days_count_template">
+        <item quantity="one">%1$d día</item>
+        <item quantity="many">%1$d días</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
+    <string name="import_label_newpipe_subscriptions">Suscripciones de NewPipe</string>
+    <string name="import_label_youtube_subscriptions">Suscripciones de YouTube</string>
+    <string name="import_label_youtube_watch_history">Historial de visualizaciones de YouTube</string>
+    <string name="import_label_freetube_watch_history">Historial de visualizaciones de FreeTube</string>
+    <string name="import_label_newpipe_watch_history">Historial de visualizaciones de NewPipe</string>
+    <string name="import_label_libretube_subscriptions">Suscripciones de LibreTube</string>
+    <string name="import_label_metrolist_playlists">Listas de musica de Metrolist</string>
+    <string name="import_label_newpipe_playlists">Listas de NewPipe</string>
+    <string name="import_label_libretube_playlists">Listas de LibreTube</string>
+    <string name="import_label_youtube_takeout">YouTube Takeout</string>
+    <string name="import_yt_watch_later_desc">Importa un archivo CSV de YouTube Takeout directamente a tu lista «Ver más tarde», independientemente del nombre del archivo.</string>
 </resources>
