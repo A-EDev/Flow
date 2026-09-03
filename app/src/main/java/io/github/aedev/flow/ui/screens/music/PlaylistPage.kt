@@ -36,8 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -50,7 +52,6 @@ import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
 import io.github.aedev.flow.ui.components.music.common.MusicAmbientBackdrop
 import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
 import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
-import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.PlaylistFooter
@@ -61,9 +62,10 @@ import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicMergeIntoPlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
-import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 import io.github.aedev.flow.ui.theme.Dimensions
 import kotlinx.coroutines.delay
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 private const val ITEMS_BEFORE_TRACKS = 2
 
@@ -87,6 +89,7 @@ fun PlaylistPage(
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val haptics = LocalHapticFeedback.current
 
     val downloadProgress by playlistsViewModel.playlistDownloadProgress.collectAsState()
     val isDownloading by playlistsViewModel.isDownloadingPlaylist.collectAsState()
@@ -102,31 +105,38 @@ fun PlaylistPage(
             val all = playlistDetails.tracks + locallyAddedTracks.filter { it.videoId !in existing }
             all.filter { it.videoId !in deletedTrackIds.value }
         }
-    var orderedDisplayTracks by remember { mutableStateOf(displayTracks) }
+    var orderedTracks by remember { mutableStateOf(displayTracks.withStableKeys()) }
+    val orderedDisplayTracks = remember(orderedTracks) { orderedTracks.map { it.second } }
 
     LaunchedEffect(displayTracks) {
-        orderedDisplayTracks = displayTracks
+        orderedTracks = displayTracks.withStableKeys()
     }
 
-    val reorderState =
-        rememberReorderableLazyListState(
-            listState = scrollState,
-            itemIndexOffset = ITEMS_BEFORE_TRACKS,
-            onMove = { from, to ->
-                orderedDisplayTracks =
-                    orderedDisplayTracks.toMutableList().apply {
-                        add(to, removeAt(from))
+    var pendingReorder by remember { mutableStateOf(false) }
+    val reorderableState =
+        rememberReorderableLazyListState(scrollState) { from, to ->
+            val fromIndex = from.index - ITEMS_BEFORE_TRACKS
+            val toIndex = to.index - ITEMS_BEFORE_TRACKS
+            if (fromIndex in orderedTracks.indices && toIndex in orderedTracks.indices && fromIndex != toIndex) {
+                orderedTracks =
+                    orderedTracks.toMutableList().apply {
+                        add(toIndex, removeAt(fromIndex))
                     }
-            },
-            onDragStopped = {
-                if (isUserPlaylist) {
-                    playlistsViewModel.reorderTracksInPlaylist(
-                        playlistDetails.id,
-                        orderedDisplayTracks.map { it.videoId },
-                    )
-                }
-            },
-        )
+                pendingReorder = true
+            }
+        }
+
+    LaunchedEffect(reorderableState.isAnyItemDragging) {
+        if (!reorderableState.isAnyItemDragging && pendingReorder) {
+            pendingReorder = false
+            if (isUserPlaylist) {
+                playlistsViewModel.reorderTracksInPlaylist(
+                    playlistDetails.id,
+                    orderedTracks.map { it.second.videoId },
+                )
+            }
+        }
+    }
 
     var showSearchPanel by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -347,67 +357,76 @@ fun PlaylistPage(
                             }
                         }
                     } else {
-                        val trackCount = orderedDisplayTracks.size
-                        itemsIndexed(orderedDisplayTracks, key = { index, t -> "${t.videoId}_$index" }) { index, track ->
-                            val isPlaying = isTrackPlaying(track.videoId)
-                            MusicTrackItem(
-                                track = track,
-                                onClick = { onTrackClick(track, orderedDisplayTracks) },
-                                modifier =
-                                    Modifier
-                                        .padding(horizontal = Dimensions.ContentPaddingHorizontal)
-                                        .then(if (isUserPlaylist) reorderState.itemModifier(index) else Modifier),
-                                density = MusicItemDensity.Compact,
-                                index = index + 1,
-                                shape = musicSegmentShape(index = index, count = trackCount, selected = isPlaying),
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                isPlaying = isPlaying,
-                                leadingContent =
-                                    if (isUserPlaylist) {
-                                        {
-                                            ReorderHandle(
-                                                modifier = reorderState.handleModifier(index),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    } else {
-                                        null
-                                    },
-                                thumbnailOverlay = {
-                                    ThumbnailWatchProgress(
-                                        videoId = track.videoId,
-                                        modifier =
-                                            Modifier
-                                                .align(Alignment.BottomStart)
-                                                .fillMaxWidth()
-                                                .height(3.dp),
-                                    )
-                                },
-                                trailingContent =
-                                    if (isUserPlaylist) {
-                                        {
-                                            IconButton(
-                                                onClick = {
-                                                    deletedTrackIds.value = deletedTrackIds.value + track.videoId
-                                                    playlistsViewModel.removeTrackFromPlaylist(playlistDetails.id, track.videoId)
-                                                },
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.Delete,
-                                                    contentDescription = stringResource(R.string.ui_delete_from_playlist),
-                                                    tint = MaterialTheme.colorScheme.error,
-                                                    modifier = Modifier.size(18.dp),
+                        val trackCount = orderedTracks.size
+                        itemsIndexed(orderedTracks, key = { _, (key, _) -> key }) { index, (key, track) ->
+                            ReorderableItem(
+                                state = reorderableState,
+                                key = key,
+                                enabled = isUserPlaylist,
+                            ) {
+                                MusicTrackItem(
+                                    track = track,
+                                    onClick = { onTrackClick(track, orderedDisplayTracks) },
+                                    modifier = Modifier.padding(horizontal = Dimensions.ContentPaddingHorizontal),
+                                    density = MusicItemDensity.Compact,
+                                    index = index + 1,
+                                    shape = musicSegmentShape(index = index, count = trackCount),
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    leadingContent =
+                                        if (isUserPlaylist) {
+                                            {
+                                                ReorderHandle(
+                                                    modifier =
+                                                        Modifier.draggableHandle(
+                                                            onDragStarted = {
+                                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            },
+                                                            onDragStopped = {
+                                                                haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                                            },
+                                                        ),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
                                             }
-                                        }
-                                    } else {
-                                        null
+                                        } else {
+                                            null
+                                        },
+                                    thumbnailOverlay = {
+                                        ThumbnailWatchProgress(
+                                            videoId = track.videoId,
+                                            modifier =
+                                                Modifier
+                                                    .align(Alignment.BottomStart)
+                                                    .fillMaxWidth()
+                                                    .height(3.dp),
+                                        )
                                     },
-                                onMenuClick = {
-                                    selectedTrack = track
-                                    showBottomSheet = true
-                                },
-                            )
+                                    trailingContent =
+                                        if (isUserPlaylist) {
+                                            {
+                                                IconButton(
+                                                    onClick = {
+                                                        deletedTrackIds.value = deletedTrackIds.value + track.videoId
+                                                        playlistsViewModel.removeTrackFromPlaylist(playlistDetails.id, track.videoId)
+                                                    },
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Delete,
+                                                        contentDescription = stringResource(R.string.ui_delete_from_playlist),
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            null
+                                        },
+                                    onMenuClick = {
+                                        selectedTrack = track
+                                        showBottomSheet = true
+                                    },
+                                )
+                            }
                         }
                         item(key = "footer") {
                             PlaylistFooter(
@@ -428,5 +447,17 @@ fun PlaylistPage(
             playlistsViewModel = playlistsViewModel,
             onDismiss = { showMergeDialog = false },
         )
+    }
+}
+
+/**
+ * Pairs each track with a key that survives reordering: the id, disambiguated for duplicates.
+ */
+private fun List<MusicTrack>.withStableKeys(): List<Pair<String, MusicTrack>> {
+    val seen = HashMap<String, Int>()
+    return map { track ->
+        val occurrence = (seen[track.videoId] ?: 0) + 1
+        seen[track.videoId] = occurrence
+        "${track.videoId}#$occurrence" to track
     }
 }
