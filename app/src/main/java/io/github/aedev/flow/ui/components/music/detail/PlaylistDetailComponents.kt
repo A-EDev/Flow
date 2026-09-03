@@ -7,52 +7,81 @@
 package io.github.aedev.flow.ui.components.music.detail
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Downloading
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.PlaylistDetails
-import io.github.aedev.flow.ui.screens.music.*
-import io.github.aedev.flow.ui.theme.MusicScrim
-import io.github.aedev.flow.ui.theme.MusicScrimAffordance
-import io.github.aedev.flow.ui.theme.MusicScrimContent
-import io.github.aedev.flow.ui.theme.musicScrimContent
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarDefaults
+import io.github.aedev.flow.ui.components.music.common.musicHeroArtworkSize
 
+private val DownloadRingSize = 64.dp
+
+/**
+ * The playlist page bar. The title and a Play button arrive once the header has scrolled away,
+ * so the primary action is never further than the bar while the listener is deep in the list.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun PlaylistTopBar(
     showTitle: Boolean,
     title: String,
     onBackClick: () -> Unit,
+    onPlayClick: () -> Unit,
     showSearchToggle: Boolean,
     searchActive: Boolean,
     onSearchToggle: () -> Unit,
@@ -61,106 +90,76 @@ internal fun PlaylistTopBar(
     onSaveToggle: (() -> Unit)? = null,
     showMergeButton: Boolean = false,
     onMergeClick: (() -> Unit)? = null,
-    onBottomPositioned: (Int) -> Unit,
 ) {
-    val bgColor =
-        if (showTitle) {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-        } else {
-            Color.Transparent
-        }
-
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .onGloballyPositioned { coordinates ->
-                    onBottomPositioned(
-                        (coordinates.positionInRoot().y + coordinates.size.height).toInt(),
-                    )
-                },
-        color = bgColor,
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = stringResource(R.string.btn_back),
-                    tint = MusicScrimContent,
+    FlowTopBar(
+        title = {
+            AnimatedVisibility(visible = showTitle, enter = fadeIn(), exit = fadeOut()) {
+                Text(
+                    text = title,
+                    style = FlowTopBarDefaults.titleStyle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-            Box(modifier = Modifier.weight(1f)) {
-                if (showTitle) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MusicScrimContent,
+        },
+        onBack = onBackClick,
+        actions = {
+            AnimatedVisibility(visible = showTitle, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
+                FilledIconButton(
+                    onClick = onPlayClick,
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = stringResource(R.string.play_all),
                     )
                 }
             }
-
             if (showSearchToggle) {
                 IconButton(onClick = onSearchToggle) {
                     Icon(
-                        imageVector = if (searchActive) Icons.Default.Close else Icons.Default.Search,
+                        imageVector = if (searchActive) Icons.Rounded.Close else Icons.Rounded.Search,
                         contentDescription =
                             if (searchActive) {
-                                stringResource(
-                                    R.string.ui_close_search,
-                                )
+                                stringResource(R.string.ui_close_search)
                             } else {
                                 stringResource(R.string.ui_add_songs)
                             },
-                        tint = MusicScrimContent,
                     )
                 }
             }
-            if (showSaveButton || showMergeButton) {
-                Row {
-                    if (showMergeButton && onMergeClick != null) {
-                        IconButton(onClick = onMergeClick) {
-                            Icon(
-                                imageVector = Icons.Default.PlaylistAdd,
-                                contentDescription =
-                                    androidx.compose.ui.res.stringResource(
-                                        io.github.aedev.flow.R.string.add_all_to_playlist,
-                                    ),
-                                tint = MusicScrimContent,
-                            )
-                        }
-                    }
-                    if (showSaveButton && onSaveToggle != null) {
-                        IconButton(onClick = onSaveToggle) {
-                            Icon(
-                                imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription =
-                                    if (isSaved) {
-                                        stringResource(
-                                            R.string.ui_remove_from_library,
-                                        )
-                                    } else {
-                                        stringResource(R.string.ui_save_to_library)
-                                    },
-                                tint = if (isSaved) MaterialTheme.colorScheme.primary else MusicScrimContent,
-                            )
-                        }
-                    }
+            if (showMergeButton && onMergeClick != null) {
+                IconButton(onClick = onMergeClick) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlaylistAdd,
+                        contentDescription = stringResource(R.string.add_all_to_playlist),
+                    )
                 }
             }
-        }
-    }
+            if (showSaveButton && onSaveToggle != null) {
+                IconButton(onClick = onSaveToggle) {
+                    Icon(
+                        imageVector = if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                        contentDescription =
+                            if (isSaved) {
+                                stringResource(R.string.ui_remove_from_library)
+                            } else {
+                                stringResource(R.string.ui_save_to_library)
+                            },
+                        tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+    )
 }
 
+/**
+ * Centered artwork, title block and the three collection actions, on the page's own scheme.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun PlaylistCenteredHeader(
+internal fun PlaylistHeader(
     playlistDetails: PlaylistDetails,
     isDownloading: Boolean,
     downloadProgress: Float,
@@ -168,24 +167,21 @@ internal fun PlaylistCenteredHeader(
     onShuffleClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onArtistClick: (String) -> Unit,
-    onTitleBottomPositioned: (Int) -> Unit = {},
 ) {
+    val artworkSize = musicHeroArtworkSize()
+
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 8.dp),
+                .padding(top = 16.dp, bottom = 8.dp)
+                .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Large centered artwork
         Surface(
-            modifier =
-                Modifier
-                    .size(220.dp)
-                    .clip(RoundedCornerShape(16.dp)),
-            shape = RoundedCornerShape(16.dp),
-            tonalElevation = 0.dp,
-            shadowElevation = 24.dp,
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.size(artworkSize),
         ) {
             AsyncImage(
                 model = playlistDetails.thumbnailUrl,
@@ -195,184 +191,146 @@ internal fun PlaylistCenteredHeader(
             )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Title
         Text(
             text = playlistDetails.title,
-            style =
-                MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    lineHeight = 30.sp,
-                ),
-            color = MusicScrimContent,
+            style = MaterialTheme.typography.headlineMediumEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier =
-                Modifier
-                    .padding(horizontal = 24.dp)
-                    .onGloballyPositioned { coordinates ->
-                        onTitleBottomPositioned(
-                            (coordinates.positionInRoot().y + coordinates.size.height).toInt(),
-                        )
-                    },
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // Author
-        Text(
-            text = playlistDetails.author,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-            color = musicScrimContent(0.7f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier =
-                Modifier
-                    .padding(horizontal = 24.dp)
-                    .then(
-                        if (playlistDetails.authorId != null) {
-                            Modifier.clickable { onArtistClick(playlistDetails.authorId) }
-                        } else {
-                            Modifier
-                        },
-                    ),
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // Metadata line
-        val meta =
-            buildString {
-                playlistDetails.trackCount.takeIf { it > 0 }?.let {
-                    append(
-                        androidx.compose.ui.res.pluralStringResource(
-                            R.plurals.songs_count_template,
-                            it,
-                            it,
-                        ),
-                    )
-                }
-                playlistDetails.durationText?.let {
-                    if (isNotEmpty()) append(" ${stringResource(R.string.metadata_separator)} ")
-                    append(it)
-                }
-                playlistDetails.dateText?.let {
-                    if (isNotEmpty()) append(" ${stringResource(R.string.metadata_separator)} ")
-                    append(it)
-                }
+        val authorId = playlistDetails.authorId
+        if (authorId != null) {
+            TextButton(
+                onClick = { onArtistClick(authorId) },
+                shapes = ButtonDefaults.shapesFor(ButtonDefaults.ExtraSmallContainerHeight),
+                contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
+                modifier = Modifier.heightIn(min = ButtonDefaults.ExtraSmallContainerHeight),
+            ) {
+                Text(
+                    text = playlistDetails.author,
+                    style = MaterialTheme.typography.bodyLargeEmphasized,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
+        } else {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = playlistDetails.author,
+                style = MaterialTheme.typography.bodyLargeEmphasized,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        val meta = playlistDetails.metadataLine()
         if (meta.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = meta,
-                style = MaterialTheme.typography.bodySmall,
-                color = musicScrimContent(0.45f),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
         }
 
-        // Description
-        playlistDetails.description?.takeIf { it.isNotBlank() }?.let { desc ->
-            Spacer(modifier = Modifier.height(6.dp))
+        playlistDetails.description?.takeIf { it.isNotBlank() }?.let { description ->
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = desc,
+                text = description,
                 style = MaterialTheme.typography.bodySmall,
-                color = musicScrimContent(0.38f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 32.dp),
             )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Actions row
         Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Download with progress ring
             Box(contentAlignment = Alignment.Center) {
-                IconButton(
+                FilledTonalIconButton(
                     onClick = onDownloadClick,
                     enabled = !isDownloading,
-                    modifier =
-                        Modifier
-                            .size(48.dp)
-                            .background(MusicScrimAffordance, CircleShape),
+                    shapes = IconButtonDefaults.shapes(),
+                    modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
                 ) {
                     Icon(
                         imageVector = if (isDownloading) Icons.Outlined.Downloading else Icons.Outlined.Download,
                         contentDescription = stringResource(R.string.download),
-                        tint = MusicScrimContent,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                     )
                 }
                 if (isDownloading) {
-                    CircularProgressIndicator(
+                    CircularWavyProgressIndicator(
                         progress = { downloadProgress },
-                        modifier = Modifier.size(54.dp),
-                        strokeWidth = 2.5.dp,
-                        color = MusicScrimContent,
+                        modifier = Modifier.size(DownloadRingSize),
                     )
                 }
             }
 
-            // Play all
+            val playHeight = ButtonDefaults.MediumContainerHeight
             Button(
                 onClick = onPlayClick,
-                modifier =
-                    Modifier
-                        .height(52.dp)
-                        .width(160.dp),
-                shape = CircleShape,
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = MusicScrimContent,
-                        contentColor = MusicScrim,
-                    ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+                shapes = ButtonDefaults.shapesFor(playHeight),
+                contentPadding = ButtonDefaults.contentPaddingFor(playHeight, hasStartIcon = true),
+                modifier = Modifier.heightIn(min = playHeight),
             ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
+                    imageVector = Icons.Rounded.PlayArrow,
                     contentDescription = null,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(ButtonDefaults.iconSizeFor(playHeight)),
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(playHeight)))
                 Text(
                     text = stringResource(R.string.play_all),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    style = ButtonDefaults.textStyleFor(playHeight),
                 )
             }
 
-            // Shuffle
-            IconButton(
+            FilledTonalIconButton(
                 onClick = onShuffleClick,
-                modifier =
-                    Modifier
-                        .size(48.dp)
-                        .background(MusicScrimAffordance, CircleShape),
+                shapes = IconButtonDefaults.shapes(),
+                modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
             ) {
                 Icon(
-                    imageVector = Icons.Default.Shuffle,
+                    imageVector = Icons.Rounded.Shuffle,
                     contentDescription = stringResource(R.string.shuffle),
-                    tint = MusicScrimContent,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
+@Composable
+private fun PlaylistDetails.metadataLine(): String {
+    val separator = stringResource(R.string.metadata_separator)
+    val parts =
+        listOfNotNull(
+            trackCount.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.songs_count_template, it, it) },
+            durationText,
+            dateText,
+        )
+    return parts.joinToString(" $separator ")
+}
+
+/**
+ * The add-songs field of a user playlist, on the Material search input so it matches the search
+ * screen. Expands into the results below it inside the same list.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlaylistSearchBar(
     query: String,
@@ -384,97 +342,68 @@ internal fun PlaylistSearchBar(
     onActivate: () -> Unit,
     onToggleSearch: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            AnimatedVisibility(visible = searchActive) {
-                IconButton(onClick = onToggleSearch, modifier = Modifier.size(40.dp)) {
-                    Icon(
-                        Icons.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.ui_close_search),
-                        tint = MaterialTheme.colorScheme.onBackground,
-                    )
-                }
-            }
-
-            // Pill-shaped search field
-            Row(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .then(if (!searchActive) Modifier.clickable { onActivate() } else Modifier)
-                        .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (!searchActive) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                BasicTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .focusRequester(focusRequester),
-                    singleLine = true,
-                    textStyle =
-                        TextStyle(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 16.sp,
-                        ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-                    decorationBox = { inner ->
-                        if (query.isEmpty()) {
-                            Text(
-                                text =
-                                    if (searchActive) {
-                                        stringResource(
-                                            R.string.ui_search_songs_to_add,
-                                        )
-                                    } else {
-                                        stringResource(R.string.ui_add_songs_to_playlist)
-                                    },
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 16.sp,
-                            )
-                        }
-                        inner()
-                    },
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        AnimatedVisibility(visible = searchActive) {
+            IconButton(onClick = onToggleSearch) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.ui_close_search),
                 )
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = stringResource(R.string.ui_clear),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
             }
         }
+        SearchBarDefaults.InputField(
+            query = query,
+            onQueryChange = onQueryChange,
+            onSearch = { onSearch() },
+            expanded = searchActive,
+            onExpandedChange = { expanded -> if (expanded) onActivate() },
+            placeholder = {
+                Text(
+                    text =
+                        if (searchActive) {
+                            stringResource(R.string.ui_search_songs_to_add)
+                        } else {
+                            stringResource(R.string.ui_add_songs_to_playlist)
+                        },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = null,
+                )
+            },
+            trailingIcon =
+                if (query.isNotEmpty()) {
+                    {
+                        IconButton(onClick = onClear) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = stringResource(R.string.ui_clear),
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
+        )
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun PlaylistFooter(
     trackCount: Int,
@@ -490,22 +419,16 @@ internal fun PlaylistFooter(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (isLoadingMore) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            LoadingIndicator()
         }
         Text(
             text =
-                buildString {
-                    append(
-                        androidx.compose.ui.res.pluralStringResource(
-                            R.plurals.songs_count_template,
-                            trackCount,
-                            trackCount,
-                        ),
-                    )
-                    durationText?.let { append(" ${stringResource(R.string.metadata_separator)} $it") }
-                },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
+                listOfNotNull(
+                    pluralStringResource(R.plurals.songs_count_template, trackCount, trackCount),
+                    durationText,
+                ).joinToString(" ${stringResource(R.string.metadata_separator)} "),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

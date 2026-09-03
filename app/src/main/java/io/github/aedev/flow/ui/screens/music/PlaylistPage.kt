@@ -1,73 +1,68 @@
 package io.github.aedev.flow.ui.screens.music
 
 import android.content.Intent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.AddCircle
-import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Downloading
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.ui.components.ReorderHandle
 import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
-import io.github.aedev.flow.ui.components.music.detail.PlaylistCenteredHeader
+import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
+import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
+import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
+import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
+import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.PlaylistFooter
+import io.github.aedev.flow.ui.components.music.detail.PlaylistHeader
 import io.github.aedev.flow.ui.components.music.detail.PlaylistSearchBar
 import io.github.aedev.flow.ui.components.music.detail.PlaylistTopBar
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicMergeIntoPlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
-import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
-import io.github.aedev.flow.ui.theme.musicScrim
-import io.github.aedev.flow.ui.theme.musicScrimContent
-import io.github.aedev.flow.utils.formatDuration
+import io.github.aedev.flow.ui.theme.Dimensions
 import kotlinx.coroutines.delay
+
+private const val ITEMS_BEFORE_TRACKS = 2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +85,6 @@ fun PlaylistPage(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // Download
     val downloadProgress by playlistsViewModel.playlistDownloadProgress.collectAsState()
     val isDownloading by playlistsViewModel.isDownloadingPlaylist.collectAsState()
 
@@ -106,8 +100,6 @@ fun PlaylistPage(
             all.filter { it.videoId !in deletedTrackIds.value }
         }
     var orderedDisplayTracks by remember { mutableStateOf(displayTracks) }
-    var heroTitleBottomPx by remember { mutableIntStateOf(Int.MAX_VALUE) }
-    var topBarBottomPx by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(displayTracks) {
         orderedDisplayTracks = displayTracks
@@ -116,7 +108,7 @@ fun PlaylistPage(
     val reorderState =
         rememberReorderableLazyListState(
             listState = scrollState,
-            itemIndexOffset = 3,
+            itemIndexOffset = ITEMS_BEFORE_TRACKS,
             onMove = { from, to ->
                 orderedDisplayTracks =
                     orderedDisplayTracks.toMutableList().apply {
@@ -155,7 +147,6 @@ fun PlaylistPage(
         }
     }
 
-    // Infinite scroll
     val reachedBottom by remember {
         derivedStateOf {
             val last = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()
@@ -166,7 +157,6 @@ fun PlaylistPage(
         if (reachedBottom && playlistDetails.continuation != null) onLoadMore()
     }
 
-    // Bottom sheet
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
 
@@ -199,76 +189,43 @@ fun PlaylistPage(
     }
 
     val showCollapsedTopBarTitle by remember {
-        derivedStateOf {
-            heroTitleBottomPx <= topBarBottomPx
+        derivedStateOf { scrollState.firstVisibleItemIndex > 0 }
+    }
+
+    fun closeSearch() {
+        showSearchPanel = false
+        searchQuery = ""
+        playlistsViewModel.clearTrackSearch()
+        keyboardController?.hide()
+        focusManager.clearFocus()
+    }
+
+    fun playAll() {
+        if (orderedDisplayTracks.isNotEmpty()) {
+            onTrackClick(orderedDisplayTracks.first(), orderedDisplayTracks)
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        // ── Ambient blurred background (same as music player) ──────────────
-        AsyncImage(
-            model = playlistDetails.thumbnailUrl,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(480.dp)
-                    .blur(120.dp),
-            alpha = 0.65f,
-            contentScale = ContentScale.Crop,
-        )
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(480.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors =
-                                listOf(
-                                    musicScrim(0.45f),
-                                    musicScrim(0.3f),
-                                    musicScrim(0.65f),
-                                    musicScrim(0.92f),
-                                    MaterialTheme.colorScheme.background,
-                                ),
-                        ),
-                    ),
-        )
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(top = 480.dp)
-                    .background(MaterialTheme.colorScheme.background),
-        )
+    val pageScheme = rememberMusicCollectionColorScheme(playlistDetails.thumbnailUrl)
 
-        // ── Main content ──────────────────────────────────────────────────
+    MaterialTheme(colorScheme = pageScheme) {
         Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Color.Transparent,
+            modifier = modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 PlaylistTopBar(
                     showTitle = showCollapsedTopBarTitle,
                     title = playlistDetails.title,
                     onBackClick = onBackClick,
+                    onPlayClick = ::playAll,
                     showSearchToggle = isUserPlaylist,
                     searchActive = showSearchPanel,
-                    onSearchToggle = {
-                        showSearchPanel = !showSearchPanel
-                        if (!showSearchPanel) {
-                            searchQuery = ""
-                            playlistsViewModel.clearTrackSearch()
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                        }
-                    },
+                    onSearchToggle = { if (showSearchPanel) closeSearch() else showSearchPanel = true },
                     showSaveButton = !isUserPlaylist,
                     isSaved = isSaved,
                     onSaveToggle = onSaveToggle,
                     showMergeButton = !isUserPlaylist,
                     onMergeClick = { showMergeDialog = true },
-                    onBottomPositioned = { topBarBottomPx = it },
                 )
             },
         ) { paddingValues ->
@@ -280,18 +237,14 @@ fun PlaylistPage(
                         .padding(paddingValues)
                         .imePadding(),
                 contentPadding = PaddingValues(bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(MusicSegmentedGap),
             ) {
-                // ── HEADER: centered poster + metadata + actions ───────────
-                item {
-                    PlaylistCenteredHeader(
+                item(key = "header") {
+                    PlaylistHeader(
                         playlistDetails = playlistDetails,
                         isDownloading = isDownloading,
                         downloadProgress = downloadProgress,
-                        onPlayClick = {
-                            if (orderedDisplayTracks.isNotEmpty()) {
-                                onTrackClick(orderedDisplayTracks.first(), orderedDisplayTracks)
-                            }
-                        },
+                        onPlayClick = ::playAll,
                         onShuffleClick = {
                             if (orderedDisplayTracks.isNotEmpty()) {
                                 val shuffled = orderedDisplayTracks.shuffled()
@@ -302,13 +255,11 @@ fun PlaylistPage(
                             if (!isDownloading) playlistsViewModel.downloadPlaylistTracks(playlistDetails)
                         },
                         onArtistClick = onArtistClick,
-                        onTitleBottomPositioned = { heroTitleBottomPx = it },
                     )
                 }
 
-                // ── SEARCH BAR (user playlists only, inline in list) ──────
                 if (isUserPlaylist) {
-                    item {
+                    item(key = "search_bar") {
                         PlaylistSearchBar(
                             query = searchQuery,
                             onQueryChange = {
@@ -323,34 +274,14 @@ fun PlaylistPage(
                             focusRequester = searchFocusRequester,
                             searchActive = showSearchPanel,
                             onActivate = { showSearchPanel = true },
-                            onToggleSearch = {
-                                showSearchPanel = !showSearchPanel
-                                if (!showSearchPanel) {
-                                    searchQuery = ""
-                                    playlistsViewModel.clearTrackSearch()
-                                    keyboardController?.hide()
-                                    focusManager.clearFocus()
-                                }
-                            },
+                            onToggleSearch = { if (showSearchPanel) closeSearch() else showSearchPanel = true },
                         )
                     }
                 }
 
-                // ── SEARCH RESULTS (when search is active) ─────────────────
                 if (showSearchPanel && isUserPlaylist) {
                     if (isSearchingTracks) {
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().height(120.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(26.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
+                        item(key = "search_loading") { MusicFeedProgress() }
                     } else if (searchResults.isNotEmpty()) {
                         itemsIndexed(
                             searchResults,
@@ -364,7 +295,7 @@ fun PlaylistPage(
                                 trailingContent = {
                                     if (isAdded) {
                                         Icon(
-                                            imageVector = Icons.Default.CheckCircle,
+                                            imageVector = Icons.Rounded.CheckCircle,
                                             contentDescription = stringResource(R.string.ui_added),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(28.dp),
@@ -378,7 +309,7 @@ fun PlaylistPage(
                                             Icon(
                                                 imageVector = Icons.Outlined.AddCircle,
                                                 contentDescription = stringResource(R.string.add_to_playlist),
-                                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(28.dp),
                                             )
                                         }
@@ -387,34 +318,38 @@ fun PlaylistPage(
                             )
                         }
                     } else if (searchQuery.isNotEmpty()) {
-                        item {
+                        item(key = "search_empty") {
                             Box(
-                                modifier = Modifier.fillMaxWidth().height(100.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = stringResource(R.string.ui_no_songs_found),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
                     }
                 } else {
-                    // ── TRACK LIST ─────────────────────────────────────────
-                    item {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            color = musicScrimContent(0.08f),
-                        )
-                    }
+                    val trackCount = orderedDisplayTracks.size
                     itemsIndexed(orderedDisplayTracks, key = { index, t -> "${t.videoId}_$index" }) { index, track ->
+                        val isPlaying = isTrackPlaying(track.videoId)
                         MusicTrackItem(
                             track = track,
                             onClick = { onTrackClick(track, orderedDisplayTracks) },
-                            modifier = if (isUserPlaylist) reorderState.itemModifier(index) else Modifier,
+                            modifier =
+                                Modifier
+                                    .padding(horizontal = Dimensions.ContentPaddingHorizontal)
+                                    .then(if (isUserPlaylist) reorderState.itemModifier(index) else Modifier),
                             density = MusicItemDensity.Compact,
                             index = index + 1,
+                            shape = musicSegmentShape(index = index, count = trackCount, selected = isPlaying),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            isPlaying = isPlaying,
                             leadingContent =
                                 if (isUserPlaylist) {
                                     {
@@ -446,7 +381,7 @@ fun PlaylistPage(
                                             },
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Delete,
+                                                imageVector = Icons.Rounded.Delete,
                                                 contentDescription = stringResource(R.string.ui_delete_from_playlist),
                                                 tint = MaterialTheme.colorScheme.error,
                                                 modifier = Modifier.size(18.dp),
@@ -462,7 +397,7 @@ fun PlaylistPage(
                             },
                         )
                     }
-                    item {
+                    item(key = "footer") {
                         PlaylistFooter(
                             trackCount = playlistDetails.trackCount,
                             durationText = playlistDetails.durationText,
@@ -482,15 +417,3 @@ fun PlaylistPage(
         )
     }
 }
-
-// ─── Top Bar ─────────────────────────────────────────────────────────────────
-
-// ─── Centered Playlist Header ─────────────────────────────────────────────────
-
-// ─── Inline Search Bar ───────────────────────────────────────
-
-// ─── Footer ───────────────────────────────────────────────────────────────────
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// ─── Merge Into Playlist Dialog ─────────────────────────────────────────────────────
