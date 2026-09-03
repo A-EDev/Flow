@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -37,6 +39,7 @@ import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.music.card.TopResultCard
+import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
 import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
 import io.github.aedev.flow.ui.components.music.common.MusicLoadingIndicator
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
@@ -270,14 +273,26 @@ fun MusicSearchScreen(
                 val searchSource = stringResource(R.string.search_source_template).format(query)
                 val artistSourceTemplate = stringResource(R.string.artist_source_template)
 
+                val summaries = uiState.searchSummary?.summaries
+                val hasResults =
+                    if (uiState.activeFilter == null) {
+                        summaries?.any { it.items.isNotEmpty() } == true
+                    } else {
+                        uiState.filteredResults.isNotEmpty()
+                    }
+
                 if (uiState.isLoading) {
                     MusicLoadingIndicator()
+                } else if (!hasResults) {
+                    MusicEmptyState(
+                        title = stringResource(R.string.music_search_no_results, query),
+                        icon = Icons.Rounded.SearchOff,
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 80.dp),
                     ) {
-                        val summaries = uiState.searchSummary?.summaries
                         if (uiState.activeFilter == null && summaries != null) {
                             summaries.forEachIndexed { index, summary ->
                                 item(key = "summary_header_$index") {

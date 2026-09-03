@@ -8,7 +8,7 @@ package io.github.aedev.flow.ui.components.music.card
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -33,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +54,8 @@ import io.github.aedev.flow.ui.components.music.common.musicArtistShape
 private val TopResultArtworkSize = 96.dp
 
 /**
- * The first search hit, given a card of its own. Artists also get shuffle and radio actions.
+ * The first search hit, given a card of its own. Artists also get shuffle and radio actions as a
+ * button group whose pressed member widens.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -129,38 +132,52 @@ fun TopResultCard(
 
             if (item is ArtistItem) {
                 Spacer(modifier = Modifier.height(20.dp))
-                Row(
+                ButtonGroup(
+                    overflowIndicator = {},
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Button(
-                        onClick = onShuffleClick,
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Shuffle,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.IconSize),
-                        )
-                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(text = stringResource(R.string.shuffle))
-                    }
-                    FilledTonalButton(
-                        onClick = onRadioClick,
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Radio,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.IconSize),
-                        )
-                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(text = stringResource(R.string.radio))
-                    }
+                    customItem({
+                        val interaction = remember { MutableInteractionSource() }
+                        Button(
+                            onClick = onShuffleClick,
+                            shapes = ButtonDefaults.shapes(),
+                            interactionSource = interaction,
+                            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .animateWidth(interaction),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Shuffle,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                            )
+                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(text = stringResource(R.string.shuffle))
+                        }
+                    }) {}
+                    customItem({
+                        val interaction = remember { MutableInteractionSource() }
+                        FilledTonalButton(
+                            onClick = onRadioClick,
+                            shapes = ButtonDefaults.shapes(),
+                            interactionSource = interaction,
+                            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .animateWidth(interaction),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Radio,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                            )
+                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(text = stringResource(R.string.radio))
+                        }
+                    }) {}
                 }
             }
         }
