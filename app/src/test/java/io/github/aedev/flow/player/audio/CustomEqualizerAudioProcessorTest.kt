@@ -30,6 +30,7 @@ class CustomEqualizerAudioProcessorTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun testFlushAndReset() {
         val format = AudioProcessor.AudioFormat(44100, 2, C.ENCODING_PCM_16BIT)
         processor.configure(format)
