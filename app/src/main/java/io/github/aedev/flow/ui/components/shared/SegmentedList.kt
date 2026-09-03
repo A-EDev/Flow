@@ -4,7 +4,7 @@
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  */
 
-package io.github.aedev.flow.ui.components.music.common
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.Dp
  * Vertical gap between the rows of a segmented track list.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-val MusicSegmentedGap: Dp = ListItemDefaults.SegmentedGap
+val FlowSegmentedGap: Dp = ListItemDefaults.SegmentedGap
 
 /**
  * Shape of row [index] in a segmented list of [count] rows: the outer rows carry the group's
@@ -25,7 +25,7 @@ val MusicSegmentedGap: Dp = ListItemDefaults.SegmentedGap
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun musicSegmentShape(
+fun flowSegmentShape(
     index: Int,
     count: Int,
 ): Shape = ListItemDefaults.segmentedShapes(index = index, count = count).shape

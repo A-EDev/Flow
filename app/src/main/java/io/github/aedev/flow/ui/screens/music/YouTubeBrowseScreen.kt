@@ -27,20 +27,20 @@ import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
-import io.github.aedev.flow.ui.components.ShimmerGridItem
-import io.github.aedev.flow.ui.components.ShimmerHost
-import io.github.aedev.flow.ui.components.ShimmerSectionTitle
 import io.github.aedev.flow.ui.components.currentGridThumbnailHeight
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
-import io.github.aedev.flow.ui.components.music.common.MusicErrorState
-import io.github.aedev.flow.ui.components.music.common.musicArtistShape
-import io.github.aedev.flow.ui.components.music.common.musicLaneItemWidth
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.MusicShelf
 import io.github.aedev.flow.ui.components.music.section.MusicTrackShelf
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.ShimmerGridItem
+import io.github.aedev.flow.ui.components.shared.ShimmerHost
+import io.github.aedev.flow.ui.components.shared.ShimmerSectionTitle
+import io.github.aedev.flow.ui.components.shared.flowArtistShape
+import io.github.aedev.flow.ui.components.shared.flowLaneItemWidth
 
 private val BrowseRowMaxWidth = 360.dp
 private val BrowseRowPeek = 48.dp
@@ -102,14 +102,14 @@ fun YouTubeBrowseScreen(
                 }
 
                 uiState.error != null -> {
-                    MusicErrorState(
+                    FlowErrorState(
                         error = uiState.error ?: stringResource(R.string.unknown_error),
                         onRetry = { viewModel.retry() },
                     )
                 }
 
                 uiState.sections.isEmpty() -> {
-                    MusicEmptyState(title = stringResource(R.string.empty_browse_content))
+                    FlowEmptyState(title = stringResource(R.string.empty_browse_content))
                 }
 
                 else -> {
@@ -123,7 +123,7 @@ fun YouTubeBrowseScreen(
 
                             if (section.items.all { it is SongItem }) {
                                 item(key = "songs_$sectionKey") {
-                                    val rowWidth = musicLaneItemWidth(maxWidth = BrowseRowMaxWidth, peek = BrowseRowPeek)
+                                    val rowWidth = flowLaneItemWidth(maxWidth = BrowseRowMaxWidth, peek = BrowseRowPeek)
                                     MusicTrackShelf(
                                         title = section.title,
                                         items = section.items.filterIsInstance<SongItem>(),
@@ -142,7 +142,7 @@ fun YouTubeBrowseScreen(
                                 }
                             } else {
                                 item(key = "items_$sectionKey") {
-                                    val artistShape = musicArtistShape()
+                                    val artistShape = flowArtistShape()
                                     val thumbnailHeight = currentGridThumbnailHeight()
                                     MusicShelf(
                                         title = section.title,

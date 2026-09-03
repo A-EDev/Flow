@@ -43,15 +43,15 @@ import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.TabScrollEventBus
-import io.github.aedev.flow.ui.components.MusicScreenShimmerLoading
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
-import io.github.aedev.flow.ui.components.music.common.MusicErrorState
 import io.github.aedev.flow.ui.components.music.section.HomeSectionType
 import io.github.aedev.flow.ui.components.music.section.musicHomeFeed
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.MusicScreenShimmerLoading
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import java.util.Random
@@ -216,7 +216,7 @@ fun EnhancedMusicScreen(
                 }
 
                 uiState.error != null && uiState.trendingSongs.isEmpty() -> {
-                    MusicErrorState(
+                    FlowErrorState(
                         error = uiState.error ?: stringResource(R.string.error_occurred),
                         onRetry = { viewModel.retry() },
                     )

@@ -4,7 +4,7 @@
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  */
 
-package io.github.aedev.flow.ui.components.music.common
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MusicLoadingIndicator(modifier: Modifier = Modifier) {
+fun FlowLoadingIndicator(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
@@ -37,7 +37,7 @@ fun MusicLoadingIndicator(modifier: Modifier = Modifier) {
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MusicFeedProgress(modifier: Modifier = Modifier) {
+fun FlowFeedProgress(modifier: Modifier = Modifier) {
     Box(
         modifier =
             modifier

@@ -38,7 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
-import io.github.aedev.flow.ui.components.music.common.MusicFilterChip
+import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.theme.Dimensions
 
 /**
@@ -128,7 +128,7 @@ fun SearchFilterChips(
     ) {
         items(filters, key = { it.first }) { (label, filter) ->
             val selected = activeFilter == filter
-            MusicFilterChip(
+            FlowFilterChip(
                 label = label,
                 selected = selected,
                 onClick = { onFilterClick(if (selected) null else filter) },

@@ -75,7 +75,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.PlaylistDetails
-import io.github.aedev.flow.ui.components.music.common.musicHeroArtworkSize
+import io.github.aedev.flow.ui.components.shared.flowHeroArtworkSize
 
 private val DownloadRingSize = 64.dp
 
@@ -192,7 +192,7 @@ internal fun PlaylistHeader(
     isSaved: Boolean = false,
     onSaveToggle: (() -> Unit)? = null,
 ) {
-    val artworkSize = musicHeroArtworkSize()
+    val artworkSize = flowHeroArtworkSize()
     val iconButtonSize = IconButtonDefaults.mediumContainerSize()
     val playHeight = ButtonDefaults.MediumContainerHeight
 

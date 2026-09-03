@@ -54,6 +54,8 @@ import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.search.SearchSuggestionsService
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.components.*
+import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
+import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatSubscriberCount
 import io.github.aedev.flow.utils.formatViewCount

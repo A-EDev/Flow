@@ -34,8 +34,6 @@ import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
-import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
-import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.ArtistBio
 import io.github.aedev.flow.ui.components.music.detail.ArtistHero
@@ -51,6 +49,8 @@ import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
+import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
+import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatViewCount
 
@@ -342,7 +342,7 @@ private fun LazyListScope.segmentedTracks(
         MusicTrackItem(
             track = track,
             index = index + 1,
-            shape = musicSegmentShape(index = index, count = tracks.size),
+            shape = flowSegmentShape(index = index, count = tracks.size),
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             isDownloaded = downloadedTrackIds.contains(track.videoId),
             onClick = { onTrackClick(track, queue) },
@@ -351,7 +351,7 @@ private fun LazyListScope.segmentedTracks(
             modifier =
                 Modifier
                     .padding(horizontal = Dimensions.ContentPaddingHorizontal)
-                    .padding(bottom = MusicSegmentedGap),
+                    .padding(bottom = FlowSegmentedGap),
         )
     }
 }

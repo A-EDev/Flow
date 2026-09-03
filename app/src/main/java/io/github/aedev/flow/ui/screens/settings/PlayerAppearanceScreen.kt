@@ -52,7 +52,7 @@ import io.github.aedev.flow.ui.components.musicplayer.ExpressivePlayerSlider
 import io.github.aedev.flow.ui.components.musicplayer.ExpressiveWavySlider
 import io.github.aedev.flow.ui.components.musicplayer.SquigglySlider
 import io.github.aedev.flow.ui.components.musicplayer.expressiveSliderSpec
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 

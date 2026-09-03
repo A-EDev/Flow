@@ -15,10 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.components.music.common.musicLaneItemWidth
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
+import io.github.aedev.flow.ui.components.shared.flowLaneItemWidth
 import io.github.aedev.flow.ui.theme.Dimensions
 
 private val MediaRowMaxWidth = 380.dp
@@ -37,7 +37,7 @@ fun MediaTrackListSection(
     modifier: Modifier = Modifier,
     downloadedTrackIds: Set<String> = emptySet(),
 ) {
-    val rowWidth = musicLaneItemWidth(maxWidth = MediaRowMaxWidth, peek = MediaRowPeek)
+    val rowWidth = flowLaneItemWidth(maxWidth = MediaRowMaxWidth, peek = MediaRowPeek)
 
     Column(modifier = modifier.fillMaxWidth()) {
         MusicSectionHeader(title = title, action = MusicSectionAction.PlayAll(onPlayAll))

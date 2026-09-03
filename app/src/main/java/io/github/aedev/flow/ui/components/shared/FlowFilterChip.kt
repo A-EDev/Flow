@@ -4,7 +4,7 @@
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  */
 
-package io.github.aedev.flow.ui.components.music.common
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -19,11 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 
 /**
- * The single filter chip for every music surface: home feed chips, search filters, browse tabs.
+ * The single filter chip for every surface: home feed chips, search filters, browse tabs,
+ * library content filters.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MusicFilterChip(
+fun FlowFilterChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,

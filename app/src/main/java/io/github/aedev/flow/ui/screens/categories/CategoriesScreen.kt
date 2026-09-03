@@ -35,12 +35,12 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository.TrendingCategory
 import io.github.aedev.flow.ui.components.ContentFilterChip
-import io.github.aedev.flow.ui.components.ShimmerGridVideoCard
-import io.github.aedev.flow.ui.components.ShimmerVideoCardFullWidth
-import io.github.aedev.flow.ui.components.ShimmerVideoCardHorizontal
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
+import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardHorizontal
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 

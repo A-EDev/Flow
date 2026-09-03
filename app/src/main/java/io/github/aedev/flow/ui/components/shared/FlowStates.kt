@@ -4,7 +4,7 @@
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  */
 
-package io.github.aedev.flow.ui.components.music.common
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,11 +35,11 @@ private val StateIconContainerSize = 96.dp
 private val StateIconSize = 44.dp
 
 /**
- * Failure state for any music surface, with a single retry affordance.
+ * Failure state for any surface, with a single retry affordance.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MusicErrorState(
+fun FlowErrorState(
     error: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
@@ -53,7 +53,7 @@ fun MusicErrorState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            MusicStateIcon(icon = Icons.Outlined.Error, tint = MaterialTheme.colorScheme.error)
+            FlowStateIcon(icon = Icons.Outlined.Error, tint = MaterialTheme.colorScheme.error)
             Text(
                 text = error,
                 style = MaterialTheme.typography.bodyLarge,
@@ -71,11 +71,11 @@ fun MusicErrorState(
 }
 
 /**
- * Empty state for any music surface. [icon] and [subtitle] are optional so a bare
+ * Empty state for any surface. [icon] and [subtitle] are optional so a bare
  * "nothing here yet" line stays a one-liner at the call site.
  */
 @Composable
-fun MusicEmptyState(
+fun FlowEmptyState(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
@@ -91,7 +91,7 @@ fun MusicEmptyState(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (icon != null) {
-                MusicStateIcon(icon = icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                FlowStateIcon(icon = icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(
                 text = title,
@@ -115,12 +115,12 @@ fun MusicEmptyState(
  * The icon of an empty, error or message state, on the state container shape.
  */
 @Composable
-fun MusicStateIcon(
+fun FlowStateIcon(
     icon: ImageVector,
     tint: Color,
 ) {
     Surface(
-        shape = musicActionShape(),
+        shape = flowActionShape(),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         modifier = Modifier.size(StateIconContainerSize),
     ) {

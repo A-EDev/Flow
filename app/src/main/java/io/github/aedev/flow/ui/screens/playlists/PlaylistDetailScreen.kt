@@ -52,12 +52,12 @@ import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.player.stream.AudioStreamSelector
-import io.github.aedev.flow.ui.components.ReorderHandle
-import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
-import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
-import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
+import io.github.aedev.flow.ui.components.shared.ReorderHandle
+import io.github.aedev.flow.ui.components.shared.ThumbnailWatchProgress
+import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
+import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate

@@ -64,7 +64,7 @@ import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
 import io.github.aedev.flow.ui.components.playbackSpeedOptions
 import io.github.aedev.flow.ui.components.playbackSpeedSliderPresets
-import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
+import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorContent
 import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorOption
 import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview

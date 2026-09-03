@@ -28,10 +28,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
-import io.github.aedev.flow.ui.components.music.common.musicTitleMarquee
+import io.github.aedev.flow.ui.components.shared.DownloadedBadge
+import io.github.aedev.flow.ui.components.shared.titleMarquee
 
 val MusicHeroCaptionHeight = 60.dp
 
@@ -98,7 +98,7 @@ fun MusicHeroCard(
                             .align(Alignment.TopEnd)
                             .padding(12.dp),
                 ) {
-                    MusicDownloadedBadge(modifier = Modifier.padding(6.dp))
+                    DownloadedBadge(modifier = Modifier.padding(6.dp))
                 }
             }
         }
@@ -116,7 +116,7 @@ fun MusicHeroCard(
                 color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
-                modifier = Modifier.musicTitleMarquee(),
+                modifier = Modifier.titleMarquee(),
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(

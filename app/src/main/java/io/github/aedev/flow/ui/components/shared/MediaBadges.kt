@@ -4,7 +4,7 @@
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  */
 
-package io.github.aedev.flow.ui.components.music.common
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,7 +27,7 @@ private val BadgeSpacing = 4.dp
  * Marks a track as explicit. The only explicit badge in the app.
  */
 @Composable
-fun MusicExplicitBadge(modifier: Modifier = Modifier) {
+fun ExplicitBadge(modifier: Modifier = Modifier) {
     Icon(
         painter = painterResource(R.drawable.ic_explicit),
         contentDescription = stringResource(R.string.label_explicit),
@@ -40,7 +40,7 @@ fun MusicExplicitBadge(modifier: Modifier = Modifier) {
  * Marks an item as available offline. The only downloaded badge in the app.
  */
 @Composable
-fun MusicDownloadedBadge(modifier: Modifier = Modifier) {
+fun DownloadedBadge(modifier: Modifier = Modifier) {
     Icon(
         imageVector = Icons.Rounded.OfflinePin,
         contentDescription = stringResource(R.string.status_downloaded),
@@ -53,7 +53,7 @@ fun MusicDownloadedBadge(modifier: Modifier = Modifier) {
  * Chart position, emphasised for the top three.
  */
 @Composable
-fun MusicChartRankBadge(
+fun ChartRankBadge(
     position: Int,
     modifier: Modifier = Modifier,
 ) {

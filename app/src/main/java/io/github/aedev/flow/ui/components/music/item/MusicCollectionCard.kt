@@ -38,10 +38,10 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.currentGridThumbnailHeight
-import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
-import io.github.aedev.flow.ui.components.music.common.musicTitleMarquee
+import io.github.aedev.flow.ui.components.shared.DownloadedBadge
+import io.github.aedev.flow.ui.components.shared.titleMarquee
 
 /**
  * The single grid card for anything that is not a single track — albums, playlists, artists,
@@ -98,7 +98,7 @@ fun MusicCollectionCard(
                 MusicNowPlayingOverlay()
             }
             if (isDownloaded) {
-                MusicDownloadedBadge(
+                DownloadedBadge(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
@@ -117,7 +117,7 @@ fun MusicCollectionCard(
             textAlign = textAlign,
             maxLines = 1,
             overflow = TextOverflow.Clip,
-            modifier = Modifier.musicTitleMarquee(),
+            modifier = Modifier.titleMarquee(),
         )
 
         if (!subtitle.isNullOrBlank()) {
