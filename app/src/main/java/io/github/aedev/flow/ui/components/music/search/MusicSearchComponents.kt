@@ -6,34 +6,45 @@
 
 package io.github.aedev.flow.ui.components.music.search
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.rounded.ArrowOutward
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
-import io.github.aedev.flow.innertube.models.*
-import io.github.aedev.flow.ui.screens.music.*
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.common.MusicFilterChip
+import io.github.aedev.flow.ui.theme.Dimensions
 
+/**
+ * The search screen bar: the Material search input inside the shared top bar, so the field shares
+ * the container, insets and back affordance with every other detail screen.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicSearchBar(
     query: String,
@@ -42,99 +53,50 @@ fun MusicSearchBar(
     onBackClick: () -> Unit,
     onClearClick: () -> Unit,
     onVoiceSearchClick: () -> Unit,
-    focusRequester: androidx.compose.ui.focus.FocusRequester =
-        remember {
-            androidx.compose.ui.focus
-                .FocusRequester()
-        },
+    focusRequester: FocusRequester = remember { FocusRequester() },
 ) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBackClick) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = stringResource(R.string.btn_back),
-                tint = MaterialTheme.colorScheme.onBackground,
-            )
-        }
-
-        Row(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .height(46.dp)
-                    .clip(RoundedCornerShape(23.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .padding(start = 16.dp, end = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                textStyle =
-                    androidx.compose.ui.text.TextStyle(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp,
-                    ),
-                cursorBrush =
-                    androidx.compose.ui.graphics
-                        .SolidColor(MaterialTheme.colorScheme.primary),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-                singleLine = true,
-                decorationBox = { innerTextField ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        if (query.isEmpty()) {
-                            Text(
-                                stringResource(R.string.search_music_placeholder),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 16.sp,
+    FlowTopBar(
+        title = {
+            SearchBarDefaults.InputField(
+                query = query,
+                onQueryChange = onQueryChange,
+                onSearch = { onSearch() },
+                expanded = true,
+                onExpandedChange = {},
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.search_music_placeholder),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                trailingIcon = {
+                    Row {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = onClearClick) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = stringResource(R.string.clear),
+                                )
+                            }
+                        }
+                        IconButton(onClick = onVoiceSearchClick) {
+                            Icon(
+                                imageVector = Icons.Rounded.Mic,
+                                contentDescription = stringResource(R.string.voice_search_cd),
                             )
                         }
-                        innerTextField()
                     }
                 },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(end = 8.dp)
+                        .focusRequester(focusRequester),
             )
-
-            if (query.isNotEmpty()) {
-                IconButton(
-                    onClick = onClearClick,
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = stringResource(R.string.clear),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-
-            IconButton(
-                onClick = onVoiceSearchClick,
-                modifier = Modifier.size(36.dp),
-            ) {
-                Icon(
-                    Icons.Default.Mic,
-                    contentDescription = stringResource(R.string.voice_search_cd),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-    }
+        },
+        onBack = onBackClick,
+    )
 }
 
 @Composable
@@ -154,65 +116,47 @@ fun SearchFilterChips(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+                .padding(vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(filters) { (label, filter) ->
-            Surface(
-                modifier = Modifier.clickable { onFilterClick(if (activeFilter == filter) null else filter) },
-                shape = RoundedCornerShape(8.dp),
-                color = if (activeFilter == filter) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                contentColor =
-                    if (activeFilter ==
-                        filter
-                    ) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-            ) {
-                Text(
-                    text = label,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                )
-            }
+        items(filters, key = { it.first }) { (label, filter) ->
+            val selected = activeFilter == filter
+            MusicFilterChip(
+                label = label,
+                selected = selected,
+                onClick = { onFilterClick(if (selected) null else filter) },
+            )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SearchSuggestionRow(
     suggestion: String,
     onClick: () -> Unit,
 ) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    ListItem(
+        onClick = onClick,
+        leadingContent = {
+            Icon(
+                imageVector = Icons.Rounded.Search,
+                contentDescription = null,
+            )
+        },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.Rounded.ArrowOutward,
+                contentDescription = null,
+            )
+        },
     ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(modifier = Modifier.width(24.dp))
         Text(
             text = suggestion,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(
-            imageVector = Icons.Default.ArrowOutward,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            modifier = Modifier.size(24.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

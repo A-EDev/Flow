@@ -8,48 +8,74 @@ package io.github.aedev.flow.ui.components.music.card
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.innertube.models.*
-import io.github.aedev.flow.ui.screens.music.*
+import io.github.aedev.flow.innertube.models.AlbumItem
+import io.github.aedev.flow.innertube.models.ArtistItem
+import io.github.aedev.flow.innertube.models.PlaylistItem
+import io.github.aedev.flow.innertube.models.SongItem
+import io.github.aedev.flow.innertube.models.YTItem
+import io.github.aedev.flow.ui.components.music.common.musicArtistShape
 
-@OptIn(ExperimentalFoundationApi::class)
+private val TopResultArtworkSize = 96.dp
+
+/**
+ * The first search hit, given a card of its own. Artists also get shuffle and radio actions.
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TopResultCard(
     item: YTItem,
     onClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onRadioClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     onMenuClick: (() -> Unit)? = null,
 ) {
-    val cardBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-
     Card(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBackground),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Column(
             modifier =
@@ -63,41 +89,38 @@ fun TopResultCard(
                     contentDescription = null,
                     modifier =
                         Modifier
-                            .size(100.dp)
-                            .clip(if (item is ArtistItem) CircleShape else RoundedCornerShape(12.dp)),
+                            .size(TopResultArtworkSize)
+                            .clip(if (item is ArtistItem) musicArtistShape() else MaterialTheme.shapes.large),
                     contentScale = ContentScale.Crop,
                 )
                 Spacer(modifier = Modifier.width(20.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.title,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
+                        style = MaterialTheme.typography.headlineSmallEmphasized,
                         color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    val subtitle =
-                        when (item) {
-                            is ArtistItem -> stringResource(R.string.subtitle_artist)
-                            is SongItem -> stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name })
-                            is AlbumItem -> stringResource(R.string.subtitle_album_template, item.artists?.joinToString { it.name } ?: "")
-                            is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
-                        }
                     Text(
-                        text = subtitle,
+                        text = item.topResultSubtitle(),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 if (onMenuClick != null) {
                     IconButton(onClick = onMenuClick) {
                         Icon(
-                            Icons.Default.MoreVert,
+                            imageVector = Icons.Rounded.MoreVert,
                             contentDescription = stringResource(R.string.more_options),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 } else {
                     Icon(
-                        Icons.Default.KeyboardArrowRight,
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -112,36 +135,43 @@ fun TopResultCard(
                 ) {
                     Button(
                         onClick = onShuffleClick,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
                         modifier = Modifier.weight(1f),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                        shape = RoundedCornerShape(28.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp),
                     ) {
-                        Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.shuffle), fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.Rounded.Shuffle,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(text = stringResource(R.string.shuffle))
                     }
-                    Button(
+                    FilledTonalButton(
                         onClick = onRadioClick,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
                         modifier = Modifier.weight(1f),
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            ),
-                        shape = RoundedCornerShape(28.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp),
                     ) {
-                        Icon(Icons.Default.Radio, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.radio), fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.Rounded.Radio,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(text = stringResource(R.string.radio))
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun YTItem.topResultSubtitle(): String =
+    when (this) {
+        is ArtistItem -> stringResource(R.string.subtitle_artist)
+        is SongItem -> stringResource(R.string.subtitle_song_prefix, artists.joinToString { it.name })
+        is AlbumItem -> stringResource(R.string.subtitle_album_template, artists?.joinToString { it.name } ?: "")
+        is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, author?.name ?: "")
+    }

@@ -1,10 +1,12 @@
 package io.github.aedev.flow.ui.screens.music
 
 import android.content.Intent
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -12,24 +14,22 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.models.AlbumItem
@@ -38,14 +38,22 @@ import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
+import io.github.aedev.flow.ui.components.music.common.MusicLoadingIndicator
+import io.github.aedev.flow.ui.components.music.common.musicArtistShape
 import io.github.aedev.flow.ui.components.music.item.MusicCardOverflowButton
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private val GridCellMinWidth = 160.dp
+private val GridArtworkHeight = 160.dp
+private const val LOAD_MORE_THRESHOLD = 5
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistItemsScreen(
     browseId: String,
@@ -103,18 +111,20 @@ fun ArtistItemsScreen(
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
 
+    fun loadMoreIfNearEnd(lastVisibleIndex: Int?) {
+        if (lastVisibleIndex != null && artistItemsPage != null && artistItemsPage.continuation != null && !isMoreLoading &&
+            lastVisibleIndex >= artistItemsPage.items.size - LOAD_MORE_THRESHOLD
+        ) {
+            viewModel.loadMoreArtistItems()
+        }
+    }
+
     LaunchedEffect(lazyListState) {
         snapshotFlow {
             lazyListState.layoutInfo.visibleItemsInfo
                 .lastOrNull()
                 ?.index
-        }.collect { index ->
-            if (index != null && artistItemsPage != null && artistItemsPage.continuation != null && !isMoreLoading &&
-                index >= artistItemsPage.items.size - 5
-            ) {
-                viewModel.loadMoreArtistItems()
-            }
-        }
+        }.collect { index -> loadMoreIfNearEnd(index) }
     }
 
     LaunchedEffect(lazyGridState) {
@@ -122,13 +132,7 @@ fun ArtistItemsScreen(
             lazyGridState.layoutInfo.visibleItemsInfo
                 .lastOrNull()
                 ?.index
-        }.collect { index ->
-            if (index != null && artistItemsPage != null && artistItemsPage.continuation != null && !isMoreLoading &&
-                index >= artistItemsPage.items.size - 5
-            ) {
-                viewModel.loadMoreArtistItems()
-            }
-        }
+        }.collect { index -> loadMoreIfNearEnd(index) }
     }
 
     Scaffold(
@@ -140,9 +144,14 @@ fun ArtistItemsScreen(
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Box(
+            modifier =
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+        ) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                MusicLoadingIndicator()
             } else if (artistItemsPage != null) {
                 if (artistItemsPage.items.firstOrNull() is SongItem) {
                     LazyColumn(
@@ -151,7 +160,7 @@ fun ArtistItemsScreen(
                     ) {
                         items(artistItemsPage.items, key = { it.id }) { item ->
                             if (item is SongItem) {
-                                val track = item.toMusicTrack()
+                                val track = convertSongToMusicTrack(item)
                                 MusicTrackItem(
                                     track = track,
                                     isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
@@ -162,16 +171,13 @@ fun ArtistItemsScreen(
                             }
                         }
                         if (isMoreLoading) {
-                            item {
-                                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator()
-                                }
-                            }
+                            item(key = "more_loading") { MusicFeedProgress() }
                         }
                     }
                 } else {
+                    val artistShape = musicArtistShape()
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(160.dp),
+                        columns = GridCells.Adaptive(GridCellMinWidth),
                         state = lazyGridState,
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -187,37 +193,23 @@ fun ArtistItemsScreen(
                                 title = item.title,
                                 subtitle = item.cardSubtitle(),
                                 thumbnailUrl = item.thumbnail,
-                                thumbnailHeight = 160.dp,
-                                shape = if (item is ArtistItem) CircleShape else MaterialTheme.shapes.medium,
+                                thumbnailHeight = GridArtworkHeight,
+                                shape = if (item is ArtistItem) artistShape else MaterialTheme.shapes.large,
+                                horizontalAlignment = if (item is ArtistItem) Alignment.CenterHorizontally else Alignment.Start,
                                 onLongClick = onAction,
                                 trailingContent = onAction?.let { action -> { MusicCardOverflowButton(onClick = action) } },
                                 onClick = {
                                     when (item) {
-                                        is AlbumItem -> {
-                                            onAlbumClick(item.id)
-                                        }
-
-                                        is ArtistItem -> {
-                                            onArtistClick(item.id)
-                                        }
-
-                                        is PlaylistItem -> {
-                                            onPlaylistClick(item.id)
-                                        }
-
-                                        is SongItem -> {
-                                            onTrackClick(item)
-                                        }
+                                        is AlbumItem -> onAlbumClick(item.id)
+                                        is ArtistItem -> onArtistClick(item.id)
+                                        is PlaylistItem -> onPlaylistClick(item.id)
+                                        is SongItem -> onTrackClick(item)
                                     }
                                 },
                             )
                         }
                         if (isMoreLoading) {
-                            item {
-                                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator()
-                                }
-                            }
+                            item(key = "more_loading") { MusicFeedProgress() }
                         }
                     }
                 }
@@ -225,49 +217,6 @@ fun ArtistItemsScreen(
         }
     }
 }
-
-private fun SongItem.toMusicTrack(): MusicTrack =
-    MusicTrack(
-        videoId = id,
-        title = title,
-        artist = artists.joinToString { it.name },
-        thumbnailUrl = thumbnail,
-        duration = duration ?: 0,
-        sourceUrl = "https://www.youtube.com/watch?v=$id",
-        album = album?.name ?: "",
-        channelId = artists.firstOrNull()?.id ?: "",
-        isExplicit = explicit,
-        isVideoSong = isVideoSong,
-    )
-
-private fun io.github.aedev.flow.innertube.models.YTItem.toCollectionActionItem(): MusicCollectionActionItem? =
-    when (this) {
-        is AlbumItem -> {
-            MusicCollectionActionItem(
-                id = id,
-                title = title,
-                subtitle = artists?.joinToString { it.name }.orEmpty(),
-                thumbnailUrl = thumbnail,
-                description = year?.toString().orEmpty(),
-                isAlbum = true,
-            )
-        }
-
-        is PlaylistItem -> {
-            MusicCollectionActionItem(
-                id = id,
-                title = title,
-                subtitle = author?.name.orEmpty(),
-                thumbnailUrl = thumbnail,
-                description = author?.name.orEmpty(),
-                isAlbum = false,
-            )
-        }
-
-        else -> {
-            null
-        }
-    }
 
 @Composable
 private fun YTItem.cardSubtitle(): String =
