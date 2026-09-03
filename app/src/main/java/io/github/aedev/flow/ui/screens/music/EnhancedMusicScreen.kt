@@ -1,44 +1,62 @@
 package io.github.aedev.flow.ui.screens.music
 
 import android.content.Intent
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
-import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.data.music.model.MusicItemType
+import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.TabScrollEventBus
-import io.github.aedev.flow.ui.components.*
+import io.github.aedev.flow.ui.components.MusicScreenShimmerLoading
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.screens.music.components.*
-import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
+import io.github.aedev.flow.ui.components.music.common.MusicErrorState
+import io.github.aedev.flow.ui.components.music.section.HomeSectionType
+import io.github.aedev.flow.ui.components.music.section.musicHomeFeed
+import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
+import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
+import java.util.Random
+
+private val FeedBottomClearance = 96.dp
 
 private fun MusicTrack.isAudioMusicCandidate(): Boolean {
     val usableDuration = duration == 0 || duration in 30..1200
@@ -47,7 +65,7 @@ private fun MusicTrack.isAudioMusicCandidate(): Boolean {
 
 private fun List<MusicTrack>.audioMusicOnly(): List<MusicTrack> = filter { it.isAudioMusicCandidate() }.distinctBy { it.videoId }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun EnhancedMusicScreen(
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
@@ -56,12 +74,12 @@ fun EnhancedMusicScreen(
     onSearchClick: () -> Unit = {},
     onRecognizeClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
-    onMoodsClick: (io.github.aedev.flow.innertube.pages.MoodAndGenres.Item?) -> Unit = {},
+    onMoodsClick: (MoodAndGenres.Item?) -> Unit = {},
+    bottomNavOverlayPadding: () -> Dp = { 0.dp },
     viewModel: MusicViewModel = sharedMusicViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     val musicListState = rememberLazyListState()
     val quickPicksGridState = rememberLazyGridState()
 
@@ -69,7 +87,7 @@ fun EnhancedMusicScreen(
     // a cold brain has nothing personal to say, a mature one leads with taste.
     val sectionOrder =
         remember(uiState.sessionSeed, uiState.brainMaturity) {
-            val defaultOrder = HomeSectionType.values().toList()
+            val defaultOrder = HomeSectionType.entries
             val anchored =
                 when (uiState.brainMaturity) {
                     "cold_start" -> {
@@ -97,7 +115,7 @@ fun EnhancedMusicScreen(
                     }
                 }
             val dynamicPool = defaultOrder - anchored
-            anchored + dynamicPool.shuffled(java.util.Random(uiState.sessionSeed))
+            anchored + dynamicPool.shuffled(Random(uiState.sessionSeed))
         }
 
     // Scroll to top and refresh when tapping the music tab while already on this screen
@@ -154,19 +172,32 @@ fun EnhancedMusicScreen(
         )
     }
 
+    val bottomChrome = bottomNavOverlayPadding() + LocalMusicMiniPlayerInset.current
+    val fabLift =
+        animateDpAsState(
+            targetValue = bottomChrome,
+            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+            label = "musicRecognizeFabLift",
+        )
+
     Scaffold(
         topBar = {
             FlowTopBar(
                 title = stringResource(R.string.screen_title_music),
                 actions = {
-                    IconButton(onClick = onRecognizeClick) {
-                        Icon(Icons.Outlined.Mic, stringResource(R.string.recognize_music))
-                    }
                     IconButton(onClick = onSearchClick) {
                         Icon(Icons.Outlined.Search, stringResource(R.string.search))
                     }
                 },
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onRecognizeClick,
+                modifier = Modifier.offset { IntOffset(x = 0, y = -fabLift.value.roundToPx()) },
+            ) {
+                Icon(Icons.Rounded.Mic, stringResource(R.string.recognize_music))
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0.dp),
@@ -185,7 +216,7 @@ fun EnhancedMusicScreen(
                 }
 
                 uiState.error != null && uiState.trendingSongs.isEmpty() -> {
-                    ErrorContent(
+                    MusicErrorState(
                         error = uiState.error ?: stringResource(R.string.error_occurred),
                         onRetry = { viewModel.retry() },
                     )
@@ -212,809 +243,46 @@ fun EnhancedMusicScreen(
                         remember(uiState.forYouTracks) {
                             uiState.forYouTracks.audioMusicOnly().take(20)
                         }
+                    val pullState = rememberPullToRefreshState()
 
                     PullToRefreshBox(
                         isRefreshing = uiState.isLoading,
                         onRefresh = { viewModel.refresh() },
+                        state = pullState,
                         modifier = Modifier.fillMaxSize(),
+                        indicator = {
+                            PullToRefreshDefaults.LoadingIndicator(
+                                state = pullState,
+                                isRefreshing = uiState.isLoading,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            )
+                        },
                     ) {
                         LazyColumn(
                             state = musicListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding =
-                                PaddingValues(
-                                    bottom = 80.dp,
-                                ),
+                            contentPadding = PaddingValues(bottom = bottomChrome + FeedBottomClearance),
                         ) {
-                            // Listen Again
-                            if (uiState.listenAgain.isNotEmpty()) {
-                                item {
-                                    NavigationTitle(title = stringResource(R.string.section_listen_again))
-                                    val listenThumbnailHeight = currentGridThumbnailHeight()
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    ) {
-                                        items(uiState.listenAgain, key = { it.videoId }) { track ->
-                                            GridItem(
-                                                title = track.title,
-                                                subtitle = track.artist,
-                                                thumbnailUrl = track.thumbnailUrl,
-                                                thumbnailHeight = listenThumbnailHeight,
-                                                onClick = { onSongClick(track, uiState.listenAgain, "listen_again") },
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Home Chips
-                            if (uiState.homeChips.isNotEmpty()) {
-                                item {
-                                    LazyRow(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 8.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        items(uiState.homeChips, key = { it.title }) { chip ->
-                                            val isChipSelected = uiState.selectedHomeChip?.title == chip.title
-                                            ContentFilterChip(
-                                                title = chip.title,
-                                                isSelected = isChipSelected,
-                                                onClick = {
-                                                    if (isChipSelected) {
-                                                        viewModel.setHomeChip(null)
-                                                    } else {
-                                                        viewModel.setHomeChip(chip)
-                                                    }
-                                                },
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (uiState.selectedFilter != null) {
-                                if (uiState.isSearching) {
-                                    item {
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(32.dp),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                                        }
-                                    }
-                                } else {
-                                    items(uiState.allSongs, key = { it.videoId }) { track ->
-                                        MusicTrackRow(
-                                            track = track,
-                                            isPlaying = currentTrack?.videoId == track.videoId,
-                                            isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                            onClick = { onSongClick(track, uiState.allSongs, uiState.selectedFilter) },
-                                            onLongClick = {
-                                                selectedTrack = track
-                                                showBottomSheet = true
-                                            },
-                                            onMenuClick = {
-                                                selectedTrack = track
-                                                showBottomSheet = true
-                                            },
-                                        )
-                                    }
-                                }
-                            } else {
-                                // The local-brain cluster: On Repeat, the time-of-day
-                                // rotation and Rediscover render from stored meta only.
-                                if (uiState.onRepeatTracks.isNotEmpty()) {
-                                    item {
-                                        LocalBrainShelf(
-                                            title = stringResource(R.string.section_on_repeat),
-                                            tracks = uiState.onRepeatTracks,
-                                            playFrom = "on_repeat",
-                                            onSongClick = onSongClick,
-                                        )
-                                    }
-                                }
-
-                                val rotationBucket = uiState.rotationBucket
-                                if (uiState.rotationTracks.isNotEmpty() && rotationBucket != null) {
-                                    item {
-                                        LocalBrainShelf(
-                                            title = stringResource(rotationTitleRes(rotationBucket)),
-                                            tracks = uiState.rotationTracks,
-                                            playFrom = "rotation",
-                                            onSongClick = onSongClick,
-                                        )
-                                    }
-                                }
-
-                                if (speedDialTracks.isNotEmpty()) {
-                                    item {
-                                        SpeedDialSection(
-                                            speedDialTracks = speedDialTracks,
-                                            downloadedTrackIds = uiState.downloadedTrackIds,
-                                            onSongClick = onSongClick,
-                                            onTrackMenu = { track ->
-                                                selectedTrack = track
-                                                showBottomSheet = true
-                                            },
-                                        )
-                                    }
-                                }
-
-                                if (uiState.rediscoverTracks.isNotEmpty()) {
-                                    item {
-                                        LocalBrainShelf(
-                                            title = stringResource(R.string.section_rediscover),
-                                            tracks = uiState.rediscoverTracks,
-                                            playFrom = "rediscover",
-                                            onSongClick = onSongClick,
-                                        )
-                                    }
-                                }
-
-                                sectionOrder.forEach { sectionType ->
-                                    when (sectionType) {
-                                        HomeSectionType.DAILY_DISCOVER -> {
-                                            if (uiState.dailyDiscover.isNotEmpty()) {
-                                                item {
-                                                    val discoverTracks = uiState.dailyDiscover.map { it.recommendation }.audioMusicOnly()
-                                                    SectionHeader(
-                                                        title = stringResource(R.string.section_daily_discover),
-                                                        onPlayAll =
-                                                            discoverTracks.firstOrNull()?.let { first ->
-                                                                { onSongClick(first, discoverTracks, "daily_discover") }
-                                                            },
-                                                    )
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                                        modifier =
-                                                            Modifier
-                                                                .fillMaxWidth()
-                                                                .height(336.dp)
-                                                                .padding(bottom = 16.dp),
-                                                    ) {
-                                                        items(
-                                                            uiState.dailyDiscover.filter { it.recommendation.isAudioMusicCandidate() },
-                                                            key = { it.recommendation.videoId },
-                                                        ) { item ->
-                                                            DailyDiscoverCard(
-                                                                item = item,
-                                                                isDownloaded =
-                                                                    uiState.downloadedTrackIds.contains(
-                                                                        item.recommendation.videoId,
-                                                                    ),
-                                                                onClick = {
-                                                                    onSongClick(item.recommendation, discoverTracks, "daily_discover")
-                                                                },
-                                                                onLongClick = {
-                                                                    selectedTrack = item.recommendation
-                                                                    showBottomSheet = true
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.QUICK_PICKS -> {
-                                            if (quickPickTracks.isNotEmpty()) {
-                                                item {
-                                                    SectionHeader(
-                                                        title = stringResource(R.string.section_quick_picks),
-                                                        onPlayAll = quickPicksPlayAllAction(quickPickTracks, onSongClick),
-                                                    )
-                                                    LazyHorizontalGrid(
-                                                        rows = GridCells.Fixed(4),
-                                                        state = quickPicksGridState,
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                                                        modifier =
-                                                            Modifier
-                                                                .height(Dimensions.ListItemHeight * 4 + 12.dp)
-                                                                .fillMaxWidth(),
-                                                    ) {
-                                                        items(quickPickTracks, key = { it.videoId }) { track ->
-                                                            TrackListItem(
-                                                                track = track,
-                                                                isPlaying = currentTrack?.videoId == track.videoId,
-                                                                isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                showMenu = false,
-                                                                onClick = { onSongClick(track, quickPickTracks, "quick_picks") },
-                                                                onLongClick = {
-                                                                    selectedTrack = track
-                                                                    showBottomSheet = true
-                                                                },
-                                                                modifier = Modifier.width(320.dp),
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.FROM_COMMUNITY -> {
-                                            if (uiState.communityPlaylists.isNotEmpty()) {
-                                                item {
-                                                    CommunityPlaylistsSection(
-                                                        playlists = uiState.communityPlaylists,
-                                                        downloadedTrackIds = uiState.downloadedTrackIds,
-                                                        onPlaylistClick = { onAlbumClick(it.playlist.id) },
-                                                        onPlaylistAction = { item ->
-                                                            selectedCollection = item.playlist.toCollectionActionItem(isAlbum = false)
-                                                        },
-                                                        onTrackClick = { track, tracks ->
-                                                            onSongClick(track, tracks, "from_the_community")
-                                                        },
-                                                        onTrackMenu = { track ->
-                                                            selectedTrack = track
-                                                            showBottomSheet = true
-                                                        },
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.RECOMMENDED -> {
-                                            if (uiState.recommendedTracks.isNotEmpty()) {
-                                                item {
-                                                    SectionTitle(title = stringResource(R.string.section_recommended))
-                                                    val thumbnailHeight = currentGridThumbnailHeight()
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    ) {
-                                                        items(uiState.recommendedTracks, key = { it.videoId }) { track ->
-                                                            GridItem(
-                                                                title = track.title,
-                                                                subtitle = track.artist,
-                                                                thumbnailUrl = track.thumbnailUrl,
-                                                                thumbnailHeight = thumbnailHeight,
-                                                                isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                onClick = { onSongClick(track, uiState.recommendedTracks, "recommended") },
-                                                                onLongClick = {
-                                                                    selectedTrack = track
-                                                                    showBottomSheet = true
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.SIMILAR_TO -> {
-                                            (uiState.dailyMixSections + uiState.similarToSections).forEach { section ->
-                                                item {
-                                                    if (section.label != null) {
-                                                        NavigationTitle(
-                                                            title = section.title,
-                                                            label = section.label,
-                                                            thumbnail = {
-                                                                if (section.thumbnailUrl != null) {
-                                                                    if (section.isArtistSeed) {
-                                                                        ArtistThumbnail(
-                                                                            thumbnailUrl = section.thumbnailUrl,
-                                                                            size = 40.dp,
-                                                                        )
-                                                                    } else {
-                                                                        ItemThumbnail(
-                                                                            thumbnailUrl = section.thumbnailUrl,
-                                                                            size = 40.dp,
-                                                                            shape = RoundedCornerShape(8.dp),
-                                                                        )
-                                                                    }
-                                                                }
-                                                            },
-                                                            onClick =
-                                                                if (!section.seedId.isNullOrBlank()) {
-                                                                    {
-                                                                        if (section.isArtistSeed) {
-                                                                            onArtistClick(section.seedId)
-                                                                        } else if (section.seedId.startsWith(
-                                                                                MusicViewModel.DAILY_MIX_ID_PREFIX,
-                                                                            )
-                                                                        ) {
-                                                                            onAlbumClick(section.seedId)
-                                                                        }
-                                                                    }
-                                                                } else {
-                                                                    null
-                                                                },
-                                                        )
-                                                    } else {
-                                                        SectionTitle(title = section.title, subtitle = section.subtitle)
-                                                    }
-
-                                                    val sectionThumbnailHeight = currentGridThumbnailHeight()
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    ) {
-                                                        items(section.tracks, key = { it.videoId }) { track ->
-                                                            GridItem(
-                                                                title = track.title,
-                                                                subtitle = track.artist,
-                                                                thumbnailUrl = track.thumbnailUrl,
-                                                                thumbnailHeight = sectionThumbnailHeight,
-                                                                isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                onClick = {
-                                                                    when (track.itemType) {
-                                                                        MusicItemType.ALBUM,
-                                                                        MusicItemType.PLAYLIST,
-                                                                        -> onAlbumClick(track.videoId)
-
-                                                                        else -> onSongClick(track, section.tracks, section.title)
-                                                                    }
-                                                                },
-                                                                onLongClick = {
-                                                                    val isColl =
-                                                                        track.itemType == MusicItemType.ALBUM ||
-                                                                            track.itemType == MusicItemType.PLAYLIST
-                                                                    if (isColl) {
-                                                                        selectedCollection =
-                                                                            MusicCollectionActionItem(
-                                                                                id = track.videoId,
-                                                                                title = track.title,
-                                                                                subtitle = track.artist,
-                                                                                thumbnailUrl = track.thumbnailUrl,
-                                                                                isAlbum = track.itemType == MusicItemType.ALBUM,
-                                                                            )
-                                                                    } else {
-                                                                        selectedTrack = track
-                                                                        showBottomSheet = true
-                                                                    }
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.LIVE_PERFORMANCES -> {
-                                            if (uiState.livePerformances.isNotEmpty()) {
-                                                item {
-                                                    MediaTrackListSection(
-                                                        title = stringResource(R.string.section_live_performances),
-                                                        tracks = uiState.livePerformances,
-                                                        downloadedTrackIds = uiState.downloadedTrackIds,
-                                                        onPlayAll = {
-                                                            uiState.livePerformances.firstOrNull()?.let {
-                                                                onSongClick(it, uiState.livePerformances, "live_performances")
-                                                            }
-                                                        },
-                                                        onTrackClick = { track ->
-                                                            onSongClick(track, uiState.livePerformances, "live_performances")
-                                                        },
-                                                        onTrackMenu = { track ->
-                                                            selectedTrack = track
-                                                            showBottomSheet = true
-                                                        },
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.MUSIC_VIDEOS_FOR_YOU -> {
-                                            val videosForYou = uiState.musicVideosForYou.ifEmpty { uiState.musicVideos }
-                                            if (videosForYou.isNotEmpty()) {
-                                                item {
-                                                    MediaTrackListSection(
-                                                        title = stringResource(R.string.section_music_videos_for_you),
-                                                        tracks = videosForYou,
-                                                        downloadedTrackIds = uiState.downloadedTrackIds,
-                                                        onPlayAll = { videosForYou.firstOrNull()?.let(onVideoClick) },
-                                                        onTrackClick = onVideoClick,
-                                                        onTrackMenu = { track ->
-                                                            selectedTrack = track
-                                                            showBottomSheet = true
-                                                        },
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.MUSIC_VIDEOS -> {
-                                            if (uiState.musicVideos.isNotEmpty() && uiState.musicVideosForYou.isEmpty()) {
-                                                item {
-                                                    MediaTrackListSection(
-                                                        title = stringResource(R.string.section_music_videos),
-                                                        tracks = uiState.musicVideos,
-                                                        downloadedTrackIds = uiState.downloadedTrackIds,
-                                                        onPlayAll = { uiState.musicVideos.firstOrNull()?.let(onVideoClick) },
-                                                        onTrackClick = onVideoClick,
-                                                        onTrackMenu = { track ->
-                                                            selectedTrack = track
-                                                            showBottomSheet = true
-                                                        },
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.GENRES -> {
-                                            uiState.genreTracks.entries.take(3).forEach { (genre, tracks) ->
-                                                item {
-                                                    SectionTitle(title = stringResource(R.string.genre_mix_template, genre))
-                                                    val genreThumbnailHeight = currentGridThumbnailHeight()
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    ) {
-                                                        items(tracks, key = { it.videoId }) { track ->
-                                                            GridItem(
-                                                                title = track.title,
-                                                                subtitle = track.artist,
-                                                                thumbnailUrl = track.thumbnailUrl,
-                                                                thumbnailHeight = genreThumbnailHeight,
-                                                                isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                onClick = { onSongClick(track, tracks, MUSIC_GENRE_SOURCE_PREFIX + genre) },
-                                                                onLongClick = {
-                                                                    selectedTrack = track
-                                                                    showBottomSheet = true
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.DYNAMIC_HOME -> {
-                                            uiState.dynamicSections.forEach { section ->
-                                                if (!section.title.contains("Quick picks", true) &&
-                                                    !section.title.contains("Music videos", true) &&
-                                                    !section.title.contains("Music videos for you", true) &&
-                                                    !section.title.contains("Live performances", true) &&
-                                                    !section.title.contains("Long listens", true) &&
-                                                    !section.title.contains("Mixed for you", true) &&
-                                                    !section.title.contains("Recommended", true) &&
-                                                    !section.title.contains("Listen again", true)
-                                                ) {
-                                                    item {
-                                                        SectionTitle(title = section.title)
-                                                        val sectionThumbnailHeight = currentGridThumbnailHeight()
-                                                        LazyRow(
-                                                            contentPadding = PaddingValues(horizontal = 12.dp),
-                                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                        ) {
-                                                            items(section.tracks, key = { it.videoId }) { track ->
-                                                                GridItem(
-                                                                    title = track.title,
-                                                                    subtitle = track.artist,
-                                                                    thumbnailUrl = track.thumbnailUrl,
-                                                                    thumbnailHeight = sectionThumbnailHeight,
-                                                                    isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                    onClick = {
-                                                                        when (track.itemType) {
-                                                                            MusicItemType.ALBUM,
-                                                                            MusicItemType.PLAYLIST,
-                                                                            -> {
-                                                                                onAlbumClick(track.videoId)
-                                                                            }
-
-                                                                            // Under a mood chip every section is that
-                                                                            // mood's content — tag plays with it.
-                                                                            else -> {
-                                                                                onSongClick(
-                                                                                    track,
-                                                                                    section.tracks,
-                                                                                    uiState.selectedHomeChip
-                                                                                        ?.title
-                                                                                        ?.let { MUSIC_GENRE_SOURCE_PREFIX + it }
-                                                                                        ?: section.title,
-                                                                                )
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    onLongClick = {
-                                                                        val isColl =
-                                                                            track.itemType == MusicItemType.ALBUM ||
-                                                                                track.itemType == MusicItemType.PLAYLIST
-                                                                        if (isColl) {
-                                                                            selectedCollection =
-                                                                                MusicCollectionActionItem(
-                                                                                    id = track.videoId,
-                                                                                    title = track.title,
-                                                                                    subtitle = track.artist,
-                                                                                    thumbnailUrl = track.thumbnailUrl,
-                                                                                    isAlbum = track.itemType == MusicItemType.ALBUM,
-                                                                                )
-                                                                        } else {
-                                                                            selectedTrack = track
-                                                                            showBottomSheet = true
-                                                                        }
-                                                                    },
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.TOP_ALBUMS -> {
-                                            if (uiState.topAlbums.isNotEmpty()) {
-                                                item {
-                                                    SectionTitle(title = stringResource(R.string.section_top_albums))
-                                                    val albumThumbnailHeight = currentGridThumbnailHeight()
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    ) {
-                                                        items(uiState.topAlbums, key = { it.id }) { album ->
-                                                            GridItem(
-                                                                title = album.title,
-                                                                subtitle = album.author,
-                                                                thumbnailUrl = album.thumbnailUrl,
-                                                                thumbnailHeight = albumThumbnailHeight,
-                                                                onClick = { onAlbumClick(album.id) },
-                                                                onLongClick = {
-                                                                    selectedCollection = album.toCollectionActionItem(isAlbum = true)
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.FAVORITE_ARTIST_ALBUMS -> {
-                                            if (uiState.favoriteArtistAlbums.isNotEmpty()) {
-                                                item {
-                                                    SectionTitle(title = stringResource(R.string.section_from_artists_you_love))
-                                                    val favoriteAlbumThumbnailHeight = currentGridThumbnailHeight()
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    ) {
-                                                        items(uiState.favoriteArtistAlbums, key = { it.id }) { album ->
-                                                            GridItem(
-                                                                title = album.title,
-                                                                subtitle = album.author,
-                                                                thumbnailUrl = album.thumbnailUrl,
-                                                                thumbnailHeight = favoriteAlbumThumbnailHeight,
-                                                                onClick = { onAlbumClick(album.id) },
-                                                                onLongClick = {
-                                                                    selectedCollection = album.toCollectionActionItem(isAlbum = true)
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.NEW_RELEASES -> {
-                                            if (uiState.newReleases.isNotEmpty()) {
-                                                item {
-                                                    SectionTitle(title = stringResource(R.string.section_new_releases))
-                                                    val newReleaseThumbnailHeight = currentGridThumbnailHeight()
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    ) {
-                                                        items(uiState.newReleases.take(10), key = { it.videoId }) { track ->
-                                                            GridItem(
-                                                                title = track.title,
-                                                                subtitle = stringResource(R.string.subtitle_single_template, track.artist),
-                                                                thumbnailUrl = track.thumbnailUrl,
-                                                                thumbnailHeight = newReleaseThumbnailHeight,
-                                                                isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                onClick = {
-                                                                    when (track.itemType) {
-                                                                        MusicItemType.ALBUM,
-                                                                        MusicItemType.PLAYLIST,
-                                                                        -> onAlbumClick(track.videoId)
-
-                                                                        else -> onSongClick(track, uiState.newReleases, "new_releases")
-                                                                    }
-                                                                },
-                                                                onLongClick = {
-                                                                    val isColl =
-                                                                        track.itemType == MusicItemType.ALBUM ||
-                                                                            track.itemType == MusicItemType.PLAYLIST
-                                                                    if (isColl) {
-                                                                        selectedCollection =
-                                                                            MusicCollectionActionItem(
-                                                                                id = track.videoId,
-                                                                                title = track.title,
-                                                                                subtitle = track.artist,
-                                                                                thumbnailUrl = track.thumbnailUrl,
-                                                                                isAlbum = track.itemType == MusicItemType.ALBUM,
-                                                                            )
-                                                                    } else {
-                                                                        selectedTrack = track
-                                                                        showBottomSheet = true
-                                                                    }
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.CHARTS -> {
-                                            if (uiState.trendingSongs.isNotEmpty()) {
-                                                item {
-                                                    SectionTitle(title = stringResource(R.string.trending))
-                                                    LazyHorizontalGrid(
-                                                        rows = GridCells.Fixed(4),
-                                                        state = rememberLazyGridState(),
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                                                        modifier =
-                                                            Modifier
-                                                                .height(Dimensions.ListItemHeight * 4 + 12.dp)
-                                                                .fillMaxWidth(),
-                                                    ) {
-                                                        items(
-                                                            count = uiState.trendingSongs.take(20).size,
-                                                            key = { index -> uiState.trendingSongs[index].videoId },
-                                                        ) { index ->
-                                                            val track = uiState.trendingSongs[index]
-                                                            ChartTrackItem(
-                                                                rank = index + 1,
-                                                                title = track.title,
-                                                                artist = track.artist,
-                                                                thumbnailUrl = track.thumbnailUrl,
-                                                                isPlaying = currentTrack?.videoId == track.videoId,
-                                                                isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
-                                                                onClick = { onSongClick(track, uiState.trendingSongs, "charts") },
-                                                                onLongClick = {
-                                                                    selectedTrack = track
-                                                                    showBottomSheet = true
-                                                                },
-                                                                modifier = Modifier.width(280.dp),
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.POPULAR_ARTISTS -> {
-                                            if (popularArtists.isNotEmpty()) {
-                                                item {
-                                                    SectionTitle(title = stringResource(R.string.section_popular_artists))
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    ) {
-                                                        items(popularArtists, key = { it.videoId }) { track ->
-                                                            Column(
-                                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                                modifier =
-                                                                    Modifier
-                                                                        .width(100.dp)
-                                                                        .clickable { onArtistClick(track.channelId) },
-                                                            ) {
-                                                                ArtistThumbnail(
-                                                                    thumbnailUrl = track.thumbnailUrl,
-                                                                    size = 100.dp,
-                                                                )
-                                                                Spacer(modifier = Modifier.height(4.dp))
-                                                                Text(
-                                                                    text = track.artist,
-                                                                    style = MaterialTheme.typography.bodySmall,
-                                                                    maxLines = 1,
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.MIXED_FOR_YOU -> {
-                                            if (uiState.featuredPlaylists.isNotEmpty()) {
-                                                item {
-                                                    SectionTitle(title = stringResource(R.string.section_mixed_for_you))
-                                                    val playlistThumbnailHeight = currentGridThumbnailHeight()
-                                                    LazyRow(
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                    ) {
-                                                        items(uiState.featuredPlaylists, key = { it.id }) { playlist ->
-                                                            GridItem(
-                                                                title = playlist.title,
-                                                                subtitle = playlist.author,
-                                                                thumbnailUrl = playlist.thumbnailUrl,
-                                                                thumbnailHeight = playlistThumbnailHeight,
-                                                                onClick = { onAlbumClick(playlist.id) },
-                                                                onLongClick = {
-                                                                    selectedCollection = playlist.toCollectionActionItem(isAlbum = false)
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HomeSectionType.MOODS_AND_GENRES -> {
-                                            if (uiState.moodsAndGenres.isNotEmpty()) {
-                                                item {
-                                                    NavigationTitle(
-                                                        title = stringResource(R.string.section_mood_and_genres),
-                                                        onClick = { onMoodsClick(null) },
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                                    )
-
-                                                    val moodItems =
-                                                        remember(uiState.moodsAndGenres) {
-                                                            uiState.moodsAndGenres.flatMap { it.items }
-                                                        }
-
-                                                    val rows = 4
-                                                    val moodButtonWidth = ((LocalConfiguration.current.screenWidthDp.dp - 36.dp) / 2)
-                                                    val gridHeight = (Dimensions.MoodButtonHeight * rows) + (8.dp * (rows - 1))
-
-                                                    LazyHorizontalGrid(
-                                                        rows = GridCells.Fixed(rows),
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                                                        modifier =
-                                                            Modifier
-                                                                .height(gridHeight)
-                                                                .fillMaxWidth(),
-                                                    ) {
-                                                        items(moodItems, key = { it.title }) { item ->
-                                                            MoodAndGenresButton(
-                                                                title = item.title,
-                                                                onClick = { onMoodsClick(item) },
-                                                                modifier = Modifier.width(moodButtonWidth),
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                if (uiState.homeContinuation != null) {
-                                    item {
-                                        LaunchedEffect(Unit) {
-                                            viewModel.loadMoreHomeContent()
-                                        }
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .then(
-                                                        if (uiState.isMoreLoading) {
-                                                            Modifier.padding(16.dp)
-                                                        } else {
-                                                            Modifier.height(0.dp)
-                                                        },
-                                                    ),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            if (uiState.isMoreLoading) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(24.dp),
-                                                    strokeWidth = 2.dp,
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            musicHomeFeed(
+                                uiState = uiState,
+                                sectionOrder = sectionOrder,
+                                quickPickTracks = quickPickTracks,
+                                speedDialTracks = speedDialTracks,
+                                popularArtists = popularArtists,
+                                quickPicksGridState = quickPicksGridState,
+                                onSongClick = onSongClick,
+                                onVideoClick = onVideoClick,
+                                onArtistClick = onArtistClick,
+                                onAlbumClick = onAlbumClick,
+                                onMoodsClick = onMoodsClick,
+                                onChipToggle = { viewModel.setHomeChip(it) },
+                                onTrackMenu = { track ->
+                                    selectedTrack = track
+                                    showBottomSheet = true
+                                },
+                                onCollectionMenu = { collection -> selectedCollection = collection },
+                                onLoadMore = { viewModel.loadMoreHomeContent() },
+                            )
                         }
                     }
                 }
@@ -1022,55 +290,3 @@ fun EnhancedMusicScreen(
         }
     }
 }
-
-private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
-    MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = author,
-        thumbnailUrl = thumbnailUrl,
-        description = if (trackCount > 0) "$trackCount tracks" else author,
-        isAlbum = isAlbum,
-    )
-
-private fun quickPicksPlayAllAction(
-    tracks: List<MusicTrack>,
-    onSongClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
-): (() -> Unit)? {
-    val first = tracks.firstOrNull() ?: return null
-    return { onSongClick(first, tracks, "quick_picks") }
-}
-
-/** Shared renderer for the zero-network brain shelves (On Repeat, rotation, Rediscover). */
-@Composable
-private fun LocalBrainShelf(
-    title: String,
-    tracks: List<MusicTrack>,
-    playFrom: String,
-    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
-) {
-    NavigationTitle(title = title)
-    val thumbnailHeight = currentGridThumbnailHeight()
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        items(tracks, key = { it.videoId }) { track ->
-            GridItem(
-                title = track.title,
-                subtitle = track.artist,
-                thumbnailUrl = track.thumbnailUrl,
-                thumbnailHeight = thumbnailHeight,
-                onClick = { onSongClick(track, tracks, playFrom) },
-            )
-        }
-    }
-}
-
-private fun rotationTitleRes(bucket: MusicTimeBucket): Int =
-    when (bucket) {
-        MusicTimeBucket.WEEKDAY_MORNING, MusicTimeBucket.WEEKEND_MORNING -> R.string.section_rotation_morning
-        MusicTimeBucket.WEEKDAY_AFTERNOON, MusicTimeBucket.WEEKEND_AFTERNOON -> R.string.section_rotation_afternoon
-        MusicTimeBucket.WEEKDAY_EVENING, MusicTimeBucket.WEEKEND_EVENING -> R.string.section_rotation_evening
-        MusicTimeBucket.WEEKDAY_NIGHT, MusicTimeBucket.WEEKEND_NIGHT -> R.string.section_rotation_night
-    }

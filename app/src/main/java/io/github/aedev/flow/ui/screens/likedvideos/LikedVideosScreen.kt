@@ -55,9 +55,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.screens.music.MusicTrack
-import io.github.aedev.flow.ui.screens.music.MusicTrackRow
+import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,9 +135,10 @@ fun LikesScreen(
                         ) { like ->
                             if (like.isMusic) {
                                 val track = like.toMusicTrack()
-                                MusicTrackRow(
+                                MusicTrackItem(
                                     track = track,
                                     onClick = { onMusicClick(track, musicQueue) },
+                                    showMenu = false,
                                     trailingContent = {
                                         IconButton(onClick = { viewModel.removeLike(like.videoId) }) {
                                             Icon(

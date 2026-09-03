@@ -1,5 +1,10 @@
 package io.github.aedev.flow.data.newmusic
 
+import io.github.aedev.flow.data.music.model.ArtistDetails
+import io.github.aedev.flow.data.music.model.MusicArtist
+import io.github.aedev.flow.data.music.model.MusicPlaylist
+import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
 import io.github.aedev.flow.innertube.models.SearchSuggestions
@@ -8,10 +13,6 @@ import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.pages.AlbumPage
 import io.github.aedev.flow.innertube.pages.ExplorePage
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
-import io.github.aedev.flow.ui.screens.music.ArtistDetails
-import io.github.aedev.flow.ui.screens.music.MusicPlaylist
-import io.github.aedev.flow.ui.screens.music.MusicTrack
-import io.github.aedev.flow.ui.screens.music.PlaylistDetails
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -313,7 +314,7 @@ object InnertubeMusicService {
     /**
      * Fetch detailed artist information including albums, singles, videos, etc.
      */
-    suspend fun fetchArtistDetails(channelId: String): io.github.aedev.flow.ui.screens.music.ArtistDetails? =
+    suspend fun fetchArtistDetails(channelId: String): ArtistDetails? =
         withContext(Dispatchers.IO) {
             try {
                 val result = YouTube.artist(channelId)
@@ -323,11 +324,11 @@ object InnertubeMusicService {
 
                 // Map sections
                 var topTracks: List<MusicTrack> = emptyList()
-                var albums: List<io.github.aedev.flow.ui.screens.music.MusicPlaylist> = emptyList()
-                var singles: List<io.github.aedev.flow.ui.screens.music.MusicPlaylist> = emptyList()
+                var albums: List<MusicPlaylist> = emptyList()
+                var singles: List<MusicPlaylist> = emptyList()
                 var videos: List<MusicTrack> = emptyList()
-                var relatedArtists: List<io.github.aedev.flow.ui.screens.music.ArtistDetails> = emptyList()
-                var featuredOn: List<io.github.aedev.flow.ui.screens.music.MusicPlaylist> = emptyList()
+                var relatedArtists: List<ArtistDetails> = emptyList()
+                var featuredOn: List<MusicPlaylist> = emptyList()
 
                 var albumsBrowseId: String? = null
                 var albumsParams: String? = null
@@ -384,7 +385,7 @@ object InnertubeMusicService {
                     }
                 }
 
-                io.github.aedev.flow.ui.screens.music.ArtistDetails(
+                ArtistDetails(
                     name = artistItem.title ?: "Unknown Artist",
                     channelId = artistItem.id ?: channelId,
                     thumbnailUrl = artistItem.thumbnail ?: "",
@@ -499,8 +500,8 @@ object InnertubeMusicService {
         item: io.github.aedev.flow.innertube.models.AlbumItem,
         fallbackArtistId: String? = null,
         fallbackArtistName: String? = null,
-    ): io.github.aedev.flow.ui.screens.music.MusicPlaylist =
-        io.github.aedev.flow.ui.screens.music.MusicPlaylist(
+    ): MusicPlaylist =
+        MusicPlaylist(
             id = item.browseId ?: "",
             title = item.title ?: "",
             thumbnailUrl = item.thumbnail ?: "",
@@ -511,10 +512,8 @@ object InnertubeMusicService {
             authorName = item.artists?.firstOrNull()?.name ?: fallbackArtistName,
         )
 
-    private fun convertPlaylistToMusicPlaylist(
-        item: io.github.aedev.flow.innertube.models.PlaylistItem,
-    ): io.github.aedev.flow.ui.screens.music.MusicPlaylist =
-        io.github.aedev.flow.ui.screens.music.MusicPlaylist(
+    private fun convertPlaylistToMusicPlaylist(item: io.github.aedev.flow.innertube.models.PlaylistItem): MusicPlaylist =
+        MusicPlaylist(
             id = item.id ?: "",
             title = item.title ?: "",
             thumbnailUrl = item.thumbnail ?: "",
@@ -522,10 +521,8 @@ object InnertubeMusicService {
             author = item.author?.name ?: "",
         )
 
-    private fun convertArtistItemToDetails(
-        item: io.github.aedev.flow.innertube.models.ArtistItem,
-    ): io.github.aedev.flow.ui.screens.music.ArtistDetails =
-        io.github.aedev.flow.ui.screens.music.ArtistDetails(
+    private fun convertArtistItemToDetails(item: io.github.aedev.flow.innertube.models.ArtistItem): ArtistDetails =
+        ArtistDetails(
             name = item.title ?: "",
             channelId = item.id ?: "",
             thumbnailUrl = item.thumbnail ?: "",
@@ -548,8 +545,7 @@ object InnertubeMusicService {
                     albumId = item.album?.id,
                     artists =
                         item.artists.map {
-                            io.github.aedev.flow.ui.screens.music
-                                .MusicArtist(it.name, it.id)
+                            MusicArtist(it.name, it.id)
                         },
                     isVideoSong = item.isVideoSong,
                 )

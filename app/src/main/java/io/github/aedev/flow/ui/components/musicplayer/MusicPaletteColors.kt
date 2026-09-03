@@ -19,6 +19,8 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Artwork-derived colors shared by the mobile and TV music players. */
 @Immutable
@@ -31,8 +33,16 @@ data class MusicPaletteColors(
 
 internal val PaletteInkDark = Color(0xFF161616)
 
+/**
+ * [animated] eases the swatches in over a second, which is right for the player and wrong for a
+ * page that re-derives a whole colour scheme from them: a scheme change recomposes everything
+ * under the theme, so pages take the settled colours in one step instead.
+ */
 @Composable
-fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
+fun rememberMusicPalette(
+    thumbnailUrl: String?,
+    animated: Boolean = true,
+): MusicPaletteColors {
     val context = LocalContext.current
     var baseSwatch by remember { mutableStateOf<Color?>(null) }
     var accentSwatch by remember { mutableStateOf<Color?>(null) }
@@ -48,7 +58,7 @@ fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
                 .build()
         val result = SingletonImageLoader.get(context).execute(request)
         if (result is SuccessResult) {
-            val palette = Palette.from(result.image.toBitmap()).generate()
+            val palette = withContext(Dispatchers.Default) { Palette.from(result.image.toBitmap()).generate() }
             val bgSwatch =
                 palette.darkMutedSwatch
                     ?: palette.darkVibrantSwatch
@@ -65,16 +75,28 @@ fun rememberMusicPalette(thumbnailUrl: String?): MusicPaletteColors {
         }
     }
 
-    val base by animateColorAsState(
-        targetValue = baseSwatch ?: MaterialTheme.colorScheme.surface,
-        animationSpec = tween(1000),
-        label = "musicPaletteBase",
-    )
-    val accent by animateColorAsState(
-        targetValue = accentSwatch ?: MaterialTheme.colorScheme.primary,
-        animationSpec = tween(1000),
-        label = "musicPaletteAccent",
-    )
+    val baseTarget = baseSwatch ?: MaterialTheme.colorScheme.surface
+    val accentTarget = accentSwatch ?: MaterialTheme.colorScheme.primary
+    val base =
+        if (animated) {
+            animateColorAsState(
+                targetValue = baseTarget,
+                animationSpec = tween(1000),
+                label = "musicPaletteBase",
+            ).value
+        } else {
+            baseTarget
+        }
+    val accent =
+        if (animated) {
+            animateColorAsState(
+                targetValue = accentTarget,
+                animationSpec = tween(1000),
+                label = "musicPaletteAccent",
+            ).value
+        } else {
+            accentTarget
+        }
     val onBase =
         remember(base) {
             if (base.luminance() < 0.45f) Color.White else PaletteInkDark

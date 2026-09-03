@@ -6,7 +6,7 @@
 
 package io.github.aedev.flow.data.recommendation.music
 
-import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.data.music.model.MusicTrack
 
 /**
  * The Quick Picks lane model, ported from the desktop composer: several
