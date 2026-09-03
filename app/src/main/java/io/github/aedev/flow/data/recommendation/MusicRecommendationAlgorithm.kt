@@ -5,6 +5,9 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.music.PlaylistRepository
+import io.github.aedev.flow.data.music.model.MusicArtist
+import io.github.aedev.flow.data.music.model.MusicItemType
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
@@ -12,9 +15,6 @@ import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.pages.HomePage
-import io.github.aedev.flow.ui.screens.music.MusicArtist
-import io.github.aedev.flow.ui.screens.music.MusicItemType
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

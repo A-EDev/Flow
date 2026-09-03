@@ -78,11 +78,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.musicplayer.motion.QueueRowSwipeGestureHandler
 import io.github.aedev.flow.ui.components.musicplayer.motion.QueueSwipeAction
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 

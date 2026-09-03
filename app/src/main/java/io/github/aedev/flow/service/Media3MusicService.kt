@@ -40,6 +40,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.download.DownloadUtil
 import io.github.aedev.flow.data.model.ParametricEQ
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.extensions.setOffloadEnabled
@@ -454,7 +455,7 @@ class Media3MusicService : MediaLibraryService() {
     // so relistens still count once each.
 
     private var learnMediaId: String? = null
-    private var learnTrack: io.github.aedev.flow.ui.screens.music.MusicTrack? = null
+    private var learnTrack: MusicTrack? = null
     private var learnGenre: String? = null
     private var learnDurationMs = 0L
     private var learnPlayedMs = 0L
@@ -476,7 +477,7 @@ class Media3MusicService : MediaLibraryService() {
         if (d > 0) learnDurationMs = d
     }
 
-    private fun resolveLearnTrack(mediaId: String?): io.github.aedev.flow.ui.screens.music.MusicTrack? {
+    private fun resolveLearnTrack(mediaId: String?): MusicTrack? {
         if (mediaId.isNullOrBlank()) return null
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
         return manager.queue.value.firstOrNull { it.videoId == mediaId }
@@ -1463,7 +1464,7 @@ class Media3MusicService : MediaLibraryService() {
                     .build(),
             ).build()
 
-    private fun io.github.aedev.flow.ui.screens.music.MusicTrack.toAutoMediaItem(): MediaItem {
+    private fun MusicTrack.toAutoMediaItem(): MediaItem {
         val artwork =
             highResThumbnailUrl
                 .ifBlank { thumbnailUrl }
@@ -1487,7 +1488,7 @@ class Media3MusicService : MediaLibraryService() {
             ).build()
     }
 
-    private fun autoTrackForMediaId(mediaId: String): io.github.aedev.flow.ui.screens.music.MusicTrack? {
+    private fun autoTrackForMediaId(mediaId: String): MusicTrack? {
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
         return manager.queue.value.firstOrNull { it.videoId == mediaId }
             ?: manager.currentTrack.value?.takeIf { it.videoId == mediaId }

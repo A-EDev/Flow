@@ -59,6 +59,7 @@ import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 import io.github.aedev.flow.utils.DateContext
+import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate
 import io.github.aedev.flow.utils.formatViewCount
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
@@ -1196,16 +1197,6 @@ private fun EditPlaylistDialog(
 }
 
 // Helper Functions
-private fun formatDuration(seconds: Int): String {
-    val hours = seconds / 3600
-    val minutes = (seconds % 3600) / 60
-    val secs = seconds % 60
-
-    return when {
-        hours > 0 -> String.format("%d:%02d:%02d", hours, minutes, secs)
-        else -> String.format("%d:%02d", minutes, secs)
-    }
-}
 
 enum class PlaylistSortOrder(
     val storageValue: String,

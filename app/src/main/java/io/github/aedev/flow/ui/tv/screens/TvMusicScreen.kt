@@ -15,9 +15,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.screens.music.MusicItemType
-import io.github.aedev.flow.ui.screens.music.MusicPlaylist
-import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.data.music.model.MusicItemType
+import io.github.aedev.flow.data.music.model.MusicPlaylist
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.tv.components.TvArtistCard
 import io.github.aedev.flow.ui.tv.components.TvMediaRow
@@ -46,9 +46,10 @@ fun TvMusicScreen(
     val dimens = LocalTvDimens.current
 
     val listenAgain = state.listenAgain.songsOnly()
-    val dailyDiscover = remember(state.dailyDiscover) {
-        state.dailyDiscover.map { it.recommendation }.songsOnly()
-    }
+    val dailyDiscover =
+        remember(state.dailyDiscover) {
+            state.dailyDiscover.map { it.recommendation }.songsOnly()
+        }
     val quickPicks = state.forYouTracks.songsOnly()
     val effectiveQuickPicks = quickPicks.ifEmpty { state.recommendedTracks.songsOnly() }
     // When Quick Picks falls back to Recommended, don't show the same shelf twice.
@@ -57,23 +58,26 @@ fun TvMusicScreen(
     val newReleases = state.newReleases.songsOnly()
     val livePerformances = state.livePerformances.playable()
     val musicVideos = state.musicVideosForYou.ifEmpty { state.musicVideos }.playable()
-    val dynamicSections = remember(state.dynamicSections) {
-        state.dynamicSections.filter { section ->
-            SURFACED_SECTION_TITLES.none { section.title.contains(it, ignoreCase = true) }
+    val dynamicSections =
+        remember(state.dynamicSections) {
+            state.dynamicSections.filter { section ->
+                SURFACED_SECTION_TITLES.none { section.title.contains(it, ignoreCase = true) }
+            }
         }
-    }
     // Same derivation as mobile: one representative track per charting artist.
-    val popularArtists = remember(state.trendingSongs, state.newReleases) {
-        (state.trendingSongs + state.newReleases)
-            .filter { it.channelId.isNotBlank() && it.artist.isNotBlank() }
-            .distinctBy(MusicTrack::artist)
-            .take(10)
-    }
+    val popularArtists =
+        remember(state.trendingSongs, state.newReleases) {
+            (state.trendingSongs + state.newReleases)
+                .filter { it.channelId.isNotBlank() && it.artist.isNotBlank() }
+                .distinctBy(MusicTrack::artist)
+                .take(10)
+        }
 
-    val hasContent = effectiveQuickPicks.isNotEmpty() || listenAgain.isNotEmpty() ||
-        charts.isNotEmpty() || newReleases.isNotEmpty() || dailyDiscover.isNotEmpty() ||
-        state.communityPlaylists.isNotEmpty() || state.topAlbums.isNotEmpty() ||
-        state.featuredPlaylists.isNotEmpty() || dynamicSections.isNotEmpty()
+    val hasContent =
+        effectiveQuickPicks.isNotEmpty() || listenAgain.isNotEmpty() ||
+            charts.isNotEmpty() || newReleases.isNotEmpty() || dailyDiscover.isNotEmpty() ||
+            state.communityPlaylists.isNotEmpty() || state.topAlbums.isNotEmpty() ||
+            state.featuredPlaylists.isNotEmpty() || dynamicSections.isNotEmpty()
 
     TvScreenScaffold(
         title = stringResource(R.string.screen_title_music),
@@ -86,22 +90,31 @@ fun TvMusicScreen(
                 contentPadding = PaddingValues(bottom = dimens.overscanVertical),
             ) {
                 when {
-                    state.isLoading && !hasContent -> item(key = "music-loading") {
-                        TvShimmerRow()
-                    }
-                    state.error != null && !hasContent -> item(key = "music-error") {
-                        Box(Modifier.fillMaxWidth().padding(horizontal = dimens.overscanHorizontal)) {
-                            TvMessageState(
-                                title = stringResource(R.string.tv_error_loading),
-                                message = state.error,
-                            )
+                    state.isLoading && !hasContent -> {
+                        item(key = "music-loading") {
+                            TvShimmerRow()
                         }
                     }
-                    !hasContent -> item(key = "music-empty") {
-                        Box(Modifier.fillMaxWidth().padding(horizontal = dimens.overscanHorizontal)) {
-                            TvMessageState(title = stringResource(R.string.tv_music_empty))
+
+                    state.error != null && !hasContent -> {
+                        item(key = "music-error") {
+                            Box(Modifier.fillMaxWidth().padding(horizontal = dimens.overscanHorizontal)) {
+                                TvMessageState(
+                                    title = stringResource(R.string.tv_error_loading),
+                                    message = state.error,
+                                )
+                            }
                         }
                     }
+
+                    !hasContent -> {
+                        item(key = "music-empty") {
+                            Box(Modifier.fillMaxWidth().padding(horizontal = dimens.overscanHorizontal)) {
+                                TvMessageState(title = stringResource(R.string.tv_music_empty))
+                            }
+                        }
+                    }
+
                     else -> {
                         if (listenAgain.isNotEmpty()) {
                             item(key = "listen-again") {
@@ -298,15 +311,16 @@ private fun TvCollectionShelf(
 }
 
 /** Shelves the TV screen surfaces itself — hidden from the dynamic pass-through. */
-private val SURFACED_SECTION_TITLES = listOf(
-    "Quick picks",
-    "Music videos",
-    "Live performances",
-    "Long listens",
-    "Mixed for you",
-    "Recommended",
-    "Listen again",
-)
+private val SURFACED_SECTION_TITLES =
+    listOf(
+        "Quick picks",
+        "Music videos",
+        "Live performances",
+        "Long listens",
+        "Mixed for you",
+        "Recommended",
+        "Listen again",
+    )
 
 private fun List<MusicTrack>.songsOnly(): List<MusicTrack> =
     asSequence()

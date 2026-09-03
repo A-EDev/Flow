@@ -26,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.screens.music.components.AlbumCard
+import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 
 @Composable
 internal fun MusicPlaylistLibraryCard(
@@ -34,18 +34,19 @@ internal fun MusicPlaylistLibraryCard(
     onClick: () -> Unit,
     onDownload: (() -> Unit)?,
     onRename: (() -> Unit)?,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxWidth()) {
-        AlbumCard(
+        MusicCollectionCard(
             title = playlist.name,
             subtitle = stringResource(R.string.tracks_count_template, playlist.videoCount),
             thumbnailUrl = playlist.thumbnailUrl,
             onClick = onClick,
             onLongClick = { showMenu = true },
-            modifier = Modifier.fillMaxWidth()
+            fillMaxWidth = true,
+            modifier = Modifier.fillMaxWidth(),
         )
 
         Box(modifier = Modifier.align(Alignment.TopEnd)) {
@@ -53,23 +54,23 @@ internal fun MusicPlaylistLibraryCard(
                 shape = MaterialTheme.shapes.small,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 2.dp,
-                modifier = Modifier.padding(6.dp)
+                modifier = Modifier.padding(6.dp),
             ) {
                 IconButton(
                     onClick = { showMenu = true },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
             DropdownMenu(
                 expanded = showMenu,
-                onDismissRequest = { showMenu = false }
+                onDismissRequest = { showMenu = false },
             ) {
                 if (onDownload != null) {
                     DropdownMenuItem(
@@ -78,7 +79,7 @@ internal fun MusicPlaylistLibraryCard(
                             showMenu = false
                             onDownload()
                         },
-                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
                     )
                 }
                 if (onRename != null) {
@@ -88,7 +89,7 @@ internal fun MusicPlaylistLibraryCard(
                             showMenu = false
                             onRename()
                         },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                     )
                 }
                 DropdownMenuItem(
@@ -97,7 +98,7 @@ internal fun MusicPlaylistLibraryCard(
                         showMenu = false
                         onDelete()
                     },
-                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                 )
             }
         }

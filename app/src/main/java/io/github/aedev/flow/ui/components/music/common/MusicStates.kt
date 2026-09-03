@@ -1,0 +1,136 @@
+/*
+ * Copyright (C) 2025-2026 Flow | A-EDev
+ *
+ * This file is part of Flow (https://github.com/A-EDev/Flow).
+ */
+
+package io.github.aedev.flow.ui.components.music.common
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Error
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
+
+private val StateIconContainerSize = 96.dp
+private val StateIconSize = 44.dp
+
+/**
+ * Failure state for any music surface, with a single retry affordance.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun MusicErrorState(
+    error: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier.padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            MusicStateIcon(icon = Icons.Outlined.Error, tint = MaterialTheme.colorScheme.error)
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Button(
+                onClick = onRetry,
+                shapes = ButtonDefaults.shapes(),
+            ) {
+                Text(stringResource(R.string.action_retry))
+            }
+        }
+    }
+}
+
+/**
+ * Empty state for any music surface. [icon] and [subtitle] are optional so a bare
+ * "nothing here yet" line stays a one-liner at the call site.
+ */
+@Composable
+fun MusicEmptyState(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier.padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (icon != null) {
+                MusicStateIcon(icon = icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The icon of an empty, error or message state, on the state container shape.
+ */
+@Composable
+fun MusicStateIcon(
+    icon: ImageVector,
+    tint: Color,
+) {
+    Surface(
+        shape = musicActionShape(),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        modifier = Modifier.size(StateIconContainerSize),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(StateIconSize),
+                tint = tint,
+            )
+        }
+    }
+}

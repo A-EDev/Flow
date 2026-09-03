@@ -1,6 +1,9 @@
 package io.github.aedev.flow.ui.screens.music
 
 import io.github.aedev.flow.data.model.distinctByNonBlankKeyOrSelf
+import io.github.aedev.flow.data.music.model.ArtistDetails
+import io.github.aedev.flow.data.music.model.MusicPlaylist
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.MusicSection
 import io.github.aedev.flow.data.recommendation.music.isHiddenArtist
 import io.github.aedev.flow.data.recommendation.music.isHiddenAuthor

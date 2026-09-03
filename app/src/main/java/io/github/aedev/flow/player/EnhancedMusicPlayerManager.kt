@@ -19,9 +19,9 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import io.github.aedev.flow.data.local.AudioSettingsPersistence
 import io.github.aedev.flow.data.local.QueuePersistence
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.audio.AudioEffectsController
 import io.github.aedev.flow.service.Media3MusicService
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

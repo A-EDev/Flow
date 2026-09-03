@@ -159,7 +159,7 @@ private fun ImmersiveArtworkLayer(thumbnailUrl: String?) {
 }
 
 @Composable
-private fun BlurredArtworkLayer(
+internal fun BlurredArtworkLayer(
     thumbnailUrl: String?,
     alpha: Float,
     crossfadeMillis: Int = 800,

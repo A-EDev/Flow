@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recognition.MusicRecognitionRepository
 import io.github.aedev.flow.data.recognition.RecognitionHistoryRepository
 import io.github.aedev.flow.data.recognition.RecognitionResult
 import io.github.aedev.flow.data.recognition.RecognitionStatus
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -4,53 +4,51 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MusicOff
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,13 +59,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,7 +72,17 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.recognition.RecognitionResult
 import io.github.aedev.flow.data.recognition.RecognitionStatus
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.music.common.MusicStateIcon
+import io.github.aedev.flow.ui.components.music.common.musicActionShape
+import io.github.aedev.flow.ui.components.music.common.musicHeroArtworkSize
+import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
 
+private val MicButtonSize = 200.dp
+private val MicIconSize = 72.dp
+private const val SUBTITLE_ALPHA = 0.8f
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RecognitionScreen(
     onBackClick: () -> Unit,
@@ -111,50 +116,64 @@ fun RecognitionScreen(
         if (autoStart && status is RecognitionStatus.Ready) start()
     }
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-    ) {
-        RecognitionHeader(
-            title = stringResource(R.string.recognize_music),
-            onBackClick = onBackClick,
-        ) {
-            IconButton(onClick = onHistoryClick) {
-                Icon(Icons.Filled.History, stringResource(R.string.recognition_history))
-            }
-        }
+    val motion = MaterialTheme.motionScheme
 
-        Column(
+    Scaffold(
+        topBar = {
+            FlowTopBar(
+                title = stringResource(R.string.recognize_music),
+                onBack = onBackClick,
+                actions = {
+                    IconButton(onClick = onHistoryClick) {
+                        Icon(Icons.Rounded.History, stringResource(R.string.recognition_history))
+                    }
+                },
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp),
+    ) { padding ->
+        AnimatedContent(
+            targetState = status,
+            transitionSpec = {
+                (fadeIn(motion.defaultEffectsSpec()) + scaleIn(motion.defaultSpatialSpec()))
+                    .togetherWith(fadeOut(motion.fastEffectsSpec()) + scaleOut(motion.fastSpatialSpec()))
+            },
+            label = "recognition_content",
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            AnimatedContent(
-                targetState = status,
-                transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
-                label = "recognition_content",
-            ) { state ->
+                    .fillMaxSize()
+                    .padding(padding),
+        ) { state ->
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
                 when (state) {
                     is RecognitionStatus.Ready -> {
-                        ReadyState(onStart = ::start)
+                        RecognitionIdle(onStart = ::start)
                     }
 
                     is RecognitionStatus.Listening -> {
-                        ListeningState(onCancel = viewModel::cancel)
+                        RecognitionInProgress(
+                            label = stringResource(R.string.listening),
+                            onCancel = viewModel::cancel,
+                        )
                     }
 
                     is RecognitionStatus.Processing -> {
-                        ProcessingState()
+                        RecognitionInProgress(
+                            label = stringResource(R.string.processing),
+                            onCancel = viewModel::cancel,
+                        )
                     }
 
                     is RecognitionStatus.Success -> {
-                        SuccessState(
+                        RecognitionResultCard(
                             result = state.result,
                             onPlay = onPlay,
                             onSearch = onSearch,
@@ -165,8 +184,8 @@ fun RecognitionScreen(
                     }
 
                     is RecognitionStatus.NoMatch -> {
-                        MessageState(
-                            icon = Icons.Filled.Close,
+                        RecognitionMessage(
+                            icon = Icons.Rounded.MusicOff,
                             title = stringResource(R.string.no_match_found),
                             message = state.message,
                             onTryAgain = ::start,
@@ -174,8 +193,8 @@ fun RecognitionScreen(
                     }
 
                     is RecognitionStatus.Error -> {
-                        MessageState(
-                            icon = Icons.Filled.ErrorOutline,
+                        RecognitionMessage(
+                            icon = Icons.Rounded.ErrorOutline,
                             title = stringResource(R.string.recognition_error),
                             message = state.message,
                             onTryAgain = ::start,
@@ -187,175 +206,98 @@ fun RecognitionScreen(
     }
 }
 
-/** Lightweight header used by the recognition screens; no status-bar inset (the host applies it). */
+/**
+ * The microphone button. At rest it wears the twelve-sided cookie; while recognising, the
+ * Material loading indicator's morphing shape becomes the button itself, so the animation only
+ * ever runs while a recognition is in flight and leaves the tree with it.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun RecognitionHeader(
-    title: String,
-    onBackClick: () -> Unit,
-    actions: @Composable RowScope.() -> Unit = {},
+private fun RecognitionMicButton(
+    recognizing: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(
+    Box(
         modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            modifier
+                .size(MicButtonSize)
+                .clip(CircleShape)
+                .clickable(onClick = onClick, role = Role.Button),
+        contentAlignment = Alignment.Center,
     ) {
-        IconButton(onClick = onBackClick) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .padding(start = 4.dp),
-        )
-        actions()
-    }
-}
-
-@Composable
-private fun ReadyState(onStart: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(200.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                Color.Transparent,
-                            ),
-                        ),
-                    ).clickable { onStart() },
-            contentAlignment = Alignment.Center,
-        ) {
+        if (recognizing) {
+            LoadingIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(MicButtonSize),
+            )
+        } else {
             Box(
                 modifier =
                     Modifier
-                        .size(160.dp)
-                        .clip(CircleShape)
+                        .size(MicButtonSize)
+                        .clip(musicActionShape())
                         .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.Mic,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                )
-            }
-        }
-        Text(stringResource(R.string.tap_to_recognize), style = MaterialTheme.typography.titleMedium)
-    }
-}
-
-@Composable
-private fun ListeningState(onCancel: () -> Unit) {
-    val transition = rememberInfiniteTransition(label = "pulse")
-    val scale by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "scale",
-    )
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        Box(modifier = Modifier.size(260.dp), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier
-                    .size(200.dp)
-                    .scale(scale)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
             )
-            Box(
-                Modifier
-                    .size(180.dp)
-                    .scale(scale * 0.9f)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .size(160.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .clickable { onCancel() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.Mic,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                )
-            }
         }
-        Text(
-            stringResource(R.string.listening),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
+        Icon(
+            imageVector = Icons.Rounded.Mic,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(MicIconSize),
         )
-        OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
     }
 }
 
 @Composable
-private fun ProcessingState() {
-    val transition = rememberInfiniteTransition(label = "rotate")
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
-        label = "rotation",
-    )
+private fun RecognitionIdle(onStart: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        Box(modifier = Modifier.size(160.dp), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier.size(160.dp).clip(CircleShape).rotate(rotation).border(
-                    width = 4.dp,
-                    brush =
-                        Brush.sweepGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                MaterialTheme.colorScheme.primary,
-                            ),
-                        ),
-                    shape = CircleShape,
-                ),
-            )
-            Icon(
-                Icons.Filled.MusicNote,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Text(stringResource(R.string.processing), style = MaterialTheme.typography.titleMedium)
+        RecognitionMicButton(recognizing = false, onClick = onStart)
+        Text(
+            text = stringResource(R.string.tap_to_recognize),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SuccessState(
+private fun RecognitionInProgress(
+    label: String,
+    onCancel: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(28.dp),
+    ) {
+        RecognitionMicButton(recognizing = true, onClick = onCancel)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMediumEmphasized,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+        )
+        OutlinedButton(
+            onClick = onCancel,
+            shapes = ButtonDefaults.shapes(),
+        ) {
+            Text(stringResource(R.string.cancel))
+        }
+    }
+}
+
+/**
+ * The recognised track in the colours of its own cover, with play and search as the two
+ * primary actions and retry and close underneath.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RecognitionResultCard(
     result: RecognitionResult,
     onPlay: (RecognitionResult) -> Unit,
     onSearch: (RecognitionResult) -> Unit,
@@ -365,120 +307,198 @@ private fun SuccessState(
 ) {
     LaunchedEffect(result) { onSave(result) }
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.padding(horizontal = 16.dp),
-    ) {
-        Card(
-            modifier = Modifier.size(200.dp).aspectRatio(1f),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        ) {
-            AsyncImage(
-                model = result.coverArtHqUrl ?: result.coverArtUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        }
+    val coverUrl = result.coverArtHqUrl ?: result.coverArtUrl
+    val colors = rememberMusicArtworkColors(coverUrl)
+    val artworkSize = musicHeroArtworkSize()
+    val buttonHeight = ButtonDefaults.MediumContainerHeight
 
-        Text(
-            text = result.title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = result.artist,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        result.album?.takeIf { it.isNotBlank() }?.let {
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors =
+            CardDefaults.cardColors(
+                containerColor = colors.container,
+                contentColor = colors.onContainer,
+            ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                color = colors.tonalContainer,
+                modifier = Modifier.size(artworkSize),
+            ) {
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
-                text = it,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                text = result.title,
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                color = colors.onContainer,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = result.artist,
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.onContainer.copy(alpha = SUBTITLE_ALPHA),
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-        }
+            result.album?.takeIf { it.isNotBlank() }?.let { album ->
+                Text(
+                    text = album,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onContainer.copy(alpha = SUBTITLE_ALPHA),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
-        Spacer(Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
             if (!result.youtubeVideoId.isNullOrBlank()) {
-                Button(onClick = { onPlay(result) }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.play))
+                Button(
+                    onClick = { onPlay(result) },
+                    shapes = ButtonDefaults.shapesFor(buttonHeight),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = colors.accent,
+                            contentColor = colors.onAccent,
+                        ),
+                    contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight, hasStartIcon = true),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = buttonHeight),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.iconSizeFor(buttonHeight)),
+                    )
+                    Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(buttonHeight)))
+                    Text(
+                        text = stringResource(R.string.play),
+                        style = ButtonDefaults.textStyleFor(buttonHeight),
+                    )
                 }
             }
-            FilledTonalButton(onClick = { onSearch(result) }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Search, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.search_in_flow))
+            Button(
+                onClick = { onSearch(result) },
+                shapes = ButtonDefaults.shapesFor(buttonHeight),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = colors.tonalContainer,
+                        contentColor = colors.onContainer,
+                    ),
+                contentPadding = ButtonDefaults.contentPaddingFor(buttonHeight, hasStartIcon = true),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = buttonHeight),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(ButtonDefaults.iconSizeFor(buttonHeight)),
+                )
+                Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(buttonHeight)))
+                Text(
+                    text = stringResource(R.string.search_in_flow),
+                    style = ButtonDefaults.textStyleFor(buttonHeight),
+                )
             }
-            OutlinedButton(onClick = onTryAgain, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Mic, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.try_again))
-            }
-            OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Close, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.close))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onTryAgain,
+                    shapes = ButtonDefaults.shapes(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.onContainer),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Mic,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                    )
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.try_again))
+                }
+                OutlinedButton(
+                    onClick = onClose,
+                    shapes = ButtonDefaults.shapes(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.onContainer),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                    )
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.close))
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun MessageState(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun RecognitionMessage(
+    icon: ImageVector,
     title: String,
     message: String,
     onTryAgain: () -> Unit,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.errorContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-            )
-        }
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        MusicStateIcon(icon = icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLargeEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
         Text(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp),
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
-        Button(onClick = onTryAgain) {
-            Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
+        Button(
+            onClick = onTryAgain,
+            shapes = ButtonDefaults.shapes(),
+            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MinHeight, hasStartIcon = true),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(ButtonDefaults.IconSize),
+            )
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(stringResource(R.string.try_again))
         }
     }

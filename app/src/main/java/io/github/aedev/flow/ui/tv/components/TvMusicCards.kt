@@ -22,7 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.tv.focus.rememberTvFocusState
 import io.github.aedev.flow.ui.tv.focus.tvFocusScale
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
