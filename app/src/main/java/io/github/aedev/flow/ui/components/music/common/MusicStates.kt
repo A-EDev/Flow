@@ -111,8 +111,11 @@ fun MusicEmptyState(
     }
 }
 
+/**
+ * The icon of an empty, error or message state, on the state container shape.
+ */
 @Composable
-private fun MusicStateIcon(
+fun MusicStateIcon(
     icon: ImageVector,
     tint: Color,
 ) {
