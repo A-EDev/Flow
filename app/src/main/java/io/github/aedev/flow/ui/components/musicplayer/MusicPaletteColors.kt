@@ -19,6 +19,8 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Artwork-derived colors shared by the mobile and TV music players. */
 @Immutable
@@ -56,7 +58,7 @@ fun rememberMusicPalette(
                 .build()
         val result = SingletonImageLoader.get(context).execute(request)
         if (result is SuccessResult) {
-            val palette = Palette.from(result.image.toBitmap()).generate()
+            val palette = withContext(Dispatchers.Default) { Palette.from(result.image.toBitmap()).generate() }
             val bgSwatch =
                 palette.darkMutedSwatch
                     ?: palette.darkVibrantSwatch
@@ -75,18 +77,26 @@ fun rememberMusicPalette(
 
     val baseTarget = baseSwatch ?: MaterialTheme.colorScheme.surface
     val accentTarget = accentSwatch ?: MaterialTheme.colorScheme.primary
-    val animatedBase by animateColorAsState(
-        targetValue = baseTarget,
-        animationSpec = tween(1000),
-        label = "musicPaletteBase",
-    )
-    val animatedAccent by animateColorAsState(
-        targetValue = accentTarget,
-        animationSpec = tween(1000),
-        label = "musicPaletteAccent",
-    )
-    val base = if (animated) animatedBase else baseTarget
-    val accent = if (animated) animatedAccent else accentTarget
+    val base =
+        if (animated) {
+            animateColorAsState(
+                targetValue = baseTarget,
+                animationSpec = tween(1000),
+                label = "musicPaletteBase",
+            ).value
+        } else {
+            baseTarget
+        }
+    val accent =
+        if (animated) {
+            animateColorAsState(
+                targetValue = accentTarget,
+                animationSpec = tween(1000),
+                label = "musicPaletteAccent",
+            ).value
+        } else {
+            accentTarget
+        }
     val onBase =
         remember(base) {
             if (base.luminance() < 0.45f) Color.White else PaletteInkDark
