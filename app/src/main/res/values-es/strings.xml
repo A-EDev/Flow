@@ -2478,4 +2478,94 @@
     <string name="import_label_libretube_playlists">Listas de LibreTube</string>
     <string name="import_label_youtube_takeout">YouTube Takeout</string>
     <string name="import_yt_watch_later_desc">Importa un archivo CSV de YouTube Takeout directamente a tu lista «Ver más tarde», independientemente del nombre del archivo.</string>
+    <string name="lyrics_save_file">Guardar como archivo .lrc</string>
+    <plurals name="queue_track_count">
+        <item quantity="one">%1$d pista</item>
+        <item quantity="many">%1$d pistas</item>
+        <item quantity="other">%1$d pistas</item>
+    </plurals>
+    <string name="lyrics_saved">Letras guardadas</string>
+    <string name="lyrics_save_failed">No se pudieron guardar las letras</string>
+    <string name="lyrics_choose_source">Selecciona la fuente de las letras</string>
+    <string name="lyrics_synced_badge">Sincronizado</string>
+    <string name="lyrics_edit">Editar letras</string>
+    <string name="lyrics_copy">Copiar letras</string>
+    <string name="lyrics_copied">Letras copiadas</string>
+    <string name="lyrics_alignment">Alineación</string>
+    <string name="lyrics_align_left">Alinear a la izquierda</string>
+    <string name="lyrics_align_center">Alinear al centro</string>
+    <string name="lyrics_align_right">Alinear a la derecha</string>
+    <string name="lyrics_adjust_sync">Ajustar desfase de sincronización</string>
+    <string name="lyrics_sync_offset_value">%1$ss</string>
+    <string name="lyrics_sync_reset">Restablecer sincronización de la letra</string>
+    <string name="lyrics_searching_sources">Buscando fuentes…</string>
+    <string name="lyrics_no_sources_found">No se encontraron letras en ninguna fuente</string>
+    <string name="lyrics_source_edited">Editado</string>
+    <string name="lyrics_current_source">Fuente actual: %1$s</string>
+    <string name="lyrics_display_header">Visualización</string>
+    <string name="player_background_style_immersive">Portada Inmersiva</string>
+    <string name="style_thick">Grueso</string>
+    <string name="style_compact">Compacto</string>
+    <string name="style_wavy">Ondulado</string>
+    <plurals name="topics_count_template">
+        <item quantity="one">%1$d tema</item>
+        <item quantity="many">%1$d temas</item>
+        <item quantity="other">%1$d temas</item>
+    </plurals>
+    <plurals name="topics_blocked_count_plural">
+        <item quantity="one">%1$d tema</item>
+        <item quantity="many">%1$d temas</item>
+        <item quantity="other">%1$d temas</item>
+    </plurals>
+    <plurals name="import_yt_playlist_success_template">
+        <item quantity="one">Lista importada “%1$s” con %2$d video</item>
+        <item quantity="many">Lista importada “%1$s” con %2$d videos</item>
+        <item quantity="other">Lista importada “%1$s” con %2$d videos</item>
+    </plurals>
+    <plurals name="threads_per_download_template">
+        <item quantity="one">%1$d hilo por descarga</item>
+        <item quantity="many">%1$d hilos por descarga</item>
+        <item quantity="other">%1$d hilos por descarga</item>
+    </plurals>
+    <plurals name="threads_count_label">
+        <item quantity="one">%1$d hilo</item>
+        <item quantity="many">%1$d hilos</item>
+        <item quantity="other">%1$d hilos</item>
+    </plurals>
+    <string name="playlist_downloading_template">Descargando: %1$s</string>
+    <string name="playlist_downloads_queued">%1$d/%2$d descargas en cola</string>
+    <string name="playlist_download_queue_empty">No se pudo poner en cola ninguna descarga de esta lista</string>
+    <plurals name="playlist_metadata_private_template">
+        <item quantity="one">Lista • Privada • %1$d vídeo</item>
+        <item quantity="many">Lista • Privada • %1$d vídeos</item>
+        <item quantity="other">Lista • Privada • %1$d vídeos</item>
+    </plurals>
+    <plurals name="playlist_metadata_public_template">
+        <item quantity="one">Lista • Pública • %1$d video</item>
+        <item quantity="many">Lista • Pública • %1$d videos</item>
+        <item quantity="other">Lista • Pública • %1$d videos</item>
+    </plurals>
+    <plurals name="remove_selected_videos_title">
+        <item quantity="one">¿Borrar %1$d vídeo?</item>
+        <item quantity="many">¿Borrar %1$d vídeos?</item>
+        <item quantity="other">¿Borrar %1$d vídeos?</item>
+    </plurals>
+    <plurals name="onboarding_channels_added_count">
+        <item quantity="one">%1$d canal añadido</item>
+        <item quantity="many">%1$d canales añadidos</item>
+        <item quantity="other">%1$d canales añadidos</item>
+    </plurals>
+    <string name="onboarding_step_interests">Intereses</string>
+    <string name="onboarding_step_channels">Canales</string>
+    <string name="onboarding_step_import">Importar</string>
+    <string name="onboarding_imported_count">Importados %1$d %2$s</string>
+    <string name="onboarding_imported">%1$s importados</string>
+    <string name="queue_position_template">%1$d / %2$d</string>
+    <string name="next_up_template">%1$s: %2$s</string>
+    <string name="equalizer_frequency_label">F</string>
+    <string name="equalizer_gain_label">G</string>
+    <string name="equalizer_q_label">Q</string>
+    <string name="section_on_repeat">En Bucle</string>
+    <string name="section_daily_mix_title">%1$s Mix</string>
+    <string name="section_daily_mix_label">Selección diaria</string>
 </resources>
