@@ -7,7 +7,6 @@
 package io.github.aedev.flow.ui.components.music.detail
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,7 +29,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Downloading
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.Close
@@ -39,6 +38,7 @@ import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -54,8 +54,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.SplitButtonDefaults
-import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,7 +66,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -78,16 +75,14 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.PlaylistDetails
-import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarDefaults
 import io.github.aedev.flow.ui.components.music.common.musicHeroArtworkSize
 
-private val DownloadRingSize = 48.dp
-private const val MENU_CHEVRON_OPEN_DEGREES = 180f
+private val DownloadRingSize = 64.dp
 
 /**
- * The playlist page bar: back, the title and a Play button once the header has scrolled away, the
- * add-songs toggle on user playlists, and an overflow menu for the library and share actions.
+ * The playlist page bar over the ambient header: back, the title and a Play button once the header
+ * has scrolled away, the add-songs toggle on user playlists, and an overflow menu for the library
+ * and share actions.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -106,92 +101,83 @@ internal fun PlaylistTopBar(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    FlowTopBar(
-        title = {
-            AnimatedVisibility(visible = showTitle, enter = fadeIn(), exit = fadeOut()) {
-                Text(
-                    text = title,
-                    style = FlowTopBarDefaults.titleStyle,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+    MusicHeroTopBar(
+        title = title,
+        showTitle = showTitle,
+        onBack = onBackClick,
+    ) { iconColors ->
+        AnimatedVisibility(visible = showTitle, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
+            FilledIconButton(
+                onClick = onPlayClick,
+                shapes = IconButtonDefaults.shapes(),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(R.string.play_all),
                 )
             }
-        },
-        onBack = onBackClick,
-        actions = {
-            AnimatedVisibility(visible = showTitle, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
-                FilledIconButton(
-                    onClick = onPlayClick,
-                    shapes = IconButtonDefaults.shapes(),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.PlayArrow,
-                        contentDescription = stringResource(R.string.play_all),
-                    )
-                }
+        }
+        if (showSearchToggle) {
+            IconButton(onClick = onSearchToggle, colors = iconColors) {
+                Icon(
+                    imageVector = if (searchActive) Icons.Rounded.Close else Icons.Rounded.Search,
+                    contentDescription =
+                        if (searchActive) {
+                            stringResource(R.string.ui_close_search)
+                        } else {
+                            stringResource(R.string.ui_add_songs)
+                        },
+                )
             }
-            if (showSearchToggle) {
-                IconButton(onClick = onSearchToggle) {
-                    Icon(
-                        imageVector = if (searchActive) Icons.Rounded.Close else Icons.Rounded.Search,
-                        contentDescription =
-                            if (searchActive) {
-                                stringResource(R.string.ui_close_search)
-                            } else {
-                                stringResource(R.string.ui_add_songs)
-                            },
-                    )
-                }
+        }
+        Box {
+            IconButton(onClick = { menuExpanded = true }, colors = iconColors) {
+                Icon(
+                    imageVector = Icons.Rounded.MoreVert,
+                    contentDescription = stringResource(R.string.more_options),
+                )
             }
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = stringResource(R.string.more_options),
-                    )
-                }
-                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                    if (onSaveToggle != null) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(stringResource(if (isSaved) R.string.ui_remove_from_library else R.string.ui_save_to_library))
-                            },
-                            leadingIcon = {
-                                Icon(if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, contentDescription = null)
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onSaveToggle()
-                            },
-                        )
-                    }
-                    if (onMergeClick != null) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.add_all_to_playlist)) },
-                            leadingIcon = { Icon(Icons.Rounded.PlaylistAdd, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onMergeClick()
-                            },
-                        )
-                    }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                if (onSaveToggle != null) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.share)) },
-                        leadingIcon = { Icon(Icons.Rounded.Share, contentDescription = null) },
+                        text = {
+                            Text(stringResource(if (isSaved) R.string.ui_remove_from_library else R.string.ui_save_to_library))
+                        },
+                        leadingIcon = {
+                            Icon(if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, contentDescription = null)
+                        },
                         onClick = {
                             menuExpanded = false
-                            onShareClick()
+                            onSaveToggle()
                         },
                     )
                 }
+                if (onMergeClick != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.add_all_to_playlist)) },
+                        leadingIcon = { Icon(Icons.Rounded.PlaylistAdd, contentDescription = null) },
+                        onClick = {
+                            menuExpanded = false
+                            onMergeClick()
+                        },
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.share)) },
+                    leadingIcon = { Icon(Icons.Rounded.Share, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        onShareClick()
+                    },
+                )
             }
-        },
-    )
+        }
+    }
 }
 
 /**
- * Centered artwork, title block and the action row: shuffle, the Play split button, the save
- * toggle and download with its progress ring, all on the page's own scheme.
+ * Centered artwork, title block and the action row: shuffle, a full-width Play button, the save
+ * toggle and download with its progress ring, all at the medium size on the page's own scheme.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -202,13 +188,13 @@ internal fun PlaylistHeader(
     onPlayClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onDownloadClick: () -> Unit,
-    onShareClick: () -> Unit,
     onArtistClick: (String) -> Unit,
     isSaved: Boolean = false,
     onSaveToggle: (() -> Unit)? = null,
-    onMergeClick: (() -> Unit)? = null,
 ) {
     val artworkSize = musicHeroArtworkSize()
+    val iconButtonSize = IconButtonDefaults.mediumContainerSize()
+    val playHeight = ButtonDefaults.MediumContainerHeight
 
     Column(
         modifier =
@@ -271,39 +257,58 @@ internal fun PlaylistHeader(
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Row(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FilledTonalIconButton(
                 onClick = onShuffleClick,
                 shapes = IconButtonDefaults.shapes(),
+                modifier = Modifier.size(iconButtonSize),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Shuffle,
                     contentDescription = stringResource(R.string.shuffle),
+                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                 )
             }
 
-            PlaylistPlaySplitButton(
-                onPlayClick = onPlayClick,
-                onShuffleClick = onShuffleClick,
-                onShareClick = onShareClick,
-                onMergeClick = onMergeClick,
-            )
+            Button(
+                onClick = onPlayClick,
+                shapes = ButtonDefaults.shapesFor(playHeight),
+                contentPadding = ButtonDefaults.contentPaddingFor(playHeight, hasStartIcon = true),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = playHeight),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(ButtonDefaults.iconSizeFor(playHeight)),
+                )
+                Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(playHeight)))
+                Text(
+                    text = stringResource(R.string.play),
+                    style = ButtonDefaults.textStyleFor(playHeight),
+                )
+            }
 
             if (onSaveToggle != null) {
                 FilledIconToggleButton(
                     checked = isSaved,
                     onCheckedChange = { onSaveToggle() },
                     shapes = IconButtonDefaults.toggleableShapes(),
+                    modifier = Modifier.size(iconButtonSize),
                 ) {
                     Icon(
                         imageVector = if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         contentDescription =
                             stringResource(if (isSaved) R.string.ui_remove_from_library else R.string.ui_save_to_library),
+                        modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                     )
                 }
             }
@@ -313,10 +318,12 @@ internal fun PlaylistHeader(
                     onClick = onDownloadClick,
                     enabled = !isDownloading,
                     shapes = IconButtonDefaults.shapes(),
+                    modifier = Modifier.size(iconButtonSize),
                 ) {
                     Icon(
                         imageVector = if (isDownloading) Icons.Outlined.Downloading else Icons.Outlined.Download,
                         contentDescription = stringResource(R.string.download),
+                        modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                     )
                 }
                 if (isDownloading) {
@@ -329,81 +336,6 @@ internal fun PlaylistHeader(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun PlaylistPlaySplitButton(
-    onPlayClick: () -> Unit,
-    onShuffleClick: () -> Unit,
-    onShareClick: () -> Unit,
-    onMergeClick: (() -> Unit)?,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) MENU_CHEVRON_OPEN_DEGREES else 0f,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "playlistMenuChevron",
-    )
-
-    Box {
-        SplitButtonLayout(
-            leadingButton = {
-                SplitButtonDefaults.LeadingButton(onClick = onPlayClick) {
-                    Icon(
-                        imageVector = Icons.Rounded.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(ButtonDefaults.IconSize),
-                    )
-                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                    Text(text = stringResource(R.string.play))
-                }
-            },
-            trailingButton = {
-                SplitButtonDefaults.TrailingButton(
-                    checked = expanded,
-                    onCheckedChange = { expanded = it },
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.ArrowDropDown,
-                        contentDescription = stringResource(R.string.more_options),
-                        modifier =
-                            Modifier
-                                .size(ButtonDefaults.IconSize)
-                                .graphicsLayer { rotationZ = chevronRotation },
-                    )
-                }
-            },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.shuffle)) },
-                leadingIcon = { Icon(Icons.Rounded.Shuffle, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onShuffleClick()
-                },
-            )
-            if (onMergeClick != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.add_all_to_playlist)) },
-                    leadingIcon = { Icon(Icons.Rounded.PlaylistAdd, contentDescription = null) },
-                    onClick = {
-                        expanded = false
-                        onMergeClick()
-                    },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.share)) },
-                leadingIcon = { Icon(Icons.Rounded.Share, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onShareClick()
-                },
-            )
-        }
     }
 }
 
