@@ -206,6 +206,7 @@ fun PlaylistPage(
         }
     }
 
+    val mergeAction: (() -> Unit)? = if (isUserPlaylist) null else ({ showMergeDialog = true })
     val pageScheme = rememberMusicCollectionColorScheme(playlistDetails.thumbnailUrl)
 
     MaterialTheme(colorScheme = pageScheme) {
@@ -218,14 +219,13 @@ fun PlaylistPage(
                     title = playlistDetails.title,
                     onBackClick = onBackClick,
                     onPlayClick = ::playAll,
+                    onShareClick = onShareClick,
                     showSearchToggle = isUserPlaylist,
                     searchActive = showSearchPanel,
                     onSearchToggle = { if (showSearchPanel) closeSearch() else showSearchPanel = true },
-                    showSaveButton = !isUserPlaylist,
                     isSaved = isSaved,
-                    onSaveToggle = onSaveToggle,
-                    showMergeButton = !isUserPlaylist,
-                    onMergeClick = { showMergeDialog = true },
+                    onSaveToggle = onSaveToggle.takeIf { !isUserPlaylist },
+                    onMergeClick = mergeAction,
                 )
             },
         ) { paddingValues ->
@@ -254,7 +254,11 @@ fun PlaylistPage(
                         onDownloadClick = {
                             if (!isDownloading) playlistsViewModel.downloadPlaylistTracks(playlistDetails)
                         },
+                        onShareClick = onShareClick,
                         onArtistClick = onArtistClick,
+                        isSaved = isSaved,
+                        onSaveToggle = onSaveToggle.takeIf { !isUserPlaylist },
+                        onMergeClick = mergeAction,
                     )
                 }
 

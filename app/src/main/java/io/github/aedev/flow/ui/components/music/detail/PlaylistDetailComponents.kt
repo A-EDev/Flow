@@ -7,10 +7,12 @@
 package io.github.aedev.flow.ui.components.music.detail
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +21,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,19 +29,24 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Downloading
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,14 +54,21 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -69,11 +82,12 @@ import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarDefaults
 import io.github.aedev.flow.ui.components.music.common.musicHeroArtworkSize
 
-private val DownloadRingSize = 64.dp
+private val DownloadRingSize = 48.dp
+private const val MENU_CHEVRON_OPEN_DEGREES = 180f
 
 /**
- * The playlist page bar. The title and a Play button arrive once the header has scrolled away,
- * so the primary action is never further than the bar while the listener is deep in the list.
+ * The playlist page bar: back, the title and a Play button once the header has scrolled away, the
+ * add-songs toggle on user playlists, and an overflow menu for the library and share actions.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -82,15 +96,16 @@ internal fun PlaylistTopBar(
     title: String,
     onBackClick: () -> Unit,
     onPlayClick: () -> Unit,
+    onShareClick: () -> Unit,
     showSearchToggle: Boolean,
     searchActive: Boolean,
     onSearchToggle: () -> Unit,
-    showSaveButton: Boolean = false,
     isSaved: Boolean = false,
     onSaveToggle: (() -> Unit)? = null,
-    showMergeButton: Boolean = false,
     onMergeClick: (() -> Unit)? = null,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     FlowTopBar(
         title = {
             AnimatedVisibility(visible = showTitle, enter = fadeIn(), exit = fadeOut()) {
@@ -128,25 +143,45 @@ internal fun PlaylistTopBar(
                     )
                 }
             }
-            if (showMergeButton && onMergeClick != null) {
-                IconButton(onClick = onMergeClick) {
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
                     Icon(
-                        imageVector = Icons.Rounded.PlaylistAdd,
-                        contentDescription = stringResource(R.string.add_all_to_playlist),
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = stringResource(R.string.more_options),
                     )
                 }
-            }
-            if (showSaveButton && onSaveToggle != null) {
-                IconButton(onClick = onSaveToggle) {
-                    Icon(
-                        imageVector = if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                        contentDescription =
-                            if (isSaved) {
-                                stringResource(R.string.ui_remove_from_library)
-                            } else {
-                                stringResource(R.string.ui_save_to_library)
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    if (onSaveToggle != null) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(stringResource(if (isSaved) R.string.ui_remove_from_library else R.string.ui_save_to_library))
                             },
-                        tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            leadingIcon = {
+                                Icon(if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, contentDescription = null)
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onSaveToggle()
+                            },
+                        )
+                    }
+                    if (onMergeClick != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.add_all_to_playlist)) },
+                            leadingIcon = { Icon(Icons.Rounded.PlaylistAdd, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onMergeClick()
+                            },
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.share)) },
+                        leadingIcon = { Icon(Icons.Rounded.Share, contentDescription = null) },
+                        onClick = {
+                            menuExpanded = false
+                            onShareClick()
+                        },
                     )
                 }
             }
@@ -155,7 +190,8 @@ internal fun PlaylistTopBar(
 }
 
 /**
- * Centered artwork, title block and the three collection actions, on the page's own scheme.
+ * Centered artwork, title block and the action row: shuffle, the Play split button, the save
+ * toggle and download with its progress ring, all on the page's own scheme.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -166,7 +202,11 @@ internal fun PlaylistHeader(
     onPlayClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onDownloadClick: () -> Unit,
+    onShareClick: () -> Unit,
     onArtistClick: (String) -> Unit,
+    isSaved: Boolean = false,
+    onSaveToggle: (() -> Unit)? = null,
+    onMergeClick: (() -> Unit)? = null,
 ) {
     val artworkSize = musicHeroArtworkSize()
 
@@ -202,45 +242,25 @@ internal fun PlaylistHeader(
             overflow = TextOverflow.Ellipsis,
         )
 
-        val authorId = playlistDetails.authorId
-        if (authorId != null) {
-            TextButton(
-                onClick = { onArtistClick(authorId) },
-                shapes = ButtonDefaults.shapesFor(ButtonDefaults.ExtraSmallContainerHeight),
-                contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
-                modifier = Modifier.heightIn(min = ButtonDefaults.ExtraSmallContainerHeight),
-            ) {
-                Text(
-                    text = playlistDetails.author,
-                    style = MaterialTheme.typography.bodyLargeEmphasized,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        } else {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = playlistDetails.author,
-                style = MaterialTheme.typography.bodyLargeEmphasized,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Spacer(modifier = Modifier.height(6.dp))
 
-        val meta = playlistDetails.metadataLine()
-        if (meta.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = meta,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-        }
+        val authorId = playlistDetails.authorId
+        Text(
+            text = playlistDetails.metadataLine(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier =
+                Modifier
+                    .clip(MaterialTheme.shapes.small)
+                    .then(if (authorId != null) Modifier.clickable { onArtistClick(authorId) } else Modifier)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+        )
 
         playlistDetails.description?.takeIf { it.isNotBlank() }?.let { description ->
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall,
@@ -257,17 +277,46 @@ internal fun PlaylistHeader(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            FilledTonalIconButton(
+                onClick = onShuffleClick,
+                shapes = IconButtonDefaults.shapes(),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Shuffle,
+                    contentDescription = stringResource(R.string.shuffle),
+                )
+            }
+
+            PlaylistPlaySplitButton(
+                onPlayClick = onPlayClick,
+                onShuffleClick = onShuffleClick,
+                onShareClick = onShareClick,
+                onMergeClick = onMergeClick,
+            )
+
+            if (onSaveToggle != null) {
+                FilledIconToggleButton(
+                    checked = isSaved,
+                    onCheckedChange = { onSaveToggle() },
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                ) {
+                    Icon(
+                        imageVector = if (isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                        contentDescription =
+                            stringResource(if (isSaved) R.string.ui_remove_from_library else R.string.ui_save_to_library),
+                    )
+                }
+            }
+
             Box(contentAlignment = Alignment.Center) {
                 FilledTonalIconButton(
                     onClick = onDownloadClick,
                     enabled = !isDownloading,
                     shapes = IconButtonDefaults.shapes(),
-                    modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
                 ) {
                     Icon(
                         imageVector = if (isDownloading) Icons.Outlined.Downloading else Icons.Outlined.Download,
                         contentDescription = stringResource(R.string.download),
-                        modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
                     )
                 }
                 if (isDownloading) {
@@ -277,40 +326,84 @@ internal fun PlaylistHeader(
                     )
                 }
             }
-
-            val playHeight = ButtonDefaults.MediumContainerHeight
-            Button(
-                onClick = onPlayClick,
-                shapes = ButtonDefaults.shapesFor(playHeight),
-                contentPadding = ButtonDefaults.contentPaddingFor(playHeight, hasStartIcon = true),
-                modifier = Modifier.heightIn(min = playHeight),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(ButtonDefaults.iconSizeFor(playHeight)),
-                )
-                Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(playHeight)))
-                Text(
-                    text = stringResource(R.string.play_all),
-                    style = ButtonDefaults.textStyleFor(playHeight),
-                )
-            }
-
-            FilledTonalIconButton(
-                onClick = onShuffleClick,
-                shapes = IconButtonDefaults.shapes(),
-                modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Shuffle,
-                    contentDescription = stringResource(R.string.shuffle),
-                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
-                )
-            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PlaylistPlaySplitButton(
+    onPlayClick: () -> Unit,
+    onShuffleClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onMergeClick: (() -> Unit)?,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) MENU_CHEVRON_OPEN_DEGREES else 0f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "playlistMenuChevron",
+    )
+
+    Box {
+        SplitButtonLayout(
+            leadingButton = {
+                SplitButtonDefaults.LeadingButton(onClick = onPlayClick) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                    )
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                    Text(text = stringResource(R.string.play))
+                }
+            },
+            trailingButton = {
+                SplitButtonDefaults.TrailingButton(
+                    checked = expanded,
+                    onCheckedChange = { expanded = it },
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowDropDown,
+                        contentDescription = stringResource(R.string.more_options),
+                        modifier =
+                            Modifier
+                                .size(ButtonDefaults.IconSize)
+                                .graphicsLayer { rotationZ = chevronRotation },
+                    )
+                }
+            },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.shuffle)) },
+                leadingIcon = { Icon(Icons.Rounded.Shuffle, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onShuffleClick()
+                },
+            )
+            if (onMergeClick != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.add_all_to_playlist)) },
+                    leadingIcon = { Icon(Icons.Rounded.PlaylistAdd, contentDescription = null) },
+                    onClick = {
+                        expanded = false
+                        onMergeClick()
+                    },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.share)) },
+                leadingIcon = { Icon(Icons.Rounded.Share, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onShareClick()
+                },
+            )
+        }
     }
 }
 
@@ -319,6 +412,7 @@ private fun PlaylistDetails.metadataLine(): String {
     val separator = stringResource(R.string.metadata_separator)
     val parts =
         listOfNotNull(
+            author.takeIf { it.isNotBlank() },
             trackCount.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.songs_count_template, it, it) },
             durationText,
             dateText,
@@ -427,7 +521,7 @@ internal fun PlaylistFooter(
                     pluralStringResource(R.plurals.songs_count_template, trackCount, trackCount),
                     durationText,
                 ).joinToString(" ${stringResource(R.string.metadata_separator)} "),
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
