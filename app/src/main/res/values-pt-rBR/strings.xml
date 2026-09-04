@@ -2397,4 +2397,16 @@
     <string name="lyrics_synced_badge">Sincronizado</string>
     <string name="lyrics_edit">Editar letras</string>
     <string name="lyrics_copy">Copiar letras</string>
+    <string name="lyrics_copied">Letras copiadas</string>
+    <string name="lyrics_alignment">Alinhamento</string>
+    <string name="lyrics_align_left">Alinhado à esquerda</string>
+    <string name="lyrics_align_center">Alinhado ao centro</string>
+    <string name="lyrics_align_right">Alinhado à direita</string>
+    <string name="lyrics_sync_offset_value">%1$ss</string>
+    <string name="lyrics_adjust_sync">Ajustar o deslocamento da sincronia</string>
+    <string name="lyrics_sync_reset">Redefinir o tempo das letras</string>
+    <string name="lyrics_searching_sources">Procurando fontes…</string>
+    <string name="lyrics_no_sources_found">Nenhuma letra foi encontrada nas fontes</string>
+    <string name="lyrics_source_edited">Editado</string>
+    <string name="lyrics_current_source">Fonte atual: %1$s</string>
 </resources>
