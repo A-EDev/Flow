@@ -24,7 +24,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,7 +43,10 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
-import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
+import io.github.aedev.flow.data.model.PlaylistInfo
+import io.github.aedev.flow.ui.components.shared.MediaTextBadge
+
+private val RowHorizontalPadding = 12.dp
 
 enum class PlaylistCardLayout {
     LIST,
@@ -58,20 +60,18 @@ fun PlaylistCard(
     onDeleteClick: (() -> Unit)? = null,
     layout: PlaylistCardLayout = PlaylistCardLayout.LIST,
     modifier: Modifier = Modifier,
+    useInternalPadding: Boolean = true,
 ) {
     PlaylistCardContent(
         title = playlist.name,
         description = playlist.description,
         thumbnailUrl = playlist.thumbnailUrl,
         videoCount = playlist.videoCount,
-        visibilityLabel =
-            stringResource(
-                if (playlist.isPrivate) R.string.playlist_private else R.string.playlist_public,
-            ),
         onClick = onClick,
         onDeleteClick = onDeleteClick,
         layout = layout,
         modifier = modifier,
+        useInternalPadding = useInternalPadding,
     )
 }
 
@@ -81,17 +81,18 @@ fun PlaylistCard(
     onClick: () -> Unit,
     layout: PlaylistCardLayout = PlaylistCardLayout.LIST,
     modifier: Modifier = Modifier,
+    useInternalPadding: Boolean = true,
 ) {
     PlaylistCardContent(
         title = playlist.name,
         description = playlist.description,
         thumbnailUrl = playlist.thumbnailUrl,
         videoCount = playlist.videoCount,
-        visibilityLabel = null,
         onClick = onClick,
         onDeleteClick = null,
         layout = layout,
         modifier = modifier,
+        useInternalPadding = useInternalPadding,
     )
 }
 
@@ -101,20 +102,13 @@ private fun PlaylistCardContent(
     description: String,
     thumbnailUrl: String,
     videoCount: Int,
-    visibilityLabel: String?,
     onClick: () -> Unit,
     onDeleteClick: (() -> Unit)?,
     layout: PlaylistCardLayout,
     modifier: Modifier,
+    useInternalPadding: Boolean,
 ) {
-    val metadata =
-        visibilityLabel?.let {
-            stringResource(
-                R.string.playlist_visibility_metadata,
-                it,
-                stringResource(R.string.playlist),
-            )
-        } ?: pluralStringResource(R.plurals.videos_count_template, videoCount, videoCount)
+    val metadata = pluralStringResource(R.plurals.videos_count_template, videoCount, videoCount)
 
     if (layout == PlaylistCardLayout.SHELF) {
         Column(
@@ -149,7 +143,14 @@ private fun PlaylistCardContent(
             modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(vertical = 4.dp),
+                .padding(vertical = 4.dp)
+                .then(
+                    if (useInternalPadding) {
+                        Modifier.padding(horizontal = RowHorizontalPadding)
+                    } else {
+                        Modifier
+                    },
+                ),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -271,32 +272,14 @@ private fun LayeredPlaylistArtwork(
                 )
             }
 
-            Surface(
+            MediaTextBadge(
+                text = videoCount.toString(),
                 modifier =
                     Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.inverseSurface,
-                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                    )
-                    Text(
-                        text = videoCount.toString(),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
+                leadingIcon = Icons.AutoMirrored.Filled.PlaylistPlay,
+            )
         }
     }
 }

@@ -28,7 +28,7 @@ import io.github.aedev.flow.player.*
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.ui.components.SubtitleCustomizer
 import io.github.aedev.flow.ui.components.SubtitleStyle
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

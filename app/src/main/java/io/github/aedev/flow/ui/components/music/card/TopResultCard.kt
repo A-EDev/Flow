@@ -49,8 +49,8 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
-import io.github.aedev.flow.ui.components.music.common.musicArtistShape
 import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
+import io.github.aedev.flow.ui.components.shared.flowArtistShape
 
 private val TopResultArtworkSize = 104.dp
 private const val SUBTITLE_ALPHA = 0.8f
@@ -102,7 +102,7 @@ fun TopResultCard(
                     modifier =
                         Modifier
                             .size(TopResultArtworkSize)
-                            .clip(if (item is ArtistItem) musicArtistShape() else MaterialTheme.shapes.large),
+                            .clip(if (item is ArtistItem) flowArtistShape() else MaterialTheme.shapes.large),
                     contentScale = ContentScale.Crop,
                 )
                 Spacer(modifier = Modifier.width(20.dp))

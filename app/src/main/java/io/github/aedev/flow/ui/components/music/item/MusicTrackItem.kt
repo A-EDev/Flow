@@ -49,11 +49,11 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
-import io.github.aedev.flow.ui.components.music.common.MusicExplicitBadge
 import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
 import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
+import io.github.aedev.flow.ui.components.shared.DownloadedBadge
+import io.github.aedev.flow.ui.components.shared.ExplicitBadge
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatViewCount
@@ -201,7 +201,7 @@ fun MusicTrackItem(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 if (track.isExplicit == true) {
-                    MusicExplicitBadge()
+                    ExplicitBadge()
                 }
 
                 Text(
@@ -215,7 +215,7 @@ fun MusicTrackItem(
         }
 
         if (isDownloaded) {
-            MusicDownloadedBadge(modifier = Modifier.padding(start = 8.dp))
+            DownloadedBadge(modifier = Modifier.padding(start = 8.dp))
         }
 
         trailingContent?.invoke(this)

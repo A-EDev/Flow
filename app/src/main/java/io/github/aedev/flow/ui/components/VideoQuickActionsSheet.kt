@@ -67,6 +67,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
+import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

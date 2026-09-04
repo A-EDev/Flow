@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
@@ -41,18 +42,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
-import io.github.aedev.flow.ui.components.ReorderHandle
-import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
 import io.github.aedev.flow.ui.components.music.common.MusicAmbientBackdrop
-import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
-import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
-import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.PlaylistFooter
 import io.github.aedev.flow.ui.components.music.detail.PlaylistHeader
@@ -60,8 +57,15 @@ import io.github.aedev.flow.ui.components.music.detail.PlaylistSearchBar
 import io.github.aedev.flow.ui.components.music.detail.PlaylistTopBar
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
-import io.github.aedev.flow.ui.components.music.sheet.MusicMergeIntoPlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.shared.CollectionTarget
+import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
+import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
+import io.github.aedev.flow.ui.components.shared.MergeIntoCollectionSheet
+import io.github.aedev.flow.ui.components.shared.ReorderHandle
+import io.github.aedev.flow.ui.components.shared.ThumbnailWatchProgress
+import io.github.aedev.flow.ui.components.shared.flowSegmentShape
+import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 import io.github.aedev.flow.ui.theme.Dimensions
 import kotlinx.coroutines.delay
 import sh.calvin.reorderable.ReorderableItem
@@ -257,7 +261,7 @@ fun PlaylistPage(
                             .padding(paddingValues)
                             .imePadding(),
                     contentPadding = PaddingValues(bottom = 120.dp),
-                    verticalArrangement = Arrangement.spacedBy(MusicSegmentedGap),
+                    verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
                 ) {
                     item(key = "header") {
                         PlaylistHeader(
@@ -303,7 +307,7 @@ fun PlaylistPage(
 
                     if (showSearchPanel && isUserPlaylist) {
                         if (isSearchingTracks) {
-                            item(key = "search_loading") { MusicFeedProgress() }
+                            item(key = "search_loading") { FlowFeedProgress() }
                         } else if (searchResults.isNotEmpty()) {
                             itemsIndexed(
                                 searchResults,
@@ -370,7 +374,7 @@ fun PlaylistPage(
                                     modifier = Modifier.padding(horizontal = Dimensions.ContentPaddingHorizontal),
                                     density = MusicItemDensity.Compact,
                                     index = index + 1,
-                                    shape = musicSegmentShape(index = index, count = trackCount),
+                                    shape = flowSegmentShape(index = index, count = trackCount),
                                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                     leadingContent =
                                         if (isUserPlaylist) {
@@ -394,11 +398,7 @@ fun PlaylistPage(
                                     thumbnailOverlay = {
                                         ThumbnailWatchProgress(
                                             videoId = track.videoId,
-                                            modifier =
-                                                Modifier
-                                                    .align(Alignment.BottomStart)
-                                                    .fillMaxWidth()
-                                                    .height(3.dp),
+                                            modifier = Modifier.align(Alignment.BottomStart),
                                         )
                                     },
                                     trailingContent =
@@ -442,9 +442,22 @@ fun PlaylistPage(
     }
 
     if (showMergeDialog) {
-        MusicMergeIntoPlaylistDialog(
-            tracks = playlistDetails.tracks,
-            playlistsViewModel = playlistsViewModel,
+        val mergeTargets by playlistsViewModel.userCreatedMusicPlaylists.collectAsState()
+        MergeIntoCollectionSheet(
+            targets =
+                remember(mergeTargets) {
+                    mergeTargets.map {
+                        CollectionTarget(
+                            id = it.id,
+                            name = it.name,
+                            thumbnailUrl = it.thumbnailUrl,
+                            itemCount = it.videoCount,
+                        )
+                    }
+                },
+            placeholder = Icons.Default.MusicNote,
+            itemCountLabel = { pluralStringResource(R.plurals.songs_count_template, it, it) },
+            onSelect = { playlistsViewModel.mergeTracksIntoPlaylist(it.id, playlistDetails.tracks) },
             onDismiss = { showMergeDialog = false },
         )
     }

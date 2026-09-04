@@ -39,9 +39,6 @@ import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.music.card.TopResultCard
-import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
-import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
-import io.github.aedev.flow.ui.components.music.common.MusicLoadingIndicator
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionRow
 import io.github.aedev.flow.ui.components.music.search.MusicSearchBar
@@ -51,6 +48,9 @@ import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import kotlinx.coroutines.delay
 
 private const val FOCUS_DELAY_MS = 100L
@@ -282,9 +282,9 @@ fun MusicSearchScreen(
                     }
 
                 if (uiState.isLoading) {
-                    MusicLoadingIndicator()
+                    FlowLoadingIndicator()
                 } else if (!hasResults) {
-                    MusicEmptyState(
+                    FlowEmptyState(
                         title = stringResource(R.string.music_search_no_results, query),
                         icon = Icons.Rounded.SearchOff,
                     )
@@ -355,7 +355,7 @@ fun MusicSearchScreen(
                                     viewModel.loadMore()
                                 }
                                 if (uiState.isMoreLoading) {
-                                    MusicFeedProgress()
+                                    FlowFeedProgress()
                                 }
                             }
                         }

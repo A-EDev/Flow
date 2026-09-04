@@ -41,10 +41,10 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.CommunityMusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.music.common.MusicMosaicThumbnail
-import io.github.aedev.flow.ui.components.music.common.musicLaneItemWidth
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
+import io.github.aedev.flow.ui.components.shared.flowLaneItemWidth
 import io.github.aedev.flow.ui.theme.Dimensions
 
 private const val PREVIEW_TRACKS = 3
@@ -63,7 +63,7 @@ fun CommunityPlaylistsSection(
 ) {
     val uniquePlaylists = remember(playlists) { playlists.distinctBy { it.playlist.id } }
     if (uniquePlaylists.isEmpty()) return
-    val cardWidth = musicLaneItemWidth(maxWidth = CommunityCardMaxWidth, peek = CommunityCardPeek)
+    val cardWidth = flowLaneItemWidth(maxWidth = CommunityCardMaxWidth, peek = CommunityCardPeek)
 
     Column(modifier = modifier.fillMaxWidth()) {
         MusicSectionHeader(title = stringResource(R.string.section_from_the_community))

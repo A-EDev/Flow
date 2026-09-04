@@ -53,7 +53,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,7 +74,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.PlaylistDetails
-import io.github.aedev.flow.ui.components.music.common.musicHeroArtworkSize
+import io.github.aedev.flow.ui.components.shared.FlowSearchField
+import io.github.aedev.flow.ui.components.shared.flowHeroArtworkSize
 
 private val DownloadRingSize = 64.dp
 
@@ -192,7 +192,7 @@ internal fun PlaylistHeader(
     isSaved: Boolean = false,
     onSaveToggle: (() -> Unit)? = null,
 ) {
-    val artworkSize = musicHeroArtworkSize()
+    val artworkSize = flowHeroArtworkSize()
     val iconButtonSize = IconButtonDefaults.mediumContainerSize()
     val playHeight = ButtonDefaults.MediumContainerHeight
 
@@ -384,47 +384,27 @@ internal fun PlaylistSearchBar(
                 )
             }
         }
-        SearchBarDefaults.InputField(
+        FlowSearchField(
             query = query,
             onQueryChange = onQueryChange,
-            onSearch = { onSearch() },
+            placeholder =
+                if (searchActive) {
+                    stringResource(R.string.ui_search_songs_to_add)
+                } else {
+                    stringResource(R.string.ui_add_songs_to_playlist)
+                },
+            modifier = Modifier.weight(1f),
+            onSearch = onSearch,
+            onClear = onClear,
             expanded = searchActive,
             onExpandedChange = { expanded -> if (expanded) onActivate() },
-            placeholder = {
-                Text(
-                    text =
-                        if (searchActive) {
-                            stringResource(R.string.ui_search_songs_to_add)
-                        } else {
-                            stringResource(R.string.ui_add_songs_to_playlist)
-                        },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
+            focusRequester = focusRequester,
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = null,
                 )
             },
-            trailingIcon =
-                if (query.isNotEmpty()) {
-                    {
-                        IconButton(onClick = onClear) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = stringResource(R.string.ui_clear),
-                            )
-                        }
-                    }
-                } else {
-                    null
-                },
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
         )
     }
 }

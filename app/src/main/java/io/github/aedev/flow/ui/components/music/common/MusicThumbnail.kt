@@ -35,10 +35,10 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.theme.ArtworkScrimActive
+import io.github.aedev.flow.ui.theme.ArtworkScrimContent
+import io.github.aedev.flow.ui.theme.ArtworkScrimIndex
 import io.github.aedev.flow.ui.theme.Dimensions
-import io.github.aedev.flow.ui.theme.MusicScrimContent
-import io.github.aedev.flow.ui.theme.MusicScrimThumbnailActive
-import io.github.aedev.flow.ui.theme.MusicScrimThumbnailIndex
 
 /**
  * The single artwork surface for the music library. [shape] covers the circular artist variant,
@@ -78,7 +78,7 @@ fun MusicThumbnail(
                 modifier =
                     Modifier
                         .matchParentSize()
-                        .background(MusicScrimThumbnailActive),
+                        .background(ArtworkScrimActive),
             )
         }
 
@@ -105,13 +105,13 @@ fun MusicThumbnail(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(MusicScrimThumbnailIndex),
+                        .background(ArtworkScrimIndex),
             ) {
                 Text(
                     text = albumIndex.toString(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MusicScrimContent,
+                    color = ArtworkScrimContent,
                     textAlign = TextAlign.Center,
                 )
             }

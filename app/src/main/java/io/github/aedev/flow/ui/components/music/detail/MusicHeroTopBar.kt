@@ -32,8 +32,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarDefaults
-import io.github.aedev.flow.ui.theme.MusicScrimAffordance
-import io.github.aedev.flow.ui.theme.MusicScrimContent
+import io.github.aedev.flow.ui.theme.ArtworkScrimAffordance
+import io.github.aedev.flow.ui.theme.ArtworkScrimContent
 
 /**
  * The bar over a full-bleed hero: transparent with scrim-backed icons while the hero is on screen,
@@ -57,8 +57,8 @@ fun MusicHeroTopBar(
     )
     val iconColors =
         IconButtonDefaults.iconButtonColors(
-            containerColor = if (showTitle) Color.Transparent else MusicScrimAffordance,
-            contentColor = if (showTitle) scheme.onSurfaceVariant else MusicScrimContent,
+            containerColor = if (showTitle) Color.Transparent else ArtworkScrimAffordance,
+            contentColor = if (showTitle) scheme.onSurfaceVariant else ArtworkScrimContent,
         )
 
     TopAppBar(

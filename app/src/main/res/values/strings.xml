@@ -217,8 +217,6 @@
     <string name="save_to">Save to...</string>
     <string name="watch_later">Watch later</string>
     <string name="watch_later_unsave">Unsave Watch Later</string>
-    <string name="playlist_private">Private</string>
-    <string name="playlist_public">Public</string>
     <string name="create_new_playlist">Create new playlist</string>
     <string name="playlist_name">Name</string>
     <string name="playlist_description_optional">Description (optional)</string>
@@ -351,7 +349,6 @@
     <string name="chapters">Chapters</string>
     <string name="artist">Artist</string>
     <string name="playlist">Playlist</string>
-    <string name="playlist_visibility_metadata">%1$s • %2$s</string>
     <string name="app_name_uppercase">FLOW</string>
     <string name="notification_badge_9_plus">9+</string>
     <string name="personalized_feed">Your personalized feed</string>
@@ -1494,8 +1491,6 @@
     <string name="add_description_placeholder">Add a description...</string>
     <string name="edit_playlist_action">Edit playlist</string>
     <string name="delete_playlist_action">Delete playlist</string>
-    <string name="make_public_action">Make public</string>
-    <string name="make_private_action">Make private</string>
     <string name="remove_from_playlist_action">Remove from playlist</string>
     <string name="playlist_empty_title">This playlist is empty</string>
     <string name="playlist_empty_desc">Add videos from the video player\nto build your playlist</string>
@@ -1504,14 +1499,6 @@
     <string name="playlist_download_queue_empty">Could not queue any downloads from this playlist</string>
     <string name="delete_playlist_dialog_title">Delete playlist?</string>
     <string name="delete_playlist_dialog_text">This will permanently delete \'%1$s\' and all its videos.</string>
-    <plurals name="playlist_metadata_private_template">
-        <item quantity="one">Playlist • Private • %1$d video</item>
-        <item quantity="other">Playlist • Private • %1$d videos</item>
-    </plurals>
-    <plurals name="playlist_metadata_public_template">
-        <item quantity="one">Playlist • Public • %1$d video</item>
-        <item quantity="other">Playlist • Public • %1$d videos</item>
-    </plurals>
     <string name="playlist_sort_options">Playlist sort options</string>
     <string name="playlist_sort_manual">Manual</string>
     <string name="playlist_sort_date_added_newest">Date added (newest)</string>
@@ -1890,6 +1877,19 @@
     <string name="download_status_paused">Paused</string>
     <string name="download_status_failed">Failed</string>
     <string name="download_status_cancelled">Cancelled</string>
+    <string name="download_progress_percent">%1$d%%</string>
+    <string name="download_status_paused_template">%1$d%% • %2$s</string>
+    <string name="file_size_kb">%1$s KB</string>
+    <string name="file_size_mb">%1$s MB</string>
+    <string name="file_size_gb">%1$s GB</string>
+    <string name="removed_from_history">Removed from history</string>
+    <string name="removed_from_likes">Removed from likes</string>
+    <string name="delete_download_dialog_title">Delete download?</string>
+    <string name="delete_download_dialog_text">%1$s will be removed from this device.</string>
+    <string name="library_empty_title">Your library is empty</string>
+    <string name="library_empty_body">Videos and music you watch, like, save or download will collect here.</string>
+    <string name="playlist_load_failed">Could not load this playlist</string>
+    <string name="library_settings_subtitle">Playback, downloads, appearance and data</string>
     <string name="remove_incomplete_downloads">Remove incomplete downloads</string>
     <plurals name="remove_incomplete_downloads_message">
         <item quantity="one">Remove %1$d paused, failed, or partial download? Completed downloads will not be touched.</item>

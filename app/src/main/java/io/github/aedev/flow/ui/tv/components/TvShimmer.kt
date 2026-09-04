@@ -12,7 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.ui.components.ShimmerBone
+import io.github.aedev.flow.ui.components.shared.ShimmerBone
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
 /** TV-sized skeleton for a shelf of video cards, reusing the app's shimmer system. */
@@ -29,10 +29,11 @@ fun TvShimmerRow(
     ) {
         if (showHeader) {
             ShimmerBone(
-                modifier = Modifier
-                    .padding(horizontal = dimens.overscanHorizontal)
-                    .width(220.dp)
-                    .height(26.dp),
+                modifier =
+                    Modifier
+                        .padding(horizontal = dimens.overscanHorizontal)
+                        .width(220.dp)
+                        .height(26.dp),
             )
         }
         Row(
@@ -45,22 +46,25 @@ fun TvShimmerRow(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     ShimmerBone(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f),
                         shape = MaterialTheme.shapes.medium,
                         delayMillis = index * 80,
                     )
                     ShimmerBone(
-                        modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .height(18.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(0.9f)
+                                .height(18.dp),
                         delayMillis = index * 80,
                     )
                     ShimmerBone(
-                        modifier = Modifier
-                            .fillMaxWidth(0.6f)
-                            .height(14.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(0.6f)
+                                .height(14.dp),
                         delayMillis = index * 80,
                     )
                 }

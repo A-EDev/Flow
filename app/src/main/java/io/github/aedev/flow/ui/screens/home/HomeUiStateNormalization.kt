@@ -18,7 +18,7 @@ internal fun HomeUiState.withUniqueLazyContent(): HomeUiState {
         copy(
             videos = uniqueVideos,
             shorts = uniqueShorts,
-            continueWatchingVideos = uniqueHistory
+            continueWatchingVideos = uniqueHistory,
         )
     }
 }

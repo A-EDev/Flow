@@ -4,27 +4,23 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PermMedia
-import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,6 +30,11 @@ import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.library.LibraryNavigationRow
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+
+private val ListContentPadding = PaddingValues(vertical = 12.dp)
+private val ShelfSpacing = 24.dp
 
 @Composable
 fun LibraryScreen(
@@ -62,6 +63,7 @@ fun LibraryScreen(
     val watchLaterTitle = stringResource(R.string.library_watch_later_label)
     val savedShortsTitle = stringResource(R.string.library_saved_shorts_label)
     val shortsEnabled by viewModel.shortsEnabled.collectAsStateWithLifecycle()
+    val isLibraryEmpty by viewModel.isLibraryEmpty.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -73,76 +75,86 @@ fun LibraryScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = ListContentPadding,
+            verticalArrangement = Arrangement.spacedBy(ShelfSpacing),
         ) {
-            item(key = "history", contentType = "media-shelf") {
-                LibraryMediaShelfRoute(
-                    title = historyTitle,
-                    itemsFlow = viewModel.history,
-                    sourceName = historyTitle,
-                    onTitleClick = onNavigateToHistory,
-                    onVideoClick = onVideoClick,
-                    onMusicClick = onMusicClick,
-                    onDownloadedVideoClick = onDownloadedVideoClick,
-                    onDownloadedMusicClick = onDownloadedMusicClick,
-                )
-            }
-
-            item(key = "playlists", contentType = "playlist-shelf") {
-                LibraryPlaylistsShelf(
-                    title = playlistsTitle,
-                    videoPlaylistsFlow = viewModel.playlists,
-                    musicPlaylistsFlow = viewModel.musicPlaylists,
-                    onTitleClick = onNavigateToPlaylists,
-                    onVideoPlaylistClick = onPlaylistClick,
-                    onMusicPlaylistClick = onMusicPlaylistClick,
-                )
-            }
-
-            item(key = "watch-later", contentType = "video-shelf") {
-                LibraryVideoShelf(
-                    title = watchLaterTitle,
-                    videosFlow = viewModel.watchLater,
-                    onTitleClick = onNavigateToWatchLater,
-                    onVideoClick = onVideoClick,
-                )
-            }
-
-            item(key = "likes", contentType = "media-shelf") {
-                LibraryMediaShelfRoute(
-                    title = likesTitle,
-                    itemsFlow = viewModel.likes,
-                    sourceName = likesTitle,
-                    onTitleClick = onNavigateToLikedVideos,
-                    onVideoClick = onVideoClick,
-                    onMusicClick = onMusicClick,
-                    onDownloadedVideoClick = onDownloadedVideoClick,
-                    onDownloadedMusicClick = onDownloadedMusicClick,
-                )
-            }
-
-            item(key = "downloads", contentType = "media-shelf") {
-                LibraryMediaShelfRoute(
-                    title = downloadsTitle,
-                    itemsFlow = viewModel.downloads,
-                    sourceName = downloadsTitle,
-                    onTitleClick = onNavigateToDownloads,
-                    onVideoClick = onVideoClick,
-                    onMusicClick = onMusicClick,
-                    onDownloadedVideoClick = onDownloadedVideoClick,
-                    onDownloadedMusicClick = onDownloadedMusicClick,
-                )
-            }
-
-            if (shortsEnabled) {
-                item(key = "saved-shorts", contentType = "shorts-shelf") {
-                    LibraryShortsShelfRoute(
-                        title = savedShortsTitle,
-                        shortsFlow = viewModel.savedShorts,
-                        onTitleClick = onNavigateToSavedShorts,
-                        onShortClick = onSavedShortClick,
+            if (isLibraryEmpty) {
+                item(key = "library-empty", contentType = "empty") {
+                    FlowEmptyState(
+                        title = stringResource(R.string.library_empty_title),
+                        subtitle = stringResource(R.string.library_empty_body),
+                        icon = Icons.Outlined.VideoLibrary,
                     )
+                }
+            } else {
+                item(key = "history", contentType = "media-shelf") {
+                    LibraryMediaShelfRoute(
+                        title = historyTitle,
+                        itemsFlow = viewModel.history,
+                        sourceName = historyTitle,
+                        onTitleClick = onNavigateToHistory,
+                        onVideoClick = onVideoClick,
+                        onMusicClick = onMusicClick,
+                        onDownloadedVideoClick = onDownloadedVideoClick,
+                        onDownloadedMusicClick = onDownloadedMusicClick,
+                    )
+                }
+
+                item(key = "playlists", contentType = "playlist-shelf") {
+                    LibraryPlaylistsShelf(
+                        title = playlistsTitle,
+                        videoPlaylistsFlow = viewModel.playlists,
+                        musicPlaylistsFlow = viewModel.musicPlaylists,
+                        onTitleClick = onNavigateToPlaylists,
+                        onVideoPlaylistClick = onPlaylistClick,
+                        onMusicPlaylistClick = onMusicPlaylistClick,
+                    )
+                }
+
+                item(key = "watch-later", contentType = "video-shelf") {
+                    LibraryVideoShelf(
+                        title = watchLaterTitle,
+                        videosFlow = viewModel.watchLater,
+                        onTitleClick = onNavigateToWatchLater,
+                        onVideoClick = onVideoClick,
+                    )
+                }
+
+                item(key = "likes", contentType = "media-shelf") {
+                    LibraryMediaShelfRoute(
+                        title = likesTitle,
+                        itemsFlow = viewModel.likes,
+                        sourceName = likesTitle,
+                        onTitleClick = onNavigateToLikedVideos,
+                        onVideoClick = onVideoClick,
+                        onMusicClick = onMusicClick,
+                        onDownloadedVideoClick = onDownloadedVideoClick,
+                        onDownloadedMusicClick = onDownloadedMusicClick,
+                    )
+                }
+
+                item(key = "downloads", contentType = "media-shelf") {
+                    LibraryMediaShelfRoute(
+                        title = downloadsTitle,
+                        itemsFlow = viewModel.downloads,
+                        sourceName = downloadsTitle,
+                        onTitleClick = onNavigateToDownloads,
+                        onVideoClick = onVideoClick,
+                        onMusicClick = onMusicClick,
+                        onDownloadedVideoClick = onDownloadedVideoClick,
+                        onDownloadedMusicClick = onDownloadedMusicClick,
+                    )
+                }
+
+                if (shortsEnabled) {
+                    item(key = "saved-shorts", contentType = "shorts-shelf") {
+                        LibraryShortsShelfRoute(
+                            title = savedShortsTitle,
+                            shortsFlow = viewModel.savedShorts,
+                            onTitleClick = onNavigateToSavedShorts,
+                            onShortClick = onSavedShortClick,
+                        )
+                    }
                 }
             }
 
@@ -161,9 +173,9 @@ fun LibraryScreen(
                         onClick = onNavigateToLocalMedia,
                     )
                     LibraryNavigationRow(
-                        icon = Icons.Outlined.Storage,
-                        title = stringResource(R.string.library_manage_data_label),
-                        subtitle = stringResource(R.string.library_manage_data_subtitle),
+                        icon = Icons.Outlined.Settings,
+                        title = stringResource(R.string.settings),
+                        subtitle = stringResource(R.string.library_settings_subtitle),
                         onClick = onManageData,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
