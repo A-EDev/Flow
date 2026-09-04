@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 
 private val FieldSpacing: Dp = 16.dp
-private val PrivacyIconSize: Dp = 20.dp
 private const val DESCRIPTION_MAX_LINES = 3
 
 @Composable
@@ -39,17 +38,14 @@ fun CollectionEditDialog(
     title: String,
     confirmLabel: String,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, description: String, isPrivate: Boolean) -> Unit,
+    onConfirm: (name: String, description: String) -> Unit,
     initialName: String = "",
     initialDescription: String = "",
-    initialPrivate: Boolean = true,
     icon: ImageVector? = null,
     showDescription: Boolean = true,
-    showPrivacyToggle: Boolean = false,
 ) {
     var name by remember(initialName) { mutableStateOf(initialName) }
     var description by remember(initialDescription) { mutableStateOf(initialDescription) }
-    var isPrivate by remember(initialPrivate) { mutableStateOf(initialPrivate) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -87,42 +83,11 @@ fun CollectionEditDialog(
                         maxLines = DESCRIPTION_MAX_LINES,
                     )
                 }
-
-                if (showPrivacyToggle) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(PrivacyIconSize),
-                            )
-                            Text(
-                                text =
-                                    stringResource(
-                                        if (isPrivate) R.string.playlist_private else R.string.playlist_public,
-                                    ),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                        Switch(
-                            checked = isPrivate,
-                            onCheckedChange = { isPrivate = it },
-                        )
-                    }
-                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(name, description, isPrivate) },
+                onClick = { onConfirm(name, description) },
                 enabled = name.isNotBlank(),
             ) {
                 Text(confirmLabel)

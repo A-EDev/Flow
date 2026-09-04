@@ -24,6 +24,7 @@ import coil3.compose.AsyncImage
 object MediaThumbnailDefaults {
     val VideoWidth: Dp = 152.dp
     val ArtworkSize: Dp = 56.dp
+    val CollectionWidth: Dp = 88.dp
     val VideoAspectRatio: Float = 16f / 9f
     val BadgePadding: Dp = 6.dp
     val PlaceholderSize: Dp = 24.dp
@@ -119,6 +120,45 @@ fun ArtworkThumbnail(
         }
 
         if (thumbnailUrl != null) {
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+    }
+}
+
+@Composable
+fun CollectionThumbnail(
+    thumbnailUrl: String?,
+    modifier: Modifier = Modifier,
+    width: Dp = MediaThumbnailDefaults.CollectionWidth,
+    shape: Shape = MaterialTheme.shapes.small,
+    placeholder: ImageVector? = null,
+) {
+    Box(
+        modifier =
+            modifier
+                .width(width)
+                .aspectRatio(MediaThumbnailDefaults.VideoAspectRatio)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (placeholder != null) {
+            Icon(
+                imageVector = placeholder,
+                contentDescription = null,
+                tint =
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                        .copy(alpha = MediaThumbnailDefaults.PLACEHOLDER_ALPHA),
+                modifier = Modifier.size(MediaThumbnailDefaults.PlaceholderSize),
+            )
+        }
+
+        if (!thumbnailUrl.isNullOrBlank()) {
             AsyncImage(
                 model = thumbnailUrl,
                 contentDescription = null,

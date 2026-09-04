@@ -134,7 +134,6 @@ class MusicPlaylistsViewModel
         fun createPlaylist(
             name: String,
             description: String,
-            isPrivate: Boolean,
         ) {
             viewModelScope.launch {
                 val id = UUID.randomUUID().toString()
@@ -142,7 +141,7 @@ class MusicPlaylistsViewModel
                     playlistId = id,
                     name = name,
                     description = description,
-                    isPrivate = isPrivate,
+                    isPrivate = true,
                     isMusic = true,
                 )
             }

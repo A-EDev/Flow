@@ -35,7 +35,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.ui.components.PlaylistCard
-import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.MusicPlaylistLibraryCard
 import io.github.aedev.flow.ui.components.library.PlaylistCreationFabMenu
@@ -51,6 +50,7 @@ import io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel
 private val GridCellMinWidth = 160.dp
 private val GridSpacing = 16.dp
 private val GridContentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 96.dp)
+private val FabMenuPadding = 16.dp
 
 @Composable
 fun PlaylistsScreen(
@@ -102,103 +102,99 @@ fun PlaylistsScreen(
                 onBack = onBackClick,
             )
         },
-        floatingActionButton = {
-            PlaylistCreationFabMenu(
-                onCreateVideo = { creationTarget = PlaylistCreationTarget.Video },
-                onCreateMusic = { creationTarget = PlaylistCreationTarget.Music },
-            )
-        },
     ) { paddingValues ->
-        Column(
+        Box(
             modifier =
                 modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
                     .padding(paddingValues),
         ) {
-            PlaylistLibraryFilterRow(
-                selectedKind = contentKind,
-                onKindSelected = { contentKind = it },
-                selectedOwnership = ownershipFilter,
-                onOwnershipSelected = { ownershipFilter = it },
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                PlaylistLibraryFilterRow(
+                    selectedKind = contentKind,
+                    onKindSelected = { contentKind = it },
+                    selectedOwnership = ownershipFilter,
+                    onOwnershipSelected = { ownershipFilter = it },
+                )
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(GridCellMinWidth),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = GridContentPadding,
-                        verticalArrangement = Arrangement.spacedBy(GridSpacing),
-                        horizontalArrangement = Arrangement.spacedBy(GridSpacing),
-                    ) {
-                        when (contentKind) {
-                            MediaKind.Videos -> {
-                                if (visibleVideoPlaylists.isEmpty()) {
-                                    item(
-                                        key = "empty-video-playlists",
-                                        span = { GridItemSpan(maxLineSpan) },
-                                        contentType = "empty",
-                                    ) {
-                                        FlowEmptyState(
-                                            title = stringResource(R.string.no_playlists_found),
-                                            icon = Icons.AutoMirrored.Outlined.PlaylistPlay,
-                                        )
-                                    }
-                                } else {
-                                    items(
-                                        items = visibleVideoPlaylists,
-                                        key = { "video-${it.id}" },
-                                        contentType = { "video-playlist" },
-                                    ) { playlist ->
-                                        PlaylistCard(
-                                            playlist = playlist,
-                                            onClick = { onVideoPlaylistClick(playlist) },
-                                            layout = PlaylistCardLayout.SHELF,
-                                            onDeleteClick = { videoToDelete = playlist },
-                                        )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    } else {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(GridCellMinWidth),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = GridContentPadding,
+                            verticalArrangement = Arrangement.spacedBy(GridSpacing),
+                            horizontalArrangement = Arrangement.spacedBy(GridSpacing),
+                        ) {
+                            when (contentKind) {
+                                MediaKind.Videos -> {
+                                    if (visibleVideoPlaylists.isEmpty()) {
+                                        item(
+                                            key = "empty-video-playlists",
+                                            span = { GridItemSpan(maxLineSpan) },
+                                            contentType = "empty",
+                                        ) {
+                                            FlowEmptyState(
+                                                title = stringResource(R.string.no_playlists_found),
+                                                icon = Icons.AutoMirrored.Outlined.PlaylistPlay,
+                                            )
+                                        }
+                                    } else {
+                                        items(
+                                            items = visibleVideoPlaylists,
+                                            key = { "video-${it.id}" },
+                                            contentType = { "video-playlist" },
+                                            span = { GridItemSpan(maxLineSpan) },
+                                        ) { playlist ->
+                                            PlaylistCard(
+                                                playlist = playlist,
+                                                onClick = { onVideoPlaylistClick(playlist) },
+                                                onDeleteClick = { videoToDelete = playlist },
+                                            )
+                                        }
                                     }
                                 }
-                            }
 
-                            MediaKind.Music -> {
-                                if (visibleMusicPlaylists.isEmpty()) {
-                                    item(
-                                        key = "empty-music-playlists",
-                                        span = { GridItemSpan(maxLineSpan) },
-                                        contentType = "empty",
-                                    ) {
-                                        FlowEmptyState(
-                                            title = stringResource(R.string.empty_music_playlists),
-                                            icon = Icons.Default.MusicNote,
-                                        )
-                                    }
-                                } else {
-                                    items(
-                                        items = visibleMusicPlaylists,
-                                        key = { "music-${it.id}" },
-                                        contentType = { "music-playlist" },
-                                    ) { playlist ->
-                                        val isOwned = playlist.id in ownedMusicPlaylistIds
-                                        MusicPlaylistLibraryCard(
-                                            playlist = playlist,
-                                            onClick = { onMusicPlaylistClick(playlist) },
-                                            onDownload =
-                                                if (isOwned) {
-                                                    { musicViewModel.downloadPlaylist(playlist) }
-                                                } else {
-                                                    null
-                                                },
-                                            onRename =
-                                                if (isOwned) {
-                                                    { musicToRename = playlist }
-                                                } else {
-                                                    null
-                                                },
-                                            onDelete = { musicToDelete = playlist },
-                                        )
+                                MediaKind.Music -> {
+                                    if (visibleMusicPlaylists.isEmpty()) {
+                                        item(
+                                            key = "empty-music-playlists",
+                                            span = { GridItemSpan(maxLineSpan) },
+                                            contentType = "empty",
+                                        ) {
+                                            FlowEmptyState(
+                                                title = stringResource(R.string.empty_music_playlists),
+                                                icon = Icons.Default.MusicNote,
+                                            )
+                                        }
+                                    } else {
+                                        items(
+                                            items = visibleMusicPlaylists,
+                                            key = { "music-${it.id}" },
+                                            contentType = { "music-playlist" },
+                                        ) { playlist ->
+                                            val isOwned = playlist.id in ownedMusicPlaylistIds
+                                            MusicPlaylistLibraryCard(
+                                                playlist = playlist,
+                                                onClick = { onMusicPlaylistClick(playlist) },
+                                                onDownload =
+                                                    if (isOwned) {
+                                                        { musicViewModel.downloadPlaylist(playlist) }
+                                                    } else {
+                                                        null
+                                                    },
+                                                onRename =
+                                                    if (isOwned) {
+                                                        { musicToRename = playlist }
+                                                    } else {
+                                                        null
+                                                    },
+                                                onDelete = { musicToDelete = playlist },
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -206,6 +202,15 @@ fun PlaylistsScreen(
                     }
                 }
             }
+
+            PlaylistCreationFabMenu(
+                onCreateVideo = { creationTarget = PlaylistCreationTarget.Video },
+                onCreateMusic = { creationTarget = PlaylistCreationTarget.Music },
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(FabMenuPadding),
+            )
         }
     }
 
@@ -218,13 +223,12 @@ fun PlaylistsScreen(
                 ),
             confirmLabel = stringResource(R.string.create),
             icon = if (isVideo) Icons.Default.VideoLibrary else Icons.Default.MusicNote,
-            showPrivacyToggle = isVideo,
             onDismiss = { creationTarget = null },
-            onConfirm = { name, description, isPrivate ->
+            onConfirm = { name, description ->
                 if (isVideo) {
-                    viewModel.createPlaylist(name, description, isPrivate)
+                    viewModel.createPlaylist(name, description)
                 } else {
-                    musicViewModel.createPlaylist(name, description, isPrivate = true)
+                    musicViewModel.createPlaylist(name, description)
                 }
                 creationTarget = null
             },
@@ -260,7 +264,7 @@ fun PlaylistsScreen(
             initialName = playlist.name,
             showDescription = false,
             onDismiss = { musicToRename = null },
-            onConfirm = { name, _, _ ->
+            onConfirm = { name, _ ->
                 musicViewModel.renamePlaylist(playlist.id, name)
                 musicToRename = null
             },

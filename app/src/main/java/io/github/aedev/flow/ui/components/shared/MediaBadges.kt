@@ -6,6 +6,8 @@
 
 package io.github.aedev.flow.ui.components.shared
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -15,8 +17,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +35,8 @@ private val BadgeSpacing = 4.dp
 private val BadgeHorizontalPadding = 5.dp
 private val BadgeVerticalPadding = 2.dp
 private const val BADGE_SCRIM_ALPHA = 0.72f
+private val BadgeIconSize = 13.dp
+private val BadgeIconPadding = 4.dp
 
 @Composable
 fun DurationBadge(
@@ -78,6 +84,7 @@ fun MediaTextBadge(
     modifier: Modifier = Modifier,
     containerColor: Color = artworkScrim(BADGE_SCRIM_ALPHA),
     contentColor: Color = ArtworkScrimContent,
+    leadingIcon: ImageVector? = null,
 ) {
     Surface(
         modifier = modifier,
@@ -85,15 +92,50 @@ fun MediaTextBadge(
         color = containerColor,
         contentColor = contentColor,
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
+        Row(
             modifier =
                 Modifier.padding(
                     horizontal = BadgeHorizontalPadding,
                     vertical = BadgeVerticalPadding,
                 ),
+            horizontalArrangement = Arrangement.spacedBy(BadgeSpacing),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leadingIcon != null) {
+                Icon(
+                    imageVector = leadingIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(BadgeIconSize),
+                )
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+@Composable
+fun MediaIconBadge(
+    icon: ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraSmall,
+        color = artworkScrim(BADGE_SCRIM_ALPHA),
+        contentColor = ArtworkScrimContent,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier =
+                Modifier
+                    .padding(BadgeIconPadding)
+                    .size(BadgeIconSize),
         )
     }
 }

@@ -189,15 +189,6 @@ class PlaylistDetailViewModel
             }
         }
 
-        fun togglePrivacy() {
-            viewModelScope.launch {
-                val state = _uiState.value
-                val newPrivacy = !state.isPrivate
-                repository.updatePlaylistMetadata(playlistId, state.playlistName, state.description, newPrivacy)
-                _uiState.update { it.copy(isPrivate = newPrivacy) }
-            }
-        }
-
         fun deletePlaylist() {
             viewModelScope.launch {
                 repository.deletePlaylist(playlistId)

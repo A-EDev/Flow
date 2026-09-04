@@ -154,7 +154,6 @@ fun PlaylistDetailScreen(
                 isUserCreatedPlaylist = isUserCreatedPlaylist,
                 isWatchLater = uiState.isWatchLater,
                 isSaved = uiState.isSaved,
-                isPrivate = uiState.isPrivate,
                 showOptionsMenu = showOptionsMenu,
                 onNavigateBack = onNavigateBack,
                 onEnterSelection = { selectionMode = true },
@@ -181,10 +180,6 @@ fun PlaylistDetailScreen(
                 onDeletePlaylistClick = {
                     showOptionsMenu = false
                     showDeleteDialog = true
-                },
-                onTogglePrivacy = {
-                    showOptionsMenu = false
-                    viewModel.togglePrivacy()
                 },
             )
         },
@@ -228,7 +223,6 @@ fun PlaylistDetailScreen(
                                 description = uiState.description,
                                 videoCount = uiState.videos.size,
                                 thumbnailUrl = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl,
-                                isPrivate = uiState.isPrivate,
                                 onPlayAll = {
                                     if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0)
                                 },
@@ -331,7 +325,7 @@ fun PlaylistDetailScreen(
             initialDescription = uiState.description,
             icon = Icons.Default.Edit,
             onDismiss = { showEditDialog = false },
-            onConfirm = { name, description, _ ->
+            onConfirm = { name, description ->
                 viewModel.updatePlaylist(name, description)
                 showEditDialog = false
             },

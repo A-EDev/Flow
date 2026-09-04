@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.shared.DurationBadge
+import io.github.aedev.flow.ui.components.shared.MediaIconBadge
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.utils.formatDuration
 
@@ -66,22 +68,13 @@ internal fun LibraryVideoCard(
             )
 
             if (video.duration > 0) {
-                Surface(
+                DurationBadge(
+                    seconds = video.duration,
                     modifier =
                         Modifier
                             .align(Alignment.BottomEnd)
                             .padding(8.dp),
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                ) {
-                    Text(
-                        text = formatDuration(video.duration),
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                )
             }
         }
 
@@ -137,24 +130,14 @@ internal fun LibraryAlbumCard(
                 )
 
                 if (isDownloaded) {
-                    Surface(
+                    MediaIconBadge(
+                        icon = Icons.Rounded.OfflinePin,
+                        contentDescription = stringResource(R.string.status_downloaded),
                         modifier =
                             Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(8.dp),
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.inverseSurface,
-                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.OfflinePin,
-                            contentDescription = stringResource(R.string.status_downloaded),
-                            modifier =
-                                Modifier
-                                    .padding(4.dp)
-                                    .size(14.dp),
-                        )
-                    }
+                    )
                 }
             }
         }

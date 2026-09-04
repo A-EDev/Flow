@@ -43,14 +43,13 @@ class PlaylistsViewModel
         fun createPlaylist(
             name: String,
             description: String,
-            isPrivate: Boolean,
         ) {
             viewModelScope.launch {
                 repository.createPlaylist(
                     playlistId = System.currentTimeMillis().toString(),
                     name = name,
                     description = description,
-                    isPrivate = isPrivate,
+                    isPrivate = true,
                 )
             }
         }

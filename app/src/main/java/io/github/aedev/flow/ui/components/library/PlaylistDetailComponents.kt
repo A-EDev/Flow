@@ -101,7 +101,6 @@ internal fun PlaylistDetailTopBar(
     isUserCreatedPlaylist: Boolean,
     isWatchLater: Boolean,
     isSaved: Boolean,
-    isPrivate: Boolean,
     showOptionsMenu: Boolean,
     onNavigateBack: () -> Unit,
     onEnterSelection: () -> Unit,
@@ -114,7 +113,6 @@ internal fun PlaylistDetailTopBar(
     onOptionsDismiss: () -> Unit,
     onEditClick: () -> Unit,
     onDeletePlaylistClick: () -> Unit,
-    onTogglePrivacy: () -> Unit,
 ) {
     FlowTopBar(
         title =
@@ -197,24 +195,6 @@ internal fun PlaylistDetailTopBar(
                                 onClick = onDeletePlaylistClick,
                                 leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                             )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        if (isPrivate) {
-                                            stringResource(R.string.make_public_action)
-                                        } else {
-                                            stringResource(R.string.make_private_action)
-                                        },
-                                    )
-                                },
-                                onClick = onTogglePrivacy,
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
-                                        contentDescription = null,
-                                    )
-                                },
-                            )
                         }
                     }
                 }
@@ -230,7 +210,6 @@ internal fun PlaylistHeader(
     description: String,
     videoCount: Int,
     thumbnailUrl: String,
-    isPrivate: Boolean,
     onPlayAll: () -> Unit,
     onShuffle: () -> Unit,
     onDownloadAll: () -> Unit,
@@ -291,11 +270,7 @@ internal fun PlaylistHeader(
             Text(
                 text =
                     pluralStringResource(
-                        if (isPrivate) {
-                            R.plurals.playlist_metadata_private_template
-                        } else {
-                            R.plurals.playlist_metadata_public_template
-                        },
+                        R.plurals.videos_count_template,
                         videoCount,
                         videoCount,
                     ),

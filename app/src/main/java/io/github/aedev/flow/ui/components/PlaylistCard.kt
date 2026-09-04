@@ -45,6 +45,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.PlaylistInfo
+import io.github.aedev.flow.ui.components.shared.MediaTextBadge
 
 enum class PlaylistCardLayout {
     LIST,
@@ -64,10 +65,6 @@ fun PlaylistCard(
         description = playlist.description,
         thumbnailUrl = playlist.thumbnailUrl,
         videoCount = playlist.videoCount,
-        visibilityLabel =
-            stringResource(
-                if (playlist.isPrivate) R.string.playlist_private else R.string.playlist_public,
-            ),
         onClick = onClick,
         onDeleteClick = onDeleteClick,
         layout = layout,
@@ -87,7 +84,6 @@ fun PlaylistCard(
         description = playlist.description,
         thumbnailUrl = playlist.thumbnailUrl,
         videoCount = playlist.videoCount,
-        visibilityLabel = null,
         onClick = onClick,
         onDeleteClick = null,
         layout = layout,
@@ -101,20 +97,12 @@ private fun PlaylistCardContent(
     description: String,
     thumbnailUrl: String,
     videoCount: Int,
-    visibilityLabel: String?,
     onClick: () -> Unit,
     onDeleteClick: (() -> Unit)?,
     layout: PlaylistCardLayout,
     modifier: Modifier,
 ) {
-    val metadata =
-        visibilityLabel?.let {
-            stringResource(
-                R.string.playlist_visibility_metadata,
-                it,
-                stringResource(R.string.playlist),
-            )
-        } ?: pluralStringResource(R.plurals.videos_count_template, videoCount, videoCount)
+    val metadata = pluralStringResource(R.plurals.videos_count_template, videoCount, videoCount)
 
     if (layout == PlaylistCardLayout.SHELF) {
         Column(
@@ -271,32 +259,14 @@ private fun LayeredPlaylistArtwork(
                 )
             }
 
-            Surface(
+            MediaTextBadge(
+                text = videoCount.toString(),
                 modifier =
                     Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.inverseSurface,
-                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                    )
-                    Text(
-                        text = videoCount.toString(),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
+                leadingIcon = Icons.AutoMirrored.Filled.PlaylistPlay,
+            )
         }
     }
 }
