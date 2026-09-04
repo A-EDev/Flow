@@ -12,7 +12,6 @@ import org.junit.Before
 import org.junit.Test
 
 class CustomEqualizerAudioProcessorTest {
-
     private lateinit var processor: CustomEqualizerAudioProcessor
 
     @Before
