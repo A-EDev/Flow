@@ -46,6 +46,8 @@ import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.ui.components.shared.MediaTextBadge
 
+private val RowHorizontalPadding = 12.dp
+
 enum class PlaylistCardLayout {
     LIST,
     SHELF,
@@ -58,6 +60,7 @@ fun PlaylistCard(
     onDeleteClick: (() -> Unit)? = null,
     layout: PlaylistCardLayout = PlaylistCardLayout.LIST,
     modifier: Modifier = Modifier,
+    useInternalPadding: Boolean = true,
 ) {
     PlaylistCardContent(
         title = playlist.name,
@@ -68,6 +71,7 @@ fun PlaylistCard(
         onDeleteClick = onDeleteClick,
         layout = layout,
         modifier = modifier,
+        useInternalPadding = useInternalPadding,
     )
 }
 
@@ -77,6 +81,7 @@ fun PlaylistCard(
     onClick: () -> Unit,
     layout: PlaylistCardLayout = PlaylistCardLayout.LIST,
     modifier: Modifier = Modifier,
+    useInternalPadding: Boolean = true,
 ) {
     PlaylistCardContent(
         title = playlist.name,
@@ -87,6 +92,7 @@ fun PlaylistCard(
         onDeleteClick = null,
         layout = layout,
         modifier = modifier,
+        useInternalPadding = useInternalPadding,
     )
 }
 
@@ -100,6 +106,7 @@ private fun PlaylistCardContent(
     onDeleteClick: (() -> Unit)?,
     layout: PlaylistCardLayout,
     modifier: Modifier,
+    useInternalPadding: Boolean,
 ) {
     val metadata = pluralStringResource(R.plurals.videos_count_template, videoCount, videoCount)
 
@@ -136,7 +143,14 @@ private fun PlaylistCardContent(
             modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
-                .padding(vertical = 4.dp),
+                .padding(vertical = 4.dp)
+                .then(
+                    if (useInternalPadding) {
+                        Modifier.padding(horizontal = RowHorizontalPadding)
+                    } else {
+                        Modifier
+                    },
+                ),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

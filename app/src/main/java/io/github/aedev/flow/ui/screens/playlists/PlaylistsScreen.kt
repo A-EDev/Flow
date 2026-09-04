@@ -153,6 +153,7 @@ fun PlaylistsScreen(
                                                 playlist = playlist,
                                                 onClick = { onVideoPlaylistClick(playlist) },
                                                 onDeleteClick = { videoToDelete = playlist },
+                                                useInternalPadding = false,
                                             )
                                         }
                                     }
