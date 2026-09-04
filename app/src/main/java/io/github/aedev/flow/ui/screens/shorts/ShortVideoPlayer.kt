@@ -48,6 +48,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
@@ -60,6 +62,7 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import io.github.aedev.flow.player.toDisplayAspectRatioOrNull
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
 import io.github.aedev.flow.ui.components.playbackSpeedOptions
@@ -179,6 +182,8 @@ internal fun ShortVideoPage(
         rememberAmbientFrame(playerView, ambientActive) {
             playerPool.ownedPlayer(pageIndex)?.isPlaying == true
         }
+    var attachedPlayer by remember { mutableStateOf<Player?>(null) }
+    var ambientVideoAspect by remember { mutableStateOf<Float?>(null) }
 
     val ownershipGeneration by playerPool.ownershipGeneration.collectAsState()
 
@@ -228,13 +233,29 @@ internal fun ShortVideoPage(
 
             val player = playerPool.playerForAttach(pageIndex)
             playerView.player = player
+            attachedPlayer = player
 
             if (player != null && player.isPlaying) {
                 pageState.hasStartedPlaying = true
             }
         } else {
             playerView.player = null
+            attachedPlayer = null
         }
+    }
+
+    DisposableEffect(attachedPlayer, ambientActive) {
+        val player = attachedPlayer
+        if (player == null || !ambientActive) return@DisposableEffect onDispose { }
+        ambientVideoAspect = player.videoSize.toDisplayAspectRatioOrNull()
+        val listener =
+            object : Player.Listener {
+                override fun onVideoSizeChanged(videoSize: VideoSize) {
+                    videoSize.toDisplayAspectRatioOrNull()?.let { ambientVideoAspect = it }
+                }
+            }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
     }
 
     LaunchedEffect(isActive, video.id) {
@@ -441,8 +462,7 @@ internal fun ShortVideoPage(
         if (ambientActive) {
             VideoAmbientBackground(
                 frame = ambientFrame.frame,
-                baseColor = ambientFrame.base,
-                accentColor = ambientFrame.accent,
+                videoAspect = ambientVideoAspect,
                 modifier = Modifier.fillMaxSize(),
             )
         }

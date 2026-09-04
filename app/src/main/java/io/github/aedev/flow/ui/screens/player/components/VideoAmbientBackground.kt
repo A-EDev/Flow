@@ -21,7 +21,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -30,7 +35,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
-import androidx.palette.graphics.Palette
+import io.github.aedev.flow.player.DEFAULT_VIDEO_ASPECT_RATIO
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import kotlinx.coroutines.Dispatchers
@@ -89,9 +94,11 @@ private const val CONVERGENCE_EPS = 0.0015f
 private const val BLUR_RADIUS_PX = 2
 private const val BLUR_PASSES = 3
 
+private const val AMBIENT_GAIN = 0.28f
+
 /**
- * Below this mean per-channel delta (0..255, sRGB) the frame is treated as unchanged and neither
- * the palette nor the smoothing target is touched. Static shots are most of a watch session.
+ * Below this mean per-channel delta (0..255, sRGB) the frame is treated as unchanged and the
+ * smoothing target is left alone. Static shots are most of a watch session.
  */
 internal const val FRAME_CHANGE_THRESHOLD = 4
 
@@ -135,11 +142,9 @@ private val LINEAR_TO_SRGB =
         (s * 255f + 0.5f).toInt().coerceIn(0, 255)
     }
 
-/** Latest smoothed frame plus the dominant/accent colours extracted from it. */
+/** Latest smoothed frame. */
 data class AmbientFrameState(
     val frame: ImageBitmap? = null,
-    val base: Color? = null,
-    val accent: Color? = null,
     /** False once capture has been found permanently impossible, e.g. a protected surface. */
     val supported: Boolean = true,
 )
@@ -163,8 +168,8 @@ fun rememberAmbientFrame(
             return@LaunchedEffect
         }
         // Gated on STARTED. Background audio keeps the composition alive and the player playing, so
-        // without this the loop kept running a GPU readback plus a palette pass every cadence with
-        // the screen off, painting a surface nobody could see.
+        // without this the loop kept running a GPU readback every cadence with the screen off,
+        // painting a surface nobody could see.
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val pipeline = AmbientPipeline()
             // coroutineScope, not a bare launch pair: it suspends until both loops finish, so the
@@ -199,11 +204,6 @@ private class AmbientPipeline {
     private val scratchGrid = FloatArray(cells * 3)
     private val stagingGrid = FloatArray(cells * 3)
     private val outPixels = IntArray(cells)
-
-    private val targetBase = FloatArray(3)
-    private val targetAccent = FloatArray(3)
-    private val currentBase = FloatArray(3)
-    private val currentAccent = FloatArray(3)
 
     // Double buffered: the render thread may still be uploading the bitmap handed over last tick.
     private val buffers =
@@ -273,10 +273,6 @@ private class AmbientPipeline {
 
         decimateToLinear(samplePixels, stagingGrid)
         boxBlurLinear(stagingGrid, scratchGrid, DISPLAY_W, DISPLAY_H, BLUR_RADIUS_PX, BLUR_PASSES)
-
-        val (base, accent) = extractColors(sample)
-        base?.let { toLinear(it, targetBase) }
-        accent?.let { toLinear(it, targetAccent) }
         return true
     }
 
@@ -290,8 +286,6 @@ private class AmbientPipeline {
             }
             if (!seeded) {
                 targetGrid.copyInto(currentGrid)
-                targetBase.copyInto(currentBase)
-                targetAccent.copyInto(currentAccent)
                 seeded = true
                 emit(publish())
                 delay(SMOOTH_TICK_MS)
@@ -304,11 +298,7 @@ private class AmbientPipeline {
             last = now
             val alpha = 1f - exp(-dt.toFloat() / SMOOTH_TAU_MS)
 
-            val gridMoved = step(currentGrid, targetGrid, alpha)
-            val baseMoved = step(currentBase, targetBase, alpha)
-            val accentMoved = step(currentAccent, targetAccent, alpha)
-
-            if (gridMoved || baseMoved || accentMoved) {
+            if (step(currentGrid, targetGrid, alpha)) {
                 emit(publish())
                 delay(SMOOTH_TICK_MS)
             } else {
@@ -325,8 +315,6 @@ private class AmbientPipeline {
         bitmap.setPixels(outPixels, 0, DISPLAY_W, 0, 0, DISPLAY_W, DISPLAY_H)
         return AmbientFrameState(
             frame = bitmap.asImageBitmap(),
-            base = fromLinear(currentBase),
-            accent = fromLinear(currentAccent),
             supported = supported,
         )
     }
@@ -441,9 +429,9 @@ private fun encodeToPixels(
     for (i in out.indices) {
         val o = i * 3
         out[i] = (0xFF shl 24) or
-            (linearToSrgb(grid[o]) shl 16) or
-            (linearToSrgb(grid[o + 1]) shl 8) or
-            linearToSrgb(grid[o + 2])
+            (linearToSrgb(grid[o] * AMBIENT_GAIN) shl 16) or
+            (linearToSrgb(grid[o + 1] * AMBIENT_GAIN) shl 8) or
+            linearToSrgb(grid[o + 2] * AMBIENT_GAIN)
     }
 }
 
@@ -455,17 +443,6 @@ private fun encodeToPixels(
 internal fun linearToSrgb(v: Float): Int = LINEAR_TO_SRGB[(v.coerceIn(0f, 1f) * LINEAR_LUT_SIZE + 0.5f).toInt()]
 
 internal fun srgbToLinear(byteValue: Int): Float = SRGB_TO_LINEAR[byteValue.coerceIn(0, 255)]
-
-private fun toLinear(
-    color: Color,
-    out: FloatArray,
-) {
-    out[0] = srgbToLinear((color.red * 255f + 0.5f).toInt())
-    out[1] = srgbToLinear((color.green * 255f + 0.5f).toInt())
-    out[2] = srgbToLinear((color.blue * 255f + 0.5f).toInt())
-}
-
-private fun fromLinear(v: FloatArray): Color = Color(linearToSrgb(v[0]), linearToSrgb(v[1]), linearToSrgb(v[2]))
 
 /** Mean absolute per-channel difference over a strided subset of the two buffers. */
 internal fun meanAbsDiff(
@@ -535,85 +512,75 @@ private suspend fun captureSurface(
         }
     }
 
-private const val MIN_COLOR_POPULATION = 3
-private const val MIN_PREFERRED_LUMA = 0.20f
-private const val MAX_PREFERRED_LUMA = 0.86f
-
-private fun extractColors(bmp: Bitmap): Pair<Color?, Color?> {
-    val palette = Palette.from(bmp).clearFilters().generate()
-    val usableSwatches =
-        palette.swatches
-            .filter { it.population >= MIN_COLOR_POPULATION }
-            .sortedWith(
-                compareByDescending<Palette.Swatch> { swatch ->
-                    val hsl = swatch.hsl
-                    val lumaFit = 1f - kotlin.math.abs(hsl[2].coerceIn(0f, 1f) - 0.56f)
-                    (hsl[1] * 1.5f + lumaFit) * swatch.population
-                },
-            )
-    val baseSwatch =
-        usableSwatches.firstOrNull { swatch ->
-            swatch.hsl[2] in MIN_PREFERRED_LUMA..MAX_PREFERRED_LUMA
-        } ?: palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.dominantSwatch
-    val accentSwatch =
-        palette.vibrantSwatch
-            ?: palette.lightVibrantSwatch
-            ?: usableSwatches.firstOrNull()
-            ?: palette.mutedSwatch
-            ?: palette.dominantSwatch
-    return baseSwatch?.let { Color(it.rgb) } to accentSwatch?.let { Color(it.rgb) }
-}
-
-private const val AMBIENT_BASE_ALPHA = 0.52f
-private const val AMBIENT_FRAME_ALPHA = 0.46f
-private const val AMBIENT_ACCENT_ALPHA = 0.24f
-private const val AMBIENT_SCRIM_ALPHA = 0.24f
+private const val AMBIENT_EDGE_ALPHA = 0.82f
+private const val AMBIENT_EDGE_KNEE = 0.30f
 
 @Composable
 fun VideoAmbientBackground(
     frame: ImageBitmap?,
-    baseColor: Color?,
-    accentColor: Color?,
+    videoAspect: Float?,
     modifier: Modifier = Modifier,
 ) {
-    val base = baseColor ?: Color.Transparent
-    val accent = accentColor ?: Color.Transparent
-
     Box(
         modifier =
             modifier
                 .fillMaxSize()
                 .background(PlayerScrim),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .matchParentSize()
-                    .background(base.copy(alpha = AMBIENT_BASE_ALPHA)),
-        )
-
         if (frame != null) {
             Image(
                 bitmap = frame,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                filterQuality = FilterQuality.Low,
                 modifier = Modifier.matchParentSize(),
-                alpha = AMBIENT_FRAME_ALPHA,
             )
         }
-
-        Box(
-            modifier =
-                Modifier
-                    .matchParentSize()
-                    .background(accent.copy(alpha = AMBIENT_ACCENT_ALPHA)),
-        )
-
-        Box(
-            modifier =
-                Modifier
-                    .matchParentSize()
-                    .background(PlayerScrim.copy(alpha = AMBIENT_SCRIM_ALPHA)),
+        AmbientEdgeMask(
+            videoAspect = videoAspect,
+            modifier = Modifier.matchParentSize(),
         )
     }
+}
+
+/**
+ * Kept separate from the frame so a new frame recomposes only the [Image]; the mask's draw cache
+ * is rebuilt solely when the fitted video rectangle changes.
+ */
+@Composable
+private fun AmbientEdgeMask(
+    videoAspect: Float?,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier.drawWithCache {
+                val aspect = videoAspect ?: DEFAULT_VIDEO_ASPECT_RATIO
+                val w = size.width
+                val h = size.height
+                val vw = minOf(w, h * aspect)
+                val vh = vw / aspect
+                val left = (w - vw) / 2f
+                val right = left + vw
+                val top = (h - vh) / 2f
+                val bottom = top + vh
+
+                val edge = PlayerScrim.copy(alpha = AMBIENT_EDGE_ALPHA)
+                val knee = PlayerScrim.copy(alpha = AMBIENT_EDGE_ALPHA * 0.5f)
+                val outIn = arrayOf(0f to edge, AMBIENT_EDGE_KNEE to knee, 1f to Color.Transparent)
+                val inOut = arrayOf(0f to Color.Transparent, 1f - AMBIENT_EDGE_KNEE to knee, 1f to edge)
+
+                val leftBrush = if (left > 0f) Brush.horizontalGradient(*outIn, startX = 0f, endX = left) else null
+                val rightBrush = if (right < w) Brush.horizontalGradient(*inOut, startX = right, endX = w) else null
+                val topBrush = if (top > 0f) Brush.verticalGradient(*outIn, startY = 0f, endY = top) else null
+                val bottomBrush = if (bottom < h) Brush.verticalGradient(*inOut, startY = bottom, endY = h) else null
+
+                onDrawBehind {
+                    leftBrush?.let { drawRect(it, size = Size(left, h)) }
+                    rightBrush?.let { drawRect(it, topLeft = Offset(right, 0f), size = Size(w - right, h)) }
+                    topBrush?.let { drawRect(it, size = Size(w, top)) }
+                    bottomBrush?.let { drawRect(it, topLeft = Offset(0f, bottom), size = Size(w, h - bottom)) }
+                }
+            },
+    )
 }

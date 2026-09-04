@@ -37,8 +37,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PictureInPictureHelper
-import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
 import io.github.aedev.flow.player.surface.VideoSurfacePolicy
+import io.github.aedev.flow.player.toDisplayAspectRatioOrNull
 
 private fun pickPlayerViewLayoutRes(): Int =
     if (VideoSurfacePolicy.usesSurfaceView(Build.VERSION.SDK_INT)) {
@@ -65,7 +65,12 @@ fun VideoPlayerSurface(
     var attachedVideoId by remember { mutableStateOf<String?>(null) }
     var lastAudioOnlySkipLogKey by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
     val currentVideoId by rememberUpdatedState(video.id)
-    val currentAspectRatioCallback by rememberUpdatedState(onVideoAspectRatioChanged)
+    var ambientVideoAspect by remember { mutableStateOf<Float?>(null) }
+    val reportAspectRatio by
+        rememberUpdatedState<(Float) -> Unit> { ratio ->
+            ambientVideoAspect = ratio
+            onVideoAspectRatioChanged?.invoke(ratio)
+        }
     val cornerRadiusPx = with(density) { cornerRadiusDp.dp.toPx() }
 
     val playerView =
@@ -144,9 +149,7 @@ fun VideoPlayerSurface(
                             ?.currentMediaItem
                             ?.mediaId
                     if (playerMediaId == null || playerMediaId == currentVideoId) {
-                        videoSize.toDisplayAspectRatioOrNull()?.let { ratio ->
-                            currentAspectRatioCallback?.invoke(ratio)
-                        }
+                        videoSize.toDisplayAspectRatioOrNull()?.let(reportAspectRatio)
                     }
                 }
             }
@@ -194,8 +197,7 @@ fun VideoPlayerSurface(
         if (ambientActive) {
             VideoAmbientBackground(
                 frame = ambientFrame.frame,
-                baseColor = ambientFrame.base,
-                accentColor = ambientFrame.accent,
+                videoAspect = ambientVideoAspect,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -220,7 +222,7 @@ fun VideoPlayerSurface(
                     newPlayer?.addListener(videoSizeListener)
                     view.player = newPlayer
                     attachedVideoId = video.id
-                    currentAspectRatioCallback?.invoke(
+                    reportAspectRatio(
                         if (isVideoSwitch && !alreadyRenderingThisVideo) {
                             16f / 9f
                         } else {
@@ -308,12 +310,6 @@ private fun applyOutlineCornerRadius(
     }
     view.invalidateOutline()
     view.setTag(R.id.player_view, radiusPx)
-}
-
-private fun VideoSize.toDisplayAspectRatioOrNull(): Float? {
-    if (width <= 0 || height <= 0) return null
-    val par = if (pixelWidthHeightRatio > 0f) pixelWidthHeightRatio else 1f
-    return sanitizeDisplayAspectRatio(width * par / height)
 }
 
 private fun Context.isDisplayInteractive(): Boolean =
