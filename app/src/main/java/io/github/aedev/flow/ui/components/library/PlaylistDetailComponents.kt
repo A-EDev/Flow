@@ -29,10 +29,8 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Sort

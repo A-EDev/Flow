@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.OfflinePin
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,7 +31,6 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.DurationBadge
 import io.github.aedev.flow.ui.components.shared.MediaIconBadge
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
-import io.github.aedev.flow.utils.formatDuration
 
 internal val LibraryShelfCardWidth = 220.dp
 internal val LibraryShelfArtworkHeight = LibraryShelfCardWidth * 9f / 16f
