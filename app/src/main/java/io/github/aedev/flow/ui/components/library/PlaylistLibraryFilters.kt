@@ -25,6 +25,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.MediaKind
+import io.github.aedev.flow.ui.components.shared.MediaKindSelector
 
 private val FilterRowPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
 private val MenuIconSize = 16.dp
@@ -60,14 +61,13 @@ internal fun PlaylistLibraryFilterRow(
         contentPadding = FilterRowPadding,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(
-            items = MediaKind.entries,
-            key = { it.name },
-        ) { kind ->
-            FlowFilterChip(
-                label = stringResource(kind.labelRes),
-                selected = selectedKind == kind,
-                onClick = { onKindSelected(kind) },
+        item(key = "kind-selector") {
+            MediaKindSelector(
+                options = MediaKind.entries,
+                selected = selectedKind,
+                onSelected = onKindSelected,
+                label = { stringResource(it.labelRes) },
+                icon = { it.icon },
             )
         }
 

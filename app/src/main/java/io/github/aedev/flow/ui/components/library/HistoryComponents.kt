@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -276,7 +275,7 @@ internal fun HistoryEntryRow(
         durationSeconds = (entry.duration / 1000L).toInt(),
     ) {
         MediaRowAction(
-            icon = if (entry.isMusic) Icons.Default.Delete else Icons.Default.Close,
+            icon = Icons.Default.Close,
             contentDescription = removeLabel,
             onClick = { onRemove(entry) },
         )
