@@ -160,6 +160,7 @@ internal fun HistoryList(
         remember(entries) {
             entries.filter { it.isMusic }.map { it.toMusicTrack() }
         }
+    val today = remember(entries) { startOfDay(System.currentTimeMillis()) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -168,7 +169,10 @@ internal fun HistoryList(
     ) {
         groupedEntries.forEach { (sectionKey, sectionEntries) ->
             stickyHeader(key = "header-$sectionKey", contentType = "header") {
-                HistorySectionHeader(timestamp = sectionEntries.first().timestamp)
+                HistorySectionHeader(
+                    timestamp = sectionEntries.first().timestamp,
+                    today = today,
+                )
             }
 
             when (selectedFilter) {
@@ -236,10 +240,13 @@ internal fun HistoryList(
 }
 
 @Composable
-internal fun HistorySectionHeader(timestamp: Long) {
+internal fun HistorySectionHeader(
+    timestamp: Long,
+    today: Long,
+) {
     Surface(color = MaterialTheme.colorScheme.background) {
         Text(
-            text = sectionTitle(timestamp),
+            text = sectionTitle(timestamp, today),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -354,11 +361,13 @@ internal fun startOfDay(timestamp: Long): Long =
 internal fun historySectionKey(timestamp: Long): String = startOfDay(timestamp).toString()
 
 @Composable
-internal fun sectionTitle(timestamp: Long): String {
+internal fun sectionTitle(
+    timestamp: Long,
+    today: Long,
+): String {
     val locale = Locale.getDefault()
     val weekdayFormat = remember(locale) { SimpleDateFormat("EEEE", locale) }
     val dateFormat = remember(locale) { SimpleDateFormat("MMMM d, yyyy", locale) }
-    val today = startOfDay(System.currentTimeMillis())
     val target = startOfDay(timestamp)
     val diffDays = ((today - target) / MILLIS_PER_DAY).toInt()
 

@@ -52,6 +52,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -82,6 +83,10 @@ import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.formatViewCount
 
 private const val AVATAR_TAG = "ChannelAvatarImage"
+private const val DEARROW_BADGE_ALPHA = 0.85f
+private val DeArrowBadgeMargin = 4.dp
+private val DeArrowBadgeSize = 16.dp
+private val DeArrowBadgeInset = 2.dp
 private const val REMINDER_BADGE_SCRIM_ALPHA = 0.7f
 private const val REMINDER_BADGE_BORDER_ALPHA = 0.2f
 private val ReminderBadgeBorderWidth = 0.5.dp
@@ -169,6 +174,107 @@ internal fun rememberCollaboratorItems(video: Video): List<VideoCollaborator> {
 }
 
 @Composable
+private fun VideoCardSheets(
+    video: Video,
+    collaborators: List<VideoCollaborator>,
+    showQuickActions: Boolean,
+    showCollaborators: Boolean,
+    onChannelClick: ((String) -> Unit)?,
+    onDismissQuickActions: () -> Unit,
+    onDismissCollaborators: () -> Unit,
+) {
+    if (showQuickActions) {
+        VideoQuickActionsBottomSheet(
+            video = video,
+            onChannelClick = onChannelClick,
+            onDismiss = onDismissQuickActions,
+        )
+    }
+
+    if (showCollaborators) {
+        CollaboratorsBottomSheet(
+            collaborators = collaborators,
+            onChannelClick = onChannelClick,
+            onDismiss = onDismissCollaborators,
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.VideoCardThumbnailOverlays(
+    video: Video,
+    displayTitle: String,
+    displayThumbnailUrl: String?,
+    watchProgress: Float?,
+    isUpcoming: Boolean,
+    badgePadding: Dp,
+    showReminderBadge: Boolean = false,
+    showDeArrowBadge: Boolean = false,
+) {
+    VideoThumbnailImage(
+        videoId = video.id,
+        model = displayThumbnailUrl,
+        contentDescription = displayTitle,
+        modifier = Modifier.fillMaxSize(),
+        contentScale = ContentScale.Crop,
+    )
+
+    VideoStatusBadge(
+        isLive = video.isLive,
+        isUpcoming = isUpcoming,
+        durationSeconds = video.duration,
+        modifier =
+            Modifier
+                .align(Alignment.BottomEnd)
+                .padding(badgePadding),
+    )
+
+    if (showReminderBadge) {
+        UpcomingReminderBadge(
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(badgePadding),
+        )
+    }
+
+    watchProgress?.let { progress ->
+        WatchProgressBar(
+            progress = progress,
+            modifier = Modifier.align(Alignment.BottomStart),
+        )
+    }
+
+    if (showDeArrowBadge) {
+        DeArrowBadge(
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(DeArrowBadgeMargin),
+        )
+    }
+}
+
+@Composable
+private fun DeArrowBadge(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraSmall,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = DEARROW_BADGE_ALPHA),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.AutoFixHigh,
+            contentDescription = stringResource(R.string.dearrow_badge),
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier =
+                Modifier
+                    .size(DeArrowBadgeSize)
+                    .padding(DeArrowBadgeInset),
+        )
+    }
+}
+
+@Composable
 private fun UpcomingReminderBadge(modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
@@ -236,39 +342,15 @@ fun VideoCardHorizontal(
                     .clip(RoundedCornerShape(14.dp)) // Sleek corners
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            VideoThumbnailImage(
-                videoId = video.id,
-                model = displayThumbnailUrl,
-                contentDescription = displayTitle,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-
-            VideoStatusBadge(
-                isLive = video.isLive,
+            VideoCardThumbnailOverlays(
+                video = video,
+                displayTitle = displayTitle,
+                displayThumbnailUrl = displayThumbnailUrl,
+                watchProgress = watchProgress,
                 isUpcoming = video.isUpcoming,
-                durationSeconds = video.duration,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp),
+                badgePadding = 6.dp,
+                showReminderBadge = video.isUpcoming && video.id in upcomingReminderIds,
             )
-
-            if (video.isUpcoming && video.id in upcomingReminderIds) {
-                UpcomingReminderBadge(
-                    modifier =
-                        Modifier
-                            .align(Alignment.TopStart)
-                            .padding(6.dp),
-                )
-            }
-
-            watchProgress?.let { progress ->
-                WatchProgressBar(
-                    progress = progress,
-                    modifier = Modifier.align(Alignment.BottomStart),
-                )
-            }
         }
 
         Column(
@@ -319,21 +401,15 @@ fun VideoCardHorizontal(
         }
     }
 
-    if (showQuickActions) {
-        VideoQuickActionsBottomSheet(
-            video = video,
-            onChannelClick = onChannelClick,
-            onDismiss = { showQuickActions = false },
-        )
-    }
-
-    if (showCollaborators) {
-        CollaboratorsBottomSheet(
-            collaborators = collaboratorItems,
-            onChannelClick = onChannelClick,
-            onDismiss = { showCollaborators = false },
-        )
-    }
+    VideoCardSheets(
+        video = video,
+        collaborators = collaboratorItems,
+        showQuickActions = showQuickActions,
+        showCollaborators = showCollaborators,
+        onChannelClick = onChannelClick,
+        onDismissQuickActions = { showQuickActions = false },
+        onDismissCollaborators = { showCollaborators = false },
+    )
 }
 
 @Composable
@@ -395,60 +471,16 @@ fun VideoCardFullWidth(
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     .thumbnailGradientOverlay(),
         ) {
-            VideoThumbnailImage(
-                videoId = video.id,
-                model = displayThumbnailUrl,
-                contentDescription = displayTitle,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-
-            VideoStatusBadge(
-                isLive = video.isLive,
+            VideoCardThumbnailOverlays(
+                video = video,
+                displayTitle = displayTitle,
+                displayThumbnailUrl = displayThumbnailUrl,
+                watchProgress = watchProgress,
                 isUpcoming = video.isUpcoming,
-                durationSeconds = video.duration,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
+                badgePadding = 8.dp,
+                showReminderBadge = video.isUpcoming && video.id in upcomingReminderIds,
+                showDeArrowBadge = deArrowResultFullWidth != null && deArrowBadgeEnabledFullWidth,
             )
-
-            if (video.isUpcoming && video.id in upcomingReminderIds) {
-                UpcomingReminderBadge(
-                    modifier =
-                        Modifier
-                            .align(Alignment.TopStart)
-                            .padding(8.dp),
-                )
-            }
-
-            watchProgress?.let { progress ->
-                WatchProgressBar(
-                    progress = progress,
-                    modifier = Modifier.align(Alignment.BottomStart),
-                )
-            }
-
-            if (deArrowResultFullWidth != null && deArrowBadgeEnabledFullWidth) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp),
-                    shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.AutoFixHigh,
-                        contentDescription = stringResource(R.string.dearrow_badge),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier =
-                            Modifier
-                                .size(16.dp)
-                                .padding(2.dp),
-                    )
-                }
-            }
         }
 
         // Video info section
@@ -629,22 +661,15 @@ fun VideoCardFullWidth(
         }
     }
 
-    // Quick actions bottom sheet
-    if (showQuickActions) {
-        VideoQuickActionsBottomSheet(
-            video = video,
-            onChannelClick = onChannelClick,
-            onDismiss = { showQuickActions = false },
-        )
-    }
-
-    if (showCollaborators) {
-        CollaboratorsBottomSheet(
-            collaborators = collaboratorItems,
-            onChannelClick = onChannelClick,
-            onDismiss = { showCollaborators = false },
-        )
-    }
+    VideoCardSheets(
+        video = video,
+        collaborators = collaboratorItems,
+        showQuickActions = showQuickActions,
+        showCollaborators = showCollaborators,
+        onChannelClick = onChannelClick,
+        onDismissQuickActions = { showQuickActions = false },
+        onDismissCollaborators = { showCollaborators = false },
+    )
 }
 
 /**
@@ -705,51 +730,15 @@ fun CompactVideoCard(
                     .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         ) {
-            VideoThumbnailImage(
-                videoId = video.id,
-                model = displayThumbnailUrl,
-                contentDescription = displayTitle,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-
-            VideoStatusBadge(
-                isLive = video.isLive,
+            VideoCardThumbnailOverlays(
+                video = video,
+                displayTitle = displayTitle,
+                displayThumbnailUrl = displayThumbnailUrl,
+                watchProgress = watchProgress,
                 isUpcoming = video.isUpcoming || video.viewCount < 0L,
-                durationSeconds = video.duration,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp),
+                badgePadding = 4.dp,
+                showDeArrowBadge = deArrowResultCompact != null && deArrowBadgeEnabledCompact,
             )
-
-            watchProgress?.let { progress ->
-                WatchProgressBar(
-                    progress = progress,
-                    modifier = Modifier.align(Alignment.BottomStart),
-                )
-            }
-
-            if (deArrowResultCompact != null && deArrowBadgeEnabledCompact) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp),
-                    shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.AutoFixHigh,
-                        contentDescription = stringResource(R.string.dearrow_badge),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier =
-                            Modifier
-                                .size(16.dp)
-                                .padding(2.dp),
-                    )
-                }
-            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -841,21 +830,15 @@ fun CompactVideoCard(
         }
     }
 
-    if (showQuickActions) {
-        VideoQuickActionsBottomSheet(
-            video = video,
-            onChannelClick = onChannelClick,
-            onDismiss = { showQuickActions = false },
-        )
-    }
-
-    if (showCollaborators) {
-        CollaboratorsBottomSheet(
-            collaborators = collaboratorItems,
-            onChannelClick = onChannelClick,
-            onDismiss = { showCollaborators = false },
-        )
-    }
+    VideoCardSheets(
+        video = video,
+        collaborators = collaboratorItems,
+        showQuickActions = showQuickActions,
+        showCollaborators = showCollaborators,
+        onChannelClick = onChannelClick,
+        onDismissQuickActions = { showQuickActions = false },
+        onDismissCollaborators = { showCollaborators = false },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

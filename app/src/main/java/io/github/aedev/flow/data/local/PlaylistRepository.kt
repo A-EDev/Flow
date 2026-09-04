@@ -444,6 +444,8 @@ class PlaylistRepository
 
         suspend fun getSavedVideoPlaylistVideos(): List<Video> = playlistDao.getSavedVideoPlaylistVideos().map { it.toDomain() }
 
+        suspend fun getPlaylistIdsForVideo(videoId: String): List<String> = playlistDao.getPlaylistIdsForVideo(videoId)
+
         fun getPlaylistVideosFlow(playlistId: String): Flow<List<Video>> =
             playlistDao.getVideosForPlaylist(playlistId).map { entities ->
                 entities.map { it.toDomain() }

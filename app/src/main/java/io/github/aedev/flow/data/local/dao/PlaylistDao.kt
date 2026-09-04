@@ -108,6 +108,9 @@ interface PlaylistDao {
     )
     fun getVideosForPlaylist(playlistId: String): Flow<List<VideoEntity>>
 
+    @Query("SELECT playlistId FROM playlist_video_cross_ref WHERE videoId = :videoId")
+    suspend fun getPlaylistIdsForVideo(videoId: String): List<String>
+
     @Transaction
     @Query(
         "SELECT videos.*, playlist_video_cross_ref.addedAt AS addedAt FROM videos INNER JOIN playlist_video_cross_ref ON videos.id = playlist_video_cross_ref.videoId WHERE playlist_video_cross_ref.playlistId = :playlistId ORDER BY playlist_video_cross_ref.position ASC",

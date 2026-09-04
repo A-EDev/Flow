@@ -4,7 +4,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.*
@@ -13,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
@@ -21,7 +21,7 @@ import kotlin.math.max
 
 @Composable
 fun Modifier.shimmerEffect(
-    shape: Shape = RoundedCornerShape(8.dp),
+    shape: Shape = MaterialTheme.shapes.small,
     durationMillis: Int = 1200,
     delayMillis: Int = 0,
 ): Modifier {
@@ -79,7 +79,7 @@ fun Modifier.shimmerEffect(
 @Composable
 fun ShimmerBone(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(8.dp),
+    shape: Shape = MaterialTheme.shapes.small,
     delayMillis: Int = 0,
 ) {
     Box(
@@ -98,7 +98,7 @@ fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f),
-            shape = RoundedCornerShape(0.dp),
+            shape = RectangleShape,
         )
 
         Row(
@@ -145,7 +145,7 @@ fun ShimmerVideoCardFullWidth(modifier: Modifier = Modifier) {
                         Modifier
                             .fillMaxWidth(0.50f)
                             .height(11.dp),
-                    shape = RoundedCornerShape(4.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     delayMillis = 200,
                 )
             }
@@ -175,7 +175,7 @@ fun ShimmerGridVideoCard(modifier: Modifier = Modifier) {
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f),
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
         )
 
         Row(
@@ -241,7 +241,7 @@ fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
                     Modifier
                         .width(160.dp)
                         .aspectRatio(16f / 9f),
-                shape = RoundedCornerShape(8.dp),
+                shape = MaterialTheme.shapes.small,
             )
 
             // Duration badge skeleton
@@ -252,7 +252,7 @@ fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
                         .padding(6.dp)
                         .width(36.dp)
                         .height(16.dp),
-                shape = RoundedCornerShape(4.dp),
+                shape = MaterialTheme.shapes.extraSmall,
                 delayMillis = 150,
             )
         }
@@ -287,7 +287,7 @@ fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
                     Modifier
                         .fillMaxWidth(0.55f)
                         .height(11.dp),
-                shape = RoundedCornerShape(4.dp),
+                shape = MaterialTheme.shapes.extraSmall,
                 delayMillis = 160,
             )
 
@@ -297,7 +297,7 @@ fun ShimmerVideoCardHorizontal(modifier: Modifier = Modifier) {
                     Modifier
                         .fillMaxWidth(0.40f)
                         .height(11.dp),
-                shape = RoundedCornerShape(4.dp),
+                shape = MaterialTheme.shapes.extraSmall,
                 delayMillis = 200,
             )
         }
@@ -319,7 +319,7 @@ fun ShimmerGridItem(
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(thumbnailAspectRatio),
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
         )
 
         // Title
@@ -337,7 +337,7 @@ fun ShimmerGridItem(
                 Modifier
                     .fillMaxWidth(0.55f)
                     .height(11.dp),
-            shape = RoundedCornerShape(4.dp),
+            shape = MaterialTheme.shapes.extraSmall,
             delayMillis = 140,
         )
     }
@@ -358,7 +358,7 @@ fun ShimmerSectionTitle(modifier: Modifier = Modifier) {
                 Modifier
                     .width(130.dp)
                     .height(18.dp),
-            shape = RoundedCornerShape(6.dp),
+            shape = MaterialTheme.shapes.extraSmall,
         )
 
         ShimmerBone(
@@ -366,7 +366,7 @@ fun ShimmerSectionTitle(modifier: Modifier = Modifier) {
                 Modifier
                     .width(50.dp)
                     .height(14.dp),
-            shape = RoundedCornerShape(4.dp),
+            shape = MaterialTheme.shapes.extraSmall,
             delayMillis = 100,
         )
     }
@@ -390,7 +390,7 @@ fun ShimmerChipRow(
                     Modifier
                         .width((60 + (index * 12) % 40).dp)
                         .height(32.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.large,
                 delayMillis = index * 60,
             )
         }
@@ -404,7 +404,7 @@ fun ShimmerMoodButton(modifier: Modifier = Modifier) {
             modifier
                 .height(48.dp)
                 .fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
     )
 }
 
@@ -439,7 +439,7 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                 // Left album art square
                 ShimmerBone(
                     modifier = Modifier.size(56.dp),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MaterialTheme.shapes.small,
                     delayMillis = index * 40,
                 )
 
@@ -454,7 +454,7 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                     )
                     ShimmerBone(
                         modifier = Modifier.fillMaxWidth(0.50f).height(11.dp),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         delayMillis = 100 + index * 40,
                     )
                 }
@@ -462,7 +462,7 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                 // Right small thumbnail
                 ShimmerBone(
                     modifier = Modifier.size(56.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.small,
                     delayMillis = 120 + index * 40,
                 )
             }
@@ -488,7 +488,7 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                     // Square album art
                     ShimmerBone(
                         modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = MaterialTheme.shapes.medium,
                         delayMillis = index * 60,
                     )
                     // Title
@@ -499,7 +499,7 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                     // Artist
                     ShimmerBone(
                         modifier = Modifier.fillMaxWidth(0.65f).height(10.dp),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         delayMillis = 80 + index * 60,
                     )
                 }
@@ -525,7 +525,7 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                 ) {
                     ShimmerBone(
                         modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = MaterialTheme.shapes.medium,
                         delayMillis = index * 50,
                     )
                     ShimmerBone(
@@ -534,7 +534,7 @@ fun MusicScreenShimmerLoading(modifier: Modifier = Modifier) {
                     )
                     ShimmerBone(
                         modifier = Modifier.fillMaxWidth(0.60f).height(10.dp),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         delayMillis = 80 + index * 50,
                     )
                 }
