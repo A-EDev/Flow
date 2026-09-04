@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import io.github.aedev.flow.ui.theme.ArtworkScrim
 
 /**
  * Adds a subtle press-scale animation to any composable.
@@ -62,7 +63,7 @@ fun Modifier.pressScale(
  * allocated a Brush and its colour list for every visible card on every frame of a scroll.
  */
 fun Modifier.thumbnailGradientOverlay(
-    color: Color = Color.Black,
+    color: Color = ArtworkScrim,
     alpha: Float = 0.25f,
     startFraction: Float = 0.6f,
 ): Modifier =
