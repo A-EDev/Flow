@@ -2478,4 +2478,10 @@
     <string name="music_brain_export_success">Dati del motore musicali esportati</string>
     <string name="music_brain_export_failed">Esportazione del motore musicale non riuscita</string>
     <string name="music_brain_import_success">Dati del motore musicale importati</string>
+    <string name="player_settings_shorts_pip">Shorts Picture-in-Picture</string>
+    <string name="music_endless_radio_desc">Mantieni in riproduzione la coda con brani simili quando si svuota</string>
+    <string name="music_brain_import_failed">Importazione del motore musicale non riuscita</string>
+    <string name="music_persona_overview_title">Gusto musicale</string>
+    <string name="music_persona_overview_subtitle">Cos\'ha appreso il motore musicale dai tuoi ascolti</string>
+    <string name="music_persona_maturity_cold">Cold start</string>
 </resources>
