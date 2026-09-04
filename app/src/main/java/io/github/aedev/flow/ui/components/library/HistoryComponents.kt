@@ -4,12 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.DropdownMenu
@@ -21,10 +24,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +41,7 @@ import io.github.aedev.flow.data.model.toMusicTrack
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.ShortsCard
+import io.github.aedev.flow.ui.components.shared.FastScrollbar
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
 import io.github.aedev.flow.ui.components.shared.animateMediaListItem
@@ -52,6 +58,8 @@ private val ShortsRowPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp
 private val ItemSpacing = 4.dp
 private const val DAYS_IN_WEEK = 7
 private const val MILLIS_PER_DAY = 24L * 60L * 60L * 1000L
+private const val SECTION_HEADER_KEY_PREFIX = "header-"
+private val ScrollbarInset = 8.dp
 
 @Composable
 internal fun HistoryFilterRow(
@@ -161,81 +169,105 @@ internal fun HistoryList(
             entries.filter { it.isMusic }.map { it.toMusicTrack() }
         }
     val today = remember(entries) { startOfDay(System.currentTimeMillis()) }
+    val listState = rememberLazyListState()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = ListContentPadding,
-        verticalArrangement = Arrangement.spacedBy(ItemSpacing),
-    ) {
-        groupedEntries.forEach { (sectionKey, sectionEntries) ->
-            stickyHeader(key = "header-$sectionKey", contentType = "header") {
-                HistorySectionHeader(
-                    timestamp = sectionEntries.first().timestamp,
-                    today = today,
-                )
-            }
-
-            when (selectedFilter) {
-                HistoryContentFilter.Shorts -> {
-                    item(key = "shorts-$sectionKey", contentType = "shorts") {
-                        ShortsHistoryRow(
-                            entries = sectionEntries,
-                            shortVideos = shortVideos,
-                            onShortClick = onShortClick,
-                            onRemove = onRemove,
-                        )
-                    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = ListContentPadding,
+            verticalArrangement = Arrangement.spacedBy(ItemSpacing),
+        ) {
+            groupedEntries.forEach { (sectionKey, sectionEntries) ->
+                stickyHeader(key = SECTION_HEADER_KEY_PREFIX + sectionKey, contentType = "header") {
+                    HistorySectionHeader(
+                        timestamp = sectionEntries.first().timestamp,
+                        today = today,
+                    )
                 }
 
-                HistoryContentFilter.All -> {
-                    val shorts = sectionEntries.filter { it.isShort && !it.isMusic }
-                    val regular = sectionEntries.filter { !it.isShort || it.isMusic }
-
-                    items(
-                        items = regular,
-                        key = { it.videoId },
-                        contentType = { if (it.isMusic) "track" else "video" },
-                    ) { entry ->
-                        HistoryEntryRow(
-                            entry = entry,
-                            musicQueue = musicQueue,
-                            onVideoClick = onVideoClick,
-                            onMusicClick = onMusicClick,
-                            onRemove = onRemove,
-                            modifier = animateMediaListItem(),
-                        )
-                    }
-
-                    if (shorts.isNotEmpty()) {
+                when (selectedFilter) {
+                    HistoryContentFilter.Shorts -> {
                         item(key = "shorts-$sectionKey", contentType = "shorts") {
                             ShortsHistoryRow(
-                                entries = shorts,
+                                entries = sectionEntries,
                                 shortVideos = shortVideos,
                                 onShortClick = onShortClick,
                                 onRemove = onRemove,
                             )
                         }
                     }
-                }
 
-                else -> {
-                    items(
-                        items = sectionEntries,
-                        key = { it.videoId },
-                        contentType = { if (it.isMusic) "track" else "video" },
-                    ) { entry ->
-                        HistoryEntryRow(
-                            entry = entry,
-                            musicQueue = musicQueue,
-                            onVideoClick = onVideoClick,
-                            onMusicClick = onMusicClick,
-                            onRemove = onRemove,
-                            modifier = animateMediaListItem(),
-                        )
+                    HistoryContentFilter.All -> {
+                        val shorts = sectionEntries.filter { it.isShort && !it.isMusic }
+                        val regular = sectionEntries.filter { !it.isShort || it.isMusic }
+
+                        items(
+                            items = regular,
+                            key = { it.videoId },
+                            contentType = { if (it.isMusic) "track" else "video" },
+                        ) { entry ->
+                            HistoryEntryRow(
+                                entry = entry,
+                                musicQueue = musicQueue,
+                                onVideoClick = onVideoClick,
+                                onMusicClick = onMusicClick,
+                                onRemove = onRemove,
+                                modifier = animateMediaListItem(),
+                            )
+                        }
+
+                        if (shorts.isNotEmpty()) {
+                            item(key = "shorts-$sectionKey", contentType = "shorts") {
+                                ShortsHistoryRow(
+                                    entries = shorts,
+                                    shortVideos = shortVideos,
+                                    onShortClick = onShortClick,
+                                    onRemove = onRemove,
+                                )
+                            }
+                        }
+                    }
+
+                    else -> {
+                        items(
+                            items = sectionEntries,
+                            key = { it.videoId },
+                            contentType = { if (it.isMusic) "track" else "video" },
+                        ) { entry ->
+                            HistoryEntryRow(
+                                entry = entry,
+                                musicQueue = musicQueue,
+                                onVideoClick = onVideoClick,
+                                onMusicClick = onMusicClick,
+                                onRemove = onRemove,
+                                modifier = animateMediaListItem(),
+                            )
+                        }
                     }
                 }
             }
         }
+
+        FastScrollbar(
+            state = listState,
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .padding(vertical = ScrollbarInset),
+            bubble = {
+                val sectionTimestamp by remember(listState) {
+                    derivedStateOf { listState.firstVisibleSectionTimestamp() }
+                }
+                sectionTimestamp?.let { timestamp ->
+                    Text(
+                        text = sectionTitle(timestamp, today),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+            },
+        )
     }
 }
 
@@ -359,6 +391,14 @@ internal fun startOfDay(timestamp: Long): Long =
         }.timeInMillis
 
 internal fun historySectionKey(timestamp: Long): String = startOfDay(timestamp).toString()
+
+private fun LazyListState.firstVisibleSectionTimestamp(): Long? =
+    layoutInfo.visibleItemsInfo.firstNotNullOfOrNull { item ->
+        (item.key as? String)
+            ?.takeIf { it.startsWith(SECTION_HEADER_KEY_PREFIX) }
+            ?.removePrefix(SECTION_HEADER_KEY_PREFIX)
+            ?.toLongOrNull()
+    }
 
 @Composable
 internal fun sectionTitle(
