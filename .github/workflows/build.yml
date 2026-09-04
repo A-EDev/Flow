@@ -78,7 +78,7 @@ jobs:
       - name: Run unit tests
         run: >
           ./gradlew :app:testGithubDebugUnitTest :app:testFossDebugUnitTest
-          --build-cache --stacktrace
+          --max-workers=1 --build-cache --stacktrace
 
       # Instrumentation tests are not executed in CI, but they must still
       # compile: breakage here otherwise lands on main unnoticed.
