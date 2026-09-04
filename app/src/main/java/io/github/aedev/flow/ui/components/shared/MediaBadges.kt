@@ -26,8 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.ArtworkLiveBadge
 import io.github.aedev.flow.ui.theme.ArtworkScrimContent
-import io.github.aedev.flow.ui.theme.LiveBadge
 import io.github.aedev.flow.ui.theme.artworkScrim
 import io.github.aedev.flow.utils.formatDuration
 
@@ -67,7 +67,7 @@ fun VideoStatusBadge(
             MediaTextBadge(
                 text = stringResource(R.string.status_live),
                 modifier = modifier,
-                containerColor = LiveBadge.copy(alpha = BADGE_SCRIM_ALPHA),
+                containerColor = ArtworkLiveBadge.copy(alpha = BADGE_SCRIM_ALPHA),
                 contentColor = ArtworkScrimContent,
             )
         }

@@ -12,8 +12,6 @@ val ArtworkScrim = Color.Black
 /** Text and icons resting on [ArtworkScrim]. */
 val ArtworkScrimContent = Color.White
 
-val LiveBadge = Color(0xFFCC0000)
-
 /** Secondary text on [ArtworkScrim]. */
 val ArtworkScrimContentMuted = ArtworkScrimContent.copy(alpha = 0.78f)
 
@@ -28,6 +26,8 @@ val ArtworkScrimIndex = ArtworkScrim.copy(alpha = 0.6f)
 
 /** Translucent affordance resting directly on artwork. */
 val ArtworkScrimAffordance = ArtworkScrimContent.copy(alpha = 0.1f)
+
+val ArtworkLiveBadge = Color(0xFFCC0000)
 
 /** Stops for the bottom-up gradient that keeps a card's caption legible over its artwork. */
 fun artworkScrim(alpha: Float): Color = ArtworkScrim.copy(alpha = alpha)
