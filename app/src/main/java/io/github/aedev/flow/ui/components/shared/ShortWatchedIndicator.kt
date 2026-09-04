@@ -2,26 +2,28 @@ package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.WATCHED_PROGRESS_THRESHOLD
 import io.github.aedev.flow.ui.components.rememberWatchProgress
+import io.github.aedev.flow.ui.theme.ArtworkScrimContent
+import io.github.aedev.flow.ui.theme.artworkScrim
+
+private const val WATCHED_BADGE_SCRIM_ALPHA = 0.6f
+private val BadgeMargin = 6.dp
+private val BadgePadding = 4.dp
+private val BadgeIconSize = 14.dp
 
 /**
  * "You already watched this reel" marker for a Shorts thumbnail.
@@ -47,30 +49,24 @@ fun ShortWatchedIndicator(
                 modifier =
                     Modifier
                         .align(Alignment.TopStart)
-                        .padding(6.dp),
+                        .padding(BadgeMargin),
                 shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.6f),
+                color = artworkScrim(WATCHED_BADGE_SCRIM_ALPHA),
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Visibility,
                     contentDescription = stringResource(R.string.cd_short_watched),
-                    tint = Color.White,
+                    tint = ArtworkScrimContent,
                     modifier =
                         Modifier
-                            .padding(4.dp)
-                            .size(14.dp),
+                            .padding(BadgePadding)
+                            .size(BadgeIconSize),
                 )
             }
         }
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier =
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .height(3.dp),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = Color.Black.copy(alpha = 0.4f),
+        WatchProgressBar(
+            progress = progress,
+            modifier = Modifier.align(Alignment.BottomStart),
         )
     }
 }

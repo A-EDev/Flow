@@ -77,11 +77,8 @@ import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
-import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
-import io.github.aedev.flow.utils.DateContext
-import io.github.aedev.flow.utils.formatPremiereDate
-import io.github.aedev.flow.utils.formatViewCount
+import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 
 private val HeaderPadding: Dp = 16.dp
@@ -611,14 +608,5 @@ internal fun Video.playlistMetadataLine(showAddedDate: Boolean): String {
     if (showAddedDate && addedAt != null) {
         return stringResource(R.string.playlist_video_added_template, formatYouTubeRelativeTime(addedAt))
     }
-    if (viewCount < 0L) {
-        return formatPremiereDate(uploadDate)?.let { stringResource(R.string.premiere_date_prefix, it) }
-            ?: stringResource(R.string.premiere_soon)
-    }
-    val uploaded = rememberDateDisplaySettings().format(uploadDate, DateContext.LISTS, timestamp)
-    return stringResource(
-        R.string.video_metadata_short_template,
-        stringResource(R.string.views_template, formatViewCount(viewCount)),
-        uploaded,
-    )
+    return videoMetadataLine(video = this, isUpcoming = viewCount < 0L)
 }

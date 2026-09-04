@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,7 +26,6 @@ object MediaThumbnailDefaults {
     val ArtworkSize: Dp = 56.dp
     val VideoAspectRatio: Float = 16f / 9f
     val BadgePadding: Dp = 6.dp
-    val ProgressHeight: Dp = 3.dp
     val PlaceholderSize: Dp = 24.dp
     const val PLACEHOLDER_ALPHA = 0.4f
 }
@@ -86,11 +83,7 @@ fun MediaThumbnail(
         if (showWatchProgress) {
             ThumbnailWatchProgress(
                 videoId = videoId,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(MediaThumbnailDefaults.ProgressHeight),
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
 

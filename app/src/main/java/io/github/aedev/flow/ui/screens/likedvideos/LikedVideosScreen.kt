@@ -1,10 +1,5 @@
 package io.github.aedev.flow.ui.screens.likedvideos
 
-import androidx.compose.animation.core.EaseInCubic
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,13 +36,13 @@ import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.model.toMusicTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
+import io.github.aedev.flow.ui.components.library.LikedRow
+import io.github.aedev.flow.ui.components.library.emptyBodyRes
+import io.github.aedev.flow.ui.components.library.emptyTitleRes
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.MediaKindSelector
-import io.github.aedev.flow.ui.components.shared.MediaRow
-import io.github.aedev.flow.ui.components.shared.MediaRowAction
-import io.github.aedev.flow.ui.components.shared.MediaThumbnail
+import io.github.aedev.flow.ui.components.shared.animateMediaListItem
 import kotlinx.coroutines.launch
 
 private val ListContentPadding = PaddingValues(bottom = 80.dp)
@@ -151,12 +146,7 @@ fun LikesScreen(
                                 onVideoClick = onVideoClick,
                                 onMusicClick = onMusicClick,
                                 onUnlike = { onUnlike(like) },
-                                modifier =
-                                    Modifier.animateItem(
-                                        fadeInSpec = tween(300, easing = EaseOutCubic),
-                                        fadeOutSpec = tween(200, easing = EaseInCubic),
-                                        placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessLow),
-                                    ),
+                                modifier = animateMediaListItem(),
                             )
                         }
                     }
@@ -165,66 +155,3 @@ fun LikesScreen(
         }
     }
 }
-
-@Composable
-private fun LikedRow(
-    like: LikedVideoInfo,
-    musicQueue: List<MusicTrack>,
-    onVideoClick: (MusicTrack) -> Unit,
-    onMusicClick: (MusicTrack, List<MusicTrack>) -> Unit,
-    onUnlike: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val track = remember(like) { like.toMusicTrack() }
-    val unlikeLabel = stringResource(R.string.unlike)
-
-    if (like.isMusic) {
-        MusicTrackItem(
-            track = track,
-            onClick = { onMusicClick(track, musicQueue) },
-            showMenu = false,
-            modifier = modifier,
-            trailingContent = {
-                MediaRowAction(
-                    icon = Icons.Filled.ThumbUp,
-                    contentDescription = unlikeLabel,
-                    onClick = onUnlike,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            },
-        )
-    } else {
-        MediaRow(
-            title = like.title,
-            modifier = modifier,
-            subtitle = like.channelName.takeIf { it.isNotBlank() },
-            onClick = { onVideoClick(track) },
-            trailing = {
-                MediaRowAction(
-                    icon = Icons.Filled.ThumbUp,
-                    contentDescription = unlikeLabel,
-                    onClick = onUnlike,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            },
-        ) {
-            MediaThumbnail(
-                videoId = like.videoId,
-                thumbnailUrl = like.thumbnail,
-                showWatchProgress = true,
-            )
-        }
-    }
-}
-
-private fun MediaKind.emptyTitleRes(): Int =
-    when (this) {
-        MediaKind.Videos -> R.string.empty_liked_videos
-        MediaKind.Music -> R.string.empty_liked_music
-    }
-
-private fun MediaKind.emptyBodyRes(): Int =
-    when (this) {
-        MediaKind.Videos -> R.string.empty_liked_body
-        MediaKind.Music -> R.string.empty_liked_music_body
-    }

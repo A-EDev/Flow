@@ -12,6 +12,8 @@ val ArtworkScrim = Color.Black
 /** Text and icons resting on [ArtworkScrim]. */
 val ArtworkScrimContent = Color.White
 
+val LiveBadge = Color(0xFFCC0000)
+
 /** Secondary text on [ArtworkScrim]. */
 val ArtworkScrimContentMuted = ArtworkScrimContent.copy(alpha = 0.78f)
 

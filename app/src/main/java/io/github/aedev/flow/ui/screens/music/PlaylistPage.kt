@@ -398,11 +398,7 @@ fun PlaylistPage(
                                     thumbnailOverlay = {
                                         ThumbnailWatchProgress(
                                             videoId = track.videoId,
-                                            modifier =
-                                                Modifier
-                                                    .align(Alignment.BottomStart)
-                                                    .fillMaxWidth()
-                                                    .height(3.dp),
+                                            modifier = Modifier.align(Alignment.BottomStart),
                                         )
                                     },
                                     trailingContent =

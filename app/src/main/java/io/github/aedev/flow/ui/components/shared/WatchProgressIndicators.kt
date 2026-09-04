@@ -1,43 +1,41 @@
 package io.github.aedev.flow.ui.components.shared
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import io.github.aedev.flow.data.local.ViewHistory
-import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.components.rememberWatchProgress
+import io.github.aedev.flow.ui.theme.artworkScrim
 
-@Composable
-fun rememberVideoWatchProgress(videoId: String): Float? {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val progress by produceState<Float?>(initialValue = null, key1 = videoId) {
-        ViewHistory.getInstance(context).getVideoHistory(videoId).collectLatest { entry ->
-            value =
-                if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
-                    if (entry.progressPercentage >= 90f) 1f else entry.progressPercentage / 100f
-                } else {
-                    null
-                }
-        }
-    }
-    return progress
-}
+private const val PROGRESS_TRACK_ALPHA = 0.4f
+private val ProgressBarHeight = 3.dp
 
 @Composable
 fun ThumbnailWatchProgress(
     videoId: String,
     modifier: Modifier = Modifier,
 ) {
-    val progress = rememberVideoWatchProgress(videoId)
-    if (progress != null) {
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = modifier,
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = Color.Black.copy(alpha = 0.4f),
-        )
-    }
+    val progress = rememberWatchProgress(videoId) ?: return
+    WatchProgressBar(progress = progress, modifier = modifier)
+}
+
+@Composable
+fun WatchProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    height: Dp = ProgressBarHeight,
+) {
+    LinearProgressIndicator(
+        progress = { progress },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(height),
+        color = MaterialTheme.colorScheme.primary,
+        trackColor = artworkScrim(PROGRESS_TRACK_ALPHA),
+    )
 }

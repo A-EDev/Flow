@@ -16,36 +16,83 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.ArtworkScrimContent
+import io.github.aedev.flow.ui.theme.LiveBadge
+import io.github.aedev.flow.ui.theme.artworkScrim
 import io.github.aedev.flow.utils.formatDuration
 
 private val BadgeSpacing = 4.dp
-private val DurationBadgeHorizontalPadding = 5.dp
-private val DurationBadgeVerticalPadding = 2.dp
+private val BadgeHorizontalPadding = 5.dp
+private val BadgeVerticalPadding = 2.dp
+private const val BADGE_SCRIM_ALPHA = 0.72f
 
 @Composable
 fun DurationBadge(
     seconds: Int,
     modifier: Modifier = Modifier,
 ) {
+    MediaTextBadge(text = formatDuration(seconds), modifier = modifier)
+}
+
+@Composable
+fun VideoStatusBadge(
+    isLive: Boolean,
+    isUpcoming: Boolean,
+    durationSeconds: Int,
+    modifier: Modifier = Modifier,
+) {
+    when {
+        isUpcoming -> {
+            MediaTextBadge(
+                text = stringResource(R.string.status_upcoming),
+                modifier = modifier,
+                containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = BADGE_SCRIM_ALPHA),
+                contentColor = MaterialTheme.colorScheme.onSecondary,
+            )
+        }
+
+        isLive -> {
+            MediaTextBadge(
+                text = stringResource(R.string.status_live),
+                modifier = modifier,
+                containerColor = LiveBadge.copy(alpha = BADGE_SCRIM_ALPHA),
+                contentColor = ArtworkScrimContent,
+            )
+        }
+
+        durationSeconds > 0 -> {
+            DurationBadge(seconds = durationSeconds, modifier = modifier)
+        }
+    }
+}
+
+@Composable
+fun MediaTextBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    containerColor: Color = artworkScrim(BADGE_SCRIM_ALPHA),
+    contentColor: Color = ArtworkScrimContent,
+) {
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraSmall,
-        color = MaterialTheme.colorScheme.inverseSurface,
-        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        color = containerColor,
+        contentColor = contentColor,
     ) {
         Text(
-            text = formatDuration(seconds),
+            text = text,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             modifier =
                 Modifier.padding(
-                    horizontal = DurationBadgeHorizontalPadding,
-                    vertical = DurationBadgeVerticalPadding,
+                    horizontal = BadgeHorizontalPadding,
+                    vertical = BadgeVerticalPadding,
                 ),
         )
     }

@@ -30,7 +30,6 @@ import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -65,20 +64,27 @@ import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
+import io.github.aedev.flow.ui.components.shared.MediaTextBadge
 import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
+import io.github.aedev.flow.ui.components.shared.VideoStatusBadge
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
+import io.github.aedev.flow.ui.components.shared.WatchProgressBar
 import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
+import io.github.aedev.flow.ui.components.shared.videoMetadataLine
+import io.github.aedev.flow.ui.theme.ArtworkScrimContent
+import io.github.aedev.flow.ui.theme.artworkScrim
+import io.github.aedev.flow.ui.theme.artworkScrimContent
 import io.github.aedev.flow.ui.theme.extendedColors
-import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
-import io.github.aedev.flow.utils.formatDuration
-import io.github.aedev.flow.utils.formatPremiereDate
 import io.github.aedev.flow.utils.formatViewCount
 
 private const val AVATAR_TAG = "ChannelAvatarImage"
+private const val REMINDER_BADGE_SCRIM_ALPHA = 0.7f
+private const val REMINDER_BADGE_BORDER_ALPHA = 0.2f
+private val ReminderBadgeBorderWidth = 0.5.dp
 
 private fun Video.channelAvatarUrls(collaborators: List<VideoCollaborator> = emptyList()): List<String> {
     if (collaborators.size <= 1) {
@@ -166,14 +172,14 @@ internal fun rememberCollaboratorItems(video: Video): List<VideoCollaborator> {
 private fun UpcomingReminderBadge(modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(999.dp),
-        color = Color.Black.copy(alpha = 0.7f),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
+        shape = CircleShape,
+        color = artworkScrim(REMINDER_BADGE_SCRIM_ALPHA),
+        border = BorderStroke(ReminderBadgeBorderWidth, artworkScrimContent(REMINDER_BADGE_BORDER_ALPHA)),
     ) {
         Icon(
             imageVector = Icons.Rounded.NotificationsActive,
             contentDescription = stringResource(R.string.upcoming_video_reminder_badge),
-            tint = Color.White,
+            tint = ArtworkScrimContent,
             modifier =
                 Modifier
                     .size(20.dp)
@@ -238,39 +244,15 @@ fun VideoCardHorizontal(
                 contentScale = ContentScale.Crop,
             )
 
-            if (video.isUpcoming) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(6.dp),
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(6.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.status_upcoming),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                    )
-                }
-            } else if (video.isLive || video.duration > 0) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(6.dp),
-                    color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(6.dp),
-                ) {
-                    Text(
-                        text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                    )
-                }
-            }
+            VideoStatusBadge(
+                isLive = video.isLive,
+                isUpcoming = video.isUpcoming,
+                durationSeconds = video.duration,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+            )
 
             if (video.isUpcoming && video.id in upcomingReminderIds) {
                 UpcomingReminderBadge(
@@ -281,17 +263,10 @@ fun VideoCardHorizontal(
                 )
             }
 
-            // Watch progress bar
             watchProgress?.let { progress ->
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(3.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f),
+                WatchProgressBar(
+                    progress = progress,
+                    modifier = Modifier.align(Alignment.BottomStart),
                 )
             }
         }
@@ -323,25 +298,13 @@ fun VideoCardHorizontal(
                         },
                 )
 
-                val premiereDate = formatPremiereDate(video.uploadDate)
-                val displayDate =
-                    remember(video.uploadDate, video.timestamp, dateSettings) {
-                        dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
-                    }
                 Text(
                     text =
-                        if (video.isUpcoming) {
-                            premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) }
-                                ?: stringResource(R.string.premiere_soon)
-                        } else if (video.viewCount >= 0L) {
-                            stringResource(
-                                R.string.video_metadata_short_template,
-                                stringResource(R.string.views_template, formatViewCount(video.viewCount)),
-                                displayDate,
-                            )
-                        } else {
-                            stringResource(R.string.video_metadata_short_template, displayChannelName, displayDate)
-                        },
+                        videoMetadataLine(
+                            video = video,
+                            isUpcoming = video.isUpcoming,
+                            channelName = displayChannelName,
+                        ),
                     style = MaterialTheme.typography.bodySmall,
                     color =
                         if (video.isUpcoming) {
@@ -440,43 +403,15 @@ fun VideoCardFullWidth(
                 contentScale = ContentScale.Crop,
             )
 
-            if (video.isUpcoming) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(8.dp),
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(5.dp),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
-                ) {
-                    Text(
-                        text = stringResource(R.string.status_upcoming),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            } else if (video.isLive || video.duration > 0) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(8.dp),
-                    color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(5.dp),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f)),
-                ) {
-                    Text(
-                        text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            VideoStatusBadge(
+                isLive = video.isLive,
+                isUpcoming = video.isUpcoming,
+                durationSeconds = video.duration,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
+            )
 
             if (video.isUpcoming && video.id in upcomingReminderIds) {
                 UpcomingReminderBadge(
@@ -487,17 +422,10 @@ fun VideoCardFullWidth(
                 )
             }
 
-            // Watch progress bar
             watchProgress?.let { progress ->
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(3.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f),
+                WatchProgressBar(
+                    progress = progress,
+                    modifier = Modifier.align(Alignment.BottomStart),
                 )
             }
 
@@ -561,30 +489,14 @@ fun VideoCardFullWidth(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                val premiereDate = formatPremiereDate(video.uploadDate)
-                val displayDate =
-                    remember(video.uploadDate, video.timestamp, dateSettings) {
-                        dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
-                    }
                 Text(
                     text =
-                        if (video.isUpcoming) {
-                            premiereDate?.let {
-                                stringResource(
-                                    R.string.premiere_date_prefix,
-                                    it,
-                                )
-                            } ?: stringResource(R.string.premiere_soon)
-                        } else if (video.viewCount >= 0L) {
-                            stringResource(
-                                R.string.video_metadata_template,
-                                displayChannelName,
-                                stringResource(R.string.views_template, formatViewCount(video.viewCount)),
-                                displayDate,
-                            )
-                        } else {
-                            stringResource(R.string.video_metadata_short_template, displayChannelName, displayDate)
-                        },
+                        videoMetadataLine(
+                            video = video,
+                            isUpcoming = video.isUpcoming,
+                            channelName = displayChannelName,
+                            includeChannel = true,
+                        ),
                     style = MaterialTheme.typography.bodySmall,
                     color =
                         if (video.isUpcoming) {
@@ -801,55 +713,20 @@ fun CompactVideoCard(
                 contentScale = ContentScale.Crop,
             )
 
-            if (video.isUpcoming || video.viewCount < 0L) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp),
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.status_upcoming),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            } else if (video.isLive || video.duration > 0) {
-                Surface(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp),
-                    color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(4.dp),
-                ) {
-                    Text(
-                        text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            VideoStatusBadge(
+                isLive = video.isLive,
+                isUpcoming = video.isUpcoming || video.viewCount < 0L,
+                durationSeconds = video.duration,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp),
+            )
 
-            // Watch progress bar
             watchProgress?.let { progress ->
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(3.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f),
+                WatchProgressBar(
+                    progress = progress,
+                    modifier = Modifier.align(Alignment.BottomStart),
                 )
             }
 
@@ -909,22 +786,13 @@ fun CompactVideoCard(
                     },
             )
 
-            val premiereDate = formatPremiereDate(video.uploadDate)
-            val displayDate =
-                remember(video.uploadDate, video.timestamp, dateSettings) {
-                    dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
-                }
             Text(
                 text =
-                    if (video.viewCount < 0L) {
-                        premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                    } else {
-                        stringResource(
-                            R.string.video_metadata_short_template,
-                            stringResource(R.string.views_template, formatViewCount(video.viewCount)),
-                            displayDate,
-                        )
-                    },
+                    videoMetadataLine(
+                        video = video,
+                        isUpcoming = video.viewCount < 0L,
+                        channelName = displayChannelName,
+                    ),
                 style = MaterialTheme.typography.bodySmall,
                 color =
                     if (video.viewCount < 0L) {
@@ -1246,32 +1114,18 @@ private fun ShelfVideoCardContent(
                 contentScale = ContentScale.Crop,
             )
             if (durationText != null) {
-                Box(
+                MediaTextBadge(
+                    text = durationText,
                     modifier =
                         Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = durationText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                            .padding(4.dp),
+                )
             }
             if (progress != null) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(3.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.Black.copy(alpha = 0.4f),
+                WatchProgressBar(
+                    progress = progress,
+                    modifier = Modifier.align(Alignment.BottomStart),
                 )
             }
         }

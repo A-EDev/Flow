@@ -2,11 +2,6 @@ package io.github.aedev.flow.ui.screens.playlists
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.EaseInCubic
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +58,7 @@ import io.github.aedev.flow.ui.components.shared.DeleteCollectionDialog
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.MergeIntoCollectionSheet
+import io.github.aedev.flow.ui.components.shared.animateMediaListItem
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 
 private val ListBottomPadding: Dp = 16.dp
@@ -292,11 +288,7 @@ fun PlaylistDetailScreen(
                                     if (canReorder) {
                                         Modifier
                                     } else {
-                                        Modifier.animateItem(
-                                            fadeInSpec = tween(300, easing = EaseOutCubic),
-                                            fadeOutSpec = tween(200, easing = EaseInCubic),
-                                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessLow),
-                                        )
+                                        animateMediaListItem()
                                     },
                                 video = video,
                                 position = index + 1,

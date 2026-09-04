@@ -1,10 +1,14 @@
 package io.github.aedev.flow.ui.components.shared
 
+import androidx.compose.animation.core.EaseInCubic
+import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -92,3 +96,14 @@ fun rememberFlowSheetState(skipPartiallyExpanded: Boolean = true): SheetState =
     rememberModalBottomSheetState(
         skipPartiallyExpanded = skipPartiallyExpanded,
     )
+
+fun LazyItemScope.animateMediaListItem(): Modifier =
+    Modifier.animateItem(
+        fadeInSpec = tween(ITEM_FADE_IN_MILLIS, easing = EaseOutCubic),
+        fadeOutSpec = tween(ITEM_FADE_OUT_MILLIS, easing = EaseInCubic),
+        placementSpec = spring(dampingRatio = ITEM_PLACEMENT_DAMPING, stiffness = Spring.StiffnessLow),
+    )
+
+private const val ITEM_FADE_IN_MILLIS = 300
+private const val ITEM_FADE_OUT_MILLIS = 200
+private const val ITEM_PLACEMENT_DAMPING = 0.8f
