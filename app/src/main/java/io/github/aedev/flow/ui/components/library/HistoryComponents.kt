@@ -256,6 +256,7 @@ internal fun HistoryList(
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
                     .padding(vertical = ScrollbarInset),
+            tickKey = { listState.firstVisibleSectionTimestamp() },
             bubble = {
                 val sectionTimestamp by remember(listState) {
                     derivedStateOf { listState.firstVisibleSectionTimestamp() }

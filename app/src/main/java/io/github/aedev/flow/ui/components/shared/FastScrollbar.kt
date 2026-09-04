@@ -1,8 +1,12 @@
 package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -28,36 +32,49 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlin.math.roundToInt
 
-private val TrackWidth = 24.dp
+private val TouchTargetWidth = 24.dp
 private val ThumbWidth = 4.dp
+private val ThumbWidthActive = 10.dp
 private val ThumbHeight = 52.dp
-private val BubbleHorizontalPadding = 12.dp
+private val BubbleHorizontalPadding = 14.dp
 private val BubbleVerticalPadding = 8.dp
-private val BubbleSpacing = 8.dp
+private val BubbleSpacing = 10.dp
 private const val MIN_ITEMS_FOR_SCROLLBAR = 40
 private const val HIDE_DELAY_MS = 1_400L
+private const val BUBBLE_INITIAL_SCALE = 0.7f
 
 @Composable
 fun FastScrollbar(
     state: LazyListState,
     modifier: Modifier = Modifier,
     minItems: Int = MIN_ITEMS_FOR_SCROLLBAR,
+    tickKey: (() -> Any?)? = null,
     bubble: @Composable (() -> Unit)? = null,
 ) {
     val enabled by remember(state, minItems) {
         derivedStateOf { state.layoutInfo.totalItemsCount >= minItems }
     }
     if (!enabled) return
+
+    val haptics = LocalHapticFeedback.current
+    val motion = MaterialTheme.motionScheme
 
     var dragging by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
@@ -72,25 +89,63 @@ fun FastScrollbar(
         }
     }
 
+    if (dragging && tickKey != null) {
+        LaunchedEffect(Unit) {
+            snapshotFlow { tickKey() }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { haptics.performHapticFeedback(HapticFeedbackType.SegmentTick) }
+        }
+    }
+
+    val alpha =
+        animateFloatAsState(
+            targetValue = if (visible) 1f else 0f,
+            animationSpec = motion.defaultEffectsSpec(),
+            label = "fastScrollbarAlpha",
+        )
+    val thumbWidth by animateDpAsState(
+        targetValue = if (dragging) ThumbWidthActive else ThumbWidth,
+        animationSpec = motion.fastSpatialSpec(),
+        label = "fastScrollbarThumbWidth",
+    )
+
     val thumbHeightPx = with(LocalDensity.current) { ThumbHeight.roundToPx() }
     var trackHeightPx by remember { mutableIntStateOf(0) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
 
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter = fadeIn(),
-        exit = fadeOut(),
-    ) {
+    Box(modifier = modifier.onSizeChanged { trackHeightPx = it.height }) {
         Row(
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .offset {
+                        val travel = (trackHeightPx - thumbHeightPx).coerceAtLeast(0)
+                        IntOffset(0, (travel * scrollFraction(state)).roundToInt())
+                    }.graphicsLayer { this.alpha = alpha.value },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(BubbleSpacing),
         ) {
-            if (dragging && bubble != null) {
+            AnimatedVisibility(
+                visible = dragging && bubble != null,
+                enter =
+                    scaleIn(
+                        animationSpec = motion.defaultSpatialSpec(),
+                        initialScale = BUBBLE_INITIAL_SCALE,
+                        transformOrigin = TransformOrigin(1f, 0.5f),
+                    ) + fadeIn(animationSpec = motion.fastEffectsSpec()),
+                exit =
+                    scaleOut(
+                        animationSpec = motion.fastSpatialSpec(),
+                        targetScale = BUBBLE_INITIAL_SCALE,
+                        transformOrigin = TransformOrigin(1f, 0.5f),
+                    ) + fadeOut(animationSpec = motion.fastEffectsSpec()),
+            ) {
                 Surface(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    shadowElevation = BubbleElevation,
                 ) {
                     Box(
                         modifier =
@@ -99,7 +154,7 @@ fun FastScrollbar(
                                 vertical = BubbleVerticalPadding,
                             ),
                     ) {
-                        bubble()
+                        bubble?.invoke()
                     }
                 }
             }
@@ -107,49 +162,44 @@ fun FastScrollbar(
             Box(
                 modifier =
                     Modifier
-                        .fillMaxHeight()
-                        .width(TrackWidth)
-                        .onSizeChanged { trackHeightPx = it.height },
+                        .width(TouchTargetWidth)
+                        .height(ThumbHeight)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            enabled = visible,
+                            state =
+                                rememberDraggableState { delta ->
+                                    val travel = (trackHeightPx - thumbHeightPx).coerceAtLeast(1)
+                                    dragFraction = (dragFraction + delta / travel).coerceIn(0f, 1f)
+                                    val lastIndex = (state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
+                                    state.requestScrollToItem((lastIndex * dragFraction).roundToInt())
+                                },
+                            onDragStarted = {
+                                dragFraction = scrollFraction(state)
+                                dragging = true
+                                haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                            },
+                            onDragStopped = {
+                                dragging = false
+                                haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                            },
+                        ),
+                contentAlignment = Alignment.CenterEnd,
             ) {
                 Box(
                     modifier =
                         Modifier
-                            .align(Alignment.TopEnd)
-                            .offset {
-                                val travel = (trackHeightPx - thumbHeightPx).coerceAtLeast(0)
-                                IntOffset(0, (travel * scrollFraction(state)).roundToInt())
-                            }.width(TrackWidth)
-                            .height(ThumbHeight)
-                            .draggable(
-                                orientation = Orientation.Vertical,
-                                state =
-                                    rememberDraggableState { delta ->
-                                        val travel = (trackHeightPx - thumbHeightPx).coerceAtLeast(1)
-                                        dragFraction = (dragFraction + delta / travel).coerceIn(0f, 1f)
-                                        val lastIndex = (state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)
-                                        state.requestScrollToItem((lastIndex * dragFraction).roundToInt())
-                                    },
-                                onDragStarted = {
-                                    dragFraction = scrollFraction(state)
-                                    dragging = true
-                                },
-                                onDragStopped = { dragging = false },
-                            ),
-                    contentAlignment = Alignment.CenterEnd,
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .width(ThumbWidth)
-                                .fillMaxHeight()
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                    )
-                }
+                            .width(thumbWidth)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                )
             }
         }
     }
 }
+
+private val BubbleElevation = 3.dp
 
 private fun scrollFraction(state: LazyListState): Float {
     val info = state.layoutInfo
