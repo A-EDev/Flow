@@ -165,6 +165,31 @@ fun LazyListScope.musicHomeFeed(
         }
     }
 
+    if (uiState.deepCutTracks.isNotEmpty()) {
+        item(key = "deep_cuts") {
+            BrainShelf(
+                title = stringResource(R.string.section_deep_cuts),
+                tracks = uiState.deepCutTracks,
+                playFrom = "deep_cuts",
+                onSongClick = onSongClick,
+                onTrackMenu = onTrackMenu,
+            )
+        }
+    }
+
+    if (uiState.artistsForYou.isNotEmpty()) {
+        item(key = "artists_for_you") {
+            MusicArtistShelf(
+                title = stringResource(R.string.section_artists_for_you),
+                artists = uiState.artistsForYou,
+                key = { "artists_for_you:${it.channelId}" },
+                name = { it.name },
+                thumbnailUrl = { it.thumbnailUrl },
+                onArtistClick = { onArtistClick(it.channelId) },
+            )
+        }
+    }
+
     sectionOrder.forEach { sectionType ->
         when (sectionType) {
             HomeSectionType.DAILY_DISCOVER -> {

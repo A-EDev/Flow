@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import io.github.aedev.flow.data.local.dao.CacheDao
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.dao.HomeFeedCacheDao
+import io.github.aedev.flow.data.local.dao.MusicGraphDao
 import io.github.aedev.flow.data.local.dao.NotificationDao
 import io.github.aedev.flow.data.local.dao.PlaylistDao
 import io.github.aedev.flow.data.local.dao.RecognitionHistoryDao
@@ -18,6 +19,11 @@ import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.local.entity.DownloadEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphAlbumEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphArtistEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphEdgeEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphPlaylistEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphTrackEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeCacheEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeChipEntity
 import io.github.aedev.flow.data.local.entity.NotificationEntity
@@ -50,11 +56,17 @@ import io.github.aedev.flow.data.local.migrations.Migration24To25
         RecognitionHistoryEntity::class,
         SyncLogEntity::class,
         SyncPeerEntity::class,
+        MusicGraphTrackEntity::class,
+        MusicGraphArtistEntity::class,
+        MusicGraphAlbumEntity::class,
+        MusicGraphPlaylistEntity::class,
+        MusicGraphEdgeEntity::class,
     ],
     autoMigrations = [
         AutoMigration(from = 24, to = 25, spec = Migration24To25::class),
+        AutoMigration(from = 25, to = 26),
     ],
-    version = 25,
+    version = 26,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -79,6 +91,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncLogDao(): SyncLogDao
 
     abstract fun syncPeerDao(): SyncPeerDao
+
+    abstract fun musicGraphDao(): MusicGraphDao
 
     companion object {
         @Volatile

@@ -146,6 +146,14 @@ data class ChartsPage(
                     channelId = browseId,
                     shuffleEndpoint = renderer.menu.watchPlaylistEndpointFor("MUSIC_SHUFFLE"),
                     radioEndpoint = renderer.menu.watchPlaylistEndpointFor("MIX"),
+                    subscriberCountText =
+                        renderer.flexColumns
+                            .getOrNull(1)
+                            ?.musicResponsiveListItemFlexColumnRenderer
+                            ?.text
+                            ?.runs
+                            ?.firstOrNull()
+                            ?.text,
                 )
             }
             val videoId = renderer.playlistItemData?.videoId ?: return null

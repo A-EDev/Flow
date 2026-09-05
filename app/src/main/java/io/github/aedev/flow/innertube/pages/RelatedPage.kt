@@ -260,6 +260,11 @@ data class RelatedPage(
                         channelId = browseId,
                         shuffleEndpoint = renderer.menu.watchPlaylistEndpointFor("MUSIC_SHUFFLE"),
                         radioEndpoint = renderer.menu.watchPlaylistEndpointFor("MIX"),
+                        subscriberCountText =
+                            renderer.subtitle
+                                ?.runs
+                                ?.firstOrNull()
+                                ?.text,
                     )
                 }
 

@@ -1664,6 +1664,8 @@
     <string name="section_daily_mix_label">Daily Mix</string>
     <string name="daily_mix_page_description">Built from artists you listen to together. Save it to keep today\'s mix.</string>
     <string name="section_rediscover">Rediscover</string>
+    <string name="section_deep_cuts">Deep cuts</string>
+    <string name="section_artists_for_you">Artists for you</string>
     <string name="section_from_artists_you_love">From artists you love</string>
     <string name="section_your_history">Your history</string>
     <string name="artist_insights_played_times">Played %1$d times</string>

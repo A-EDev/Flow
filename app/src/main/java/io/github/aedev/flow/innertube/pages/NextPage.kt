@@ -23,6 +23,11 @@ data class NextResult(
 object NextPage {
     fun fromPlaylistPanelVideoRenderer(renderer: PlaylistPanelVideoRenderer): SongItem? {
         val longByLineRuns = renderer.longBylineText?.runs?.splitBySeparator() ?: return null
+        val counts =
+            longByLineRuns
+                .drop(1)
+                .filter { segment -> segment.firstOrNull()?.navigationEndpoint == null }
+                .mapNotNull { segment -> segment.firstOrNull()?.text }
         return SongItem(
             id = renderer.videoId ?: return null,
             title =
@@ -64,6 +69,8 @@ object NextPage {
                 renderer.badges?.find {
                     it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
                 } != null,
+            viewCountText = counts.getOrNull(0),
+            likeCountText = counts.getOrNull(1),
         )
     }
 }

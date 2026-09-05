@@ -34,6 +34,7 @@ data class SongItem(
     val endpoint: WatchEndpoint? = null,
     val setVideoId: String? = null,
     val viewCountText: String? = null,
+    val likeCountText: String? = null,
 ) : YTItem() {
     val isVideoSong: Boolean
         get() = musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV
@@ -81,6 +82,7 @@ data class ArtistItem(
     val playEndpoint: WatchEndpoint? = null,
     val shuffleEndpoint: WatchEndpoint?,
     val radioEndpoint: WatchEndpoint?,
+    val subscriberCountText: String? = null,
 ) : YTItem() {
     override val explicit: Boolean
         get() = false

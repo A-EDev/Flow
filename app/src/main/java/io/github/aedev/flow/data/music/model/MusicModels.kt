@@ -20,6 +20,7 @@ data class MusicTrack(
     val thumbnailUrl: String,
     val duration: Int,
     val views: Long = 0,
+    val likes: Long = 0,
     val sourceUrl: String = "", // Full URL for NewPipe extraction
     val album: String = "",
     val channelId: String = "",
@@ -128,7 +129,11 @@ data class MusicCharts(
 )
 
 data class RelatedMusic(
+    val seed: MusicTrack?,
+    val seedArtistId: String?,
     val tracks: List<MusicTrack>,
-    val similarArtistIds: List<String>,
+    val radioTracks: List<MusicTrack>,
+    val similarArtists: List<ArtistDetails>,
     val playlists: List<MusicPlaylist>,
+    val artistAlbums: List<MusicPlaylist>,
 )

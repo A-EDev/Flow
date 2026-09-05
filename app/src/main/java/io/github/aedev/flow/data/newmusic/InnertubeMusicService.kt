@@ -20,6 +20,7 @@ import io.github.aedev.flow.innertube.pages.AlbumPage
 import io.github.aedev.flow.innertube.pages.ArtistSectionKind
 import io.github.aedev.flow.innertube.pages.ChartsPage
 import io.github.aedev.flow.innertube.pages.ExplorePage
+import io.github.aedev.flow.innertube.pages.RelatedShelfType
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -228,13 +229,23 @@ object InnertubeMusicService {
                 android.util.Log.w("InnertubeMusic", "related($videoId): related failed: ${relatedOutcome.exceptionOrNull()}")
                 return@withContext null
             }
+            val currentIndex = nextResult.currentIndex
+            val seed = currentIndex?.let { nextResult.items.getOrNull(it) }?.let { convertToMusicTrack(it) }
             RelatedMusic(
+                seed = seed,
+                seedArtistId = related.sections.firstOrNull { it.type == RelatedShelfType.MORE_FROM_ARTIST }?.artistBrowseId,
                 tracks =
                     related.songs
                         .filterNot { audioOnly && it.isVideoSong }
                         .mapNotNull { convertToMusicTrack(it) },
-                similarArtistIds = related.artists.map { it.id },
+                radioTracks =
+                    nextResult.items
+                        .filterIndexed { index, _ -> index != currentIndex }
+                        .filterNot { audioOnly && it.isVideoSong }
+                        .mapNotNull { convertToMusicTrack(it) },
+                similarArtists = related.artists.map { convertArtistItemToDetails(it) },
                 playlists = related.playlists.map { convertPlaylistToMusicPlaylist(it) },
+                artistAlbums = related.albums.map { convertAlbumToPlaylist(it) },
             )
         }
 
@@ -242,61 +253,6 @@ object InnertubeMusicService {
         videoId: String,
         audioOnly: Boolean = false,
     ): List<MusicTrack> = getRelatedPage(videoId, audioOnly)?.tracks.orEmpty()
-
-    /**
-     * Related music with paging. Page 1 is the related browse (the best-quality
-     * similar tracks); further pages stream from the track's radio queue via
-     * next-continuations — the same primitive endless radio is built on. Results
-     * are deduped and the seed track itself is excluded.
-     */
-    suspend fun getRelatedMusicPaged(
-        videoId: String,
-        limit: Int,
-        maxPages: Int = 3,
-        audioOnly: Boolean = false,
-    ): List<MusicTrack> =
-        withContext(Dispatchers.IO) {
-            val collected = LinkedHashMap<String, MusicTrack>()
-            getRelatedMusic(videoId, audioOnly).forEach { track ->
-                if (track.videoId !in collected) collected[track.videoId] = track
-            }
-            var pagesFetched = 1
-
-            try {
-                var nextResult =
-                    if (collected.size < limit && pagesFetched < maxPages) {
-                        pagesFetched++
-                        YouTube
-                            .next(
-                                io.github.aedev.flow.innertube.models
-                                    .WatchEndpoint(videoId = videoId),
-                            ).getOrNull()
-                    } else {
-                        null
-                    }
-                while (nextResult != null) {
-                    nextResult.items
-                        .filterNot { audioOnly && it.isVideoSong }
-                        .mapNotNull { convertToMusicTrack(it) }
-                        .forEach { track ->
-                            if (track.videoId != videoId && track.videoId !in collected) {
-                                collected[track.videoId] = track
-                            }
-                        }
-                    val continuation = nextResult.continuation
-                    nextResult =
-                        if (collected.size < limit && pagesFetched < maxPages && continuation != null) {
-                            pagesFetched++
-                            YouTube.next(nextResult.endpoint, continuation).getOrNull()
-                        } else {
-                            null
-                        }
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("InnertubeMusic", "relatedPaged($videoId): radio page failed: ${e.message}")
-            }
-            collected.values.take(limit)
-        }
 
     suspend fun fetchCharts(): MusicCharts? =
         withContext(Dispatchers.IO) {
@@ -345,7 +301,7 @@ object InnertubeMusicService {
                 name = artistItem.title,
                 channelId = artistItem.id,
                 thumbnailUrl = artistItem.thumbnail ?: "",
-                subscriberCount = parseViewCount(page.subscriberCountText),
+                subscriberCount = parseCount(page.subscriberCountText),
                 monthlyListenersText = page.monthlyListenersText,
                 description = page.description ?: "",
                 topTracks = tracks(ArtistSectionKind.TOP_SONGS),
@@ -488,8 +444,7 @@ object InnertubeMusicService {
             name = item.title ?: "",
             channelId = item.id ?: "",
             thumbnailUrl = item.thumbnail ?: "",
-            subscriberCount = 0L,
-            topTracks = emptyList(),
+            subscriberCount = parseCount(item.subscriberCountText),
         )
 
     fun convertToMusicTrack(item: YTItem): MusicTrack? =
@@ -510,6 +465,8 @@ object InnertubeMusicService {
                             MusicArtist(it.name, it.id)
                         },
                     isVideoSong = item.isVideoSong,
+                    views = parseCount(item.viewCountText),
+                    likes = parseCount(item.likeCountText),
                 )
             }
 
@@ -529,7 +486,7 @@ object InnertubeMusicService {
             }
         }
 
-    private fun parseViewCount(text: String?): Long {
+    private fun parseCount(text: String?): Long {
         if (text == null) return 0
         val cleanText = text.split(" ").firstOrNull() ?: return 0
         return try {
