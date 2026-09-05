@@ -12,9 +12,9 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import org.junit.Test
 
 /**
- * InnerTube returns albums and playlists inside track lanes. Tapping one must open the collection
- * rather than start playback — a rule that used to be written out at three separate call sites on
- * the home feed and now lives once in the shelf.
+ * InnerTube returns albums, playlists and artists inside track lanes. Tapping one must open the
+ * collection or artist rather than start playback — a rule that used to be written out at three
+ * separate call sites on the home feed and now lives once in the shelf.
  */
 class MusicShelfRoutingTest {
     private fun entry(type: MusicItemType) =
@@ -28,15 +28,15 @@ class MusicShelfRoutingTest {
         )
 
     @Test
-    fun albumsAndPlaylistsRouteToTheCollectionHandler() {
+    fun albumsPlaylistsAndArtistsRouteToTheCollectionHandler() {
         assertThat(entry(MusicItemType.ALBUM).isCollection).isTrue()
         assertThat(entry(MusicItemType.PLAYLIST).isCollection).isTrue()
+        assertThat(entry(MusicItemType.ARTIST).isCollection).isTrue()
     }
 
     @Test
-    fun songsAndArtistsDoNotRouteToTheCollectionHandler() {
+    fun onlySongsStartPlayback() {
         assertThat(entry(MusicItemType.SONG).isCollection).isFalse()
-        assertThat(entry(MusicItemType.ARTIST).isCollection).isFalse()
     }
 
     @Test
