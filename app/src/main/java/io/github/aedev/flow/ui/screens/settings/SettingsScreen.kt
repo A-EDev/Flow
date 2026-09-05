@@ -171,7 +171,7 @@ fun SettingsScreen(
         }
 
     // Optimize Region Dialog: compute list only once
-    val regionList = remember { REGION_NAMES.toList() }
+    val regionOptions = remember { regionPickerOptions() }
     val appLanguageOptions = remember { AppLanguageManager.getSupportedLanguages() }
     val currentAppLanguageLabel =
         remember(currentAppLanguage, appLanguageOptions) {
@@ -1393,301 +1393,55 @@ fun SettingsScreen(
     }
 
     if (showAppLanguageDialog) {
-        var languageSearchQuery by remember { mutableStateOf("") }
-        val normalizedCurrentLanguage =
-            remember(currentAppLanguage) {
-                AppLanguageManager.normalizeLanguageTag(currentAppLanguage)
-            }
-        val filteredLanguages =
-            remember(languageSearchQuery, appLanguageOptions) {
-                if (languageSearchQuery.isBlank()) {
-                    appLanguageOptions
-                } else {
-                    appLanguageOptions.filter { option ->
-                        option.nativeName.contains(languageSearchQuery, ignoreCase = true) ||
-                            option.localizedName.contains(languageSearchQuery, ignoreCase = true) ||
-                            option.tag.contains(languageSearchQuery, ignoreCase = true)
+        val languageOptions =
+            remember(appLanguageOptions) {
+                listOf(
+                    PickerOption(
+                        key = AppLanguageManager.SYSTEM_DEFAULT,
+                        label = context.getString(R.string.settings_language_system_default),
+                        secondaryLabel = context.getString(R.string.settings_item_app_language_subtitle),
+                    ),
+                ) +
+                    appLanguageOptions.map { option ->
+                        PickerOption(
+                            key = option.tag,
+                            label = option.nativeName,
+                            secondaryLabel = option.localizedName.takeIf { it != option.nativeName },
+                        )
                     }
-                }
             }
-        AlertDialog(
-            onDismissRequest = { showAppLanguageDialog = false },
-            title = { Text(stringResource(R.string.settings_language_dialog_title)) },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = languageSearchQuery,
-                        onValueChange = { languageSearchQuery = it },
-                        placeholder = { Text(stringResource(R.string.search_hint)) },
-                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    LazyColumn(Modifier.heightIn(max = 320.dp)) {
-                        item {
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        coroutineScope.launch {
-                                            playerPreferences.setAppLanguage(AppLanguageManager.SYSTEM_DEFAULT)
-                                            AppLanguageManager.saveLanguageTag(context, AppLanguageManager.SYSTEM_DEFAULT)
-                                            showAppLanguageDialog = false
-                                            AppLanguageManager.activityContext(context)?.recreate()
-                                        }
-                                    }.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(
-                                    selected = normalizedCurrentLanguage == AppLanguageManager.SYSTEM_DEFAULT,
-                                    onClick = null,
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Column {
-                                    Text(stringResource(R.string.settings_language_system_default))
-                                    Text(
-                                        text = stringResource(R.string.settings_item_app_language_subtitle),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                        items(filteredLanguages.size) { index ->
-                            val option = filteredLanguages[index]
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        coroutineScope.launch {
-                                            playerPreferences.setAppLanguage(option.tag)
-                                            AppLanguageManager.saveLanguageTag(context, option.tag)
-                                            showAppLanguageDialog = false
-                                            AppLanguageManager.activityContext(context)?.recreate()
-                                        }
-                                    }.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(selected = normalizedCurrentLanguage == option.tag, onClick = null)
-                                Spacer(Modifier.width(8.dp))
-                                Column {
-                                    Text(option.nativeName)
-                                    if (option.localizedName != option.nativeName) {
-                                        Text(
-                                            text = option.localizedName,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+        SearchablePickerDialog(
+            title = stringResource(R.string.settings_language_dialog_title),
+            options = languageOptions,
+            selectedKey = AppLanguageManager.normalizeLanguageTag(currentAppLanguage),
+            onSelect = { tag ->
+                coroutineScope.launch {
+                    playerPreferences.setAppLanguage(tag)
+                    AppLanguageManager.saveLanguageTag(context, tag)
+                    showAppLanguageDialog = false
+                    AppLanguageManager.activityContext(context)?.recreate()
                 }
             },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showAppLanguageDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
+            onDismiss = { showAppLanguageDialog = false },
         )
     }
 
-    // Region Selection Dialog
     if (showRegionDialog) {
-        var regionSearchQuery by remember { mutableStateOf("") }
-        val filteredRegions =
-            remember(regionSearchQuery) {
-                if (regionSearchQuery.isBlank()) {
-                    regionList
-                } else {
-                    regionList.filter { (code, name) ->
-                        name.contains(regionSearchQuery, ignoreCase = true) ||
-                            code.contains(regionSearchQuery, ignoreCase = true)
-                    }
-                }
-            }
-        AlertDialog(
-            onDismissRequest = { showRegionDialog = false },
-            title = { Text(stringResource(R.string.settings_region_dialog_title)) },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = regionSearchQuery,
-                        onValueChange = { regionSearchQuery = it },
-                        placeholder = { Text(stringResource(R.string.search_hint)) },
-                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    LazyColumn(Modifier.heightIn(max = 260.dp)) {
-                        items(filteredRegions.size) { index ->
-                            val (code, name) = filteredRegions[index]
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        coroutineScope.launch {
-                                            playerPreferences.setTrendingRegion(code)
-                                            showRegionDialog = false
-                                        }
-                                    }.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(selected = currentRegion == code, onClick = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(name)
-                            }
-                        }
-                    }
+        SearchablePickerDialog(
+            title = stringResource(R.string.settings_region_dialog_title),
+            options = regionOptions,
+            selectedKey = currentRegion,
+            onSelect = { code ->
+                coroutineScope.launch {
+                    playerPreferences.setTrendingRegion(code)
+                    showRegionDialog = false
                 }
             },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { showRegionDialog = false }) { Text(stringResource(R.string.cancel)) } },
+            onDismiss = { showRegionDialog = false },
+            listMaxHeight = 260.dp,
         )
     }
 }
-
-private val REGION_NAMES =
-    mapOf(
-        "DZ" to "Algeria",
-        "AS" to "American Samoa",
-        "AI" to "Anguilla",
-        "AR" to "Argentina",
-        "AW" to "Aruba",
-        "AU" to "Australia",
-        "AT" to "Austria",
-        "AZ" to "Azerbaijan",
-        "BH" to "Bahrain",
-        "BD" to "Bangladesh",
-        "BY" to "Belarus",
-        "BE" to "Belgium",
-        "BM" to "Bermuda",
-        "BO" to "Bolivia",
-        "BA" to "Bosnia and Herzegovina",
-        "BR" to "Brazil",
-        "IO" to "British Indian Ocean Territory",
-        "VG" to "British Virgin Islands",
-        "BG" to "Bulgaria",
-        "KH" to "Cambodia",
-        "CA" to "Canada",
-        "KY" to "Cayman Islands",
-        "CL" to "Chile",
-        "CO" to "Colombia",
-        "CR" to "Costa Rica",
-        "HR" to "Croatia",
-        "CY" to "Cyprus",
-        "CZ" to "Czech Republic",
-        "DK" to "Denmark",
-        "DO" to "Dominican Republic",
-        "EC" to "Ecuador",
-        "EG" to "Egypt",
-        "SV" to "El Salvador",
-        "EE" to "Estonia",
-        "FK" to "Falkland Islands",
-        "FO" to "Faroe Islands",
-        "FI" to "Finland",
-        "FR" to "France",
-        "GF" to "French Guiana",
-        "PF" to "French Polynesia",
-        "GE" to "Georgia",
-        "DE" to "Germany",
-        "GH" to "Ghana",
-        "GI" to "Gibraltar",
-        "GR" to "Greece",
-        "GL" to "Greenland",
-        "GP" to "Guadeloupe",
-        "GU" to "Guam",
-        "GT" to "Guatemala",
-        "HN" to "Honduras",
-        "HK" to "Hong Kong",
-        "HU" to "Hungary",
-        "IS" to "Iceland",
-        "IN" to "India",
-        "ID" to "Indonesia",
-        "IQ" to "Iraq",
-        "IE" to "Ireland",
-        "IL" to "Israel",
-        "IT" to "Italy",
-        "JM" to "Jamaica",
-        "JP" to "Japan",
-        "JO" to "Jordan",
-        "KZ" to "Kazakhstan",
-        "KE" to "Kenya",
-        "KW" to "Kuwait",
-        "LA" to "Laos",
-        "LV" to "Latvia",
-        "LB" to "Lebanon",
-        "LY" to "Libya",
-        "LI" to "Liechtenstein",
-        "LT" to "Lithuania",
-        "LU" to "Luxembourg",
-        "MY" to "Malaysia",
-        "MT" to "Malta",
-        "MQ" to "Martinique",
-        "YT" to "Mayotte",
-        "MX" to "Mexico",
-        "MD" to "Moldova",
-        "ME" to "Montenegro",
-        "MS" to "Montserrat",
-        "MA" to "Morocco",
-        "NP" to "Nepal",
-        "NL" to "Netherlands",
-        "NC" to "New Caledonia",
-        "NZ" to "New Zealand",
-        "NI" to "Nicaragua",
-        "NG" to "Nigeria",
-        "NF" to "Norfolk Island",
-        "MP" to "Northern Mariana Islands",
-        "NO" to "Norway",
-        "OM" to "Oman",
-        "PK" to "Pakistan",
-        "PA" to "Panama",
-        "PG" to "Papua New Guinea",
-        "PY" to "Paraguay",
-        "PE" to "Peru",
-        "PH" to "Philippines",
-        "PL" to "Poland",
-        "PT" to "Portugal",
-        "PR" to "Puerto Rico",
-        "QA" to "Qatar",
-        "RE" to "Reunion",
-        "RO" to "Romania",
-        "RU" to "Russia",
-        "SH" to "Saint Helena",
-        "PM" to "Saint Pierre and Miquelon",
-        "SA" to "Saudi Arabia",
-        "SN" to "Senegal",
-        "RS" to "Serbia",
-        "SG" to "Singapore",
-        "SK" to "Slovakia",
-        "SI" to "Slovenia",
-        "ZA" to "South Africa",
-        "KR" to "South Korea",
-        "ES" to "Spain",
-        "LK" to "Sri Lanka",
-        "SJ" to "Svalbard and Jan Mayen",
-        "SE" to "Sweden",
-        "CH" to "Switzerland",
-        "TW" to "Taiwan",
-        "TZ" to "Tanzania",
-        "TH" to "Thailand",
-        "TN" to "Tunisia",
-        "TR" to "Turkey",
-        "TC" to "Turks and Caicos Islands",
-        "UG" to "Uganda",
-        "UA" to "Ukraine",
-        "AE" to "United Arab Emirates",
-        "GB" to "United Kingdom",
-        "US" to "United States",
-        "VI" to "U.S. Virgin Islands",
-        "UY" to "Uruguay",
-        "VE" to "Venezuela",
-        "VN" to "Vietnam",
-    ).toList().sortedBy { it.second }.toMap()
 
 private fun getThemeNameRes(theme: ThemeMode): Int =
     when (theme) {

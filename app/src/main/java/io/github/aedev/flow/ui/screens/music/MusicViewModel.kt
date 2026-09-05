@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideosRepository
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.MusicCache
 import io.github.aedev.flow.data.music.YouTubeMusicService
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -63,6 +65,7 @@ class MusicViewModel
         private val localPlaylistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
         private val downloadManager: DownloadManager,
         private val musicBrain: io.github.aedev.flow.data.recommendation.music.MusicBrainEngine,
+        private val playerPreferences: PlayerPreferences,
     ) : ViewModel() {
         companion object {
             /** Route prefix for synthesized Daily Mix playlist pages. */
@@ -127,12 +130,25 @@ class MusicViewModel
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 _uiState.subscriptionCount.collect { count ->
-                    if (count > 0 && shelvesStale) {
+                    if (count > 0 && homeStale) {
+                        homeStale = false
+                        shelvesStale = false
+                        refresh()
+                    } else if (count > 0 && shelvesStale) {
                         shelvesStale = false
                         rebuildQuickPicks(EnhancedMusicPlayerManager.currentTrack.value)
                         refreshLocalShelves()
                     }
                 }
+            }
+
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                combine(playerPreferences.contentLanguage, playerPreferences.trendingRegion) { language, region -> language to region }
+                    .distinctUntilChanged()
+                    .drop(1)
+                    .collect {
+                        if (isUiVisible()) refresh() else homeStale = true
+                    }
             }
 
             // Speed dial ranked by the comfort surface, so the tiles are the
@@ -156,6 +172,9 @@ class MusicViewModel
 
         @Volatile
         private var shelvesStale = false
+
+        @Volatile
+        private var homeStale = false
 
         /** True once the multi-lane composer has produced a shelf — YT-home and history fallbacks must not overwrite it. */
         @Volatile

@@ -1685,6 +1685,14 @@
     <string name="music_prefs_section_title">Music recommendations</string>
     <string name="music_endless_radio_title">Endless radio</string>
     <string name="music_endless_radio_desc">Keep the queue going with similar songs when it runs out</string>
+    <string name="music_content_language_title">Content language</string>
+    <string name="music_content_language_desc">Language YouTube Music uses for titles and shelves</string>
+    <string name="music_content_language_follow_app">Follow app language</string>
+    <string name="music_content_language_dialog_title">Select content language</string>
+    <string name="music_content_country_title">Content country</string>
+    <string name="music_normalize_volume_title">Normalize volume</string>
+    <string name="music_normalize_volume_desc">Level every track to the YouTube Music loudness target</string>
+    <string name="section_other_versions">Other versions</string>
     <string name="music_blocked_artists_title">Blocked artists</string>
     <string name="music_blocked_artists_empty">No blocked artists</string>
     <string name="music_unblock">Unblock</string>
