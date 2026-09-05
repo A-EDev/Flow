@@ -31,6 +31,7 @@ enum class MusicGraphEdgeType {
     ARTIST_SINGLE,
     ARTIST_FEATURED_ON,
     ALBUM_TRACK,
+    PLAYLIST_TRACK,
 }
 
 @Singleton
@@ -45,6 +46,7 @@ class MusicGraphStore
             const val RELATED_TTL_MS = 7 * DAY_MS
             const val ARTIST_TTL_MS = 7 * DAY_MS
             const val ALBUM_TRACKS_TTL_MS = 30 * DAY_MS
+            const val PLAYLIST_TRACKS_TTL_MS = 7 * DAY_MS
             const val NODE_RETENTION_MS = 60 * DAY_MS
             const val EDGES_PER_SOURCE = 64
             const val MAX_TRACKS = 20_000
@@ -197,6 +199,32 @@ class MusicGraphStore
                 upsertTracksMerged(details.tracks.map { it.toEntity(now).copy(albumId = details.id, albumTitle = details.title) })
                 dao.deleteEdgesFrom(details.id, listOf(MusicGraphEdgeType.ALBUM_TRACK.name))
                 dao.upsertEdges(details.tracks.map { it.videoId }.toEdges(details.id, MusicGraphEdgeType.ALBUM_TRACK, now))
+            }
+
+        suspend fun recordPlaylist(details: PlaylistDetails) =
+            withContext(Dispatchers.IO) {
+                ensureTrimmed()
+                if (details.id.isBlank()) return@withContext
+                val now = System.currentTimeMillis()
+                val tracks = details.tracks.take(EDGES_PER_SOURCE)
+                dao.upsertPlaylists(listOf(details.toPlaylistEntity(now)))
+                upsertTracksMerged(tracks.map { it.toEntity(now) })
+                dao.deleteEdgesFrom(details.id, listOf(MusicGraphEdgeType.PLAYLIST_TRACK.name))
+                dao.upsertEdges(tracks.map { it.videoId }.toEdges(details.id, MusicGraphEdgeType.PLAYLIST_TRACK, now))
+            }
+
+        suspend fun playlistTracksFor(playlistIds: List<String>): Map<String, List<MusicTrack>> =
+            withContext(Dispatchers.IO) {
+                ensureTrimmed()
+                if (playlistIds.isEmpty()) return@withContext emptyMap()
+                val type = MusicGraphEdgeType.PLAYLIST_TRACK.name
+                val since = System.currentTimeMillis() - PLAYLIST_TRACKS_TTL_MS
+                val fresh = playlistIds.chunked(SQL_CHUNK).flatMap { dao.sourcesWithFreshEdges(it, type, since) }
+                if (fresh.isEmpty()) return@withContext emptyMap()
+                fresh
+                    .chunked(SQL_CHUNK)
+                    .flatMap { dao.trackEdgesFrom(it, type) }
+                    .groupBy({ it.fromId }, { it.track.toTrack() })
             }
 
         suspend fun albumIdsNeedingTracks(albumIds: List<String>): List<String> =
@@ -411,6 +439,16 @@ class MusicGraphStore
             )
 
         private fun MusicPlaylist.toPlaylistEntity(now: Long) =
+            MusicGraphPlaylistEntity(
+                playlistId = id,
+                title = title,
+                author = author,
+                authorId = authorId,
+                thumbnailUrl = thumbnailUrl,
+                lastSeenAt = now,
+            )
+
+        private fun PlaylistDetails.toPlaylistEntity(now: Long) =
             MusicGraphPlaylistEntity(
                 playlistId = id,
                 title = title,

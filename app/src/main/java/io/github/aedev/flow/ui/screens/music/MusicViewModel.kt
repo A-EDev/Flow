@@ -954,13 +954,14 @@ class MusicViewModel
             }
         }
 
+        private fun String.isCuratedPlaylistId(): Boolean = !startsWith("RD") && !startsWith("OLAK")
+
         private fun MusicPlaylist.isCommunityPlaylistCandidate(): Boolean {
             val normalizedAuthor = author.trim()
             return normalizedAuthor.isNotBlank() &&
                 !normalizedAuthor.equals("YouTube", true) &&
                 !normalizedAuthor.equals("YouTube Music", true) &&
-                !id.startsWith("RD") &&
-                !id.startsWith("OLAK")
+                id.isCuratedPlaylistId()
         }
 
         private suspend fun loadCommunityPlaylists() {
@@ -1002,18 +1003,26 @@ class MusicViewModel
                         .take(COMMUNITY_PLAYLIST_COUNT)
                 if (candidates.isEmpty()) return
 
+                val cachedTracks = musicGraph.playlistTracksFor(candidates.map { it.id })
+                Log.d("MusicViewModel", "Community playlists: graph=${cachedTracks.size} network=${candidates.size - cachedTracks.size}")
                 val communityItems =
                     supervisorScope {
                         candidates
                             .map { playlist ->
                                 async(PerformanceDispatcher.networkIO) {
-                                    val details = InnertubeMusicService.fetchPlaylistDetails(playlist.id) ?: return@async null
-                                    val tracks = details.tracks.audioMusicOnly().take(COMMUNITY_PREVIEW_TRACKS)
+                                    val allTracks =
+                                        cachedTracks[playlist.id]
+                                            ?: InnertubeMusicService
+                                                .fetchPlaylistDetails(playlist.id)
+                                                ?.also { musicGraph.recordPlaylist(it) }
+                                                ?.tracks
+                                            ?: return@async null
+                                    val tracks = allTracks.audioMusicOnly().take(COMMUNITY_PREVIEW_TRACKS)
                                     if (tracks.isEmpty()) return@async null
                                     CommunityMusicPlaylist(
                                         playlist =
                                             playlist.copy(
-                                                trackCount = details.trackCount,
+                                                trackCount = allTracks.size,
                                                 thumbnailUrl = playlist.thumbnailUrl.ifBlank { tracks.first().thumbnailUrl },
                                             ),
                                         tracks = tracks,
@@ -1475,13 +1484,20 @@ class MusicViewModel
                         withTimeoutOrNull(12_000L) {
                             YouTubeMusicService.fetchPlaylistDetails(playlistId)
                         }
-                    if (details != null && playlistId.startsWith("MPREb")) musicGraph.recordAlbum(details)
                     _uiState.value =
                         _uiState.value.copy(
                             isPlaylistLoading = false,
                             playlistDetails = details,
                             selectedPlaylist = details,
                         )
+                    if (details != null) {
+                        runCatching {
+                            when {
+                                playlistId.startsWith("MPREb") -> musicGraph.recordAlbum(details)
+                                playlistId.isCuratedPlaylistId() -> musicGraph.recordPlaylist(details)
+                            }
+                        }.onFailure { Log.w("MusicViewModel", "Music graph write failed for $playlistId", it) }
+                    }
                 } catch (e: Exception) {
                     _uiState.value =
                         _uiState.value.copy(

@@ -62,6 +62,18 @@ interface MusicGraphDao {
 
     @Query(
         """
+        SELECT DISTINCT fromId FROM music_graph_edge
+        WHERE edgeType = :type AND fromId IN (:fromIds) AND lastSeenAt >= :since
+        """,
+    )
+    suspend fun sourcesWithFreshEdges(
+        fromIds: List<String>,
+        type: String,
+        since: Long,
+    ): List<String>
+
+    @Query(
+        """
         SELECT t.* FROM music_graph_edge e
         JOIN music_graph_track t ON t.videoId = e.toId
         WHERE e.fromId = :fromId AND e.edgeType = :type
@@ -205,7 +217,13 @@ interface MusicGraphDao {
     )
     suspend fun deleteOrphanAlbumsBefore(before: Long)
 
-    @Query("DELETE FROM music_graph_playlist WHERE lastSeenAt < :before AND playlistId NOT IN (SELECT toId FROM music_graph_edge)")
+    @Query(
+        """
+        DELETE FROM music_graph_playlist WHERE lastSeenAt < :before
+            AND playlistId NOT IN (SELECT toId FROM music_graph_edge)
+            AND playlistId NOT IN (SELECT fromId FROM music_graph_edge)
+        """,
+    )
     suspend fun deleteOrphanPlaylistsBefore(before: Long)
 
     @Query("SELECT COUNT(*) FROM music_graph_track")
