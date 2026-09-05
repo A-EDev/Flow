@@ -93,6 +93,8 @@ object MusicPlayerUtils {
 
     private val resultCache = ConcurrentHashMap<String, CachedResult>()
     private const val MAX_RESULT_CACHE_TTL_MS = 600_000L // 10 minutes
+    private const val LOUDNESS_TARGET_LKFS = -14.0
+    private const val MIN_LOUDNESS_GAIN_DB = -20f
     private const val ESCALATION_WINDOW_MS = 120_000L
 
     private val videoRefreshTimestamps = ConcurrentHashMap<String, Long>()
@@ -135,6 +137,17 @@ object MusicPlayerUtils {
     fun clearPlaybackCache() {
         resultCache.clear()
         Log.d(TAG, "Cleared all cached playback results")
+    }
+
+    fun cachedLoudnessGainDb(videoId: String): Float? {
+        val data = resultCache[videoId]?.result?.getOrNull() ?: return null
+        val audioConfig = data.audioConfig
+        val gainDb =
+            audioConfig?.perceptualLoudnessDb?.let { (audioConfig.loudnessTargetLkfs ?: LOUDNESS_TARGET_LKFS) - it }
+                ?: audioConfig?.loudnessDb?.let { -it }
+                ?: data.format.loudnessDb?.let { -it }
+                ?: return null
+        return gainDb.toFloat().coerceIn(MIN_LOUDNESS_GAIN_DB, 0f)
     }
 
     suspend fun playerResponseForPlayback(
