@@ -1686,7 +1686,6 @@
     <string name="music_endless_radio_title">Endless radio</string>
     <string name="music_endless_radio_desc">Keep the queue going with similar songs when it runs out</string>
     <string name="music_content_language_title">Content language</string>
-    <string name="music_content_language_desc">Language YouTube Music uses for titles and shelves</string>
     <string name="music_content_language_follow_app">Follow app language</string>
     <string name="music_content_language_dialog_title">Select content language</string>
     <string name="music_content_country_title">Content country</string>
