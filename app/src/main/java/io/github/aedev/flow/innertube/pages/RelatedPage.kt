@@ -36,6 +36,9 @@ data class RelatedPage(
     val songs: List<SongItem>
         get() = itemsOf(RelatedShelfType.SIMILAR).filterIsInstance<SongItem>().filterNot { it.isVideoSong }
 
+    val otherPerformances: List<SongItem>
+        get() = itemsOf(RelatedShelfType.OTHER_PERFORMANCES).filterIsInstance<SongItem>()
+
     val albums: List<AlbumItem>
         get() = itemsOf(RelatedShelfType.MORE_FROM_ARTIST).filterIsInstance<AlbumItem>()
 

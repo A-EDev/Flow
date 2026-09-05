@@ -1768,6 +1768,8 @@
     <string name="similar_to">Similar to</string>
     <string name="section_similar_to">Similar to %1$s</string>
     <string name="subtitle_similar_to">Based on your listening history</string>
+    <string name="section_other_performances">Other performances</string>
+    <string name="section_more_from">More from</string>
     <string name="section_vibe_vibes">%1$s Vibes</string>
     <string name="subtitle_community_playlists">Community Playlists</string>
     <string name="playlist_author_community">Community Playlist</string>

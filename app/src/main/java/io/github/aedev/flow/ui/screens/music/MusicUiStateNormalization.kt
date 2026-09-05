@@ -97,6 +97,8 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
     val filteredDynamicSections = dynamicSections.dropHidden(minTracks = 1)
     val filteredDailyMixSections = dailyMixSections.dropHidden(minTracks = 4)
     val filteredSimilarSections = similarToSections.dropHidden(minTracks = 1)
+    val filteredOtherPerformanceSections = otherPerformanceSections.dropHidden(minTracks = 1)
+    val filteredMoreFromArtistSections = moreFromArtistSections.dropHidden(minTracks = 1)
 
     if (
         filteredDailyDiscover === dailyDiscover &&
@@ -123,7 +125,9 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
         filteredGenreTracks === genreTracks &&
         filteredDynamicSections === dynamicSections &&
         filteredDailyMixSections === dailyMixSections &&
-        filteredSimilarSections === similarToSections
+        filteredSimilarSections === similarToSections &&
+        filteredOtherPerformanceSections === otherPerformanceSections &&
+        filteredMoreFromArtistSections === moreFromArtistSections
     ) {
         return this
     }
@@ -154,6 +158,8 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
         dynamicSections = filteredDynamicSections,
         dailyMixSections = filteredDailyMixSections,
         similarToSections = filteredSimilarSections,
+        otherPerformanceSections = filteredOtherPerformanceSections,
+        moreFromArtistSections = filteredMoreFromArtistSections,
     )
 }
 
@@ -187,6 +193,8 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
     val uniqueDynamicSections = dynamicSections.uniqueSectionTracks()
     val uniqueDailyMixSections = dailyMixSections.uniqueSectionTracks()
     val uniqueSimilarSections = similarToSections.uniqueSectionTracks()
+    val uniqueOtherPerformanceSections = otherPerformanceSections.uniqueSectionTracks()
+    val uniqueMoreFromArtistSections = moreFromArtistSections.uniqueSectionTracks()
     val uniqueHomeChips = homeChips.distinctByNonBlankKeyOrSelf { it.title }
     val uniqueGenreTracks =
         genreTracks.mapValuesIfChanged { tracks ->
@@ -222,6 +230,8 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         uniqueDynamicSections === dynamicSections &&
         uniqueDailyMixSections === dailyMixSections &&
         uniqueSimilarSections === similarToSections &&
+        uniqueOtherPerformanceSections === otherPerformanceSections &&
+        uniqueMoreFromArtistSections === moreFromArtistSections &&
         uniqueHomeChips === homeChips &&
         uniqueGenreTracks === genreTracks &&
         uniqueArtistDetails === artistDetails &&
@@ -258,6 +268,8 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         artistDetails = uniqueArtistDetails,
         searchResultsArtists = uniqueSearchArtists,
         similarToSections = uniqueSimilarSections,
+        otherPerformanceSections = uniqueOtherPerformanceSections,
+        moreFromArtistSections = uniqueMoreFromArtistSections,
     )
 }
 

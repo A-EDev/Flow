@@ -60,6 +60,7 @@ class MusicGraphStoreTest {
                     seedArtistId = "UCa",
                     tracks = listOf(track(1), track(2)),
                     radioTracks = listOf(track(3)),
+                    otherPerformances = listOf(track(4).copy(isVideoSong = true)),
                     similarArtists = listOf(ArtistDetails(name = "Other", channelId = "UCb", thumbnailUrl = "", subscriberCount = 5)),
                     playlists = listOf(MusicPlaylist(id = "PL9", title = "Mix", thumbnailUrl = "", author = "Curator")),
                     artistAlbums = emptyList(),
@@ -70,6 +71,8 @@ class MusicGraphStoreTest {
             val fromGraph = store.relatedFor("v0")!!
             assertEquals(listOf("v1", "v2"), fromGraph.tracks.map { it.videoId })
             assertEquals(listOf("v3"), fromGraph.radioTracks.map { it.videoId })
+            assertEquals(listOf("v4"), fromGraph.otherPerformances.map { it.videoId })
+            assertTrue(fromGraph.otherPerformances.single().isVideoSong)
             assertEquals(listOf("UCb"), fromGraph.similarArtists.map { it.channelId })
             assertEquals(listOf("PL9"), fromGraph.playlists.map { it.id })
 

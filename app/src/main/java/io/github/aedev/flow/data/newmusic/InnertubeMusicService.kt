@@ -243,6 +243,7 @@ object InnertubeMusicService {
                         .filterIndexed { index, _ -> index != currentIndex }
                         .filterNot { audioOnly && it.isVideoSong }
                         .mapNotNull { convertToMusicTrack(it) },
+                otherPerformances = related.otherPerformances.mapNotNull { convertToMusicTrack(it) },
                 similarArtists = related.artists.map { convertArtistItemToDetails(it) },
                 playlists = related.playlists.map { convertPlaylistToMusicPlaylist(it) },
                 artistAlbums = related.albums.map { convertAlbumToPlaylist(it) },

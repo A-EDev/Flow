@@ -60,6 +60,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
+import kotlin.random.Random
 
 @HiltViewModel
 class MusicViewModel
@@ -1043,80 +1044,45 @@ class MusicViewModel
         private fun loadDynamicContent() {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 val history = playlistRepository.history.firstOrNull() ?: emptyList()
-                val similarSections = mutableListOf<MusicSection>()
+                val blocks = mutableListOf<SimilarToBlock>()
 
                 if (history.isNotEmpty()) {
-                    // 1. Similar to random top artists (take top 10 artists by play count, pick 2)
-                    val topArtists =
-                        history
-                            .groupBy { it.artist }
-                            .mapValues { it.value.size }
-                            .toList()
-                            .sortedByDescending { it.second }
-                            .take(10)
-                            .shuffled()
-                            .take(2)
+                    try {
+                        val topArtists =
+                            history
+                                .groupBy { it.artist }
+                                .mapValues { it.value.size }
+                                .toList()
+                                .sortedByDescending { it.second }
+                                .take(10)
+                                .shuffled()
+                                .take(2)
 
-                    // OPTIMIZED: Parallel fetch for similar artists
-                    val similarArtistSections =
-                        topArtists
-                            .map { (artistName, _) ->
-                                async(PerformanceDispatcher.networkIO) {
-                                    val artistTrack = history.find { it.artist == artistName }
-                                    if (artistTrack != null && !artistTrack.channelId.isNullOrBlank()) {
-                                        try {
-                                            val related =
-                                                cachedRelatedLane(artistTrack.videoId, artistTrack.primaryArtistKey(), artistTrack)
-                                            if (related.isNotEmpty()) {
-                                                MusicSection(
-                                                    title = artistName,
-                                                    label = context.getString(R.string.similar_to),
-                                                    thumbnailUrl = artistTrack.thumbnailUrl,
-                                                    seedId = artistTrack.channelId,
-                                                    isArtistSeed = true,
-                                                    tracks = musicBrain.rankTracks(related, "similar").take(12),
-                                                )
-                                            } else {
-                                                null
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e("MusicViewModel", "Error loading similar to artist $artistName", e)
-                                            null
-                                        }
-                                    } else {
-                                        null
+                        blocks +=
+                            topArtists
+                                .map { (artistName, _) ->
+                                    async(PerformanceDispatcher.networkIO) {
+                                        val artistTrack = history.find { it.artist == artistName }
+                                        if (artistTrack == null || artistTrack.channelId.isBlank()) return@async null
+                                        similarToBlock(artistTrack, title = artistName, seedId = artistTrack.channelId, isArtistSeed = true)
                                     }
-                                }
-                            }.awaitAll()
-                            .filterNotNull()
+                                }.awaitAll()
+                                .filterNotNull()
 
-                    similarSections.addAll(similarArtistSections)
-
-                    // 2. Similar to most recent song (if not already picked)
-                    val recentTrack = history.firstOrNull()
-                    if (recentTrack != null && similarSections.none { it.title == recentTrack.title || it.title == recentTrack.artist }) {
-                        if (!recentTrack.videoId.isNullOrBlank()) {
-                            try {
-                                val related =
-                                    cachedRelatedLane(recentTrack.videoId, recentTrack.primaryArtistKey(), recentTrack)
-                                if (related.isNotEmpty()) {
-                                    similarSections.add(
-                                        MusicSection(
-                                            title = recentTrack.title,
-                                            label = context.getString(R.string.similar_to),
-                                            thumbnailUrl = recentTrack.thumbnailUrl,
-                                            seedId = recentTrack.videoId,
-                                            isArtistSeed = false,
-                                            tracks = musicBrain.rankTracks(related, "similar").take(12),
-                                        ),
-                                    )
-                                }
-                            } catch (e: Exception) {
-                                Log.e("MusicViewModel", "Error loading similar to song ${recentTrack.title}", e)
-                            }
+                        val recentTrack = history.firstOrNull()
+                        if (
+                            recentTrack != null &&
+                            recentTrack.videoId.isNotBlank() &&
+                            blocks.none { it.similar.title == recentTrack.title || it.similar.title == recentTrack.artist }
+                        ) {
+                            similarToBlock(recentTrack, title = recentTrack.title, seedId = recentTrack.videoId, isArtistSeed = false)
+                                ?.let { blocks += it }
                         }
+                    } catch (e: Exception) {
+                        Log.e("MusicViewModel", "Error loading similar to sections", e)
                     }
                 }
+                val similarSections = blocks.mapTo(mutableListOf()) { it.similar }
 
                 // B. Random Vibe Playlists
                 val vibes = listOf("Focus", "Relaxing", "Energize", "Commute", "Party", "Romance", "Sad", "Sleep", "Workout")
@@ -1149,9 +1115,66 @@ class MusicViewModel
                 }
 
                 if (similarSections.isNotEmpty()) {
-                    _uiState.update { it.copy(similarToSections = similarSections) }
+                    _uiState.update {
+                        it.copy(
+                            similarToSections = similarSections,
+                            otherPerformanceSections = blocks.mapNotNull { block -> block.otherPerformances },
+                            moreFromArtistSections =
+                                blocks
+                                    .mapNotNull { block ->
+                                        block.moreFromArtist
+                                    }.distinctBy { section -> section.seedId },
+                        )
+                    }
                 }
             }
+        }
+
+        private suspend fun similarToBlock(
+            seed: MusicTrack,
+            title: String,
+            seedId: String,
+            isArtistSeed: Boolean,
+        ): SimilarToBlock? {
+            val related = cachedRelated(seed.videoId, seed.primaryArtistKey(), seed) ?: return null
+            val songs = musicBrain.rankTracks(related.tracks.audioMusicOnly(), "similar")
+            if (songs.isEmpty()) return null
+            val random = Random(_uiState.value.sessionSeed xor seedId.hashCode().toLong())
+            val artistId = related.seedArtistId ?: seed.artists.firstOrNull()?.id ?: seed.channelId.takeIf { it.startsWith("UC") }
+            val artistName = seed.artists.firstOrNull { it.id == artistId }?.name ?: seed.artist
+            val performances = related.otherPerformances.filter { it.videoId != seed.videoId }.distinctBy { it.videoId }
+            return SimilarToBlock(
+                similar =
+                    MusicSection(
+                        title = title,
+                        label = context.getString(R.string.similar_to),
+                        thumbnailUrl = seed.thumbnailUrl,
+                        seedId = seedId,
+                        isArtistSeed = isArtistSeed,
+                        tracks = SimilarToSections.mixed(songs, related.similarArtists, related.playlists, random),
+                    ),
+                otherPerformances =
+                    performances.takeIf { it.isNotEmpty() }?.let {
+                        MusicSection(
+                            title = related.seed?.title ?: seed.title,
+                            label = context.getString(R.string.section_other_performances),
+                            seedId = seedId,
+                            tracks = it,
+                        )
+                    },
+                moreFromArtist =
+                    if (artistId != null && related.artistAlbums.isNotEmpty()) {
+                        MusicSection(
+                            title = artistName,
+                            label = context.getString(R.string.section_more_from),
+                            seedId = artistId,
+                            isArtistSeed = true,
+                            tracks = related.artistAlbums.map { it.asCollectionTrack(MusicItemType.ALBUM) },
+                        )
+                    } else {
+                        null
+                    },
+            )
         }
 
         fun loadMorePlaylistTracks() {
@@ -1688,4 +1711,6 @@ data class MusicUiState(
     val artistItemsPage: io.github.aedev.flow.innertube.pages.ArtistItemsPage? = null,
     val isArtistItemsLoading: Boolean = false,
     val similarToSections: List<MusicSection> = emptyList(),
+    val otherPerformanceSections: List<MusicSection> = emptyList(),
+    val moreFromArtistSections: List<MusicSection> = emptyList(),
 )

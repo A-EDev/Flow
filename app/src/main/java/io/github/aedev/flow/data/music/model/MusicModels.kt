@@ -133,6 +133,7 @@ data class RelatedMusic(
     val seedArtistId: String?,
     val tracks: List<MusicTrack>,
     val radioTracks: List<MusicTrack>,
+    val otherPerformances: List<MusicTrack>,
     val similarArtists: List<ArtistDetails>,
     val playlists: List<MusicPlaylist>,
     val artistAlbums: List<MusicPlaylist>,

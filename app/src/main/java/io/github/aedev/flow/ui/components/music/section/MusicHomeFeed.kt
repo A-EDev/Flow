@@ -21,8 +21,10 @@ import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.CommunityMusicPlaylist
 import io.github.aedev.flow.data.music.model.DailyDiscoverItem
 import io.github.aedev.flow.data.music.model.MUSIC_GENRE_SOURCE_PREFIX
+import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.recommendation.MusicSection
 import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.innertube.pages.HomePage
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
@@ -68,7 +70,7 @@ fun LazyListScope.musicHomeFeed(
                 title = track.title,
                 subtitle = track.artist,
                 thumbnailUrl = track.thumbnailUrl,
-                isAlbum = track.itemType == io.github.aedev.flow.data.music.model.MusicItemType.ALBUM,
+                isAlbum = track.itemType == MusicItemType.ALBUM,
             ),
         )
 
@@ -583,6 +585,24 @@ private fun LazyListScope.similarTo(
     onCollectionMenu: (MusicTrack) -> Unit,
 ) {
     val dailyMixes = uiState.dailyMixSections
+    val moreFromArtist = uiState.moreFromArtistSections
+
+    fun moreFromShelf(section: MusicSection) {
+        item(key = "more_from:${section.seedId}") {
+            MusicTrackCardShelf(
+                title = section.title,
+                tracks = section.tracks,
+                keyNamespace = "more_from_${section.seedId}",
+                subtitle = section.label,
+                action = section.seedId?.let { seedId -> MusicSectionAction.Navigate { onArtistClick(seedId) } },
+                onTrackClick = {},
+                onTrackMenu = {},
+                onCollectionClick = { onAlbumClick(it.videoId) },
+                onCollectionMenu = onCollectionMenu,
+            )
+        }
+    }
+
     (dailyMixes + uiState.similarToSections).forEachIndexed { index, section ->
         item(key = "similar_to:$index:${section.title}") {
             MusicTrackCardShelf(
@@ -606,13 +626,35 @@ private fun LazyListScope.similarTo(
                         }
                     },
                 downloadedTrackIds = downloaded,
-                onTrackClick = { onSongClick(it, section.tracks, section.title) },
+                onTrackClick = { onSongClick(it, section.tracks.filterNot { track -> track.isCollection }, section.title) },
                 onTrackMenu = onTrackMenu,
-                onCollectionClick = { onAlbumClick(it.videoId) },
-                onCollectionMenu = onCollectionMenu,
+                onCollectionClick = { if (it.itemType == MusicItemType.ARTIST) onArtistClick(it.videoId) else onAlbumClick(it.videoId) },
+                onCollectionMenu = { if (it.itemType != MusicItemType.ARTIST) onCollectionMenu(it) },
+                trackSubtitle = { if (it.itemType == MusicItemType.ARTIST) stringResource(R.string.artist) else it.artist },
             )
         }
+        val seedId = section.seedId ?: return@forEachIndexed
+        uiState.otherPerformanceSections.firstOrNull { it.seedId == seedId }?.let { performances ->
+            item(key = "other_performances:$seedId") {
+                MusicQuickPicksShelf(
+                    title = performances.title,
+                    subtitle = performances.label,
+                    tracks = performances.tracks,
+                    downloadedTrackIds = downloaded,
+                    action =
+                        performances.tracks.firstOrNull()?.let { first ->
+                            MusicSectionAction.PlayAll { onSongClick(first, performances.tracks, performances.title) }
+                        },
+                    onTrackClick = { onSongClick(it, performances.tracks, performances.title) },
+                    onTrackMenu = onTrackMenu,
+                )
+            }
+        }
+        if (section.isArtistSeed) moreFromArtist.firstOrNull { it.seedId == seedId }?.let(::moreFromShelf)
     }
+    moreFromArtist
+        .filter { more -> uiState.similarToSections.none { it.isArtistSeed && it.seedId == more.seedId } }
+        .forEach(::moreFromShelf)
 }
 
 private fun LazyListScope.dynamicHome(

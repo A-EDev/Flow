@@ -24,6 +24,7 @@ import javax.inject.Singleton
 enum class MusicGraphEdgeType {
     RELATED_SIMILAR,
     RADIO,
+    RELATED_VARIANT,
     RELATED_PLAYLIST,
     ARTIST_SIMILAR,
     ARTIST_TRACK,
@@ -70,6 +71,7 @@ class MusicGraphStore
                     seedArtistId = seedArtistId,
                     tracks = dao.tracksFrom(seedId, MusicGraphEdgeType.RELATED_SIMILAR.name).filterNot { it.isVideo }.map { it.toTrack() },
                     radioTracks = dao.tracksFrom(seedId, MusicGraphEdgeType.RADIO.name).filterNot { it.isVideo }.map { it.toTrack() },
+                    otherPerformances = dao.tracksFrom(seedId, MusicGraphEdgeType.RELATED_VARIANT.name).map { it.toTrack() },
                     similarArtists =
                         seedArtistId?.let { dao.artistsFrom(it, MusicGraphEdgeType.ARTIST_SIMILAR.name) }.orEmpty().map { it.toDetails() },
                     playlists = dao.playlistsFrom(seedId, MusicGraphEdgeType.RELATED_PLAYLIST.name).map { it.toPlaylist() },
@@ -100,6 +102,7 @@ class MusicGraphStore
                     }
                     related.tracks.forEach { add(it.toEntity(now)) }
                     related.radioTracks.forEach { add(it.toEntity(now)) }
+                    related.otherPerformances.forEach { add(it.toEntity(now)) }
                 }
             if (seedTrack == null) {
                 dao.track(seedId)?.let { dao.upsertTracks(listOf(it.copy(relatedCrawledAt = now, lastSeenAt = now))) }
@@ -111,7 +114,12 @@ class MusicGraphStore
 
             dao.deleteEdgesFrom(
                 seedId,
-                listOf(MusicGraphEdgeType.RELATED_SIMILAR.name, MusicGraphEdgeType.RADIO.name, MusicGraphEdgeType.RELATED_PLAYLIST.name),
+                listOf(
+                    MusicGraphEdgeType.RELATED_SIMILAR.name,
+                    MusicGraphEdgeType.RADIO.name,
+                    MusicGraphEdgeType.RELATED_VARIANT.name,
+                    MusicGraphEdgeType.RELATED_PLAYLIST.name,
+                ),
             )
             val edges =
                 buildList {
@@ -122,6 +130,7 @@ class MusicGraphStore
                             .filter { it != seedId }
                             .toEdges(seedId, MusicGraphEdgeType.RADIO, now),
                     )
+                    addAll(related.otherPerformances.map { it.videoId }.toEdges(seedId, MusicGraphEdgeType.RELATED_VARIANT, now))
                     addAll(related.playlists.map { it.id }.toEdges(seedId, MusicGraphEdgeType.RELATED_PLAYLIST, now))
                     if (seedArtistId != null) {
                         if (related.similarArtists.isNotEmpty()) {
