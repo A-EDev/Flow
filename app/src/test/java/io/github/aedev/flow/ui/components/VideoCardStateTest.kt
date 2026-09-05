@@ -5,18 +5,17 @@ import io.github.aedev.flow.data.local.VideoHistoryEntry
 import org.junit.Test
 
 class VideoCardStateTest {
-
     private fun entry(
         videoId: String,
         position: Long,
-        duration: Long
+        duration: Long,
     ) = VideoHistoryEntry(
         videoId = videoId,
         position = position,
         duration = duration,
         timestamp = 0L,
         title = videoId,
-        thumbnailUrl = ""
+        thumbnailUrl = "",
     )
 
     @Test
@@ -56,11 +55,12 @@ class VideoCardStateTest {
 
     @Test
     fun `every qualifying entry is keyed by video id in one pass`() {
-        val map = listOf(
-            entry("a", position = 50, duration = 100),
-            entry("b", position = 1, duration = 100),
-            entry("c", position = 99, duration = 100)
-        ).toWatchProgressMap()
+        val map =
+            listOf(
+                entry("a", position = 50, duration = 100),
+                entry("b", position = 1, duration = 100),
+                entry("c", position = 99, duration = 100),
+            ).toWatchProgressMap()
 
         assertThat(map.keys).containsExactly("a", "c")
     }

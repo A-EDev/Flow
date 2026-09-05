@@ -2112,4 +2112,7 @@
     <string name="player_settings_shorts_pip_subtitle">Przełączaj Shorts w tryb „Obraz w Obrazie” po wyjściu z aplikacji</string>
     <string name="content_settings_shorts_content_title">Włącz Shorts</string>
     <string name="content_settings_shorts_content_subtitle">Pokazuj Shorts w aplikacji. Wyłączenie funkcji nie wpływa na zapisane Shorts i historię.</string>
+    <string name="onboarding_step_interests">Zainteresowania</string>
+    <string name="onboarding_step_channels">Twórcy</string>
+    <string name="onboarding_step_import">Import</string>
 </resources>

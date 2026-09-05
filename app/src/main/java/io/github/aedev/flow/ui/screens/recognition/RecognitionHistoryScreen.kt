@@ -39,8 +39,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
 import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 
 private val HistoryArtworkSize = 56.dp
 
@@ -136,7 +136,7 @@ fun RecognitionHistoryScreen(
             )
 
             if (history.isEmpty()) {
-                MusicEmptyState(
+                FlowEmptyState(
                     title = stringResource(R.string.recognition_history_empty),
                     icon = Icons.Rounded.History,
                 )

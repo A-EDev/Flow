@@ -73,10 +73,10 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.recognition.RecognitionResult
 import io.github.aedev.flow.data.recognition.RecognitionStatus
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.music.common.MusicStateIcon
-import io.github.aedev.flow.ui.components.music.common.musicActionShape
-import io.github.aedev.flow.ui.components.music.common.musicHeroArtworkSize
 import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
+import io.github.aedev.flow.ui.components.shared.FlowStateIcon
+import io.github.aedev.flow.ui.components.shared.flowActionShape
+import io.github.aedev.flow.ui.components.shared.flowHeroArtworkSize
 
 private val MicButtonSize = 200.dp
 private val MicIconSize = 72.dp
@@ -236,7 +236,7 @@ private fun RecognitionMicButton(
                 modifier =
                     Modifier
                         .size(MicButtonSize)
-                        .clip(musicActionShape())
+                        .clip(flowActionShape())
                         .background(MaterialTheme.colorScheme.primary),
             )
         }
@@ -309,7 +309,7 @@ private fun RecognitionResultCard(
 
     val coverUrl = result.coverArtHqUrl ?: result.coverArtUrl
     val colors = rememberMusicArtworkColors(coverUrl)
-    val artworkSize = musicHeroArtworkSize()
+    val artworkSize = flowHeroArtworkSize()
     val buttonHeight = ButtonDefaults.MediumContainerHeight
 
     Card(
@@ -474,7 +474,7 @@ private fun RecognitionMessage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        MusicStateIcon(icon = icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowStateIcon(icon = icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
             text = title,
             style = MaterialTheme.typography.titleLargeEmphasized,

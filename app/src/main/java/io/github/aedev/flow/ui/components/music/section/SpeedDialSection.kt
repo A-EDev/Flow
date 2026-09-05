@@ -38,14 +38,14 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.components.music.common.MusicNowPlayingOverlay
 import io.github.aedev.flow.ui.components.music.common.isTrackPlaying
-import io.github.aedev.flow.ui.components.music.common.musicGridCellWidth
-import io.github.aedev.flow.ui.components.music.common.musicGridColumns
-import io.github.aedev.flow.ui.components.music.common.musicTitleMarquee
 import io.github.aedev.flow.ui.components.music.common.rememberMusicArtworkColors
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
+import io.github.aedev.flow.ui.components.shared.DownloadedBadge
+import io.github.aedev.flow.ui.components.shared.flowGridCellWidth
+import io.github.aedev.flow.ui.components.shared.flowGridColumns
+import io.github.aedev.flow.ui.components.shared.titleMarquee
 import io.github.aedev.flow.ui.theme.Dimensions
 
 private val SpeedDialRowHeight = 64.dp
@@ -69,8 +69,8 @@ fun SpeedDialSection(
     if (speedDialTracks.isEmpty()) return
 
     val tiles = remember(speedDialTracks) { speedDialTracks.distinctBy { it.videoId }.take(SPEED_DIAL_MAX_TRACKS) }
-    val columns = musicGridColumns(compact = 2, medium = 3, expanded = 4)
-    val cellWidth = musicGridCellWidth(columns = columns, gap = SpeedDialGap)
+    val columns = flowGridColumns(compact = 2, medium = 3, expanded = 4)
+    val cellWidth = flowGridCellWidth(columns = columns, gap = SpeedDialGap)
 
     Column(modifier = modifier.fillMaxWidth()) {
         MusicSectionHeader(title = stringResource(R.string.section_speed_dial))
@@ -161,7 +161,7 @@ private fun SpeedDialTile(
                 color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
-                modifier = Modifier.musicTitleMarquee(),
+                modifier = Modifier.titleMarquee(),
             )
             Text(
                 text = track.artist,
@@ -172,7 +172,7 @@ private fun SpeedDialTile(
             )
         }
         if (isDownloaded) {
-            MusicDownloadedBadge(modifier = Modifier.padding(end = 12.dp))
+            DownloadedBadge(modifier = Modifier.padding(end = 12.dp))
         }
     }
 }

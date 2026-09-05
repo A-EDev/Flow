@@ -113,9 +113,9 @@ import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.PlaylistCard
-import io.github.aedev.flow.ui.components.ShortWatchedIndicator
 import io.github.aedev.flow.ui.components.SortChipRow
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
 import io.github.aedev.flow.ui.components.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.ui.youtubeChannelUrl

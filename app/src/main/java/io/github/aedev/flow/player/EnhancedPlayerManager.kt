@@ -376,7 +376,11 @@ class EnhancedPlayerManager private constructor() {
                     override fun hasPreviousMediaItem(): Boolean = this@EnhancedPlayerManager.hasPrevious()
                 }
 
-            val builder = MediaSession.Builder(appCtx, sessionPlayer).setId("flow_video_session")
+            val builder =
+                MediaSession
+                    .Builder(appCtx, sessionPlayer)
+                    .setId("flow_video_session")
+                    .setBitmapLoader(sessionArtworkBitmapLoader(appCtx))
             if (sessionActivity != null) builder.setSessionActivity(sessionActivity)
             videoMediaSession = builder.build()
             Log.d(TAG, "Video MediaSession created")

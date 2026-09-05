@@ -78,6 +78,14 @@ interface PlaylistDao {
         name: String,
     )
 
+    @Query("UPDATE playlists SET name = :name, description = :description, isPrivate = :isPrivate WHERE id = :id")
+    suspend fun updatePlaylistMetadata(
+        id: String,
+        name: String,
+        description: String,
+        isPrivate: Boolean,
+    )
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylistVideoCrossRef(crossRef: PlaylistVideoCrossRef)
 
@@ -99,6 +107,9 @@ interface PlaylistDao {
         "SELECT videos.* FROM videos INNER JOIN playlist_video_cross_ref ON videos.id = playlist_video_cross_ref.videoId WHERE playlist_video_cross_ref.playlistId = :playlistId ORDER BY playlist_video_cross_ref.position ASC",
     )
     fun getVideosForPlaylist(playlistId: String): Flow<List<VideoEntity>>
+
+    @Query("SELECT playlistId FROM playlist_video_cross_ref WHERE videoId = :videoId")
+    suspend fun getPlaylistIdsForVideo(videoId: String): List<String>
 
     @Transaction
     @Query(

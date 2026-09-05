@@ -41,6 +41,12 @@ class LikedVideosViewModel
                 likedVideosRepository.removeLikeState(videoId)
             }
         }
+
+        fun restoreLike(likedVideo: LikedVideoInfo) {
+            viewModelScope.launch {
+                likedVideosRepository.likeVideo(likedVideo)
+            }
+        }
     }
 
 data class LikedVideosUiState(

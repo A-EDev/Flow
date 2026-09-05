@@ -20,13 +20,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
-import io.github.aedev.flow.ui.components.ShimmerHost
-import io.github.aedev.flow.ui.components.ShimmerMoodButton
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.music.common.MusicEmptyState
-import io.github.aedev.flow.ui.components.music.common.MusicErrorState
-import io.github.aedev.flow.ui.components.music.common.musicGridColumns
 import io.github.aedev.flow.ui.components.music.section.MoodCategorySection
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.ShimmerHost
+import io.github.aedev.flow.ui.components.shared.ShimmerMoodButton
+import io.github.aedev.flow.ui.components.shared.flowGridColumns
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +39,7 @@ fun MoodsAndGenresScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-    val itemsPerRow = musicGridColumns(compact = 2, medium = 3, expanded = 4)
+    val itemsPerRow = flowGridColumns(compact = 2, medium = 3, expanded = 4)
 
     Scaffold(
         topBar = {
@@ -90,14 +90,14 @@ fun MoodsAndGenresScreen(
                 }
 
                 error != null && moodAndGenresList == null -> {
-                    MusicErrorState(
+                    FlowErrorState(
                         error = error ?: stringResource(R.string.unknown_error),
                         onRetry = { viewModel.retry() },
                     )
                 }
 
                 moodAndGenresList.isNullOrEmpty() -> {
-                    MusicEmptyState(title = stringResource(R.string.empty_moods_genres))
+                    FlowEmptyState(title = stringResource(R.string.empty_moods_genres))
                 }
 
                 else -> {

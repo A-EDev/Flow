@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.ui.components.music.common.MusicDownloadedBadge
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.ui.theme.GridItemSize
 

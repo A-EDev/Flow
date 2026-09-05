@@ -1,5 +1,7 @@
 package io.github.aedev.flow.player
 
+import androidx.media3.common.VideoSize
+
 internal const val DEFAULT_VIDEO_ASPECT_RATIO = 16f / 9f
 
 private const val MAX_PIP_ASPECT_RATIO = 2.39f
@@ -10,13 +12,20 @@ internal fun sanitizeDisplayAspectRatio(aspectRatio: Float): Float =
         .takeIf { it.isFinite() && it > 0f }
         ?: DEFAULT_VIDEO_ASPECT_RATIO
 
+internal fun VideoSize.toDisplayAspectRatioOrNull(): Float? {
+    if (width <= 0 || height <= 0) return null
+    val par = if (pixelWidthHeightRatio > 0f) pixelWidthHeightRatio else 1f
+    return sanitizeDisplayAspectRatio(width * par / height)
+}
+
 internal fun sourceVideoAspectRatio(dimensions: Iterable<Pair<Int, Int>>): Float? {
     // YouTube's smallest renditions can have visibly rounded dimensions. The largest
     // advertised rendition most closely represents the video's authored display ratio.
-    val sourceDimensions = dimensions
-        .filter { (width, height) -> width > 0 && height > 0 }
-        .maxByOrNull { (width, height) -> width.toLong() * height.toLong() }
-        ?: return null
+    val sourceDimensions =
+        dimensions
+            .filter { (width, height) -> width > 0 && height > 0 }
+            .maxByOrNull { (width, height) -> width.toLong() * height.toLong() }
+            ?: return null
     return sourceDimensions.first.toFloat() / sourceDimensions.second.toFloat()
 }
 

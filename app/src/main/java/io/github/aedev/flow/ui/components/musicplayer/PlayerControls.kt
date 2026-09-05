@@ -49,7 +49,6 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.player.RepeatMode
-import io.github.aedev.flow.ui.components.pressScale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

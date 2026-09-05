@@ -30,11 +30,11 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.components.music.card.MusicHeroCaptionHeight
-import io.github.aedev.flow.ui.components.music.common.MusicSegmentedGap
-import io.github.aedev.flow.ui.components.music.common.musicLaneItemWidth
-import io.github.aedev.flow.ui.components.music.common.musicSegmentShape
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.header.MusicSectionHeader
+import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
+import io.github.aedev.flow.ui.components.shared.flowLaneItemWidth
+import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 import io.github.aedev.flow.ui.theme.Dimensions
 
 private val HeroLaneMaxWidth = 400.dp
@@ -101,7 +101,7 @@ fun <T> MusicHeroLane(
 ) {
     val uniqueItems = remember(items) { items.distinctBy(key) }
     if (uniqueItems.isEmpty()) return
-    val itemWidth = musicLaneItemWidth(maxWidth = HeroLaneMaxWidth, peek = HeroLanePeek)
+    val itemWidth = flowLaneItemWidth(maxWidth = HeroLaneMaxWidth, peek = HeroLanePeek)
     val carouselState = rememberCarouselState { uniqueItems.size }
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -166,16 +166,16 @@ fun <T> MusicTrackShelf(
             state = state,
             contentPadding = PaddingValues(horizontal = Dimensions.ContentPaddingHorizontal),
             horizontalArrangement = Arrangement.spacedBy(TrackShelfColumnSpacing),
-            verticalArrangement = Arrangement.spacedBy(MusicSegmentedGap),
+            verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
             modifier =
                 Modifier
-                    .height(rowHeight * rows + MusicSegmentedGap * (rows - 1))
+                    .height(rowHeight * rows + FlowSegmentedGap * (rows - 1))
                     .fillMaxWidth(),
         ) {
             itemsIndexed(items = uniqueItems, key = { _, item -> key(item) }) { index, item ->
                 val columnStart = (index / rows) * rows
                 val rowsInColumn = minOf(rows, uniqueItems.size - columnStart)
-                itemContent(item, musicSegmentShape(index = index - columnStart, count = rowsInColumn))
+                itemContent(item, flowSegmentShape(index = index - columnStart, count = rowsInColumn))
             }
         }
     }

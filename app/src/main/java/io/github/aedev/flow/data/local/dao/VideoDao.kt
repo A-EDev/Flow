@@ -25,7 +25,8 @@ interface VideoDao {
      * so PlaylistVideoCrossRef CASCADE is never triggered.
      * isMusic is intentionally NOT updated here — the stub's value is the source of truth.
      */
-    @Query("""
+    @Query(
+        """
         UPDATE videos
         SET title = :title,
             channelName = :channelName,
@@ -38,7 +39,8 @@ interface VideoDao {
             description = :description,
             channelThumbnailUrl = :channelThumbnailUrl
         WHERE id = :id
-    """)
+    """,
+    )
     suspend fun updateVideoMetadata(
         id: String,
         title: String,
@@ -50,11 +52,14 @@ interface VideoDao {
         uploadDate: String,
         timestamp: Long,
         description: String,
-        channelThumbnailUrl: String
+        channelThumbnailUrl: String,
     )
 
     @Query("SELECT * FROM videos WHERE id = :id")
     suspend fun getVideo(id: String): VideoEntity?
+
+    @Query("SELECT * FROM videos WHERE id IN (:ids)")
+    suspend fun getVideosByIds(ids: List<String>): List<VideoEntity>
 
     @Query("SELECT * FROM videos")
     suspend fun getAllVideos(): List<VideoEntity>

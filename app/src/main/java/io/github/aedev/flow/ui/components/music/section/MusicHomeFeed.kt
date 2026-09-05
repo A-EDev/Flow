@@ -24,11 +24,11 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.innertube.pages.HomePage
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
-import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
 import io.github.aedev.flow.ui.components.music.header.MusicSectionAction
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
+import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.screens.music.MusicUiState
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 
@@ -99,7 +99,7 @@ fun LazyListScope.musicHomeFeed(
 
     if (uiState.selectedFilter != null) {
         if (uiState.isSearching) {
-            item(key = "filter_loading") { MusicFeedProgress() }
+            item(key = "filter_loading") { FlowFeedProgress() }
         } else {
             items(uiState.allSongs.distinctBy { it.videoId }, key = { "filtered:${it.videoId}" }) { track ->
                 MusicTrackItem(
@@ -314,7 +314,7 @@ fun LazyListScope.musicHomeFeed(
     if (uiState.homeContinuation != null) {
         item(key = "home_continuation") {
             LaunchedEffect(Unit) { onLoadMore() }
-            if (uiState.isMoreLoading) MusicFeedProgress() else Box(modifier = Modifier.height(0.dp))
+            if (uiState.isMoreLoading) FlowFeedProgress() else Box(modifier = Modifier.height(0.dp))
         }
     }
 }

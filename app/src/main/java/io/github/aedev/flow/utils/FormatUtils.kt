@@ -17,6 +17,8 @@ fun formatDuration(seconds: Int): String {
     }
 }
 
+fun formatDurationMillis(millis: Long): String = formatDuration((millis / 1000L).toInt())
+
 fun formatViewCount(count: Long): String = compactCountFormatter().format(count)
 
 fun formatSubscriberCount(count: Long): String {

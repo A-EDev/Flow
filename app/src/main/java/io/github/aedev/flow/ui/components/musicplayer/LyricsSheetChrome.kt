@@ -105,7 +105,7 @@ import io.github.aedev.flow.ui.components.FlowMenuGroup
 import io.github.aedev.flow.ui.components.FlowMenuItemData
 import io.github.aedev.flow.ui.components.FlowMenuSectionHeader
 import io.github.aedev.flow.ui.components.PlayingWaveform
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import java.util.Locale
 
 internal fun lyricsTextAlignFor(pref: String): TextAlign =

@@ -36,7 +36,7 @@ import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.lyrics.LyricsProviderRegistry
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import kotlinx.coroutines.launch
 
 private val audioLanguageOptions: List<Pair<String, String?>> =

@@ -2662,7 +2662,7 @@
     <string name="equalizer_q_label">Q</string>
     <string name="section_on_repeat">على التكرار</string>
     <string name="section_daily_mix_title">%1$s Mix</string>
-    <string name="section_daily_mix_label">اليومي Mix</string>
+    <string name="section_daily_mix_label">Mix اليومي</string>
     <string name="daily_mix_page_description">مزيج موسيقي من الفنانين الذين تستمع إليهم معًا. احفظه للاحتفاظ بمزيج اليوم.</string>
     <string name="section_rediscover">إعادة اكتشاف</string>
     <string name="section_from_artists_you_love">من الفنانين الذين تحبهم</string>

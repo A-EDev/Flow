@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.screens.playlists
 
+import io.github.aedev.flow.data.model.PlaylistInfo
+import io.github.aedev.flow.ui.components.library.PlaylistOwnershipFilter
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -24,13 +26,14 @@ class PlaylistLibraryFiltersTest {
         assertEquals(saved, PlaylistOwnershipFilter.Saved.select(owned, saved))
     }
 
-    private fun playlist(id: String) = PlaylistInfo(
-        id = id,
-        name = id,
-        description = "",
-        videoCount = 0,
-        thumbnailUrl = "",
-        isPrivate = true,
-        createdAt = 0L
-    )
+    private fun playlist(id: String) =
+        PlaylistInfo(
+            id = id,
+            name = id,
+            description = "",
+            videoCount = 0,
+            thumbnailUrl = "",
+            isPrivate = true,
+            createdAt = 0L,
+        )
 }

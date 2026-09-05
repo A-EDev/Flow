@@ -53,6 +53,9 @@ import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
+import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardHorizontal
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce

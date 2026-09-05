@@ -38,9 +38,6 @@ import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.music.common.MusicFeedProgress
-import io.github.aedev.flow.ui.components.music.common.MusicLoadingIndicator
-import io.github.aedev.flow.ui.components.music.common.musicArtistShape
 import io.github.aedev.flow.ui.components.music.item.MusicCardOverflowButton
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
@@ -48,6 +45,9 @@ import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
 import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
+import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.flowArtistShape
 
 private val GridCellMinWidth = 150.dp
 private const val LOAD_MORE_THRESHOLD = 5
@@ -150,7 +150,7 @@ fun ArtistItemsScreen(
                     .fillMaxSize(),
         ) {
             if (isLoading) {
-                MusicLoadingIndicator()
+                FlowLoadingIndicator()
             } else if (artistItemsPage != null) {
                 if (artistItemsPage.items.firstOrNull() is SongItem) {
                     LazyColumn(
@@ -170,11 +170,11 @@ fun ArtistItemsScreen(
                             }
                         }
                         if (isMoreLoading) {
-                            item(key = "more_loading") { MusicFeedProgress() }
+                            item(key = "more_loading") { FlowFeedProgress() }
                         }
                     }
                 } else {
-                    val artistShape = musicArtistShape()
+                    val artistShape = flowArtistShape()
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(GridCellMinWidth),
                         state = lazyGridState,
@@ -208,7 +208,7 @@ fun ArtistItemsScreen(
                             )
                         }
                         if (isMoreLoading) {
-                            item(key = "more_loading") { MusicFeedProgress() }
+                            item(key = "more_loading") { FlowFeedProgress() }
                         }
                     }
                 }

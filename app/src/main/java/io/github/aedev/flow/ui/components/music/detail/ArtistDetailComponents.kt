@@ -52,7 +52,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.ArtistDetails
-import io.github.aedev.flow.ui.components.music.common.musicWindowWidth
+import io.github.aedev.flow.ui.components.shared.flowWindowWidth
 import io.github.aedev.flow.utils.formatViewCount
 
 private val HeroMaxHeight = 400.dp
@@ -74,7 +74,7 @@ fun ArtistHero(
 ) {
     val context = LocalContext.current
     val imageUrl = artist.thumbnailUrl.ifEmpty { artist.bannerUrl }
-    val heroHeight = musicWindowWidth().coerceAtMost(HeroMaxHeight)
+    val heroHeight = flowWindowWidth().coerceAtMost(HeroMaxHeight)
     val heroShape =
         MaterialTheme.shapes.extraExtraLarge.copy(
             topStart = CornerSize(0.dp),

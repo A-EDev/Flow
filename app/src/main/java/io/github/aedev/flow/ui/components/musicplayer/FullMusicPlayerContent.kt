@@ -84,7 +84,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
-import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
@@ -97,6 +96,7 @@ import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
+import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -112,7 +112,7 @@ internal fun FullMusicPlayerContent(
     hideArtwork: Boolean,
     onArtistClick: (String) -> Unit,
     onAlbumClick: (String) -> Unit,
-    viewModel: MusicPlayerViewModel = hiltViewModel(),
+    viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val positionState = viewModel.currentPositionMs.collectAsState()

@@ -49,6 +49,7 @@ import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.factory.LoadControlFactory
+import io.github.aedev.flow.player.sessionArtworkBitmapLoader
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.Dispatchers
@@ -944,6 +945,7 @@ class Media3MusicService : MediaLibraryService() {
             MediaLibrarySession
                 .Builder(this, player, LibrarySessionCallback())
                 .setSessionActivity(pendingIntent)
+                .setBitmapLoader(sessionArtworkBitmapLoader(this))
                 .build()
 
         setMediaNotificationProvider(CustomNotificationProvider())

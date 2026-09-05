@@ -1,15 +1,16 @@
 package io.github.aedev.flow.ui.screens.library
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.ui.components.library.LIBRARY_SHELF_ITEM_LIMIT
+import io.github.aedev.flow.ui.components.library.LibraryMediaItem
+import io.github.aedev.flow.ui.components.library.toLibraryMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -24,14 +25,13 @@ import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
 class LibraryViewModel
     @Inject
     constructor(
-        @ApplicationContext context: Context,
         playlistRepository: PlaylistRepository,
+        likedVideosRepository: LikedVideosRepository,
+        viewHistory: ViewHistory,
         videoDownloadManager: VideoDownloadManager,
         musicDownloadManager: MusicDownloadManager,
         shortsContentFilter: ShortsContentFilter,
     ) : ViewModel() {
-        private val likedVideosRepository = LikedVideosRepository.getInstance(context)
-        private val viewHistory = ViewHistory.getInstance(context)
         private val sharing = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L)
 
         internal val history =
@@ -44,7 +44,7 @@ class LibraryViewModel
                         .toList()
                 }.distinctUntilChanged()
                 .flowOn(Dispatchers.Default)
-                .stateIn(viewModelScope, sharing, emptyList())
+                .stateIn(viewModelScope, sharing, null)
 
         internal val likes =
             likedVideosRepository
@@ -53,30 +53,29 @@ class LibraryViewModel
                     likes.take(LIBRARY_SHELF_ITEM_LIMIT).map { it.toLibraryMediaItem() }
                 }.distinctUntilChanged()
                 .flowOn(Dispatchers.Default)
-                .stateIn(viewModelScope, sharing, emptyList())
+                .stateIn(viewModelScope, sharing, null)
 
         internal val playlists =
             playlistRepository
                 .getAllPlaylistsFlow()
                 .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
                 .distinctUntilChanged()
-                .stateIn(viewModelScope, sharing, emptyList())
+                .stateIn(viewModelScope, sharing, null)
 
         internal val musicPlaylists =
             playlistRepository
                 .getMusicPlaylistsFlow()
                 .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
                 .distinctUntilChanged()
-                .stateIn(viewModelScope, sharing, emptyList())
+                .stateIn(viewModelScope, sharing, null)
 
         internal val watchLater =
             playlistRepository
                 .getVideoOnlyWatchLaterFlow()
                 .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
                 .distinctUntilChanged()
-                .stateIn(viewModelScope, sharing, emptyList())
+                .stateIn(viewModelScope, sharing, null)
 
-        /** Hides the Saved Shorts shelf when the master switch is off — the rows stay in the database. */
         internal val shortsEnabled =
             shortsContentFilter.enabled
                 .stateIn(viewModelScope, sharing, true)
@@ -86,7 +85,7 @@ class LibraryViewModel
                 .getVideoOnlySavedShortsFlow()
                 .map { it.take(LIBRARY_SHELF_ITEM_LIMIT) }
                 .distinctUntilChanged()
-                .stateIn(viewModelScope, sharing, emptyList())
+                .stateIn(viewModelScope, sharing, null)
 
         internal val downloads =
             combine(
@@ -105,5 +104,19 @@ class LibraryViewModel
                 }.take(LIBRARY_SHELF_ITEM_LIMIT)
             }.distinctUntilChanged()
                 .flowOn(Dispatchers.Default)
-                .stateIn(viewModelScope, sharing, emptyList())
+                .stateIn(viewModelScope, sharing, null)
+
+        internal val isLibraryEmpty =
+            combine(
+                history,
+                likes,
+                playlists,
+                watchLater,
+                downloads,
+            ) { shelves -> shelves.all { it != null && it.isEmpty() } }
+                .combine(musicPlaylists) { empty, music -> empty && music != null && music.isEmpty() }
+                .combine(savedShorts) { empty, shorts -> empty && shorts != null && shorts.isEmpty() }
+                .distinctUntilChanged()
+                .flowOn(Dispatchers.Default)
+                .stateIn(viewModelScope, sharing, false)
     }

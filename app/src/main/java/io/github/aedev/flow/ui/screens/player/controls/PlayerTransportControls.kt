@@ -26,7 +26,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.pressScale
+import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.screens.player.SleekLoadingAnimation
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent

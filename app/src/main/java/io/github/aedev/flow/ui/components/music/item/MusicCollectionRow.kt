@@ -37,7 +37,7 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
-import io.github.aedev.flow.ui.components.music.common.musicArtistShape
+import io.github.aedev.flow.ui.components.shared.flowArtistShape
 import io.github.aedev.flow.ui.screens.music.convertSongToMusicTrack
 
 /**
@@ -87,7 +87,7 @@ fun MusicCollectionRow(
             modifier =
                 Modifier
                     .size(56.dp)
-                    .clip(if (item is ArtistItem) musicArtistShape() else MaterialTheme.shapes.small),
+                    .clip(if (item is ArtistItem) flowArtistShape() else MaterialTheme.shapes.small),
             contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.width(16.dp))

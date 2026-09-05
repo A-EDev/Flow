@@ -6,8 +6,8 @@ import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.local.entity.VideoEntity
+import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -273,6 +273,15 @@ class PlaylistRepository
             playlistDao.updatePlaylistName(playlistId, name)
         }
 
+        suspend fun updatePlaylistMetadata(
+            playlistId: String,
+            name: String,
+            description: String,
+            isPrivate: Boolean,
+        ) {
+            playlistDao.updatePlaylistMetadata(playlistId, name, description, isPrivate)
+        }
+
         suspend fun deletePlaylist(playlistId: String) {
             playlistDao.deletePlaylist(playlistId)
         }
@@ -434,6 +443,8 @@ class PlaylistRepository
             }
 
         suspend fun getSavedVideoPlaylistVideos(): List<Video> = playlistDao.getSavedVideoPlaylistVideos().map { it.toDomain() }
+
+        suspend fun getPlaylistIdsForVideo(videoId: String): List<String> = playlistDao.getPlaylistIdsForVideo(videoId)
 
         fun getPlaylistVideosFlow(playlistId: String): Flow<List<Video>> =
             playlistDao.getVideosForPlaylist(playlistId).map { entities ->
