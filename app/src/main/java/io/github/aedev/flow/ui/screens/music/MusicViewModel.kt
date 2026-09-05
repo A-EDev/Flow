@@ -39,7 +39,6 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +49,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -80,6 +80,7 @@ class MusicViewModel
             /** Route prefix for synthesized Daily Mix playlist pages. */
             const val DAILY_MIX_ID_PREFIX = "daily_mix_"
             private const val SESSION_CACHE_LIMIT = 48
+            private const val SECONDARY_CONTENT_START_CAP_MS = 1_500L
             private const val COMMUNITY_ARTIST_SEEDS = 3
             private const val COMMUNITY_TRACK_SEEDS = 2
             private const val COMMUNITY_PLAYLIST_COUNT = 6
@@ -100,11 +101,12 @@ class MusicViewModel
         val uiState: StateFlow<MusicUiState> =
             combine(_uiState, musicBrain.hiddenArtists) { state, hidden ->
                 state.withHiddenArtists(hidden).withUniqueLazyContent()
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = _uiState.value.withUniqueLazyContent(),
-            )
+            }.flowOn(PerformanceDispatcher.parsing)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = _uiState.value.withUniqueLazyContent(),
+                )
 
         private fun isUiVisible(): Boolean = _uiState.subscriptionCount.value > 0
 
@@ -118,7 +120,7 @@ class MusicViewModel
         init {
             loadMusicContent()
 
-            viewModelScope.launch {
+            viewModelScope.launch(PerformanceDispatcher.parsing) {
                 downloadManager.downloadedTracks.collect { tracks ->
                     _uiState.update { state ->
                         state.copy(downloadedTrackIds = tracks.map { it.track.videoId }.toSet())
@@ -131,7 +133,7 @@ class MusicViewModel
             // stale instead — otherwise endless radio would trigger a full
             // network + ranking pass every few minutes all night.
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                var lastTrackId: String? = null
+                var lastTrackId: String? = EnhancedMusicPlayerManager.currentTrack.value?.videoId
                 EnhancedMusicPlayerManager.currentTrack.collectLatest { activeTrack ->
                     if (activeTrack != null && !activeTrack.videoId.isNullOrBlank()) {
                         if (activeTrack.videoId != lastTrackId) {
@@ -174,7 +176,7 @@ class MusicViewModel
             // truest "most yours" rather than raw shelf concatenation order.
             // Writing speedDialTracks re-emits _uiState, but the source triple is
             // unchanged then, so distinctUntilChanged breaks the loop.
-            viewModelScope.launch {
+            viewModelScope.launch(PerformanceDispatcher.parsing) {
                 _uiState
                     .map { Triple(it.history, it.forYouTracks, it.listenAgain) }
                     .distinctUntilChanged()
@@ -584,18 +586,23 @@ class MusicViewModel
                 .take(DEEP_CUT_ALBUM_POOL)
         }
 
-        private suspend fun expandDeepCutAlbums() {
+        private suspend fun expandDeepCutAlbums(): Boolean {
+            var recorded = false
             try {
                 val history = playlistRepository.history.firstOrNull().orEmpty()
                 musicGraph
                     .albumIdsNeedingTracks(deepCutAlbumIds(history))
                     .take(DEEP_CUT_ALBUM_FETCHES)
                     .forEach { albumId ->
-                        InnertubeMusicService.fetchAlbum(albumId)?.let { musicGraph.recordAlbum(it) }
+                        InnertubeMusicService.fetchAlbum(albumId)?.let {
+                            musicGraph.recordAlbum(it)
+                            recorded = true
+                        }
                     }
             } catch (e: Exception) {
                 Log.e("MusicViewModel", "Error expanding deep cut albums", e)
             }
+            return recorded
         }
 
         /**
@@ -615,7 +622,7 @@ class MusicViewModel
                 val cachedSections = cachedResult.first
 
                 if (cachedTrending != null || cachedSections.isNotEmpty()) {
-                    withContext(Dispatchers.Main) {
+                    withContext(PerformanceDispatcher.parsing) {
                         // Apply cached data immediately
                         if (cachedSections.isNotEmpty()) {
                             processHomeSections(cachedSections)
@@ -651,60 +658,51 @@ class MusicViewModel
                     ?.let { maturity -> _uiState.update { it.copy(brainMaturity = maturity) } }
             }
 
-            // Daily Mixes — co-occurrence clusters expanded through related recall.
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                refreshDailyMixes()
-            }
-
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                expandDeepCutAlbums()
-                refreshLocalShelves()
-            }
-
             // 1. CRITICAL: Trending / Charts (Fastest & Most Important)
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                val trending =
-                    withTimeoutOrNull(8_000L) {
-                        try {
-                            // Try to get charts first for high quality trending data
-                            val charts = InnertubeMusicService.fetchCharts()
-                            if (charts != null) {
-                                _uiState.update {
-                                    it.copy(
-                                        chartPlaylists = charts.playlists,
-                                        chartArtists = charts.artists,
-                                        chartCountryCode = charts.countryCode,
-                                    )
+            val trendingJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    val trending =
+                        withTimeoutOrNull(8_000L) {
+                            try {
+                                // Try to get charts first for high quality trending data
+                                val charts = InnertubeMusicService.fetchCharts()
+                                if (charts != null) {
+                                    _uiState.update {
+                                        it.copy(
+                                            chartPlaylists = charts.playlists,
+                                            chartArtists = charts.artists,
+                                            chartCountryCode = charts.countryCode,
+                                        )
+                                    }
                                 }
+                                if (charts != null && charts.songs.isNotEmpty()) {
+                                    MusicCache.cacheTrendingMusic(100, charts.songs)
+                                    charts.songs
+                                } else {
+                                    val trending = YouTubeMusicService.fetchTrendingMusic(100)
+                                    MusicCache.cacheTrendingMusic(100, trending)
+                                    trending
+                                }
+                            } catch (e: Exception) {
+                                Log.e("MusicViewModel", "Error loading trending/charts", e)
+                                null
                             }
-                            if (charts != null && charts.songs.isNotEmpty()) {
-                                MusicCache.cacheTrendingMusic(100, charts.songs)
-                                charts.songs
-                            } else {
-                                val trending = YouTubeMusicService.fetchTrendingMusic(100)
-                                MusicCache.cacheTrendingMusic(100, trending)
-                                trending
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MusicViewModel", "Error loading trending/charts", e)
-                            null
+                        }
+
+                    trending?.let { trend ->
+                        _uiState.update {
+                            it.copy(
+                                trendingSongs = trend,
+                                allSongs = if (it.selectedFilter == null) trend else it.allSongs,
+                                isLoading = false,
+                            )
                         }
                     }
 
-                trending?.let { trend ->
-                    _uiState.update {
-                        it.copy(
-                            trendingSongs = trend,
-                            allSongs = if (it.selectedFilter == null) trend else it.allSongs,
-                            isLoading = false,
-                        )
-                    }
+                    // First composition of the multi-lane Quick Picks: seeds from the
+                    // current track (if any) and history, discovery lane from the charts.
+                    rebuildQuickPicks(EnhancedMusicPlayerManager.currentTrack.value)
                 }
-
-                // First composition of the multi-lane Quick Picks: seeds from the
-                // current track (if any) and history, discovery lane from the charts.
-                rebuildQuickPicks(EnhancedMusicPlayerManager.currentTrack.value)
-            }
 
             // 2. IMPORTANT: Home Sections (Dynamic Content)
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
@@ -784,6 +782,22 @@ class MusicViewModel
                         )
                     }
                 }
+            }
+
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                withTimeoutOrNull(SECONDARY_CONTENT_START_CAP_MS) { trendingJob.join() }
+                loadSecondaryContent()
+            }
+        }
+
+        private fun loadSecondaryContent() {
+            // Daily Mixes — co-occurrence clusters expanded through related recall.
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                refreshDailyMixes()
+            }
+
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                if (expandDeepCutAlbums()) refreshLocalShelves()
             }
 
             // 4. CONTENT: New Releases (Albums & Tracks)
