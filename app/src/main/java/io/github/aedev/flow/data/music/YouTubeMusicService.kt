@@ -133,10 +133,7 @@ object YouTubeMusicService {
                     tracks.addAll(innertubeTracks)
                 } else {
                     // Fallback: Innertube charts (FEmusic_charts — stable, no hardcoded IDs)
-                    val chartTracks = InnertubeMusicService.fetchCharts()
-                    if (chartTracks.isNotEmpty()) {
-                        tracks.addAll(chartTracks)
-                    }
+                    InnertubeMusicService.fetchCharts()?.songs?.let(tracks::addAll)
                     // Secondary fallback: search-based discovery
                     if (tracks.size < limit) {
                         tracks.addAll(searchMusic(trendingMusicQueries.first(), limit - tracks.size))
@@ -145,7 +142,7 @@ object YouTubeMusicService {
             } catch (e: Exception) {
                 Log.e(TAG, "Error in fetchTrendingMusic", e)
                 try {
-                    tracks.addAll(InnertubeMusicService.fetchCharts())
+                    InnertubeMusicService.fetchCharts()?.songs?.let(tracks::addAll)
                 } catch (ignore: Exception) {
                 }
             }

@@ -101,6 +101,7 @@ data class ArtistDetails(
     val channelId: String,
     val thumbnailUrl: String,
     val subscriberCount: Long,
+    val monthlyListenersText: String? = null,
     val description: String = "",
     val bannerUrl: String = "",
     val topTracks: List<MusicTrack> = emptyList(),
@@ -116,4 +117,11 @@ data class ArtistDetails(
     val singlesParams: String? = null,
     val topTracksBrowseId: String? = null,
     val topTracksParams: String? = null,
+)
+
+data class MusicCharts(
+    val countryCode: String?,
+    val songs: List<MusicTrack> = emptyList(),
+    val playlists: List<MusicPlaylist> = emptyList(),
+    val artists: List<ArtistDetails> = emptyList(),
 )

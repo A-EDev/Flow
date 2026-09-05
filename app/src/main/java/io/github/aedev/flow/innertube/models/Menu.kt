@@ -30,11 +30,12 @@ data class Menu(
                 val icon: Icon,
                 val serviceEndpoint: NavigationEndpoint,
             )
+
             @Serializable
             data class ToggleMenuServiceRenderer(
                 val defaultIcon: Icon,
                 val defaultServiceEndpoint: DefaultServiceEndpoint,
-                val toggledServiceEndpoint: ToggledServiceEndpoint?
+                val toggledServiceEndpoint: ToggledServiceEndpoint?,
             )
         }
 
@@ -50,3 +51,12 @@ data class Menu(
         }
     }
 }
+
+fun Menu?.watchPlaylistEndpointFor(iconType: String): WatchEndpoint? =
+    this
+        ?.menuRenderer
+        ?.items
+        ?.firstOrNull { it.menuNavigationItemRenderer?.icon?.iconType == iconType }
+        ?.menuNavigationItemRenderer
+        ?.navigationEndpoint
+        ?.watchPlaylistEndpoint

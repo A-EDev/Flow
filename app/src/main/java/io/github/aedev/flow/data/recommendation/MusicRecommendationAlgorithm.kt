@@ -323,14 +323,15 @@ class MusicRecommendationAlgorithm
                 deferreds.add(
                     async {
                         try {
-                            val charts = youTube.getChartsPage().getOrNull()
-                            charts?.sections?.forEach { section ->
-                                if (section.title.contains("Top", true) || section.title.contains("Trending", true)) {
+                            val charts = youTube.getChartsPage(youTube.locale.gl).getOrNull()
+                            charts
+                                ?.sections
+                                ?.filter { it.chartType == io.github.aedev.flow.innertube.pages.ChartsPage.ChartType.SONGS }
+                                ?.forEach { section ->
                                     section.items.filterIsInstance<SongItem>().forEach { song ->
                                         addCandidate(song, candidates, seenIds)
                                     }
                                 }
-                            }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error fetching charts", e)
                         }

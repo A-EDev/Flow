@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.CommunityMusicPlaylist
 import io.github.aedev.flow.data.music.model.DailyDiscoverItem
 import io.github.aedev.flow.data.music.model.MUSIC_GENRE_SOURCE_PREFIX
@@ -31,6 +33,7 @@ import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.screens.music.MusicUiState
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
+import java.util.Locale
 
 /**
  * Everything the music home feed draws, one section component per block.
@@ -269,6 +272,8 @@ fun LazyListScope.musicHomeFeed(
 
             HomeSectionType.CHARTS -> {
                 charts(uiState.trendingSongs, downloaded, onSongClick, onTrackMenu)
+                chartPlaylists(uiState.chartCountryCode, uiState.chartPlaylists, onAlbumClick, ::collectionMenu)
+                chartArtists(uiState.chartCountryCode, uiState.chartArtists, onArtistClick)
             }
 
             HomeSectionType.POPULAR_ARTISTS -> {
@@ -446,6 +451,61 @@ private fun LazyListScope.charts(
         )
     }
 }
+
+private fun LazyListScope.chartPlaylists(
+    countryCode: String?,
+    playlists: List<MusicPlaylist>,
+    onPlaylistClick: (String) -> Unit,
+    onCollectionMenu: (MusicPlaylist, Boolean) -> Unit,
+) {
+    if (playlists.isEmpty()) return
+    item(key = "chart_playlists") {
+        MusicCollectionShelf(
+            title = chartShelfTitle(countryCode, R.string.section_charts_in, R.string.section_charts_global),
+            collections = playlists,
+            keyNamespace = "chart_playlists",
+            onCollectionClick = { onPlaylistClick(it.id) },
+            onCollectionMenu = { onCollectionMenu(it, false) },
+        )
+    }
+}
+
+private fun LazyListScope.chartArtists(
+    countryCode: String?,
+    artists: List<ArtistDetails>,
+    onArtistClick: (String) -> Unit,
+) {
+    if (artists.isEmpty()) return
+    item(key = "chart_artists") {
+        MusicArtistShelf(
+            title = chartShelfTitle(countryCode, R.string.section_top_artists_in, R.string.section_top_artists_global),
+            artists = artists,
+            key = { "chart_artists:${it.channelId}" },
+            name = { it.name },
+            thumbnailUrl = { it.thumbnailUrl },
+            onArtistClick = { onArtistClick(it.channelId) },
+        )
+    }
+}
+
+@Composable
+private fun chartShelfTitle(
+    countryCode: String?,
+    countryTitleRes: Int,
+    globalTitleRes: Int,
+): String =
+    countryCode
+        ?.let {
+            stringResource(
+                countryTitleRes,
+                Locale
+                    .Builder()
+                    .setRegion(it)
+                    .build()
+                    .displayCountry,
+            )
+        }
+        ?: stringResource(globalTitleRes)
 
 private fun LazyListScope.community(
     playlists: List<CommunityMusicPlaylist>,

@@ -1,0 +1,2371 @@
+{
+ "contents": {
+  "singleColumnBrowseResultsRenderer": {
+   "tabs": [
+    {
+     "tabRenderer": {
+      "content": {
+       "sectionListRenderer": {
+        "contents": [
+         {
+          "musicShelfRenderer": {
+           "shelfDivider": {
+            "musicShelfDividerRenderer": {
+             "hidden": true
+            }
+           },
+           "subheaders": [
+            {
+             "musicSideAlignedItemRenderer": {
+              "startItems": [
+               {
+                "musicSortFilterButtonRenderer": {
+                 "title": {
+                  "runs": [
+                   {
+                    "text": "Global"
+                   }
+                  ]
+                 },
+                 "icon": {
+                  "iconType": "CHEVRON_DOWN"
+                 },
+                 "menu": {
+                  "musicMultiSelectMenuRenderer": {
+                   "title": {
+                    "musicMenuTitleRenderer": {
+                     "primaryText": {
+                      "runs": [
+                       {
+                        "text": "Select a country"
+                       }
+                      ]
+                     }
+                    }
+                   },
+                   "options": [
+                    {
+                     "musicMultiSelectMenuItemRenderer": {
+                      "title": {
+                       "runs": [
+                        {
+                         "text": "Global"
+                        }
+                       ]
+                      },
+                      "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlogkQEoAQ%3D%3D",
+                      "selectedIcon": {
+                       "iconType": "CHECK"
+                      }
+                     }
+                    },
+                    {
+                     "musicMultiSelectMenuItemRenderer": {
+                      "title": {
+                       "runs": [
+                        {
+                         "text": "Argentina"
+                        }
+                       ]
+                      },
+                      "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVIgkQEoAQ%3D%3D",
+                      "selectedCommand": {
+                       "commandExecutorCommand": {
+                        "commands": [
+                         {
+                          "musicCheckboxFormItemMutatedCommand": {
+                           "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVIgkQEoAQ%3D%3D",
+                           "newCheckedState": true
+                          }
+                         },
+                         {
+                          "musicCheckboxFormItemMutatedCommand": {
+                           "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlogkQEoAQ%3D%3D",
+                           "newCheckedState": false
+                          }
+                         },
+                         {
+                          "musicBrowseFormBinderCommand": {
+                           "browseEndpoint": {
+                            "browseId": "FEmusic_charts",
+                            "navigationType": "BROWSE_NAVIGATION_TYPE_LOAD_IN_PLACE"
+                           },
+                           "formEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D"
+                          }
+                         }
+                        ]
+                       }
+                      },
+                      "selectedIcon": {
+                       "iconType": "CHECK"
+                      }
+                     }
+                    },
+                    {
+                     "musicMultiSelectMenuItemRenderer": {
+                      "title": {
+                       "runs": [
+                        {
+                         "text": "India"
+                        }
+                       ]
+                      },
+                      "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SU4gkQEoAQ%3D%3D",
+                      "selectedCommand": {
+                       "commandExecutorCommand": {
+                        "commands": [
+                         {
+                          "musicCheckboxFormItemMutatedCommand": {
+                           "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SU4gkQEoAQ%3D%3D",
+                           "newCheckedState": true
+                          }
+                         },
+                         {
+                          "musicCheckboxFormItemMutatedCommand": {
+                           "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlogkQEoAQ%3D%3D",
+                           "newCheckedState": false
+                          }
+                         },
+                         {
+                          "musicBrowseFormBinderCommand": {
+                           "browseEndpoint": {
+                            "browseId": "FEmusic_charts",
+                            "navigationType": "BROWSE_NAVIGATION_TYPE_LOAD_IN_PLACE"
+                           },
+                           "formEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D"
+                          }
+                         }
+                        ]
+                       }
+                      },
+                      "selectedIcon": {
+                       "iconType": "CHECK"
+                      }
+                     }
+                    },
+                    {
+                     "musicMultiSelectMenuItemRenderer": {
+                      "title": {
+                       "runs": [
+                        {
+                         "text": "United States"
+                        }
+                       ]
+                      },
+                      "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VVMgkQEoAQ%3D%3D",
+                      "selectedCommand": {
+                       "commandExecutorCommand": {
+                        "commands": [
+                         {
+                          "musicCheckboxFormItemMutatedCommand": {
+                           "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VVMgkQEoAQ%3D%3D",
+                           "newCheckedState": true
+                          }
+                         },
+                         {
+                          "musicCheckboxFormItemMutatedCommand": {
+                           "formItemEntityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlogkQEoAQ%3D%3D",
+                           "newCheckedState": false
+                          }
+                         },
+                         {
+                          "musicBrowseFormBinderCommand": {
+                           "browseEndpoint": {
+                            "browseId": "FEmusic_charts",
+                            "navigationType": "BROWSE_NAVIGATION_TYPE_LOAD_IN_PLACE"
+                           },
+                           "formEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D"
+                          }
+                         }
+                        ]
+                       }
+                      },
+                      "selectedIcon": {
+                       "iconType": "CHECK"
+                      }
+                     }
+                    }
+                   ],
+                   "formEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D"
+                  }
+                 }
+                }
+               }
+              ]
+             }
+            }
+           ]
+          }
+         },
+         {
+          "musicCarouselShelfRenderer": {
+           "header": {
+            "musicCarouselShelfBasicHeaderRenderer": {
+             "title": {
+              "runs": [
+               {
+                "text": "Video charts"
+               }
+              ]
+             },
+             "headerStyle": "MUSIC_CAROUSEL_SHELF_BASIC_HEADER_STYLE_DISPLAY_TWO"
+            }
+           },
+           "contents": [
+            {
+             "musicTwoRowItemRenderer": {
+              "thumbnailRenderer": {
+               "musicThumbnailRenderer": {
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://yt3.googleusercontent.com/gyNwC-prCajmpLri9Lzr5BYw-wc2dE7uLWZQYkfefpQTAc5MRY_CnW2ZO_UXhhI9uXL2v1J_TIaH=s192",
+                   "width": 192,
+                   "height": 192
+                  }
+                 ]
+                },
+                "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+                "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL"
+               }
+              },
+              "aspectRatio": "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE",
+              "title": {
+               "runs": [
+                {
+                 "text": "Daily Top Music Videos - Global",
+                 "navigationEndpoint": {
+                  "browseEndpoint": {
+                   "browseId": "VLPL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0",
+                   "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                     "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+                    }
+                   }
+                  }
+                 }
+                }
+               ]
+              },
+              "subtitle": {
+               "runs": [
+                {
+                 "text": "Chart"
+                },
+                {
+                 "text": " • "
+                },
+                {
+                 "text": "YouTube Music",
+                 "navigationEndpoint": {
+                  "browseEndpoint": {
+                   "browseId": "UCrKZcyOJVWnJ60zM1XWllNw",
+                   "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                     "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                    }
+                   }
+                  }
+                 }
+                }
+               ]
+              },
+              "navigationEndpoint": {
+               "browseEndpoint": {
+                "browseId": "VLPL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+                 }
+                }
+               }
+              },
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Shuffle play"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "MUSIC_SHUFFLE"
+                   },
+                   "navigationEndpoint": {
+                    "watchPlaylistEndpoint": {
+                     "playlistId": "PL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0",
+                     "params": "wAEB8gECKAE%3D"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Start mix"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "MIX"
+                   },
+                   "navigationEndpoint": {
+                    "watchPlaylistEndpoint": {
+                     "playlistId": "RDAMPLPL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0",
+                     "params": "wAEB"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuServiceItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Play next"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "QUEUE_PLAY_NEXT"
+                   },
+                   "serviceEndpoint": {
+                    "queueAddEndpoint": {
+                     "queueTarget": {
+                      "playlistId": "PL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0",
+                      "onEmptyQueue": {
+                       "watchEndpoint": {
+                        "playlistId": "PL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0"
+                       }
+                      }
+                     },
+                     "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                     "commands": [
+                      {
+                       "addToToastAction": {
+                        "item": {
+                         "notificationTextRenderer": {
+                          "successResponseText": {
+                           "runs": [
+                            {
+                             "text": "Playlist will play next"
+                            }
+                           ]
+                          }
+                         }
+                        }
+                       }
+                      }
+                     ]
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuServiceItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Add to queue"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "ADD_TO_REMOTE_QUEUE"
+                   },
+                   "serviceEndpoint": {
+                    "queueAddEndpoint": {
+                     "queueTarget": {
+                      "playlistId": "PL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0",
+                      "onEmptyQueue": {
+                       "watchEndpoint": {
+                        "playlistId": "PL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0"
+                       }
+                      }
+                     },
+                     "queueInsertPosition": "INSERT_AT_END",
+                     "commands": [
+                      {
+                       "addToToastAction": {
+                        "item": {
+                         "notificationTextRenderer": {
+                          "successResponseText": {
+                           "runs": [
+                            {
+                             "text": "Playlist added to queue"
+                            }
+                           ]
+                          }
+                         }
+                        }
+                       }
+                      }
+                     ]
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "toggleMenuServiceItemRenderer": {
+                   "defaultText": {
+                    "runs": [
+                     {
+                      "text": "Save playlist to library"
+                     }
+                    ]
+                   },
+                   "defaultIcon": {
+                    "iconType": "BOOKMARK_BORDER"
+                   },
+                   "defaultServiceEndpoint": {
+                    "modalEndpoint": {
+                     "modal": {
+                      "modalWithTitleAndButtonRenderer": {
+                       "title": {
+                        "runs": [
+                         {
+                          "text": "Save this for later"
+                         }
+                        ]
+                       },
+                       "content": {
+                        "runs": [
+                         {
+                          "text": "Save favorites to your library after signing in"
+                         }
+                        ]
+                       },
+                       "button": {
+                        "buttonRenderer": {
+                         "style": "STYLE_BLUE_TEXT",
+                         "isDisabled": false,
+                         "text": {
+                          "runs": [
+                           {
+                            "text": "Sign in"
+                           }
+                          ]
+                         },
+                         "navigationEndpoint": {
+                          "signInEndpoint": {
+                           "hack": true
+                          }
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   },
+                   "toggledText": {
+                    "runs": [
+                     {
+                      "text": "Remove playlist from library"
+                     }
+                    ]
+                   },
+                   "toggledIcon": {
+                    "iconType": "BOOKMARK"
+                   },
+                   "toggledServiceEndpoint": {
+                    "likeEndpoint": {
+                     "status": "INDIFFERENT",
+                     "target": {
+                      "playlistId": "PL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0"
+                     }
+                    }
+                   },
+                   "isToggled": false
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Save to playlist"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "ADD_TO_PLAYLIST"
+                   },
+                   "navigationEndpoint": {
+                    "modalEndpoint": {
+                     "modal": {
+                      "modalWithTitleAndButtonRenderer": {
+                       "title": {
+                        "runs": [
+                         {
+                          "text": "Save this for later"
+                         }
+                        ]
+                       },
+                       "content": {
+                        "runs": [
+                         {
+                          "text": "Make playlists and share them after signing in"
+                         }
+                        ]
+                       },
+                       "button": {
+                        "buttonRenderer": {
+                         "style": "STYLE_BLUE_TEXT",
+                         "isDisabled": false,
+                         "text": {
+                          "runs": [
+                           {
+                            "text": "Sign in"
+                           }
+                          ]
+                         },
+                         "navigationEndpoint": {
+                          "signInEndpoint": {
+                           "hack": true
+                          }
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Share"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "SHARE"
+                   },
+                   "navigationEndpoint": {
+                    "shareEntityEndpoint": {
+                     "serializedShareEntity": "EiJQTDRmR1NJMXBESm42dDNUWExHaWlKZEQtc1pickczdEcw",
+                     "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "thumbnailOverlay": {
+               "musicItemThumbnailOverlayRenderer": {
+                "background": {
+                 "verticalGradient": {
+                  "gradientLayerColors": [
+                   "2147483648",
+                   "0",
+                   "0"
+                  ]
+                 }
+                },
+                "content": {
+                 "musicPlayButtonRenderer": {
+                  "playNavigationEndpoint": {
+                   "watchPlaylistEndpoint": {
+                    "playlistId": "PL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0",
+                    "params": "wAEB"
+                   }
+                  },
+                  "playIcon": {
+                   "iconType": "PLAY_ARROW"
+                  },
+                  "pauseIcon": {
+                   "iconType": "PAUSE"
+                  },
+                  "iconColor": 4294967295,
+                  "backgroundColor": 2566914048,
+                  "activeBackgroundColor": 4278190080,
+                  "loadingIndicatorColor": 14745645,
+                  "playingIcon": {
+                   "iconType": "VOLUME_UP"
+                  },
+                  "iconLoadingColor": 1308622847,
+                  "activeScaleFactor": 1.2,
+                  "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_MEDIUM",
+                  "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+                  "accessibilityPlayData": {},
+                  "accessibilityPauseData": {}
+                 }
+                },
+                "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_BOTTOM_RIGHT",
+                "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_HOVER"
+               }
+              }
+             }
+            },
+            {
+             "musicTwoRowItemRenderer": {
+              "thumbnailRenderer": {
+               "musicThumbnailRenderer": {
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://yt3.googleusercontent.com/PtIqMT3zU2m_gZECJekIpHIkI_iqIcj35hgdaYsyZKed0BXcAc8p62wZgTQ5yHBzVnuTujveIA=s192",
+                   "width": 192,
+                   "height": 192
+                  }
+                 ]
+                },
+                "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+                "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL"
+               }
+              },
+              "aspectRatio": "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE",
+              "title": {
+               "runs": [
+                {
+                 "text": "Top 100 Music Videos Global",
+                 "navigationEndpoint": {
+                  "browseEndpoint": {
+                   "browseId": "VLPL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM",
+                   "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                     "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+                    }
+                   }
+                  }
+                 }
+                }
+               ]
+              },
+              "subtitle": {
+               "runs": [
+                {
+                 "text": "Chart"
+                },
+                {
+                 "text": " • "
+                },
+                {
+                 "text": "YouTube Music",
+                 "navigationEndpoint": {
+                  "browseEndpoint": {
+                   "browseId": "UCrKZcyOJVWnJ60zM1XWllNw",
+                   "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                     "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                    }
+                   }
+                  }
+                 }
+                }
+               ]
+              },
+              "navigationEndpoint": {
+               "browseEndpoint": {
+                "browseId": "VLPL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+                 }
+                }
+               }
+              },
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Shuffle play"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "MUSIC_SHUFFLE"
+                   },
+                   "navigationEndpoint": {
+                    "watchPlaylistEndpoint": {
+                     "playlistId": "PL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM",
+                     "params": "wAEB8gECKAE%3D"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Start mix"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "MIX"
+                   },
+                   "navigationEndpoint": {
+                    "watchPlaylistEndpoint": {
+                     "playlistId": "RDAMPLPL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM",
+                     "params": "wAEB"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuServiceItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Play next"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "QUEUE_PLAY_NEXT"
+                   },
+                   "serviceEndpoint": {
+                    "queueAddEndpoint": {
+                     "queueTarget": {
+                      "playlistId": "PL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM",
+                      "onEmptyQueue": {
+                       "watchEndpoint": {
+                        "playlistId": "PL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM"
+                       }
+                      }
+                     },
+                     "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                     "commands": [
+                      {
+                       "addToToastAction": {
+                        "item": {
+                         "notificationTextRenderer": {
+                          "successResponseText": {
+                           "runs": [
+                            {
+                             "text": "Playlist will play next"
+                            }
+                           ]
+                          }
+                         }
+                        }
+                       }
+                      }
+                     ]
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuServiceItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Add to queue"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "ADD_TO_REMOTE_QUEUE"
+                   },
+                   "serviceEndpoint": {
+                    "queueAddEndpoint": {
+                     "queueTarget": {
+                      "playlistId": "PL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM",
+                      "onEmptyQueue": {
+                       "watchEndpoint": {
+                        "playlistId": "PL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM"
+                       }
+                      }
+                     },
+                     "queueInsertPosition": "INSERT_AT_END",
+                     "commands": [
+                      {
+                       "addToToastAction": {
+                        "item": {
+                         "notificationTextRenderer": {
+                          "successResponseText": {
+                           "runs": [
+                            {
+                             "text": "Playlist added to queue"
+                            }
+                           ]
+                          }
+                         }
+                        }
+                       }
+                      }
+                     ]
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "toggleMenuServiceItemRenderer": {
+                   "defaultText": {
+                    "runs": [
+                     {
+                      "text": "Save playlist to library"
+                     }
+                    ]
+                   },
+                   "defaultIcon": {
+                    "iconType": "BOOKMARK_BORDER"
+                   },
+                   "defaultServiceEndpoint": {
+                    "modalEndpoint": {
+                     "modal": {
+                      "modalWithTitleAndButtonRenderer": {
+                       "title": {
+                        "runs": [
+                         {
+                          "text": "Save this for later"
+                         }
+                        ]
+                       },
+                       "content": {
+                        "runs": [
+                         {
+                          "text": "Save favorites to your library after signing in"
+                         }
+                        ]
+                       },
+                       "button": {
+                        "buttonRenderer": {
+                         "style": "STYLE_BLUE_TEXT",
+                         "isDisabled": false,
+                         "text": {
+                          "runs": [
+                           {
+                            "text": "Sign in"
+                           }
+                          ]
+                         },
+                         "navigationEndpoint": {
+                          "signInEndpoint": {
+                           "hack": true
+                          }
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   },
+                   "toggledText": {
+                    "runs": [
+                     {
+                      "text": "Remove playlist from library"
+                     }
+                    ]
+                   },
+                   "toggledIcon": {
+                    "iconType": "BOOKMARK"
+                   },
+                   "toggledServiceEndpoint": {
+                    "likeEndpoint": {
+                     "status": "INDIFFERENT",
+                     "target": {
+                      "playlistId": "PL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM"
+                     }
+                    }
+                   },
+                   "isToggled": false
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Save to playlist"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "ADD_TO_PLAYLIST"
+                   },
+                   "navigationEndpoint": {
+                    "modalEndpoint": {
+                     "modal": {
+                      "modalWithTitleAndButtonRenderer": {
+                       "title": {
+                        "runs": [
+                         {
+                          "text": "Save this for later"
+                         }
+                        ]
+                       },
+                       "content": {
+                        "runs": [
+                         {
+                          "text": "Make playlists and share them after signing in"
+                         }
+                        ]
+                       },
+                       "button": {
+                        "buttonRenderer": {
+                         "style": "STYLE_BLUE_TEXT",
+                         "isDisabled": false,
+                         "text": {
+                          "runs": [
+                           {
+                            "text": "Sign in"
+                           }
+                          ]
+                         },
+                         "navigationEndpoint": {
+                          "signInEndpoint": {
+                           "hack": true
+                          }
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Share"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "SHARE"
+                   },
+                   "navigationEndpoint": {
+                    "shareEntityEndpoint": {
+                     "serializedShareEntity": "EiJQTDRmR1NJMXBESm41a0k4MUoxZllXSzVlWlJsMXpKNWtN",
+                     "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "thumbnailOverlay": {
+               "musicItemThumbnailOverlayRenderer": {
+                "background": {
+                 "verticalGradient": {
+                  "gradientLayerColors": [
+                   "2147483648",
+                   "0",
+                   "0"
+                  ]
+                 }
+                },
+                "content": {
+                 "musicPlayButtonRenderer": {
+                  "playNavigationEndpoint": {
+                   "watchPlaylistEndpoint": {
+                    "playlistId": "PL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM",
+                    "params": "wAEB"
+                   }
+                  },
+                  "playIcon": {
+                   "iconType": "PLAY_ARROW"
+                  },
+                  "pauseIcon": {
+                   "iconType": "PAUSE"
+                  },
+                  "iconColor": 4294967295,
+                  "backgroundColor": 2566914048,
+                  "activeBackgroundColor": 4278190080,
+                  "loadingIndicatorColor": 14745645,
+                  "playingIcon": {
+                   "iconType": "VOLUME_UP"
+                  },
+                  "iconLoadingColor": 1308622847,
+                  "activeScaleFactor": 1.2,
+                  "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_MEDIUM",
+                  "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+                  "accessibilityPlayData": {},
+                  "accessibilityPauseData": {}
+                 }
+                },
+                "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_BOTTOM_RIGHT",
+                "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_HOVER"
+               }
+              }
+             }
+            }
+           ],
+           "itemSize": "COLLECTION_STYLE_ITEM_SIZE_MEDIUM"
+          }
+         },
+         {
+          "musicCarouselShelfRenderer": {
+           "header": {
+            "musicCarouselShelfBasicHeaderRenderer": {
+             "title": {
+              "runs": [
+               {
+                "text": "Top artists"
+               }
+              ]
+             },
+             "headerStyle": "MUSIC_CAROUSEL_SHELF_BASIC_HEADER_STYLE_DISPLAY_TWO"
+            }
+           },
+           "contents": [
+            {
+             "musicResponsiveListItemRenderer": {
+              "thumbnail": {
+               "musicThumbnailRenderer": {
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://lh3.googleusercontent.com/_wPXKRCH5rAX8AK1kJZ1bNhSpNyyEgBRNmREdPmLbvTy3sX_ldiKMRYFc5uChygV_KRx_SDrH1KgUifk=w60-h60-p-l90-rj",
+                   "width": 60,
+                   "height": 60
+                  }
+                 ]
+                },
+                "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_CIRCLE",
+                "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL"
+               }
+              },
+              "flexColumns": [
+               {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                 "text": {
+                  "runs": [
+                   {
+                    "text": "Alka Yagnik"
+                   }
+                  ]
+                 },
+                 "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+                }
+               },
+               {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                 "text": {
+                  "runs": [
+                   {
+                    "text": "2.23M subscribers"
+                   }
+                  ]
+                 },
+                 "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+                }
+               }
+              ],
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Shuffle play"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "MUSIC_SHUFFLE"
+                   },
+                   "navigationEndpoint": {
+                    "watchPlaylistEndpoint": {
+                     "playlistId": "RDAOSx5DRJcYREwrkoLx37jF9g",
+                     "params": "wAEB8gECGAE%3D"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Start mix"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "MIX"
+                   },
+                   "navigationEndpoint": {
+                    "watchPlaylistEndpoint": {
+                     "playlistId": "RDEMSx5DRJcYREwrkoLx37jF9g",
+                     "params": "wAEB"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "toggleMenuServiceItemRenderer": {
+                   "defaultText": {
+                    "runs": [
+                     {
+                      "text": "Subscribe"
+                     }
+                    ]
+                   },
+                   "defaultIcon": {
+                    "iconType": "SUBSCRIBE"
+                   },
+                   "defaultServiceEndpoint": {
+                    "modalEndpoint": {
+                     "modal": {
+                      "modalWithTitleAndButtonRenderer": {
+                       "title": {
+                        "runs": [
+                         {
+                          "text": "Subscribe to this artist"
+                         }
+                        ]
+                       },
+                       "content": {
+                        "runs": [
+                         {
+                          "text": "Sign in to subscribe to this artist and never miss a beat"
+                         }
+                        ]
+                       },
+                       "button": {
+                        "buttonRenderer": {
+                         "style": "STYLE_BLUE_TEXT",
+                         "isDisabled": false,
+                         "text": {
+                          "runs": [
+                           {
+                            "text": "Sign in"
+                           }
+                          ]
+                         },
+                         "navigationEndpoint": {
+                          "signInEndpoint": {
+                           "hack": true
+                          }
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   },
+                   "toggledText": {
+                    "runs": [
+                     {
+                      "text": "Unsubscribe"
+                     }
+                    ]
+                   },
+                   "toggledIcon": {
+                    "iconType": "SUBSCRIBE"
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Share"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "SHARE"
+                   },
+                   "navigationEndpoint": {
+                    "shareEntityEndpoint": {
+                     "serializedShareEntity": "GhhVQ3B0QmtMWjZYUnhveW44U2tVTWNfSXc%3D",
+                     "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "flexColumnDisplayStyle": "MUSIC_RESPONSIVE_LIST_ITEM_FLEX_COLUMN_DISPLAY_STYLE_TWO_LINE_STACK",
+              "navigationEndpoint": {
+               "browseEndpoint": {
+                "browseId": "UCptBkLZ6XRxoyn8SkUMc_Iw",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                 }
+                }
+               }
+              },
+              "itemHeight": "MUSIC_RESPONSIVE_LIST_ITEM_HEIGHT_MEDIUM_COMPACT",
+              "customIndexColumn": {
+               "musicCustomIndexColumnRenderer": {
+                "text": {
+                 "runs": [
+                  {
+                   "text": "1"
+                  }
+                 ]
+                },
+                "icon": {
+                 "iconType": "ARROW_CHART_NEUTRAL"
+                },
+                "iconColorStyle": "CUSTOM_INDEX_COLUMN_ICON_COLOR_STYLE_GREY"
+               }
+              }
+             }
+            },
+            {
+             "musicResponsiveListItemRenderer": {
+              "thumbnail": {
+               "musicThumbnailRenderer": {
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://lh3.googleusercontent.com/W_yOqnKSDYyeVOY_AsXhuAtb6rW3vCL3GtJ9DA1GxWOrJfyeSOqzvTv_TkFHijdkVPXWutASBlRFPg=w60-h60-p-l90-rj",
+                   "width": 60,
+                   "height": 60
+                  }
+                 ]
+                },
+                "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_CIRCLE",
+                "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL"
+               }
+              },
+              "flexColumns": [
+               {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                 "text": {
+                  "runs": [
+                   {
+                    "text": "Arijit Singh"
+                   }
+                  ]
+                 },
+                 "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+                }
+               },
+               {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                 "text": {
+                  "runs": [
+                   {
+                    "text": "6.42M subscribers"
+                   }
+                  ]
+                 },
+                 "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+                }
+               }
+              ],
+              "menu": {
+               "menuRenderer": {
+                "items": [
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Shuffle play"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "MUSIC_SHUFFLE"
+                   },
+                   "navigationEndpoint": {
+                    "watchPlaylistEndpoint": {
+                     "playlistId": "RDAOmiIXlBaJCp9HDHTjh2SwtA",
+                     "params": "wAEB8gECGAE%3D"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Start mix"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "MIX"
+                   },
+                   "navigationEndpoint": {
+                    "watchPlaylistEndpoint": {
+                     "playlistId": "RDEMmiIXlBaJCp9HDHTjh2SwtA",
+                     "params": "wAEB"
+                    }
+                   }
+                  }
+                 },
+                 {
+                  "toggleMenuServiceItemRenderer": {
+                   "defaultText": {
+                    "runs": [
+                     {
+                      "text": "Subscribe"
+                     }
+                    ]
+                   },
+                   "defaultIcon": {
+                    "iconType": "SUBSCRIBE"
+                   },
+                   "defaultServiceEndpoint": {
+                    "modalEndpoint": {
+                     "modal": {
+                      "modalWithTitleAndButtonRenderer": {
+                       "title": {
+                        "runs": [
+                         {
+                          "text": "Subscribe to this artist"
+                         }
+                        ]
+                       },
+                       "content": {
+                        "runs": [
+                         {
+                          "text": "Sign in to subscribe to this artist and never miss a beat"
+                         }
+                        ]
+                       },
+                       "button": {
+                        "buttonRenderer": {
+                         "style": "STYLE_BLUE_TEXT",
+                         "isDisabled": false,
+                         "text": {
+                          "runs": [
+                           {
+                            "text": "Sign in"
+                           }
+                          ]
+                         },
+                         "navigationEndpoint": {
+                          "signInEndpoint": {
+                           "hack": true
+                          }
+                         }
+                        }
+                       }
+                      }
+                     }
+                    }
+                   },
+                   "toggledText": {
+                    "runs": [
+                     {
+                      "text": "Unsubscribe"
+                     }
+                    ]
+                   },
+                   "toggledIcon": {
+                    "iconType": "SUBSCRIBE"
+                   }
+                  }
+                 },
+                 {
+                  "menuNavigationItemRenderer": {
+                   "text": {
+                    "runs": [
+                     {
+                      "text": "Share"
+                     }
+                    ]
+                   },
+                   "icon": {
+                    "iconType": "SHARE"
+                   },
+                   "navigationEndpoint": {
+                    "shareEntityEndpoint": {
+                     "serializedShareEntity": "GhhVQ0R4S2gxZ0ZXZVlzcWVQdmdWem1Qb1E%3D",
+                     "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "flexColumnDisplayStyle": "MUSIC_RESPONSIVE_LIST_ITEM_FLEX_COLUMN_DISPLAY_STYLE_TWO_LINE_STACK",
+              "navigationEndpoint": {
+               "browseEndpoint": {
+                "browseId": "UCDxKh1gFWeYsqePvgVzmPoQ",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                 }
+                }
+               }
+              },
+              "itemHeight": "MUSIC_RESPONSIVE_LIST_ITEM_HEIGHT_MEDIUM_COMPACT",
+              "customIndexColumn": {
+               "musicCustomIndexColumnRenderer": {
+                "text": {
+                 "runs": [
+                  {
+                   "text": "2"
+                  }
+                 ]
+                },
+                "icon": {
+                 "iconType": "ARROW_DROP_UP"
+                },
+                "iconColorStyle": "CUSTOM_INDEX_COLUMN_ICON_COLOR_STYLE_GREEN"
+               }
+              }
+             }
+            }
+           ],
+           "itemSize": "COLLECTION_STYLE_ITEM_SIZE_MEDIUM",
+           "numItemsPerColumn": "4"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ "header": {
+  "musicHeaderRenderer": {
+   "title": {
+    "runs": [
+     {
+      "text": "Charts"
+     }
+    ]
+   }
+  }
+ },
+ "frameworkUpdates": {
+  "entityBatchUpdate": {
+   "mutations": [
+    {
+     "entityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicForm": {
+       "id": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "booleanChoiceEntityKeys": [
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RVMgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VVkgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TVkgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Qk8gkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RE8gkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkwgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0wgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkcgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TlogkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VEggkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Uk8gkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q08gkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUMgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QkUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFcgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUQgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Tk8gkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlogkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3S0UgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFIgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RlIgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVIgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFogkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3REUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUcgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WkEgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SU4gkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0EgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SE4gkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkkgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TFUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RkkgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SlAgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UlUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TVggkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEwgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UlMgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3S1IgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U1YgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QlIgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VVMgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UFQgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3R0IgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VUcgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QUUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEggkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q1IgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UFkgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlcgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0cgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Vk4gkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SFUgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q1ogkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VUEgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SVQgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SEsgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUwgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0ggkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SVMgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3REsgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEEgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0UgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3R1QgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVQgkQEoAQ%3D%3D",
+        "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0EgkQEoAQ%3D%3D"
+       ]
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlogkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlogkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": true,
+       "opaqueToken": "ZZ"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVIgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVIgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "AR"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "AU"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVQgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QVQgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "AT"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QkUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QkUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "BE"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Qk8gkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Qk8gkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "BO"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QlIgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QlIgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "BR"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0EgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0EgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "CA"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0wgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0wgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "CL"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q08gkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q08gkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "CO"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q1IgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q1IgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "CR"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q1ogkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q1ogkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "CZ"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3REsgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3REsgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "DK"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RE8gkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RE8gkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "DO"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUMgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUMgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "EC"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUcgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUcgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "EG"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U1YgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U1YgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "SV"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RUUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "EE"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RkkgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RkkgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "FI"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RlIgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RlIgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "FR"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3REUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3REUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "DE"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3R1QgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3R1QgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "GT"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SE4gkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SE4gkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "HN"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SEsgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SEsgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "HK"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SFUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SFUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "HU"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SVMgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SVMgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "IS"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SU4gkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SU4gkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "IN"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUQgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUQgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "ID"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "IE"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUwgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SUwgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "IL"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SVQgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SVQgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "IT"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SlAgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3SlAgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "JP"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3S0UgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3S0UgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "KE"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TFUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TFUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "LU"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TVkgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TVkgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "MY"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TVggkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TVggkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "MX"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkwgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkwgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "NL"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TlogkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TlogkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "NZ"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkkgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkkgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "NI"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkcgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3TkcgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "NG"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Tk8gkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Tk8gkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "NO"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEEgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEEgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "PA"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UFkgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UFkgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "PY"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "PE"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEggkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEggkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "PH"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEwgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UEwgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "PL"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UFQgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UFQgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "PT"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Uk8gkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Uk8gkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "RO"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UlUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UlUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "RU"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0EgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0EgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "SA"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UlMgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3UlMgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "RS"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0cgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0cgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "SG"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WkEgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WkEgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "ZA"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3S1IgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3S1IgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "KR"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RVMgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3RVMgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "ES"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0UgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3U0UgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "SE"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0ggkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Q0ggkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "CH"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFcgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFcgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "TW"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFogkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFogkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "TZ"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VEggkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VEggkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "TH"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFIgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VFIgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "TR"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VUcgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VUcgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "UG"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VUEgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VUEgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "UA"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QUUgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3QUUgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "AE"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3R0IgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3R0IgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "GB"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VVMgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VVMgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "US"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VVkgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3VVkgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "UY"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Vk4gkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3Vk4gkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "VN"
+      }
+     }
+    },
+    {
+     "entityKey": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlcgkQEoAQ%3D%3D",
+     "type": "ENTITY_MUTATION_TYPE_REPLACE",
+     "payload": {
+      "musicFormBooleanChoice": {
+       "id": "EidleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3WlcgkQEoAQ%3D%3D",
+       "parentFormEntityKey": "EiVleHBsb3JlX2NoYXJ0c19jb3VudHJ5X21lbnVfMzE2NzY2NTY3IJABKAE%3D",
+       "selected": false,
+       "opaqueToken": "ZW"
+      }
+     }
+    }
+   ],
+   "timestamp": {
+    "seconds": "1788614880",
+    "nanos": 219284748
+   }
+  }
+ },
+ "responseContext": {}
+}

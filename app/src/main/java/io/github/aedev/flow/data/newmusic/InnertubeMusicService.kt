@@ -2,15 +2,21 @@ package io.github.aedev.flow.data.newmusic
 
 import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicArtist
+import io.github.aedev.flow.data.music.model.MusicCharts
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
+import io.github.aedev.flow.innertube.models.AlbumItem
+import io.github.aedev.flow.innertube.models.ArtistItem
+import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SearchSuggestions
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.pages.AlbumPage
+import io.github.aedev.flow.innertube.pages.ArtistSectionKind
+import io.github.aedev.flow.innertube.pages.ChartsPage
 import io.github.aedev.flow.innertube.pages.ExplorePage
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import kotlinx.coroutines.Dispatchers
@@ -293,22 +299,20 @@ object InnertubeMusicService {
             collected.values.take(limit)
         }
 
-    /**
-     * Fetch charts from Innertube
-     */
-    suspend fun fetchCharts(): List<MusicTrack> =
+    suspend fun fetchCharts(): MusicCharts? =
         withContext(Dispatchers.IO) {
-            try {
-                val result = YouTube.getChartsPage()
-                result
-                    .getOrNull()
-                    ?.sections
-                    ?.flatMap { it.items }
-                    ?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                emptyList()
-            }
+            val page = YouTube.getChartsPage(YouTube.locale.gl).getOrNull() ?: return@withContext null
+            val items = page.sections.flatMap { it.items }
+            MusicCharts(
+                countryCode = page.countryCode,
+                songs =
+                    page.sections
+                        .filter { it.chartType == ChartsPage.ChartType.SONGS }
+                        .flatMap { it.items }
+                        .mapNotNull { convertToMusicTrack(it) },
+                playlists = items.filterIsInstance<PlaylistItem>().map { convertPlaylistToMusicPlaylist(it) },
+                artists = items.filterIsInstance<ArtistItem>().map { convertArtistItemToDetails(it) },
+            )
         }
 
     /**
@@ -316,101 +320,58 @@ object InnertubeMusicService {
      */
     suspend fun fetchArtistDetails(channelId: String): ArtistDetails? =
         withContext(Dispatchers.IO) {
-            try {
-                val result = YouTube.artist(channelId)
-                val page = result.getOrNull() ?: return@withContext null
+            val page = YouTube.artist(channelId).getOrNull() ?: return@withContext null
+            val artistItem = page.artist
 
-                val artistItem = page.artist
+            fun section(kind: ArtistSectionKind) = page.sections.firstOrNull { it.kind == kind }
 
-                // Map sections
-                var topTracks: List<MusicTrack> = emptyList()
-                var albums: List<MusicPlaylist> = emptyList()
-                var singles: List<MusicPlaylist> = emptyList()
-                var videos: List<MusicTrack> = emptyList()
-                var relatedArtists: List<ArtistDetails> = emptyList()
-                var featuredOn: List<MusicPlaylist> = emptyList()
+            fun releases(kind: ArtistSectionKind) =
+                section(kind)
+                    ?.items
+                    .orEmpty()
+                    .filterIsInstance<AlbumItem>()
+                    .map { convertAlbumToPlaylist(it, artistItem.id, artistItem.title) }
 
-                var albumsBrowseId: String? = null
-                var albumsParams: String? = null
-                var singlesBrowseId: String? = null
-                var singlesParams: String? = null
-                var topTracksBrowseId: String? = null
-                var topTracksParams: String? = null
+            fun tracks(kind: ArtistSectionKind) =
+                section(kind)
+                    ?.items
+                    .orEmpty()
+                    .filterIsInstance<SongItem>()
+                    .mapNotNull { convertToMusicTrack(it) }
 
-                page.sections.forEach { section ->
-                    val title = section.title.lowercase()
-                    when {
-                        title.contains("songs") || title.contains("popular") -> {
-                            topTracks = section.items.filterIsInstance<SongItem>().mapNotNull { convertToMusicTrack(it) }
-                            topTracksBrowseId = section.moreEndpoint?.browseId
-                            topTracksParams = section.moreEndpoint?.params
-                        }
-
-                        title.contains("albums") -> {
-                            albums =
-                                section.items
-                                    .filterIsInstance<io.github.aedev.flow.innertube.models.AlbumItem>()
-                                    .map { convertAlbumToPlaylist(it, artistItem.id, artistItem.title) }
-                            albumsBrowseId = section.moreEndpoint?.browseId
-                            albumsParams = section.moreEndpoint?.params
-                        }
-
-                        title.contains("singles") || title.contains("ep") -> {
-                            singles =
-                                section.items
-                                    .filterIsInstance<io.github.aedev.flow.innertube.models.AlbumItem>()
-                                    .map { convertAlbumToPlaylist(it, artistItem.id, artistItem.title) }
-                            singlesBrowseId = section.moreEndpoint?.browseId
-                            singlesParams = section.moreEndpoint?.params
-                        }
-
-                        title.contains("videos") -> {
-                            // Videos are often SongItems or video items in Innertube
-                            videos = section.items.filterIsInstance<SongItem>().mapNotNull { convertToMusicTrack(it) }
-                        }
-
-                        title.contains("fans might also like") || title.contains("related") -> {
-                            relatedArtists =
-                                section.items
-                                    .filterIsInstance<io.github.aedev.flow.innertube.models.ArtistItem>()
-                                    .map { convertArtistItemToDetails(it) }
-                        }
-
-                        title.contains("featured on") || title.contains("playlists") -> {
-                            featuredOn =
-                                section.items
-                                    .filterIsInstance<io.github.aedev.flow.innertube.models.PlaylistItem>()
-                                    .map { convertPlaylistToMusicPlaylist(it) }
-                        }
-                    }
-                }
-
-                ArtistDetails(
-                    name = artistItem.title ?: "Unknown Artist",
-                    channelId = artistItem.id ?: channelId,
-                    thumbnailUrl = artistItem.thumbnail ?: "",
-                    subscriberCount = 0L, // Innertube artist endpoint often doesn't give exact sub count in header
-                    description = page.description ?: "",
-                    // Innertube doesn't always give a banner; the UI falls back to the thumbnail.
-                    bannerUrl = "",
-                    topTracks = topTracks,
-                    albums = albums,
-                    singles = singles,
-                    videos = videos,
-                    relatedArtists = relatedArtists,
-                    featuredOn = featuredOn,
-                    isSubscribed = false,
-                    albumsBrowseId = albumsBrowseId,
-                    albumsParams = albumsParams,
-                    singlesBrowseId = singlesBrowseId,
-                    singlesParams = singlesParams,
-                    topTracksBrowseId = topTracksBrowseId,
-                    topTracksParams = topTracksParams,
-                )
-            } catch (e: Exception) {
-                e.printStackTrace()
-                null
-            }
+            val topSongs = section(ArtistSectionKind.TOP_SONGS)
+            val albums = section(ArtistSectionKind.ALBUMS)
+            val singles = section(ArtistSectionKind.SINGLES)
+            ArtistDetails(
+                name = artistItem.title,
+                channelId = artistItem.id,
+                thumbnailUrl = artistItem.thumbnail ?: "",
+                subscriberCount = parseViewCount(page.subscriberCountText),
+                monthlyListenersText = page.monthlyListenersText,
+                description = page.description ?: "",
+                topTracks = tracks(ArtistSectionKind.TOP_SONGS),
+                albums = releases(ArtistSectionKind.ALBUMS),
+                singles = releases(ArtistSectionKind.SINGLES),
+                videos = tracks(ArtistSectionKind.VIDEOS),
+                relatedArtists =
+                    section(ArtistSectionKind.RELATED_ARTISTS)
+                        ?.items
+                        .orEmpty()
+                        .filterIsInstance<ArtistItem>()
+                        .map { convertArtistItemToDetails(it) },
+                featuredOn =
+                    section(ArtistSectionKind.FEATURED_ON)
+                        ?.items
+                        .orEmpty()
+                        .filterIsInstance<PlaylistItem>()
+                        .map { convertPlaylistToMusicPlaylist(it) },
+                albumsBrowseId = albums?.moreEndpoint?.browseId,
+                albumsParams = albums?.moreEndpoint?.params,
+                singlesBrowseId = singles?.moreEndpoint?.browseId,
+                singlesParams = singles?.moreEndpoint?.params,
+                topTracksBrowseId = topSongs?.moreEndpoint?.browseId,
+                topTracksParams = topSongs?.moreEndpoint?.params,
+            )
         }
 
     /**

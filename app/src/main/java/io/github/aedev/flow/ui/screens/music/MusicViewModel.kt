@@ -553,9 +553,18 @@ class MusicViewModel
                         try {
                             // Try to get charts first for high quality trending data
                             val charts = InnertubeMusicService.fetchCharts()
-                            if (charts.isNotEmpty()) {
-                                MusicCache.cacheTrendingMusic(100, charts)
-                                charts
+                            if (charts != null) {
+                                _uiState.update {
+                                    it.copy(
+                                        chartPlaylists = charts.playlists,
+                                        chartArtists = charts.artists,
+                                        chartCountryCode = charts.countryCode,
+                                    )
+                                }
+                            }
+                            if (charts != null && charts.songs.isNotEmpty()) {
+                                MusicCache.cacheTrendingMusic(100, charts.songs)
+                                charts.songs
                             } else {
                                 val trending = YouTubeMusicService.fetchTrendingMusic(100)
                                 MusicCache.cacheTrendingMusic(100, trending)
@@ -1538,6 +1547,9 @@ data class MusicUiState(
     val recommendedTracks: List<MusicTrack> = emptyList(), // Recommended for you
     val listenAgain: List<MusicTrack> = emptyList(), // Listen Again
     val trendingSongs: List<MusicTrack> = emptyList(),
+    val chartPlaylists: List<MusicPlaylist> = emptyList(),
+    val chartArtists: List<ArtistDetails> = emptyList(),
+    val chartCountryCode: String? = null,
     val newReleases: List<MusicTrack> = emptyList(),
     val musicVideos: List<MusicTrack> = emptyList(),
     val musicVideosForYou: List<MusicTrack> = emptyList(),

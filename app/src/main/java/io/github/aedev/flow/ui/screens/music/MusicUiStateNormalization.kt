@@ -79,6 +79,10 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
     val filteredRecommended = recommendedTracks.dropHidden()
     val filteredListenAgain = listenAgain.dropHidden()
     val filteredTrending = trendingSongs.dropHidden()
+    val filteredChartArtists =
+        chartArtists
+            .filterNot { it.isHiddenArtist(hidden) }
+            .let { if (it.size == chartArtists.size) chartArtists else it }
     val filteredNewReleases = newReleases.dropHidden()
     val filteredMusicVideos = musicVideos.dropHidden()
     val filteredMusicVideosForYou = musicVideosForYou.dropHidden()
@@ -99,6 +103,7 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
         filteredRecommended === recommendedTracks &&
         filteredListenAgain === listenAgain &&
         filteredTrending === trendingSongs &&
+        filteredChartArtists === chartArtists &&
         filteredNewReleases === newReleases &&
         filteredMusicVideos === musicVideos &&
         filteredMusicVideosForYou === musicVideosForYou &&
@@ -126,6 +131,7 @@ internal fun MusicUiState.withHiddenArtists(hidden: Set<String>): MusicUiState {
         recommendedTracks = filteredRecommended,
         listenAgain = filteredListenAgain,
         trendingSongs = filteredTrending,
+        chartArtists = filteredChartArtists,
         newReleases = filteredNewReleases,
         musicVideos = filteredMusicVideos,
         musicVideosForYou = filteredMusicVideosForYou,
@@ -151,6 +157,8 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
     val uniqueRecommended = recommendedTracks.uniqueMusicTracks()
     val uniqueListenAgain = listenAgain.uniqueMusicTracks()
     val uniqueTrending = trendingSongs.uniqueMusicTracks()
+    val uniqueChartPlaylists = chartPlaylists.uniqueMusicPlaylists()
+    val uniqueChartArtists = chartArtists.distinctByNonBlankKeyOrSelf(ArtistDetails::channelId)
     val uniqueNewReleases = newReleases.uniqueMusicTracks()
     val uniqueMusicVideos = musicVideos.uniqueMusicTracks()
     val uniqueMusicVideosForYou = musicVideosForYou.uniqueMusicTracks()
@@ -185,6 +193,8 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         uniqueRecommended === recommendedTracks &&
         uniqueListenAgain === listenAgain &&
         uniqueTrending === trendingSongs &&
+        uniqueChartPlaylists === chartPlaylists &&
+        uniqueChartArtists === chartArtists &&
         uniqueNewReleases === newReleases &&
         uniqueMusicVideos === musicVideos &&
         uniqueMusicVideosForYou === musicVideosForYou &&
@@ -213,6 +223,8 @@ internal fun MusicUiState.withUniqueLazyContent(): MusicUiState {
         recommendedTracks = uniqueRecommended,
         listenAgain = uniqueListenAgain,
         trendingSongs = uniqueTrending,
+        chartPlaylists = uniqueChartPlaylists,
+        chartArtists = uniqueChartArtists,
         newReleases = uniqueNewReleases,
         musicVideos = uniqueMusicVideos,
         musicVideosForYou = uniqueMusicVideosForYou,

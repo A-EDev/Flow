@@ -161,7 +161,10 @@ data class SearchSummaryPage(
                             renderer.onTap.browseEndpoint.browseId
                                 .removePrefix("VL"),
                         title =
-                            renderer.header?.musicCardShelfHeaderBasicRenderer?.title?.runs
+                            renderer.header
+                                ?.musicCardShelfHeaderBasicRenderer
+                                ?.title
+                                ?.runs
                                 ?.joinToString(separator = "") { it.text }
                                 ?: return null,
                         author =
@@ -189,7 +192,9 @@ data class SearchSummaryPage(
                     )
                 }
 
-                else -> null
+                else -> {
+                    null
+                }
             }
         }
 
@@ -223,18 +228,20 @@ data class SearchSummaryPage(
                                 ?.runs
                                 ?.firstOrNull()
                                 ?.text ?: return null,
-                        artists = listRun.getOrNull(0)?.oddElements()?.map {
-                            Artist(
-                                name = it.text,
-                                id = it.navigationEndpoint?.browseEndpoint?.browseId
-                            )
-                        } ?: return null,
-                        album = listRun.getOrNull(1)?.firstOrNull()?.takeIf { it.navigationEndpoint?.browseEndpoint != null }?.let {
-                            Album(
-                                name = it.text,
-                                id = it.navigationEndpoint?.browseEndpoint?.browseId!!
-                            )
-                        },
+                        artists =
+                            listRun.getOrNull(0)?.oddElements()?.map {
+                                Artist(
+                                    name = it.text,
+                                    id = it.navigationEndpoint?.browseEndpoint?.browseId,
+                                )
+                            } ?: return null,
+                        album =
+                            listRun.getOrNull(1)?.firstOrNull()?.takeIf { it.navigationEndpoint?.browseEndpoint != null }?.let {
+                                Album(
+                                    name = it.text,
+                                    id = it.navigationEndpoint?.browseEndpoint?.browseId!!,
+                                )
+                            },
                         duration =
                             secondaryLine
                                 .lastOrNull()
@@ -247,12 +254,6 @@ data class SearchSummaryPage(
                             renderer.badges?.find {
                                 it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
                             } != null,
-                        libraryAddToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
-                            it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-                        }?.toggleMenuServiceItemRenderer, "LIBRARY_ADD"),
-                        libraryRemoveToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
-                            it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-                        }?.toggleMenuServiceItemRenderer, "LIBRARY_SAVED")
                     )
                 }
 
@@ -382,7 +383,9 @@ data class SearchSummaryPage(
                     )
                 }
 
-                else -> null
+                else -> {
+                    null
+                }
             }
         }
     }

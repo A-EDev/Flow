@@ -77,6 +77,7 @@ class FlowApplication :
     override fun onCreate() {
         super.onCreate()
         appContext = applicationContext
+        YouTube.cacheDirectory = cacheDir.resolve("innertube_http_cache")
 
         DiscordPresenceRuntime.initialize(this, okHttpClient)
 
