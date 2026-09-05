@@ -1421,7 +1421,7 @@ object YouTube {
                                 ?.thumbnails
                                 ?.lastOrNull()!!
                                 .url,
-                        explicit = false, // TODO: Extract explicit badge for albums from YouTube response
+                        explicit = false,
                     )
                 return@runCatching AlbumPage(
                     album = albumItem,
@@ -1445,6 +1445,17 @@ object YouTube {
                     otherVersions = emptyList(),
                 )
             } else {
+                val header =
+                    response.contents
+                        ?.twoColumnBrowseResultsRenderer
+                        ?.tabs
+                        ?.firstOrNull()
+                        ?.tabRenderer
+                        ?.content
+                        ?.sectionListRenderer
+                        ?.contents
+                        ?.firstOrNull()
+                        ?.musicResponsiveHeaderRenderer
                 val playlistId =
                     response.microformat
                         ?.microformatDataRenderer
@@ -1516,7 +1527,7 @@ object YouTube {
                                 ?.thumbnails
                                 ?.lastOrNull()
                                 ?.url!!,
-                        explicit = false, // TODO: Extract explicit badge for albums from YouTube response
+                        explicit = AlbumPage.isExplicit(header),
                     )
                 return@runCatching AlbumPage(
                     album = albumItem,
@@ -1529,17 +1540,8 @@ object YouTube {
                         } else {
                             emptyList()
                         },
-                    otherVersions =
-                        response.contents.twoColumnBrowseResultsRenderer.secondaryContents
-                            ?.sectionListRenderer
-                            ?.contents
-                            ?.getOrNull(
-                                1,
-                            )?.musicCarouselShelfRenderer
-                            ?.contents
-                            ?.mapNotNull { it.musicTwoRowItemRenderer }
-                            ?.mapNotNull(NewReleaseAlbumPage::fromMusicTwoRowItemRenderer)
-                            .orEmpty(),
+                    otherVersions = AlbumPage.otherVersions(response, albumItem),
+                    durationText = AlbumPage.durationText(header),
                 )
             }
         }

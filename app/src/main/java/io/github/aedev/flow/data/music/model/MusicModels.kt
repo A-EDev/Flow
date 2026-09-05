@@ -94,6 +94,7 @@ data class PlaylistDetails(
     val dateText: String? = null,
     val tracks: List<MusicTrack> = emptyList(),
     val continuation: String? = null,
+    val otherVersions: List<MusicPlaylist> = emptyList(),
 )
 
 data class ArtistDetails(
@@ -124,4 +125,10 @@ data class MusicCharts(
     val songs: List<MusicTrack> = emptyList(),
     val playlists: List<MusicPlaylist> = emptyList(),
     val artists: List<ArtistDetails> = emptyList(),
+)
+
+data class RelatedMusic(
+    val tracks: List<MusicTrack>,
+    val similarArtistIds: List<String>,
+    val playlists: List<MusicPlaylist>,
 )

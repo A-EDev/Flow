@@ -19,6 +19,7 @@ import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
+import io.github.aedev.flow.data.music.model.RelatedMusic
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
@@ -26,6 +27,7 @@ import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
 import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
 import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.data.recommendation.music.musicArtistKey
+import io.github.aedev.flow.data.recommendation.music.primaryArtistKey
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
 import io.github.aedev.flow.innertube.models.SongItem
@@ -34,6 +36,8 @@ import io.github.aedev.flow.innertube.pages.HomePage
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -52,6 +56,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 @HiltViewModel
@@ -70,6 +75,11 @@ class MusicViewModel
         companion object {
             /** Route prefix for synthesized Daily Mix playlist pages. */
             const val DAILY_MIX_ID_PREFIX = "daily_mix_"
+            private const val SESSION_CACHE_LIMIT = 48
+            private const val COMMUNITY_ARTIST_SEEDS = 3
+            private const val COMMUNITY_TRACK_SEEDS = 2
+            private const val COMMUNITY_PLAYLIST_COUNT = 6
+            private const val COMMUNITY_PREVIEW_TRACKS = 10
         }
 
         private val _uiState = MutableStateFlow(MusicUiState())
@@ -204,7 +214,7 @@ class MusicViewModel
                     kotlinx.coroutines.coroutineScope {
                         val relatedJobs =
                             seeds.map { seed ->
-                                async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seed.videoId) }
+                                async(PerformanceDispatcher.networkIO) { cachedRelatedLane(seed.videoId, seed.primaryArtistKey()) }
                             }
                         val artistJob =
                             async(PerformanceDispatcher.networkIO) {
@@ -265,35 +275,49 @@ class MusicViewModel
             }
         }
 
-        /** Session cache: artist pages are stable, one fetch per artist per process. */
-        private val artistDetailsCache = java.util.concurrent.ConcurrentHashMap<String, ArtistDetails>()
+        private val artistDetailsCache = ConcurrentHashMap<String, Deferred<ArtistDetails?>>()
+        private val relatedCache = ConcurrentHashMap<String, Deferred<RelatedMusic?>>()
 
-        /**
-         * Session cache for related lanes: seeds barely change between composes, so
-         * a track change refetches at most the one new seed lane instead of all five.
-         */
-        private val relatedLaneCache = java.util.concurrent.ConcurrentHashMap<String, List<MusicTrack>>()
-
-        private suspend fun cachedRelatedLane(seedId: String): List<MusicTrack> {
-            relatedLaneCache[seedId]?.let { return it }
-            val lane =
-                runCatching {
-                    YouTubeMusicService
-                        .getRelatedMusic(seedId, MusicQuickPicks.LANE_SIZE, audioOnly = true)
-                        .audioMusicOnly()
-                }.getOrDefault(emptyList())
-            if (lane.isNotEmpty()) {
-                if (relatedLaneCache.size >= 48) relatedLaneCache.clear()
-                relatedLaneCache[seedId] = lane
-            }
-            return lane
+        private suspend fun <V> ConcurrentHashMap<String, Deferred<V?>>.fetchOnce(
+            key: String,
+            fetch: suspend () -> V?,
+        ): V? {
+            if (size >= SESSION_CACHE_LIMIT) clear()
+            val deferred =
+                computeIfAbsent(key) {
+                    viewModelScope.async(PerformanceDispatcher.networkIO, start = CoroutineStart.LAZY) {
+                        runCatching { fetch() }.getOrNull()
+                    }
+                }
+            val value = deferred.await()
+            if (value == null) remove(key, deferred)
+            return value
         }
 
+        private suspend fun cachedRelated(
+            seedId: String,
+            seedArtistKey: String? = null,
+        ): RelatedMusic? =
+            relatedCache.fetchOnce(seedId) {
+                InnertubeMusicService.getRelatedPage(seedId, audioOnly = true)?.also { related ->
+                    if (seedArtistKey != null && related.similarArtistIds.isNotEmpty()) {
+                        musicBrain.recordArtistRelated(seedArtistKey, related.similarArtistIds)
+                    }
+                }
+            }
+
+        private suspend fun cachedRelatedLane(
+            seedId: String,
+            seedArtistKey: String? = null,
+        ): List<MusicTrack> =
+            cachedRelated(seedId, seedArtistKey)
+                ?.tracks
+                ?.audioMusicOnly()
+                ?.take(MusicQuickPicks.LANE_SIZE)
+                .orEmpty()
+
         private suspend fun cachedArtistDetails(channelId: String): ArtistDetails? =
-            artistDetailsCache[channelId]
-                ?: runCatching { InnertubeMusicService.fetchArtistDetails(channelId) }
-                    .getOrNull()
-                    ?.also { artistDetailsCache[channelId] = it }
+            artistDetailsCache.fetchOnce(channelId) { InnertubeMusicService.fetchArtistDetails(channelId) }
 
         /** Lanes for the Quick Picks composer plus the artists' own releases for the albums shelf. */
         private data class ArtistLanes(
@@ -859,103 +883,73 @@ class MusicViewModel
             }
         }
 
+        private fun MusicPlaylist.isCommunityPlaylistCandidate(): Boolean {
+            val normalizedAuthor = author.trim()
+            return normalizedAuthor.isNotBlank() &&
+                !normalizedAuthor.equals("YouTube", true) &&
+                !normalizedAuthor.equals("YouTube Music", true) &&
+                !id.startsWith("RD") &&
+                !id.startsWith("OLAK")
+        }
+
         private suspend fun loadCommunityPlaylists() {
             try {
                 val history =
                     withContext(PerformanceDispatcher.diskIO) {
                         playlistRepository.history.firstOrNull() ?: emptyList()
                     }.audioMusicOnly()
-
-                val artistSeeds =
-                    history
-                        .groupBy { it.artist }
-                        .map { it.key to it.value.size }
-                        .filter { it.first.isNotBlank() }
-                        .sortedByDescending { it.second }
-                        .take(8)
-                        .map { it.first }
-
-                val trackSeeds =
-                    history
-                        .distinctBy { it.videoId }
-                        .take(6)
-
-                if (artistSeeds.isEmpty() && trackSeeds.isEmpty()) return
-
-                fun MusicPlaylist.isCommunityPlaylistCandidate(): Boolean {
-                    val normalizedAuthor = author.trim()
-                    return normalizedAuthor.isNotBlank() &&
-                        !normalizedAuthor.equals("YouTube", true) &&
-                        !normalizedAuthor.equals("YouTube Music", true) &&
-                        !id.startsWith("RD") &&
-                        !id.startsWith("OLAK")
-                }
-
-                val communityQueries =
-                    buildList {
-                        artistSeeds.forEach { artist ->
-                            add("$artist playlist")
-                            add("$artist fan playlist")
-                            add("$artist mix")
-                        }
-                        trackSeeds.forEach { track ->
-                            val artist = track.artist.takeIf { it.isNotBlank() } ?: return@forEach
-                            add("${track.title} $artist playlist")
-                        }
-                    }.distinct().take(24)
+                val trackSeeds = history.distinctBy { it.primaryArtistKey() }.take(COMMUNITY_TRACK_SEEDS)
+                val artistKeys =
+                    musicBrain.topArtistKeys(COMMUNITY_ARTIST_SEEDS).ifEmpty {
+                        _uiState.value.trendingSongs
+                            .map { it.channelId }
+                            .filter { it.startsWith("UC") }
+                            .distinct()
+                            .take(COMMUNITY_ARTIST_SEEDS)
+                    }
+                if (trackSeeds.isEmpty() && artistKeys.isEmpty()) return
 
                 val candidates =
                     supervisorScope {
-                        communityQueries
-                            .map { query ->
+                        val fromArtists =
+                            artistKeys.map { key ->
                                 async(PerformanceDispatcher.networkIO) {
-                                    try {
-                                        YouTubeMusicService
-                                            .searchPlaylists(query, 6)
-                                            .filter { it.isCommunityPlaylistCandidate() }
-                                    } catch (e: Exception) {
-                                        emptyList()
-                                    }
+                                    val details = cachedArtistDetails(key) ?: return@async emptyList()
+                                    details.featuredOn.filterNot { it.author.equals(details.name, ignoreCase = true) }
                                 }
-                            }.awaitAll()
-                            .flatten()
-                            .distinctBy { it.id }
-                            .shuffled()
-                            .take(24)
-                    }
+                            }
+                        val fromTracks =
+                            trackSeeds.map { seed ->
+                                async(PerformanceDispatcher.networkIO) {
+                                    cachedRelated(seed.videoId, seed.primaryArtistKey())?.playlists.orEmpty()
+                                }
+                            }
+                        (fromArtists + fromTracks).awaitAll().flatten()
+                    }.filter { it.isCommunityPlaylistCandidate() }
+                        .distinctBy { it.id }
+                        .shuffled()
+                        .take(COMMUNITY_PLAYLIST_COUNT)
+                if (candidates.isEmpty()) return
 
                 val communityItems =
                     supervisorScope {
                         candidates
                             .map { playlist ->
                                 async(PerformanceDispatcher.networkIO) {
-                                    try {
-                                        val details = YouTubeMusicService.fetchPlaylistDetails(playlist.id)
-                                        val tracks =
-                                            details
-                                                ?.tracks
-                                                .orEmpty()
-                                                .audioMusicOnly()
-                                                .take(4)
-                                        if (tracks.isNotEmpty()) {
-                                            CommunityMusicPlaylist(
-                                                playlist =
-                                                    playlist.copy(
-                                                        trackCount = details?.trackCount ?: playlist.trackCount,
-                                                        thumbnailUrl = playlist.thumbnailUrl.ifBlank { tracks.first().thumbnailUrl },
-                                                    ),
-                                                tracks = tracks,
-                                            )
-                                        } else {
-                                            null
-                                        }
-                                    } catch (e: Exception) {
-                                        null
-                                    }
+                                    val details = InnertubeMusicService.fetchPlaylistDetails(playlist.id) ?: return@async null
+                                    val tracks = details.tracks.audioMusicOnly().take(COMMUNITY_PREVIEW_TRACKS)
+                                    if (tracks.isEmpty()) return@async null
+                                    CommunityMusicPlaylist(
+                                        playlist =
+                                            playlist.copy(
+                                                trackCount = details.trackCount,
+                                                thumbnailUrl = playlist.thumbnailUrl.ifBlank { tracks.first().thumbnailUrl },
+                                            ),
+                                        tracks = tracks,
+                                    )
                                 }
                             }.awaitAll()
                             .filterNotNull()
-                            .take(8)
                     }
 
                 if (communityItems.isNotEmpty()) {
@@ -992,9 +986,7 @@ class MusicViewModel
                                     if (artistTrack != null && !artistTrack.channelId.isNullOrBlank()) {
                                         try {
                                             val related =
-                                                InnertubeMusicService
-                                                    .getRelatedMusic(artistTrack.videoId, audioOnly = true)
-                                                    .audioMusicOnly()
+                                                cachedRelatedLane(artistTrack.videoId, artistTrack.primaryArtistKey())
                                             if (related.isNotEmpty()) {
                                                 MusicSection(
                                                     title = artistName,
@@ -1026,9 +1018,7 @@ class MusicViewModel
                         if (!recentTrack.videoId.isNullOrBlank()) {
                             try {
                                 val related =
-                                    InnertubeMusicService
-                                        .getRelatedMusic(recentTrack.videoId, audioOnly = true)
-                                        .audioMusicOnly()
+                                    cachedRelatedLane(recentTrack.videoId, recentTrack.primaryArtistKey())
                                 if (related.isNotEmpty()) {
                                     similarSections.add(
                                         MusicSection(
@@ -1261,7 +1251,7 @@ class MusicViewModel
         }
 
         fun refresh() {
-            relatedLaneCache.clear()
+            relatedCache.clear()
             artistDetailsCache.clear()
             _uiState.update { it.copy(isLoading = true) }
             loadMusicContent(force = true)

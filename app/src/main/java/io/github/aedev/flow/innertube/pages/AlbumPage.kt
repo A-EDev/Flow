@@ -16,8 +16,46 @@ data class AlbumPage(
     val album: AlbumItem,
     val songs: List<SongItem>,
     val otherVersions: List<AlbumItem>,
+    val durationText: String? = null,
 ) {
     companion object {
+        fun otherVersions(
+            response: BrowseResponse,
+            album: AlbumItem,
+        ): List<AlbumItem> {
+            val albumArtistIds =
+                album.artists
+                    .orEmpty()
+                    .mapNotNull { it.id }
+                    .toSet()
+            if (albumArtistIds.isEmpty()) return emptyList()
+            return response.contents
+                ?.twoColumnBrowseResultsRenderer
+                ?.secondaryContents
+                ?.sectionListRenderer
+                ?.contents
+                .orEmpty()
+                .mapNotNull { it.musicCarouselShelfRenderer }
+                .map { shelf ->
+                    shelf.contents.mapNotNull { it.musicTwoRowItemRenderer }.mapNotNull(NewReleaseAlbumPage::fromMusicTwoRowItemRenderer)
+                }.firstOrNull { versions ->
+                    versions.isNotEmpty() &&
+                        versions.all { version -> version.artists.orEmpty().any { it.id in albumArtistIds } }
+                }.orEmpty()
+        }
+
+        fun durationText(header: MusicResponsiveHeaderRenderer?): String? =
+            header
+                ?.secondSubtitle
+                ?.runs
+                ?.splitBySeparator()
+                ?.lastOrNull()
+                ?.firstOrNull()
+                ?.text
+
+        fun isExplicit(header: MusicResponsiveHeaderRenderer?): Boolean =
+            header?.subtitleBadge?.any { it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE" } == true
+
         fun getPlaylistId(response: BrowseResponse): String? {
             var playlistId =
                 response.microformat

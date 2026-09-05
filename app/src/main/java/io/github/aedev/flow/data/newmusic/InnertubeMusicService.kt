@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.music.model.MusicCharts
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
+import io.github.aedev.flow.data.music.model.RelatedMusic
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
 import io.github.aedev.flow.innertube.models.AlbumItem
@@ -13,6 +14,7 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SearchSuggestions
 import io.github.aedev.flow.innertube.models.SongItem
+import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.pages.AlbumPage
 import io.github.aedev.flow.innertube.pages.ArtistSectionKind
@@ -194,7 +196,9 @@ object InnertubeMusicService {
                     trackCount = tracks.size,
                     description = page.album.year?.toString(),
                     tracks = tracks,
-                    continuation = null, // AlbumPage doesn't have continuation
+                    continuation = null,
+                    durationText = page.durationText,
+                    otherVersions = page.otherVersions.map { convertAlbumToPlaylist(it) },
                 )
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -202,47 +206,42 @@ object InnertubeMusicService {
             }
         }
 
-    /**
-     * Get related music using Innertube next endpoint
-     */
+    suspend fun getRelatedPage(
+        videoId: String,
+        audioOnly: Boolean = false,
+    ): RelatedMusic? =
+        withContext(Dispatchers.IO) {
+            val nextOutcome = YouTube.next(WatchEndpoint(videoId = videoId))
+            val nextResult = nextOutcome.getOrNull()
+            if (nextResult == null) {
+                android.util.Log.w("InnertubeMusic", "related($videoId): next failed: ${nextOutcome.exceptionOrNull()}")
+                return@withContext null
+            }
+            val relatedEndpoint = nextResult.relatedEndpoint
+            if (relatedEndpoint == null) {
+                android.util.Log.w("InnertubeMusic", "related($videoId): relatedEndpoint null")
+                return@withContext null
+            }
+            val relatedOutcome = YouTube.related(relatedEndpoint)
+            val related = relatedOutcome.getOrNull()
+            if (related == null) {
+                android.util.Log.w("InnertubeMusic", "related($videoId): related failed: ${relatedOutcome.exceptionOrNull()}")
+                return@withContext null
+            }
+            RelatedMusic(
+                tracks =
+                    related.songs
+                        .filterNot { audioOnly && it.isVideoSong }
+                        .mapNotNull { convertToMusicTrack(it) },
+                similarArtistIds = related.artists.map { it.id },
+                playlists = related.playlists.map { convertPlaylistToMusicPlaylist(it) },
+            )
+        }
+
     suspend fun getRelatedMusic(
         videoId: String,
         audioOnly: Boolean = false,
-    ): List<MusicTrack> =
-        withContext(Dispatchers.IO) {
-            try {
-                val nextOutcome =
-                    YouTube.next(
-                        io.github.aedev.flow.innertube.models
-                            .WatchEndpoint(videoId = videoId),
-                    )
-                val nextResult = nextOutcome.getOrNull()
-                if (nextResult == null) {
-                    android.util.Log.w("InnertubeMusic", "related($videoId): next failed: ${nextOutcome.exceptionOrNull()}")
-                    return@withContext emptyList()
-                }
-                val relatedEndpoint = nextResult.relatedEndpoint
-                if (relatedEndpoint != null) {
-                    val relatedOutcome = YouTube.related(relatedEndpoint)
-                    val related = relatedOutcome.getOrNull()
-                    if (related == null) {
-                        android.util.Log.w("InnertubeMusic", "related($videoId): related failed: ${relatedOutcome.exceptionOrNull()}")
-                        return@withContext emptyList()
-                    }
-                    related.songs
-                        .filterNot { audioOnly && it.isVideoSong }
-                        .mapNotNull { convertToMusicTrack(it) }
-                } else {
-                    // If this fires, YouTube likely moved the Related tab again — see
-                    // the browseId-prefix matching in YouTube.next.
-                    android.util.Log.w("InnertubeMusic", "related($videoId): relatedEndpoint null")
-                    emptyList()
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("InnertubeMusic", "related($videoId): threw", e)
-                emptyList()
-            }
-        }
+    ): List<MusicTrack> = getRelatedPage(videoId, audioOnly)?.tracks.orEmpty()
 
     /**
      * Related music with paging. Page 1 is the related browse (the best-quality
@@ -480,6 +479,8 @@ object InnertubeMusicService {
             thumbnailUrl = item.thumbnail ?: "",
             trackCount = item.songCountText?.filter { it.isDigit() }?.toIntOrNull() ?: 0,
             author = item.author?.name ?: "",
+            authorId = item.author?.id,
+            authorName = item.author?.name,
         )
 
     private fun convertArtistItemToDetails(item: io.github.aedev.flow.innertube.models.ArtistItem): ArtistDetails =
