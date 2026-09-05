@@ -2484,4 +2484,8 @@
     <string name="music_persona_overview_title">Gusto musicale</string>
     <string name="music_persona_overview_subtitle">Cos\'ha appreso il motore musicale dai tuoi ascolti</string>
     <string name="music_persona_maturity_cold">Cold start</string>
+    <string name="chart_position_template">#%1$d</string>
+    <string name="music_persona_maturity_mature">Maturo</string>
+    <string name="music_metric_total_plays">Numero di riproduzioni</string>
+    <string name="music_metric_artists">Artisti</string>
 </resources>
