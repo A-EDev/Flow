@@ -28,6 +28,7 @@ object NextPage {
                 .drop(1)
                 .filter { segment -> segment.firstOrNull()?.navigationEndpoint == null }
                 .mapNotNull { segment -> segment.firstOrNull()?.text }
+                .filter { text -> text.any { !it.isDigit() } }
         return SongItem(
             id = renderer.videoId ?: return null,
             title =
