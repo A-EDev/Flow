@@ -127,6 +127,18 @@ fun ArtistHero(
             )
         }
 
+        artist.monthlyListenersText?.let { listeners ->
+            Text(
+                text = listeners,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier =
+                    Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(top = 4.dp),
+            )
+        }
+
         Row(
             modifier =
                 Modifier

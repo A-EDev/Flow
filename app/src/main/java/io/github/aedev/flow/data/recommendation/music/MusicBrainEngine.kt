@@ -10,6 +10,7 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicArtist
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -542,6 +543,13 @@ internal fun MusicPlaylist.isHiddenAuthor(hidden: Set<String>): Boolean {
     if (hidden.isEmpty()) return false
     if (musicArtistKey(authorId, authorName ?: author) in hidden) return true
     return listOf(authorName, author).any { !it.isNullOrBlank() && it.trim().lowercase() in hidden }
+}
+
+internal fun ArtistDetails.isHiddenArtist(hidden: Set<String>): Boolean {
+    if (hidden.isEmpty()) return false
+    if (musicArtistKey(channelId.takeIf { it.isNotBlank() }, name) in hidden) return true
+    val lowered = name.trim().lowercase()
+    return lowered.isNotEmpty() && lowered in hidden
 }
 
 internal fun MusicTrack.toMusicSignal(pct: Double): MusicSignal {

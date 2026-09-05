@@ -16,14 +16,64 @@ data class AlbumPage(
     val album: AlbumItem,
     val songs: List<SongItem>,
     val otherVersions: List<AlbumItem>,
+    val durationText: String? = null,
 ) {
     companion object {
+        fun otherVersions(
+            response: BrowseResponse,
+            album: AlbumItem,
+        ): List<AlbumItem> {
+            val albumArtistIds =
+                album.artists
+                    .orEmpty()
+                    .mapNotNull { it.id }
+                    .toSet()
+            if (albumArtistIds.isEmpty()) return emptyList()
+            return response.contents
+                ?.twoColumnBrowseResultsRenderer
+                ?.secondaryContents
+                ?.sectionListRenderer
+                ?.contents
+                .orEmpty()
+                .mapNotNull { it.musicCarouselShelfRenderer }
+                .map { shelf ->
+                    shelf.contents.mapNotNull { it.musicTwoRowItemRenderer }.mapNotNull(NewReleaseAlbumPage::fromMusicTwoRowItemRenderer)
+                }.firstOrNull { versions ->
+                    versions.isNotEmpty() &&
+                        versions.all { version -> version.artists.orEmpty().any { it.id in albumArtistIds } }
+                }.orEmpty()
+        }
+
+        fun durationText(header: MusicResponsiveHeaderRenderer?): String? =
+            header
+                ?.secondSubtitle
+                ?.runs
+                ?.splitBySeparator()
+                ?.lastOrNull()
+                ?.firstOrNull()
+                ?.text
+
+        fun isExplicit(header: MusicResponsiveHeaderRenderer?): Boolean =
+            header?.subtitleBadge?.any { it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE" } == true
+
         fun getPlaylistId(response: BrowseResponse): String? {
-            var playlistId = response.microformat?.microformatDataRenderer?.urlCanonical?.substringAfterLast('=')
-            if (playlistId == null)
-            {
-                playlistId = response.header?.musicDetailHeaderRenderer?.menu?.menuRenderer?.topLevelButtons?.firstOrNull()
-                    ?.buttonRenderer?.navigationEndpoint?.watchPlaylistEndpoint?.playlistId
+            var playlistId =
+                response.microformat
+                    ?.microformatDataRenderer
+                    ?.urlCanonical
+                    ?.substringAfterLast('=')
+            if (playlistId == null) {
+                playlistId =
+                    response.header
+                        ?.musicDetailHeaderRenderer
+                        ?.menu
+                        ?.menuRenderer
+                        ?.topLevelButtons
+                        ?.firstOrNull()
+                        ?.buttonRenderer
+                        ?.navigationEndpoint
+                        ?.watchPlaylistEndpoint
+                        ?.playlistId
             }
             return playlistId
         }
@@ -35,85 +85,125 @@ data class AlbumPage(
 
         fun getYear(response: BrowseResponse): Int? {
             val title = getHeader(response)?.subtitle ?: response.header?.musicDetailHeaderRenderer?.subtitle
-            return title?.runs?.lastOrNull()?.text?.toIntOrNull()
+            return title
+                ?.runs
+                ?.lastOrNull()
+                ?.text
+                ?.toIntOrNull()
         }
 
-        fun getThumbnail(response: BrowseResponse): String? {
-            return response.background?.musicThumbnailRenderer?.getThumbnailUrl() ?: response.header?.musicDetailHeaderRenderer?.thumbnail
-                ?.croppedSquareThumbnailRenderer?.getThumbnailUrl()
-        }
+        fun getThumbnail(response: BrowseResponse): String? =
+            response.background?.musicThumbnailRenderer?.getThumbnailUrl() ?: response.header
+                ?.musicDetailHeaderRenderer
+                ?.thumbnail
+                ?.croppedSquareThumbnailRenderer
+                ?.getThumbnailUrl()
 
         fun getArtists(response: BrowseResponse): List<Artist> {
-            val artists = getHeader(response)?.straplineTextOne?.runs?.oddElements()?.map {
-                Artist(
-                    name = it.text,
-                    id = it.navigationEndpoint?.browseEndpoint?.browseId
-                )
-            } ?: response.header?.musicDetailHeaderRenderer?.subtitle?.runs?.splitBySeparator()?.getOrNull(1)?.oddElements()?.map {
-                Artist(
-                    name = it.text,
-                    id = it.navigationEndpoint?.browseEndpoint?.browseId
-                )
-            } ?: emptyList()
+            val artists =
+                getHeader(response)?.straplineTextOne?.runs?.oddElements()?.map {
+                    Artist(
+                        name = it.text,
+                        id = it.navigationEndpoint?.browseEndpoint?.browseId,
+                    )
+                } ?: response.header?.musicDetailHeaderRenderer?.subtitle?.runs?.splitBySeparator()?.getOrNull(1)?.oddElements()?.map {
+                    Artist(
+                        name = it.text,
+                        id = it.navigationEndpoint?.browseEndpoint?.browseId,
+                    )
+                } ?: emptyList()
 
             return artists
         }
 
         private fun getHeader(response: BrowseResponse): MusicResponsiveHeaderRenderer? {
-            val tabs = response.contents?.singleColumnBrowseResultsRenderer?.tabs
-                ?: response.contents?.twoColumnBrowseResultsRenderer?.tabs
+            val tabs =
+                response.contents?.singleColumnBrowseResultsRenderer?.tabs
+                    ?: response.contents?.twoColumnBrowseResultsRenderer?.tabs
             val section =
-                tabs?.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()
+                tabs
+                    ?.firstOrNull()
+                    ?.tabRenderer
+                    ?.content
+                    ?.sectionListRenderer
+                    ?.contents
+                    ?.firstOrNull()
             val header = section?.musicResponsiveHeaderRenderer
             return header
         }
 
-        fun getSongs(response: BrowseResponse, album: AlbumItem): List<SongItem> {
+        fun getSongs(
+            response: BrowseResponse,
+            album: AlbumItem,
+        ): List<SongItem> {
             val tabs = response.contents?.singleColumnBrowseResultsRenderer?.tabs ?: response.contents?.twoColumnBrowseResultsRenderer?.tabs
-            val shelfRenderer = tabs?.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()?.musicShelfRenderer ?:
-                response.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents?.firstOrNull()?.musicShelfRenderer
+            val shelfRenderer =
+                tabs
+                    ?.firstOrNull()
+                    ?.tabRenderer
+                    ?.content
+                    ?.sectionListRenderer
+                    ?.contents
+                    ?.firstOrNull()
+                    ?.musicShelfRenderer
+                    ?: response.contents
+                        ?.twoColumnBrowseResultsRenderer
+                        ?.secondaryContents
+                        ?.sectionListRenderer
+                        ?.contents
+                        ?.firstOrNull()
+                        ?.musicShelfRenderer
 
-            val songs = shelfRenderer?.contents?.getItems()?.mapNotNull {
-                getSong(it, album)
-            }
+            val songs =
+                shelfRenderer?.contents?.getItems()?.mapNotNull {
+                    getSong(it, album)
+                }
             return songs ?: emptyList()
         }
 
-        fun getSong(renderer: MusicResponsiveListItemRenderer, album: AlbumItem? = null): SongItem? {
+        fun getSong(
+            renderer: MusicResponsiveListItemRenderer,
+            album: AlbumItem? = null,
+        ): SongItem? {
             return SongItem(
                 id = renderer.playlistItemData?.videoId ?: return null,
                 title = PageHelper.extractRuns(renderer.flexColumns, "MUSIC_VIDEO").firstOrNull()?.text ?: return null,
-                artists = PageHelper.extractRuns(renderer.flexColumns, "MUSIC_PAGE_TYPE_ARTIST").map{
-                    Artist(
-                        name = it.text,
-                        id = it.navigationEndpoint?.browseEndpoint?.browseId
-                    )
-                }.ifEmpty {
-                    // Fallback to album artists if no artists found in song data
-                    album?.artists ?: emptyList()
-                },
-                album = album?.let {
-                    Album(it.title, it.browseId)
-                } ?: renderer.flexColumns.getOrNull(2)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.let {
-                    Album(
-                        name = it.text,
-                        id = it.navigationEndpoint?.browseEndpoint?.browseId!!
-                    )
-                }!!,
-                duration = renderer.fixedColumns?.firstOrNull()
-                    ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()
-                    ?.text?.parseTime() ?: return null,
+                artists =
+                    PageHelper
+                        .extractRuns(renderer.flexColumns, "MUSIC_PAGE_TYPE_ARTIST")
+                        .map {
+                            Artist(
+                                name = it.text,
+                                id = it.navigationEndpoint?.browseEndpoint?.browseId,
+                            )
+                        }.ifEmpty {
+                            // Fallback to album artists if no artists found in song data
+                            album?.artists ?: emptyList()
+                        },
+                album =
+                    album?.let {
+                        Album(it.title, it.browseId)
+                    } ?: renderer.flexColumns.getOrNull(2)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.let {
+                        Album(
+                            name = it.text,
+                            id = it.navigationEndpoint?.browseEndpoint?.browseId!!,
+                        )
+                    }!!,
+                duration =
+                    renderer.fixedColumns
+                        ?.firstOrNull()
+                        ?.musicResponsiveListItemFlexColumnRenderer
+                        ?.text
+                        ?.runs
+                        ?.firstOrNull()
+                        ?.text
+                        ?.parseTime() ?: return null,
                 musicVideoType = renderer.musicVideoType,
                 thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: album?.thumbnail!!,
-                explicit = renderer.badges?.find {
-                    it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
-                } != null,
-                libraryAddToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
-                    it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-                }?.toggleMenuServiceItemRenderer, "LIBRARY_ADD"),
-                libraryRemoveToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
-                    it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-                }?.toggleMenuServiceItemRenderer, "LIBRARY_SAVED")
+                explicit =
+                    renderer.badges?.find {
+                        it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
+                    } != null,
             )
         }
     }

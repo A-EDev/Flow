@@ -59,7 +59,7 @@ class MusicRecommendationAlgorithm
             private const val CACHE_TTL_MS = 4 * 60 * 60 * 1000L
             private const val KEY_LAST_CACHE_TIME = "last_cache_time"
             private const val KEY_LAST_CONTINUATION = "last_continuation"
-            private const val KEY_LAST_CACHE_REGION = "last_cache_region"
+            private const val KEY_LAST_CACHE_LOCALE = "last_cache_region"
             private val cacheJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
         }
 
@@ -67,19 +67,20 @@ class MusicRecommendationAlgorithm
             context.getSharedPreferences("music_home_cache_prefs", Context.MODE_PRIVATE)
         }
 
-        private fun currentRegion(): String = io.github.aedev.flow.innertube.YouTube.locale.gl
+        private fun currentLocaleKey(): String =
+            io.github.aedev.flow.innertube.YouTube.locale
+                .let { "${it.gl}|${it.hl}" }
 
-        /** A cache fetched under a different content region is stale by definition. */
-        private fun isCacheRegionCurrent(): Boolean = cachePrefs.getString(KEY_LAST_CACHE_REGION, null) == currentRegion()
+        private fun isCacheLocaleCurrent(): Boolean = cachePrefs.getString(KEY_LAST_CACHE_LOCALE, null) == currentLocaleKey()
 
         /** True while the cached home is inside its TTL — callers may skip the network refresh. */
         fun isHomeCacheFresh(): Boolean =
-            isCacheRegionCurrent() &&
+            isCacheLocaleCurrent() &&
                 System.currentTimeMillis() - cachePrefs.getLong(KEY_LAST_CACHE_TIME, 0L) < CACHE_TTL_MS
 
         suspend fun loadMusicHome(): Pair<List<MusicSection>, String?> =
             withContext(Dispatchers.IO) {
-                val cachedSections = if (isCacheRegionCurrent()) cacheDao.getMusicHomeSections().firstOrNull() else null
+                val cachedSections = if (isCacheLocaleCurrent()) cacheDao.getMusicHomeSections().firstOrNull() else null
                 if (cachedSections != null && cachedSections.isNotEmpty()) {
                     val musicSections =
                         cachedSections
@@ -192,7 +193,7 @@ class MusicRecommendationAlgorithm
                         .edit()
                         .putLong(KEY_LAST_CACHE_TIME, System.currentTimeMillis())
                         .putString(KEY_LAST_CONTINUATION, homePage.continuation)
-                        .putString(KEY_LAST_CACHE_REGION, currentRegion())
+                        .putString(KEY_LAST_CACHE_LOCALE, currentLocaleKey())
                         .apply()
 
                     homePage.chips?.let { chips ->
@@ -323,14 +324,15 @@ class MusicRecommendationAlgorithm
                 deferreds.add(
                     async {
                         try {
-                            val charts = youTube.getChartsPage().getOrNull()
-                            charts?.sections?.forEach { section ->
-                                if (section.title.contains("Top", true) || section.title.contains("Trending", true)) {
+                            val charts = youTube.getChartsPage(youTube.locale.gl).getOrNull()
+                            charts
+                                ?.sections
+                                ?.filter { it.chartType == io.github.aedev.flow.innertube.pages.ChartsPage.ChartType.SONGS }
+                                ?.forEach { section ->
                                     section.items.filterIsInstance<SongItem>().forEach { song ->
                                         addCandidate(song, candidates, seenIds)
                                     }
                                 }
-                            }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error fetching charts", e)
                         }

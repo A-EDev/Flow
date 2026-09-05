@@ -82,6 +82,14 @@ class InnerTube {
             httpClient = createClient()
         }
 
+    var cacheDirectory: java.io.File? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            httpClient.close()
+            httpClient = createClient()
+        }
+
     var useLoginForBrowse: Boolean = false
 
     private fun sanitizeLocale(value: YouTubeLocale): YouTubeLocale =
@@ -162,7 +170,7 @@ class InnerTube {
                     // Cache configuration for better performance
                     cache(
                         okhttp3.Cache(
-                            directory = java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
+                            directory = cacheDirectory ?: java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
                             maxSize = 50L * 1024L * 1024L, // 50 MB
                         ),
                     )
@@ -560,6 +568,7 @@ class InnerTube {
         params: String? = null,
         continuation: String? = null,
         setLogin: Boolean = false,
+        formData: BrowseBody.FormData? = null,
     ) = withRetry {
         httpClient.post("browse") {
             ytClient(client, setLogin = setLogin || useLoginForBrowse)
@@ -574,6 +583,7 @@ class InnerTube {
                     browseId = browseId,
                     params = params,
                     continuation = continuation,
+                    formData = formData,
                 ),
             )
         }
@@ -679,19 +689,6 @@ class InnerTube {
                 ),
             )
         }
-    }
-
-    suspend fun feedback(
-        client: YouTubeClient,
-        tokens: List<String>,
-    ) = httpClient.post("feedback") {
-        ytClient(client, setLogin = true)
-        setBody(
-            FeedbackBody(
-                context = client.toContext(locale, visitorData, dataSyncId),
-                feedbackTokens = tokens,
-            ),
-        )
     }
 
     suspend fun getSearchSuggestions(

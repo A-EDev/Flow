@@ -378,6 +378,7 @@ class MusicPlayerViewModel
                     "on_repeat" -> context.getString(R.string.section_on_repeat)
                     "rotation" -> context.getString(R.string.source_your_rotation)
                     "rediscover" -> context.getString(R.string.section_rediscover)
+                    "deep_cuts" -> context.getString(R.string.section_deep_cuts)
                     "daily_discover" -> context.getString(R.string.section_daily_discover)
                     "quick_picks" -> context.getString(R.string.section_quick_picks)
                     "speed_dial", "speed_dial_shuffle" -> context.getString(R.string.section_speed_dial)

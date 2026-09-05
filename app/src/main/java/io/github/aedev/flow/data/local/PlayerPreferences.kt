@@ -26,6 +26,7 @@ internal fun resolveMigratedHideWatchedPreference(
 private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "player_preferences")
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
+const val CONTENT_LANGUAGE_FOLLOW_APP = "app"
 const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
 const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
 const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
@@ -66,6 +67,8 @@ class PlayerPreferences(
         val SLEEP_TIMER_CLOSE_APP_ON_EXPIRY = booleanPreferencesKey("sleep_timer_close_app_on_expiry")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
+        val CONTENT_LANGUAGE = stringPreferencesKey("content_language")
+        val MUSIC_LOUDNESS_NORMALIZATION_ENABLED = booleanPreferencesKey("music_loudness_normalization_enabled")
         val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")
         val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")
         val AUTO_PIP_ENABLED = booleanPreferencesKey("auto_pip_enabled")
@@ -996,6 +999,30 @@ class PlayerPreferences(
     suspend fun setAppLanguage(languageTag: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.APP_LANGUAGE] = languageTag
+        }
+    }
+
+    val contentLanguage: Flow<String> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.CONTENT_LANGUAGE] ?: CONTENT_LANGUAGE_FOLLOW_APP
+            }
+
+    suspend fun setContentLanguage(languageTag: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CONTENT_LANGUAGE] = languageTag
+        }
+    }
+
+    val musicLoudnessNormalizationEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.MUSIC_LOUDNESS_NORMALIZATION_ENABLED] ?: true
+            }
+
+    suspend fun setMusicLoudnessNormalizationEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_LOUDNESS_NORMALIZATION_ENABLED] = enabled
         }
     }
 

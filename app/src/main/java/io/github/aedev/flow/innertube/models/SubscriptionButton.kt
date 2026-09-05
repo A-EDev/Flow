@@ -10,5 +10,6 @@ data class SubscriptionButton(
     data class SubscribeButtonRenderer(
         val subscribed: Boolean,
         val channelId: String,
+        val subscriberCountText: Runs? = null,
     )
 }
