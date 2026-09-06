@@ -1257,6 +1257,7 @@ fun NavGraphBuilder.flowAppGraph(
                     onArtistClick = { channelId ->
                         navController.navigate("artist/$channelId")
                     },
+                    onCollectionClick = { navController.navigate("musicPlaylist/$it") },
                     onLoadMore = { musicViewModel.loadMorePlaylistTracks() },
                     isUserPlaylist = isUserPlaylist,
                     isSaved = isSaved,

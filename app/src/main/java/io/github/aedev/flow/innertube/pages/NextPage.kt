@@ -23,6 +23,12 @@ data class NextResult(
 object NextPage {
     fun fromPlaylistPanelVideoRenderer(renderer: PlaylistPanelVideoRenderer): SongItem? {
         val longByLineRuns = renderer.longBylineText?.runs?.splitBySeparator() ?: return null
+        val counts =
+            longByLineRuns
+                .drop(1)
+                .filter { segment -> segment.firstOrNull()?.navigationEndpoint == null }
+                .mapNotNull { segment -> segment.firstOrNull()?.text }
+                .filter { text -> text.any { !it.isDigit() } }
         return SongItem(
             id = renderer.videoId ?: return null,
             title =
@@ -64,12 +70,8 @@ object NextPage {
                 renderer.badges?.find {
                     it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
                 } != null,
-            libraryAddToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
-                it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-            }?.toggleMenuServiceItemRenderer, "LIBRARY_ADD"),
-            libraryRemoveToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
-                it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-            }?.toggleMenuServiceItemRenderer, "LIBRARY_SAVED")
+            viewCountText = counts.getOrNull(0),
+            likeCountText = counts.getOrNull(1),
         )
     }
 }

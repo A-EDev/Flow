@@ -11,6 +11,7 @@
 
 package io.github.aedev.flow.utils
 
+import android.os.Process
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger
 object PerformanceDispatcher {
     // Get available processors for optimal thread allocation
     private val availableProcessors = Runtime.getRuntime().availableProcessors()
+    private const val NETWORK_THREAD_NICE = 5
 
     // Network I/O dispatcher - Optimized for high-concurrency network operations
     // Uses more threads than CPU cores since network ops are I/O bound, but keeps
@@ -45,9 +47,11 @@ object PerformanceDispatcher {
         Executors.newFixedThreadPool(
             (availableProcessors * 2).coerceIn(4, 16),
         ) { runnable ->
-            Thread(runnable, "FlowNetwork-${networkThreadCounter.incrementAndGet()}").apply {
+            Thread({
+                Process.setThreadPriority(NETWORK_THREAD_NICE)
+                runnable.run()
+            }, "FlowNetwork-${networkThreadCounter.incrementAndGet()}").apply {
                 isDaemon = true
-                priority = Thread.NORM_PRIORITY
             }
         }
     private val networkThreadCounter = AtomicInteger(0)

@@ -65,18 +65,16 @@ object SearchPage {
                         renderer.badges?.find {
                             it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
                         } != null,
-                    libraryAddToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
-                        it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-                    }?.toggleMenuServiceItemRenderer, "LIBRARY_ADD"),
-                    libraryRemoveToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
-                        it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-                    }?.toggleMenuServiceItemRenderer, "LIBRARY_SAVED"),
-                    viewCountText = secondaryLine.flatten().find { 
-                        it.text.endsWith("views", ignoreCase = true) || 
-                        it.text.endsWith("view", ignoreCase = true) 
-                    }?.text
+                    viewCountText =
+                        secondaryLine
+                            .flatten()
+                            .find {
+                                it.text.endsWith("views", ignoreCase = true) ||
+                                    it.text.endsWith("view", ignoreCase = true)
+                            }?.text,
                 )
             }
+
             renderer.isArtist -> {
                 ArtistItem(
                     id = renderer.navigationEndpoint?.browseEndpoint?.browseId ?: return null,
@@ -106,6 +104,7 @@ object SearchPage {
                             ?.watchPlaylistEndpoint ?: return null,
                 )
             }
+
             renderer.isAlbum -> {
                 AlbumItem(
                     browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId ?: return null,
@@ -146,6 +145,7 @@ object SearchPage {
                         } != null,
                 )
             }
+
             renderer.isPlaylist -> {
                 PlaylistItem(
                     id =
@@ -200,7 +200,10 @@ object SearchPage {
                             ?.watchPlaylistEndpoint ?: return null,
                 )
             }
-            else -> null
+
+            else -> {
+                null
+            }
         }
     }
 }

@@ -79,7 +79,7 @@ enum class MusicLane {
  * and playlists inside track lanes, and tapping one must open the collection, not start playback.
  */
 val MusicTrack.isCollection: Boolean
-    get() = itemType == MusicItemType.ALBUM || itemType == MusicItemType.PLAYLIST
+    get() = itemType != MusicItemType.SONG
 
 /**
  * A lane of track cards. Handles the album/playlist routing that every track shelf needs, so the
@@ -108,6 +108,7 @@ fun MusicTrackCardShelf(
     when (lane) {
         MusicLane.Cards -> {
             val thumbnailHeight = currentGridThumbnailHeight()
+            val artistShape = flowArtistShape()
             MusicShelf(
                 title = title,
                 items = tracks,
@@ -117,11 +118,14 @@ fun MusicTrackCardShelf(
                 leading = leading,
                 action = action,
             ) { track ->
+                val isArtist = track.itemType == MusicItemType.ARTIST
                 MusicCollectionCard(
                     title = track.title,
                     subtitle = trackSubtitle(track),
                     thumbnailUrl = track.thumbnailUrl,
                     thumbnailHeight = thumbnailHeight,
+                    shape = if (isArtist) artistShape else MaterialTheme.shapes.large,
+                    horizontalAlignment = if (isArtist) Alignment.CenterHorizontally else Alignment.Start,
                     mediaId = track.videoId,
                     isDownloaded = downloadedTrackIds.contains(track.videoId),
                     onClick = { track.open(onTrackClick, onCollectionClick) },
@@ -242,6 +246,7 @@ fun MusicQuickPicksShelf(
     onTrackClick: (MusicTrack) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     action: MusicSectionAction? = null,
     downloadedTrackIds: Set<String> = emptySet(),
     state: LazyGridState = rememberLazyGridState(),
@@ -253,6 +258,7 @@ fun MusicQuickPicksShelf(
         items = tracks,
         key = { "quick_picks:${it.videoId}" },
         modifier = modifier,
+        subtitle = subtitle,
         action = action,
         state = state,
     ) { track, shape ->

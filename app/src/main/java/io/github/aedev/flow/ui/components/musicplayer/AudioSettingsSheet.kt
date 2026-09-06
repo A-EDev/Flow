@@ -3,18 +3,23 @@ package io.github.aedev.flow.ui.components.musicplayer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.audio.EqualizerEditor
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
+import io.github.aedev.flow.ui.screens.settings.SettingsSwitchItem
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +95,26 @@ fun AudioSettingsSheet(onDismiss: () -> Unit) {
                                 steps = 23,
                             )
                         }
+                    }
+                }
+
+                item {
+                    val context = LocalContext.current
+                    val preferences = remember { PlayerPreferences(context) }
+                    val normalizationEnabled by preferences.musicLoudnessNormalizationEnabled.collectAsState(initial = true)
+                    val scope = rememberCoroutineScope()
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    ) {
+                        SettingsSwitchItem(
+                            icon = Icons.Default.GraphicEq,
+                            title = stringResource(R.string.music_normalize_volume_title),
+                            subtitle = stringResource(R.string.music_normalize_volume_desc),
+                            checked = normalizationEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch { preferences.setMusicLoudnessNormalizationEnabled(enabled) }
+                            },
+                        )
                     }
                 }
 

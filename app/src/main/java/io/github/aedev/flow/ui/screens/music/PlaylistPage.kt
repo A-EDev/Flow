@@ -57,6 +57,7 @@ import io.github.aedev.flow.ui.components.music.detail.PlaylistSearchBar
 import io.github.aedev.flow.ui.components.music.detail.PlaylistTopBar
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
+import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.shared.CollectionTarget
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
@@ -80,6 +81,7 @@ fun PlaylistPage(
     onBackClick: () -> Unit,
     onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onArtistClick: (String) -> Unit,
+    onCollectionClick: (String) -> Unit = {},
     onDownloadClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     onLoadMore: () -> Unit = {},
@@ -425,6 +427,17 @@ fun PlaylistPage(
                                         selectedTrack = track
                                         showBottomSheet = true
                                     },
+                                )
+                            }
+                        }
+                        if (playlistDetails.otherVersions.isNotEmpty()) {
+                            item(key = "other_versions") {
+                                MusicCollectionShelf(
+                                    title = stringResource(R.string.section_other_versions),
+                                    collections = playlistDetails.otherVersions,
+                                    keyNamespace = "other_versions",
+                                    onCollectionClick = { onCollectionClick(it.id) },
+                                    onCollectionMenu = {},
                                 )
                             }
                         }

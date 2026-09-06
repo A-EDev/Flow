@@ -34,7 +34,7 @@ data class PlayerResponse(
             val baseUrl: String? = null,
             val name: Text? = null,
             val languageCode: String? = null,
-            val kind: String? = null,            // "asr" = auto-generated
+            val kind: String? = null, // "asr" = auto-generated
             val isTranslatable: Boolean? = null,
         )
 
@@ -50,7 +50,9 @@ data class PlayerResponse(
             val runs: List<Run>? = null,
         ) {
             @Serializable
-            data class Run(val text: String? = null)
+            data class Run(
+                val text: String? = null,
+            )
 
             val text: String? get() = simpleText ?: runs?.joinToString("") { it.text.orEmpty() }
         }
@@ -93,6 +95,7 @@ data class PlayerResponse(
         data class AudioConfig(
             val loudnessDb: Double?,
             val perceptualLoudnessDb: Double?,
+            val loudnessTargetLkfs: Double? = null,
         )
 
         @Serializable
@@ -171,10 +174,12 @@ data class PlayerResponse(
                 }
 
             val audioLanguageTag: String?
-                get() = audioTrack?.id
-                    ?.substringBeforeLast('.', missingDelimiterValue = "")
-                    ?.takeIf { it.isNotBlank() }
-                    ?: audioContentTags["lang"]
+                get() =
+                    audioTrack
+                        ?.id
+                        ?.substringBeforeLast('.', missingDelimiterValue = "")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: audioContentTags["lang"]
 
             private val audioContentTags: Map<String, String>
                 get() = xtags?.takeIf { it.isNotBlank() }?.let(AudioXTags::decode).orEmpty()
@@ -225,11 +230,13 @@ data class PlayerResponse(
             @SerialName("baseUrl")
             val baseUrl: String?,
         )
+
         @Serializable
         data class VideostatsWatchtimeUrl(
             @SerialName("baseUrl")
             val baseUrl: String?,
         )
+
         @Serializable
         data class AtrUrl(
             @SerialName("baseUrl")

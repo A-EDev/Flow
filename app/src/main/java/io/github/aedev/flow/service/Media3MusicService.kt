@@ -63,6 +63,7 @@ import kotlinx.serialization.json.Json
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.min
+import kotlin.math.pow
 
 @AndroidEntryPoint
 class Media3MusicService : MediaLibraryService() {
@@ -137,6 +138,7 @@ class Media3MusicService : MediaLibraryService() {
     private var radioEndpoint: WatchEndpoint? = null
     private var radioTopUpJob: Job? = null
     private var radioAutoplayEnabled = true
+    private var loudnessNormalizationEnabled = true
     private var lastQueueIds: List<String>? = null
 
     // Queue-end continuation: appends go through the manager's MediaController and
@@ -208,6 +210,12 @@ class Media3MusicService : MediaLibraryService() {
             prefs.musicEndlessRadioEnabled.collect { radioAutoplayEnabled = it }
         }
         lifecycleScope.launch {
+            prefs.musicLoudnessNormalizationEnabled.collect {
+                loudnessNormalizationEnabled = it
+                applyLoudnessGain()
+            }
+        }
+        lifecycleScope.launch {
             var lastQuality: io.github.aedev.flow.data.local.MusicAudioQuality? = null
             prefs.musicAudioQuality.collect { quality ->
                 val previous = lastQuality
@@ -226,6 +234,16 @@ class Media3MusicService : MediaLibraryService() {
                 .distinctUntilChanged()
                 .collectLatest(::applyPlayDuringCallsPreference)
         }
+    }
+
+    private fun applyLoudnessGain() {
+        if (!::player.isInitialized) return
+        val mediaId = player.currentMediaItem?.mediaId
+        val gainDb =
+            mediaId
+                ?.takeIf { loudnessNormalizationEnabled && !it.startsWith(LOCAL_MEDIA_PREFIX) }
+                ?.let(MusicPlayerUtils::cachedLoudnessGainDb)
+        player.volume = if (gainDb == null) 1f else 10.0.pow(gainDb / 20.0).toFloat()
     }
 
     private fun applyPlayDuringCallsPreference(playDuringCalls: Boolean) {
@@ -324,6 +342,7 @@ class Media3MusicService : MediaLibraryService() {
                 ) {
                     finalizeListenSession()
                     startListenSession(mediaItem?.mediaId)
+                    applyLoudnessGain()
 
                     if (
                         reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
@@ -414,6 +433,7 @@ class Media3MusicService : MediaLibraryService() {
                     }
                     if (playbackState == Player.STATE_READY) {
                         refreshLearnDuration()
+                        applyLoudnessGain()
                         player.currentMediaItem?.mediaId?.let { mediaId ->
                             val lastErrorAt = lastPlaybackErrorAtMap[mediaId] ?: 0L
                             if (System.currentTimeMillis() - lastErrorAt > RECOVERY_SUCCESS_GRACE_MS) {
