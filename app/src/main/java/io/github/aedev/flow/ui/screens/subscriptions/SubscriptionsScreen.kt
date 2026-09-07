@@ -4,9 +4,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -74,7 +71,6 @@ fun SubscriptionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val feedGridState = rememberLazyGridState()
-    val modeFadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
     var isManagingSubs by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -232,13 +228,7 @@ fun SubscriptionsScreen(
                     .fillMaxSize()
                     .padding(padding),
         ) {
-            AnimatedContent(
-                targetState = isManagingSubs,
-                // No size transform: the container animating its width measures children down to
-                // zero, which ButtonGroup's measure policy cannot survive.
-                transitionSpec = { fadeIn(modeFadeSpec) togetherWith fadeOut(modeFadeSpec) using null },
-                label = "subscriptionsMode",
-            ) { manageMode ->
+            AnimatedContent(targetState = isManagingSubs, label = "subscriptionsMode") { manageMode ->
                 if (manageMode) {
                     SubscriptionsManageContent(
                         channels = sortedChannels,

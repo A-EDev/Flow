@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.subscriptions
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,14 +16,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.OndemandVideo
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ButtonGroupScope
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -87,25 +85,24 @@ internal fun SubscriptionsManageContent(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = ContentHorizontalPadding, vertical = SelectorVerticalPadding),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         ) {
-            ButtonGroup(overflowIndicator = {}, modifier = Modifier.fillMaxWidth()) {
-                customItem({
-                    SubscriptionKindToggle(
-                        selected = selectedTabIndex == 0,
-                        onSelect = { selectedTabIndex = 0 },
-                        icon = Icons.Default.OndemandVideo,
-                        label = stringResource(R.string.subscriptions_video_section_title),
-                    )
-                }) {}
-                customItem({
-                    SubscriptionKindToggle(
-                        selected = selectedTabIndex == 1,
-                        onSelect = { selectedTabIndex = 1 },
-                        icon = Icons.Default.MusicNote,
-                        label = stringResource(R.string.subscriptions_music_section_title),
-                    )
-                }) {}
-            }
+            SubscriptionKindToggle(
+                selected = selectedTabIndex == 0,
+                onSelect = { selectedTabIndex = 0 },
+                icon = Icons.Default.OndemandVideo,
+                label = stringResource(R.string.subscriptions_video_section_title),
+                shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                modifier = Modifier.weight(1f),
+            )
+            SubscriptionKindToggle(
+                selected = selectedTabIndex == 1,
+                onSelect = { selectedTabIndex = 1 },
+                icon = Icons.Default.MusicNote,
+                label = stringResource(R.string.subscriptions_music_section_title),
+                shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                modifier = Modifier.weight(1f),
+            )
         }
 
         LazyColumn(
@@ -161,19 +158,19 @@ internal fun SubscriptionsManageContent(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ButtonGroupScope.SubscriptionKindToggle(
+private fun SubscriptionKindToggle(
     selected: Boolean,
     onSelect: () -> Unit,
     icon: ImageVector,
     label: String,
+    shapes: ToggleButtonShapes,
+    modifier: Modifier = Modifier,
 ) {
-    val interaction = remember { MutableInteractionSource() }
     ToggleButton(
         checked = selected,
         onCheckedChange = { onSelect() },
-        shapes = ToggleButtonDefaults.shapesFor(ButtonDefaults.MinHeight),
-        interactionSource = interaction,
-        modifier = Modifier.animateWidth(interaction),
+        shapes = shapes,
+        modifier = modifier,
     ) {
         Icon(
             imageVector = icon,
