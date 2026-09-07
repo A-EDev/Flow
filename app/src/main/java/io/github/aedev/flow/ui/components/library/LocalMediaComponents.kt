@@ -20,7 +20,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.ArtworkThumbnail
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
@@ -58,7 +58,7 @@ internal fun LocalMediaList(
     modifier: Modifier = Modifier,
 ) {
     val pullState = rememberPullToRefreshState()
-    PullToRefreshBox(
+    FlowPullToRefreshBox(
         isRefreshing = isScanning,
         onRefresh = onRefresh,
         state = pullState,

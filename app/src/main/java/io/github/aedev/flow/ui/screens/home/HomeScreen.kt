@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -53,6 +52,7 @@ import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
 import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
 import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardHorizontal
@@ -457,7 +457,7 @@ private fun ResettableHomePullToRefreshBox(
     content: @Composable BoxScope.() -> Unit,
 ) {
     key(resetKey) {
-        PullToRefreshBox(
+        FlowPullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
             modifier = modifier,

@@ -24,7 +24,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +48,7 @@ import io.github.aedev.flow.ui.components.library.VideoDownloadRow
 import io.github.aedev.flow.ui.components.shared.ArtworkThumbnail
 import io.github.aedev.flow.ui.components.shared.ExplicitBadge
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
@@ -279,7 +279,7 @@ internal fun VideosDownloadsList(
     modifier: Modifier = Modifier,
 ) {
     val pullState = rememberPullToRefreshState()
-    PullToRefreshBox(
+    FlowPullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
         state = pullState,
@@ -355,7 +355,7 @@ internal fun MusicDownloadsList(
     modifier: Modifier = Modifier,
 ) {
     val pullState = rememberPullToRefreshState()
-    PullToRefreshBox(
+    FlowPullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
         state = pullState,
