@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.DragIndicator
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Refresh
@@ -74,6 +75,7 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
             GridItemSize.BIG
         }
 
+    val showChannelGroupBadges by preferences.showChannelGroupBadges.collectAsState(initial = false)
     val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
     val isShortsShelfEnabled by preferences.shortsShelfEnabled.collectAsState(initial = true)
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
@@ -210,6 +212,17 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                             )
                         }
                     }
+                }
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Label,
+                        title = stringResource(R.string.content_settings_channel_group_badge_title),
+                        subtitle = stringResource(R.string.content_settings_channel_group_badge_subtitle),
+                        checked = showChannelGroupBadges,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch { preferences.setShowChannelGroupBadges(enabled) }
+                        },
+                    )
                 }
             }
 

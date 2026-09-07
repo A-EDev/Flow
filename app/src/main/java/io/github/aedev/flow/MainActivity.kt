@@ -43,6 +43,7 @@ import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.components.ProvideVideoCardState
 import io.github.aedev.flow.ui.components.UpdateDialog
+import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.screens.CrashReporterScreen
 import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.FlowTheme
@@ -373,60 +374,62 @@ class MainActivity : ComponentActivity() {
                                 onDeeplinkConsumed = { consumeDeeplink() },
                             )
                         } else {
-                            FlowApp(
-                                currentTheme = themeMode,
-                                themeVariant = themeVariant,
-                                customThemePalettes = customThemePalettes,
-                                systemLightThemeMode = systemLightThemeMode,
-                                systemDarkThemeMode = systemDarkThemeMode,
-                                systemDarkThemeVariant = systemDarkThemeVariant,
-                                onThemeChange = { newTheme ->
-                                    themeMode = newTheme
-                                    scope.launch {
-                                        dataManager.setThemeMode(newTheme)
-                                    }
-                                },
-                                onThemeVariantChange = { variant ->
-                                    themeVariant = variant
-                                    scope.launch {
-                                        dataManager.setThemeVariant(variant)
-                                    }
-                                },
-                                onCustomThemePalettesChange = { palettes ->
-                                    customThemePalettes = palettes
-                                    scope.launch {
-                                        dataManager.setCustomThemePalettes(palettes)
-                                    }
-                                },
-                                onSystemLightThemeChange = { newTheme ->
-                                    systemLightThemeMode = newTheme
-                                    scope.launch {
-                                        dataManager.setSystemLightThemeMode(newTheme)
-                                    }
-                                },
-                                onSystemDarkThemeChange = { newTheme ->
-                                    systemDarkThemeMode = newTheme
-                                    scope.launch {
-                                        dataManager.setSystemDarkThemeMode(newTheme)
-                                    }
-                                },
-                                onSystemDarkThemeVariantChange = { variant ->
-                                    systemDarkThemeVariant = variant
-                                    scope.launch {
-                                        dataManager.setSystemDarkThemeVariant(variant)
-                                    }
-                                },
-                                deeplinkVideoId = deeplinkVideoId,
-                                isShort = isDeeplinkShort,
-                                openMusicPlayerRequest = openMusicPlayerRequest,
-                                onDeeplinkConsumed = {
-                                    consumeDeeplink()
-                                },
-                                pendingWidgetRoute = pendingWidgetRoute,
-                                onWidgetRouteConsumed = {
-                                    _pendingWidgetRoute.value = null
-                                },
-                            )
+                            ProvideChannelGroupLabels {
+                                FlowApp(
+                                    currentTheme = themeMode,
+                                    themeVariant = themeVariant,
+                                    customThemePalettes = customThemePalettes,
+                                    systemLightThemeMode = systemLightThemeMode,
+                                    systemDarkThemeMode = systemDarkThemeMode,
+                                    systemDarkThemeVariant = systemDarkThemeVariant,
+                                    onThemeChange = { newTheme ->
+                                        themeMode = newTheme
+                                        scope.launch {
+                                            dataManager.setThemeMode(newTheme)
+                                        }
+                                    },
+                                    onThemeVariantChange = { variant ->
+                                        themeVariant = variant
+                                        scope.launch {
+                                            dataManager.setThemeVariant(variant)
+                                        }
+                                    },
+                                    onCustomThemePalettesChange = { palettes ->
+                                        customThemePalettes = palettes
+                                        scope.launch {
+                                            dataManager.setCustomThemePalettes(palettes)
+                                        }
+                                    },
+                                    onSystemLightThemeChange = { newTheme ->
+                                        systemLightThemeMode = newTheme
+                                        scope.launch {
+                                            dataManager.setSystemLightThemeMode(newTheme)
+                                        }
+                                    },
+                                    onSystemDarkThemeChange = { newTheme ->
+                                        systemDarkThemeMode = newTheme
+                                        scope.launch {
+                                            dataManager.setSystemDarkThemeMode(newTheme)
+                                        }
+                                    },
+                                    onSystemDarkThemeVariantChange = { variant ->
+                                        systemDarkThemeVariant = variant
+                                        scope.launch {
+                                            dataManager.setSystemDarkThemeVariant(variant)
+                                        }
+                                    },
+                                    deeplinkVideoId = deeplinkVideoId,
+                                    isShort = isDeeplinkShort,
+                                    openMusicPlayerRequest = openMusicPlayerRequest,
+                                    onDeeplinkConsumed = {
+                                        consumeDeeplink()
+                                    },
+                                    pendingWidgetRoute = pendingWidgetRoute,
+                                    onWidgetRouteConsumed = {
+                                        _pendingWidgetRoute.value = null
+                                    },
+                                )
+                            }
                         }
 
                         // 2. THE SPLASH SCREEN (Z-Index Top)

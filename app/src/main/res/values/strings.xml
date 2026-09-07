@@ -28,6 +28,8 @@
         <item quantity="other">%d channels couldn\'t be loaded</item>
     </plurals>
     <string name="subscriptions_failed_channels_copy_logs">Copy logs</string>
+    <string name="content_settings_channel_group_badge_title">Show group on channel avatars</string>
+    <string name="content_settings_channel_group_badge_subtitle">Label channel and artist avatars with the subscription group they belong to</string>
     <string name="channel_add_to_group">Add to group</string>
     <string name="channel_groups_sheet_title">Channel groups</string>
     <string name="channel_groups_empty">No groups yet</string>

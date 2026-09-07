@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.subscriptions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.shared.ChannelGroupBadge
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.titleMarquee
 
@@ -50,15 +52,18 @@ internal fun SubscriptionManagerItem(
                 .padding(RowPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ChannelAvatarImage(
-            url = channel.thumbnailUrl,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(AvatarSize)
-                    .clip(subscriptionAvatarShape(channel.isMusic))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-        )
+        Box(modifier = Modifier.size(AvatarSize)) {
+            ChannelAvatarImage(
+                url = channel.thumbnailUrl,
+                contentDescription = null,
+                modifier =
+                    Modifier
+                        .size(AvatarSize)
+                        .clip(subscriptionAvatarShape(channel.isMusic))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+            )
+            ChannelGroupBadge(channelId = channel.id)
+        }
 
         Spacer(modifier = Modifier.width(AvatarTextSpacing))
 

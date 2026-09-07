@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.shared.ChannelGroupBadge
 import io.github.aedev.flow.ui.components.shared.flowArtistShape
 import io.github.aedev.flow.ui.components.shared.titleMarquee
 
@@ -74,6 +75,7 @@ internal fun ChannelAvatarItem(
                         .clip(subscriptionAvatarShape(channel.isMusic))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
             )
+            ChannelGroupBadge(channelId = channel.id)
             if (channel.isMusic) {
                 ChannelTypeBadge(
                     icon = Icons.Default.MusicNote,
