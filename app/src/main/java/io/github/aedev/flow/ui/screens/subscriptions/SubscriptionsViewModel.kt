@@ -32,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -207,10 +208,16 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                while (true) {
-                    delay(RELATIVE_TIME_TICK_MS)
-                    refreshVisibleFeed()
-                }
+                _uiState.subscriptionCount
+                    .map { observers -> observers > 0 }
+                    .distinctUntilChanged()
+                    .collectLatest { observed ->
+                        if (!observed) return@collectLatest
+                        while (true) {
+                            delay(RELATIVE_TIME_TICK_MS)
+                            refreshVisibleFeed()
+                        }
+                    }
             }
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
