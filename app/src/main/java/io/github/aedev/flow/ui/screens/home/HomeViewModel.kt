@@ -10,17 +10,12 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.CachedHomeVideo
 import io.github.aedev.flow.data.local.HomeFeedCacheFilters
 import io.github.aedev.flow.data.local.HomeFeedCacheRepository
-import io.github.aedev.flow.data.local.LikedVideosRepository
-import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.SubscriptionRepository
-import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
-import io.github.aedev.flow.data.recommendation.GraphSeedSelector
-import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsRepository
@@ -43,8 +38,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.Page
 import javax.inject.Inject
@@ -54,13 +47,6 @@ private data class Wave1FeedResults(
     val discovery: List<Pair<String, List<Video>>>,
     val viral: List<Video>,
     val related: RelatedGraphFetchResult,
-)
-
-private data class RelatedGraphFetchResult(
-    val seedInputs: List<GraphSeedInput>,
-    val seedIds: List<String>,
-    val candidates: List<GraphCandidate>,
-    val fetchedPerSeed: Map<String, Int>,
 )
 
 @HiltViewModel
@@ -73,6 +59,9 @@ class HomeViewModel
         private val shortsRepository: ShortsRepository,
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
         private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
+        private val feedSources: HomeFeedSources,
+        private val persistentHomeFeedCache: HomeFeedCacheRepository,
+        private val viewHistory: ViewHistory,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
         fun shortsShelfSource(
@@ -96,12 +85,6 @@ class HomeViewModel
             private const val FEED_SEED_POOL = 30
         }
 
-        // Saved-interest enrichment sources (history/liked/playlists) + per-seed cooldown.
-        private val likedVideosRepository by lazy { LikedVideosRepository.getInstance(appContext) }
-        private val playlistRepository by lazy { PlaylistRepository(appContext) }
-        private val historyRepository by lazy { ViewHistory.getInstance(appContext) }
-        private val persistentHomeFeedCache by lazy { HomeFeedCacheRepository(appContext) }
-        private val savedSeedCooldown = java.util.concurrent.ConcurrentHashMap<String, Long>()
         private val channelMetadataEnrichmentInFlight =
             java.util.concurrent.ConcurrentHashMap
                 .newKeySet<String>()
@@ -129,18 +112,7 @@ class HomeViewModel
         private var wave2Job: Job? = null
         private var savedInterestJob: Job? = null
 
-        private var viewHistory: ViewHistory? = null
-
         private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
-
-        // Related-graph (/next) per-seed cache, keyed by seed video id.
-        private data class CachedRelated(
-            val videos: List<Video>,
-            val ts: Long,
-        )
-
-        private val relatedCache = java.util.concurrent.ConcurrentHashMap<String, CachedRelated>()
-        private val relatedSemaphore = Semaphore(3)
 
         init {
             if (HomeFeedCache.isFresh()) {
@@ -164,11 +136,9 @@ class HomeViewModel
             if (isInitialized) return
             isInitialized = true
 
-            viewHistory = ViewHistory.getInstance(context)
-
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 combine(
-                    viewHistory!!.getVideoHistoryFlow(),
+                    viewHistory.getVideoHistoryFlow(),
                     playerPreferences.hideWatchedVideosFromHome,
                     playerPreferences.watchedThreshold,
                     playerPreferences.continueWatchingEnabled,
@@ -371,7 +341,7 @@ class HomeViewModel
 
         fun removeContinueWatchingEntry(videoId: String) {
             viewModelScope.launch {
-                viewHistory?.clearVideoHistory(videoId)
+                viewHistory.clearVideoHistory(videoId)
             }
         }
 
@@ -508,9 +478,9 @@ class HomeViewModel
                             // ── Related-graph lane: harvest /next neighbours of recent positives ──
                             val deferredRelated =
                                 async {
-                                    val seedInputs = buildSeedInputs()
+                                    val seedInputs = feedSources.historySeedInputs()
                                     val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_RELATED_SEEDS)
-                                    fetchRelatedGraph(seedInputs, seedIds)
+                                    feedSources.fetchRelatedGraph(seedInputs, seedIds, ::cacheFilters)
                                 }
 
                             // ── Fast first paint ────────────────────────────────────────
@@ -836,7 +806,7 @@ class HomeViewModel
                 val seedInputs = loadMoreSeedInputs()
                 val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, LOAD_MORE_GRAPH_SEEDS)
                 if (seedIds.isNotEmpty()) {
-                    val graphFetch = fetchRelatedGraph(seedInputs, seedIds)
+                    val graphFetch = feedSources.fetchRelatedGraph(seedInputs, seedIds, ::cacheFilters)
                     val graphCandidates =
                         graphFetch.candidates
                             .filterValidGraph()
@@ -970,7 +940,8 @@ class HomeViewModel
                     val fallbackSeeds =
                         FlowNeuroEngine.selectRelatedSeeds(fallbackInputs, LOAD_MORE_FALLBACK_SEEDS)
                     if (fallbackSeeds.isNotEmpty() && homePrefetchQueue.isCurrent(generation)) {
-                        val fallbackFetch = fetchRelatedGraph(fallbackInputs, fallbackSeeds)
+                        val fallbackFetch =
+                            feedSources.fetchRelatedGraph(fallbackInputs, fallbackSeeds, ::cacheFilters)
                         val fallbackCandidates =
                             fallbackFetch.candidates
                                 .filterValidGraph()
@@ -1176,159 +1147,16 @@ class HomeViewModel
             maxPerChannel: Int = 2,
         ): Boolean = addUniqueVideo(video, targetList, channelCounts, usedVideoIds, maxPerChannel)
 
-        private suspend fun buildSeedInputs(): List<GraphSeedInput> {
-            val history = viewHistory?.getVideoHistoryFlow()?.first() ?: return emptyList()
-            return graphSeedInputsFromHistory(history)
-        }
-
-        /** Videos currently on screen, usable as related-graph seeds for load-more. */
-        private fun feedSeedInputs(max: Int = FEED_SEED_POOL): List<GraphSeedInput> {
-            val now = System.currentTimeMillis()
-            return _uiState.value.videos
-                .asSequence()
-                .filter { !it.isShort && it.id.isNotBlank() }
-                .take(max)
-                .map { video ->
-                    GraphSeedInput(
-                        id = video.id,
-                        title = video.title,
-                        channelId = video.channelId,
-                        source = GraphSeedSource.FEED,
-                        engagementWeight = 0.6,
-                        timestamp = now,
-                        durationSec = video.duration,
-                        percentWatched = 0.0,
-                    )
-                }.toList()
-        }
-
         /**
          * The load-more seed universe: saved interests (history, liked, playlists)
          * PLUS the feed itself — so paging can always dig another related lane and
          * the feed never runs dry. The engine's seed cooldown rotates them.
          */
         private suspend fun loadMoreSeedInputs(): List<GraphSeedInput> =
-            (savedInterestSeedInputs(gatherSavedSeedSources(), emptySet()) + feedSeedInputs())
-                .distinctBy { it.id }
-
-        private suspend fun fetchRelatedVideos(seedId: String): List<Video> {
-            val ts = System.currentTimeMillis()
-            relatedCache[seedId]?.takeIf { ts - it.ts < RELATED_TTL_MS }?.videos?.let { return it }
-
-            val persisted =
-                runCatching {
-                    persistentHomeFeedCache.loadRelated(seedId, cacheFilters(), ts)
-                }.getOrElse { emptyList() }
-            if (persisted.isNotEmpty()) {
-                relatedCache[seedId] = CachedRelated(persisted, ts)
-                return persisted
-            }
-
-            return (
-                relatedSemaphore.withPermit {
-                    withTimeoutOrNull(4_000L) { repository.getRelatedCandidates(seedId) } ?: emptyList()
-                }
-            ).also {
-                relatedCache[seedId] = CachedRelated(it, ts)
-                persistentHomeFeedCache.saveRelated(seedId, it, ts)
-            }
-        }
-
-        /** Expands seed video ids into related (/next) neighbours with graph metadata. */
-        private suspend fun fetchRelatedGraph(
-            seedInputs: List<GraphSeedInput>,
-            seedIds: List<String>,
-        ): RelatedGraphFetchResult =
-            coroutineScope {
-                if (seedIds.isEmpty()) {
-                    return@coroutineScope RelatedGraphFetchResult(seedInputs, seedIds, emptyList(), emptyMap())
-                }
-                val now = System.currentTimeMillis()
-                val seedMetadata =
-                    seedInputs
-                        .filter { it.id in seedIds }
-                        .groupBy { it.id }
-                        .mapValues { (_, seeds) -> seeds.maxBy { GraphSeedSelector.scoreSeed(it, now) } }
-
-                val perSeed =
-                    seedIds
-                        .map { seedId ->
-                            async {
-                                val seed = seedMetadata[seedId]
-                                val videos = fetchRelatedVideos(seedId)
-                                val seedScore = seed?.let { GraphSeedSelector.scoreSeed(it, now) } ?: 0.0
-                                val seedCluster = seed?.let { GraphSeedSelector.clusterKey(it) } ?: "misc"
-                                val candidates =
-                                    videos.mapIndexed { index, video ->
-                                        GraphCandidate(
-                                            video = video,
-                                            seedId = seedId,
-                                            seedScore = seedScore,
-                                            graphRank = index,
-                                            seedCluster = seedCluster,
-                                            seedResultCount = videos.size,
-                                        )
-                                    }
-                                seedId to candidates
-                            }
-                        }.awaitAll()
-                val rawCandidates = perSeed.flatMap { it.second }
-                RelatedGraphFetchResult(
-                    seedInputs = seedInputs,
-                    seedIds = seedIds,
-                    candidates = mergeGraphCandidates(rawCandidates),
-                    fetchedPerSeed = perSeed.associate { (seedId, candidates) -> seedId to candidates.size },
-                )
-            }
-
-        /** Expands seed video ids into related (/next) neighbours with graph metadata. */
-        private suspend fun fetchRelatedGraphCandidates(
-            seedInputs: List<GraphSeedInput>,
-            seedIds: List<String>,
-        ): List<GraphCandidate> = fetchRelatedGraph(seedInputs, seedIds).candidates
-
-        private suspend fun gatherSavedSeedSources(): SavedSeedSources {
-            val historySeeds =
-                runCatching {
-                    graphSeedInputsFromHistory(historyRepository.getVideoHistoryFlow().first())
-                }.getOrElse { emptyList() }
-            val likedSeeds =
-                runCatching {
-                    likedVideosRepository.getLikedVideosFlow().first().map {
-                        GraphSeedInput(
-                            id = it.videoId,
-                            title = it.title,
-                            channelId = "",
-                            source = GraphSeedSource.LIKED,
-                            engagementWeight = 1.0,
-                            timestamp = it.likedAt,
-                            durationSec = 0,
-                            percentWatched = 0.0,
-                        )
-                    }
-                }.getOrElse { emptyList() }
-            val playlistSeeds =
-                runCatching {
-                    playlistRepository.getSavedVideoPlaylistVideos().map {
-                        GraphSeedInput(
-                            id = it.id,
-                            title = it.title,
-                            channelId = it.channelId,
-                            source = GraphSeedSource.PLAYLIST,
-                            engagementWeight = 1.0,
-                            timestamp = it.timestamp,
-                            durationSec = it.duration,
-                            percentWatched = 0.0,
-                        )
-                    }
-                }.getOrElse { emptyList() }
-            return SavedSeedSources(historySeeds, likedSeeds, playlistSeeds)
-        }
-
-        private fun activeSavedSeedCooldown(now: Long): Set<String> {
-            savedSeedCooldown.entries.removeAll { now - it.value > SAVED_SEED_COOLDOWN_MS }
-            return savedSeedCooldown.keys.toHashSet()
-        }
+            (
+                savedInterestSeedInputs(feedSources.gatherSavedSeedSources(), emptySet()) +
+                    feedSeedInputs(_uiState.value.videos, System.currentTimeMillis(), FEED_SEED_POOL)
+            ).distinctBy { it.id }
 
         /**
          * Enriches the feed with related neighbours of the videos the user saved/watched, on top of the
@@ -1343,17 +1171,22 @@ class HomeViewModel
                 viewModelScope.launch(PerformanceDispatcher.networkIO) {
                     try {
                         val now = System.currentTimeMillis()
-                        val seedInputs = savedInterestSeedInputs(gatherSavedSeedSources(), activeSavedSeedCooldown(now))
+                        val seedInputs =
+                            savedInterestSeedInputs(
+                                feedSources.gatherSavedSeedSources(),
+                                feedSources.activeSavedSeedCooldown(now),
+                            )
                         val seeds =
                             FlowNeuroEngine.selectRelatedSeeds(
                                 seedInputs,
                                 MAX_SAVED_SEEDS,
                             )
                         if (seeds.isEmpty()) return@launch
-                        seeds.forEach { savedSeedCooldown[it] = now }
+                        feedSources.markSeedsUsed(seeds, now)
 
                         val relatedCandidates =
-                            fetchRelatedGraphCandidates(seedInputs, seeds)
+                            feedSources
+                                .fetchRelatedGraphCandidates(seedInputs, seeds, ::cacheFilters)
                                 .filterValidGraph()
                                 .filterWatchedGraph(watchedVideoIds.value)
                                 .filterRecentHomeSuggestionGraph(now)

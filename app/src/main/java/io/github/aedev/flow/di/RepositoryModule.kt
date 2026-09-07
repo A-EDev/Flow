@@ -47,6 +47,14 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun provideHomeFeedCacheRepository(
+        @ApplicationContext context: Context,
+    ): io.github.aedev.flow.data.local.HomeFeedCacheRepository =
+        io.github.aedev.flow.data.local
+            .HomeFeedCacheRepository(context)
+
+    @Provides
+    @Singleton
     fun provideMusicPlaylistRepository(
         @ApplicationContext context: Context,
     ): io.github.aedev.flow.data.music.PlaylistRepository =
