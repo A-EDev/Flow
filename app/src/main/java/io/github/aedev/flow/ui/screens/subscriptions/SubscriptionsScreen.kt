@@ -31,7 +31,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,7 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
@@ -64,10 +66,10 @@ fun SubscriptionsScreen(
     onShortClick: (ShortsQueueSource) -> Unit = {},
     onChannelClick: (Channel) -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: SubscriptionsViewModel = hiltViewModel(),
+    viewModel: SubscriptionsViewModel = sharedSubscriptionsViewModel(),
 ) {
     val context = LocalContext.current
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val feedGridState = rememberLazyGridState()
@@ -91,11 +93,14 @@ fun SubscriptionsScreen(
 
     LaunchedEffect(viewModel) { viewModel.ensureStarted() }
 
-    LaunchedEffect(viewModel) {
-        viewModel.refreshIfStaleOrMissedUploads()
-        while (true) {
-            delay(STALE_REFRESH_INTERVAL_MS)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             viewModel.refreshIfStaleOrMissedUploads()
+            while (true) {
+                delay(STALE_REFRESH_INTERVAL_MS)
+                viewModel.refreshIfStaleOrMissedUploads()
+            }
         }
     }
 
