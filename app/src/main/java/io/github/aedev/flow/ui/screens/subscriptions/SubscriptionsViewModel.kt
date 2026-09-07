@@ -579,6 +579,21 @@ class SubscriptionsViewModel
             }
         }
 
+        fun reorderGroups(
+            fromIndex: Int,
+            toIndex: Int,
+        ) {
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                val groups = subscriptionGroupDao.getAllGroupsOnce().toMutableList()
+                if (fromIndex !in groups.indices || toIndex !in groups.indices || fromIndex == toIndex) {
+                    return@launch
+                }
+
+                groups.add(toIndex, groups.removeAt(fromIndex))
+                subscriptionGroupDao.insertAll(groups.mapIndexed { index, group -> group.copy(sortOrder = index) })
+            }
+        }
+
         fun moveGroup(
             name: String,
             direction: Int,

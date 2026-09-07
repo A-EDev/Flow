@@ -1,140 +1,66 @@
 package io.github.aedev.flow.ui.screens.subscriptions
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.OndemandVideo
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material.icons.filled.ViewList
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.NotificationsOff
-import androidx.compose.material.icons.rounded.PersonRemove
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.TabScrollEventBus
-import io.github.aedev.flow.ui.components.ShortsShelf
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
-import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import io.github.aedev.flow.ui.components.layout.topbar.FlowSearchTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.rememberFeedGridLayout
-import io.github.aedev.flow.ui.theme.extendedColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
-@Suppress("ktlint:standard:max-line-length")
-@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
+private const val QUICK_ACCESS_CHANNEL_LIMIT = 15
+private const val STALE_REFRESH_INTERVAL_MS = 3 * 60 * 1000L
+
 @Composable
 fun SubscriptionsScreen(
     onVideoClick: (Video) -> Unit,
@@ -148,14 +74,17 @@ fun SubscriptionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val feedGridState = rememberLazyGridState()
+    val modeFadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
-    LaunchedEffect(viewModel) { viewModel.ensureStarted() }
+    var isManagingSubs by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var showSortMenu by remember { mutableStateOf(false) }
+    var showGroupsDialog by remember { mutableStateOf(false) }
+    var showCreateGroupDialog by remember { mutableStateOf(false) }
+    var editingGroup by remember { mutableStateOf<SubscriptionGroup?>(null) }
 
-    // Import Launcher
-    val launcher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent(),
-        ) { uri: android.net.Uri? ->
+    val importLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
                 viewModel.importNewPipeBackup(it, context)
                 scope.launch {
@@ -164,27 +93,16 @@ fun SubscriptionsScreen(
             }
         }
 
-    var isManagingSubs by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var showSortMenu by remember { mutableStateOf(false) }
+    LaunchedEffect(viewModel) { viewModel.ensureStarted() }
 
-    var showGroupsDialog by remember { mutableStateOf(false) }
-    var showCreateGroupDialog by remember { mutableStateOf(false) }
-    var editingGroup by remember { mutableStateOf<SubscriptionGroup?>(null) }
-
-    // Initialize view model
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.refreshIfStaleOrMissedUploads()
-    }
-
-    LaunchedEffect(Unit) {
         while (true) {
-            delay(3 * 60 * 1000L)
+            delay(STALE_REFRESH_INTERVAL_MS)
             viewModel.refreshIfStaleOrMissedUploads()
         }
     }
 
-    // Scroll to top and refresh when tapping the subscriptions tab while already on this screen
     LaunchedEffect(Unit) {
         TabScrollEventBus.scrollToTopEvents
             .filter { it == "subscriptions" }
@@ -194,51 +112,17 @@ fun SubscriptionsScreen(
             }
     }
 
-    val subscribedChannels = uiState.subscribedChannels
     val sortedChannels =
-        remember(subscribedChannels, uiState.sortMode, uiState.recentVideos) {
-            when (uiState.sortMode) {
-                SubscriptionSortMode.DEFAULT -> {
-                    subscribedChannels
-                }
-
-                SubscriptionSortMode.NAME_ASC -> {
-                    subscribedChannels.sortedBy { it.name.lowercase() }
-                }
-
-                SubscriptionSortMode.RECENTLY_UPDATED -> {
-                    val latestUploadByChannel =
-                        uiState.recentVideos
-                            .groupBy { it.channelId }
-                            .mapValues { (_, videos) -> videos.maxOf { it.timestamp } }
-                    subscribedChannels.sortedByDescending { latestUploadByChannel[it.id] ?: 0L }
-                }
-            }
+        remember(uiState.subscribedChannels, uiState.sortMode, uiState.recentVideos) {
+            sortSubscriptions(uiState.subscribedChannels, uiState.sortMode, uiState.recentVideos)
         }
-    val videoSubscriptions = remember(sortedChannels) { sortedChannels.filterNot { it.isMusic } }
-    val musicSubscriptions = remember(sortedChannels) { sortedChannels.filter { it.isMusic } }
     val topChannels =
-        remember(videoSubscriptions, musicSubscriptions) {
-            (videoSubscriptions + musicSubscriptions)
-                .distinctBy(Channel::id)
-                .take(15)
+        remember(sortedChannels) {
+            quickAccessOrder(sortedChannels).take(QUICK_ACCESS_CHANNEL_LIMIT)
         }
-    val openChannel: (Channel) -> Unit = remember(onChannelClick) { { channel -> onChannelClick(channel) } }
     val openVideoChannel: (String) -> Unit =
-        remember(subscribedChannels, onChannelClick) {
-            { channelRef ->
-                val matchedChannel =
-                    subscribedChannels.firstOrNull { channel ->
-                        channel.id == channelRef || channel.url == channelRef || channelRef.endsWith(channel.id)
-                    } ?: Channel(
-                        id = channelRef.substringAfterLast('/'),
-                        name = "",
-                        thumbnailUrl = "",
-                        subscriberCount = 0L,
-                        url = channelRef,
-                    )
-                onChannelClick(matchedChannel)
-            }
+        remember(uiState.subscribedChannels, onChannelClick) {
+            { channelRef -> onChannelClick(resolveChannel(uiState.subscribedChannels, channelRef)) }
         }
     val videos = uiState.recentVideos
 
@@ -254,16 +138,12 @@ fun SubscriptionsScreen(
                 .mapNotNull { item -> item.key as? String }
                 .toSet()
         }.collectLatest { visibleKeys ->
-            viewModel.updateVisibleVideoIds(
-                visibleKeys.filterTo(HashSet()) { it in feedVideoIds },
-            )
+            viewModel.updateVisibleVideoIds(visibleKeys.filterTo(HashSet()) { it in feedVideoIds })
         }
     }
 
     DisposableEffect(viewModel) {
-        onDispose {
-            viewModel.updateVisibleVideoIds(emptySet())
-        }
+        onDispose { viewModel.updateVisibleVideoIds(emptySet()) }
     }
 
     Scaffold(
@@ -282,7 +162,10 @@ fun SubscriptionsScreen(
                     actions = {
                         Box {
                             IconButton(onClick = { showSortMenu = true }) {
-                                Icon(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.subscriptions_sort_label))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = stringResource(R.string.subscriptions_sort_label),
+                                )
                             }
                             DropdownMenu(
                                 expanded = showSortMenu,
@@ -310,8 +193,11 @@ fun SubscriptionsScreen(
                                 }
                             }
                         }
-                        IconButton(onClick = { launcher.launch("application/json") }) {
-                            Icon(Icons.Default.Upload, stringResource(R.string.import_newpipe_backup))
+                        IconButton(onClick = { importLauncher.launch("application/json") }) {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = stringResource(R.string.import_newpipe_backup),
+                            )
                         }
                     },
                 )
@@ -321,7 +207,8 @@ fun SubscriptionsScreen(
                     actions = {
                         IconButton(onClick = { viewModel.toggleViewMode() }) {
                             Icon(
-                                imageVector = if (uiState.isFullWidthView) Icons.Default.ViewList else Icons.Default.GridView,
+                                imageVector =
+                                    if (uiState.isFullWidthView) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
                                 contentDescription = stringResource(R.string.toggle_view_mode),
                             )
                         }
@@ -345,324 +232,61 @@ fun SubscriptionsScreen(
                     .fillMaxSize()
                     .padding(padding),
         ) {
-            AnimatedContent(targetState = isManagingSubs) { manageMode ->
+            AnimatedContent(
+                targetState = isManagingSubs,
+                // No size transform: the container animating its width measures children down to
+                // zero, which ButtonGroup's measure policy cannot survive.
+                transitionSpec = { fadeIn(modeFadeSpec) togetherWith fadeOut(modeFadeSpec) using null },
+                label = "subscriptionsMode",
+            ) { manageMode ->
                 if (manageMode) {
-                    var selectedTabIndex by remember { mutableIntStateOf(0) }
-
-                    val activeList =
-                        remember(sortedChannels, selectedTabIndex) {
-                            if (selectedTabIndex == 0) {
-                                sortedChannels.filterNot { it.isMusic }
-                            } else {
-                                sortedChannels.filter { it.isMusic }
-                            }
-                        }
-
-                    val filteredChannels =
-                        remember(activeList, searchQuery) {
-                            if (searchQuery.isBlank()) {
-                                activeList
-                            } else {
-                                activeList.filter { it.name.contains(searchQuery, ignoreCase = true) }
-                            }
-                        }
-
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        SingleChoiceSegmentedButtonRow(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp), // Fixed empty space by reducing vertical padding
-                        ) {
-                            SegmentedButton(
-                                selected = selectedTabIndex == 0,
-                                onClick = { selectedTabIndex = 0 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                                icon = { },
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.OndemandVideo,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.subscriptions_video_section_title))
-                                }
-                            }
-                            SegmentedButton(
-                                selected = selectedTabIndex == 1,
-                                onClick = { selectedTabIndex = 1 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                                icon = { },
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.MusicNote,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(stringResource(R.string.subscriptions_music_section_title))
-                                }
-                            }
-                        }
-
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            item {
-                                Text(
-                                    text =
-                                        pluralStringResource(
-                                            id = R.plurals.channels_count,
-                                            count = filteredChannels.size,
-                                            filteredChannels.size,
-                                        ),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.padding(bottom = 4.dp),
-                                )
-                            }
-
-                            items(filteredChannels, key = { it.id }) { channel ->
-                                SubscriptionManagerItem(
+                    SubscriptionsManageContent(
+                        channels = sortedChannels,
+                        searchQuery = searchQuery,
+                        notificationStates = uiState.notificationStates,
+                        excludedShortsChannelIds = uiState.excludedShortsChannelIds,
+                        onChannelClick = onChannelClick,
+                        onNotificationChange = viewModel::updateNotificationState,
+                        onShortsExcludeChange = viewModel::setShortsChannelExcluded,
+                        onUnsubscribe = { channel ->
+                            scope.launch {
+                                unsubscribeWithUndo(
+                                    viewModel = viewModel,
                                     channel = channel,
-                                    onClick = { openChannel(channel) },
-                                    isNotificationsEnabled = uiState.notificationStates[channel.id] ?: false,
-                                    areShortsExcluded = channel.id in uiState.excludedShortsChannelIds,
-                                    onNotificationChange = { enabled ->
-                                        viewModel.updateNotificationState(channel.id, enabled)
-                                    },
-                                    onShortsExcludeChange = { excluded ->
-                                        viewModel.setShortsChannelExcluded(channel.id, excluded)
-                                    },
-                                    onUnsubscribe = {
-                                        scope.launch {
-                                            val sub = viewModel.getSubscriptionOnce(channel.id)
-                                            viewModel.unsubscribe(channel.id)
-                                            val result =
-                                                snackbarHostState.showSnackbar(
-                                                    context.getString(R.string.unsubscribed_from_template, channel.name),
-                                                    actionLabel = context.getString(R.string.undo),
-                                                    duration = SnackbarDuration.Short,
-                                                )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                sub?.let { viewModel.subscribeChannel(it) }
-                                            }
-                                        }
-                                    },
+                                    snackbarHostState = snackbarHostState,
+                                    unsubscribedMessage =
+                                        context.getString(R.string.unsubscribed_from_template, channel.name),
+                                    undoLabel = context.getString(R.string.undo),
                                 )
                             }
-
-                            if (filteredChannels.isEmpty()) {
-                                item {
-                                    Text(
-                                        text = stringResource(R.string.no_subscriptions_found),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 16.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
+                        },
+                    )
+                } else if (uiState.subscribedChannels.isEmpty()) {
+                    SubscriptionsEmptyState(modifier = Modifier.fillMaxSize())
                 } else {
-                    // FEED MODE
-                    val pullRefreshState = rememberPullToRefreshState()
-
-                    LaunchedEffect(uiState.isLoading) {
-                        if (!uiState.isLoading) {
-                            pullRefreshState.animateToHidden()
-                        }
-                    }
-
-                    PullToRefreshBox(
-                        isRefreshing = uiState.isLoading,
-                        onRefresh = { viewModel.refreshFeed() },
-                        state = pullRefreshState,
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        if (subscribedChannels.isEmpty()) {
-                            EmptySubscriptionsState(modifier = Modifier.fillMaxSize())
-                        } else {
-                            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                                val feedLayout = rememberFeedGridLayout(maxWidth)
-                                val gridSpacing = if (uiState.isFullWidthView) feedLayout.cardSpacing else 0.dp
-                                LazyVerticalGrid(
-                                    columns = if (uiState.isFullWidthView) GridCells.Fixed(feedLayout.columns) else GridCells.Fixed(1),
-                                    state = feedGridState,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding =
-                                        PaddingValues(
-                                            start = if (uiState.isFullWidthView) feedLayout.contentPadding else 0.dp,
-                                            end = if (uiState.isFullWidthView) feedLayout.contentPadding else 0.dp,
-                                            top = 4.dp,
-                                            bottom = 80.dp,
-                                        ),
-                                    verticalArrangement = Arrangement.spacedBy(gridSpacing),
-                                    horizontalArrangement = Arrangement.spacedBy(gridSpacing),
-                                ) {
-                                    // Channel Chips Row
-                                    item(span = { GridItemSpan(maxLineSpan) }) {
-                                        Column {
-                                            CompactSubscriptionsHeader(
-                                                modifier =
-                                                    Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(top = 8.dp, bottom = 12.dp),
-                                                channels = topChannels,
-                                                onChannelClick = openChannel,
-                                                onViewAllClick = { isManagingSubs = true },
-                                            )
-
-                                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-
-                                            if (uiState.groups.isNotEmpty() || true) {
-                                                Row(
-                                                    modifier =
-                                                        Modifier
-                                                            .fillMaxWidth()
-                                                            .horizontalScroll(rememberScrollState())
-                                                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                ) {
-                                                    FilterChip(
-                                                        selected = uiState.selectedGroupName == null,
-                                                        onClick = { viewModel.selectGroup(null) },
-                                                        label = { Text(stringResource(R.string.group_all)) },
-                                                    )
-                                                    uiState.groups.forEach { group ->
-                                                        FilterChip(
-                                                            selected = uiState.selectedGroupName == group.name,
-                                                            onClick = { viewModel.selectGroup(group.name) },
-                                                            label = { Text(group.name) },
-                                                        )
-                                                    }
-                                                    IconButton(
-                                                        onClick = { showGroupsDialog = true },
-                                                        modifier = Modifier.size(32.dp),
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Default.Edit,
-                                                            contentDescription = stringResource(R.string.manage_groups),
-                                                            modifier = Modifier.size(18.dp),
-                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            SubscriptionFeedErrorCard(
-                                                failedChannelNames = uiState.failedChannelNames,
-                                                onRetry = { viewModel.retryFailedChannels() },
-                                                onDismiss = { viewModel.dismissFailedChannels() },
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                            )
-
-                                            if (uiState.isLoading && uiState.refreshTotalChannels > 0) {
-                                                val progress =
-                                                    uiState.refreshProcessedChannels.toFloat() /
-                                                        uiState.refreshTotalChannels.toFloat().coerceAtLeast(1f)
-                                                LinearProgressIndicator(
-                                                    progress = { progress.coerceIn(0f, 1f) },
-                                                    modifier =
-                                                        Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                                )
-                                                Text(
-                                                    text =
-                                                        pluralStringResource(
-                                                            R.plurals.subscriptions_refresh_progress_template,
-                                                            uiState.refreshTotalChannels,
-                                                            uiState.refreshProcessedChannels,
-                                                            uiState.refreshTotalChannels,
-                                                        ),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-                                                )
-                                            } else if (uiState.lastRefreshText != null) {
-                                                Text(
-                                                    text =
-                                                        if (uiState.showLastRefreshVideoCount) {
-                                                            pluralStringResource(
-                                                                R.plurals.subscriptions_last_refreshed_template,
-                                                                uiState.lastRefreshVideoCount,
-                                                                uiState.lastRefreshText!!,
-                                                                uiState.lastRefreshVideoCount,
-                                                            )
-                                                        } else {
-                                                            stringResource(
-                                                                R.string.subscriptions_last_refreshed_time_only_template,
-                                                                uiState.lastRefreshText!!,
-                                                            )
-                                                        },
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    if (uiState.isShortsShelfEnabled && uiState.shorts.isNotEmpty()) {
-                                        item(span = { GridItemSpan(maxLineSpan) }) {
-                                            Column {
-                                                ShortsShelf(
-                                                    shorts = uiState.shorts,
-                                                    // The shelf shows one reel per channel; the queue behind it is
-                                                    // every subscription reel in date order (#823).
-                                                    onShortClick = { _, tapped ->
-                                                        onShortClick(ShortsQueueSource.Subscriptions(tapped.id))
-                                                    },
-                                                )
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                HorizontalDivider(
-                                                    thickness = 4.dp,
-                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    items(videos, key = { it.id }) { video ->
-                                        if (uiState.isFullWidthView) {
-                                            VideoCardFullWidth(
-                                                video = video,
-                                                onClick = { onVideoClick(video) },
-                                                onChannelClick = openVideoChannel,
-                                                useInternalPadding = false,
-                                            )
-                                        } else {
-                                            VideoCardHorizontal(
-                                                video = video,
-                                                onClick = { onVideoClick(video) },
-                                                onChannelClick = openVideoChannel,
-                                            )
-                                        }
-                                    }
-
-                                    item(span = { GridItemSpan(maxLineSpan) }) {
-                                        Spacer(modifier = Modifier.height(80.dp))
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    SubscriptionsFeedContent(
+                        state = uiState,
+                        videos = videos,
+                        topChannels = topChannels,
+                        gridState = feedGridState,
+                        onRefresh = viewModel::refreshFeed,
+                        onVideoClick = onVideoClick,
+                        onShortClick = onShortClick,
+                        onChannelClick = onChannelClick,
+                        onVideoChannelClick = openVideoChannel,
+                        onViewAllClick = { isManagingSubs = true },
+                        onGroupSelected = viewModel::selectGroup,
+                        onManageGroups = { showGroupsDialog = true },
+                        onRetryFailedChannels = viewModel::retryFailedChannels,
+                        onDismissFailedChannels = viewModel::dismissFailedChannels,
+                    )
                 }
             }
         }
     }
 
     if (showGroupsDialog) {
-        GroupsManagerDialog(
+        SubscriptionGroupsManagerDialog(
             groups = uiState.groups,
             onDismiss = { showGroupsDialog = false },
             onCreateNew = {
@@ -675,20 +299,13 @@ fun SubscriptionsScreen(
                 showGroupsDialog = false
                 showCreateGroupDialog = true
             },
-            onDelete = { group ->
-                viewModel.deleteGroup(group.name)
-            },
-            onMoveUp = { group ->
-                viewModel.moveGroup(group.name, -1)
-            },
-            onMoveDown = { group ->
-                viewModel.moveGroup(group.name, 1)
-            },
+            onDelete = { group -> viewModel.deleteGroup(group.name) },
+            onReorder = viewModel::reorderGroups,
         )
     }
 
     if (showCreateGroupDialog) {
-        CreateEditGroupDialog(
+        SubscriptionCreateEditGroupDialog(
             existingGroup = editingGroup,
             allChannels = uiState.subscribedChannels,
             onDismiss = { showCreateGroupDialog = false },
@@ -705,605 +322,22 @@ fun SubscriptionsScreen(
     }
 }
 
-private fun SubscriptionSortMode.labelRes(): Int =
-    when (this) {
-        SubscriptionSortMode.DEFAULT -> R.string.subscriptions_sort_default
-        SubscriptionSortMode.NAME_ASC -> R.string.subscriptions_sort_name
-        SubscriptionSortMode.RECENTLY_UPDATED -> R.string.subscriptions_sort_recent
-    }
-
-@Composable
-private fun CompactSubscriptionsHeader(
-    channels: List<Channel>,
-    onChannelClick: (Channel) -> Unit,
-    onViewAllClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.subscriptions_quick_access_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (channels.any { it.isMusic }) {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Text(
-                            text = stringResource(R.string.subscriptions_music_chip_label),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                }
-            }
-        }
-
-        LazyRow(
-            contentPadding = PaddingValues(start = 12.dp, end = 8.dp, top = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            items(channels, key = { it.id }) { channel ->
-                ChannelAvatarItem(
-                    channel = channel,
-                    isSelected = false,
-                    onClick = { onChannelClick(channel) },
-                )
-            }
-            item(key = "view_all") {
-                AllSubscriptionsAvatarItem(onClick = onViewAllClick)
-            }
-        }
-    }
-}
-
-@Composable
-private fun GroupsManagerDialog(
-    groups: List<SubscriptionGroup>,
-    onDismiss: () -> Unit,
-    onCreateNew: () -> Unit,
-    onEdit: (SubscriptionGroup) -> Unit,
-    onDelete: (SubscriptionGroup) -> Unit,
-    onMoveUp: (SubscriptionGroup) -> Unit,
-    onMoveDown: (SubscriptionGroup) -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.manage_groups)) },
-        text = {
-            Column {
-                if (groups.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.no_groups_yet),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                } else {
-                    groups.forEachIndexed { index, group ->
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = group.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Text(
-                                text =
-                                    pluralStringResource(
-                                        R.plurals.channels_count,
-                                        group.channelIds.size,
-                                        group.channelIds.size,
-                                    ),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
-                            IconButton(
-                                onClick = { onMoveUp(group) },
-                                enabled = index > 0,
-                                modifier = Modifier.size(32.dp),
-                            ) {
-                                Icon(Icons.Default.KeyboardArrowUp, null, modifier = Modifier.size(16.dp))
-                            }
-                            IconButton(
-                                onClick = { onMoveDown(group) },
-                                enabled = index < groups.lastIndex,
-                                modifier = Modifier.size(32.dp),
-                            ) {
-                                Icon(Icons.Default.KeyboardArrowDown, null, modifier = Modifier.size(16.dp))
-                            }
-                            IconButton(onClick = { onEdit(group) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
-                            }
-                            IconButton(onClick = { onDelete(group) }, modifier = Modifier.size(32.dp)) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.error,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onCreateNew) {
-                Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(R.string.new_group))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
-            }
-        },
-    )
-}
-
-@Composable
-private fun CreateEditGroupDialog(
-    existingGroup: SubscriptionGroup?,
-    allChannels: List<Channel>,
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, channelIds: List<String>) -> Unit,
-) {
-    var groupName by remember { mutableStateOf(existingGroup?.name ?: "") }
-    val selectedChannelIds =
-        remember {
-            mutableStateOf(existingGroup?.channelIds?.toMutableSet() ?: mutableSetOf())
-        }
-    var searchQuery by remember { mutableStateOf("") }
-
-    val filteredChannels =
-        remember(allChannels, searchQuery) {
-            if (searchQuery.isBlank()) {
-                allChannels
-            } else {
-                allChannels.filter { it.name.contains(searchQuery, ignoreCase = true) }
-            }
-        }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                if (existingGroup == null) {
-                    stringResource(R.string.new_group)
-                } else {
-                    stringResource(R.string.edit_group)
-                },
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = groupName,
-                    onValueChange = { groupName = it },
-                    label = { Text(stringResource(R.string.group_name_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text(stringResource(R.string.search_channels_hint)) },
-                    leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 280.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    items(filteredChannels, key = { it.id }) { channel ->
-                        val isChecked = channel.id in selectedChannelIds.value
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val updated = selectedChannelIds.value.toMutableSet()
-                                        if (isChecked) updated.remove(channel.id) else updated.add(channel.id)
-                                        selectedChannelIds.value = updated
-                                    }.padding(vertical = 4.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(
-                                checked = isChecked,
-                                onCheckedChange = { checked ->
-                                    val updated = selectedChannelIds.value.toMutableSet()
-                                    if (checked) updated.add(channel.id) else updated.remove(channel.id)
-                                    selectedChannelIds.value = updated
-                                },
-                            )
-                            AsyncImage(
-                                model = channel.thumbnailUrl,
-                                contentDescription = null,
-                                modifier =
-                                    Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentScale = ContentScale.Crop,
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = channel.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(groupName.trim(), selectedChannelIds.value.toList()) },
-                enabled = groupName.isNotBlank() && selectedChannelIds.value.isNotEmpty(),
-            ) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    )
-}
-
-@Composable
-fun ChannelAvatarItem(
+private suspend fun unsubscribeWithUndo(
+    viewModel: SubscriptionsViewModel,
     channel: Channel,
-    isSelected: Boolean,
-    onClick: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    unsubscribedMessage: String,
+    undoLabel: String,
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier =
-            Modifier
-                .width(64.dp)
-                .clickable(onClick = onClick),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .then(if (isSelected) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)) else Modifier),
-            contentAlignment = Alignment.Center,
-        ) {
-            AsyncImage(
-                model = channel.thumbnailUrl,
-                contentDescription = channel.name,
-                modifier =
-                    Modifier
-                        .size(if (isSelected) 48.dp else 56.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop,
-            )
-            if (channel.isMusic) {
-                ChannelTypeBadge(
-                    icon = Icons.Default.MusicNote,
-                    contentDescription = stringResource(R.string.subscriptions_music_badge_cd),
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 2.dp, y = 2.dp),
-                )
-            }
-            if (isSelected) {
-                Box(
-                    modifier = Modifier.matchParentSize().clip(CircleShape).background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Default.Check, null, tint = Color.White)
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = channel.name,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
+    val subscription = viewModel.getSubscriptionOnce(channel.id)
+    viewModel.unsubscribe(channel.id)
+    val result =
+        snackbarHostState.showSnackbar(
+            message = unsubscribedMessage,
+            actionLabel = undoLabel,
+            duration = SnackbarDuration.Short,
         )
-    }
-}
-
-@Composable
-private fun AllSubscriptionsAvatarItem(onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier =
-            Modifier
-                .width(64.dp)
-                .clickable(onClick = onClick),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = stringResource(R.string.view_all_button_label),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.view_all_button_label),
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-private fun ChannelTypeBadge(
-    icon: ImageVector,
-    contentDescription: String,
-    modifier: Modifier = Modifier,
-    shape: Shape = CircleShape,
-) {
-    Surface(
-        modifier = modifier,
-        shape = shape,
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        shadowElevation = 2.dp,
-        tonalElevation = 2.dp,
-    ) {
-        Box(
-            modifier = Modifier.padding(4.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                modifier = Modifier.size(12.dp),
-            )
-        }
-    }
-}
-
-@Composable
-fun SubscriptionManagerItem(
-    channel: Channel,
-    onClick: () -> Unit,
-    onUnsubscribe: () -> Unit,
-    isNotificationsEnabled: Boolean = false,
-    areShortsExcluded: Boolean = false,
-    onNotificationChange: (Boolean) -> Unit = {},
-    onShortsExcludeChange: (Boolean) -> Unit = {},
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AsyncImage(
-            model = channel.thumbnailUrl,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentScale = ContentScale.Crop,
-        )
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = channel.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (channel.isMusic) {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                        )
-                        Text(
-                            text = stringResource(R.string.subscriptions_music_chip_label),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                }
-            }
-        }
-
-        Box {
-            var expanded by remember { mutableStateOf(false) }
-            FilledTonalButton(
-                onClick = { expanded = true },
-                colors =
-                    ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                Icon(
-                    imageVector = if (isNotificationsEnabled) Icons.Rounded.NotificationsActive else Icons.Rounded.NotificationsOff,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    stringResource(R.string.subscribed),
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Icon(Icons.Rounded.KeyboardArrowDown, null, modifier = Modifier.size(14.dp))
-            }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-            ) {
-                Text(
-                    text =
-                        stringResource(R.string.notifications),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(R.string.on),
-                        )
-                    },
-                    onClick = {
-                        onNotificationChange(true)
-                        expanded = false
-                    },
-                    leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
-                )
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(R.string.off),
-                        )
-                    },
-                    onClick = {
-                        onNotificationChange(false)
-                        expanded = false
-                    },
-                    leadingIcon = { Icon(Icons.Rounded.NotificationsOff, null) },
-                )
-                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                if (areShortsExcluded) {
-                                    R.string.show_channel_shorts
-                                } else {
-                                    R.string.hide_channel_shorts
-                                },
-                            ),
-                        )
-                    },
-                    onClick = {
-                        onShortsExcludeChange(!areShortsExcluded)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            if (areShortsExcluded) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            null,
-                        )
-                    },
-                )
-                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(R.string.unsubscribe),
-                        )
-                    },
-                    onClick = {
-                        onUnsubscribe()
-                        expanded = false
-                    },
-                    leadingIcon = { Icon(Icons.Rounded.PersonRemove, null) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptySubscriptionsState(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Default.Subscriptions,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(80.dp)
-                    .padding(bottom = 16.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-        )
-        Text(
-            text = context.getString(R.string.no_subscriptions_yet),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = context.getString(R.string.empty_subscriptions_body),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.extendedColors.textSecondary,
-            textAlign = TextAlign.Center,
-        )
+    if (result == SnackbarResult.ActionPerformed) {
+        subscription?.let { viewModel.subscribeChannel(it) }
     }
 }

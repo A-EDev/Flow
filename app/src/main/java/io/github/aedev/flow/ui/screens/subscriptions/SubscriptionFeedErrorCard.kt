@@ -34,7 +34,7 @@ private const val MAX_NAMED_CHANNELS = 3
  * looks complete while it is not.
  */
 @Composable
-fun SubscriptionFeedErrorCard(
+internal fun SubscriptionFeedErrorCard(
     failedChannelNames: List<String>,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,

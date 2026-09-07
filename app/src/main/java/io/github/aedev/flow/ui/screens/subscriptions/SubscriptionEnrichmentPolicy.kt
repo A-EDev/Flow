@@ -17,9 +17,10 @@ internal fun visibleSubscriptionEnrichmentWindow(
     if (lastVisibleIndex < 0) return emptyList()
 
     val visible = videos.filter { it.id in visibleVideoIds }
-    val trailing = videos
-        .drop(lastVisibleIndex + 1)
-        .take(lookahead.coerceAtLeast(0))
+    val trailing =
+        videos
+            .drop(lastVisibleIndex + 1)
+            .take(lookahead.coerceAtLeast(0))
 
     return (visible + trailing)
         .distinctBy { it.id }
@@ -31,11 +32,12 @@ internal fun missingDurationCandidates(
     attemptedAtMillis: Map<String, Long>,
     nowMillis: Long,
     retryAfterMillis: Long,
-): List<Video> = videos.filter { video ->
-    val lastAttempt = attemptedAtMillis[video.id]
-    video.id.isNotBlank() &&
-        video.duration <= 0 &&
-        !video.isLive &&
-        !video.isUpcoming &&
-        (lastAttempt == null || nowMillis - lastAttempt >= retryAfterMillis)
-}
+): List<Video> =
+    videos.filter { video ->
+        val lastAttempt = attemptedAtMillis[video.id]
+        video.id.isNotBlank() &&
+            video.duration <= 0 &&
+            !video.isLive &&
+            !video.isUpcoming &&
+            (lastAttempt == null || nowMillis - lastAttempt >= retryAfterMillis)
+    }
