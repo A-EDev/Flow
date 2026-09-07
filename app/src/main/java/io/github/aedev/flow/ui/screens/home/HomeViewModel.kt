@@ -83,9 +83,6 @@ class HomeViewModel
         companion object {
             private const val TAG = "HomeViewModel"
             private const val UI_STATE_SUBSCRIPTION_TIMEOUT_MS = 5_000L
-            private const val HOME_TARGET_SIZE = 40
-            private const val FRESH_SUB_WINDOW_MS = 72L * 60L * 60L * 1000L
-            private const val HOME_MAX_SUGGESTION_AGE_MS = 365L * 24L * 60L * 60L * 1000L
             private const val RELATED_TTL_MS = 45L * 60L * 1000L
             private const val MAX_RELATED_SEEDS = 4
             private const val MIN_PAGE_SIZE = 8
@@ -93,9 +90,6 @@ class HomeViewModel
             private const val MAX_SAVED_SEEDS = 5
             private const val SAVED_RELATED_SLOTS = 8
             private const val SAVED_SEED_COOLDOWN_MS = 3L * 60L * 60L * 1000L
-
-            // Fresh subs pinned to the very top; the rest interleave via the SUBS lane.
-            private const val FRESH_SUBS_PIN_TOP = 2
 
             // Never-dry load-more: fallback related pass seeded from feed + saved interests.
             private const val LOAD_MORE_FALLBACK_SEEDS = 4
@@ -577,25 +571,6 @@ class HomeViewModel
                                 .associate { it.channelId to it.channelThumbnail }
                         }.getOrElse { emptyMap() }
 
-                    fun List<Video>.enrichAvatars(): List<Video> =
-                        if (subAvatarMap.isEmpty()) {
-                            this
-                        } else {
-                            map { v ->
-                                if (v.channelThumbnailUrl.isEmpty() && subAvatarMap.containsKey(v.channelId)) {
-                                    v.copy(
-                                        channelThumbnailUrl = subAvatarMap.getValue(v.channelId),
-                                        channelThumbnailUrls =
-                                            v.channelThumbnailUrls.ifEmpty {
-                                                listOf(subAvatarMap.getValue(v.channelId))
-                                            },
-                                    )
-                                } else {
-                                    v
-                                }
-                            }
-                        }
-
                     // Extract shorts from all sources for the shelf, ranked by FlowNeuro
                     val now = System.currentTimeMillis()
                     val brain = FlowNeuroEngine.getBrainSnapshot()
@@ -613,150 +588,58 @@ class HomeViewModel
                         }
                     }
 
-                    // Filter to regular videos for the main feed
                     val watched = watchedVideoIds.value
-                    // The fresh-subs lane bypasses rank(): exclude blocked/suppressed
-                    // channels here so they cannot resurface through it.
                     val excludedChannels =
                         runCatching { FlowNeuroEngine.getExcludedChannelIds() }.getOrDefault(emptySet())
-                    val subsPool =
-                        rawSubs
-                            .filterValid()
-                            .filterWatched(watched)
-                            .filter { it.channelId.isBlank() || it.channelId !in excludedChannels }
-                            .enrichAvatars()
-                    val discoveryPool =
-                        rawDiscovery
-                            .filterValid()
-                            .filterWatched(watched)
-                            .filterRecentHomeSuggestion(now)
-                    val viralPool =
-                        rawViral
-                            .filterValid()
-                            .filterWatched(watched)
-                            .filterRecentHomeSuggestion(now)
+                    val lanes =
+                        buildHomeFeedLanes(
+                            rawSubs = rawSubs,
+                            rawDiscovery = rawDiscovery,
+                            rawViral = rawViral,
+                            rawRelated = rawRelated,
+                            rssFeed =
+                                runCatching { subscriptionFeedRepository.observeFeed().first() }
+                                    .getOrDefault(emptyList()),
+                            watched = watched,
+                            excludedChannels = excludedChannels,
+                            taste = taste,
+                            now = now,
+                            freshSlotTarget = dynamicFreshSubSlots(userSubs.size),
+                            subAvatarMap = subAvatarMap,
+                            rank = { pool -> FlowNeuroEngine.rank(pool, userSubs) },
+                        )
 
                     Log.d(
                         TAG,
-                        "Flow candidates: subs=${subsPool.size}, discovery=${discoveryPool.size}, viral=${viralPool.size}, related=${rawRelated.size}, subCount=${userSubs.size}",
+                        "Flow candidates: subs=${lanes.subsPoolSize}, discovery=${lanes.discoveryPoolSize}, " +
+                            "viral=${lanes.viralPoolSize}, related=${rawRelated.size}, subCount=${userSubs.size}",
                     )
 
-                    val subsByRecency = subsPool.sortedByDescending { it.timestamp }
-                    val freshSlotTarget = dynamicFreshSubSlots(userSubs.size)
-
-                    // Fresh-subs lane is RSS-FIRST: the subscription feed store covers
-                    // ALL subscribed channels with real publish timestamps, so a fresh
-                    // upload is visible even when its channel missed this refresh's
-                    // rotating 10-18 channel fetch window.
-                    val rssFresh =
-                        runCatching { subscriptionFeedRepository.observeFeed().first() }
-                            .getOrDefault(emptyList())
-                            .asSequence()
-                            .filter { !it.isShort && !it.isUpcoming && (it.duration > 0 || it.isLive) }
-                            .filter { (now - it.timestamp) in 0..FRESH_SUB_WINDOW_MS }
-                            .filter { it.channelId.isBlank() || it.channelId !in excludedChannels }
-                            .toList()
-                    val freshSubsLane =
-                        (rssFresh + subsByRecency.filter { isFreshSubscribedCandidate(it, now) })
-                            .filterWatched(watched)
-                            .distinctBy { it.id }
-                            .sortedByDescending { it.timestamp }
-                            // One fresh slot per channel — a channel that uploaded three
-                            // times today must not occupy three fresh slots.
-                            .distinctBy { it.channelId.ifBlank { it.id } }
-                            .take(freshSlotTarget)
-                    val freshIds = freshSubsLane.map { it.id }.toHashSet()
-
-                    // Only a couple of fresh subs are pinned to the very top; the rest
-                    // ride the SUBS lane so the first screen is a real source MIX
-                    // instead of a wall of subscriptions.
-                    val pinnedFresh = freshSubsLane.take(FRESH_SUBS_PIN_TOP)
-                    val overflowFresh = freshSubsLane.drop(FRESH_SUBS_PIN_TOP)
-
-                    val rankedSubs = FlowNeuroEngine.rank(subsPool, userSubs)
-                    val bestSubs =
-                        rankedSubs
-                            .filter { !freshIds.contains(it.id) }
-                            .take(15)
-
-                    val bestDiscovery = demoteByFit(FlowNeuroEngine.rank(discoveryPool, userSubs), taste).take(15)
-                    val bestViral = demoteByFit(FlowNeuroEngine.rank(viralPool, userSubs), taste).take(6)
-
-                    val relatedCandidates =
-                        rawRelated
-                            .filterValidGraph()
-                            .filterWatchedGraph(watched)
-                            .filterRecentHomeSuggestionGraph(now)
-                    val relatedPool = relatedCandidates.map { it.video }
-                    val relatedMetadata = relatedCandidates.associateBy { it.video.id }
-                    val bestRelated =
-                        demoteByFit(
-                            applyGraphBoost(FlowNeuroEngine.rank(relatedPool, userSubs), relatedMetadata),
-                            taste,
-                        ).take(12)
-
-                    val finalMix = mutableListOf<Video>()
-                    val usedChannelCounts = mutableMapOf<String, Int>()
-                    val usedVideoIds = mutableSetOf<String>()
-                    var freshAdded = 0
-
-                    // A refresh should produce a fresh feed: exclude what is on
-                    // screen right now, unless the lanes are too thin to afford it.
-                    val onScreenIds = _uiState.value.videos.mapTo(HashSet()) { it.id }
-                    if (onScreenIds.isNotEmpty()) {
-                        val laneCandidates =
-                            freshSubsLane.asSequence() + bestSubs.asSequence() +
-                                bestRelated.asSequence() + bestDiscovery.asSequence() + bestViral.asSequence()
-                        val freshCandidateCount = laneCandidates.distinctBy { it.id }.count { it.id !in onScreenIds }
-                        if (freshCandidateCount >= HOME_TARGET_SIZE / 2) {
-                            usedVideoIds += onScreenIds
-                        }
-                    }
-
-                    pinnedFresh.forEach { video ->
-                        if (addUnique(video, finalMix, usedChannelCounts, usedVideoIds)) freshAdded++
-                    }
-
-                    val remaining = (HOME_TARGET_SIZE - finalMix.size).coerceAtLeast(0)
-                    val quotas = homeFeedQuotas(remaining, userSubs.size, brain.totalInteractions)
-                    val sourceMix =
-                        blendFeedSources(
-                            lanes =
-                                mapOf(
-                                    FeedSource.SUBS to (overflowFresh + bestSubs),
-                                    FeedSource.RELATED to bestRelated,
-                                    FeedSource.DISCOVERY to bestDiscovery,
-                                    FeedSource.VIRAL to bestViral,
-                                ),
-                            quotas = quotas,
-                            targetSize = remaining,
-                            channelCounts = usedChannelCounts,
-                            usedVideoIds = usedVideoIds,
+                    val mix =
+                        assembleHomeFeed(
+                            lanes = lanes,
+                            onScreenIds = _uiState.value.videos.mapTo(HashSet()) { it.id },
+                            subCount = userSubs.size,
+                            totalInteractions = brain.totalInteractions,
                         )
-                    finalMix += sourceMix.videos
-
-                    subsBacklog = subsByRecency.filterNot { usedVideoIds.contains(it.id) }
+                    val finalMix = mix.videos
+                    subsBacklog = mix.subsBacklog
 
                     if (finalMix.isEmpty()) {
                         loadTrendingFallback()
                         return@launch
                     }
-
-                    val selectedSourceCounts =
-                        sourceMix.sourceCounts.toMutableMap().also { counts ->
-                            counts[FeedSource.SUBS] = (counts[FeedSource.SUBS] ?: 0) + freshAdded
-                        }
                     val relatedMetrics =
                         buildRelatedLaneMetrics(
                             seedInputs = relatedFetch.seedInputs,
                             seedIds = relatedFetch.seedIds,
                             fetchedPerSeed = relatedFetch.fetchedPerSeed,
                             mergedRelatedCandidates = rawRelated,
-                            filteredRelatedCandidates = relatedCandidates,
-                            selectedSourceCounts = selectedSourceCounts,
+                            filteredRelatedCandidates = lanes.relatedCandidates,
+                            selectedSourceCounts = mix.selectedSourceCounts,
                             finalFeedCount = finalMix.size,
                             finalRelatedVideoIds =
-                                sourceMix.items
+                                mix.sourceMix.items
                                     .filter { it.source == FeedSource.RELATED }
                                     .mapTo(HashSet()) { it.video.id },
                             brain = brain,
@@ -765,7 +648,8 @@ class HomeViewModel
 
                     Log.d(
                         TAG,
-                        "Flow mix: freshLane=$freshAdded, final=${finalMix.size}, quotas=$quotas, selected=${sourceMix.sourceCounts}",
+                        "Flow mix: freshLane=${mix.freshAdded}, final=${finalMix.size}, " +
+                            "quotas=${mix.quotas}, selected=${mix.sourceMix.sourceCounts}",
                     )
 
                     val spacedMix =
@@ -775,10 +659,10 @@ class HomeViewModel
                         )
                     val renderedIds = spacedMix.mapTo(HashSet()) { it.id }
                     val reserveCandidates =
-                        cacheRelatedCandidates(bestRelated, relatedMetadata, renderedIds) +
-                            cacheCandidates(FeedSource.DISCOVERY, bestDiscovery, renderedIds) +
-                            cacheCandidates(FeedSource.SUBS, bestSubs, renderedIds) +
-                            cacheCandidates(FeedSource.VIRAL, bestViral, renderedIds)
+                        cacheRelatedCandidates(lanes.bestRelated, lanes.relatedMetadata, renderedIds) +
+                            cacheCandidates(FeedSource.DISCOVERY, lanes.bestDiscovery, renderedIds) +
+                            cacheCandidates(FeedSource.SUBS, lanes.bestSubs, renderedIds) +
+                            cacheCandidates(FeedSource.VIRAL, lanes.bestViral, renderedIds)
                     var visibleFeed = emptyList<Video>()
                     _uiState.update { state ->
                         visibleFeed = spacedMix.filterWatched(watchedVideoIds.value)
@@ -1514,157 +1398,4 @@ class HomeViewModel
             if (ids.isEmpty()) return
             viewModelScope.launch { FlowNeuroEngine.recordFeedImpressions(ids) }
         }
-
-        private fun dynamicFreshSubSlots(subCount: Int): Int =
-            when {
-                subCount >= 120 -> 5
-                subCount >= 40 -> 4
-                subCount >= 5 -> 3
-                else -> 2
-            }
-
-        private fun isFreshSubscribedCandidate(
-            video: Video,
-            now: Long,
-        ): Boolean {
-            val ageByTimestamp = now - video.timestamp
-            if (ageByTimestamp in 0..FRESH_SUB_WINDOW_MS) return true
-
-            val text = video.uploadDate.lowercase()
-            if (text.contains("second") || text.contains("minute") || text.contains("hour")) {
-                return true
-            }
-
-            if (text.contains("day")) {
-                val days = text.filter { it.isDigit() }.toIntOrNull() ?: 1
-                return days <= 3
-            }
-
-            return false
-        }
-
-        private fun List<Video>.filterValid(): List<Video> =
-            this.filter {
-                !it.isShort && (it.duration > 0 || it.isLive)
-            }
-
-        private fun List<GraphCandidate>.filterValidGraph(): List<GraphCandidate> =
-            filter { candidate ->
-                !candidate.video.isShort && (candidate.video.duration > 0 || candidate.video.isLive)
-            }
-
-        /**
-         * Filter that extracts shorts from a video list for the shelf.
-         * Complements filterValid() by capturing what it discards.
-         */
-        private fun List<Video>.extractShorts(): List<Video> = this.filter { it.isShort }
-
-        private fun List<Video>.filterRecentHomeSuggestion(now: Long): List<Video> = filter { video -> isRecentHomeSuggestion(video, now) }
-
-        private fun List<GraphCandidate>.filterRecentHomeSuggestionGraph(now: Long): List<GraphCandidate> =
-            filter { candidate -> isRecentHomeSuggestion(candidate.video, now) }
-
-        private fun isRecentHomeSuggestion(
-            video: Video,
-            now: Long,
-        ): Boolean {
-            val text = video.uploadDate.lowercase()
-            if (text.isBlank() || text == "unknown") return video.isLive
-
-            val age = now - video.timestamp
-            if (age in 0..HOME_MAX_SUGGESTION_AGE_MS) return true
-
-            val value = text.filter { it.isDigit() }.toIntOrNull() ?: 1
-            return when {
-                text.contains("second") || text.contains("minute") || text.contains("hour") -> true
-                text.contains("day") -> value <= 365
-                text.contains("week") -> value <= 52
-                text.contains("month") -> value <= 12
-                text.contains("year") -> value <= 1
-                else -> false
-            }
-        }
-
-        /**
-         * Remove videos the user has already fully watched (≥90 % progress)
-         * so they don't re-appear in the home feed.
-         */
-        private fun List<Video>.filterWatched(watchedIds: Set<String>): List<Video> {
-            if (watchedIds.isEmpty()) return this
-            return this.filter { !watchedIds.contains(it.id) }
-        }
-
-        private fun List<GraphCandidate>.filterWatchedGraph(watchedIds: Set<String>): List<GraphCandidate> {
-            if (watchedIds.isEmpty()) return this
-            return filter { !watchedIds.contains(it.video.id) }
-        }
     }
-
-/**
- * Process-lifetime in-memory cache for the Home feed.
- *
- * Survives ViewModel recreation (which happens when the user navigates away
- * from Home and comes back via the bottom nav), preventing an unwanted
- * network reload on every tab switch. The cache expires after [CACHE_TTL_MS]
- * (default 30 minutes) and is explicitly cleared when the user pulls-to-refresh.
- */
-internal object HomeFeedCache {
-    private const val CACHE_TTL_MS = 30 * 60 * 1000L // 30 minutes
-
-    @Volatile var videos: List<Video> = emptyList()
-        private set
-
-    @Volatile var shorts: List<Video> = emptyList()
-        private set
-
-    @Volatile var timestamp: Long = 0L
-        private set
-
-    fun isFresh(): Boolean = videos.isNotEmpty() && (System.currentTimeMillis() - timestamp) < CACHE_TTL_MS
-
-    fun update(
-        newVideos: List<Video>,
-        newShorts: List<Video>,
-    ) {
-        videos = newVideos
-        shorts = newShorts.sortedByDescending { it.timestamp }
-        timestamp = System.currentTimeMillis()
-    }
-
-    fun clear() {
-        videos = emptyList()
-        shorts = emptyList()
-        timestamp = 0L
-    }
-
-    /**
-     * Remove videos by blocked channel/topic from the cached feed without
-     * requiring a network refetch, keeping the cache TTL alive.
-     */
-    fun filterOut(
-        channelId: String? = null,
-        videoId: String? = null,
-    ) {
-        if (channelId != null) {
-            videos = videos.filter { it.channelId != channelId }
-            shorts = shorts.filter { it.channelId != channelId }
-        }
-        if (videoId != null) {
-            videos = videos.filter { it.id != videoId }
-            shorts = shorts.filter { it.id != videoId }
-        }
-    }
-}
-
-data class HomeUiState(
-    val videos: List<Video> = emptyList(),
-    val shorts: List<Video> = emptyList(),
-    val continueWatchingVideos: List<io.github.aedev.flow.data.local.VideoHistoryEntry> = emptyList(),
-    val isLoading: Boolean = false,
-    val isLoadingMore: Boolean = false,
-    val isRefreshing: Boolean = false,
-    val hasMorePages: Boolean = true,
-    val error: String? = null,
-    val isFlowFeed: Boolean = false,
-    val lastRefreshTime: Long = 0L,
-)
