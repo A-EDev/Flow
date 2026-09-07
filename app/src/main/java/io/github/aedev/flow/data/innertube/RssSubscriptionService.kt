@@ -41,6 +41,8 @@ import javax.inject.Singleton
 data class SubscriptionFeedChunk(
     val videos: List<Video>,
     val failedChannelIds: Set<String>,
+    /** Why each failed channel could not be read, keyed by channel id. */
+    val failedChannelReasons: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -86,6 +88,7 @@ class RssSubscriptionService
 
                 // Seeded by Phase 1 and cleared per channel as soon as Phase 2 answers for it.
                 val unreachableChannelIds = mutableSetOf<String>()
+                val failureReasons = mutableMapOf<String, String>()
 
                 Log.i(TAG, "Phase 1: Fetching RSS feeds for all ${uniqueChannelIds.size} channels")
                 val rssChunks = uniqueChannelIds.chunked(RSS_CHUNK_SIZE)
@@ -104,7 +107,10 @@ class RssSubscriptionService
                         rssChannelHasRecent[channelId] = result.hasRecent
                         rssNeedsChannelFallback[channelId] = result.needsChannelFallback
                         rssDateMap.putAll(result.videoTimestamps)
-                        if (result.failed) unreachableChannelIds += channelId
+                        if (result.failed) {
+                            unreachableChannelIds += channelId
+                            result.failureReason?.let { failureReasons[channelId] = it }
+                        }
                         result.videos.forEach { video ->
                             if (video.isShort) allShorts.add(video) else allRegular.add(video)
                         }
@@ -117,6 +123,7 @@ class RssSubscriptionService
                         SubscriptionFeedChunk(
                             videos = buildFeed(allRegular, allShorts, maxTotal),
                             failedChannelIds = unreachableChannelIds.toSet(),
+                            failedChannelReasons = failureReasons.toMap(),
                         ),
                     )
                     if (chunkIndex > 0 && chunkIndex % (CHANNEL_BATCH_SIZE / RSS_CHUNK_SIZE).coerceAtLeast(1) == 0) {
@@ -155,7 +162,13 @@ class RssSubscriptionService
 
                     for ((channelId, result) in chunkResults) {
                         // RSS may already have answered for this channel; only a second miss keeps it listed.
-                        if (!result.failed) unreachableChannelIds -= channelId
+                        if (result.failed) {
+                            // The tab attempt is the final verdict, so its reason replaces the RSS one.
+                            result.failureReason?.let { failureReasons[channelId] = it }
+                        } else {
+                            unreachableChannelIds -= channelId
+                            failureReasons -= channelId
+                        }
                         result.videos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
                     }
                     compactAccumulator(allRegular, MAX_REGULAR_VIDEOS)
@@ -168,6 +181,7 @@ class RssSubscriptionService
                         SubscriptionFeedChunk(
                             videos = buildFeed(allRegular, allShorts, maxTotal),
                             failedChannelIds = unreachableChannelIds.toSet(),
+                            failedChannelReasons = failureReasons.toMap(),
                         ),
                     )
                 }
@@ -176,6 +190,7 @@ class RssSubscriptionService
                     SubscriptionFeedChunk(
                         videos = buildFeed(allRegular, allShorts, maxTotal),
                         failedChannelIds = unreachableChannelIds.toSet(),
+                        failedChannelReasons = failureReasons.toMap(),
                     ),
                 )
                 Log.i(
@@ -199,7 +214,7 @@ class RssSubscriptionService
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "UNCAUGHT in channel $channelId: ${e::class.simpleName}: ${e.message}")
-                ChannelFetchResult(emptyList(), failed = true)
+                ChannelFetchResult(emptyList(), failed = true, failureReason = "${e::class.simpleName}: ${e.message}")
             }
 
         /** Merge regular and shorts lists with independent caps, sorted by date. */
@@ -280,11 +295,13 @@ class RssSubscriptionService
             val videos: List<Video>,
             val needsChannelFallback: Boolean,
             val failed: Boolean = false,
+            val failureReason: String? = null,
         )
 
         private data class ChannelFetchResult(
             val videos: List<Video>,
             val failed: Boolean,
+            val failureReason: String? = null,
         )
 
         /**
@@ -305,6 +322,7 @@ class RssSubscriptionService
                         videos = emptyList(),
                         needsChannelFallback = true,
                         failed = true,
+                        failureReason = "RSS: ${error::class.simpleName}: ${error.message}",
                     )
                 }
 
@@ -448,7 +466,11 @@ class RssSubscriptionService
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "[$channelId] ChannelInfo FAILED (${e::class.simpleName}): ${e.message}")
-                return ChannelFetchResult(emptyList(), failed = true)
+                return ChannelFetchResult(
+                    videos = emptyList(),
+                    failed = true,
+                    failureReason = "Channel: ${e::class.simpleName}: ${e.message}",
+                )
             }
         }
 

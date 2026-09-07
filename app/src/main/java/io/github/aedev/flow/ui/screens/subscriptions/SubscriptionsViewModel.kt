@@ -283,6 +283,7 @@ class SubscriptionsViewModel
                     _uiState.update {
                         it.copy(
                             failedChannelIds = progress.failedChannelIds,
+                            failedChannelReasons = progress.failedChannelReasons,
                             refreshProcessedChannels = progress.processedChannels,
                             refreshTotalChannels = progress.totalChannels,
                         )
@@ -690,7 +691,7 @@ class SubscriptionsViewModel
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 val failed = _uiState.value.failedChannelIds
                 if (failed.isEmpty()) return@launch
-                _uiState.update { it.copy(failedChannelIds = emptySet()) }
+                _uiState.update { it.copy(failedChannelIds = emptySet(), failedChannelReasons = emptyMap()) }
                 runRefresh(
                     plan = SubscriptionRefreshPlan(channelIds = failed.toList(), isFullRefresh = false),
                     showLoading = true,
@@ -699,7 +700,7 @@ class SubscriptionsViewModel
         }
 
         fun dismissFailedChannels() {
-            _uiState.update { it.copy(failedChannelIds = emptySet()) }
+            _uiState.update { it.copy(failedChannelIds = emptySet(), failedChannelReasons = emptyMap()) }
         }
 
         fun unsubscribe(channelId: String) {
@@ -792,6 +793,7 @@ data class SubscriptionsUiState(
     val excludedShortsChannelIds: Set<String> = emptySet(),
     /** Channels the last refresh could not reach at all; surfaced instead of silently showing less. */
     val failedChannelIds: Set<String> = emptySet(),
+    val failedChannelReasons: Map<String, String> = emptyMap(),
 ) {
     /** Display names for [failedChannelIds], falling back to the raw id for an unknown channel. */
     val failedChannelNames: List<String>

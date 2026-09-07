@@ -45,6 +45,7 @@ private const val MAX_NAMED_CHANNELS = 3
 internal fun SubscriptionFeedErrorCard(
     failedChannelNames: List<String>,
     failedChannelIds: Set<String>,
+    failedChannelReasons: Map<String, String>,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -109,6 +110,7 @@ internal fun SubscriptionFeedErrorCard(
                                         deviceInfo = FlowDiagnostics.buildDeviceInfo(context),
                                         failedChannelNames = failedChannelNames,
                                         failedChannelIds = failedChannelIds,
+                                        failedChannelReasons = failedChannelReasons,
                                         sessionLogs =
                                             FlowDiagnostics.readSessionLogs(SUBSCRIPTION_FAILURE_LOG_LINES),
                                     )

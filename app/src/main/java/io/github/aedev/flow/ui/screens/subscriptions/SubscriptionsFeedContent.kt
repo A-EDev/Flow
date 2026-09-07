@@ -159,6 +159,7 @@ internal fun SubscriptionsFeedContent(
                         SubscriptionFeedErrorCard(
                             failedChannelNames = state.failedChannelNames,
                             failedChannelIds = state.failedChannelIds,
+                            failedChannelReasons = state.failedChannelReasons,
                             onRetry = onRetryFailedChannels,
                             onDismiss = onDismissFailedChannels,
                             modifier =

@@ -24,6 +24,7 @@ import javax.inject.Singleton
 data class SubscriptionFeedRefreshProgress(
     val videos: List<Video>,
     val failedChannelIds: Set<String>,
+    val failedChannelReasons: Map<String, String>,
     val processedChannels: Int,
     val totalChannels: Int,
 )
@@ -90,6 +91,7 @@ class SubscriptionFeedRepository
                     var previewVideos = allCached
                     var latestChunkVideos = emptyList<Video>()
                     var failedChannelIds = emptySet<String>()
+                    var failedChannelReasons = emptyMap<String, String>()
                     var processed = 0
 
                     rssSubscriptionService
@@ -100,6 +102,7 @@ class SubscriptionFeedRepository
                             onProgress = { done, _ -> processed = done },
                         ).collect { chunk ->
                             failedChannelIds = chunk.failedChannelIds
+                            failedChannelReasons = chunk.failedChannelReasons
                             if (chunk.videos.isNotEmpty()) {
                                 latestChunkVideos = chunk.videos
                                 previewVideos =
@@ -116,6 +119,7 @@ class SubscriptionFeedRepository
                                 SubscriptionFeedRefreshProgress(
                                     videos = previewVideos,
                                     failedChannelIds = failedChannelIds,
+                                    failedChannelReasons = failedChannelReasons,
                                     processedChannels = processed,
                                     totalChannels = plan.channelIds.size,
                                 ),
@@ -135,6 +139,7 @@ class SubscriptionFeedRepository
                             SubscriptionFeedRefreshProgress(
                                 videos = persisted,
                                 failedChannelIds = failedChannelIds,
+                                failedChannelReasons = failedChannelReasons,
                                 processedChannels = plan.channelIds.size,
                                 totalChannels = plan.channelIds.size,
                             ),
