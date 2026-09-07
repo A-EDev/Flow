@@ -20,6 +20,8 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
@@ -60,43 +62,51 @@ fun FlowSubscribeButton(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        ToggleButton(
-            checked = isSubscribed,
-            onCheckedChange = {
-                if (isSubscribed) menuExpanded = true else onSubscribeClick()
-            },
-            shapes = ToggleButtonShapes(CircleShape, CircleShape, CircleShape),
-            colors =
-                ToggleButtonDefaults.toggleButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ),
-        ) {
-            if (isSubscribed) {
-                Icon(
-                    imageVector =
-                        if (isNotificationsEnabled) {
-                            Icons.Rounded.NotificationsActive
-                        } else {
-                            Icons.Rounded.NotificationsOff
-                        },
-                    contentDescription = null,
-                    modifier = Modifier.size(ButtonDefaults.IconSize),
-                )
-                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-            }
-            Text(
-                text = stringResource(if (isSubscribed) R.string.subscribed else R.string.subscribe),
+        if (isSubscribed) {
+            SplitButtonLayout(
+                leadingButton = {
+                    SplitButtonDefaults.TonalLeadingButton(
+                        onClick = { onNotificationChange?.invoke(!isNotificationsEnabled) },
+                    ) {
+                        Icon(
+                            imageVector =
+                                if (isNotificationsEnabled) {
+                                    Icons.Rounded.NotificationsActive
+                                } else {
+                                    Icons.Rounded.NotificationsOff
+                                },
+                            contentDescription = null,
+                            modifier = Modifier.size(SplitButtonDefaults.LeadingIconSize),
+                        )
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(text = stringResource(R.string.subscribed))
+                    }
+                },
+                trailingButton = {
+                    SplitButtonDefaults.TonalTrailingButton(
+                        checked = menuExpanded,
+                        onCheckedChange = { menuExpanded = it },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = stringResource(R.string.subscribed),
+                            modifier = Modifier.size(SplitButtonDefaults.TrailingIconSize),
+                        )
+                    }
+                },
             )
-            if (isSubscribed) {
-                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.size(ButtonDefaults.IconSize),
-                )
+        } else {
+            ToggleButton(
+                checked = false,
+                onCheckedChange = { onSubscribeClick() },
+                shapes = ToggleButtonShapes(CircleShape, CircleShape, CircleShape),
+                colors =
+                    ToggleButtonDefaults.toggleButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+            ) {
+                Text(text = stringResource(R.string.subscribe))
             }
         }
 

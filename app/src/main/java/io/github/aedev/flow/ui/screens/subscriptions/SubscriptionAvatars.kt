@@ -32,6 +32,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.flowArtistShape
+import io.github.aedev.flow.ui.components.shared.titleMarquee
 
 private val AvatarItemWidth = 64.dp
 private val AvatarSize = 56.dp
@@ -89,9 +90,10 @@ internal fun ChannelAvatarItem(
             text = channel.name,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = TextOverflow.Clip,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
+            modifier = Modifier.titleMarquee(),
         )
     }
 }

@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
@@ -41,6 +42,8 @@ private val ContentHorizontalPadding = 16.dp
 private val SelectorVerticalPadding = 8.dp
 private val ListItemSpacing = 12.dp
 private val SelectorIconSize = 18.dp
+private val SelectorIconSpacing = 6.dp
+private val SelectorContentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
 
 /**
  * Manage mode: pick video or music subscriptions, then act on each channel. The video/music choice
@@ -170,6 +173,7 @@ private fun SubscriptionKindToggle(
         checked = selected,
         onCheckedChange = { onSelect() },
         shapes = shapes,
+        contentPadding = SelectorContentPadding,
         modifier = modifier,
     ) {
         Icon(
@@ -177,7 +181,12 @@ private fun SubscriptionKindToggle(
             contentDescription = null,
             modifier = Modifier.size(SelectorIconSize),
         )
-        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-        Text(text = label)
+        Spacer(modifier = Modifier.width(SelectorIconSpacing))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
+import io.github.aedev.flow.ui.components.shared.titleMarquee
 
 private val RowPadding = 12.dp
 private val AvatarSize = 48.dp
@@ -70,7 +71,8 @@ internal fun SubscriptionManagerItem(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Clip,
+                modifier = Modifier.titleMarquee(),
             )
             if (channel.isMusic) {
                 SubscriptionMusicPill()

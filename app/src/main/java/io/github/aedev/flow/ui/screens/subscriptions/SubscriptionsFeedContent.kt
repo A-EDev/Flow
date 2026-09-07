@@ -26,7 +26,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +42,7 @@ import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
+import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 
 private val GroupRowHorizontalPadding = 12.dp
 private val GroupRowVerticalPadding = 8.dp
@@ -82,7 +82,7 @@ internal fun SubscriptionsFeedContent(
         }
     }
 
-    PullToRefreshBox(
+    FlowPullToRefreshBox(
         isRefreshing = state.isLoading,
         onRefresh = onRefresh,
         state = pullRefreshState,
