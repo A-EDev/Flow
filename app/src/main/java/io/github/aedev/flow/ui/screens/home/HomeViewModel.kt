@@ -82,6 +82,7 @@ class HomeViewModel
 
         companion object {
             private const val TAG = "HomeViewModel"
+            private const val UI_STATE_SUBSCRIPTION_TIMEOUT_MS = 5_000L
             private const val HOME_TARGET_SIZE = 40
             private const val FRESH_SUB_WINDOW_MS = 72L * 60L * 60L * 1000L
             private const val HOME_MAX_SUGGESTION_AGE_MS = 365L * 24L * 60L * 60L * 1000L
@@ -117,7 +118,7 @@ class HomeViewModel
                 .map(HomeUiState::withUniqueLazyContent)
                 .stateIn(
                     scope = viewModelScope,
-                    started = SharingStarted.Eagerly,
+                    started = SharingStarted.WhileSubscribed(UI_STATE_SUBSCRIPTION_TIMEOUT_MS),
                     initialValue = _uiState.value.withUniqueLazyContent(),
                 )
 
@@ -1179,8 +1180,8 @@ class HomeViewModel
             return updatedSnapshot
         }
 
-        fun enrichChannelMetadataIfMissing(videoId: String) {
-            val video = _uiState.value.videos.firstOrNull { it.id == videoId } ?: return
+        fun enrichChannelMetadataIfMissing(video: Video) {
+            val videoId = video.id
             val needsMetadata =
                 video.channelId.isBlank() ||
                     !video.channelId.startsWith("UC") ||

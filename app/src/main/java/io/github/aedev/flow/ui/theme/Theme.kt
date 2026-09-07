@@ -120,6 +120,7 @@ data class ExtendedColors(
     val textSecondary: Color,
     val border: Color,
     val success: Color,
+    val shortsAccent: Color,
 )
 
 val LocalExtendedColors =
@@ -128,6 +129,7 @@ val LocalExtendedColors =
             textSecondary = Color.Unspecified,
             border = Color.Unspecified,
             success = Color.Unspecified,
+            shortsAccent = Color.Unspecified,
         )
     }
 
@@ -790,6 +792,8 @@ fun FlowTheme(
             textSecondary = colorScheme.onSurfaceVariant,
             border = colorScheme.outlineVariant,
             success = colorScheme.tertiary,
+            // Brand mark, not a scheme role: the Shorts glyph is red in every theme.
+            shortsAccent = YouTubeRed,
         )
 
     CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
