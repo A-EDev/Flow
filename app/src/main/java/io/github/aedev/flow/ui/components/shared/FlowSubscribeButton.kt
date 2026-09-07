@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.NotificationsActive
@@ -22,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,7 +65,7 @@ fun FlowSubscribeButton(
             onCheckedChange = {
                 if (isSubscribed) menuExpanded = true else onSubscribeClick()
             },
-            shapes = ToggleButtonDefaults.shapesFor(ButtonDefaults.MinHeight),
+            shapes = ToggleButtonShapes(CircleShape, CircleShape, CircleShape),
             colors =
                 ToggleButtonDefaults.toggleButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
