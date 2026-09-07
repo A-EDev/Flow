@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -10,7 +11,6 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 private val BadgeHorizontalPadding = 6.dp
@@ -37,14 +37,17 @@ class ChannelGroupLabels(
 val LocalChannelGroupLabels = staticCompositionLocalOf { ChannelGroupLabels.Empty }
 
 /**
- * The group name over a channel or artist avatar. Renders nothing when the preference is off or
- * the channel is in no group, so call sites need no condition of their own.
+ * The group name over a channel or artist avatar, anchored top-end like the notification badge.
+ *
+ * A circle for a short label that stretches into a pill for a longer one, never truncated and
+ * never clipped to the avatar, so the group stays readable at any name length. Renders nothing
+ * when the preference is off or the channel is in no group, so call sites need no condition.
  */
 @Composable
 fun BoxScope.ChannelGroupBadge(
     channelId: String?,
     modifier: Modifier = Modifier,
-    alignment: Alignment = Alignment.BottomCenter,
+    alignment: Alignment = Alignment.TopEnd,
 ) {
     val label = LocalChannelGroupLabels.current.labelFor(channelId) ?: return
 
@@ -53,7 +56,7 @@ fun BoxScope.ChannelGroupBadge(
             modifier
                 .align(alignment)
                 .padding(BadgeInset),
-        shape = MaterialTheme.shapes.extraSmall,
+        shape = CircleShape,
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
     ) {
@@ -61,7 +64,7 @@ fun BoxScope.ChannelGroupBadge(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
             modifier =
                 Modifier.padding(
                     horizontal = BadgeHorizontalPadding,
