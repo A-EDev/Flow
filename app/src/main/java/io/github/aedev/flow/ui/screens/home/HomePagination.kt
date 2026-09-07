@@ -20,12 +20,12 @@ internal const val HOME_PREFETCH_MAX_PAGES_PER_RUN = 1
 
 internal data class HomePrefetchRequest(
     val generation: Int,
-    val targetVideoCount: Int
+    val targetVideoCount: Int,
 )
 
 internal class HomePrefetchQueue(
     private val prefetchAheadVideoCount: Int = HOME_PREFETCH_AHEAD_VIDEO_COUNT,
-    private val triggerRemainingVideos: Int = HOME_PREFETCH_TRIGGER_REMAINING_VIDEOS
+    private val triggerRemainingVideos: Int = HOME_PREFETCH_TRIGGER_REMAINING_VIDEOS,
 ) {
     private var generation = 0
     private var isVisible = false
@@ -36,7 +36,10 @@ internal class HomePrefetchQueue(
      * a feed that has just loaded has nothing to prefetch until it is actually consumed.
      */
     @Synchronized
-    fun onVisible(currentVideoCount: Int, feedReady: Boolean): HomePrefetchRequest? {
+    fun onVisible(
+        currentVideoCount: Int,
+        feedReady: Boolean,
+    ): HomePrefetchRequest? {
         isVisible = true
         return if (feedReady) currentRequestLocked(currentVideoCount) else null
     }
@@ -50,21 +53,21 @@ internal class HomePrefetchQueue(
     @Synchronized
     fun onViewportChanged(
         currentVideoCount: Int,
-        lastVisibleVideoIndex: Int
+        lastVisibleVideoIndex: Int,
     ): HomePrefetchRequest? {
         if (!isVisible || currentVideoCount <= 0) return null
         val remainingBelowViewport = currentVideoCount - (lastVisibleVideoIndex + 1)
         if (remainingBelowViewport > triggerRemainingVideos) return null
-        targetVideoCount = maxOf(
-            targetVideoCount,
-            lastVisibleVideoIndex + 1 + prefetchAheadVideoCount
-        )
+        targetVideoCount =
+            maxOf(
+                targetVideoCount,
+                lastVisibleVideoIndex + 1 + prefetchAheadVideoCount,
+            )
         return currentRequestLocked(currentVideoCount)
     }
 
     @Synchronized
-    fun currentRequest(currentVideoCount: Int): HomePrefetchRequest? =
-        currentRequestLocked(currentVideoCount)
+    fun currentRequest(currentVideoCount: Int): HomePrefetchRequest? = currentRequestLocked(currentVideoCount)
 
     @Synchronized
     fun reset() {
@@ -73,8 +76,7 @@ internal class HomePrefetchQueue(
     }
 
     @Synchronized
-    fun isCurrent(requestGeneration: Int): Boolean =
-        isVisible && generation == requestGeneration
+    fun isCurrent(requestGeneration: Int): Boolean = isVisible && generation == requestGeneration
 
     private fun currentRequestLocked(currentVideoCount: Int): HomePrefetchRequest? =
         if (isVisible && currentVideoCount < targetVideoCount) {
@@ -83,3 +85,9 @@ internal class HomePrefetchQueue(
             null
         }
 }
+
+/** Keeps only visible grid keys that map to real feed videos (drops shelf/loader keys). */
+internal fun feedImpressionIds(
+    visibleKeys: List<String>,
+    knownIds: Set<String>,
+): List<String> = visibleKeys.filter { it in knownIds }
