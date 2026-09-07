@@ -20,7 +20,6 @@ private val TextVerticalPadding = 2.dp
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SubscriptionsRefreshStatus(
-    isLoading: Boolean,
     processedChannels: Int,
     totalChannels: Int,
     lastRefreshText: String?,
@@ -28,7 +27,7 @@ internal fun SubscriptionsRefreshStatus(
     showLastRefreshVideoCount: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (isLoading && totalChannels > 0) {
+    if (totalChannels > 0) {
         val progress = processedChannels.toFloat() / totalChannels.toFloat().coerceAtLeast(1f)
         LinearWavyProgressIndicator(
             progress = { progress.coerceIn(0f, 1f) },

@@ -158,6 +158,7 @@ internal fun SubscriptionsFeedContent(
 
                         SubscriptionFeedErrorCard(
                             failedChannelNames = state.failedChannelNames,
+                            failedChannelIds = state.failedChannelIds,
                             onRetry = onRetryFailedChannels,
                             onDismiss = onDismissFailedChannels,
                             modifier =
@@ -168,7 +169,6 @@ internal fun SubscriptionsFeedContent(
                         )
 
                         SubscriptionsRefreshStatus(
-                            isLoading = state.isLoading,
                             processedChannels = state.refreshProcessedChannels,
                             totalChannels = state.refreshTotalChannels,
                             lastRefreshText = state.lastRefreshText,
