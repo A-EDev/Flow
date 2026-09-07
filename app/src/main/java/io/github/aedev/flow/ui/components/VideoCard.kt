@@ -65,6 +65,7 @@ import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
+import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.MediaTextBadge
 import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
 import io.github.aedev.flow.ui.components.shared.VideoStatusBadge
@@ -925,7 +926,7 @@ fun CollaboratorsBottomSheet(
                         }
                     }
                     if (collaborator.channelId.isNotBlank()) {
-                        SubscribeButton(
+                        FlowSubscribeButton(
                             isSubscribed = isSubscribed,
                             onSubscribeClick = {
                                 viewModel.toggleSubscription(

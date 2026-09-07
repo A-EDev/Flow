@@ -115,6 +115,7 @@ import io.github.aedev.flow.ui.components.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.SortChipRow
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
 import io.github.aedev.flow.ui.components.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -946,7 +947,7 @@ private fun ChannelHeader(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            SubscribeButton(
+            FlowSubscribeButton(
                 isSubscribed = isSubscribed,
                 isNotificationsEnabled = isNotificationsEnabled,
                 onSubscribeClick = onSubscribeClick,
@@ -999,128 +1000,6 @@ private fun ChannelHeader(
 }
 
 // Subscribe button
-@Composable
-fun SubscribeButton(
-    isSubscribed: Boolean,
-    isNotificationsEnabled: Boolean,
-    onSubscribeClick: () -> Unit,
-    onUnsubscribeClick: () -> Unit,
-    onNotificationChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    val containerColor by animateColorAsState(
-        targetValue =
-            if (isSubscribed) {
-                MaterialTheme.colorScheme.surfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-        label = "subscribeBg",
-    )
-    val contentColor by animateColorAsState(
-        targetValue =
-            if (isSubscribed) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        label = "subscribeFg",
-    )
-
-    Box(modifier = modifier) {
-        Button(
-            onClick = {
-                if (isSubscribed) {
-                    expanded = true
-                } else {
-                    onSubscribeClick()
-                }
-            },
-            shape = RoundedCornerShape(20.dp),
-            colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = containerColor,
-                    contentColor = contentColor,
-                ),
-            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 9.dp),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.animateContentSize(),
-            ) {
-                AnimatedVisibility(visible = isSubscribed) {
-                    Icon(
-                        imageVector = if (isNotificationsEnabled) Icons.Rounded.NotificationsActive else Icons.Rounded.NotificationsOff,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-                Text(
-                    text =
-                        if (isSubscribed) {
-                            stringResource(R.string.subscribed)
-                        } else {
-                            stringResource(R.string.subscribe)
-                        },
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                AnimatedVisibility(visible = isSubscribed) {
-                    Icon(
-                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.width(200.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.notifications),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.on)) },
-                leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
-                onClick = {
-                    onNotificationChange(true)
-                    expanded = false
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.off)) },
-                leadingIcon = { Icon(Icons.Rounded.NotificationsOff, null) },
-                onClick = {
-                    onNotificationChange(false)
-                    expanded = false
-                },
-            )
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.unsubscribe)) },
-                leadingIcon = { Icon(Icons.Rounded.PersonRemove, null) },
-                onClick = {
-                    onUnsubscribeClick()
-                    expanded = false
-                },
-            )
-        }
-    }
-}
-
-// Tab row
 @Composable
 private fun ChannelTabRow(
     selectedIndex: Int,

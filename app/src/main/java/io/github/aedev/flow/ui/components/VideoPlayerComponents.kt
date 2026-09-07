@@ -48,6 +48,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.DateContext
@@ -244,7 +245,7 @@ fun VideoInfoSection(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            SubscribeButton(
+            FlowSubscribeButton(
                 isSubscribed = isSubscribed,
                 isNotificationsEnabled = isNotificationsEnabled,
                 onSubscribeClick = onSubscribeClick,
@@ -351,115 +352,6 @@ fun CommentsPreview(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun SubscribeButton(
-    isSubscribed: Boolean,
-    isNotificationsEnabled: Boolean = false,
-    onSubscribeClick: () -> Unit,
-    onUnsubscribeClick: () -> Unit = {},
-    onNotificationChange: (Boolean) -> Unit = {},
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    val backgroundColor =
-        if (isSubscribed) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-        } else {
-            MaterialTheme.colorScheme.onBackground
-        }
-
-    val contentColor =
-        if (isSubscribed) {
-            MaterialTheme.colorScheme.onSurface
-        } else {
-            MaterialTheme.colorScheme.surface
-        }
-
-    Box {
-        Surface(
-            onClick = {
-                if (isSubscribed) expanded = true else onSubscribeClick()
-            },
-            shape = RoundedCornerShape(18.dp),
-            color = backgroundColor,
-            modifier = Modifier.height(36.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = 14.dp),
-            ) {
-                if (isSubscribed) {
-                    Icon(
-                        imageVector = if (isNotificationsEnabled) Icons.Rounded.NotificationsActive else Icons.Rounded.NotificationsOff,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = contentColor,
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.subscribed),
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                        color = contentColor,
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = contentColor,
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.subscribe),
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                        color = contentColor,
-                    )
-                }
-            }
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.width(200.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.notifications),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.on)) },
-                leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
-                onClick = {
-                    onNotificationChange(true)
-                    expanded = false
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.off)) },
-                leadingIcon = { Icon(Icons.Rounded.NotificationsOff, null) },
-                onClick = {
-                    onNotificationChange(false)
-                    expanded = false
-                },
-            )
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.unsubscribe)) },
-                leadingIcon = { Icon(Icons.Rounded.PersonRemove, null) },
-                onClick = {
-                    onUnsubscribeClick()
-                    expanded = false
-                },
-            )
         }
     }
 }
