@@ -13,10 +13,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
+import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.mergeDistinctByNonBlankKey
+import io.github.aedev.flow.data.model.toUiModel
 import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
 import io.github.aedev.flow.data.paging.ChannelShortsPagingSource
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
@@ -32,8 +36,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,7 +60,41 @@ class ChannelViewModel
         @ApplicationContext private val appContext: Context,
         private val subscriptionRepository: SubscriptionRepository,
         private val shortsContentFilter: ShortsContentFilter,
+        private val subscriptionGroupDao: SubscriptionGroupDao,
     ) : ViewModel() {
+        val subscriptionGroups: StateFlow<List<SubscriptionGroup>> =
+            subscriptionGroupDao
+                .getAllGroups()
+                .map { entities -> entities.map { it.toUiModel() } }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(GROUPS_SUBSCRIPTION_TIMEOUT_MS), emptyList())
+
+        fun setChannelInGroup(
+            groupName: String,
+            channelId: String,
+            inGroup: Boolean,
+        ) {
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                val group = subscriptionGroupDao.getAllGroupsOnce().firstOrNull { it.name == groupName } ?: return@launch
+                val members = group.toUiModel().channelIds.toMutableSet()
+                if (inGroup) members.add(channelId) else members.remove(channelId)
+                subscriptionGroupDao.updateGroup(group.copy(channelIds = members.joinToString(",")))
+            }
+        }
+
+        fun createGroupWithChannel(
+            groupName: String,
+            channelId: String,
+        ) {
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                val name = groupName.trim()
+                if (name.isEmpty() || subscriptionGroupDao.exists(name)) return@launch
+                val order = subscriptionGroupDao.getAllGroupsOnce().size
+                subscriptionGroupDao.insertGroup(
+                    SubscriptionGroupEntity(name = name, channelIds = channelId, sortOrder = order),
+                )
+            }
+        }
+
         private val _uiState = MutableStateFlow(ChannelUiState())
         val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
         private val communityController = ChannelCommunityController(viewModelScope)
@@ -187,6 +228,7 @@ class ChannelViewModel
 
         companion object {
             private const val TAG = "ChannelViewModel"
+            private const val GROUPS_SUBSCRIPTION_TIMEOUT_MS = 5_000L
 
             /** Delay between page fetches — keeps request pattern human-like, avoids 429s */
             private const val PAGE_DELAY_MS = 800L

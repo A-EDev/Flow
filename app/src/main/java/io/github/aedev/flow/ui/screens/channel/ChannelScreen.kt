@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsOff
@@ -99,12 +100,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.CommunityPost
 import io.github.aedev.flow.ui.components.ChannelBanner
@@ -115,7 +118,10 @@ import io.github.aedev.flow.ui.components.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.SortChipRow
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
+import io.github.aedev.flow.ui.components.shared.CollectionSheetEntry
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
+import io.github.aedev.flow.ui.components.shared.SaveToCollectionSheet
 import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
 import io.github.aedev.flow.ui.components.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -148,6 +154,9 @@ fun ChannelScreen(
     val allVideos by viewModel.videosAll.collectAsState()
     val allLiveVideos by viewModel.liveAll.collectAsState()
     val isLoadingAllVideos by viewModel.isLoadingAllVideos.collectAsState()
+    val subscriptionGroups by viewModel.subscriptionGroups.collectAsStateWithLifecycle()
+    var showGroupSheet by rememberSaveable { mutableStateOf(false) }
+    var showCreateGroupDialog by rememberSaveable { mutableStateOf(false) }
 
     val shortsLazyPagingItems = shortsPagingFlow?.collectAsLazyPagingItems()
     val shortsSorts by viewModel.shortsSorts.collectAsState()
@@ -269,6 +278,7 @@ fun ChannelScreen(
                             onSubscribeClick = { viewModel.toggleSubscription() },
                             onUnsubscribeClick = { viewModel.unsubscribe() },
                             onNotificationChange = { viewModel.setNotificationState(it) },
+                            onManageGroups = { showGroupSheet = true },
                             onTabSelected = { viewModel.selectTab(it) },
                             onSearchToggle = { viewModel.setSearchActive(!uiState.searchActive) },
                             onSearchQueryChange = { viewModel.searchInChannel(it) },
@@ -316,12 +326,41 @@ fun ChannelScreen(
             )
         }
     }
+
+    val channelId = uiState.channelInfo?.id.orEmpty()
+    if (showGroupSheet && channelId.isNotBlank()) {
+        ChannelGroupSheet(
+            groups = subscriptionGroups,
+            channelId = channelId,
+            onToggle = { groupName, inGroup -> viewModel.setChannelInGroup(groupName, channelId, inGroup) },
+            onCreateNew = {
+                showGroupSheet = false
+                showCreateGroupDialog = true
+            },
+            onDismiss = { showGroupSheet = false },
+        )
+    }
+
+    if (showCreateGroupDialog && channelId.isNotBlank()) {
+        CollectionEditDialog(
+            title = stringResource(R.string.new_group),
+            confirmLabel = stringResource(R.string.save),
+            onDismiss = { showCreateGroupDialog = false },
+            onConfirm = { name, _ ->
+                viewModel.createGroupWithChannel(name, channelId)
+                showCreateGroupDialog = false
+            },
+            icon = Icons.Rounded.Folder,
+            showDescription = false,
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ChannelContent(
     uiState: ChannelUiState,
+    onManageGroups: (() -> Unit)?,
     communityUiState: ChannelCommunityUiState,
     allVideos: List<Video>,
     isLoadingAllVideos: Boolean,
@@ -705,6 +744,7 @@ private fun ChannelContent(
                     onSubscribeClick = onSubscribeClick,
                     onUnsubscribeClick = onUnsubscribeClick,
                     onNotificationChange = onNotificationChange,
+                    onManageGroups = onManageGroups.takeIf { uiState.isSubscribed },
                 )
             }
 
@@ -827,6 +867,39 @@ private fun FilterAndToggleBar(
 
 // Channel header — banner + avatar + info + subscribe
 @Composable
+private fun ChannelGroupSheet(
+    groups: List<SubscriptionGroup>,
+    channelId: String,
+    onToggle: (String, Boolean) -> Unit,
+    onCreateNew: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val entries =
+        remember(groups, channelId) {
+            groups.map { group ->
+                CollectionSheetEntry(
+                    id = group.name,
+                    name = group.name,
+                    supporting = "",
+                    thumbnailUrl = "",
+                    isSaved = channelId in group.channelIds,
+                )
+            }
+        }
+
+    SaveToCollectionSheet(
+        title = stringResource(R.string.channel_groups_sheet_title),
+        entries = entries,
+        placeholderIcon = Icons.Rounded.Folder,
+        createLabel = stringResource(R.string.new_group),
+        emptyLabel = stringResource(R.string.channel_groups_empty),
+        onToggle = { entry -> onToggle(entry.id, !entry.isSaved) },
+        onCreateNew = onCreateNew,
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
 private fun ChannelHeader(
     channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo,
     channelVideoCountText: String?,
@@ -835,6 +908,7 @@ private fun ChannelHeader(
     onSubscribeClick: () -> Unit,
     onUnsubscribeClick: () -> Unit,
     onNotificationChange: (Boolean) -> Unit,
+    onManageGroups: (() -> Unit)?,
 ) {
     val bannerUrl =
         try {
@@ -953,6 +1027,7 @@ private fun ChannelHeader(
                 onSubscribeClick = onSubscribeClick,
                 onUnsubscribeClick = onUnsubscribeClick,
                 onNotificationChange = onNotificationChange,
+                onManageGroups = onManageGroups,
             )
         }
 

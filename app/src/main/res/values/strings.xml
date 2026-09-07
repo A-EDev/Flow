@@ -27,6 +27,10 @@
         <item quantity="one">%d channel couldn\'t be loaded</item>
         <item quantity="other">%d channels couldn\'t be loaded</item>
     </plurals>
+    <string name="subscriptions_failed_channels_copy_logs">Copy logs</string>
+    <string name="channel_add_to_group">Add to group</string>
+    <string name="channel_groups_sheet_title">Channel groups</string>
+    <string name="channel_groups_empty">No groups yet</string>
     <string name="subscriptions_failed_channels_body">Their latest videos are missing from this feed: %1$s</string>
     <string name="subscriptions_failed_channels_more">%1$s and %2$d more</string>
     <string name="retry">Retry</string>

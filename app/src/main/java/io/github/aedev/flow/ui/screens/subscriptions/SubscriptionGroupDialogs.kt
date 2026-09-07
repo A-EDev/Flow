@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
+import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
 import sh.calvin.reorderable.ReorderableItem

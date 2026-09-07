@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsOff
@@ -58,6 +59,7 @@ fun FlowSubscribeButton(
     onNotificationChange: ((Boolean) -> Unit)? = null,
     areShortsExcluded: Boolean? = null,
     onShortsExcludeChange: (Boolean) -> Unit = {},
+    onManageGroups: (() -> Unit)? = null,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -163,6 +165,18 @@ fun FlowSubscribeButton(
                     },
                     onClick = {
                         onShortsExcludeChange(!areShortsExcluded)
+                        menuExpanded = false
+                    },
+                )
+                HorizontalDivider()
+            }
+
+            if (onManageGroups != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.channel_add_to_group)) },
+                    leadingIcon = { Icon(Icons.Rounded.Folder, contentDescription = null) },
+                    onClick = {
+                        onManageGroups()
                         menuExpanded = false
                     },
                 )

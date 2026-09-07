@@ -11,7 +11,9 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.model.Channel
+import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.toUiModel
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionRefreshPlan
 import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
@@ -801,16 +803,3 @@ data class SubscriptionsUiState(
                 .sorted()
         }
 }
-
-data class SubscriptionGroup(
-    val name: String,
-    val channelIds: List<String>,
-    val sortOrder: Int = 0,
-)
-
-fun SubscriptionGroupEntity.toUiModel() =
-    SubscriptionGroup(
-        name = name,
-        channelIds = if (channelIds.isBlank()) emptyList() else channelIds.split(",").filter { it.isNotBlank() },
-        sortOrder = sortOrder,
-    )
