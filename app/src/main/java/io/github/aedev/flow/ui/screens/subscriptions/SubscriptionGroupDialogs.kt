@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,7 +55,6 @@ private val ActionIconSize = 32.dp
 private val ActionGlyphSize = 16.dp
 private val ChannelAvatarSize = 32.dp
 private val ContentSpacing = 8.dp
-private val DragLiftElevation = 6.dp
 
 @Composable
 internal fun SubscriptionGroupsManagerDialog(
@@ -90,8 +90,13 @@ internal fun SubscriptionGroupsManagerDialog(
                     items(groups, key = { it.name }) { group ->
                         ReorderableItem(state = reorderableState, key = group.name) { isDragging ->
                             Surface(
-                                color = MaterialTheme.colorScheme.surface,
-                                tonalElevation = if (isDragging) DragLiftElevation else 0.dp,
+                                color =
+                                    if (isDragging) {
+                                        MaterialTheme.colorScheme.surfaceContainerHighest
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                shape = MaterialTheme.shapes.medium,
                             ) {
                                 Row(
                                     modifier =
