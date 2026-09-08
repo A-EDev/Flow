@@ -11,7 +11,6 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -21,13 +20,12 @@ private const val DRAG_MODE_FRACTION = 0
 private const val DRAG_MODE_POSITION = 1
 private const val DRAG_MODE_EXPAND_SCALE = 2
 
-/** Screen-space movement under which a mini player press still counts as a tap. */
+/** Screen-space movement under which a mini player release is treated as a tap, not a throw. */
 private const val MINI_TAP_MOVEMENT_PX = 24f
-private const val DOUBLE_TAP_WINDOW_MS = 300L
 
 /**
  * The one-finger gesture on the video box: collapse drag and swipe-to-fullscreen while expanded,
- * free 2-D drag, tap, double tap, corner fling and dismiss fling while mini.
+ * free 2-D drag, corner fling and dismiss fling while mini. Taps live in [miniPlayerTapGestures].
  *
  * Hand-rolled on purpose. `anchoredDraggable` and `draggable2D` apply touch slop and report
  * deltas in local space, but this node sits under the morph's graphicsLayer scale, so the same
@@ -40,15 +38,12 @@ internal class DraggablePlayerGestureHandler(
     private val metrics: DraggablePlayerGestureMetrics,
 ) {
     private val velocityTracker = VelocityTracker()
-    private var lastTapTime = 0L
-    private var singleTapJob: Job? = null
 
     suspend fun AwaitPointerEventScope.handleGesture() {
         val gestureTargetMiniX = metrics.targetMiniX
         val gestureTargetMiniY = metrics.targetMiniY
 
         val down = awaitFirstDown(requireUnconsumed = false)
-        val downConsumedByChild = down.isConsumed
 
         val isCollapseDrag = state.expandFraction.value < 0.4f
         val isMiniDrag = state.expandFraction.value > 0.8f
@@ -182,12 +177,9 @@ internal class DraggablePlayerGestureHandler(
             }
         }
 
-        if (isMiniDrag && totalMovement < MINI_TAP_MOVEMENT_PX) {
-            if (!downConsumedByChild && metrics.tapToExpand) {
-                onMiniTap(down.uptimeMillis)
-            }
-            return
-        }
+        // A tap-sized release is left to the tap detector; settling to a corner here would only
+        // restart the corner spring under the tap.
+        if (isMiniDrag && totalMovement < MINI_TAP_MOVEMENT_PX) return
 
         if (isCollapseDrag && detectedDirection == -1) {
             val velY = velocityTracker.calculateVelocity().y * metrics.liveGestureScale(state)
@@ -212,41 +204,6 @@ internal class DraggablePlayerGestureHandler(
         if (!isMiniDrag) return
 
         releaseMini()
-    }
-
-    private fun onMiniTap(uptimeMillis: Long) {
-        if (uptimeMillis - lastTapTime < DOUBLE_TAP_WINDOW_MS) {
-            singleTapJob?.cancel()
-            lastTapTime = 0L
-            if (state.isInlineMode) {
-                state.shrinkToCorner(
-                    baseMiniWidth = metrics.baseMiniWidth,
-                    screenWidth = metrics.screenWidth,
-                    margin = metrics.margin,
-                    minY = metrics.minY,
-                    screenHeight = metrics.screenHeight,
-                    bottomNavPad = metrics.bottomNavPad,
-                )
-            } else {
-                state.expandWide(
-                    screenWidth = metrics.screenWidth,
-                    margin = metrics.margin,
-                    baseMiniWidth = metrics.baseMiniWidth,
-                    screenHeight = metrics.screenHeight,
-                    minY = metrics.minY,
-                    bottomNavPad = metrics.bottomNavPad,
-                    isTablet = metrics.isTablet,
-                    isFoldable = metrics.isFoldable,
-                )
-            }
-        } else {
-            lastTapTime = uptimeMillis
-            singleTapJob =
-                state.scope.launch {
-                    delay(DOUBLE_TAP_WINDOW_MS)
-                    state.expand()
-                }
-        }
     }
 
     private fun releaseMini() {

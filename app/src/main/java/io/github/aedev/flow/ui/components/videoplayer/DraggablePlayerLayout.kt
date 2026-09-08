@@ -41,6 +41,7 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
 import io.github.aedev.flow.ui.components.videoplayer.motion.draggablePlayerGestures
 import io.github.aedev.flow.ui.components.videoplayer.motion.lerpClamped
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerPinchGesture
+import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerTapGestures
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
 import io.github.aedev.flow.ui.utils.TABLET_SMALLEST_WIDTH_DP
@@ -544,6 +545,7 @@ fun DraggablePlayerLayout(
                 remember(state, gestureMetrics) { DraggablePlayerGestureHandler(state, gestureMetrics) }
             val pinchHandler =
                 remember(state, gestureMetrics) { MiniPlayerPinchGestureHandler(state, gestureMetrics) }
+            val isMiniMode by remember(state) { derivedStateOf { state.expandFraction.value > 0.8f } }
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Box(
@@ -626,7 +628,12 @@ fun DraggablePlayerLayout(
                                         cornerRadius = CornerRadius(r, r),
                                     )
                                 }
-                                .miniPlayerPinchGesture(pinchHandler)
+                                // Outermost so it sees the drag handler consume a move and drop the tap.
+                                .miniPlayerTapGestures(
+                                    enabled = tapToExpand && isMiniMode,
+                                    state = state,
+                                    metrics = gestureMetrics,
+                                ).miniPlayerPinchGesture(pinchHandler)
                                 .draggablePlayerGestures(gestureHandler)
                         },
                 ) {
