@@ -815,6 +815,9 @@
     <string name="content_settings_header_home_layout">Home Layout</string>
     <string name="content_settings_home_layout_title">Home Display Mode</string>
     <string name="content_settings_home_layout_subtitle">Choose how videos are displayed on the home screen</string>
+    <string name="content_settings_home_columns_title">Cards per row</string>
+    <string name="content_settings_home_columns_subtitle">Auto follows your screen size. Pick a number to keep it fixed.</string>
+    <string name="content_settings_home_columns_auto">Auto</string>
     <string name="content_settings_layout_grid">Grid</string>
     <string name="content_settings_layout_list">List</string>
     <string name="content_settings_grid_size_title">Grid Item Size</string>

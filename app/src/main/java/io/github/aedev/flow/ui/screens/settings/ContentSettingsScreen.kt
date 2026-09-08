@@ -50,11 +50,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.local.WatchedThreshold
 import io.github.aedev.flow.ui.NavigationVisibility
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.resolveDefaultNavTabIndex
 import io.github.aedev.flow.ui.theme.GridItemSize
 import io.github.aedev.flow.ui.visibleNavTabIndices
@@ -90,6 +92,7 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
 
     val homeViewModeString by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
     val currentHomeViewMode = homeViewModeString
+    val currentHomeFeedColumns by preferences.homeFeedColumns.collectAsState(initial = HomeFeedColumns.AUTO)
 
     val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
     val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsState(initial = true)
@@ -339,6 +342,45 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                                 },
                                 modifier = Modifier.weight(1f),
                             )
+                        }
+
+                        // List mode is one item per row by definition, so the count only means
+                        // something for the grid.
+                        if (currentHomeViewMode == io.github.aedev.flow.data.local.HomeViewMode.GRID) {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Text(
+                                text = stringResource(R.string.content_settings_home_columns_title),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = stringResource(R.string.content_settings_home_columns_subtitle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                HomeFeedColumns.entries.forEach { option ->
+                                    FlowFilterChip(
+                                        label =
+                                            when (option) {
+                                                HomeFeedColumns.AUTO -> {
+                                                    stringResource(R.string.content_settings_home_columns_auto)
+                                                }
+
+                                                else -> {
+                                                    option.fixedCount.toString()
+                                                }
+                                            },
+                                        selected = currentHomeFeedColumns == option,
+                                        onClick = {
+                                            coroutineScope.launch { preferences.setHomeFeedColumns(option) }
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }

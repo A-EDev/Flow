@@ -34,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.local.HomeViewMode
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoHistoryEntry
@@ -70,6 +71,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val preferences = remember(context) { PlayerPreferences(context) }
     val homeViewMode by preferences.homeViewMode.collectAsStateWithLifecycle(initialValue = HomeViewMode.GRID)
+    val homeFeedColumns by preferences.homeFeedColumns.collectAsStateWithLifecycle(initialValue = HomeFeedColumns.AUTO)
     val homeFeedEnabled by preferences.homeFeedEnabled.collectAsStateWithLifecycle(initialValue = true)
     val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsStateWithLifecycle(initialValue = true)
     val showAppLogoIcon by preferences.showAppLogoIcon.collectAsStateWithLifecycle(initialValue = true)
@@ -182,7 +184,7 @@ fun HomeScreen(
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val isListView = homeViewMode == HomeViewMode.LIST
-                val layoutConfig = rememberHomeLayoutConfig(maxWidth)
+                val layoutConfig = rememberHomeLayoutConfig(maxWidth, homeFeedColumns)
 
                 when {
                     !homeFeedEnabled -> {
