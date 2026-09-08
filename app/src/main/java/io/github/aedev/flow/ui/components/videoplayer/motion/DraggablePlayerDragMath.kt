@@ -24,6 +24,12 @@ private const val CORNER_VELOCITY_PROJECTION_S = 0.3f
 private const val DISMISS_FLING_VELOCITY = 2000f
 private const val DISMISS_AXIS_DOMINANCE = 3f
 
+internal fun lerpClamped(
+    start: Float,
+    stop: Float,
+    fraction: Float,
+): Float = start + (stop - start) * fraction.coerceIn(0f, 1f)
+
 internal fun expandDragZoomFor(travelPx: Float): Float {
     if (travelPx <= 0f) return 1f
     val progress = travelPx / (travelPx + EXPAND_DRAG_SOFTNESS_PX)

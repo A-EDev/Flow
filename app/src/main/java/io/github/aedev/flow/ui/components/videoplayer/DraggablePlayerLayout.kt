@@ -2,9 +2,6 @@ package io.github.aedev.flow.ui.components.videoplayer
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
@@ -23,9 +20,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
@@ -36,41 +30,27 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import coil3.compose.AsyncImage
-import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
 import io.github.aedev.flow.ui.components.videoplayer.motion.BODY_CONTENT_MAX_EXPAND_FRACTION
-import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_DISMISS_TEARDOWN_DELAY_MS
+import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerGestureHandler
+import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerGestureMetrics
 import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_RESNAP_DEBOUNCE_MS
-import io.github.aedev.flow.ui.components.videoplayer.motion.MiniPlayerBounds
+import io.github.aedev.flow.ui.components.videoplayer.motion.MiniPlayerPinchGestureHandler
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
-import io.github.aedev.flow.ui.components.videoplayer.motion.dragPressSpringSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.dragReleaseSpringSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.expandDragZoomFor
-import io.github.aedev.flow.ui.components.videoplayer.motion.miniDismissSpringSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.draggablePlayerGestures
+import io.github.aedev.flow.ui.components.videoplayer.motion.lerpClamped
+import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerPinchGesture
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
-import io.github.aedev.flow.ui.components.videoplayer.motion.resolveMiniPlayerCorner
-import io.github.aedev.flow.ui.components.videoplayer.motion.resolveMiniPlayerDismissOffset
-import io.github.aedev.flow.ui.components.videoplayer.motion.shouldCollapseOnRelease
-import io.github.aedev.flow.ui.components.videoplayer.motion.shouldEnterFullscreenFromSwipe
 import io.github.aedev.flow.ui.utils.TABLET_SMALLEST_WIDTH_DP
 import io.github.aedev.flow.ui.utils.isTabletFormFactor
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-private fun lerpFloat(
-    start: Float,
-    stop: Float,
-    fraction: Float,
-): Float = start + (stop - start) * fraction.coerceIn(0f, 1f)
 
 /**
  * Publishes the expanded player's bottom edge to the host from its own recomposition scope.
@@ -219,7 +199,7 @@ fun DraggablePlayerLayout(
                             val fraction =
                                 heightFractionOverrideState.value?.invoke()?.coerceIn(0f, 1f)
                                     ?: playerHeightFraction
-                            lerpFloat(baseVideoHeight, expandedVideoHeight, fraction)
+                            lerpClamped(baseVideoHeight, expandedVideoHeight, fraction)
                         } else {
                             expandedVideoHeight
                         }
@@ -556,39 +536,39 @@ fun DraggablePlayerLayout(
             }
 
             //  7. Video player box
-            val minXState = rememberUpdatedState(minX)
-            val maxXState = rememberUpdatedState(maxX)
-            val minYState = rememberUpdatedState(minY)
-            val maxYState = rememberUpdatedState(maxY)
-            val statusBarHState = rememberUpdatedState(statusBarHeight)
-            val targetMiniXState = rememberUpdatedState(targetMiniX)
-            val targetMiniYState = rememberUpdatedState(targetMiniY)
-            val screenWidthState = rememberUpdatedState(screenWidth)
-            val miniWidthState = rememberUpdatedState(miniWidth)
-            val marginState = rememberUpdatedState(margin)
-            val stablePhoneCenteredXState = rememberUpdatedState(stablePhoneCenteredX)
-            val tapToExpandState = rememberUpdatedState(tapToExpand)
-            val onFullscreenGestureState = rememberUpdatedState(onFullscreenGesture)
-            val isLandscapeState = rememberUpdatedState(isLandscape)
-            val isFullscreenState = rememberUpdatedState(isFullscreen)
-            val baseMiniWidthState = rememberUpdatedState(baseMiniWidth)
-            val isTabletState = rememberUpdatedState(isTablet)
-            val isFoldableState = rememberUpdatedState(isFoldable)
-            val isLargeScreenState = rememberUpdatedState(isLargeScreen)
-            val maxWideWidthState = rememberUpdatedState(maxWideWidth)
-            val screenHeightState = rememberUpdatedState(screenHeight)
-            val bottomNavPadState = rememberUpdatedState(bottomNavPad)
-            val liveGestureScaleState =
-                rememberUpdatedState<() -> Float>(
-                    {
-                        lerpFloat(
-                            1f,
-                            miniBoxWidth(baseMiniWidth * state.miniSizeScale.value)
-                                .coerceAtMost(maxWideWidth) / expandedVideoWidth.coerceAtLeast(1f),
-                            state.expandFraction.value,
-                        )
-                    },
-                )
+            val gestureMetrics = remember(state) { DraggablePlayerGestureMetrics() }
+            SideEffect {
+                gestureMetrics.minX = minX
+                gestureMetrics.maxX = maxX
+                gestureMetrics.minY = minY
+                gestureMetrics.maxY = maxY
+                gestureMetrics.statusBarHeight = statusBarHeight
+                gestureMetrics.targetMiniX = targetMiniX
+                gestureMetrics.targetMiniY = targetMiniY
+                gestureMetrics.screenWidth = screenWidth
+                gestureMetrics.screenHeight = screenHeight
+                gestureMetrics.miniWidth = miniWidth
+                gestureMetrics.baseMiniWidth = baseMiniWidth
+                gestureMetrics.maxWideWidth = maxWideWidth
+                gestureMetrics.expandedVideoWidth = expandedVideoWidth
+                gestureMetrics.clampedAspect = clampedAspect
+                gestureMetrics.margin = margin
+                gestureMetrics.bottomNavPad = bottomNavPad
+                gestureMetrics.stablePhoneCenteredX = stablePhoneCenteredX
+                gestureMetrics.isTablet = isTablet
+                gestureMetrics.isFoldable = isFoldable
+                gestureMetrics.isLargeScreen = isLargeScreen
+                gestureMetrics.isLandscape = isLandscape
+                gestureMetrics.isFullscreen = isFullscreen
+                gestureMetrics.tapToExpand = tapToExpand
+                gestureMetrics.onFullscreenGesture = onFullscreenGesture
+                gestureMetrics.onCollapseGesture = onCollapseGesture
+                gestureMetrics.onDismiss = onDismiss
+            }
+            val gestureHandler =
+                remember(state, gestureMetrics) { DraggablePlayerGestureHandler(state, gestureMetrics) }
+            val pinchHandler =
+                remember(state, gestureMetrics) { MiniPlayerPinchGestureHandler(state, gestureMetrics) }
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Box(
@@ -599,7 +579,7 @@ fun DraggablePlayerLayout(
                             Modifier
                                 .layout { measurable, constraints ->
                                     val grownHeight =
-                                        lerpFloat(currentExpandedVideoHeightProvider(), screenHeight, portraitFsFraction)
+                                        lerpClamped(currentExpandedVideoHeightProvider(), screenHeight, portraitFsFraction)
                                     val targetW =
                                         expandedVideoWidth
                                             .toInt()
@@ -624,7 +604,7 @@ fun DraggablePlayerLayout(
                                         miniBoxWidth(baseMiniWidth * state.miniSizeScale.value)
                                             .coerceAtMost(maxWideWidth)
                                     val visualScale =
-                                        lerpFloat(
+                                        lerpClamped(
                                             1f,
                                             liveMiniWidth / expandedVideoWidth.coerceAtLeast(1f),
                                             fraction,
@@ -640,12 +620,12 @@ fun DraggablePlayerLayout(
                                     scaleY = visualScale * drag
                                     val windowW = expandedVideoWidth * visualScale
                                     val windowH = size.height * visualScale
-                                    val expandedTopY = lerpFloat(statusBarHeight, 0f, portraitFsFraction)
+                                    val expandedTopY = lerpClamped(statusBarHeight, 0f, portraitFsFraction)
                                     translationX =
-                                        lerpFloat(0f, state.offsetX.value, fraction) +
+                                        lerpClamped(0f, state.offsetX.value, fraction) +
                                         windowW * (1f - drag) / 2f
                                     translationY =
-                                        lerpFloat(expandedTopY, state.offsetY.value, fraction) +
+                                        lerpClamped(expandedTopY, state.offsetY.value, fraction) +
                                         windowH * (1f - drag) / 2f
                                     shadowElevation =
                                         if (fraction > 0.95f) {
@@ -671,547 +651,8 @@ fun DraggablePlayerLayout(
                                         cornerRadius = CornerRadius(r, r),
                                     )
                                 }
-                                //  Pinch-to-resize
-                                .pointerInput("pinch") {
-                                    awaitEachGesture {
-                                        awaitFirstDown(requireUnconsumed = false)
-                                        val evt =
-                                            awaitPointerEvent(
-                                                androidx.compose.ui.input.pointer.PointerEventPass.Main,
-                                            )
-                                        val pressed = evt.changes.filter { it.pressed }
-                                        if (pressed.size < 2) return@awaitEachGesture
-                                        if (state.expandFraction.value < 0.8f) return@awaitEachGesture
-
-                                        val ptr1Id = pressed[0].id
-                                        val ptr2Id = pressed[1].id
-                                        val initialDist =
-                                            (
-                                                (pressed[0].position - pressed[1].position)
-                                                    .getDistance() * liveGestureScaleState.value()
-                                            ).coerceAtLeast(1f)
-                                        val startScale = state.miniSizeScale.value
-                                        val wideCapWidth = maxWideWidthState.value
-                                        val maxScale =
-                                            (wideCapWidth / baseMiniWidthState.value).coerceAtLeast(1f)
-                                        val snapSignal = Channel<Unit>(Channel.CONFLATED)
-                                        var pScale = startScale
-                                        var pX = state.offsetX.value
-                                        var pY = state.offsetY.value
-                                        val pinchDriver =
-                                            state.scope.launch {
-                                                for (ignored in snapSignal) {
-                                                    state.miniSizeScale.snapTo(pScale)
-                                                    state.offsetX.snapTo(pX)
-                                                    state.offsetY.snapTo(pY)
-                                                }
-                                            }
-
-                                        try {
-                                            while (true) {
-                                                val e =
-                                                    awaitPointerEvent(
-                                                        androidx.compose.ui.input.pointer.PointerEventPass.Main,
-                                                    )
-                                                val p1 =
-                                                    e.changes.firstOrNull { it.id == ptr1Id } ?: break
-                                                val p2 =
-                                                    e.changes.firstOrNull { it.id == ptr2Id } ?: break
-                                                if (!p1.pressed || !p2.pressed) {
-                                                    snapSignal.close()
-                                                    pinchDriver.cancel()
-                                                    val targetScale =
-                                                        if (state.miniSizeScale.value > 1.5f) {
-                                                            maxScale
-                                                        } else {
-                                                            1f
-                                                        }
-                                                    state.scope.launch {
-                                                        state.miniSizeScale.animateTo(
-                                                            targetScale,
-                                                            miniResizeSpringSpec,
-                                                        )
-                                                        if (targetScale <= 1f) {
-                                                            launch {
-                                                                state.offsetX.animateTo(
-                                                                    state.cachedTargetX,
-                                                                    miniResizeSpringSpec,
-                                                                )
-                                                                state.offsetY.animateTo(
-                                                                    state.cachedTargetY,
-                                                                    miniResizeSpringSpec,
-                                                                )
-                                                            }
-                                                        } else {
-                                                            if (isLargeScreenState.value) {
-                                                                val newMiniW =
-                                                                    (baseMiniWidthState.value * targetScale)
-                                                                        .coerceAtMost(wideCapWidth)
-                                                                val newMaxX =
-                                                                    (screenWidthState.value - newMiniW - marginState.value)
-                                                                        .coerceAtLeast(marginState.value)
-                                                                val clampedX =
-                                                                    state.offsetX.value
-                                                                        .coerceIn(marginState.value, newMaxX)
-                                                                launch {
-                                                                    state.offsetX.animateTo(
-                                                                        clampedX,
-                                                                        miniResizeSpringSpec,
-                                                                    )
-                                                                }
-                                                            } else {
-                                                                launch {
-                                                                    state.offsetX.animateTo(
-                                                                        stablePhoneCenteredXState.value,
-                                                                        miniResizeSpringSpec,
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                    break
-                                                }
-                                                p1.consume()
-                                                p2.consume()
-                                                val currentDist =
-                                                    (p1.position - p2.position).getDistance() *
-                                                        liveGestureScaleState.value()
-                                                val gestureScale = currentDist / initialDist
-                                                val newScale =
-                                                    (startScale * gestureScale).coerceIn(1f, maxScale)
-                                                val newMiniW =
-                                                    (baseMiniWidthState.value * newScale)
-                                                        .coerceAtMost(wideCapWidth)
-                                                val newMiniH = newMiniW * (9f / 16f)
-                                                val newMaxX =
-                                                    (screenWidthState.value - newMiniW - marginState.value)
-                                                        .coerceAtLeast(marginState.value)
-                                                val newMaxY =
-                                                    (screenHeight - newMiniH - bottomNavPad - marginState.value)
-                                                        .coerceAtLeast(minY)
-                                                val clampedX =
-                                                    when {
-                                                        isLargeScreenState.value -> {
-                                                            state.offsetX.value.coerceIn(marginState.value, newMaxX)
-                                                        }
-
-                                                        newScale > 1.5f -> {
-                                                            stablePhoneCenteredXState.value
-                                                        }
-
-                                                        else -> {
-                                                            state.offsetX.value.coerceIn(minX, newMaxX)
-                                                        }
-                                                    }
-                                                val clampedY =
-                                                    state.offsetY.value.coerceIn(minY, newMaxY)
-                                                pScale = newScale
-                                                pX = clampedX
-                                                pY = clampedY
-                                                snapSignal.trySend(Unit)
-                                            }
-                                        } finally {
-                                            snapSignal.close()
-                                            pinchDriver.cancel()
-                                        }
-                                    }
-                                }.pointerInput(Unit) {
-                                    val velocityTracker = VelocityTracker()
-                                    var lastTapTime = 0L
-                                    var singleTapJob: Job? = null
-                                    awaitEachGesture {
-                                        val gestureTargetMiniX = targetMiniXState.value
-                                        val gestureTargetMiniY = targetMiniYState.value
-
-                                        val down = awaitFirstDown(requireUnconsumed = false)
-                                        val downConsumedByChild = down.isConsumed
-
-                                        val isCollapseDrag = state.expandFraction.value < 0.4f
-                                        val isMiniDrag = state.expandFraction.value > 0.8f
-
-                                        val canSwipeToFullscreen =
-                                            isCollapseDrag &&
-                                                !isLandscapeState.value &&
-                                                !isFullscreenState.value &&
-                                                onFullscreenGestureState.value != null
-
-                                        velocityTracker.resetTracking()
-                                        velocityTracker.addPosition(down.uptimeMillis, down.position)
-
-                                        if (isCollapseDrag) {
-                                            state.scope.launch {
-                                                state.expandFraction.stop()
-                                                state.offsetX.stop()
-                                                state.offsetY.stop()
-                                                state.offsetX.snapTo(gestureTargetMiniX)
-                                                state.offsetY.snapTo(gestureTargetMiniY)
-                                            }
-                                        } else if (isMiniDrag) {
-                                            state.scope.launch {
-                                                state.offsetX.stop()
-                                                state.offsetY.stop()
-                                                state.dragScale.animateTo(
-                                                    0.97f,
-                                                    dragPressSpringSpec,
-                                                )
-                                            }
-                                        }
-
-                                        var dragPointerId = down.id
-                                        var hasCrossedSlop = !isCollapseDrag
-                                        var startDragY = 0f
-                                        var detectedDirection = 0
-
-                                        if (isCollapseDrag) {
-                                            val slop = viewConfiguration.touchSlop
-                                            while (!hasCrossedSlop) {
-                                                val event =
-                                                    awaitPointerEvent(
-                                                        androidx.compose.ui.input.pointer.PointerEventPass.Main,
-                                                    )
-                                                val change =
-                                                    event.changes
-                                                        .firstOrNull { it.id == dragPointerId }
-                                                if (change == null || !change.pressed ||
-                                                    change.isConsumed
-                                                ) {
-                                                    break
-                                                }
-                                                velocityTracker.addPosition(
-                                                    change.uptimeMillis,
-                                                    change.position,
-                                                )
-                                                val delta =
-                                                    (change.position - down.position) *
-                                                        liveGestureScaleState.value()
-                                                if (delta.y > slop &&
-                                                    delta.y > kotlin.math.abs(delta.x)
-                                                ) {
-                                                    hasCrossedSlop = true
-                                                    startDragY = delta.y
-                                                    detectedDirection = 1
-                                                    change.consume()
-                                                } else if (canSwipeToFullscreen &&
-                                                    delta.y < -slop &&
-                                                    kotlin.math.abs(delta.y) >
-                                                    kotlin.math.abs(delta.x)
-                                                ) {
-                                                    hasCrossedSlop = true
-                                                    startDragY = delta.y
-                                                    detectedDirection = -1
-                                                    change.consume()
-                                                } else if (kotlin.math.abs(delta.x) > slop) {
-                                                    break
-                                                }
-                                            }
-                                        }
-
-                                        var cumulativeDragY = startDragY
-                                        var totalMovement = 0f
-                                        val startFraction = state.expandFraction.value
-                                        var totalUpwardDrag = 0f
-
-                                        if (hasCrossedSlop) {
-                                            state.isDragging = true
-                                            val snapSignal = Channel<Unit>(Channel.CONFLATED)
-                                            var pendingFraction = state.expandFraction.value
-                                            var pendingX = state.offsetX.value
-                                            var pendingY = state.offsetY.value
-                                            var pendingMode = 0
-                                            var pendingExpandScale = 1f
-                                            val snapDriver =
-                                                state.scope.launch {
-                                                    for (ignored in snapSignal) {
-                                                        when (pendingMode) {
-                                                            0 -> {
-                                                                state.expandFraction.snapTo(pendingFraction)
-                                                            }
-
-                                                            2 -> {
-                                                                state.expandDragScale.snapTo(pendingExpandScale)
-                                                            }
-
-                                                            else -> {
-                                                                state.offsetX.snapTo(pendingX)
-                                                                state.offsetY.snapTo(pendingY)
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            try {
-                                                drag(dragPointerId) { change ->
-                                                    val delta =
-                                                        change.positionChange() *
-                                                            liveGestureScaleState.value()
-                                                    totalMovement += delta.getDistance()
-                                                    velocityTracker.addPosition(
-                                                        change.uptimeMillis,
-                                                        change.position,
-                                                    )
-
-                                                    if (isCollapseDrag && detectedDirection == 1) {
-                                                        change.consume()
-                                                        cumulativeDragY += delta.y
-                                                        val collapseTravel =
-                                                            (targetMiniYState.value - statusBarHState.value).coerceAtLeast(1f)
-                                                        val rawFraction =
-                                                            (
-                                                                startFraction +
-                                                                    cumulativeDragY / collapseTravel
-                                                            ).coerceIn(0f, 1f)
-                                                        pendingFraction = rawFraction
-                                                        pendingMode = 0
-                                                        snapSignal.trySend(Unit)
-                                                    } else if (isCollapseDrag &&
-                                                        detectedDirection == -1
-                                                    ) {
-                                                        change.consume()
-                                                        totalUpwardDrag += -delta.y
-                                                        pendingExpandScale =
-                                                            expandDragZoomFor(totalUpwardDrag)
-                                                        pendingMode = 2
-                                                        snapSignal.trySend(Unit)
-                                                    } else if (isMiniDrag) {
-                                                        if (totalMovement >
-                                                            viewConfiguration.touchSlop * 0.5f
-                                                        ) {
-                                                            change.consume()
-                                                            val currentMinX = minXState.value
-                                                            val currentMaxX = maxXState.value
-                                                            val currentMinY = minYState.value
-                                                            val currentMaxY = maxYState.value
-                                                            val rawY = state.offsetY.value + delta.y
-                                                            val clampedY = rawY.coerceIn(currentMinY, currentMaxY)
-
-                                                            when {
-                                                                state.isInlineMode && !isLargeScreenState.value -> {
-                                                                    pendingX = stablePhoneCenteredXState.value
-                                                                    pendingY = clampedY
-                                                                    pendingMode = 1
-                                                                    snapSignal.trySend(Unit)
-                                                                }
-
-                                                                else -> {
-                                                                    val rawX =
-                                                                        state.offsetX.value + delta.x
-                                                                    val clampedX =
-                                                                        rawX.coerceIn(currentMinX, currentMaxX)
-                                                                    pendingX = clampedX
-                                                                    pendingY = clampedY
-                                                                    pendingMode = 1
-                                                                    snapSignal.trySend(Unit)
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            } finally {
-                                                snapSignal.close()
-                                                snapDriver.cancel()
-                                                state.isDragging = false
-                                                state.scope.launch {
-                                                    state.dragScale.animateTo(
-                                                        1f,
-                                                        dragReleaseSpringSpec,
-                                                    )
-                                                }
-                                                state.scope.launch {
-                                                    state.expandDragScale.animateTo(
-                                                        1f,
-                                                        dragReleaseSpringSpec,
-                                                    )
-                                                }
-                                            }
-                                        } else {
-                                            try {
-                                                while (true) {
-                                                    val event =
-                                                        awaitPointerEvent(
-                                                            androidx.compose.ui.input.pointer.PointerEventPass.Main,
-                                                        )
-                                                    if (event.changes.all { !it.pressed }) break
-                                                }
-                                            } finally {
-                                                state.isDragging = false
-                                            }
-                                        }
-
-                                        if (isMiniDrag && totalMovement < 24f) {
-                                            if (!downConsumedByChild && tapToExpandState.value) {
-                                                val now = down.uptimeMillis
-                                                if (now - lastTapTime < 300L) {
-                                                    singleTapJob?.cancel()
-                                                    lastTapTime = 0L
-                                                    if (state.isInlineMode) {
-                                                        state.shrinkToCorner(
-                                                            baseMiniWidth = baseMiniWidthState.value,
-                                                            screenWidth = screenWidthState.value,
-                                                            margin = marginState.value,
-                                                            minY = minYState.value,
-                                                            screenHeight = screenHeightState.value,
-                                                            bottomNavPad = bottomNavPadState.value,
-                                                        )
-                                                    } else {
-                                                        state.expandWide(
-                                                            screenWidth = screenWidthState.value,
-                                                            margin = marginState.value,
-                                                            baseMiniWidth = baseMiniWidthState.value,
-                                                            screenHeight = screenHeightState.value,
-                                                            minY = minYState.value,
-                                                            bottomNavPad = bottomNavPadState.value,
-                                                            isTablet = isTabletState.value,
-                                                            isFoldable = isFoldableState.value,
-                                                        )
-                                                    }
-                                                } else {
-                                                    lastTapTime = now
-                                                    singleTapJob =
-                                                        state.scope.launch {
-                                                            kotlinx.coroutines.delay(300L)
-                                                            state.expand()
-                                                        }
-                                                }
-                                            }
-                                            return@awaitEachGesture
-                                        }
-
-                                        if (isCollapseDrag && detectedDirection == -1) {
-                                            val velY =
-                                                velocityTracker.calculateVelocity().y *
-                                                    liveGestureScaleState.value()
-                                            if (shouldEnterFullscreenFromSwipe(totalUpwardDrag, velY)) {
-                                                onFullscreenGestureState.value?.invoke()
-                                            }
-                                            return@awaitEachGesture
-                                        }
-
-                                        if (isCollapseDrag) {
-                                            val velY =
-                                                velocityTracker.calculateVelocity().y *
-                                                    liveGestureScaleState.value()
-                                            if (shouldCollapseOnRelease(state.expandFraction.value, velY)) {
-                                                onCollapseGesture?.invoke()
-                                                GlobalPlayerState.showMiniPlayer()
-                                                state.collapse()
-                                            } else {
-                                                state.expand()
-                                            }
-                                            return@awaitEachGesture
-                                        }
-
-                                        if (!isMiniDrag) return@awaitEachGesture
-
-                                        val velocity = velocityTracker.calculateVelocity()
-                                        val velocityScale = liveGestureScaleState.value()
-                                        val velY = velocity.y * velocityScale
-                                        val velX = velocity.x * velocityScale
-                                        val currentX = state.offsetX.value
-                                        val currentY = state.offsetY.value
-                                        val currentMinX = minXState.value
-                                        val currentMaxX = maxXState.value
-                                        val currentMinY = minYState.value
-                                        val currentMaxY = maxYState.value
-
-                                        val bounds =
-                                            MiniPlayerBounds(
-                                                minX = currentMinX,
-                                                maxX = currentMaxX,
-                                                minY = currentMinY,
-                                                maxY = currentMaxY,
-                                            )
-                                        val newCorner =
-                                            resolveMiniPlayerCorner(
-                                                current = state.corner,
-                                                currentX = currentX,
-                                                currentY = currentY,
-                                                bounds = bounds,
-                                                scaledVelocityX = velX,
-                                                scaledVelocityY = velY,
-                                            )
-
-                                        if (state.isInlineMode) {
-                                            state.corner = newCorner
-                                            if (isLargeScreenState.value) {
-                                                state.scope.launch {
-                                                    launch {
-                                                        state.offsetX.animateTo(
-                                                            cornerTargetX(newCorner, currentMinX, currentMaxX),
-                                                            miniSnapSpringSpec,
-                                                            initialVelocity = velX,
-                                                        )
-                                                    }
-                                                    launch {
-                                                        state.offsetY.animateTo(
-                                                            cornerTargetY(newCorner, currentMinY, currentMaxY),
-                                                            miniSnapSpringSpec,
-                                                            initialVelocity = velY,
-                                                        )
-                                                    }
-                                                }
-                                            } else {
-                                                state.scope.launch {
-                                                    launch {
-                                                        state.offsetX.animateTo(
-                                                            stablePhoneCenteredXState.value,
-                                                            miniSnapSpringSpec,
-                                                        )
-                                                    }
-                                                    launch {
-                                                        state.offsetY.animateTo(
-                                                            cornerTargetY(newCorner, currentMinY, currentMaxY),
-                                                            miniSnapSpringSpec,
-                                                            initialVelocity = velY,
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            return@awaitEachGesture
-                                        }
-
-                                        val dismissOffsetX =
-                                            resolveMiniPlayerDismissOffset(
-                                                targetCorner = newCorner,
-                                                currentX = currentX,
-                                                bounds = bounds,
-                                                scaledVelocityX = velX,
-                                                scaledVelocityY = velY,
-                                                screenWidth = screenWidthState.value,
-                                                miniWidth = miniWidthState.value,
-                                                margin = marginState.value,
-                                            )
-                                        if (dismissOffsetX != null) {
-                                            state.scope.launch {
-                                                launch {
-                                                    state.offsetX.animateTo(
-                                                        dismissOffsetX,
-                                                        miniDismissSpringSpec,
-                                                        initialVelocity = velX,
-                                                    )
-                                                }
-                                                kotlinx.coroutines.delay(MINI_DISMISS_TEARDOWN_DELAY_MS)
-                                                onDismiss()
-                                            }
-                                        } else {
-                                            state.corner = newCorner
-                                            state.scope.launch {
-                                                launch {
-                                                    state.offsetX.animateTo(
-                                                        cornerTargetX(newCorner, currentMinX, currentMaxX),
-                                                        miniSnapSpringSpec,
-                                                        initialVelocity = velX,
-                                                    )
-                                                }
-                                                launch {
-                                                    state.offsetY.animateTo(
-                                                        cornerTargetY(newCorner, currentMinY, currentMaxY),
-                                                        miniSnapSpringSpec,
-                                                        initialVelocity = velY,
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                .miniPlayerPinchGesture(pinchHandler)
+                                .draggablePlayerGestures(gestureHandler)
                         },
                 ) {
                     videoContent(Modifier.fillMaxSize())
@@ -1232,7 +673,7 @@ fun DraggablePlayerLayout(
                                         val controlsProgress =
                                             ((state.expandFraction.value - 0.6f) / 0.25f).coerceIn(0f, 1f)
                                         transformOrigin = TransformOrigin(0f, 0f)
-                                        val pop = lerpFloat(0.96f, 1f, controlsProgress)
+                                        val pop = lerpClamped(0.96f, 1f, controlsProgress)
                                         scaleX = controlsScale * pop
                                         scaleY = controlsScale * pop
                                         alpha = controlsProgress
