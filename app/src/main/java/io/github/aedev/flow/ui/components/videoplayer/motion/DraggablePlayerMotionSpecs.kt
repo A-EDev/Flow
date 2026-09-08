@@ -18,6 +18,14 @@ internal const val BODY_CONTENT_MAX_EXPAND_FRACTION = 0.22f
 /** How far the page under the video slides down, in px, over a full collapse. */
 internal const val BODY_SLIDE_PX = 80f
 
+/**
+ * Expansion fractions past which the expanded-only surfaces are composed (below) or dropped
+ * (above) once the sheet is at rest. A drag released this close to an anchor has almost no
+ * travel left, so the one long frame the change costs lands off the visible motion.
+ */
+internal const val EXPANDED_SURFACES_MOUNT_FRACTION = 0.05f
+internal const val EXPANDED_SURFACES_UNMOUNT_FRACTION = 0.95f
+
 /** Delay before an off-target mini player is nudged back to its resting corner. */
 internal const val MINI_RESNAP_DEBOUNCE_MS = 50L
 

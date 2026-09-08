@@ -130,6 +130,41 @@ class PlayerDraggableStateTest {
         }
 
     @Test
+    fun `isSettled waits for the finger, the fraction, the offsets and the dip`() =
+        runTest {
+            val state = newState(collapsed = false)
+            state.cachedTargetX = 570f
+            state.cachedTargetY = 2200f
+            state.settleDipPx = 132f
+            assertThat(state.isSettled).isTrue()
+
+            state.collapse()
+            pumpFrames(4)
+            assertThat(state.isSettled).isFalse()
+
+            var frames = 0
+            var fractionLandedWhileMoving = false
+            while (frames < 600) {
+                runCurrent()
+                if (state.isSettled) break
+                if (!state.expandFraction.isRunning && state.settleDip.isRunning) fractionLandedWhileMoving = true
+                frameNanos += FRAME_NANOS
+                clock.sendFrame(frameNanos)
+                testScheduler.advanceTimeBy(FRAME_NANOS / 1_000_000)
+                frames++
+            }
+            runCurrent()
+
+            assertThat(fractionLandedWhileMoving).isTrue()
+            assertThat(state.isSettled).isTrue()
+            assertThat(state.settleDip.value).isEqualTo(0f)
+
+            state.isDragging = true
+            assertThat(state.isSettled).isFalse()
+            state.scope.cancel()
+        }
+
+    @Test
     fun `expand clears a settle dip that is still running`() =
         runTest {
             val state = newState(collapsed = false)

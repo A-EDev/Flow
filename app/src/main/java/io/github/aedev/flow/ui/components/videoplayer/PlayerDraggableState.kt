@@ -58,6 +58,18 @@ class PlayerDraggableState(
     val settleDip = Animatable(0f)
     var settleDipPx = 0f
 
+    /** True only while no finger is down and nothing on the sheet is still moving. */
+    val isSettled: Boolean
+        get() =
+            !isDragging &&
+                !expandFraction.isRunning &&
+                !offsetX.isRunning &&
+                !offsetY.isRunning &&
+                !settleDip.isRunning &&
+                !miniSizeScale.isRunning &&
+                !dragScale.isRunning &&
+                !expandDragScale.isRunning
+
     internal val motion =
         DraggablePlayerMotionController(
             offsetX = offsetX,
