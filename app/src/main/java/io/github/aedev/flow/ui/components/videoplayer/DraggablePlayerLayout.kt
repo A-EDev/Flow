@@ -44,6 +44,9 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerPinchGest
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerTapGestures
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
+import io.github.aedev.flow.ui.theme.PlayerGround
+import io.github.aedev.flow.ui.theme.PlayerMiniProgress
+import io.github.aedev.flow.ui.theme.PlayerScrimImmersiveBackdrop
 import io.github.aedev.flow.ui.utils.TABLET_SMALLEST_WIDTH_DP
 import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import kotlinx.coroutines.launch
@@ -52,6 +55,13 @@ import kotlin.math.roundToInt
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Corner radius of the floating mini player, authored pre-scale: the video box is clipped by the
+ * PlayerView outline at `radius / miniVisualScale` so the morph's graphicsLayer scale brings it
+ * back to this on screen.
+ */
+const val MINI_PLAYER_CORNER_RADIUS_DP = 12f
 
 /**
  * Publishes the expanded player's bottom edge to the host from its own recomposition scope.
@@ -412,7 +422,7 @@ fun DraggablePlayerLayout(
 
             // 4. Immersive fullscreen background
             if (showImmersiveFullscreen) {
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+                Box(modifier = Modifier.fillMaxSize().background(PlayerGround))
                 if (!thumbnailUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = thumbnailUrl,
@@ -425,7 +435,7 @@ fun DraggablePlayerLayout(
                         modifier =
                             Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.45f)),
+                                .background(PlayerScrimImmersiveBackdrop),
                     )
                 }
             }
@@ -449,7 +459,7 @@ fun DraggablePlayerLayout(
                             Modifier
                                 .fillMaxWidth()
                                 .height(with(density) { statusBarHeight.toDp() })
-                                .background(Color.Black),
+                                .background(PlayerGround),
                     )
                     Box(
                         modifier =
@@ -612,19 +622,19 @@ fun DraggablePlayerLayout(
                                         }
                                     shape =
                                         RoundedCornerShape(
-                                            if (fraction > 0.1f) (12f / visualMiniScale).dp else 0.dp,
+                                            if (fraction > 0.1f) (MINI_PLAYER_CORNER_RADIUS_DP / visualMiniScale).dp else 0.dp,
                                         )
                                     clip = false
                                 }.drawBehind {
                                     val fraction = state.expandFraction.value
                                     val r =
                                         if (fraction > 0.1f) {
-                                            (12f / visualMiniScale).dp.toPx()
+                                            (MINI_PLAYER_CORNER_RADIUS_DP / visualMiniScale).dp.toPx()
                                         } else {
                                             0f
                                         }
                                     drawRoundRect(
-                                        color = Color.Black,
+                                        color = PlayerGround,
                                         cornerRadius = CornerRadius(r, r),
                                     )
                                 }
@@ -660,7 +670,7 @@ fun DraggablePlayerLayout(
                                         scaleY = controlsScale * pop
                                         alpha = controlsProgress
                                         compositingStrategy = CompositingStrategy.ModulateAlpha
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(MINI_PLAYER_CORNER_RADIUS_DP.dp)
                                         clip = true
                                     },
                         ) {
@@ -679,7 +689,7 @@ fun DraggablePlayerLayout(
                                                     .coerceIn(0f, 1f)
                                             compositingStrategy = CompositingStrategy.ModulateAlpha
                                         },
-                                color = Color.Red,
+                                color = PlayerMiniProgress,
                                 trackColor = Color.Transparent,
                             )
                         }

@@ -35,6 +35,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimMiniButton
+import io.github.aedev.flow.ui.theme.PlayerScrimMiniTopButton
 
 /**
  * Mini Player Controls - Dynamically arranges Play/Pause, Rewind/FastForward, and Next/Previous.
@@ -79,13 +82,13 @@ internal fun MiniPlayerControls(
         ) {
             MiniPlayerButtonBackground(
                 backgroundSize = topBgSize,
-                backgroundAlpha = 0.28f,
+                backgroundColor = PlayerScrimMiniTopButton,
             ) {
                 if (playerState.isBuffering) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(if (isTablet) 30.dp else 24.dp),
                         strokeWidth = 2.dp,
-                        color = Color.White,
+                        color = PlayerScrimContent,
                     )
                 } else {
                     Icon(
@@ -101,7 +104,7 @@ internal fun MiniPlayerControls(
                                 playerState.playWhenReady -> stringResource(R.string.pause)
                                 else -> stringResource(R.string.play)
                             },
-                        tint = Color.White,
+                        tint = PlayerScrimContent,
                         modifier = Modifier.size(if (isTablet) 42.dp else 34.dp),
                     )
                 }
@@ -122,12 +125,12 @@ internal fun MiniPlayerControls(
         ) {
             MiniPlayerButtonBackground(
                 backgroundSize = topBgSize,
-                backgroundAlpha = 0.28f,
+                backgroundColor = PlayerScrimMiniTopButton,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = stringResource(R.string.close),
-                    tint = Color.White,
+                    tint = PlayerScrimContent,
                     modifier = Modifier.size(if (isTablet) 34.dp else 30.dp),
                 )
             }
@@ -208,7 +211,7 @@ private fun MiniPlayerIconButton(
             Icon(
                 imageVector = imageVector,
                 contentDescription = contentDescription,
-                tint = Color.White,
+                tint = PlayerScrimContent,
                 modifier = Modifier.size(iconSize),
             )
         }
@@ -218,14 +221,14 @@ private fun MiniPlayerIconButton(
 @Composable
 private fun MiniPlayerButtonBackground(
     backgroundSize: Dp,
-    backgroundAlpha: Float = 0.36f,
+    backgroundColor: Color = PlayerScrimMiniButton,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
         modifier =
             Modifier
                 .size(backgroundSize)
-                .background(Color.Black.copy(alpha = backgroundAlpha), CircleShape),
+                .background(backgroundColor, CircleShape),
         contentAlignment = Alignment.Center,
         content = content,
     )
