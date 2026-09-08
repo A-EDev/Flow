@@ -111,18 +111,40 @@ internal fun resolveMiniPlayerCorner(
     val goLeft =
         when {
             abs(scaledVelocityX) > CORNER_FLING_VELOCITY &&
-                abs(scaledVelocityX) > abs(scaledVelocityY) * CORNER_FLING_AXIS_DOMINANCE -> scaledVelocityX < 0
-            wasLeft && projectedDeltaX > switchThresholdX -> false
-            !wasLeft && projectedDeltaX < -switchThresholdX -> true
-            else -> wasLeft
+                abs(scaledVelocityX) > abs(scaledVelocityY) * CORNER_FLING_AXIS_DOMINANCE -> {
+                scaledVelocityX < 0
+            }
+
+            wasLeft && projectedDeltaX > switchThresholdX -> {
+                false
+            }
+
+            !wasLeft && projectedDeltaX < -switchThresholdX -> {
+                true
+            }
+
+            else -> {
+                wasLeft
+            }
         }
     val goTop =
         when {
             abs(scaledVelocityY) > CORNER_FLING_VELOCITY &&
-                abs(scaledVelocityY) > abs(scaledVelocityX) * CORNER_FLING_AXIS_DOMINANCE -> scaledVelocityY < 0
-            wasTop && projectedDeltaY > switchThresholdY -> false
-            !wasTop && projectedDeltaY < -switchThresholdY -> true
-            else -> wasTop
+                abs(scaledVelocityY) > abs(scaledVelocityX) * CORNER_FLING_AXIS_DOMINANCE -> {
+                scaledVelocityY < 0
+            }
+
+            wasTop && projectedDeltaY > switchThresholdY -> {
+                false
+            }
+
+            !wasTop && projectedDeltaY < -switchThresholdY -> {
+                true
+            }
+
+            else -> {
+                wasTop
+            }
         }
     return cornerFor(left = goLeft, top = goTop)
 }

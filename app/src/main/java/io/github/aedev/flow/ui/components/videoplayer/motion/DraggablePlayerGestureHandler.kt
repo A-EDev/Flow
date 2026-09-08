@@ -115,8 +115,14 @@ internal class DraggablePlayerGestureHandler(
                 state.scope.launch {
                     for (ignored in snapSignal) {
                         when (pendingMode) {
-                            DRAG_MODE_FRACTION -> state.expandFraction.snapTo(pendingFraction)
-                            DRAG_MODE_EXPAND_SCALE -> state.expandDragScale.snapTo(pendingExpandScale)
+                            DRAG_MODE_FRACTION -> {
+                                state.expandFraction.snapTo(pendingFraction)
+                            }
+
+                            DRAG_MODE_EXPAND_SCALE -> {
+                                state.expandDragScale.snapTo(pendingExpandScale)
+                            }
+
                             else -> {
                                 state.offsetX.snapTo(pendingX)
                                 state.offsetY.snapTo(pendingY)

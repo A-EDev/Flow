@@ -65,14 +65,21 @@ internal fun computeDraggablePlayerGeometry(
 ): DraggablePlayerGeometry {
     val effectiveMiniScale =
         when {
-            isTablet ->
+            isTablet -> {
                 when {
                     smallestScreenWidthDp >= TABLET_LARGE_SW_DP -> 0.32f
                     smallestScreenWidthDp >= TABLET_MEDIUM_SW_DP -> 0.35f
                     else -> 0.38f
                 }
-            isFoldable -> 0.42f
-            else -> miniPlayerScale
+            }
+
+            isFoldable -> {
+                0.42f
+            }
+
+            else -> {
+                miniPlayerScale
+            }
         }
     val baseMiniWidth = screenWidth * effectiveMiniScale
     val maxWideFraction =
