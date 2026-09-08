@@ -15,6 +15,9 @@ internal val portraitFullscreenSettleSpec = spring<Float>(dampingRatio = 1f, sti
 /** Expansion fraction past which the body panel is fully transparent. */
 internal const val BODY_CONTENT_MAX_EXPAND_FRACTION = 0.22f
 
+/** How far the page under the video slides down, in px, over a full collapse. */
+internal const val BODY_SLIDE_PX = 80f
+
 /** Delay before an off-target mini player is nudged back to its resting corner. */
 internal const val MINI_RESNAP_DEBOUNCE_MS = 50L
 

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import io.github.aedev.flow.ui.components.videoplayer.motion.BODY_CONTENT_MAX_EXPAND_FRACTION
+import io.github.aedev.flow.ui.components.videoplayer.motion.BODY_SLIDE_PX
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerGestureHandler
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerGestureMetrics
 import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_RESNAP_DEBOUNCE_MS
@@ -259,18 +260,20 @@ fun DraggablePlayerLayout(
                                     val topPad = bodyPaddingTopProvider().roundToInt().coerceAtLeast(0)
                                     val placeable = measurable.measure(constraints.offset(vertical = -topPad))
                                     layout(constraints.maxWidth, constraints.maxHeight) {
-                                        placeable.place(0, topPad)
+                                        // The slide is a placement offset, not a layer translation: a
+                                        // positional layer transform makes Compose re-walk every node
+                                        // of this page's subtree on each frame of the sheet motion.
+                                        val fraction = state.expandFraction.value
+                                        val slide =
+                                            if (fraction > 0.999f) {
+                                                placeable.height.toFloat()
+                                            } else {
+                                                fraction * BODY_SLIDE_PX + portraitFsFraction * screenHeight
+                                            }
+                                        placeable.place(0, topPad + slide.roundToInt())
                                     }
                                 }.graphicsLayer {
-                                    val pf = portraitFsFraction
-                                    val fraction = state.expandFraction.value
-                                    alpha = bodyAlphaProvider() * (1f - pf)
-                                    translationY =
-                                        if (fraction > 0.999f) {
-                                            size.height
-                                        } else {
-                                            fraction * 80f + pf * screenHeight
-                                        }
+                                    alpha = bodyAlphaProvider() * (1f - portraitFsFraction)
                                     compositingStrategy = CompositingStrategy.ModulateAlpha
                                 }.nestedScroll(nestedScrollConnection),
                     ) {
