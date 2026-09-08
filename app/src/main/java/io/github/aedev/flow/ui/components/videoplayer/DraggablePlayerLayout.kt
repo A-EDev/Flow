@@ -1,9 +1,6 @@
 package io.github.aedev.flow.ui.components.videoplayer
 
 import android.content.res.Configuration
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -41,13 +38,28 @@ import androidx.compose.ui.unit.offset
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
+import io.github.aedev.flow.ui.components.videoplayer.motion.BODY_CONTENT_MAX_EXPAND_FRACTION
+import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_DISMISS_TEARDOWN_DELAY_MS
+import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_RESNAP_DEBOUNCE_MS
+import io.github.aedev.flow.ui.components.videoplayer.motion.MiniPlayerBounds
+import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
+import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
+import io.github.aedev.flow.ui.components.videoplayer.motion.dragPressSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.dragReleaseSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.expandDragZoomFor
+import io.github.aedev.flow.ui.components.videoplayer.motion.miniDismissSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.resolveMiniPlayerCorner
+import io.github.aedev.flow.ui.components.videoplayer.motion.resolveMiniPlayerDismissOffset
+import io.github.aedev.flow.ui.components.videoplayer.motion.shouldCollapseOnRelease
+import io.github.aedev.flow.ui.components.videoplayer.motion.shouldEnterFullscreenFromSwipe
 import io.github.aedev.flow.ui.utils.TABLET_SMALLEST_WIDTH_DP
 import io.github.aedev.flow.ui.utils.isTabletFormFactor
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // ---------------------------------------------------------------------------
@@ -82,269 +94,6 @@ private fun ReportExpandedPlayerBottom(
     }
     val currentOnChanged by rememberUpdatedState(onChanged)
     SideEffect { currentOnChanged(bottom) }
-}
-
-enum class PlayerSheetValue { Expanded, Collapsed }
-
-enum class MiniPlayerCorner { TopLeft, TopRight, BottomLeft, BottomRight }
-
-private val playerExpandSpringSpec = spring<Float>(dampingRatio = 0.86f, stiffness = 520f)
-private val miniSnapSpringSpec = spring<Float>(dampingRatio = 0.82f, stiffness = 500f)
-private val miniResizeSpringSpec = spring<Float>(dampingRatio = 0.72f, stiffness = 280f)
-private val miniDismissSpringSpec = spring<Float>(dampingRatio = 0.9f, stiffness = 340f)
-
-/** Upward travel that commits to fullscreen; mirrors the release check below. */
-private const val EXPAND_DRAG_COMMIT_PX = 80f
-
-/** How hard the zoom resists — smaller reaches the ceiling sooner. */
-private const val EXPAND_DRAG_SOFTNESS_PX = 60f
-
-/** Ceiling the zoom approaches but never reaches, so the drag always has somewhere to go. */
-private const val EXPAND_DRAG_MAX_ZOOM = 1.06f
-
-private fun expandDragZoomFor(travelPx: Float): Float {
-    if (travelPx <= 0f) return 1f
-    val progress = travelPx / (travelPx + EXPAND_DRAG_SOFTNESS_PX)
-    return 1f + (EXPAND_DRAG_MAX_ZOOM - 1f) * progress
-}
-
-private val dragPressSpringSpec = spring<Float>(dampingRatio = 0.7f, stiffness = 600f)
-private val dragReleaseSpringSpec = spring<Float>(dampingRatio = 0.55f, stiffness = 500f)
-private val portraitFsSettleSpec = spring<Float>(dampingRatio = 1f, stiffness = 360f)
-private const val BODY_CONTENT_MAX_EXPAND_FRACTION = 0.22f
-
-private fun playerExpandSpring() = playerExpandSpringSpec
-
-private fun miniSnapSpring() = miniSnapSpringSpec
-
-private fun miniResizeSpring() = miniResizeSpringSpec
-
-private fun miniDismissSpring() = miniDismissSpringSpec
-
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
-
-class PlayerDraggableState(
-    val offsetX: Animatable<Float, AnimationVector1D>,
-    val offsetY: Animatable<Float, AnimationVector1D>,
-    val expandFraction: Animatable<Float, AnimationVector1D>,
-    val scope: CoroutineScope,
-) {
-    var corner by mutableStateOf(MiniPlayerCorner.BottomRight)
-    var isDragging by mutableStateOf(false)
-    val dragScale = Animatable(1f)
-
-    /**
-     * Zoom applied while dragging up to enter fullscreen. Separate from [dragScale] so the
-     * mini-player's press effect and this cannot overwrite each other; they apply at opposite ends
-     * of [expandFraction] and are read in the draw phase only.
-     */
-    val expandDragScale = Animatable(1f)
-
-    var cachedTargetX by mutableFloatStateOf(0f)
-    var cachedTargetY by mutableFloatStateOf(0f)
-
-    val miniSizeScale = Animatable(1f)
-    var isShrinkingToCorner by mutableStateOf(false)
-
-    var miniVisualScale by mutableFloatStateOf(1f)
-
-    /** True while the floating mini player is in wide (enlarged) mode. */
-    val isInlineMode: Boolean get() = miniSizeScale.value > 1.5f
-
-    private val currentValueState =
-        derivedStateOf {
-            if (expandFraction.targetValue > 0.5f) {
-                PlayerSheetValue.Collapsed
-            } else {
-                PlayerSheetValue.Expanded
-            }
-        }
-
-    val currentValue: PlayerSheetValue get() = currentValueState.value
-
-    val fraction: Float get() = expandFraction.value
-
-    fun expand() {
-        corner = MiniPlayerCorner.BottomRight
-        scope.launch {
-            isShrinkingToCorner = false
-            val anim = playerExpandSpring()
-            launch { miniSizeScale.animateTo(1f, anim) }
-            launch { expandFraction.animateTo(0f, anim) }
-            launch { offsetX.animateTo(0f, anim) }
-            launch { offsetY.animateTo(0f, anim) }
-        }
-    }
-
-    /**
-     * Expand the floating mini player to wide mode.
-     */
-    fun expandWide(
-        screenWidth: Float = 0f,
-        margin: Float = 0f,
-        baseMiniWidth: Float = 0f,
-        screenHeight: Float = 0f,
-        minY: Float = 0f,
-        bottomNavPad: Float = 0f,
-        isTablet: Boolean = false,
-        isFoldable: Boolean = false,
-    ) {
-        val maxWideFraction =
-            when {
-                isFoldable -> 0.55f
-                isTablet -> 0.60f
-                else -> 1.00f
-            }
-        val maxWideWidth =
-            ((screenWidth * maxWideFraction) - (margin * 2f))
-                .coerceAtLeast(baseMiniWidth)
-        val effectiveBase = baseMiniWidth.coerceAtLeast(1f)
-        val targetScale = (maxWideWidth / effectiveBase).coerceAtLeast(1f)
-        val targetWidth = (effectiveBase * targetScale).coerceAtMost(maxWideWidth)
-        val targetHeight = targetWidth * (9f / 16f)
-        val targetMaxY =
-            if (screenHeight > 0f) {
-                (screenHeight - targetHeight - bottomNavPad - margin).coerceAtLeast(minY)
-            } else {
-                offsetY.value
-            }
-
-        val isLargeScreen = isTablet || isFoldable
-        val targetX =
-            if (isLargeScreen) {
-                val newMaxX =
-                    (screenWidth - targetWidth - margin)
-                        .coerceAtLeast(margin)
-                offsetX.value.coerceIn(margin, newMaxX)
-            } else {
-                ((screenWidth - targetWidth) / 2f).coerceAtLeast(margin)
-            }
-        val targetY =
-            if (screenHeight > 0f) {
-                offsetY.value.coerceIn(minY, targetMaxY)
-            } else {
-                offsetY.value
-            }
-
-        scope.launch {
-            isShrinkingToCorner = false
-            launch {
-                miniSizeScale.animateTo(
-                    targetScale,
-                    miniResizeSpring(),
-                )
-            }
-            launch {
-                offsetX.animateTo(
-                    targetX,
-                    miniResizeSpring(),
-                )
-            }
-            launch {
-                offsetY.animateTo(
-                    targetY,
-                    miniResizeSpring(),
-                )
-            }
-        }
-    }
-
-    fun collapse() {
-        scope.launch {
-            isShrinkingToCorner = false
-            val anim = playerExpandSpring()
-            if (cachedTargetX == 0f && cachedTargetY == 0f) {
-                expandFraction.snapTo(1f)
-            } else {
-                launch { expandFraction.animateTo(1f, anim) }
-                launch { offsetX.animateTo(cachedTargetX, anim) }
-                launch { offsetY.animateTo(cachedTargetY, anim) }
-            }
-            launch { miniSizeScale.animateTo(1f, anim) }
-        }
-    }
-
-    fun shrinkToCorner(
-        baseMiniWidth: Float,
-        screenWidth: Float,
-        margin: Float,
-        minY: Float,
-        screenHeight: Float,
-        bottomNavPad: Float,
-    ) {
-        val normalMiniWidth = baseMiniWidth
-        val normalMiniHeight = normalMiniWidth * (9f / 16f)
-        val normalMaxX = (screenWidth - normalMiniWidth - margin).coerceAtLeast(margin)
-        val normalMaxY = (screenHeight - normalMiniHeight - bottomNavPad - margin).coerceAtLeast(minY)
-
-        val targetX =
-            when (corner) {
-                MiniPlayerCorner.TopLeft,
-                MiniPlayerCorner.BottomLeft,
-                -> margin
-
-                MiniPlayerCorner.TopRight,
-                MiniPlayerCorner.BottomRight,
-                -> normalMaxX
-            }
-        val targetY =
-            when (corner) {
-                MiniPlayerCorner.TopLeft,
-                MiniPlayerCorner.TopRight,
-                -> minY
-
-                MiniPlayerCorner.BottomLeft,
-                MiniPlayerCorner.BottomRight,
-                -> normalMaxY
-            }
-
-        cachedTargetX = targetX
-        cachedTargetY = targetY
-        scope.launch {
-            isShrinkingToCorner = true
-            val anim = miniResizeSpring()
-            try {
-                val jobs =
-                    listOf(
-                        launch { miniSizeScale.animateTo(1f, anim) },
-                        launch { offsetX.animateTo(targetX, anim) },
-                        launch { offsetY.animateTo(targetY, anim) },
-                    )
-                jobs.forEach { it.join() }
-            } finally {
-                isShrinkingToCorner = false
-            }
-        }
-    }
-
-    fun snapTo(target: PlayerSheetValue) {
-        scope.launch {
-            val targetF = if (target == PlayerSheetValue.Collapsed) 1f else 0f
-            expandFraction.snapTo(targetF)
-            if (target == PlayerSheetValue.Expanded) {
-                offsetX.snapTo(0f)
-                offsetY.snapTo(0f)
-            }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Remember helper
-// ---------------------------------------------------------------------------
-
-@Composable
-fun rememberPlayerDraggableState(): PlayerDraggableState {
-    val scope = rememberCoroutineScope()
-    val offsetX = remember { Animatable(0f) }
-    val offsetY = remember { Animatable(0f) }
-    val expandFraction = remember { Animatable(1f) }
-
-    return remember {
-        PlayerDraggableState(offsetX, offsetY, expandFraction, scope)
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -392,7 +141,7 @@ fun DraggablePlayerLayout(
             androidx.compose.animation.core.animate(
                 initialValue = portraitFsFraction,
                 targetValue = 0f,
-                animationSpec = portraitFsSettleSpec,
+                animationSpec = portraitFullscreenSettleSpec,
             ) { value, _ -> portraitFsFraction = value }
         }
     }
@@ -506,54 +255,17 @@ fun DraggablePlayerLayout(
             val normalMiniHeight = normalMiniWidth / clampedAspect
             val normalMaxX = (screenWidth - normalMiniWidth - margin).coerceAtLeast(margin)
             val normalMaxY = (screenHeight - normalMiniHeight - bottomNavPad - margin).coerceAtLeast(minY)
-            val normalTargetX =
-                when (state.corner) {
-                    MiniPlayerCorner.TopLeft,
-                    MiniPlayerCorner.BottomLeft,
-                    -> margin
-
-                    MiniPlayerCorner.TopRight,
-                    MiniPlayerCorner.BottomRight,
-                    -> normalMaxX
-                }
-            val normalTargetY =
-                when (state.corner) {
-                    MiniPlayerCorner.TopLeft,
-                    MiniPlayerCorner.TopRight,
-                    -> minY
-
-                    MiniPlayerCorner.BottomLeft,
-                    MiniPlayerCorner.BottomRight,
-                    -> normalMaxY
-                }
+            val normalTargetX = cornerTargetX(state.corner, minX = margin, maxX = normalMaxX)
+            val normalTargetY = cornerTargetY(state.corner, minY = minY, maxY = normalMaxY)
             val stableWideWidth = miniBoxWidth(maxWideWidth)
             val stablePhoneCenteredX = ((screenWidth - stableWideWidth) / 2f).coerceAtLeast(margin)
             val stableWideHeight = stableWideWidth / clampedAspect
             val stableWideMaxY = (screenHeight - stableWideHeight - bottomNavPad - margin).coerceAtLeast(minY)
-            val stableWideTargetY =
-                when (state.corner) {
-                    MiniPlayerCorner.TopLeft,
-                    MiniPlayerCorner.TopRight,
-                    -> minY
-
-                    MiniPlayerCorner.BottomLeft,
-                    MiniPlayerCorner.BottomRight,
-                    -> stableWideMaxY
-                }
+            val stableWideTargetY = cornerTargetY(state.corner, minY = minY, maxY = stableWideMaxY)
 
             val targetMiniX =
                 when {
-                    state.isShrinkingToCorner -> {
-                        when (state.corner) {
-                            MiniPlayerCorner.TopLeft,
-                            MiniPlayerCorner.BottomLeft,
-                            -> margin
-
-                            MiniPlayerCorner.TopRight,
-                            MiniPlayerCorner.BottomRight,
-                            -> normalMaxX
-                        }
-                    }
+                    state.isShrinkingToCorner -> normalTargetX
 
                     isWideMode && !isLargeScreen -> {
                         stablePhoneCenteredX
@@ -586,19 +298,19 @@ fun DraggablePlayerLayout(
                 isLargeScreen,
             ) {
                 if (state.expandFraction.targetValue > 0.5f && !state.isDragging) {
-                    kotlinx.coroutines.delay(50)
+                    kotlinx.coroutines.delay(MINI_RESNAP_DEBOUNCE_MS)
                     if (state.isDragging) return@LaunchedEffect
                     if (isWideMode && !isLargeScreen) {
                         launch {
                             state.offsetX.animateTo(
                                 stablePhoneCenteredX,
-                                miniSnapSpring(),
+                                miniSnapSpringSpec,
                             )
                         }
                         launch {
                             state.offsetY.animateTo(
                                 stableWideTargetY,
-                                miniSnapSpring(),
+                                miniSnapSpringSpec,
                             )
                         }
                     } else if (isWideMode && isLargeScreen) {
@@ -607,7 +319,7 @@ fun DraggablePlayerLayout(
                             launch {
                                 state.offsetX.animateTo(
                                     clampedX,
-                                    miniSnapSpring(),
+                                    miniSnapSpringSpec,
                                 )
                             }
                         }
@@ -616,7 +328,7 @@ fun DraggablePlayerLayout(
                             launch {
                                 state.offsetY.animateTo(
                                     clampedY,
-                                    miniSnapSpring(),
+                                    miniSnapSpringSpec,
                                 )
                             }
                         }
@@ -632,13 +344,13 @@ fun DraggablePlayerLayout(
                             launch {
                                 state.offsetX.animateTo(
                                     targetMiniX,
-                                    miniSnapSpring(),
+                                    miniSnapSpringSpec,
                                 )
                             }
                             launch {
                                 state.offsetY.animateTo(
                                     targetMiniY,
-                                    miniSnapSpring(),
+                                    miniSnapSpringSpec,
                                 )
                             }
                         }
@@ -734,7 +446,7 @@ fun DraggablePlayerLayout(
                                 initialValue = frac,
                                 targetValue = if (shouldEnter) 1f else 0f,
                                 initialVelocity = available.y,
-                                animationSpec = portraitFsSettleSpec,
+                                animationSpec = portraitFullscreenSettleSpec,
                             ) { value, _ -> portraitFsFraction = value }
                             if (shouldEnter) onEnterPortraitFsState.value?.invoke()
                             return available
@@ -1017,17 +729,17 @@ fun DraggablePlayerLayout(
                                                     state.scope.launch {
                                                         state.miniSizeScale.animateTo(
                                                             targetScale,
-                                                            miniResizeSpring(),
+                                                            miniResizeSpringSpec,
                                                         )
                                                         if (targetScale <= 1f) {
                                                             launch {
                                                                 state.offsetX.animateTo(
                                                                     state.cachedTargetX,
-                                                                    miniResizeSpring(),
+                                                                    miniResizeSpringSpec,
                                                                 )
                                                                 state.offsetY.animateTo(
                                                                     state.cachedTargetY,
-                                                                    miniResizeSpring(),
+                                                                    miniResizeSpringSpec,
                                                                 )
                                                             }
                                                         } else {
@@ -1044,14 +756,14 @@ fun DraggablePlayerLayout(
                                                                 launch {
                                                                     state.offsetX.animateTo(
                                                                         clampedX,
-                                                                        miniResizeSpring(),
+                                                                        miniResizeSpringSpec,
                                                                     )
                                                                 }
                                                             } else {
                                                                 launch {
                                                                     state.offsetX.animateTo(
                                                                         stablePhoneCenteredXState.value,
-                                                                        miniResizeSpring(),
+                                                                        miniResizeSpringSpec,
                                                                     )
                                                                 }
                                                             }
@@ -1367,7 +1079,7 @@ fun DraggablePlayerLayout(
                                             val velY =
                                                 velocityTracker.calculateVelocity().y *
                                                     liveGestureScaleState.value()
-                                            if (totalUpwardDrag > 80f || velY < -800f) {
+                                            if (shouldEnterFullscreenFromSwipe(totalUpwardDrag, velY)) {
                                                 onFullscreenGestureState.value?.invoke()
                                             }
                                             return@awaitEachGesture
@@ -1377,11 +1089,7 @@ fun DraggablePlayerLayout(
                                             val velY =
                                                 velocityTracker.calculateVelocity().y *
                                                     liveGestureScaleState.value()
-                                            val shouldCollapse =
-                                                state.expandFraction.value > 0.1f ||
-                                                    velY > 300f ||
-                                                    (velY > 200f && state.expandFraction.value > 0.05f)
-                                            if (shouldCollapse) {
+                                            if (shouldCollapseOnRelease(state.expandFraction.value, velY)) {
                                                 onCollapseGesture?.invoke()
                                                 GlobalPlayerState.showMiniPlayer()
                                                 state.collapse()
@@ -1404,93 +1112,22 @@ fun DraggablePlayerLayout(
                                         val currentMinY = minYState.value
                                         val currentMaxY = maxYState.value
 
-                                        val originX =
-                                            when (state.corner) {
-                                                MiniPlayerCorner.TopLeft,
-                                                MiniPlayerCorner.BottomLeft,
-                                                -> currentMinX
-
-                                                MiniPlayerCorner.TopRight,
-                                                MiniPlayerCorner.BottomRight,
-                                                -> currentMaxX
-                                            }
-                                        val originY =
-                                            when (state.corner) {
-                                                MiniPlayerCorner.TopLeft,
-                                                MiniPlayerCorner.TopRight,
-                                                -> currentMinY
-
-                                                MiniPlayerCorner.BottomLeft,
-                                                MiniPlayerCorner.BottomRight,
-                                                -> currentMaxY
-                                            }
-
-                                        val deltaFromOriginX = currentX - originX
-                                        val deltaFromOriginY = currentY - originY
-                                        val totalTravelX = (currentMaxX - currentMinX).coerceAtLeast(1f)
-                                        val totalTravelY = (currentMaxY - currentMinY).coerceAtLeast(1f)
-                                        val switchThresholdX = totalTravelX * 0.15f
-                                        val switchThresholdY = totalTravelY * 0.15f
-                                        val projectedDeltaX = deltaFromOriginX + velX * 0.3f
-                                        val projectedDeltaY = deltaFromOriginY + velY * 0.3f
-
-                                        val wasLeft =
-                                            state.corner == MiniPlayerCorner.TopLeft ||
-                                                state.corner == MiniPlayerCorner.BottomLeft
-                                        val wasTop =
-                                            state.corner == MiniPlayerCorner.TopLeft ||
-                                                state.corner == MiniPlayerCorner.TopRight
-
-                                        val goLeft =
-                                            when {
-                                                abs(velX) > 400f &&
-                                                    abs(velX) > abs(velY) * 0.8f -> {
-                                                    velX < 0
-                                                }
-
-                                                wasLeft &&
-                                                    projectedDeltaX > switchThresholdX -> {
-                                                    false
-                                                }
-
-                                                !wasLeft &&
-                                                    projectedDeltaX < -switchThresholdX -> {
-                                                    true
-                                                }
-
-                                                else -> {
-                                                    wasLeft
-                                                }
-                                            }
-                                        val goTop =
-                                            when {
-                                                abs(velY) > 400f &&
-                                                    abs(velY) > abs(velX) * 0.8f -> {
-                                                    velY < 0
-                                                }
-
-                                                wasTop &&
-                                                    projectedDeltaY > switchThresholdY -> {
-                                                    false
-                                                }
-
-                                                !wasTop &&
-                                                    projectedDeltaY < -switchThresholdY -> {
-                                                    true
-                                                }
-
-                                                else -> {
-                                                    wasTop
-                                                }
-                                            }
-
+                                        val bounds =
+                                            MiniPlayerBounds(
+                                                minX = currentMinX,
+                                                maxX = currentMaxX,
+                                                minY = currentMinY,
+                                                maxY = currentMaxY,
+                                            )
                                         val newCorner =
-                                            when {
-                                                goLeft && goTop -> MiniPlayerCorner.TopLeft
-                                                goLeft && !goTop -> MiniPlayerCorner.BottomLeft
-                                                !goLeft && goTop -> MiniPlayerCorner.TopRight
-                                                else -> MiniPlayerCorner.BottomRight
-                                            }
+                                            resolveMiniPlayerCorner(
+                                                current = state.corner,
+                                                currentX = currentX,
+                                                currentY = currentY,
+                                                bounds = bounds,
+                                                scaledVelocityX = velX,
+                                                scaledVelocityY = velY,
+                                            )
 
                                         if (state.isInlineMode) {
                                             state.corner = newCorner
@@ -1498,15 +1135,15 @@ fun DraggablePlayerLayout(
                                                 state.scope.launch {
                                                     launch {
                                                         state.offsetX.animateTo(
-                                                            if (goLeft) currentMinX else currentMaxX,
-                                                            miniSnapSpring(),
+                                                            cornerTargetX(newCorner, currentMinX, currentMaxX),
+                                                            miniSnapSpringSpec,
                                                             initialVelocity = velX,
                                                         )
                                                     }
                                                     launch {
                                                         state.offsetY.animateTo(
-                                                            if (goTop) currentMinY else currentMaxY,
-                                                            miniSnapSpring(),
+                                                            cornerTargetY(newCorner, currentMinY, currentMaxY),
+                                                            miniSnapSpringSpec,
                                                             initialVelocity = velY,
                                                         )
                                                     }
@@ -1516,13 +1153,13 @@ fun DraggablePlayerLayout(
                                                     launch {
                                                         state.offsetX.animateTo(
                                                             stablePhoneCenteredXState.value,
-                                                            miniSnapSpring(),
+                                                            miniSnapSpringSpec,
                                                         )
                                                     }
                                                     launch {
                                                         state.offsetY.animateTo(
-                                                            if (goTop) currentMinY else currentMaxY,
-                                                            miniSnapSpring(),
+                                                            cornerTargetY(newCorner, currentMinY, currentMaxY),
+                                                            miniSnapSpringSpec,
                                                             initialVelocity = velY,
                                                         )
                                                     }
@@ -1531,33 +1168,27 @@ fun DraggablePlayerLayout(
                                             return@awaitEachGesture
                                         }
 
-                                        val centerX = (currentMinX + currentMaxX) / 2f
-                                        val isNearRightEdge = currentX > centerX
-                                        val isNearLeftEdge = currentX < centerX
-                                        val isHorizontalFling = abs(velX) > abs(velY) * 3f
-                                        val canDismissRight =
-                                            !goLeft && velX > 2000f && isNearRightEdge
-                                        val canDismissLeft =
-                                            goLeft && velX < -2000f && isNearLeftEdge
-
-                                        if (isHorizontalFling &&
-                                            (canDismissRight || canDismissLeft)
-                                        ) {
-                                            val offScreenX =
-                                                if (!goLeft) {
-                                                    screenWidthState.value + miniWidthState.value
-                                                } else {
-                                                    -(miniWidthState.value + marginState.value)
-                                                }
+                                        val dismissOffsetX =
+                                            resolveMiniPlayerDismissOffset(
+                                                targetCorner = newCorner,
+                                                currentX = currentX,
+                                                bounds = bounds,
+                                                scaledVelocityX = velX,
+                                                scaledVelocityY = velY,
+                                                screenWidth = screenWidthState.value,
+                                                miniWidth = miniWidthState.value,
+                                                margin = marginState.value,
+                                            )
+                                        if (dismissOffsetX != null) {
                                             state.scope.launch {
                                                 launch {
                                                     state.offsetX.animateTo(
-                                                        offScreenX,
-                                                        miniDismissSpring(),
+                                                        dismissOffsetX,
+                                                        miniDismissSpringSpec,
                                                         initialVelocity = velX,
                                                     )
                                                 }
-                                                kotlinx.coroutines.delay(200)
+                                                kotlinx.coroutines.delay(MINI_DISMISS_TEARDOWN_DELAY_MS)
                                                 onDismiss()
                                             }
                                         } else {
@@ -1565,15 +1196,15 @@ fun DraggablePlayerLayout(
                                             state.scope.launch {
                                                 launch {
                                                     state.offsetX.animateTo(
-                                                        if (goLeft) currentMinX else currentMaxX,
-                                                        miniSnapSpring(),
+                                                        cornerTargetX(newCorner, currentMinX, currentMaxX),
+                                                        miniSnapSpringSpec,
                                                         initialVelocity = velX,
                                                     )
                                                 }
                                                 launch {
                                                     state.offsetY.animateTo(
-                                                        if (goTop) currentMinY else currentMaxY,
-                                                        miniSnapSpring(),
+                                                        cornerTargetY(newCorner, currentMinY, currentMaxY),
+                                                        miniSnapSpringSpec,
                                                         initialVelocity = velY,
                                                     )
                                                 }
