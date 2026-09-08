@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerMotionController
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
@@ -46,6 +47,14 @@ class PlayerDraggableState(
 
     var miniVisualScale by mutableFloatStateOf(1f)
 
+    internal val motion =
+        DraggablePlayerMotionController(
+            offsetX = offsetX,
+            offsetY = offsetY,
+            expandFraction = expandFraction,
+            miniSizeScale = miniSizeScale,
+        )
+
     /** True while the floating mini player is in wide (enlarged) mode. */
     val isInlineMode: Boolean get() = miniSizeScale.value > 1.5f
 
@@ -67,10 +76,14 @@ class PlayerDraggableState(
         scope.launch {
             isShrinkingToCorner = false
             val anim = playerExpandSpringSpec
-            launch { miniSizeScale.animateTo(1f, anim) }
-            launch { expandFraction.animateTo(0f, anim) }
-            launch { offsetX.animateTo(0f, anim) }
-            launch { offsetY.animateTo(0f, anim) }
+            launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
+            launch {
+                motion.movePosition {
+                    launch { expandFraction.animateTo(0f, anim) }
+                    launch { offsetX.animateTo(0f, anim) }
+                    launch { offsetY.animateTo(0f, anim) }
+                }
+            }
         }
     }
 
@@ -126,23 +139,12 @@ class PlayerDraggableState(
 
         scope.launch {
             isShrinkingToCorner = false
+            launch { motion.resize { miniSizeScale.animateTo(targetScale, miniResizeSpringSpec) } }
             launch {
-                miniSizeScale.animateTo(
-                    targetScale,
-                    miniResizeSpringSpec,
-                )
-            }
-            launch {
-                offsetX.animateTo(
-                    targetX,
-                    miniResizeSpringSpec,
-                )
-            }
-            launch {
-                offsetY.animateTo(
-                    targetY,
-                    miniResizeSpringSpec,
-                )
+                motion.movePosition {
+                    launch { offsetX.animateTo(targetX, miniResizeSpringSpec) }
+                    launch { offsetY.animateTo(targetY, miniResizeSpringSpec) }
+                }
             }
         }
     }
@@ -151,14 +153,18 @@ class PlayerDraggableState(
         scope.launch {
             isShrinkingToCorner = false
             val anim = playerExpandSpringSpec
-            if (cachedTargetX == 0f && cachedTargetY == 0f) {
-                expandFraction.snapTo(1f)
-            } else {
-                launch { expandFraction.animateTo(1f, anim) }
-                launch { offsetX.animateTo(cachedTargetX, anim) }
-                launch { offsetY.animateTo(cachedTargetY, anim) }
+            launch {
+                motion.movePosition {
+                    if (cachedTargetX == 0f && cachedTargetY == 0f) {
+                        expandFraction.snapTo(1f)
+                    } else {
+                        launch { expandFraction.animateTo(1f, anim) }
+                        launch { offsetX.animateTo(cachedTargetX, anim) }
+                        launch { offsetY.animateTo(cachedTargetY, anim) }
+                    }
+                }
             }
-            launch { miniSizeScale.animateTo(1f, anim) }
+            launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
         }
     }
 
@@ -186,9 +192,13 @@ class PlayerDraggableState(
             try {
                 val jobs =
                     listOf(
-                        launch { miniSizeScale.animateTo(1f, anim) },
-                        launch { offsetX.animateTo(targetX, anim) },
-                        launch { offsetY.animateTo(targetY, anim) },
+                        launch { motion.resize { miniSizeScale.animateTo(1f, anim) } },
+                        launch {
+                            motion.movePosition {
+                                launch { offsetX.animateTo(targetX, anim) }
+                                launch { offsetY.animateTo(targetY, anim) }
+                            }
+                        },
                     )
                 jobs.forEach { it.join() }
             } finally {
@@ -200,10 +210,10 @@ class PlayerDraggableState(
     fun snapTo(target: PlayerSheetValue) {
         scope.launch {
             val targetF = if (target == PlayerSheetValue.Collapsed) 1f else 0f
-            expandFraction.snapTo(targetF)
             if (target == PlayerSheetValue.Expanded) {
-                offsetX.snapTo(0f)
-                offsetY.snapTo(0f)
+                motion.snapPosition(fraction = targetF, x = 0f, y = 0f)
+            } else {
+                motion.snapPosition(fraction = targetF)
             }
         }
     }

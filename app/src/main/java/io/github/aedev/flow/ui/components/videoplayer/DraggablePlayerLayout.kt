@@ -281,35 +281,19 @@ fun DraggablePlayerLayout(
                     kotlinx.coroutines.delay(MINI_RESNAP_DEBOUNCE_MS)
                     if (state.isDragging) return@LaunchedEffect
                     if (isWideMode && !isLargeScreen) {
-                        launch {
-                            state.offsetX.animateTo(
-                                stablePhoneCenteredX,
-                                miniSnapSpringSpec,
-                            )
-                        }
-                        launch {
-                            state.offsetY.animateTo(
-                                stableWideTargetY,
-                                miniSnapSpringSpec,
-                            )
+                        state.motion.movePosition {
+                            launch { state.offsetX.animateTo(stablePhoneCenteredX, miniSnapSpringSpec) }
+                            launch { state.offsetY.animateTo(stableWideTargetY, miniSnapSpringSpec) }
                         }
                     } else if (isWideMode && isLargeScreen) {
                         val clampedX = state.offsetX.value.coerceIn(minX, maxX)
-                        if (kotlin.math.abs(state.offsetX.value - clampedX) > 1f) {
-                            launch {
-                                state.offsetX.animateTo(
-                                    clampedX,
-                                    miniSnapSpringSpec,
-                                )
-                            }
-                        }
                         val clampedY = state.offsetY.value.coerceIn(minY, stableWideMaxY)
-                        if (kotlin.math.abs(state.offsetY.value - clampedY) > 1f) {
-                            launch {
-                                state.offsetY.animateTo(
-                                    clampedY,
-                                    miniSnapSpringSpec,
-                                )
+                        val moveX = kotlin.math.abs(state.offsetX.value - clampedX) > 1f
+                        val moveY = kotlin.math.abs(state.offsetY.value - clampedY) > 1f
+                        if (moveX || moveY) {
+                            state.motion.movePosition {
+                                if (moveX) launch { state.offsetX.animateTo(clampedX, miniSnapSpringSpec) }
+                                if (moveY) launch { state.offsetY.animateTo(clampedY, miniSnapSpringSpec) }
                             }
                         }
                     } else {
@@ -318,20 +302,11 @@ fun DraggablePlayerLayout(
                                 state.offsetY.value == 0f &&
                                 targetMiniX > 0f && targetMiniY > 0f
                         if (needsSnap) {
-                            state.offsetX.snapTo(targetMiniX)
-                            state.offsetY.snapTo(targetMiniY)
+                            state.motion.snapPosition(x = targetMiniX, y = targetMiniY)
                         } else {
-                            launch {
-                                state.offsetX.animateTo(
-                                    targetMiniX,
-                                    miniSnapSpringSpec,
-                                )
-                            }
-                            launch {
-                                state.offsetY.animateTo(
-                                    targetMiniY,
-                                    miniSnapSpringSpec,
-                                )
+                            state.motion.movePosition {
+                                launch { state.offsetX.animateTo(targetMiniX, miniSnapSpringSpec) }
+                                launch { state.offsetY.animateTo(targetMiniY, miniSnapSpringSpec) }
                             }
                         }
                     }

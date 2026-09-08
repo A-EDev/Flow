@@ -64,16 +64,11 @@ internal class DraggablePlayerGestureHandler(
 
         if (isCollapseDrag) {
             state.scope.launch {
-                state.expandFraction.stop()
-                state.offsetX.stop()
-                state.offsetY.stop()
-                state.offsetX.snapTo(gestureTargetMiniX)
-                state.offsetY.snapTo(gestureTargetMiniY)
+                state.motion.snapPosition(x = gestureTargetMiniX, y = gestureTargetMiniY)
             }
         } else if (isMiniDrag) {
             state.scope.launch {
-                state.offsetX.stop()
-                state.offsetY.stop()
+                state.motion.stopPosition()
                 state.dragScale.animateTo(0.97f, dragPressSpringSpec)
             }
         }
@@ -277,12 +272,14 @@ internal class DraggablePlayerGestureHandler(
         if (state.isInlineMode) {
             state.corner = newCorner
             state.scope.launch {
-                if (metrics.isLargeScreen) {
-                    launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
-                } else {
-                    launch { state.offsetX.animateTo(metrics.stablePhoneCenteredX, miniSnapSpringSpec) }
+                state.motion.movePosition {
+                    if (metrics.isLargeScreen) {
+                        launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
+                    } else {
+                        launch { state.offsetX.animateTo(metrics.stablePhoneCenteredX, miniSnapSpringSpec) }
+                    }
+                    launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
                 }
-                launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
             }
             return
         }
@@ -300,15 +297,21 @@ internal class DraggablePlayerGestureHandler(
             )
         if (dismissOffsetX != null) {
             state.scope.launch {
-                launch { state.offsetX.animateTo(dismissOffsetX, miniDismissSpringSpec, initialVelocity = velX) }
+                launch {
+                    state.motion.movePosition {
+                        state.offsetX.animateTo(dismissOffsetX, miniDismissSpringSpec, initialVelocity = velX)
+                    }
+                }
                 delay(MINI_DISMISS_TEARDOWN_DELAY_MS)
                 metrics.onDismiss()
             }
         } else {
             state.corner = newCorner
             state.scope.launch {
-                launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
-                launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
+                state.motion.movePosition {
+                    launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
+                    launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
+                }
             }
         }
     }

@@ -99,19 +99,19 @@ internal class MiniPlayerPinchGestureHandler(
     ) {
         val targetScale = if (state.miniSizeScale.value > 1.5f) maxScale else 1f
         state.scope.launch {
-            state.miniSizeScale.animateTo(targetScale, miniResizeSpringSpec)
-            if (targetScale <= 1f) {
-                launch {
+            state.motion.resize { state.miniSizeScale.animateTo(targetScale, miniResizeSpringSpec) }
+            state.motion.movePosition {
+                if (targetScale <= 1f) {
                     state.offsetX.animateTo(state.cachedTargetX, miniResizeSpringSpec)
                     state.offsetY.animateTo(state.cachedTargetY, miniResizeSpringSpec)
+                } else if (metrics.isLargeScreen) {
+                    val newMiniW = (metrics.baseMiniWidth * targetScale).coerceAtMost(wideCapWidth)
+                    val newMaxX = (metrics.screenWidth - newMiniW - metrics.margin).coerceAtLeast(metrics.margin)
+                    val clampedX = state.offsetX.value.coerceIn(metrics.margin, newMaxX)
+                    state.offsetX.animateTo(clampedX, miniResizeSpringSpec)
+                } else {
+                    state.offsetX.animateTo(metrics.stablePhoneCenteredX, miniResizeSpringSpec)
                 }
-            } else if (metrics.isLargeScreen) {
-                val newMiniW = (metrics.baseMiniWidth * targetScale).coerceAtMost(wideCapWidth)
-                val newMaxX = (metrics.screenWidth - newMiniW - metrics.margin).coerceAtLeast(metrics.margin)
-                val clampedX = state.offsetX.value.coerceIn(metrics.margin, newMaxX)
-                launch { state.offsetX.animateTo(clampedX, miniResizeSpringSpec) }
-            } else {
-                launch { state.offsetX.animateTo(metrics.stablePhoneCenteredX, miniResizeSpringSpec) }
             }
         }
     }
