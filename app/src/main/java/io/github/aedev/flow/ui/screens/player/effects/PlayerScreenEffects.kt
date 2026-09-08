@@ -263,6 +263,11 @@ private fun resolveLiveTimelineDuration(player: Player): Long? {
  *
  * SponsorBlock skipping and watch-history writes deliberately do not depend on this: they run off
  * `PlaybackTracker` inside the player, so lowering the UI refresh rate cannot make a skip late.
+ *
+ * Paused with no precise surface showing (mini player, or fullscreen with the controls hidden)
+ * the position cannot move on its own, so the loop reads it once and suspends until either key
+ * flips instead of waking every second for the whole pause. A seek issued from the notification
+ * while paused in the mini player is picked up on the next flip.
  */
 @Composable
 fun PositionTrackingEffect(
@@ -271,12 +276,14 @@ fun PositionTrackingEffect(
     showsPreciseProgress: Boolean,
 ) {
     LaunchedEffect(isPlaying, showsPreciseProgress) {
-        while (true) {
+        val keepPolling = isPlaying || showsPreciseProgress
+        do {
             EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
                 if (player.playbackState != Player.STATE_IDLE) {
                     updateScreenPositionFromPlayer(player, screenState)
                 }
             }
+            if (!keepPolling) break
             delay(
                 if (isPlaying && showsPreciseProgress) {
                     ACTIVE_POSITION_TRACKING_INTERVAL_MS
@@ -284,7 +291,7 @@ fun PositionTrackingEffect(
                     IDLE_POSITION_TRACKING_INTERVAL_MS
                 },
             )
-        }
+        } while (true)
     }
 }
 
