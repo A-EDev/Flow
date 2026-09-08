@@ -9,7 +9,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -193,7 +192,6 @@ internal class DraggablePlayerGestureHandler(
             val velY = velocityTracker.calculateVelocity().y * metrics.liveGestureScale(state)
             if (shouldCollapseOnRelease(state.expandFraction.value, velY)) {
                 metrics.onCollapseGesture?.invoke()
-                GlobalPlayerState.showMiniPlayer()
                 state.collapse()
             } else {
                 state.expand()

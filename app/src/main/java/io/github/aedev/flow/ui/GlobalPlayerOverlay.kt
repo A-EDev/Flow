@@ -877,6 +877,7 @@ fun GlobalPlayerOverlay(
                 screenState.isFullscreen = false
                 screenState.isFullscreenPortrait = false
                 screenState.dismissMediaSheets()
+                GlobalPlayerState.showMiniPlayer()
             },
             onFullscreenGesture = {
                 screenState.dismissMediaSheets()
