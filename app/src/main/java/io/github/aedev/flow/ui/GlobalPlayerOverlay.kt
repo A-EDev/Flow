@@ -7,6 +7,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -109,6 +110,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val EXIT_DRAG_MIN_SCALE = 0.94f
 
@@ -457,13 +459,25 @@ fun GlobalPlayerOverlay(
         }
     }
 
-    BackHandler(
+    // Stays enabled for the whole scrub: the sheet's currentValue flips to Collapsed halfway
+    // through, and disabling the handler mid-gesture would cancel it as if the user had backed out.
+    var backScrubInFlight by remember { mutableStateOf(false) }
+    PredictiveBackHandler(
         enabled =
-            playerSheetState.currentValue == PlayerSheetValue.Expanded &&
+            (playerSheetState.currentValue == PlayerSheetValue.Expanded || backScrubInFlight) &&
                 !localIsInPipMode &&
                 !screenState.isFullscreen,
-    ) {
-        playerSheetState.collapse()
+    ) { progress ->
+        backScrubInFlight = true
+        try {
+            playerSheetState.beginBackScrub()
+            progress.collect { event -> playerSheetState.scrubBack(event.progress) }
+            playerSheetState.collapse()
+        } catch (_: CancellationException) {
+            playerSheetState.expand()
+        } finally {
+            backScrubInFlight = false
+        }
     }
 
     BackHandler(enabled = screenState.isTouchLocked && !localIsInPipMode) {

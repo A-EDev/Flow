@@ -207,6 +207,19 @@ class PlayerDraggableState(
         }
     }
 
+    /**
+     * Predictive back scrubs the collapse the way a finger does: the mini offsets snap to the
+     * resting corner first, then the fraction follows the gesture. Commit with [collapse], cancel
+     * with [expand].
+     */
+    suspend fun beginBackScrub() {
+        motion.snapPosition(x = cachedTargetX, y = cachedTargetY)
+    }
+
+    suspend fun scrubBack(progress: Float) {
+        motion.snapPosition(fraction = progress.coerceIn(0f, 1f))
+    }
+
     fun snapTo(target: PlayerSheetValue) {
         scope.launch {
             val targetF = if (target == PlayerSheetValue.Collapsed) 1f else 0f
