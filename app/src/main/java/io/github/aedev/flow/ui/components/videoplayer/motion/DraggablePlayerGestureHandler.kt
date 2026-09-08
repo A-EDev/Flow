@@ -11,6 +11,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -21,30 +22,40 @@ private const val DRAG_MODE_FRACTION = 0
 private const val DRAG_MODE_POSITION = 1
 private const val DRAG_MODE_EXPAND_SCALE = 2
 
-/** Screen-space movement under which a mini player release is treated as a tap, not a throw. */
+/** Screen-space movement under which a mini player press still counts as a tap. */
 private const val MINI_TAP_MOVEMENT_PX = 24f
 
 /**
  * The one-finger gesture on the video box: collapse drag and swipe-to-fullscreen while expanded,
- * free 2-D drag, corner fling and dismiss fling while mini. Taps live in [miniPlayerTapGestures].
+ * free 2-D drag, tap, double tap, corner fling and dismiss fling while mini.
  *
  * Hand-rolled on purpose. `anchoredDraggable` and `draggable2D` apply touch slop and report
  * deltas in local space, but this node sits under the morph's graphicsLayer scale, so the same
  * finger travel is 2-3x more local distance in the mini player and the collapse mapping changes
  * as the scale shrinks mid-drag. Every delta, slop and velocity here is scaled through
  * [DraggablePlayerGestureMetrics.liveGestureScale] at read time to keep the hand-tuned physics.
+ *
+ * Taps are classified inside this loop rather than by a separate `detectTapGestures` node: the
+ * modifier chain on the video box must stay structurally constant, because inserting or removing
+ * a pointer-input node while a finger is down re-pairs the remaining nodes by position, resets
+ * their keys and cancels the drag coroutine mid-gesture, which leaves the sheet frozen wherever
+ * the finger was.
+
  */
 internal class DraggablePlayerGestureHandler(
     private val state: PlayerDraggableState,
     private val metrics: DraggablePlayerGestureMetrics,
 ) {
     private val velocityTracker = VelocityTracker()
+    private val tapDecider = MiniPlayerTapDecider()
+    private var singleTapJob: Job? = null
 
     suspend fun AwaitPointerEventScope.handleGesture() {
         val gestureTargetMiniX = metrics.targetMiniX
         val gestureTargetMiniY = metrics.targetMiniY
 
         val down = awaitFirstDown(requireUnconsumed = false)
+        val downConsumedByChild = down.isConsumed
 
         val isCollapseDrag = state.expandFraction.value < 0.4f
         val isMiniDrag = state.expandFraction.value > 0.8f
@@ -185,9 +196,12 @@ internal class DraggablePlayerGestureHandler(
             }
         }
 
-        // A tap-sized release is left to the tap detector; settling to a corner here would only
-        // restart the corner spring under the tap.
-        if (isMiniDrag && totalMovement < MINI_TAP_MOVEMENT_PX) return
+        if (isMiniDrag && totalMovement < MINI_TAP_MOVEMENT_PX) {
+            if (!downConsumedByChild && metrics.tapToExpand) {
+                onMiniTap(down.uptimeMillis, viewConfiguration.doubleTapTimeoutMillis)
+            }
+            return
+        }
 
         if (isCollapseDrag && detectedDirection == -1) {
             val velY = velocityTracker.calculateVelocity().y * metrics.liveGestureScale(state)
@@ -211,6 +225,47 @@ internal class DraggablePlayerGestureHandler(
         if (!isMiniDrag) return
 
         releaseMini()
+    }
+
+    private fun onMiniTap(
+        uptimeMillis: Long,
+        doubleTapTimeoutMillis: Long,
+    ) {
+        when (tapDecider.onTap(uptimeMillis, doubleTapTimeoutMillis)) {
+            MiniPlayerTap.DOUBLE -> {
+                singleTapJob?.cancel()
+                if (state.isInlineMode) {
+                    state.shrinkToCorner(
+                        baseMiniWidth = metrics.baseMiniWidth,
+                        screenWidth = metrics.screenWidth,
+                        margin = metrics.margin,
+                        minY = metrics.minY,
+                        screenHeight = metrics.screenHeight,
+                        bottomNavPad = metrics.bottomNavPad,
+                    )
+                } else {
+                    state.expandWide(
+                        screenWidth = metrics.screenWidth,
+                        margin = metrics.margin,
+                        baseMiniWidth = metrics.baseMiniWidth,
+                        screenHeight = metrics.screenHeight,
+                        minY = metrics.minY,
+                        bottomNavPad = metrics.bottomNavPad,
+                        isTablet = metrics.isTablet,
+                        isFoldable = metrics.isFoldable,
+                    )
+                }
+            }
+
+            MiniPlayerTap.SINGLE_PENDING -> {
+                singleTapJob?.cancel()
+                singleTapJob =
+                    state.scope.launch {
+                        delay(doubleTapTimeoutMillis)
+                        state.expand()
+                    }
+            }
+        }
     }
 
     private fun releaseMini() {
