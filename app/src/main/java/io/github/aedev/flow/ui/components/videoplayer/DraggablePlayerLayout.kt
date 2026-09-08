@@ -38,21 +38,21 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerGest
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerGestureMetrics
 import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_RESNAP_DEBOUNCE_MS
 import io.github.aedev.flow.ui.components.videoplayer.motion.MiniPlayerPinchGestureHandler
+import io.github.aedev.flow.ui.components.videoplayer.motion.MiniPlayerResnapTargets
 import io.github.aedev.flow.ui.components.videoplayer.motion.PlayerBodyNestedScrollConnection
 import io.github.aedev.flow.ui.components.videoplayer.motion.computeDraggablePlayerGeometry
 import io.github.aedev.flow.ui.components.videoplayer.motion.draggablePlayerGestures
 import io.github.aedev.flow.ui.components.videoplayer.motion.lerpClamped
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerPinchGesture
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniPlayerTapGestures
-import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.portraitFullscreenSettleSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.resnapMiniPlayer
+import io.github.aedev.flow.ui.components.videoplayer.motion.resnapTargets
 import io.github.aedev.flow.ui.components.videoplayer.motion.update
 import io.github.aedev.flow.ui.theme.PlayerGround
 import io.github.aedev.flow.ui.utils.TABLET_SMALLEST_WIDTH_DP
 import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -190,16 +190,7 @@ fun DraggablePlayerLayout(
             MiniPlayerResnapEffect(
                 state = state,
                 isCollapsedTarget = isCollapsedTarget,
-                targetMiniX = geometry.targetMiniX,
-                targetMiniY = geometry.targetMiniY,
-                isWideMode = geometry.isWideMode,
-                isLargeScreen = isLargeScreen,
-                minX = geometry.minX,
-                maxX = geometry.maxX,
-                minY = geometry.minY,
-                stableWideMaxY = geometry.stableWideMaxY,
-                stablePhoneCenteredX = geometry.stablePhoneCenteredX,
-                stableWideTargetY = geometry.stableWideTargetY,
+                targets = geometry.resnapTargets(isLargeScreen = isLargeScreen),
             )
 
             val portraitFsTravel = (screenHeight - geometry.expandedVideoHeight).coerceAtLeast(1f)
@@ -422,51 +413,19 @@ fun DraggablePlayerLayout(
 private fun MiniPlayerResnapEffect(
     state: PlayerDraggableState,
     isCollapsedTarget: Boolean,
-    targetMiniX: Float,
-    targetMiniY: Float,
-    isWideMode: Boolean,
-    isLargeScreen: Boolean,
-    minX: Float,
-    maxX: Float,
-    minY: Float,
-    stableWideMaxY: Float,
-    stablePhoneCenteredX: Float,
-    stableWideTargetY: Float,
+    targets: MiniPlayerResnapTargets,
 ) {
-    LaunchedEffect(isCollapsedTarget, targetMiniX, targetMiniY, isWideMode, isLargeScreen) {
+    LaunchedEffect(
+        isCollapsedTarget,
+        targets.targetMiniX,
+        targets.targetMiniY,
+        targets.isWideMode,
+        targets.isLargeScreen,
+    ) {
         if (state.expandFraction.targetValue <= 0.5f || state.isDragging) return@LaunchedEffect
         delay(MINI_RESNAP_DEBOUNCE_MS)
         if (state.isDragging) return@LaunchedEffect
-        if (isWideMode && !isLargeScreen) {
-            state.motion.movePosition {
-                launch { state.offsetX.animateTo(stablePhoneCenteredX, miniSnapSpringSpec) }
-                launch { state.offsetY.animateTo(stableWideTargetY, miniSnapSpringSpec) }
-            }
-        } else if (isWideMode && isLargeScreen) {
-            val clampedX = state.offsetX.value.coerceIn(minX, maxX)
-            val clampedY = state.offsetY.value.coerceIn(minY, stableWideMaxY)
-            val moveX = abs(state.offsetX.value - clampedX) > 1f
-            val moveY = abs(state.offsetY.value - clampedY) > 1f
-            if (moveX || moveY) {
-                state.motion.movePosition {
-                    if (moveX) launch { state.offsetX.animateTo(clampedX, miniSnapSpringSpec) }
-                    if (moveY) launch { state.offsetY.animateTo(clampedY, miniSnapSpringSpec) }
-                }
-            }
-        } else {
-            val needsSnap =
-                state.offsetX.value == 0f &&
-                    state.offsetY.value == 0f &&
-                    targetMiniX > 0f && targetMiniY > 0f
-            if (needsSnap) {
-                state.motion.snapPosition(x = targetMiniX, y = targetMiniY)
-            } else {
-                state.motion.movePosition {
-                    launch { state.offsetX.animateTo(targetMiniX, miniSnapSpringSpec) }
-                    launch { state.offsetY.animateTo(targetMiniY, miniSnapSpringSpec) }
-                }
-            }
-        }
+        resnapMiniPlayer(state, targets)
     }
 }
 

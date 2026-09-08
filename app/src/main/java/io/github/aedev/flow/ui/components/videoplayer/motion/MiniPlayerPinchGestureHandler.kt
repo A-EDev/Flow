@@ -100,7 +100,7 @@ internal class MiniPlayerPinchGestureHandler(
         val targetScale = if (state.miniSizeScale.value > 1.5f) maxScale else 1f
         state.scope.launch {
             state.motion.resize { state.miniSizeScale.animateTo(targetScale, miniResizeSpringSpec) }
-            state.motion.movePosition {
+            state.motion.moveOffsets {
                 if (targetScale <= 1f) {
                     state.offsetX.animateTo(state.cachedTargetX, miniResizeSpringSpec)
                     state.offsetY.animateTo(state.cachedTargetY, miniResizeSpringSpec)

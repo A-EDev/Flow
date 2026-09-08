@@ -77,9 +77,9 @@ class PlayerDraggableState(
             isShrinkingToCorner = false
             val anim = playerExpandSpringSpec
             launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
+            launch { motion.animateFraction { expandFraction.animateTo(0f, anim) } }
             launch {
-                motion.movePosition {
-                    launch { expandFraction.animateTo(0f, anim) }
+                motion.moveOffsets {
                     launch { offsetX.animateTo(0f, anim) }
                     launch { offsetY.animateTo(0f, anim) }
                 }
@@ -141,7 +141,7 @@ class PlayerDraggableState(
             isShrinkingToCorner = false
             launch { motion.resize { miniSizeScale.animateTo(targetScale, miniResizeSpringSpec) } }
             launch {
-                motion.movePosition {
+                motion.moveOffsets {
                     launch { offsetX.animateTo(targetX, miniResizeSpringSpec) }
                     launch { offsetY.animateTo(targetY, miniResizeSpringSpec) }
                 }
@@ -153,12 +153,12 @@ class PlayerDraggableState(
         scope.launch {
             isShrinkingToCorner = false
             val anim = playerExpandSpringSpec
-            launch {
-                motion.movePosition {
-                    if (cachedTargetX == 0f && cachedTargetY == 0f) {
-                        expandFraction.snapTo(1f)
-                    } else {
-                        launch { expandFraction.animateTo(1f, anim) }
+            if (cachedTargetX == 0f && cachedTargetY == 0f) {
+                launch { motion.snapFraction(1f) }
+            } else {
+                launch { motion.animateFraction { expandFraction.animateTo(1f, anim) } }
+                launch {
+                    motion.moveOffsets {
                         launch { offsetX.animateTo(cachedTargetX, anim) }
                         launch { offsetY.animateTo(cachedTargetY, anim) }
                     }
@@ -194,7 +194,7 @@ class PlayerDraggableState(
                     listOf(
                         launch { motion.resize { miniSizeScale.animateTo(1f, anim) } },
                         launch {
-                            motion.movePosition {
+                            motion.moveOffsets {
                                 launch { offsetX.animateTo(targetX, anim) }
                                 launch { offsetY.animateTo(targetY, anim) }
                             }
@@ -213,20 +213,20 @@ class PlayerDraggableState(
      * with [expand].
      */
     suspend fun beginBackScrub() {
-        motion.snapPosition(x = cachedTargetX, y = cachedTargetY)
+        motion.stopFraction()
+        motion.snapOffsets(x = cachedTargetX, y = cachedTargetY)
     }
 
     suspend fun scrubBack(progress: Float) {
-        motion.snapPosition(fraction = progress.coerceIn(0f, 1f))
+        motion.snapFraction(progress.coerceIn(0f, 1f))
     }
 
     fun snapTo(target: PlayerSheetValue) {
         scope.launch {
             val targetF = if (target == PlayerSheetValue.Collapsed) 1f else 0f
+            motion.snapFraction(targetF)
             if (target == PlayerSheetValue.Expanded) {
-                motion.snapPosition(fraction = targetF, x = 0f, y = 0f)
-            } else {
-                motion.snapPosition(fraction = targetF)
+                motion.snapOffsets(x = 0f, y = 0f)
             }
         }
     }

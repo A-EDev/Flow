@@ -58,11 +58,12 @@ internal class DraggablePlayerGestureHandler(
 
         if (isCollapseDrag) {
             state.scope.launch {
-                state.motion.snapPosition(x = gestureTargetMiniX, y = gestureTargetMiniY)
+                state.motion.stopFraction()
+                state.motion.snapOffsets(x = gestureTargetMiniX, y = gestureTargetMiniY)
             }
         } else if (isMiniDrag) {
             state.scope.launch {
-                state.motion.stopPosition()
+                state.motion.stopOffsets()
                 state.dragScale.animateTo(0.97f, dragPressSpringSpec)
             }
         }
@@ -233,7 +234,7 @@ internal class DraggablePlayerGestureHandler(
         if (state.isInlineMode) {
             state.corner = newCorner
             state.scope.launch {
-                state.motion.movePosition {
+                state.motion.moveOffsets {
                     if (metrics.isLargeScreen) {
                         launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
                     } else {
@@ -259,7 +260,7 @@ internal class DraggablePlayerGestureHandler(
         if (dismissOffsetX != null) {
             state.scope.launch {
                 launch {
-                    state.motion.movePosition {
+                    state.motion.moveOffsets {
                         state.offsetX.animateTo(dismissOffsetX, miniDismissSpringSpec, initialVelocity = velX)
                     }
                 }
@@ -269,7 +270,7 @@ internal class DraggablePlayerGestureHandler(
         } else {
             state.corner = newCorner
             state.scope.launch {
-                state.motion.movePosition {
+                state.motion.moveOffsets {
                     launch { state.offsetX.animateTo(targetX, miniSnapSpringSpec, initialVelocity = velX) }
                     launch { state.offsetY.animateTo(targetY, miniSnapSpringSpec, initialVelocity = velY) }
                 }

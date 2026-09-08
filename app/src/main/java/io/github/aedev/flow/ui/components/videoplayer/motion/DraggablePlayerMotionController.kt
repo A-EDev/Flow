@@ -8,9 +8,11 @@ import kotlinx.coroutines.coroutineScope
 
 /**
  * Serialises the draggable player's animated moves so a new intent always preempts the running
- * one as a whole. Position (expansion fraction plus the mini offsets) and size are separate
- * mutations on purpose: a mini drag takes over the position while a resize that is already in
- * flight is allowed to finish, which is what the hand-tuned gestures assume.
+ * one as a whole. Three independent mutations on purpose: the expansion fraction, the mini
+ * offsets (x and y together) and the size. Almost every intent touches only one of them, and the
+ * offsets are re-targeted by the corner re-snap while a collapse is still animating the fraction,
+ * so grouping the fraction with the offsets froze the sheet mid-morph. A mini drag likewise takes
+ * over the offsets while an in-flight resize is allowed to finish.
  */
 internal class DraggablePlayerMotionController(
     private val offsetX: Animatable<Float, AnimationVector1D>,
@@ -18,12 +20,18 @@ internal class DraggablePlayerMotionController(
     private val expandFraction: Animatable<Float, AnimationVector1D>,
     private val miniSizeScale: Animatable<Float, AnimationVector1D>,
 ) {
-    private val positionMutex = MutatorMutex()
+    private val fractionMutex = MutatorMutex()
+    private val offsetMutex = MutatorMutex()
     private val sizeMutex = MutatorMutex()
 
-    /** Runs a coordinated fraction/offset move; cancels any position move already running. */
-    suspend fun movePosition(block: suspend CoroutineScope.() -> Unit) {
-        positionMutex.mutate { coroutineScope { block() } }
+    /** Animates the expansion fraction; cancels any fraction move already running. */
+    suspend fun animateFraction(block: suspend () -> Unit) {
+        fractionMutex.mutate { block() }
+    }
+
+    /** Runs a coordinated x/y move; cancels any offsets move already running. */
+    suspend fun moveOffsets(block: suspend CoroutineScope.() -> Unit) {
+        offsetMutex.mutate { coroutineScope { block() } }
     }
 
     /** Runs a size move; cancels any resize already running. */
@@ -31,20 +39,27 @@ internal class DraggablePlayerMotionController(
         sizeMutex.mutate { coroutineScope { block() } }
     }
 
-    /** Preempts a running position move, leaving every value where it is. */
-    suspend fun stopPosition() {
-        positionMutex.mutate { }
+    /** Preempts a running fraction move, leaving the value where it is. */
+    suspend fun stopFraction() {
+        fractionMutex.mutate { }
     }
 
-    suspend fun snapPosition(
-        fraction: Float? = null,
-        x: Float? = null,
-        y: Float? = null,
+    /** Preempts a running offsets move, leaving both values where they are. */
+    suspend fun stopOffsets() {
+        offsetMutex.mutate { }
+    }
+
+    suspend fun snapFraction(fraction: Float) {
+        fractionMutex.mutate { expandFraction.snapTo(fraction) }
+    }
+
+    suspend fun snapOffsets(
+        x: Float,
+        y: Float,
     ) {
-        positionMutex.mutate {
-            fraction?.let { expandFraction.snapTo(it) }
-            x?.let { offsetX.snapTo(it) }
-            y?.let { offsetY.snapTo(it) }
+        offsetMutex.mutate {
+            offsetX.snapTo(x)
+            offsetY.snapTo(y)
         }
     }
 
