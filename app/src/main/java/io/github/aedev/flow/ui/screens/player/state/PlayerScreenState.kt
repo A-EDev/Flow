@@ -6,6 +6,8 @@ import androidx.compose.runtime.*
 import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.SubtitleStyle
 
+// Every property is snapshot state, so composables taking this instance can skip on identity.
+@Stable
 class PlayerScreenState {
     // UI Visibility States
     var showControls by mutableStateOf(true)
