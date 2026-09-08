@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,6 +31,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
+import kotlin.math.roundToInt
 
 /**
  * EnhancedVideoPlayerScreen - Simplified version for DraggablePlayerLayout
@@ -44,7 +46,7 @@ fun EnhancedVideoPlayerScreen(
     viewModel: VideoPlayerViewModel,
     video: Video,
     alpha: () -> Float,
-    videoPlayerHeight: androidx.compose.ui.unit.Dp = 0.dp,
+    videoPlayerHeightPx: () -> Float = { 0f },
     screenState: PlayerScreenState, // Shared screenState from FlowApp
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
@@ -90,9 +92,16 @@ fun EnhancedVideoPlayerScreen(
                             .fillMaxHeight()
                             .verticalScroll(rememberScrollState()),
                     ) {
-                        if (videoPlayerHeight > 0.dp) {
-                            Spacer(Modifier.height(videoPlayerHeight))
-                        }
+                        Spacer(
+                            Modifier
+                                .fillMaxWidth()
+                                .layout { measurable, constraints ->
+                                    val height = videoPlayerHeightPx().roundToInt().coerceAtLeast(0)
+                                    val placeable =
+                                        measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+                                    layout(placeable.width, height) { placeable.place(0, 0) }
+                                },
+                        )
 
                         VideoInfoContent(
                             video = video,

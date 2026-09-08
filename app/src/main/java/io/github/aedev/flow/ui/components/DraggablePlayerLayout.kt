@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
@@ -47,6 +48,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -57,6 +59,30 @@ private fun lerpFloat(
     stop: Float,
     fraction: Float,
 ): Float = start + (stop - start) * fraction.coerceIn(0f, 1f)
+
+/**
+ * Publishes the expanded player's bottom edge to the host from its own recomposition scope.
+ * The host sizes media sheets from it, so it must be state, but rounding to whole dp keeps the
+ * host from recomposing on every pixel of the adaptive-height shrink.
+ */
+@Composable
+private fun ReportExpandedPlayerBottom(
+    statusBarHeight: Float,
+    videoHeightProvider: () -> Float,
+    onChanged: (Dp) -> Unit,
+) {
+    val density = LocalDensity.current
+    val bottom by remember(statusBarHeight, density, videoHeightProvider) {
+        derivedStateOf {
+            with(density) { (statusBarHeight + videoHeightProvider()).toDp() }
+                .value
+                .roundToInt()
+                .dp
+        }
+    }
+    val currentOnChanged by rememberUpdatedState(onChanged)
+    SideEffect { currentOnChanged(bottom) }
+}
 
 enum class PlayerSheetValue { Expanded, Collapsed }
 
@@ -329,7 +355,7 @@ fun rememberPlayerDraggableState(): PlayerDraggableState {
 fun DraggablePlayerLayout(
     state: PlayerDraggableState,
     videoContent: @Composable (Modifier) -> Unit,
-    bodyContent: @Composable (() -> Float, androidx.compose.ui.unit.Dp) -> Unit,
+    bodyContent: @Composable (alpha: () -> Float, videoHeightPx: () -> Float) -> Unit,
     miniControls: @Composable (() -> Float) -> Unit,
     progress: () -> Float,
     isFullscreen: Boolean,
@@ -344,7 +370,7 @@ fun DraggablePlayerLayout(
     onEnterPortraitFullscreen: (() -> Unit)? = null,
     onExpandedPlayerBottomChanged: (Dp) -> Unit = {},
     videoAspectRatio: Float = 16f / 9f,
-    expandedPlayerHeightFractionOverride: Float? = null,
+    expandedPlayerHeightFractionOverride: (() -> Float)? = null,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -434,27 +460,33 @@ fun DraggablePlayerLayout(
             val expandedVideoWidth = if (isSplitLayout) screenWidth * 0.65f else screenWidth
             val baseVideoHeight = expandedVideoWidth * (9f / 16f)
             val expandedVideoHeight = expandedVideoWidth / clampedAspect
-            val activePlayerHeightFraction =
-                expandedPlayerHeightFractionOverride
-                    ?.coerceIn(0f, 1f)
-                    ?: playerHeightFraction
-            val currentExpandedVideoHeight =
-                if (expandedVideoHeight > baseVideoHeight) {
-                    lerpFloat(baseVideoHeight, expandedVideoHeight, activePlayerHeightFraction)
-                } else {
-                    expandedVideoHeight
+            val heightFractionOverrideState = rememberUpdatedState(expandedPlayerHeightFractionOverride)
+            // Read in the layout phase only: the fraction changes on every nested-scroll delta and
+            // every media-sheet drag frame, and a composition read here recomposed this whole tree.
+            val currentExpandedVideoHeightProvider =
+                remember(baseVideoHeight, expandedVideoHeight) {
+                    {
+                        if (expandedVideoHeight > baseVideoHeight) {
+                            val fraction =
+                                heightFractionOverrideState.value?.invoke()?.coerceIn(0f, 1f)
+                                    ?: playerHeightFraction
+                            lerpFloat(baseVideoHeight, expandedVideoHeight, fraction)
+                        } else {
+                            expandedVideoHeight
+                        }
+                    }
                 }
-            val expandedPlayerBottom =
-                with(density) {
-                    (statusBarHeight + currentExpandedVideoHeight).toDp()
-                }
+            ReportExpandedPlayerBottom(
+                statusBarHeight = statusBarHeight,
+                videoHeightProvider = currentExpandedVideoHeightProvider,
+                onChanged = onExpandedPlayerBottomChanged,
+            )
 
             val visualMiniScale =
                 (miniWidth / expandedVideoWidth.coerceAtLeast(1f))
                     .coerceIn(0.01f, 1f)
 
             SideEffect {
-                onExpandedPlayerBottomChanged(expandedPlayerBottom)
                 state.miniVisualScale = visualMiniScale
             }
 
@@ -769,18 +801,31 @@ fun DraggablePlayerLayout(
                                 .coerceIn(0f, 1f)
                         }
                     }
-                val videoHeightPlaceholder =
-                    if (isSplitLayout) with(density) { currentExpandedVideoHeight.toDp() } else 0.dp
-                val bodyPaddingTop =
-                    if (isSplitLayout) statusBarHeight else currentExpandedVideoHeight + statusBarHeight
+                val videoHeightPlaceholderProvider =
+                    remember(isSplitLayout, currentExpandedVideoHeightProvider) {
+                        if (isSplitLayout) currentExpandedVideoHeightProvider else ({ 0f })
+                    }
+                val bodyPaddingTopProvider =
+                    remember(isSplitLayout, statusBarHeight, currentExpandedVideoHeightProvider) {
+                        if (isSplitLayout) {
+                            ({ statusBarHeight })
+                        } else {
+                            ({ currentExpandedVideoHeightProvider() + statusBarHeight })
+                        }
+                    }
 
                 CompositionLocalProvider(LocalLayoutDirection provides systemLayoutDirection) {
                     Box(
                         modifier =
                             Modifier
                                 .fillMaxSize()
-                                .padding(top = with(density) { bodyPaddingTop.toDp() })
-                                .graphicsLayer {
+                                .layout { measurable, constraints ->
+                                    val topPad = bodyPaddingTopProvider().roundToInt().coerceAtLeast(0)
+                                    val placeable = measurable.measure(constraints.offset(vertical = -topPad))
+                                    layout(constraints.maxWidth, constraints.maxHeight) {
+                                        placeable.place(0, topPad)
+                                    }
+                                }.graphicsLayer {
                                     val pf = portraitFsFraction
                                     val fraction = state.expandFraction.value
                                     alpha = bodyAlphaProvider() * (1f - pf)
@@ -793,7 +838,7 @@ fun DraggablePlayerLayout(
                                     compositingStrategy = CompositingStrategy.ModulateAlpha
                                 }.nestedScroll(nestedScrollConnection),
                     ) {
-                        bodyContent(bodyAlphaProvider, videoHeightPlaceholder)
+                        bodyContent(bodyAlphaProvider, videoHeightPlaceholderProvider)
                     }
                 }
             }
@@ -842,7 +887,7 @@ fun DraggablePlayerLayout(
                             Modifier
                                 .layout { measurable, constraints ->
                                     val grownHeight =
-                                        lerpFloat(currentExpandedVideoHeight, screenHeight, portraitFsFraction)
+                                        lerpFloat(currentExpandedVideoHeightProvider(), screenHeight, portraitFsFraction)
                                     val targetW =
                                         expandedVideoWidth
                                             .toInt()

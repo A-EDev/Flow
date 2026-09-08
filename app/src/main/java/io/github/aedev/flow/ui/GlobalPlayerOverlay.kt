@@ -270,9 +270,10 @@ fun GlobalPlayerOverlay(
             mediaSheetProgress = nextProgress
         }
     }
-    val sheetPlayerHeightFractionOverride =
+    // A provider so the per-frame sheet progress is read in the layout phase, not here.
+    val sheetPlayerHeightFractionOverride: (() -> Float)? =
         if (progressDrivenMediaSheetResize) {
-            1f - mediaSheetProgress.coerceIn(0f, 1f)
+            { 1f - mediaSheetProgress.coerceIn(0f, 1f) }
         } else {
             null
         }
@@ -1122,14 +1123,20 @@ fun GlobalPlayerOverlay(
                     var showRemainingTime by rememberSaveable { mutableStateOf(false) }
                     if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
                         val controlsShown = screenState.showControls || screenState.isTouchLocked
-                        val bufferedFraction =
-                            (
-                                if (screenState.duration > 0) {
-                                    screenState.bufferedPosition.toFloat() / screenState.duration.toFloat()
-                                } else {
-                                    0f
-                                }
-                            ).coerceIn(0f, 1f)
+                        // Buffered position advances on every position poll; quantised to 1% so
+                        // this scope recomposes on visible steps only.
+                        val bufferedFraction by remember(screenState) {
+                            derivedStateOf {
+                                val duration = screenState.duration
+                                val quantised =
+                                    if (duration > 0) {
+                                        (screenState.bufferedPosition * 100L / duration).toInt() / 100f
+                                    } else {
+                                        0f
+                                    }
+                                quantised.coerceIn(0f, 1f)
+                            }
+                        }
                         PremiumControlsOverlay(
                             isVisible = controlsShown,
                             isPlaying = playerState.playWhenReady,
@@ -1291,13 +1298,13 @@ fun GlobalPlayerOverlay(
                     }
                 }
             },
-            bodyContent = { alpha, videoHeight ->
+            bodyContent = { alpha, videoHeightPx ->
                 Box(Modifier.fillMaxSize()) {
                     EnhancedVideoPlayerScreen(
                         viewModel = playerViewModel,
                         video = video,
                         alpha = alpha,
-                        videoPlayerHeight = videoHeight,
+                        videoPlayerHeightPx = videoHeightPx,
                         screenState = screenState,
                         onVideoClick = { clickedVideo ->
                             if (clickedVideo.isShort) {

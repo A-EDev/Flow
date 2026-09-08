@@ -670,13 +670,14 @@ fun FlowApp(
             }
         }
 
+        val bottomPaddingTarget =
+            if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) {
+                bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
+            } else {
+                with(density) { navBarBottomInset.toDp() }
+            }
         val animatedBottomPaddingRaw by animateDpAsState(
-            targetValue =
-                if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) {
-                    bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
-                } else {
-                    with(density) { navBarBottomInset.toDp() }
-                },
+            targetValue = bottomPaddingTarget,
             animationSpec = tween(220),
             label = "globalBottomPadding",
         )
@@ -684,11 +685,14 @@ fun FlowApp(
         val snackbarBottomPadding = (animatedBottomPadding + 12.dp).coerceAtLeast(12.dp)
 
         // ===== GLOBAL PLAYER OVERLAY =====
+        // The video overlay takes the settled target, not the animated value: it only uses the
+        // padding to pick the mini player's resting bounds, and an animated Dp parameter
+        // recomposed the whole overlay on every frame of the nav bar tween.
         GlobalPlayerOverlay(
             video = activeVideo,
             isVisible = playerVisible && !isShortsPlayerRoute,
             playerSheetState = playerSheetState,
-            bottomPadding = animatedBottomPadding,
+            bottomPadding = bottomPaddingTarget.coerceAtLeast(0.dp),
             miniPlayerScale = miniPlayerScale,
             miniPlayerShowSkipControls = miniPlayerShowSkipControls,
             miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
