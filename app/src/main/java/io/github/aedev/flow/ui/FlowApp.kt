@@ -44,7 +44,6 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.DonationPromptHost
 import io.github.aedev.flow.ui.components.FloatingBottomNavBar
-import io.github.aedev.flow.ui.components.PlayerSheetValue
 import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpacer
@@ -52,7 +51,8 @@ import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerHeight
 import io.github.aedev.flow.ui.components.musicplayer.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.musicplayer.UnifiedMusicPlayerSheet
 import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPlayerSheetState
-import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
+import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
+import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel

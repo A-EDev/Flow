@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui
+package io.github.aedev.flow.ui.components.videoplayer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,9 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -50,7 +50,7 @@ internal fun MiniPlayerControls(
     onSkipBack: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp > 600
@@ -58,48 +58,51 @@ internal fun MiniPlayerControls(
     val scaleMult = sizeScale.coerceIn(1f, 1.6f)
 
     val baseTouchSize = if (isTablet) 44.dp else 36.dp
-    val baseBgSize  = if (isTablet) 34.dp else 24.dp
+    val baseBgSize = if (isTablet) 34.dp else 24.dp
     val baseIconSize = if (isTablet) 30.dp else 24.dp
     val finalTouchSize = baseTouchSize * scaleMult
-    val finalBgSize   = baseBgSize   * scaleMult
+    val finalBgSize = baseBgSize * scaleMult
     val finalIconSize = baseIconSize * scaleMult
     val topTouchSize = if (isTablet) 50.dp else 42.dp
     val topBgSize = if (isTablet) 42.dp else 34.dp
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         IconButton(
             onClick = onPlayPause,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(4.dp)
-                .size(topTouchSize)
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
+                    .size(topTouchSize),
         ) {
             MiniPlayerButtonBackground(
                 backgroundSize = topBgSize,
-                backgroundAlpha = 0.28f
+                backgroundAlpha = 0.28f,
             ) {
                 if (playerState.isBuffering) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(if (isTablet) 30.dp else 24.dp),
                         strokeWidth = 2.dp,
-                        color = Color.White
+                        color = Color.White,
                     )
                 } else {
                     Icon(
-                        imageVector = when {
-                            playerState.hasEnded -> Icons.Rounded.Replay
-                            playerState.playWhenReady -> Icons.Rounded.Pause
-                            else -> Icons.Rounded.PlayArrow
-                        },
-                        contentDescription = when {
-                            playerState.hasEnded -> stringResource(R.string.ui_replay)
-                            playerState.playWhenReady -> stringResource(R.string.pause)
-                            else -> stringResource(R.string.play)
-                        },
+                        imageVector =
+                            when {
+                                playerState.hasEnded -> Icons.Rounded.Replay
+                                playerState.playWhenReady -> Icons.Rounded.Pause
+                                else -> Icons.Rounded.PlayArrow
+                            },
+                        contentDescription =
+                            when {
+                                playerState.hasEnded -> stringResource(R.string.ui_replay)
+                                playerState.playWhenReady -> stringResource(R.string.pause)
+                                else -> stringResource(R.string.play)
+                            },
                         tint = Color.White,
-                        modifier = Modifier.size(if (isTablet) 42.dp else 34.dp)
+                        modifier = Modifier.size(if (isTablet) 42.dp else 34.dp),
                     )
                 }
             }
@@ -111,32 +114,34 @@ internal fun MiniPlayerControls(
                 GlobalPlayerState.hideMiniPlayer()
                 onClose()
             },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(4.dp)
-                .size(topTouchSize)
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(topTouchSize),
         ) {
             MiniPlayerButtonBackground(
                 backgroundSize = topBgSize,
-                backgroundAlpha = 0.28f
+                backgroundAlpha = 0.28f,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = stringResource(R.string.close),
                     tint = Color.White,
-                    modifier = Modifier.size(if (isTablet) 34.dp else 30.dp)
+                    modifier = Modifier.size(if (isTablet) 34.dp else 30.dp),
                 )
             }
         }
 
         if (showSkipControls || showNextPrevControls) {
             Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (showNextPrevControls) {
                     MiniPlayerIconButton(
@@ -145,7 +150,7 @@ internal fun MiniPlayerControls(
                         touchSize = finalTouchSize,
                         backgroundSize = finalBgSize,
                         iconSize = finalIconSize,
-                        onClick = onPrevious
+                        onClick = onPrevious,
                     )
                 }
 
@@ -156,7 +161,7 @@ internal fun MiniPlayerControls(
                         touchSize = finalTouchSize,
                         backgroundSize = finalBgSize,
                         iconSize = finalIconSize,
-                        onClick = onSkipBack
+                        onClick = onSkipBack,
                     )
                 }
 
@@ -167,7 +172,7 @@ internal fun MiniPlayerControls(
                         touchSize = finalTouchSize,
                         backgroundSize = finalBgSize,
                         iconSize = finalIconSize,
-                        onClick = onSkipForward
+                        onClick = onSkipForward,
                     )
                 }
 
@@ -178,7 +183,7 @@ internal fun MiniPlayerControls(
                         touchSize = finalTouchSize,
                         backgroundSize = finalBgSize,
                         iconSize = finalIconSize,
-                        onClick = onNext
+                        onClick = onNext,
                     )
                 }
             }
@@ -193,18 +198,18 @@ private fun MiniPlayerIconButton(
     touchSize: Dp,
     backgroundSize: Dp,
     iconSize: Dp,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(touchSize)
+        modifier = Modifier.size(touchSize),
     ) {
         MiniPlayerButtonBackground(backgroundSize = backgroundSize) {
             Icon(
                 imageVector = imageVector,
                 contentDescription = contentDescription,
                 tint = Color.White,
-                modifier = Modifier.size(iconSize)
+                modifier = Modifier.size(iconSize),
             )
         }
     }
@@ -214,13 +219,14 @@ private fun MiniPlayerIconButton(
 private fun MiniPlayerButtonBackground(
     backgroundSize: Dp,
     backgroundAlpha: Float = 0.36f,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .size(backgroundSize)
-            .background(Color.Black.copy(alpha = backgroundAlpha), CircleShape),
+        modifier =
+            Modifier
+                .size(backgroundSize)
+                .background(Color.Black.copy(alpha = backgroundAlpha), CircleShape),
         contentAlignment = Alignment.Center,
-        content = content
+        content = content,
     )
 }

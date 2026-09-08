@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.videoplayer
 
 import android.content.res.Configuration
 import androidx.compose.animation.core.Animatable
