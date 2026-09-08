@@ -18,6 +18,17 @@ internal const val HOME_PREFETCH_TRIGGER_REMAINING_VIDEOS = 8
  */
 internal const val HOME_PREFETCH_MAX_PAGES_PER_RUN = 1
 
+/**
+ * How many times a run retries after a page that appended nothing.
+ *
+ * A page comes back empty when every candidate it fetched was already on screen. Each attempt
+ * advances the discovery-query cursor and rotates the related seeds, so a retry asks for
+ * genuinely different content rather than repeating the same request.
+ */
+internal const val HOME_PREFETCH_EMPTY_PAGE_RETRIES = 3
+
+internal const val HOME_PREFETCH_EMPTY_PAGE_BACKOFF_MS = 400L
+
 internal data class HomePrefetchRequest(
     val generation: Int,
     val targetVideoCount: Int,

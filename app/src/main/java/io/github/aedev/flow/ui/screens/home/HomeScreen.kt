@@ -93,6 +93,9 @@ fun HomeScreen(
                 uiState.videos.forEachIndexed { index, video -> put(video.id, index) }
             }
         }
+    // Pairing the index with the scroll state matters: a user parked on the last item keeps the
+    // same index, so an index-only flow can never re-arm a prefetch that came back empty. Each
+    // further scroll attempt toggles isScrollInProgress and gives the feed another chance.
     LaunchedEffect(gridState, videoIndexById) {
         snapshotFlow {
             var lastVisibleVideoIndex = -1
@@ -100,9 +103,11 @@ fun HomeScreen(
                 val index = videoIndexById[item.key as? String] ?: return@forEach
                 if (index > lastVisibleVideoIndex) lastVisibleVideoIndex = index
             }
-            lastVisibleVideoIndex
+            lastVisibleVideoIndex to gridState.isScrollInProgress
         }.distinctUntilChanged()
-            .collect(viewModel::onHomeViewportChanged)
+            .collect { (lastVisibleVideoIndex, _) ->
+                viewModel.onHomeViewportChanged(lastVisibleVideoIndex)
+            }
     }
 
     // Viewport impressions: only items dwelt in view are recorded as "shown".

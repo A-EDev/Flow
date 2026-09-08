@@ -28,6 +28,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -288,6 +289,7 @@ class HomeViewModel
 
         private suspend fun drainHomePrefetchQueue(generation: Int) {
             var pagesLoaded = 0
+            var emptyPageAttempts = 0
             var allowRestart = true
             try {
                 wave2Job?.takeIf { it.isActive }?.join()
@@ -297,11 +299,20 @@ class HomeViewModel
                     if (request.generation != generation || !state.hasMorePages) break
 
                     _uiState.update { it.copy(isLoadingMore = true) }
-                    if (!loadNextPrefetchPage(generation)) {
+                    if (loadNextPrefetchPage(generation)) {
+                        pagesLoaded++
+                        continue
+                    }
+
+                    // A page that appended nothing leaves the feed at the same length, so the
+                    // viewport index cannot change and nothing would re-arm this queue. Retry a
+                    // few times — each attempt rotates queries and seeds — before giving up.
+                    emptyPageAttempts++
+                    if (emptyPageAttempts >= HOME_PREFETCH_EMPTY_PAGE_RETRIES) {
                         allowRestart = false
                         break
                     }
-                    pagesLoaded++
+                    delay(HOME_PREFETCH_EMPTY_PAGE_BACKOFF_MS * emptyPageAttempts)
                 }
                 if (pagesLoaded >= HOME_PREFETCH_MAX_PAGES_PER_RUN) {
                     allowRestart = false
