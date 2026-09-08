@@ -11,11 +11,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import io.github.aedev.flow.ui.components.videoplayer.motion.DraggablePlayerMotionController
+import io.github.aedev.flow.ui.components.videoplayer.motion.MINI_SETTLE_DIP_HOLD_MS
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetX
 import io.github.aedev.flow.ui.components.videoplayer.motion.cornerTargetY
 import io.github.aedev.flow.ui.components.videoplayer.motion.miniResizeSpringSpec
+import io.github.aedev.flow.ui.components.videoplayer.motion.miniSnapSpringSpec
 import io.github.aedev.flow.ui.components.videoplayer.motion.playerExpandSpringSpec
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class PlayerSheetValue { Expanded, Collapsed }
@@ -47,6 +50,14 @@ class PlayerDraggableState(
 
     var miniVisualScale by mutableFloatStateOf(1f)
 
+    /**
+     * Extra downward travel a collapse settles through before lifting to the resting corner, so
+     * the landing reads as a rubber band rather than a stop. Added to [offsetY] in the draw phase
+     * only; the layout sets [settleDipPx] from the nav bar height.
+     */
+    val settleDip = Animatable(0f)
+    var settleDipPx = 0f
+
     internal val motion =
         DraggablePlayerMotionController(
             offsetX = offsetX,
@@ -77,6 +88,7 @@ class PlayerDraggableState(
             isShrinkingToCorner = false
             val anim = playerExpandSpringSpec
             launch { motion.resize { miniSizeScale.animateTo(1f, anim) } }
+            launch { motion.animateDip { settleDip.animateTo(0f, anim) } }
             launch { motion.animateFraction { expandFraction.animateTo(0f, anim) } }
             launch {
                 motion.moveOffsets {
@@ -161,6 +173,17 @@ class PlayerDraggableState(
                     motion.moveOffsets {
                         launch { offsetX.animateTo(cachedTargetX, anim) }
                         launch { offsetY.animateTo(cachedTargetY, anim) }
+                    }
+                }
+                launch {
+                    motion.animateDip {
+                        // The lift starts on a fixed beat after the landing rather than when the
+                        // spring reports done: its sub-pixel tail would hold the mini down for
+                        // most of a second.
+                        val landing = launch { settleDip.animateTo(settleDipPx, anim) }
+                        delay(MINI_SETTLE_DIP_HOLD_MS)
+                        landing.cancel()
+                        settleDip.animateTo(0f, miniSnapSpringSpec)
                     }
                 }
             }

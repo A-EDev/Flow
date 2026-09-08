@@ -23,10 +23,16 @@ internal class DraggablePlayerMotionController(
     private val fractionMutex = MutatorMutex()
     private val offsetMutex = MutatorMutex()
     private val sizeMutex = MutatorMutex()
+    private val dipMutex = MutatorMutex()
 
     /** Animates the expansion fraction; cancels any fraction move already running. */
     suspend fun animateFraction(block: suspend () -> Unit) {
         fractionMutex.mutate { block() }
+    }
+
+    /** Animates the settle dip; cancels any dip already running. */
+    suspend fun animateDip(block: suspend () -> Unit) {
+        dipMutex.mutate { block() }
     }
 
     /** Runs a coordinated x/y move; cancels any offsets move already running. */

@@ -20,3 +20,9 @@ internal const val MINI_RESNAP_DEBOUNCE_MS = 50L
 
 /** How long the dismiss fling is allowed to travel before the player is torn down. */
 internal const val MINI_DISMISS_TEARDOWN_DELAY_MS = 200L
+
+/**
+ * Time from the start of a collapse to the moment the mini lifts out of its settle dip: the
+ * landing spring is visually done by then, and the lift reads as a bounce off the nav bar.
+ */
+internal const val MINI_SETTLE_DIP_HOLD_MS = 400L
