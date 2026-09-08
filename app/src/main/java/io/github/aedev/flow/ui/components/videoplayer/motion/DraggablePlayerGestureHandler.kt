@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -32,7 +33,7 @@ private const val MINI_TAP_MOVEMENT_PX = 24f
  * Hand-rolled on purpose. `anchoredDraggable` and `draggable2D` apply touch slop and report
  * deltas in local space, but this node sits under the morph's graphicsLayer scale, so the same
  * finger travel is 2-3x more local distance in the mini player and the collapse mapping changes
- * as the scale shrinks mid-drag. Every delta, slop and velocity here is scaled through
+ * as the scale shrinks mid-drag. Every delta and slop here is scaled through
  * [DraggablePlayerGestureMetrics.liveGestureScale] at read time to keep the hand-tuned physics.
  *
  * Taps are classified inside this loop rather than by a separate `detectTapGestures` node: the
@@ -40,7 +41,11 @@ private const val MINI_TAP_MOVEMENT_PX = 24f
  * a pointer-input node while a finger is down re-pairs the remaining nodes by position, resets
  * their keys and cancels the drag coroutine mid-gesture, which leaves the sheet frozen wherever
  * the finger was.
-
+ *
+ * Velocity is measured on the finger's screen-space path (the scaled deltas summed from the
+ * down), not on the raw local positions: the node moves with the finger, so local positions
+ * barely change while the mini tracks it and then jump once it is pinned against a bound, which
+ * read as a horizontal fling and dismissed the player on an ordinary diagonal throw.
  */
 internal class DraggablePlayerGestureHandler(
     private val state: PlayerDraggableState,
@@ -66,8 +71,9 @@ internal class DraggablePlayerGestureHandler(
                 !metrics.isFullscreen &&
                 metrics.onFullscreenGesture != null
 
+        var fingerPath = Offset.Zero
         velocityTracker.resetTracking()
-        velocityTracker.addPosition(down.uptimeMillis, down.position)
+        velocityTracker.addPosition(down.uptimeMillis, fingerPath)
 
         if (isCollapseDrag) {
             state.scope.launch {
@@ -94,17 +100,19 @@ internal class DraggablePlayerGestureHandler(
                 if (change == null || !change.pressed || change.isConsumed) {
                     break
                 }
-                velocityTracker.addPosition(change.uptimeMillis, change.position)
                 val delta = (change.position - down.position) * metrics.liveGestureScale(state)
+                velocityTracker.addPosition(change.uptimeMillis, delta)
                 if (delta.y > slop && delta.y > abs(delta.x)) {
                     hasCrossedSlop = true
                     startDragY = delta.y
                     detectedDirection = 1
+                    fingerPath = delta
                     change.consume()
                 } else if (canSwipeToFullscreen && delta.y < -slop && abs(delta.y) > abs(delta.x)) {
                     hasCrossedSlop = true
                     startDragY = delta.y
                     detectedDirection = -1
+                    fingerPath = delta
                     change.consume()
                 } else if (abs(delta.x) > slop) {
                     break
@@ -148,7 +156,8 @@ internal class DraggablePlayerGestureHandler(
                 drag(dragPointerId) { change ->
                     val delta = change.positionChange() * metrics.liveGestureScale(state)
                     totalMovement += delta.getDistance()
-                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                    fingerPath += delta
+                    velocityTracker.addPosition(change.uptimeMillis, fingerPath)
 
                     if (isCollapseDrag && detectedDirection == 1) {
                         change.consume()
@@ -204,7 +213,7 @@ internal class DraggablePlayerGestureHandler(
         }
 
         if (isCollapseDrag && detectedDirection == -1) {
-            val velY = velocityTracker.calculateVelocity().y * metrics.liveGestureScale(state)
+            val velY = velocityTracker.calculateVelocity().y
             if (shouldEnterFullscreenFromSwipe(totalUpwardDrag, velY)) {
                 metrics.onFullscreenGesture?.invoke()
             }
@@ -212,7 +221,7 @@ internal class DraggablePlayerGestureHandler(
         }
 
         if (isCollapseDrag) {
-            val velY = velocityTracker.calculateVelocity().y * metrics.liveGestureScale(state)
+            val velY = velocityTracker.calculateVelocity().y
             if (shouldCollapseOnRelease(state.expandFraction.value, velY)) {
                 metrics.onCollapseGesture?.invoke()
                 state.collapse()
@@ -270,9 +279,8 @@ internal class DraggablePlayerGestureHandler(
 
     private fun releaseMini() {
         val velocity = velocityTracker.calculateVelocity()
-        val velocityScale = metrics.liveGestureScale(state)
-        val velY = velocity.y * velocityScale
-        val velX = velocity.x * velocityScale
+        val velY = velocity.y
+        val velX = velocity.x
         val currentX = state.offsetX.value
         val currentY = state.offsetY.value
         val bounds = metrics.bounds
