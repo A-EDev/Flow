@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.videoplayer.motion
 
+import android.util.Log
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
@@ -14,6 +15,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 private const val DRAG_MODE_FRACTION = 0
 private const val DRAG_MODE_POSITION = 1
@@ -257,6 +259,11 @@ internal class DraggablePlayerGestureHandler(
                 miniWidth = metrics.miniWidth,
                 margin = metrics.margin,
             )
+        Log.w(
+            "FlowVideoSheet",
+            "miniRelease vel=(${velX.roundToInt()},${velY.roundToInt()}) pos=(${currentX.roundToInt()},${currentY.roundToInt()}) " +
+                "corner=${state.corner}->$newCorner dismiss=${dismissOffsetX != null}",
+        )
         if (dismissOffsetX != null) {
             state.scope.launch {
                 launch {
