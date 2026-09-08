@@ -75,6 +75,7 @@ import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.SubtitleStyle
 import io.github.aedev.flow.ui.components.commentTimestampToMs
 import io.github.aedev.flow.ui.components.videoplayer.DraggablePlayerLayout
+import io.github.aedev.flow.ui.components.videoplayer.MINI_PLAYER_CORNER_RADIUS_DP
 import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerControls
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
@@ -1013,7 +1014,7 @@ fun GlobalPlayerOverlay(
                             onVideoAspectRatioChanged = { decodedVideoAspectRatio = it },
                             cornerRadiusDp =
                                 if (isMinimized && !localIsInPipMode) {
-                                    12f / playerSheetState.miniVisualScale
+                                    MINI_PLAYER_CORNER_RADIUS_DP / playerSheetState.miniVisualScale
                                 } else {
                                     0f
                                 },
@@ -1043,7 +1044,7 @@ fun GlobalPlayerOverlay(
                                         .clip(
                                             RoundedCornerShape(
                                                 if (isMinimized && !localIsInPipMode) {
-                                                    (12f / playerSheetState.miniVisualScale).dp
+                                                    (MINI_PLAYER_CORNER_RADIUS_DP / playerSheetState.miniVisualScale).dp
                                                 } else {
                                                     0.dp
                                                 },

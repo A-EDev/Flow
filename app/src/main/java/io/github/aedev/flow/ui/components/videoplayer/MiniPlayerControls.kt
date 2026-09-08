@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Forward10
@@ -22,12 +24,20 @@ import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -35,9 +45,66 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.ui.components.videoplayer.motion.lerpClamped
+import io.github.aedev.flow.ui.theme.PlayerMiniProgress
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimMiniButton
 import io.github.aedev.flow.ui.theme.PlayerScrimMiniTopButton
+
+/**
+ * The controls and progress bar that sit on the floating mini player. Sized at the settled mini
+ * size and counter-scaled by the constant `expandedVideoWidth / miniWidth`, so the parent's morph
+ * scale renders them 1:1 in the mini window with no per-frame measure; they pop and fade in over
+ * the last stretch of the collapse.
+ */
+@Composable
+internal fun BoxScope.MiniPlayerControlsLayer(
+    state: PlayerDraggableState,
+    miniWidth: Float,
+    miniHeight: Float,
+    expandedVideoWidth: Float,
+    progress: () -> Float,
+    miniControls: @Composable (() -> Float) -> Unit,
+) {
+    val miniControlsVisible by remember(state) { derivedStateOf { state.expandFraction.value > 0.6f } }
+    if (!miniControlsVisible) return
+    val density = LocalDensity.current
+    val controlsScale = expandedVideoWidth / miniWidth.coerceAtLeast(1f)
+    val fractionProvider = remember(state) { { state.expandFraction.value } }
+    Box(
+        modifier =
+            Modifier
+                .size(with(density) { miniWidth.toDp() }, with(density) { miniHeight.toDp() })
+                .graphicsLayer {
+                    val controlsProgress = ((state.expandFraction.value - 0.6f) / 0.25f).coerceIn(0f, 1f)
+                    transformOrigin = TransformOrigin(0f, 0f)
+                    val pop = lerpClamped(0.96f, 1f, controlsProgress)
+                    scaleX = controlsScale * pop
+                    scaleY = controlsScale * pop
+                    alpha = controlsProgress
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
+                    shape = RoundedCornerShape(MINI_PLAYER_CORNER_RADIUS_DP.dp)
+                    clip = true
+                },
+    ) {
+        miniControls(fractionProvider)
+
+        LinearProgressIndicator(
+            progress = progress,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .graphicsLayer {
+                        alpha = ((state.expandFraction.value - 0.72f) / 0.18f).coerceIn(0f, 1f)
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                    },
+            color = PlayerMiniProgress,
+            trackColor = Color.Transparent,
+        )
+    }
+}
 
 /**
  * Mini Player Controls - Dynamically arranges Play/Pause, Rewind/FastForward, and Next/Previous.
