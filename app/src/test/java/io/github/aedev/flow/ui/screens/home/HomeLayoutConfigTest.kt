@@ -10,24 +10,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.HomeFeedColumns
-import io.github.aedev.flow.ui.components.FeedGridLayout
+import io.github.aedev.flow.ui.components.feedGridLayoutFor
 import org.junit.Test
 
 /** Issues #855 and #925: the home grid must offer a denser layout than one card per row. */
 class HomeLayoutConfigTest {
-    private fun baseFor(width: Dp) =
-        when {
-            width < 480.dp -> FeedGridLayout(columns = 1, contentPadding = 0.dp, cardSpacing = 12.dp)
-            width < 700.dp -> FeedGridLayout(columns = 1, contentPadding = 12.dp, cardSpacing = 14.dp)
-            width < 900.dp -> FeedGridLayout(columns = 2, contentPadding = 16.dp, cardSpacing = 12.dp)
-            width < 1200.dp -> FeedGridLayout(columns = 3, contentPadding = 20.dp, cardSpacing = 14.dp)
-            else -> FeedGridLayout(columns = 4, contentPadding = 24.dp, cardSpacing = 16.dp)
-        }
-
     private fun resolve(
         width: Dp,
         preference: HomeFeedColumns = HomeFeedColumns.AUTO,
-    ) = resolveHomeLayoutConfig(baseFor(width), width, preference)
+    ) = resolveHomeLayoutConfig(feedGridLayoutFor(width), width, preference)
 
     @Test
     fun `a phone still gets one card per row on auto`() {

@@ -12,11 +12,10 @@ import androidx.compose.ui.unit.dp
 data class FeedGridLayout(
     val columns: Int,
     val contentPadding: Dp,
-    val cardSpacing: Dp
+    val cardSpacing: Dp,
 )
 
-@Composable
-fun rememberFeedGridLayout(maxWidth: Dp): FeedGridLayout = remember(maxWidth) {
+fun feedGridLayoutFor(maxWidth: Dp): FeedGridLayout =
     when {
         maxWidth < 480.dp -> FeedGridLayout(columns = 1, contentPadding = 0.dp, cardSpacing = 12.dp)
         maxWidth < 700.dp -> FeedGridLayout(columns = 1, contentPadding = 12.dp, cardSpacing = 14.dp)
@@ -24,4 +23,6 @@ fun rememberFeedGridLayout(maxWidth: Dp): FeedGridLayout = remember(maxWidth) {
         maxWidth < 1200.dp -> FeedGridLayout(columns = 3, contentPadding = 20.dp, cardSpacing = 14.dp)
         else -> FeedGridLayout(columns = 4, contentPadding = 24.dp, cardSpacing = 16.dp)
     }
-}
+
+@Composable
+fun rememberFeedGridLayout(maxWidth: Dp): FeedGridLayout = remember(maxWidth) { feedGridLayoutFor(maxWidth) }
