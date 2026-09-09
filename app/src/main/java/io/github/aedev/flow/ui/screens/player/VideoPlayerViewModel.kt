@@ -300,10 +300,6 @@ class VideoPlayerViewModel
 
         fun isVideoSavedToAnyPlaylist(videoId: String): Flow<Boolean> = playlistRepository.isVideoSavedToAnyPlaylistFlow(videoId)
 
-        fun initialize(context: Context) {
-            // Handled by Hilt
-        }
-
         /**
          * Detect whether the device is currently on Wi-Fi.
          * Used to select the correct quality preference (Wi-Fi vs cellular).
@@ -2981,7 +2977,7 @@ class VideoPlayerViewModel
             }
         }
 
-        fun getPreviousVideoId(): String? {
+        private fun getPreviousVideoId(): String? {
             if (currentHistoryIndex > 0 && currentHistoryIndex < navigationHistory.size) {
                 currentHistoryIndex--
                 _canGoPrevious.value = currentHistoryIndex > 0
@@ -3131,7 +3127,7 @@ class VideoPlayerViewModel
             reportWatchProgress(video, session.maxPositionMs, session.durationMs)
         }
 
-        fun reportWatchProgress(
+        private fun reportWatchProgress(
             video: io.github.aedev.flow.data.model.Video,
             position: Long,
             duration: Long,

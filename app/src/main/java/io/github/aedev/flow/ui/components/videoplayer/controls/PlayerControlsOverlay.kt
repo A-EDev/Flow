@@ -209,7 +209,6 @@ fun PlayerControlsOverlay(
     val controlActions =
         PlayerControlActions(
             onPlayPause = onPlayPause,
-            onSeek = onSeek,
             onPrevious = onPrevious,
             onNext = onNext,
             onBack = onBack,

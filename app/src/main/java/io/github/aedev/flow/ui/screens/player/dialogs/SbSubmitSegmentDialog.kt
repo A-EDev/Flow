@@ -38,7 +38,7 @@ private val SB_SUBMIT_CATEGORIES =
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SbSubmitSegmentDialog(
+internal fun SbSubmitSegmentDialog(
     videoId: String,
     currentPositionMs: Long,
     onDismiss: () -> Unit,

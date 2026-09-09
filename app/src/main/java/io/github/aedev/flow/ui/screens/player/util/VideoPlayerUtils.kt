@@ -13,7 +13,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import org.schabi.newpipe.extractor.stream.VideoStream
 
-object VideoPlayerUtils {
+internal object VideoPlayerUtils {
     fun codecKeyFromMimeType(mimeType: String): String = VideoCodecUtils.codecKeyFromMimeType(mimeType)
 
     fun codecKeyFromStream(stream: VideoStream): String = VideoCodecUtils.codecKeyFromStream(stream)

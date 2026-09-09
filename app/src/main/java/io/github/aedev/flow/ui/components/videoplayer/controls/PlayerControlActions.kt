@@ -3,9 +3,8 @@ package io.github.aedev.flow.ui.components.videoplayer.controls
 import androidx.compose.runtime.Immutable
 
 @Immutable
-data class PlayerControlActions(
+internal data class PlayerControlActions(
     val onPlayPause: () -> Unit = {},
-    val onSeek: (Long) -> Unit = {},
     val onPrevious: () -> Unit = {},
     val onNext: () -> Unit = {},
     val onBack: () -> Unit = {},

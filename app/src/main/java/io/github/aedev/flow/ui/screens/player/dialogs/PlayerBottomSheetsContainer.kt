@@ -40,7 +40,7 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 
 @Composable
-fun PlayerBottomSheetsContainer(
+internal fun PlayerBottomSheetsContainer(
     screenState: PlayerScreenState,
     uiState: VideoPlayerUiState,
     video: Video,

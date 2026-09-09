@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 @UnstableApi
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EnhancedVideoPlayerScreen(
+internal fun EnhancedVideoPlayerScreen(
     viewModel: VideoPlayerViewModel,
     video: Video,
     alpha: () -> Float,

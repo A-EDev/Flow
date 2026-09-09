@@ -4,7 +4,7 @@ import android.content.res.Configuration
 import io.github.aedev.flow.ui.utils.isTabletFormFactor
 
 /** Which of the player detail layouts the current window can host. */
-enum class PlayerLayoutMode {
+internal enum class PlayerLayoutMode {
     /** Single column: phones, plus any window currently hosting fullscreen video or PiP. */
     COMPACT,
 
@@ -19,7 +19,7 @@ enum class PlayerLayoutMode {
  * Fullscreen and PiP hand the whole window to the video surface, so the detail layout collapses to
  * [PlayerLayoutMode.COMPACT] regardless of how much room the device otherwise has.
  */
-fun playerLayoutModeFor(
+internal fun playerLayoutModeFor(
     configuration: Configuration,
     isFullscreen: Boolean,
     isInPipMode: Boolean,
