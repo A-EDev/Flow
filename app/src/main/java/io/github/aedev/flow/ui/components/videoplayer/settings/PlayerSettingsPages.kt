@@ -133,7 +133,7 @@ internal fun PlayerSettingsSubtitlesPage(
     availableSubtitles: List<SubtitleOption>,
     selectedSubtitleUrl: String?,
     subtitlesEnabled: Boolean,
-    onSubtitleSelected: (Int, String) -> Unit,
+    onSubtitleSelected: (Int) -> Unit,
     onDisableSubtitles: () -> Unit,
     onShowStyleCustomizer: () -> Unit,
 ) {
@@ -170,7 +170,7 @@ internal fun PlayerSettingsSubtitlesPage(
                 },
             supportingText = subtitle.language.takeIf { it.isNotBlank() },
             selected = subtitle.url == selectedSubtitleUrl && subtitlesEnabled,
-            onClick = { onSubtitleSelected(index, subtitle.url) },
+            onClick = { onSubtitleSelected(index) },
         )
     }
     HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))

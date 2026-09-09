@@ -1,7 +1,5 @@
 package io.github.aedev.flow.ui.screens.player.state
 
-import android.content.Context
-import android.media.AudioManager
 import androidx.compose.runtime.*
 import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
@@ -184,18 +182,3 @@ class PlayerScreenState {
 
 @Composable
 fun rememberPlayerScreenState(): PlayerScreenState = remember { PlayerScreenState() }
-
-data class AudioSystemInfo(
-    val audioManager: AudioManager,
-    val maxVolume: Int,
-)
-
-@Composable
-fun rememberAudioSystemInfo(context: Context): AudioSystemInfo =
-    remember {
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        AudioSystemInfo(
-            audioManager = audioManager,
-            maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
-        )
-    }

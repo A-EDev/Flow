@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.runtime.*
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
@@ -23,6 +24,66 @@ internal fun VideoLoadEffect(
         screenState.resetForNewVideo()
 
         viewModel.loadVideoInfo(videoId, NetworkState.isOnWifi(context))
+    }
+}
+
+/**
+ * The load pipeline a genuinely new video needs. A restored session already has a prepared
+ * player, so the host composes none of this for one.
+ */
+@Composable
+internal fun PlayerFreshSessionEffects(
+    videoId: String,
+    context: Context,
+    screenState: PlayerScreenState,
+    uiState: VideoPlayerUiState,
+    viewModel: VideoPlayerViewModel,
+) {
+    VideoLoadEffect(
+        videoId = videoId,
+        context = context,
+        screenState = screenState,
+        viewModel = viewModel,
+    )
+
+    LaunchedEffect(
+        videoId,
+        uiState.isLoading,
+        uiState.error,
+        uiState.streamInfo,
+        uiState.audioStream,
+        uiState.localFilePath,
+    ) {
+        viewModel.ensurePlaybackPrepared(videoId)
+    }
+
+    PlaybackStartupRecoveryEffect(
+        videoId = videoId,
+        uiState = uiState,
+        screenState = screenState,
+        viewModel = viewModel,
+    )
+}
+
+/** Adopts whatever the player singleton is actually playing when it changes underneath the UI. */
+@Composable
+internal fun GlobalVideoSyncEffect(
+    currentVideoId: String?,
+    currentVideo: () -> Video?,
+    uiState: VideoPlayerUiState,
+    commentsEnabled: Boolean,
+    viewModel: VideoPlayerViewModel,
+) {
+    LaunchedEffect(currentVideoId) {
+        val current = currentVideo()
+        if (current != null && !uiState.isRestoredSession) {
+            if (current.id != uiState.cachedVideo?.id || uiState.streamInfo?.id != current.id) {
+                viewModel.syncWithCurrentPlayerVideo(current)
+            }
+            if (commentsEnabled) {
+                viewModel.loadComments(current.id)
+            }
+        }
     }
 }
 

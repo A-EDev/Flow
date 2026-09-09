@@ -27,7 +27,6 @@ private fun resolveHistoryChannelName(
 
 @Composable
 internal fun WatchProgressSaveEffect(
-    videoId: String,
     video: Video,
     isPlaying: Boolean,
     currentPosition: () -> Long,
@@ -39,7 +38,7 @@ internal fun WatchProgressSaveEffect(
     val currentDurProvider by rememberUpdatedState(duration)
     val currentUi by rememberUpdatedState(uiState)
 
-    LaunchedEffect(videoId) {
+    LaunchedEffect(video.id) {
         delay(3000)
         val streamInfo = currentUi.streamInfo
         if (currentUi.isCurrentLiveStream()) return@LaunchedEffect
@@ -48,12 +47,12 @@ internal fun WatchProgressSaveEffect(
         val thumbnailUrl =
             streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
                 ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+                ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
         val title = streamInfo?.name ?: video.title
         val durationMs = currentDurProvider()
         if (title.isNotEmpty() && durationMs > 0) {
             viewModel.savePlaybackPosition(
-                videoId = videoId,
+                videoId = video.id,
                 position = currentPosProvider(),
                 duration = durationMs,
                 title = title,
@@ -65,7 +64,7 @@ internal fun WatchProgressSaveEffect(
         }
     }
 
-    LaunchedEffect(videoId, isPlaying) {
+    LaunchedEffect(video.id, isPlaying) {
         while (isPlaying) {
             delay(10000)
             val streamInfo = currentUi.streamInfo
@@ -75,12 +74,12 @@ internal fun WatchProgressSaveEffect(
             val thumbnailUrl =
                 streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
                     ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
             val title = streamInfo?.name ?: video.title
             val durationMs = currentDurProvider()
             if (durationMs > 0 && title.isNotEmpty()) {
                 viewModel.savePlaybackPosition(
-                    videoId = videoId,
+                    videoId = video.id,
                     position = currentPosProvider(),
                     duration = durationMs,
                     title = title,

@@ -64,7 +64,7 @@ fun SettingsMenuDialog(
     onAudioTrackSelected: (Int) -> Unit = {},
     onSpeedSelected: (Float) -> Unit = {},
     selectedSubtitleUrl: String? = null,
-    onSubtitleSelected: (Int, String) -> Unit = { _, _ -> },
+    onSubtitleSelected: (Int) -> Unit = {},
     onDisableSubtitles: () -> Unit = {},
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
@@ -353,8 +353,8 @@ fun SettingsMenuDialog(
                                 availableSubtitles = playerState.availableSubtitles,
                                 selectedSubtitleUrl = selectedSubtitleUrl,
                                 subtitlesEnabled = subtitlesEnabled,
-                                onSubtitleSelected = { index, url ->
-                                    onSubtitleSelected(index, url)
+                                onSubtitleSelected = { index ->
+                                    onSubtitleSelected(index)
                                     animateToDismiss()
                                 },
                                 onDisableSubtitles = {

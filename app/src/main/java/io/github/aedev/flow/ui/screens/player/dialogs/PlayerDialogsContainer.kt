@@ -24,7 +24,7 @@ import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import kotlinx.coroutines.launch
 
 @Composable
-fun PlayerDialogsContainer(
+internal fun PlayerDialogsContainer(
     screenState: PlayerScreenState,
     playerState: EnhancedPlayerState,
     uiState: VideoPlayerUiState,
@@ -124,7 +124,7 @@ fun PlayerDialogsContainer(
                 }
             },
             selectedSubtitleUrl = screenState.selectedSubtitleUrl,
-            onSubtitleSelected = { index, _ ->
+            onSubtitleSelected = { index ->
                 SubtitleSelection.applyAt(
                     screenState = screenState,
                     subtitles = playerState.availableSubtitles,

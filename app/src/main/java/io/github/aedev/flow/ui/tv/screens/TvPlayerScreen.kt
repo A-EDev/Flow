@@ -126,7 +126,6 @@ fun TvPlayerScreen(
     // Same history/progress saver the mobile overlay mounts — without it, TV
     // sessions never reach ViewHistory and Continue Watching stays empty.
     WatchProgressSaveEffect(
-        videoId = video.id,
         video = video,
         isPlaying = playerState.isPlaying,
         currentPosition = { manager.getCurrentPosition().coerceAtLeast(0L) },
