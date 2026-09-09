@@ -1,0 +1,289 @@
+package io.github.aedev.flow.ui.screens.player.effects
+
+import android.app.Activity
+import android.content.Context
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.os.Build
+import android.provider.Settings
+import android.view.OrientationEventListener
+import android.view.WindowManager
+import androidx.compose.runtime.*
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import io.github.aedev.flow.ui.utils.isTabletFormFactor
+import kotlinx.coroutines.delay
+
+@Composable
+internal fun FullscreenEffect(
+    isFullscreen: Boolean,
+    activity: Activity?,
+    videoAspectRatio: Float = 16f / 9f,
+    lifecycleOwner: LifecycleOwner,
+    fullscreenBrightnessLevel: () -> Float? = { null },
+    suppressFullscreenRequest: Boolean = false,
+    isPortrait: Boolean = false,
+) {
+    var resumeTrigger by remember { mutableIntStateOf(0) }
+    var forcePortraitLock by remember { mutableStateOf(false) }
+    var wasFullscreen by remember { mutableStateOf(false) }
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> resumeTrigger++
+
+                    // MainActivity drops the activity's own lock in onStop, so holding on to ours
+                    // would re-pin portrait on the next resume and never let go again (#841).
+                    Lifecycle.Event.ON_STOP -> forcePortraitLock = false
+
+                    else -> Unit
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(isFullscreen, videoAspectRatio, resumeTrigger, suppressFullscreenRequest, isPortrait) {
+        activity?.let { act ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && act.isInPictureInPictureMode) return@let
+            if (suppressFullscreenRequest && isFullscreen) return@let
+            if (isFullscreen) {
+                forcePortraitLock = false
+                wasFullscreen = true
+                val orientation =
+                    when {
+                        isPortrait -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        videoAspectRatio < 1f -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                        else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    }
+                act.requestedOrientation = orientation
+
+                WindowCompat.setDecorFitsSystemWindows(act.window, false)
+                val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+                fullscreenBrightnessLevel()?.let { brightnessLevel ->
+                    val layoutParams = act.window.attributes
+                    layoutParams.screenBrightness =
+                        if (brightnessLevel < 0f) {
+                            WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                        } else {
+                            brightnessLevel.coerceIn(0f, 1f)
+                        }
+                    act.window.attributes = layoutParams
+                }
+            } else {
+                val leavingFullscreen = wasFullscreen
+                wasFullscreen = false
+                val configuration = act.resources.configuration
+                val cfgLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                val autoRotateOn =
+                    try {
+                        Settings.System.getInt(
+                            act.contentResolver,
+                            Settings.System.ACCELEROMETER_ROTATION,
+                        ) == 1
+                    } catch (e: Exception) {
+                        false
+                    }
+
+                // A phone has no landscape layout outside fullscreen, so it is held in portrait
+                // until the user physically rotates back. A tablet's landscape layout is the
+                // primary one and the release listener below can never fire on a device whose
+                // natural orientation is portrait but is being held sideways, so pinning one here
+                // would strand it in portrait for the rest of the session (#918).
+                //
+                // Only an actual fullscreen exit may pin: this effect also re-runs on every resume
+                // and on the first composition, where pinning locks an app that was merely
+                // backgrounded in landscape into portrait until it is force-restarted (#841).
+                when {
+                    leavingFullscreen && cfgLandscape && autoRotateOn && !configuration.isTabletFormFactor -> {
+                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        forcePortraitLock = true
+                    }
+
+                    !forcePortraitLock -> {
+                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    }
+                }
+
+                // Reset screen brightness to default when exiting fullscreen
+                val layoutParams = act.window.attributes
+                layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                act.window.attributes = layoutParams
+
+                WindowCompat.setDecorFitsSystemWindows(act.window, false)
+                val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    val lockActivity = activity
+    if (forcePortraitLock && lockActivity != null) {
+        DisposableEffect(lockActivity) {
+            val listener =
+                object : OrientationEventListener(lockActivity) {
+                    override fun onOrientationChanged(orientation: Int) {
+                        if (orientation == ORIENTATION_UNKNOWN) return
+                        val physicallyPortrait =
+                            orientation in 0..30 || orientation in 330..359 || orientation in 150..210
+                        if (physicallyPortrait) {
+                            lockActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                            forcePortraitLock = false
+                        }
+                    }
+                }
+            listener.enable()
+            onDispose { listener.disable() }
+        }
+    }
+}
+
+@Composable
+internal fun KeepScreenOnEffect(
+    isPlaying: Boolean,
+    activity: Activity?,
+    lifecycleOwner: LifecycleOwner? = null,
+) {
+    DisposableEffect(activity, isPlaying, lifecycleOwner) {
+        val clearScreenOn = {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+
+        if (isPlaying) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            clearScreenOn()
+        }
+
+        val observer =
+            lifecycleOwner?.let {
+                LifecycleEventObserver { _, event ->
+                    when (event) {
+                        Lifecycle.Event.ON_STOP -> {
+                            clearScreenOn()
+                        }
+
+                        Lifecycle.Event.ON_START -> {
+                            if (isPlaying) {
+                                activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            }
+                        }
+
+                        else -> {
+                            Unit
+                        }
+                    }
+                }.also(it.lifecycle::addObserver)
+            }
+
+        onDispose {
+            if (observer != null && lifecycleOwner != null) {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+            clearScreenOn()
+        }
+    }
+}
+
+@Composable
+internal fun OrientationResetEffect(activity: Activity?) {
+    DisposableEffect(Unit) {
+        onDispose {
+            if (activity?.isInPictureInPictureMode == false) {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                WindowCompat.setDecorFitsSystemWindows(activity.window, false)
+                val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+}
+
+@Composable
+internal fun OrientationListenerEffect(
+    context: Context,
+    isExpanded: Boolean,
+    isFullscreen: Boolean,
+    videoAspectRatio: Float = 16f / 9f,
+    isPortraitFullscreen: Boolean = false,
+    onEnterFullscreen: () -> Unit,
+    onExitFullscreen: () -> Unit,
+) {
+    var physicalOrientation by remember { mutableIntStateOf(-1) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val currentIsFullscreen by rememberUpdatedState(isFullscreen)
+    val currentAspectRatio by rememberUpdatedState(videoAspectRatio)
+    val currentIsPortraitFullscreen by rememberUpdatedState(isPortraitFullscreen)
+    val currentEnter by rememberUpdatedState(onEnterFullscreen)
+    val currentExit by rememberUpdatedState(onExitFullscreen)
+
+    DisposableEffect(context, lifecycleOwner) {
+        val listener =
+            object : OrientationEventListener(context) {
+                override fun onOrientationChanged(orientation: Int) {
+                    if (orientation == ORIENTATION_UNKNOWN) return
+
+                    val autoRotateOn =
+                        try {
+                            Settings.System.getInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION) == 1
+                        } catch (e: Exception) {
+                            true
+                        }
+
+                    if (!autoRotateOn) return
+
+                    val newOrientation =
+                        when {
+                            orientation in 60..120 || orientation in 240..300 -> 1
+                            orientation in 0..30 || orientation in 330..359 || orientation in 150..210 -> 0
+                            else -> physicalOrientation
+                        }
+
+                    if (newOrientation != physicalOrientation) {
+                        physicalOrientation = newOrientation
+                    }
+                }
+            }
+        // Sensor-driven fullscreen changes are only meaningful while the user is looking at the
+        // player, and an accelerometer left registered in the background costs battery for nothing.
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> listener.enable()
+                    Lifecycle.Event.ON_PAUSE -> listener.disable()
+                    else -> Unit
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            listener.disable()
+        }
+    }
+
+    LaunchedEffect(physicalOrientation, isExpanded) {
+        delay(150)
+
+        if (physicalOrientation == -1) return@LaunchedEffect
+
+        val isVerticalVideo = currentAspectRatio < 1f
+
+        if (currentIsPortraitFullscreen) return@LaunchedEffect
+
+        if (physicalOrientation == 1 && isExpanded && !currentIsFullscreen && !isVerticalVideo) {
+            currentEnter()
+        } else if (physicalOrientation == 0 && currentIsFullscreen && !isVerticalVideo) {
+            currentExit()
+        }
+    }
+}
