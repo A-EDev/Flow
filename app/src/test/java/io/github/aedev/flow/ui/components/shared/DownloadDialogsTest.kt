@@ -18,9 +18,17 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.R
+import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.ui.screens.player.fakeAudioFormats
 import io.github.aedev.flow.ui.screens.player.fakeVideo
 import io.github.aedev.flow.ui.screens.player.fakeVideoFormats
+import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import io.mockk.Runs
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockkObject
+import io.mockk.unmockkAll
+import org.junit.After
 import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
@@ -41,6 +49,11 @@ class DownloadDialogsTest {
         get() = ApplicationProvider.getApplicationContext()
 
     private var showCompact by mutableStateOf(false)
+
+    @After
+    fun tearDown() {
+        unmockkAll()
+    }
 
     private fun setDialogs() {
         val video = fakeVideo()
@@ -93,6 +106,46 @@ class DownloadDialogsTest {
         // "Audio Only" is a hardcoded literal at VideoPlayerDialogs.kt:309 rather than a string
         // resource; pinned as-is so its move into strings.xml is an explicit change.
         rule.onNodeWithText("Audio Only").assertExists()
+    }
+
+    @Test
+    fun fullDialogPicksTheAudioTheSharedHelperPicks() {
+        mockkObject(VideoPlayerUtils)
+        val audioUrls = mutableListOf<String?>()
+        every {
+            VideoPlayerUtils.startDownload(
+                any(),
+                any(),
+                any(),
+                any(),
+                captureNullable(audioUrls),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } just Runs
+
+        setDialogs()
+        rule.onNode(hasText("H264 1080p") and hasClickAction()).performClick()
+        rule.waitForIdle()
+        rule.onNode(hasText("VP9 1080p") and hasClickAction()).performClick()
+        rule.waitForIdle()
+
+        val merged =
+            DownloadStreamHelpers.mergeAudioDownloadStreams(
+                InnerTubeStreamBridge.convertAudioFormats(fakeAudioFormats()),
+                emptyList(),
+            )
+        val expected =
+            listOf("h264", "vp9").map { codec ->
+                DownloadStreamHelpers.pickCompatibleAudioForVideo(codec, merged, "")?.getContent()
+            }
+        assertThat(expected.filterNotNull()).hasSize(2)
+        assertThat(expected[0]).isNotEqualTo(expected[1])
+        assertThat(audioUrls).isEqualTo(expected)
     }
 
     @Test

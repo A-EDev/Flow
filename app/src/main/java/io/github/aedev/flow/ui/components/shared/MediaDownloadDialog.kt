@@ -156,69 +156,18 @@ fun MediaDownloadDialog(
                                 if (downloadUrl != null) {
                                     var audioUrl: String? = null
                                     if (stream.isVideoOnly) {
-                                        val isMp4Container = codecKey == "h264" || codecKey == "hevc"
-                                        val allAudio = effectiveAudioForDownload
-
-                                        fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
-                                            val fmt = (a.format?.name ?: "").lowercase()
-                                            val mime = (a.format?.mimeType ?: "").lowercase()
-                                            return !fmt.contains("opus") && !fmt.contains("vorbis") &&
-                                                !fmt.contains("webm") && !mime.contains("opus") &&
-                                                !mime.contains("vorbis") && !mime.contains("webm")
-                                        }
-
-                                        val langFilteredAudio =
-                                            if (!preferredLang.isNullOrEmpty() && preferredLang != "original") {
-                                                val langMatches =
-                                                    allAudio.filter {
-                                                        it.audioLocale?.language.equals(preferredLang, ignoreCase = true) ||
-                                                            it.audioLocale?.toLanguageTag().equals(preferredLang, ignoreCase = true)
-                                                    }
-                                                if (langMatches.isNotEmpty()) langMatches else allAudio
-                                            } else {
-                                                val originals =
-                                                    allAudio.filter {
-                                                        it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                                                    }
-                                                if (originals.isNotEmpty()) {
-                                                    originals
-                                                } else {
-                                                    val nonDubbed =
-                                                        allAudio.filter {
-                                                            it.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
-                                                        }
-                                                    if (nonDubbed.isNotEmpty()) nonDubbed else allAudio
-                                                }
-                                            }
-
                                         val compatibleAudio =
-                                            if (isMp4Container) {
-                                                val aacAudio =
-                                                    langFilteredAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
-                                                        ?: allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
-                                                if (aacAudio == null && codecKey == "av1") {
-                                                    langFilteredAudio.maxByOrNull { it.bitrate }
-                                                        ?: allAudio.maxByOrNull { it.bitrate }
-                                                } else {
-                                                    aacAudio
-                                                }
-                                            } else {
-                                                val opusFilter: (org.schabi.newpipe.extractor.stream.AudioStream) -> Boolean = { a ->
-                                                    val fmt = a.format?.name ?: ""
-                                                    val mime = a.format?.mimeType ?: ""
-                                                    fmt.contains("webm", true) || mime.contains("audio/webm", true) ||
-                                                        fmt.contains("opus", true) || mime.contains("opus", true)
-                                                }
-                                                langFilteredAudio.filter(opusFilter).maxByOrNull { it.bitrate }
-                                                    ?: allAudio.filter(opusFilter).maxByOrNull { it.bitrate }
-                                            }
-
+                                            DownloadStreamHelpers.pickCompatibleAudioForVideo(
+                                                videoCodecKey = codecKey,
+                                                allAudio = effectiveAudioForDownload,
+                                                preferredLang = preferredLang,
+                                            )
                                         if (compatibleAudio == null) {
-                                            android.widget.Toast
+                                            Toast
                                                 .makeText(
                                                     context,
                                                     context.getString(R.string.download_no_compatible_audio),
-                                                    android.widget.Toast.LENGTH_LONG,
+                                                    Toast.LENGTH_LONG,
                                                 ).show()
                                             return@downloadVideo
                                         }
