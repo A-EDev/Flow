@@ -1,0 +1,222 @@
+package io.github.aedev.flow.ui.screens.player.components
+
+import android.app.Application
+import android.content.Context
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.R
+import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.state.QualityOption
+import io.github.aedev.flow.ui.screens.player.FIXTURE_QUALITY_720
+import io.github.aedev.flow.ui.screens.player.fakePlayerState
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+
+/**
+ * Pins what each [SettingsMenuDialog] page renders and which callback each row fires, so the
+ * settings sheet can be moved onto the shared sheet primitive without changing its contents.
+ */
+@RunWith(AndroidJUnit4::class)
+@Config(sdk = [34], application = Application::class, qualifiers = "w411dp-h891dp")
+class PlayerSettingsMenuTest {
+    @get:Rule
+    val rule = createComposeRule()
+
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
+
+    private fun string(id: Int) = context.getString(id)
+
+    private class Callbacks {
+        var dismissed = false
+        var quality: QualityOption? = null
+        var audioTrack: Int? = null
+        var speed: Float? = null
+        var subtitlesDisabled = false
+        var sleepTimer = false
+        var cast = false
+        var subtitleStyle = false
+    }
+
+    private fun setMenu(
+        initialPage: PlayerSettingsPage = PlayerSettingsPage.Main,
+        playerState: EnhancedPlayerState = fakePlayerState(),
+        subtitlesEnabled: Boolean = false,
+    ): Callbacks {
+        val callbacks = Callbacks()
+        rule.setContent {
+            MaterialTheme {
+                SettingsMenuDialog(
+                    playerState = playerState,
+                    autoplayEnabled = true,
+                    subtitlesEnabled = subtitlesEnabled,
+                    onDismiss = { callbacks.dismissed = true },
+                    initialPage = initialPage,
+                    onQualitySelected = { callbacks.quality = it },
+                    onAudioTrackSelected = { callbacks.audioTrack = it },
+                    onSpeedSelected = { callbacks.speed = it },
+                    onDisableSubtitles = { callbacks.subtitlesDisabled = true },
+                    onAutoplayToggle = {},
+                    onSkipSilenceToggle = {},
+                    onStableVolumeToggle = {},
+                    onShowSubtitleStyle = { callbacks.subtitleStyle = true },
+                    onLoopToggle = {},
+                    onCastClick = { callbacks.cast = true },
+                    onSleepTimerClick = { callbacks.sleepTimer = true },
+                )
+            }
+        }
+        rule.waitForIdle()
+        return callbacks
+    }
+
+    @Test
+    fun mainPageRendersEverySectionAndRow() {
+        setMenu()
+
+        rule.onNodeWithText(string(R.string.player_settings)).assertIsDisplayed()
+        listOf(
+            R.string.video,
+            R.string.quality,
+            R.string.playback_speed,
+            R.string.audio_settings_title,
+            R.string.audio_track,
+            R.string.captions,
+            R.string.filter_subtitles,
+            R.string.subtitle_style,
+            R.string.player_settings_overlay_controls,
+            R.string.cast_to_tv,
+            R.string.pip_mode,
+            R.string.sleep_timer,
+            R.string.loop_video,
+            R.string.autoplay_next,
+            R.string.audio_effects,
+            R.string.equalizer,
+            R.string.player_settings_skip_silence,
+            R.string.player_settings_stable_voice,
+            R.string.player_settings_display,
+            R.string.player_settings_ambient_mode,
+        ).forEach { id -> rule.onNodeWithText(string(id)).assertExists() }
+    }
+
+    @Test
+    fun mainPageShowsThePlaybackHeaderTwice() {
+        setMenu()
+
+        // Known defect: the "Playback" section header is emitted once above the speed row
+        // (PlayerSettingsMenu.kt:299) and again above the loop/autoplay toggles
+        // (PlayerSettingsMenu.kt:375). Pinned so a fix is a deliberate change, not a side effect.
+        rule.onAllNodesWithText(string(R.string.playback_header)).assertCountEquals(2)
+    }
+
+    @Test
+    fun qualityPageListsOptionsAndReportsTheTappedOne() {
+        val callbacks = setMenu(initialPage = PlayerSettingsPage.Quality)
+
+        rule.onNodeWithText(string(R.string.video_quality_title)).assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.quality_auto)).assertExists()
+        rule.onNodeWithText("1080p").assertExists()
+
+        rule.onNodeWithText("720p").performScrollTo().performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.quality).isEqualTo(FIXTURE_QUALITY_720)
+        assertThat(callbacks.dismissed).isTrue()
+    }
+
+    @Test
+    fun audioPageListsTracksAndReportsTheTappedIndex() {
+        val callbacks = setMenu(initialPage = PlayerSettingsPage.Audio)
+
+        rule.onNodeWithText(string(R.string.audio_track)).assertIsDisplayed()
+        rule.onNodeWithText("English").assertExists()
+
+        rule.onNodeWithText("Deutsch").performScrollTo().performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.audioTrack).isEqualTo(1)
+    }
+
+    @Test
+    fun speedPageListsPresetsAndReportsTheTappedSpeed() {
+        val callbacks = setMenu(initialPage = PlayerSettingsPage.Speed)
+
+        rule.onNodeWithText(string(R.string.playback_speed)).assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.normal)).assertExists()
+
+        rule.onNodeWithText("1.5x").performScrollTo().performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.speed).isEqualTo(1.5f)
+        assertThat(callbacks.dismissed).isTrue()
+    }
+
+    @Test
+    fun subtitlesPageOffRowDisablesSubtitles() {
+        val callbacks = setMenu(initialPage = PlayerSettingsPage.Subtitles, subtitlesEnabled = true)
+
+        rule.onNodeWithText(string(R.string.filter_subtitles)).assertIsDisplayed()
+        rule.onNodeWithText("English").assertExists()
+
+        rule.onNodeWithText(string(R.string.off)).performScrollTo().performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.subtitlesDisabled).isTrue()
+        assertThat(callbacks.dismissed).isTrue()
+    }
+
+    @Test
+    fun sleepTimerRowFiresAfterTheSheetDismisses() {
+        val callbacks = setMenu()
+
+        rule.onNodeWithText(string(R.string.sleep_timer)).performScrollTo().performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.sleepTimer).isTrue()
+        assertThat(callbacks.dismissed).isTrue()
+    }
+
+    @Test
+    fun castRowFiresAfterTheSheetDismisses() {
+        val callbacks = setMenu()
+
+        rule.onNodeWithText(string(R.string.cast_to_tv)).performScrollTo().performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.cast).isTrue()
+        assertThat(callbacks.dismissed).isTrue()
+    }
+
+    @Test
+    fun subtitleStyleRowFiresWithoutDismissing() {
+        val callbacks = setMenu()
+
+        rule.onNodeWithText(string(R.string.subtitle_style)).performScrollTo().performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.subtitleStyle).isTrue()
+        assertThat(callbacks.dismissed).isFalse()
+    }
+
+    @Test
+    fun closeButtonDismissesAfterTheExitAnimation() {
+        val callbacks = setMenu()
+
+        rule.onNodeWithContentDescription(string(R.string.close)).performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.dismissed).isTrue()
+    }
+}
