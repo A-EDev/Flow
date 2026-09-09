@@ -6,10 +6,8 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import kotlinx.coroutines.delay
-import org.schabi.newpipe.extractor.stream.StreamType
 import kotlin.math.roundToLong
 
 private const val LIVE_DISPLAY_BACKWARD_DRIFT_TOLERANCE_MS = 1_500L
@@ -23,8 +21,6 @@ private var liveDisplayVideoId: String? = null
 private var liveDisplayRawPositionMs: Long = 0L
 private var liveDisplayUpdatedAtMs: Long = 0L
 private var liveDisplayLastSeekAtMs: Long = 0L
-
-internal fun VideoPlayerUiState.isCurrentLiveStream(): Boolean = streamInfo?.streamType == StreamType.LIVE_STREAM || !hlsUrl.isNullOrEmpty()
 
 private fun updateScreenPositionFromPlayer(
     player: Player,

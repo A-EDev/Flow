@@ -5,6 +5,20 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import kotlinx.coroutines.delay
+import org.schabi.newpipe.extractor.stream.StreamType
+
+internal fun VideoPlayerUiState.isCurrentLiveStream(): Boolean = streamInfo?.streamType == StreamType.LIVE_STREAM || !hlsUrl.isNullOrEmpty()
+
+internal data class WatchHistoryEntry(
+    val videoId: String,
+    val position: Long,
+    val duration: Long,
+    val title: String,
+    val thumbnailUrl: String,
+    val channelName: String,
+    val channelId: String,
+    val isShort: Boolean,
+)
 
 private fun resolveHistoryChannelName(
     video: Video,
@@ -25,6 +39,57 @@ private fun resolveHistoryChannelName(
     }
 }
 
+/**
+ * The one description of a watch-history write, shared by the initial save, the 10 s loop and the
+ * player host's dispose block. Null means the entry must not be written at all: a live stream has
+ * no meaningful resume position, and a zero duration or empty title would poison the row.
+ */
+internal fun buildWatchHistoryEntry(
+    video: Video,
+    uiState: VideoPlayerUiState,
+    position: Long,
+    duration: Long,
+): WatchHistoryEntry? {
+    if (uiState.isCurrentLiveStream() || duration <= 0L) return null
+    val streamInfo = uiState.streamInfo
+    val title = streamInfo?.name ?: video.title
+    if (title.isEmpty()) return null
+
+    return WatchHistoryEntry(
+        videoId = video.id,
+        position = position,
+        duration = duration,
+        title = title,
+        thumbnailUrl =
+            streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
+        channelName = resolveHistoryChannelName(video, streamInfo?.uploaderName),
+        channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
+        isShort = video.isShort,
+    )
+}
+
+internal fun saveWatchProgress(
+    viewModel: VideoPlayerViewModel,
+    video: Video,
+    uiState: VideoPlayerUiState,
+    position: Long,
+    duration: Long,
+) {
+    val entry = buildWatchHistoryEntry(video, uiState, position, duration) ?: return
+    viewModel.savePlaybackPosition(
+        videoId = entry.videoId,
+        position = entry.position,
+        duration = entry.duration,
+        title = entry.title,
+        thumbnailUrl = entry.thumbnailUrl,
+        channelName = entry.channelName,
+        channelId = entry.channelId,
+        isShort = entry.isShort,
+    )
+}
+
 @Composable
 internal fun WatchProgressSaveEffect(
     video: Video,
@@ -40,55 +105,25 @@ internal fun WatchProgressSaveEffect(
 
     LaunchedEffect(video.id) {
         delay(3000)
-        val streamInfo = currentUi.streamInfo
-        if (currentUi.isCurrentLiveStream()) return@LaunchedEffect
-        val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-        val channelName = resolveHistoryChannelName(video, streamInfo?.uploaderName)
-        val thumbnailUrl =
-            streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
-                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
-        val title = streamInfo?.name ?: video.title
-        val durationMs = currentDurProvider()
-        if (title.isNotEmpty() && durationMs > 0) {
-            viewModel.savePlaybackPosition(
-                videoId = video.id,
-                position = currentPosProvider(),
-                duration = durationMs,
-                title = title,
-                thumbnailUrl = thumbnailUrl,
-                channelName = channelName,
-                channelId = channelId,
-                isShort = video.isShort,
-            )
-        }
+        saveWatchProgress(
+            viewModel = viewModel,
+            video = video,
+            uiState = currentUi,
+            position = currentPosProvider(),
+            duration = currentDurProvider(),
+        )
     }
 
     LaunchedEffect(video.id, isPlaying) {
         while (isPlaying) {
             delay(10000)
-            val streamInfo = currentUi.streamInfo
-            if (currentUi.isCurrentLiveStream()) continue
-            val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-            val channelName = resolveHistoryChannelName(video, streamInfo?.uploaderName)
-            val thumbnailUrl =
-                streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
-                    ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
-            val title = streamInfo?.name ?: video.title
-            val durationMs = currentDurProvider()
-            if (durationMs > 0 && title.isNotEmpty()) {
-                viewModel.savePlaybackPosition(
-                    videoId = video.id,
-                    position = currentPosProvider(),
-                    duration = durationMs,
-                    title = title,
-                    thumbnailUrl = thumbnailUrl,
-                    channelName = channelName,
-                    channelId = channelId,
-                    isShort = video.isShort,
-                )
-            }
+            saveWatchProgress(
+                viewModel = viewModel,
+                video = video,
+                uiState = currentUi,
+                position = currentPosProvider(),
+                duration = currentDurProvider(),
+            )
         }
     }
 }

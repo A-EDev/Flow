@@ -384,29 +384,16 @@ fun VideoPlayerHost(
         pipForcedFullscreen = pipForcedFullscreen,
     )
 
-    // Video cleanup on dispose
+    val uiStateAtDispose by rememberUpdatedState(playerUiState)
     DisposableEffect(video.id) {
         onDispose {
-            val streamInfo = playerUiState.streamInfo
-            val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-            val channelName = streamInfo?.uploaderName ?: video.channelName
-            val thumbnailUrl =
-                streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
-                    ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
-            val title = streamInfo?.name ?: video.title
-            if (title.isNotEmpty() && screenState.duration > 0) {
-                playerViewModel.savePlaybackPosition(
-                    videoId = video.id,
-                    position = screenState.currentPosition,
-                    duration = screenState.duration,
-                    title = title,
-                    thumbnailUrl = thumbnailUrl,
-                    channelName = channelName,
-                    channelId = channelId,
-                    isShort = video.isShort,
-                )
-            }
+            saveWatchProgress(
+                viewModel = playerViewModel,
+                video = video,
+                uiState = uiStateAtDispose,
+                position = screenState.currentPosition,
+                duration = screenState.duration,
+            )
         }
     }
 
