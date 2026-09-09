@@ -4,44 +4,21 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.OpenInBrowser
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.*
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.model.needsCollaboratorResolution
-import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.ui.components.AddToPlaylistDialog
-import io.github.aedev.flow.ui.components.CompactVideoCard
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
-import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
@@ -49,10 +26,9 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.schabi.newpipe.extractor.stream.StreamType
 
 @Composable
-fun VideoInfoContent(
+internal fun VideoInfoContent(
     video: Video,
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel,
@@ -69,175 +45,27 @@ fun VideoInfoContent(
     val playerPrefs = remember { PlayerPreferences(context) }
     val shareWithoutText by playerPrefs.shareWithoutText.collectAsState(initial = false)
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
-    val deArrowResult = rememberDeArrowResult(video.id, deArrowEnabled)
-    val resolvedVideoTitle = deArrowResult?.title ?: uiState.streamInfo?.name ?: video.title
-    val needsCollaboratorResolution = video.needsCollaboratorResolution()
-    val resolvedCollaborators by produceState(
-        initialValue = video.collaborators,
-        key1 = video.id,
-        key2 = video.collaborators,
-        key3 = needsCollaboratorResolution,
-    ) {
-        value =
-            if (needsCollaboratorResolution) {
-                VideoCollaboratorResolver.resolve(video.id)
-            } else {
-                video.collaborators
-            }
-    }
-    val resolvedChannelName =
-        remember(video.channelName, uiState.streamInfo?.uploaderName, resolvedCollaborators) {
-            resolvedCollaborators
-                .map { it.name }
-                .filter { it.isNotBlank() }
-                .takeIf { it.size > 1 }
-                ?.joinToString(" ${context.getString(R.string.conjunction_and)} ")
-                ?: uiState.streamInfo?.uploaderName
-                ?: video.channelName
-        }
-    val streamUploadDate =
-        uiState.streamInfo?.let { streamInfo ->
-            val rawDate =
-                streamInfo.textualUploadDate?.takeIf { it.isNotBlank() }
-                    ?: streamInfo.uploadDate?.toString()
-            val isArchivedLivestream = streamInfo.streamType == StreamType.POST_LIVE_STREAM
-            when {
-                rawDate.isNullOrBlank() -> {
-                    null
-                }
-
-                isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true) -> {
-                    context.getString(R.string.streamed_date_template, rawDate)
-                }
-
-                else -> {
-                    rawDate
-                }
-            }
-        }
-    val dialogVideo =
-        remember(video, uiState.streamInfo, uiState.channelAvatarUrl, resolvedVideoTitle) {
-            uiState.streamInfo?.let { streamInfo ->
-                Video(
-                    id = streamInfo.id ?: video.id,
-                    title = resolvedVideoTitle,
-                    channelName = streamInfo.uploaderName ?: video.channelName,
-                    channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
-                    thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
-                    duration = streamInfo.duration.toInt(),
-                    viewCount = streamInfo.viewCount,
-                    likeCount = streamInfo.likeCount,
-                    uploadDate =
-                        streamUploadDate ?: streamInfo.uploadDate?.run {
-                            try {
-                                val date = java.util.Date.from(offsetDateTime().toInstant())
-                                val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                                sdf.format(date)
-                            } catch (e: Exception) {
-                                video.uploadDate
-                            }
-                        } ?: video.uploadDate,
-                    description = streamInfo.description?.content ?: video.description,
-                    channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
-                    timestamp = video.timestamp,
-                    isMusic = video.isMusic,
-                )
-            } ?: video
-        }
+    val metadata =
+        rememberPlayerVideoMetadata(
+            video = video,
+            uiState = uiState,
+            deArrowEnabled = deArrowEnabled,
+            context = context,
+        )
+    val resolvedVideoTitle = metadata.resolvedVideoTitle
+    val resolvedCollaborators = metadata.resolvedCollaborators
+    val resolvedChannelName = metadata.resolvedChannelName
+    val streamUploadDate = metadata.streamUploadDate
+    val dialogVideo = metadata.dialogVideo
 
     // ── Error details panel ─────────────────────────────────────────────────
     if (uiState.error != null) {
-        Surface(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
-            tonalElevation = 0.dp,
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (!uiState.errorHint.isNullOrBlank()) {
-                    Text(
-                        text = uiState.errorHint,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
-                    )
-                }
-                // Row 1: Retry + Copy Logs
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Button(
-                        onClick = { viewModel.retryLoadVideo() },
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError,
-                            ),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.retry), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            val ok = PlayerDiagnostics.copyToClipboard(context)
-                            Toast
-                                .makeText(
-                                    context,
-                                    if (ok) context.getString(R.string.logs_copied) else context.getString(R.string.logs_copy_failed),
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.copy_logs), fontSize = 13.sp)
-                    }
-                }
-                // Row 2: Open in YouTube (full width)
-                OutlinedButton(
-                    onClick = {
-                        val intent =
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://www.youtube.com/watch?v=${video.id}"),
-                            )
-                        context.startActivity(intent)
-                    },
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.OpenInBrowser,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.ui_open_in_youtube), fontSize = 13.sp)
-                }
-            }
-        }
+        PlayerErrorPanel(
+            errorHint = uiState.errorHint,
+            videoId = video.id,
+            context = context,
+            onRetryClick = { viewModel.retryLoadVideo() },
+        )
     }
 
     val downloadedVideoIds by viewModel.downloadedVideoIds.collectAsState()
@@ -406,126 +234,3 @@ fun VideoInfoContent(
         )
     }
 }
-
-/**
- * Related videos content for LazyListScope.
- */
-fun LazyListScope.relatedVideosContent(
-    relatedVideos: List<Video>,
-    onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
-    cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH,
-) {
-    // Video items
-    items(
-        count = relatedVideos.size,
-        key = { index -> relatedVideos[index].id },
-    ) { index ->
-        val relatedVideo = relatedVideos[index]
-        when (cardStyle) {
-            PlayerRelatedCardStyle.COMPACT -> {
-                CompactVideoCard(
-                    video = relatedVideo,
-                    onClick = { onVideoClick(relatedVideo) },
-                    onChannelClick = onChannelClick,
-                )
-            }
-
-            PlayerRelatedCardStyle.FULL_WIDTH -> {
-                VideoCardFullWidth(
-                    video = relatedVideo,
-                    onClick = { onVideoClick(relatedVideo) },
-                    onChannelClick = onChannelClick,
-                )
-            }
-        }
-    }
-}
-
-/**
- * Related videos grid content for LazyListScope.
- */
-fun LazyListScope.relatedVideosGridContent(
-    relatedVideos: List<Video>,
-    columns: Int,
-    onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
-    cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH,
-) {
-    val chunkedVideos = relatedVideos.chunked(columns)
-
-    items(
-        count = chunkedVideos.size,
-        key = { index -> chunkedVideos[index].joinToString { it.id } },
-    ) { index ->
-        val rowVideos = chunkedVideos[index]
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            for (video in rowVideos) {
-                Box(modifier = Modifier.weight(1f)) {
-                    when (cardStyle) {
-                        PlayerRelatedCardStyle.COMPACT -> {
-                            CompactVideoCard(
-                                video = video,
-                                onClick = { onVideoClick(video) },
-                                onChannelClick = onChannelClick,
-                            )
-                        }
-
-                        PlayerRelatedCardStyle.FULL_WIDTH -> {
-                            VideoCardFullWidth(
-                                video = video,
-                                onClick = { onVideoClick(video) },
-                                onChannelClick = onChannelClick,
-                            )
-                        }
-                    }
-                }
-            }
-            val emptySpaces = columns - rowVideos.size
-            for (i in 0 until emptySpaces) {
-                Spacer(modifier = Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-/**
- * Creates a complete Video object from StreamInfo if available
- */
-fun createCompleteVideo(
-    video: Video,
-    uiState: VideoPlayerUiState,
-): Video {
-    val streamInfo = uiState.streamInfo
-    return if (streamInfo != null) {
-        Video(
-            id = streamInfo.id ?: video.id,
-            title = streamInfo.name ?: video.title,
-            channelName = streamInfo.uploaderName ?: video.channelName,
-            channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
-            thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
-            duration = streamInfo.duration.toInt(),
-            viewCount = streamInfo.viewCount,
-            uploadDate = streamInfo.uploadDate?.toString() ?: video.uploadDate,
-            description = streamInfo.description?.content ?: video.description,
-            channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
-        )
-    } else {
-        video
-    }
-}
-
-/**
- * Remember-able version of createCompleteVideo
- */
-@Composable
-fun rememberCompleteVideo(
-    video: Video,
-    uiState: VideoPlayerUiState,
-): Video =
-    remember(uiState.streamInfo, video) {
-        createCompleteVideo(video, uiState)
-    }
