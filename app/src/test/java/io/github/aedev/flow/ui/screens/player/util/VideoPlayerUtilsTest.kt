@@ -141,6 +141,5 @@ class VideoPlayerUtilsTest {
 
         assertThat(VideoPlayerUtils.codecKeyFromStream(stream)).isEqualTo("vp9")
         assertThat(VideoPlayerUtils.qualityHeightFromStream(stream)).isEqualTo(1080)
-        assertThat(VideoPlayerUtils.qualityLabelFromStream(stream)).isEqualTo("1080p60")
     }
 }

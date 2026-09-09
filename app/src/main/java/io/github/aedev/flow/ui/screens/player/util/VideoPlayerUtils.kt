@@ -22,8 +22,6 @@ object VideoPlayerUtils {
 
     fun qualityHeightFromStream(stream: VideoStream): Int = VideoCodecUtils.qualityHeightFromStream(stream)
 
-    fun qualityLabelFromStream(stream: VideoStream): String = VideoCodecUtils.qualityLabelFromStream(stream)
-
     fun streamSizeKey(
         height: Int,
         codecKey: String,

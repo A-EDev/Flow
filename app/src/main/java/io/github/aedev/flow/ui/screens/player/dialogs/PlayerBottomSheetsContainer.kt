@@ -293,7 +293,7 @@ fun PlayerBottomSheetsContainer(
  * Dialog suggesting to play short video as Shorts or Music
  */
 @Composable
-fun ShortsSuggestionDialog(
+private fun ShortsSuggestionDialog(
     isMusic: Boolean,
     onPlayAsShort: () -> Unit,
     onPlayAsMusic: () -> Unit,

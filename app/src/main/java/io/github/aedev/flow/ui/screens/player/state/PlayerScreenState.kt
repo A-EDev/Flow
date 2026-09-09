@@ -56,14 +56,12 @@ class PlayerScreenState {
     // Gesture States
     var brightnessLevel by mutableFloatStateOf(0.5f)
     var volumeLevel by mutableFloatStateOf(0.5f)
-    var maxVolumeLevel by mutableFloatStateOf(2.0f) // Allow up to 200%
     var showBrightnessOverlay by mutableStateOf(false)
     var showVolumeOverlay by mutableStateOf(false)
 
     // Seek Animation States
     var showSeekForwardAnimation by mutableStateOf(false)
     var seekAccumulation by mutableIntStateOf(10)
-    var lastSeekTime by mutableLongStateOf(0L)
     var showSeekBackAnimation by mutableStateOf(false)
 
     // Subtitle States

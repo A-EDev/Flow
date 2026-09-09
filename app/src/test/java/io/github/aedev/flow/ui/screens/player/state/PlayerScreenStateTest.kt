@@ -47,12 +47,10 @@ class PlayerScreenStateTest {
             "commentSortFilter" to CommentSortFilter.TOP,
             "brightnessLevel" to 0.5f,
             "volumeLevel" to 0.5f,
-            "maxVolumeLevel" to 2.0f,
             "showBrightnessOverlay" to false,
             "showVolumeOverlay" to false,
             "showSeekForwardAnimation" to false,
             "seekAccumulation" to 10,
-            "lastSeekTime" to 0L,
             "showSeekBackAnimation" to false,
             "subtitlesEnabled" to false,
             "selectedSubtitleUrl" to null,
@@ -118,7 +116,7 @@ class PlayerScreenStateTest {
             "exitDragProgress",
         )
 
-    // Pins current behaviour: bufferedPosition, isSpeedBoostActive, lastSeekTime and seekAccumulation
+    // Pins current behaviour: bufferedPosition, isSpeedBoostActive and seekAccumulation
     // survive a video change alongside the deliberately persistent display and gesture preferences.
     private val resetForNewVideoLeaves =
         setOf(
@@ -127,9 +125,7 @@ class PlayerScreenStateTest {
             "commentSortFilter",
             "brightnessLevel",
             "volumeLevel",
-            "maxVolumeLevel",
             "seekAccumulation",
-            "lastSeekTime",
             "subtitleStyle",
             "resizeMode",
             "isSpeedBoostActive",
@@ -197,12 +193,10 @@ class PlayerScreenStateTest {
             "commentSortFilter" to commentSortFilter,
             "brightnessLevel" to brightnessLevel,
             "volumeLevel" to volumeLevel,
-            "maxVolumeLevel" to maxVolumeLevel,
             "showBrightnessOverlay" to showBrightnessOverlay,
             "showVolumeOverlay" to showVolumeOverlay,
             "showSeekForwardAnimation" to showSeekForwardAnimation,
             "seekAccumulation" to seekAccumulation,
-            "lastSeekTime" to lastSeekTime,
             "showSeekBackAnimation" to showSeekBackAnimation,
             "subtitlesEnabled" to subtitlesEnabled,
             "selectedSubtitleUrl" to selectedSubtitleUrl,
@@ -257,12 +251,10 @@ class PlayerScreenStateTest {
         commentSortFilter = CommentSortFilter.NEWEST
         brightnessLevel = 0.9f
         volumeLevel = 0.1f
-        maxVolumeLevel = 1.0f
         showBrightnessOverlay = true
         showVolumeOverlay = true
         showSeekForwardAnimation = true
         seekAccumulation = 30
-        lastSeekTime = 77L
         showSeekBackAnimation = true
         subtitlesEnabled = true
         selectedSubtitleUrl = "https://example.invalid/en.vtt"
