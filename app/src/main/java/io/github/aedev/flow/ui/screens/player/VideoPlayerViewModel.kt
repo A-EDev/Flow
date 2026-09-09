@@ -24,6 +24,8 @@ import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.di.IoDispatcher
+import io.github.aedev.flow.di.NetworkIoDispatcher
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -56,10 +58,10 @@ import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.ui.screens.player.util.VideoErrorMapper
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.NetworkState
-import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.parsePremiereTimestamp
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -92,6 +94,10 @@ class VideoPlayerViewModel
         private val offlineSubtitleStore: io.github.aedev.flow.data.video.OfflineSubtitleStore,
         private val sponsorBlockRepository: SponsorBlockRepository,
         private val liveChatRepository: io.github.aedev.flow.data.repository.LiveChatRepository,
+        private val homeFeedCacheRepository: HomeFeedCacheRepository,
+        private val playerManager: EnhancedPlayerManager,
+        @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
+        @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(VideoPlayerUiState())
         val uiState: StateFlow<VideoPlayerUiState> = _uiState.asStateFlow()
@@ -137,7 +143,6 @@ class VideoPlayerViewModel
         private var relatedVideosVideoId: String? = null
         private var liveChatJob: Job? = null
         private var liveChatVideoId: String? = null
-        private val homeFeedCacheRepository by lazy { HomeFeedCacheRepository(context) }
         private val prewarmedRelatedVideoIds =
             java.util.concurrent.ConcurrentHashMap
                 .newKeySet<String>()
@@ -199,7 +204,7 @@ class VideoPlayerViewModel
             _uiState.update { it.copy(isLiveChatLoading = true, isLiveChatAvailable = false, liveChatMessages = emptyList()) }
 
             liveChatJob =
-                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                viewModelScope.launch(networkDispatcher) {
                     val seed = liveChatRepository.initialContinuation(videoId)
                     if (seed == null) {
                         if (liveChatVideoId == videoId) {
@@ -315,7 +320,7 @@ class VideoPlayerViewModel
 
             // Re-fetch streams whenever an expired URL is detected (HTTP 403/410 "data changed")
             viewModelScope.launch {
-                EnhancedPlayerManager.getInstance().streamExpiredEvent.collect {
+                playerManager.streamExpiredEvent.collect {
                     val videoId = _uiState.value.cachedVideo?.id ?: return@collect
                     if (playbackAbandonedVideoId == videoId) {
                         Log.d("VideoPlayerViewModel", "Ignoring stream expiry for abandoned playback $videoId")
@@ -340,7 +345,7 @@ class VideoPlayerViewModel
                         playbackAbandonedVideoId = videoId
                         playerPreferences.markVideoUnplayable(videoId)
                         cancelActivePlaybackLoad(invalidateToken = true)
-                        EnhancedPlayerManager.getInstance().getPlayer()?.let { p ->
+                        playerManager.getPlayer()?.let { p ->
                             p.stop()
                             p.clearMediaItems()
                         }
@@ -361,7 +366,7 @@ class VideoPlayerViewModel
                     )
 
                     var recoveryPositionMs = 0L
-                    EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
+                    playerManager.getPlayer()?.let { player ->
                         val positionMs = player.currentPosition
                         recoveryPositionMs = positionMs.coerceAtLeast(0L)
                         val durationMs =
@@ -387,7 +392,7 @@ class VideoPlayerViewModel
 
                     if (streamExpiryCount >= 2) {
                         try {
-                            EnhancedPlayerManager.getInstance().clearCacheForCurrentVideo()
+                            playerManager.clearCacheForCurrentVideo()
                         } catch (e: Exception) {
                             Log.w("VideoPlayerViewModel", "Cache eviction failed: ${e.message}")
                         }
@@ -405,7 +410,7 @@ class VideoPlayerViewModel
             }
 
             viewModelScope.launch {
-                EnhancedPlayerManager.getInstance().playbackAbandonedEvent.collect {
+                playerManager.playbackAbandonedEvent.collect {
                     val videoId = _uiState.value.cachedVideo?.id ?: return@collect
                     playbackAbandonedVideoId = videoId
                     playerPreferences.markVideoUnplayable(videoId)
@@ -422,7 +427,7 @@ class VideoPlayerViewModel
             }
 
             viewModelScope.launch {
-                EnhancedPlayerManager.getInstance().playerState.collect { playerState ->
+                playerManager.playerState.collect { playerState ->
                     _uiState.update {
                         it.copy(
                             queueTitle = playerState.queueTitle,
@@ -474,7 +479,7 @@ class VideoPlayerViewModel
                                         localFileVideoId = null,
                                     )
                                 }
-                                EnhancedPlayerManager.getInstance().startBackgroundService(
+                                playerManager.startBackgroundService(
                                     videoId = currentVideo.id,
                                     title = currentVideo.title.ifEmpty { "Flow Player" },
                                     channel = currentVideo.channelName,
@@ -494,7 +499,7 @@ class VideoPlayerViewModel
                 if (isEnabled) {
                     // Don't restore video session if music is already playing
                     if (EnhancedMusicPlayerManager.currentTrack.value != null) return@launch
-                    val lastVideo = withContext(Dispatchers.IO) { viewHistory.getLatestUnfinishedVideo() }
+                    val lastVideo = withContext(ioDispatcher) { viewHistory.getLatestUnfinishedVideo() }
                     if (lastVideo != null && _uiState.value.cachedVideo == null) {
                         _uiState.update {
                             it.copy(
@@ -539,7 +544,7 @@ class VideoPlayerViewModel
                     .collect { autoplay ->
                         _uiState.update { it.copy(autoplayEnabled = autoplay) }
                         _uiState.value.cachedVideo?.id?.let { videoId ->
-                            EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                            playerManager.setAutoplayCandidates(
                                 sourceVideoId = videoId,
                                 videos = _uiState.value.relatedVideos,
                                 enabled = autoplay,
@@ -587,7 +592,7 @@ class VideoPlayerViewModel
 
         fun ensureNotificationServiceRunning() {
             val video = _uiState.value.cachedVideo ?: return
-            EnhancedPlayerManager.getInstance().startBackgroundService(
+            playerManager.startBackgroundService(
                 videoId = video.id,
                 title = video.title.ifEmpty { "Flow Player" },
                 channel = video.channelName,
@@ -823,7 +828,6 @@ class VideoPlayerViewModel
          * This ensures the UI shows video info immediately while streams are fetched.
          */
         fun playVideo(video: Video) {
-            val playerManager = EnhancedPlayerManager.getInstance()
             val playbackState = playerManager.playerState.value
             val isMiniPlayerCollapsed =
                 GlobalPlayerState.miniPlayerExpansionState.value == MiniPlayerExpansionState.COLLAPSED
@@ -913,8 +917,8 @@ class VideoPlayerViewModel
             streamExpiryVideoId = null
             streamExpiryCount = 0
 
-            EnhancedPlayerManager.getInstance().pause()
-            EnhancedPlayerManager.getInstance().clearAll()
+            playerManager.pause()
+            playerManager.clearAll()
             EnhancedMusicPlayerManager.stop()
             EnhancedMusicPlayerManager.clearCurrentTrack()
 
@@ -946,7 +950,7 @@ class VideoPlayerViewModel
                 )
             GlobalPlayerState.setCurrentVideo(video)
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
-            EnhancedPlayerManager.getInstance().startBackgroundService(
+            playerManager.startBackgroundService(
                 videoId = video.id,
                 title = video.title.ifEmpty { "Flow Player" },
                 channel = video.channelName,
@@ -969,9 +973,9 @@ class VideoPlayerViewModel
             nextPlaybackLoadToken()
             cancelActivePlaybackLoad()
             playbackAbandonedVideoId = null
-            EnhancedPlayerManager.getInstance().stop()
-            EnhancedPlayerManager.getInstance().stopBackgroundService()
-            EnhancedPlayerManager.getInstance().clearAll()
+            playerManager.stop()
+            playerManager.stopBackgroundService()
+            playerManager.clearAll()
             GlobalPlayerState.setCurrentVideo(null)
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
             GlobalPlayerState.hideMiniPlayer()
@@ -997,14 +1001,14 @@ class VideoPlayerViewModel
         fun startBackgroundPlayback() {
             val state = _uiState.value
             val video = state.cachedVideo ?: GlobalPlayerState.currentVideo.value ?: return
-            EnhancedPlayerManager.getInstance().startBackgroundService(
+            playerManager.startBackgroundService(
                 videoId = video.id,
                 title = video.title,
                 channel = video.channelName,
                 thumbnail = video.thumbnailUrl,
             )
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(true)
-            EnhancedPlayerManager.getInstance().continueVideoPlaybackInBackground()
+            playerManager.continueVideoPlaybackInBackground()
             _uiState.update {
                 it.copy(
                     shouldDismissPlayer = true,
@@ -1019,7 +1023,7 @@ class VideoPlayerViewModel
 
         fun showVideoPlayer() {
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
-            EnhancedPlayerManager.getInstance().restoreVideoOutput()
+            playerManager.restoreVideoOutput()
             _uiState.update {
                 it.copy(
                     shouldDismissPlayer = false,
@@ -1037,7 +1041,7 @@ class VideoPlayerViewModel
             playbackAbandonedVideoId = null
             streamExpiryVideoId = null
             streamExpiryCount = 0
-            EnhancedPlayerManager.getInstance().clearCurrentVideo()
+            playerManager.clearCurrentVideo()
             _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
             loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
         }
@@ -1047,7 +1051,7 @@ class VideoPlayerViewModel
             if (state.isLoading || state.error != null || state.isRestoredSession) return
             if (state.cachedVideo?.id != videoId && state.streamInfo?.id != videoId && state.localFileVideoId != videoId) return
 
-            val manager = EnhancedPlayerManager.getInstance()
+            val manager = playerManager
             if (manager.isPreparedForPlayback(videoId)) return
 
             viewModelScope.launch {
@@ -1125,7 +1129,7 @@ class VideoPlayerViewModel
             EnhancedMusicPlayerManager.stop()
             EnhancedMusicPlayerManager.clearCurrentTrack()
 
-            EnhancedPlayerManager.getInstance().setQueue(videos, startIndex, title)
+            playerManager.setQueue(videos, startIndex, title)
 
             _uiState.update {
                 it.copy(
@@ -1146,7 +1150,7 @@ class VideoPlayerViewModel
                 )
             }
             saveHistoryEntry(startVideo)
-            EnhancedPlayerManager.getInstance().startBackgroundService(
+            playerManager.startBackgroundService(
                 videoId = startVideo.id,
                 title = startVideo.title.ifEmpty { "Flow Player" },
                 channel = startVideo.channelName,
@@ -1159,7 +1163,7 @@ class VideoPlayerViewModel
         }
 
         fun playNext() {
-            val handledByPlayer = EnhancedPlayerManager.getInstance().playNext(loadStreamsInPlayer = false)
+            val handledByPlayer = playerManager.playNext(loadStreamsInPlayer = false)
             if (!handledByPlayer) {
                 _uiState.value.relatedVideos.firstOrNull()?.let { nextVideo ->
                     playVideo(nextVideo)
@@ -1170,7 +1174,7 @@ class VideoPlayerViewModel
         }
 
         fun playPrevious() {
-            val handledByPlayer = EnhancedPlayerManager.getInstance().playPrevious(loadStreamsInPlayer = false)
+            val handledByPlayer = playerManager.playPrevious(loadStreamsInPlayer = false)
             if (!handledByPlayer) {
                 getPreviousVideoId()?.let { prevId ->
                     val prevVideo =
@@ -1313,14 +1317,14 @@ class VideoPlayerViewModel
             loadingVideoId = videoId
 
             activeLoadJob =
-                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                viewModelScope.launch(networkDispatcher) {
                     Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
                     var isOfflineAvailable = false
                     var offlineLocalPath: String? = null
 
                     try {
                         val streamInfoDeferred =
-                            async(PerformanceDispatcher.networkIO) {
+                            async(networkDispatcher) {
                                 var info: StreamInfo? = null
                                 var lastError: Throwable? = null
                                 var attempt = 0
@@ -1363,7 +1367,7 @@ class VideoPlayerViewModel
                             }
 
                         val innerTubeDeferred =
-                            async(PerformanceDispatcher.networkIO) {
+                            async(networkDispatcher) {
                                 try {
                                     if (escalateToSabr) {
                                         InnerTubeVideoStreamExtractor.extract(videoId, forceSabr = escalateToSabr)
@@ -1383,16 +1387,16 @@ class VideoPlayerViewModel
                         // Startup-critical disk reads, resolved in parallel with stream extraction so the
                         // playback-preparation path below never blocks on DataStore/DB.
                         val savedPositionDeferred =
-                            async(PerformanceDispatcher.diskIO) {
+                            async(ioDispatcher) {
                                 resumePositionOverrideMs?.takeIf { it > 0L }
                                     ?: viewHistory.getPlaybackPosition(videoId).first()
                             }
                         val autoplayDeferred =
-                            async(PerformanceDispatcher.diskIO) {
+                            async(ioDispatcher) {
                                 playerPreferences.autoplayEnabled.first()
                             }
 
-                        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                        viewModelScope.launch(networkDispatcher) {
                             if (playerPreferences.rytdEnabled.first()) {
                                 withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }?.let { dislikeCount ->
                                     if (isPlaybackLoadCurrent(loadToken) &&
@@ -1407,7 +1411,7 @@ class VideoPlayerViewModel
                         val (qualityAndAudioPrefs, downloadedVideo) =
                             supervisorScope {
                                 val prefsDeferred =
-                                    async(PerformanceDispatcher.diskIO) {
+                                    async(ioDispatcher) {
                                         val preferredQuality =
                                             if (isWifi) {
                                                 playerPreferences.defaultQualityWifi.first()
@@ -1420,7 +1424,7 @@ class VideoPlayerViewModel
                                     }
 
                                 val downloadedDeferred =
-                                    async(PerformanceDispatcher.diskIO) {
+                                    async(ioDispatcher) {
                                         try {
                                             videoDownloadManager.downloadedVideos
                                                 .map { list ->
@@ -1589,7 +1593,7 @@ class VideoPlayerViewModel
                             if (streamInfo != null) {
                                 // Record interaction for Flow Neuro Engine — off the startup path: it takes
                                 // the brain mutex and updates vectors, none of which first frame needs.
-                                viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                                viewModelScope.launch(ioDispatcher) {
                                     try {
                                         val video =
                                             Video(
@@ -1642,7 +1646,7 @@ class VideoPlayerViewModel
                                         )
                                     if (isPlaybackLoadCurrent(loadToken)) {
                                         GlobalPlayerState.setCurrentVideo(enrichedVideo)
-                                        EnhancedPlayerManager.getInstance().startBackgroundService(
+                                        playerManager.startBackgroundService(
                                             videoId = videoId,
                                             title = realTitle,
                                             channel = realChannel ?: "",
@@ -1727,7 +1731,7 @@ class VideoPlayerViewModel
                                         if (sbJson != null) {
                                             deserializeSponsorBlockSegments(sbJson)
                                         } else {
-                                            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                                            viewModelScope.launch(networkDispatcher) {
                                                 try {
                                                     val segments = sponsorBlockRepository.getSegments(videoId)
                                                     if (segments.isNotEmpty()) {
@@ -1801,7 +1805,7 @@ class VideoPlayerViewModel
 
                                 // Autoplay preference was read in parallel with extraction
                                 val autoplay = autoplayDeferred.await()
-                                EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                                playerManager.setAutoplayCandidates(
                                     sourceVideoId = videoId,
                                     videos = relatedVideos,
                                     enabled = autoplay,
@@ -2123,7 +2127,7 @@ class VideoPlayerViewModel
             preferredLiveQualityHeight: Int = 0,
         ) = withContext(Dispatchers.Main) {
             if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-            val manager = EnhancedPlayerManager.getInstance()
+            val manager = playerManager
             if (manager.isPreparedForPlayback(videoId)) return@withContext
 
             manager.initialize(context)
@@ -2249,7 +2253,7 @@ class VideoPlayerViewModel
                 )
             GlobalPlayerState.setCurrentVideo(enrichedVideo)
 
-            val manager = EnhancedPlayerManager.getInstance()
+            val manager = playerManager
             manager.initialize(context)
             manager.startBackgroundService(
                 videoId = videoId,
@@ -2376,11 +2380,11 @@ class VideoPlayerViewModel
             }
 
             channelMetadataJob =
-                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                viewModelScope.launch(networkDispatcher) {
                     // Embedded avatars can update immediately, but the extra channel request waits until
                     // playback has actually started so it cannot compete with the first media buffer.
                     withTimeoutOrNull(15_000L) {
-                        EnhancedPlayerManager.getInstance().playerState.first { state ->
+                        playerManager.playerState.first { state ->
                             state.currentVideoId == videoId && (state.isPlaying || state.hasEnded || state.error != null)
                         }
                     }
@@ -2467,7 +2471,7 @@ class VideoPlayerViewModel
             primaryCandidates: List<Video>,
             loadToken: Long,
         ) {
-            val manager = EnhancedPlayerManager.getInstance()
+            val manager = playerManager
             val currentCandidates =
                 _uiState.value
                     .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
@@ -2495,11 +2499,11 @@ class VideoPlayerViewModel
             relatedVideosJob?.cancel()
             relatedVideosVideoId = videoId
             relatedVideosJob =
-                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                viewModelScope.launch(networkDispatcher) {
                     // Keep this request off the critical startup path. It is only needed when the
                     // playback resolver did not provide related items with its initial metadata.
                     withTimeoutOrNull(15_000L) {
-                        EnhancedPlayerManager.getInstance().playerState.first { state ->
+                        playerManager.playerState.first { state ->
                             state.currentVideoId == videoId && (state.isPlaying || state.hasEnded || state.error != null)
                         }
                     }
@@ -2546,7 +2550,7 @@ class VideoPlayerViewModel
                 if (!isPlaybackLoadCurrent(loadToken)) return@launch
                 val autoplay = playerPreferences.autoplayEnabled.first()
                 if (!isPlaybackLoadCurrent(loadToken)) return@launch
-                EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                playerManager.setAutoplayCandidates(
                     sourceVideoId = videoId,
                     videos = videos,
                     enabled = autoplay,
@@ -2566,7 +2570,7 @@ class VideoPlayerViewModel
             streamInfoDeferred: Deferred<Pair<StreamInfo?, Throwable?>>,
             loadToken: Long,
         ) {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            viewModelScope.launch(networkDispatcher) {
                 val streamInfo =
                     try {
                         streamInfoDeferred.await().first
@@ -2693,7 +2697,7 @@ class VideoPlayerViewModel
                 )
             GlobalPlayerState.setCurrentVideo(enrichedVideo)
 
-            val manager = EnhancedPlayerManager.getInstance()
+            val manager = playerManager
             manager.initialize(context)
             manager.startBackgroundService(videoId = videoId, title = title, channel = channel, thumbnail = thumbnail)
 
@@ -2815,7 +2819,7 @@ class VideoPlayerViewModel
             fallbackVideo: Video,
             loadToken: Long,
         ) {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            viewModelScope.launch(networkDispatcher) {
                 val newPipeMeta =
                     withTimeoutOrNull(12_000L) {
                         repository.getLiveWatchMetadataFromNewPipe(videoId)
@@ -2873,9 +2877,7 @@ class VideoPlayerViewModel
                     if (!isPlaybackLoadCurrent(loadToken)) return@withContext
                     GlobalPlayerState.setCurrentVideo(enriched)
                     if (related.isNotEmpty()) {
-                        EnhancedPlayerManager
-                            .getInstance()
-                            .setAutoplayCandidates(sourceVideoId = videoId, videos = related, enabled = autoplay)
+                        playerManager.setAutoplayCandidates(sourceVideoId = videoId, videos = related, enabled = autoplay)
                     }
                     _uiState.update {
                         it.copy(
@@ -2902,7 +2904,7 @@ class VideoPlayerViewModel
             val offlineSubtitles = offlineSubtitlesFor(videoId)
             withContext(Dispatchers.Main) {
                 if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-                val manager = EnhancedPlayerManager.getInstance()
+                val manager = playerManager
                 if (manager.isPreparedForPlayback(videoId)) return@withContext
 
                 manager.initialize(context)
@@ -2932,7 +2934,7 @@ class VideoPlayerViewModel
         private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
             val stored = offlineSubtitleStore.load(videoId)
             if (stored.isEmpty() && NetworkState.isOnline(context)) {
-                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                viewModelScope.launch(networkDispatcher) {
                     offlineSubtitleStore.saveForVideo(videoId)
                 }
             }
@@ -3055,7 +3057,7 @@ class VideoPlayerViewModel
             if (!prewarmedRelatedVideoIds.add(videoId)) return
 
             val playerRelated = relatedVideosForPrewarm(videoId)
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            viewModelScope.launch(networkDispatcher) {
                 runCatching {
                     val related =
                         playerRelated
@@ -3316,13 +3318,11 @@ class VideoPlayerViewModel
             viewModelScope.launch {
                 val resolvedEnabled =
                     enabled &&
-                        !EnhancedPlayerManager
-                            .getInstance()
-                            .playerState.value.isLooping
+                        !playerManager.playerState.value.isLooping
                 playerPreferences.setAutoplayEnabled(resolvedEnabled)
                 _uiState.value = _uiState.value.copy(autoplayEnabled = resolvedEnabled)
                 _uiState.value.cachedVideo?.id?.let { videoId ->
-                    EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                    playerManager.setAutoplayCandidates(
                         sourceVideoId = videoId,
                         videos = _uiState.value.relatedVideos,
                         enabled = resolvedEnabled,
@@ -3338,7 +3338,7 @@ class VideoPlayerViewModel
                     _uiState.update { it.copy(autoplayEnabled = false) }
                 }
             }
-            EnhancedPlayerManager.getInstance().toggleLoop(enabled)
+            playerManager.toggleLoop(enabled)
         }
 
         fun loadComments(videoId: String) {
@@ -3578,15 +3578,15 @@ class VideoPlayerViewModel
             }
 
         fun toggleSkipSilence(isEnabled: Boolean) {
-            EnhancedPlayerManager.getInstance().toggleSkipSilence(isEnabled)
+            playerManager.toggleSkipSilence(isEnabled)
         }
 
         fun toggleStableVolume(isEnabled: Boolean) {
-            EnhancedPlayerManager.getInstance().toggleStableVolume(isEnabled)
+            playerManager.toggleStableVolume(isEnabled)
         }
 
         private suspend fun fetchReturnYouTubeDislike(videoId: String): Long? =
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            kotlinx.coroutines.withContext(ioDispatcher) {
                 try {
                     val url = java.net.URL("https://returnyoutubedislikeapi.com/votes?videoId=$videoId")
                     val connection = url.openConnection() as java.net.HttpURLConnection
@@ -3609,7 +3609,7 @@ class VideoPlayerViewModel
             }
 
         private suspend fun fetchReturnYouTubeLikes(videoId: String): Long? =
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            kotlinx.coroutines.withContext(ioDispatcher) {
                 try {
                     val url = java.net.URL("https://returnyoutubedislikeapi.com/votes?videoId=$videoId")
                     val connection = url.openConnection() as java.net.HttpURLConnection
