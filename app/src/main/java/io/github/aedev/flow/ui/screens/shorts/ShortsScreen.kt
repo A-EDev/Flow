@@ -27,9 +27,9 @@ import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
-import io.github.aedev.flow.ui.components.CommentSortFilter
-import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
-import io.github.aedev.flow.ui.components.FlowDescriptionBottomSheet
+import io.github.aedev.flow.ui.components.shared.CommentSortFilter
+import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first

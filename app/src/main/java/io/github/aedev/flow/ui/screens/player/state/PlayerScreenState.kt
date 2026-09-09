@@ -1,7 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.state
 
 import androidx.compose.runtime.*
-import io.github.aedev.flow.ui.components.CommentSortFilter
+import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 

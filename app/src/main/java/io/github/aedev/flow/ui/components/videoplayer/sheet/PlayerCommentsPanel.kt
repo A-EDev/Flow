@@ -23,10 +23,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
-import io.github.aedev.flow.ui.components.CommentSortFilter
-import io.github.aedev.flow.ui.components.CommentSortFilterChips
-import io.github.aedev.flow.ui.components.FlowCommentsList
-import io.github.aedev.flow.ui.components.sortCommentsByFilter
+import io.github.aedev.flow.ui.components.shared.CommentSortFilter
+import io.github.aedev.flow.ui.components.shared.CommentSortFilterChips
+import io.github.aedev.flow.ui.components.shared.FlowCommentsList
+import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 
 /**
  * Comments rendered as an inline panel rather than a modal sheet, so the video stays visible.

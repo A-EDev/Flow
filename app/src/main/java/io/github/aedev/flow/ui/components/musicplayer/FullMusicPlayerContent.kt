@@ -91,10 +91,10 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.service.Media3MusicService
-import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import kotlinx.coroutines.launch
@@ -787,7 +787,7 @@ internal fun FullMusicPlayerContent(
 
         // Hosted here rather than at app level so it picks up the palette-derived scheme.
         if (showSleepTimer) {
-            SleepTimerSheet(onDismiss = { showSleepTimer = false })
+            MediaSleepTimerSheet(onDismiss = { showSleepTimer = false })
         }
     }
 }

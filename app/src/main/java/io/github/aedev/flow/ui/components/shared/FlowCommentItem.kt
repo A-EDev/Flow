@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatRichText
 

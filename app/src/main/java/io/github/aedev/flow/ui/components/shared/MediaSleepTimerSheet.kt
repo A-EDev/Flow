@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -49,7 +49,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
-fun SleepTimerSheet(
+fun MediaSleepTimerSheet(
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,

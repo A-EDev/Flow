@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared
 
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.ui.youtubeChannelUrl

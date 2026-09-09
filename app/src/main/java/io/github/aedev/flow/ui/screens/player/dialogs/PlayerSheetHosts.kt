@@ -27,8 +27,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.components.SleepTimerSheet
-import io.github.aedev.flow.ui.components.commentTimestampToMs
+import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
+import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowChaptersBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatList
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlayerCommentsPanel
@@ -80,7 +80,7 @@ internal fun PlayerSleepTimerSheetHost(
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
 ) {
-    SleepTimerSheet(
+    MediaSleepTimerSheet(
         onDismiss = onDismiss,
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,
