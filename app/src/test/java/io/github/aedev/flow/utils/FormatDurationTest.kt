@@ -38,4 +38,30 @@ class FormatDurationTest {
         assertThat(formatDuration(4452)).isEqualTo("1:14:12")
         assertThat(formatDuration(36000)).isEqualTo("10:00:00")
     }
+
+    @Test
+    fun `the millisecond overload truncates to whole seconds`() {
+        assertThat(formatDurationMillis(0L)).isEqualTo("0:00")
+        assertThat(formatDurationMillis(59_000L)).isEqualTo("0:59")
+        assertThat(formatDurationMillis(59_999L)).isEqualTo("0:59")
+        assertThat(formatDurationMillis(61_000L)).isEqualTo("1:01")
+        assertThat(formatDurationMillis(3_661_000L)).isEqualTo("1:01:01")
+        assertThat(formatDurationMillis(36_000_000L)).isEqualTo("10:00:00")
+    }
+
+    @Test
+    fun `minutes are never zero padded unlike the player overlay formatter`() {
+        // VideoPlayerUtils.formatTime(61_000, padMinutes = true) renders the same value as "01:01".
+        assertThat(formatDurationMillis(61_000L)).isEqualTo("1:01")
+        assertThat(formatDuration(61)).isEqualTo("1:01")
+    }
+
+    @Test
+    fun `negative durations leak a minus sign into the fields`() {
+        // Pins current behaviour: nothing clamps a negative input, so the sign lands inside the
+        // zero-padded seconds field.
+        assertThat(formatDuration(-61)).isEqualTo("-1:-1")
+        assertThat(formatDurationMillis(-1_000L)).isEqualTo("0:-1")
+        assertThat(formatDurationMillis(-999L)).isEqualTo("0:00")
+    }
 }

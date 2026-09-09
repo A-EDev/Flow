@@ -53,4 +53,38 @@ class PlayerLayoutModeTest {
         assertThat(playerLayoutModeFor(configuration(600, Configuration.ORIENTATION_LANDSCAPE), false, false))
             .isEqualTo(PlayerLayoutMode.WIDE)
     }
+
+    private fun modeFor(
+        smallestWidthDp: Int,
+        orientation: Int,
+    ) = playerLayoutModeFor(configuration(smallestWidthDp, orientation), isFullscreen = false, isInPipMode = false)
+
+    @Test
+    fun `below 600dp every orientation is compact`() {
+        listOf(411, 599).forEach { smallestWidthDp ->
+            assertThat(modeFor(smallestWidthDp, Configuration.ORIENTATION_PORTRAIT)).isEqualTo(PlayerLayoutMode.COMPACT)
+            assertThat(modeFor(smallestWidthDp, Configuration.ORIENTATION_LANDSCAPE)).isEqualTo(PlayerLayoutMode.COMPACT)
+        }
+    }
+
+    @Test
+    fun `from 600dp the orientation alone picks between the two tablet layouts`() {
+        listOf(600, 839, 840, 1200).forEach { smallestWidthDp ->
+            assertThat(modeFor(smallestWidthDp, Configuration.ORIENTATION_PORTRAIT)).isEqualTo(PlayerLayoutMode.TABLET_PORTRAIT)
+            assertThat(modeFor(smallestWidthDp, Configuration.ORIENTATION_LANDSCAPE)).isEqualTo(PlayerLayoutMode.WIDE)
+        }
+    }
+
+    @Test
+    fun `the expanded window breakpoint at 840dp adds no further layout`() {
+        assertThat(modeFor(839, Configuration.ORIENTATION_LANDSCAPE)).isEqualTo(modeFor(840, Configuration.ORIENTATION_LANDSCAPE))
+        assertThat(modeFor(839, Configuration.ORIENTATION_PORTRAIT)).isEqualTo(modeFor(840, Configuration.ORIENTATION_PORTRAIT))
+    }
+
+    @Test
+    fun `anything but landscape counts as portrait on a tablet`() {
+        // Pins current behaviour: only ORIENTATION_LANDSCAPE selects WIDE, so an undefined
+        // orientation takes the portrait grid.
+        assertThat(modeFor(800, Configuration.ORIENTATION_UNDEFINED)).isEqualTo(PlayerLayoutMode.TABLET_PORTRAIT)
+    }
 }
