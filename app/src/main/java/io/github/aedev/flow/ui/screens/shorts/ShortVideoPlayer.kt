@@ -65,14 +65,14 @@ import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.toDisplayAspectRatioOrNull
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.MediaPlaybackSpeedSlider
+import io.github.aedev.flow.ui.components.shared.MediaQualitySelectorContent
+import io.github.aedev.flow.ui.components.shared.MediaQualitySelectorOption
 import io.github.aedev.flow.ui.components.shared.MediaSeekBar
 import io.github.aedev.flow.ui.components.shared.playbackSpeedOptions
 import io.github.aedev.flow.ui.components.shared.playbackSpeedSliderPresets
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.videoplayer.ambient.VideoAmbientBackground
 import io.github.aedev.flow.ui.components.videoplayer.ambient.rememberAmbientFrame
-import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerQualitySelectorContent
-import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerQualitySelectorOption
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.delay
@@ -1783,7 +1783,7 @@ private fun ShortsQualitySheet(
                     val isSelected =
                         selectedVideoUrl?.let { it == quality.videoUrl }
                             ?: (quality.heightClass == selectedHeight)
-                    PlayerQualitySelectorOption(
+                    MediaQualitySelectorOption(
                         item = quality,
                         height = quality.heightClass,
                         label = quality.label,
@@ -1791,7 +1791,6 @@ private fun ShortsQualitySheet(
                         supportingText = quality.codecLabel.takeIf { it.isNotBlank() },
                         codecKey = quality.codecKey,
                         codecLabel = quality.codecLabel,
-                        streamKey = quality.videoUrl,
                     )
                 }
             Column(
@@ -1801,7 +1800,7 @@ private fun ShortsQualitySheet(
                         .weight(1f, fill = false)
                         .verticalScroll(rememberScrollState()),
             ) {
-                PlayerQualitySelectorContent(
+                MediaQualitySelectorContent(
                     options = selectorOptions,
                     groupedByResolution = groupedByResolution,
                     onOptionSelected = onQualitySelected,

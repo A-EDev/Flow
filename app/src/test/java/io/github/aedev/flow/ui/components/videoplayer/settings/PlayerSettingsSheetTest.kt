@@ -30,7 +30,7 @@ import org.robolectric.annotation.Config
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class, qualifiers = "w411dp-h891dp")
-class PlayerSettingsMenuTest {
+class PlayerSettingsSheetTest {
     @get:Rule
     val rule = createComposeRule()
 
@@ -116,8 +116,8 @@ class PlayerSettingsMenuTest {
         setMenu()
 
         // Known defect: the "Playback" section header is emitted once above the speed row
-        // (PlayerSettingsMenu.kt:299) and again above the loop/autoplay toggles
-        // (PlayerSettingsMenu.kt:375). Pinned so a fix is a deliberate change, not a side effect.
+        // (PlayerSettingsMainPage.kt:64) and again above the loop/autoplay toggles
+        // (PlayerSettingsMainPage.kt:140). Pinned so a fix is a deliberate change, not a side effect.
         rule.onAllNodesWithText(string(R.string.playback_header)).assertCountEquals(2)
     }
 
