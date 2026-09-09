@@ -143,6 +143,10 @@ class VideoPlayerViewModel
         private var relatedVideosVideoId: String? = null
         private var liveChatJob: Job? = null
         private var liveChatVideoId: String? = null
+        private var subscriptionStateJob: Job? = null
+        private var subscriptionStateChannelId: String? = null
+        private var likeStateJob: Job? = null
+        private var likeStateVideoId: String? = null
         private val prewarmedRelatedVideoIds =
             java.util.concurrent.ConcurrentHashMap
                 .newKeySet<String>()
@@ -3286,23 +3290,34 @@ class VideoPlayerViewModel
             channelId: String,
             videoId: String,
         ) {
-            viewModelScope.launch {
-                subscriptionRepository.isSubscribed(channelId).collect { isSubscribed ->
-                    _uiState.value = _uiState.value.copy(isSubscribed = isSubscribed)
-                }
+            if (subscriptionStateChannelId != channelId || subscriptionStateJob?.isActive != true) {
+                subscriptionStateJob?.cancel()
+                subscriptionStateChannelId = channelId
+                subscriptionStateJob =
+                    viewModelScope.launch {
+                        launch {
+                            subscriptionRepository.isSubscribed(channelId).collect { isSubscribed ->
+                                _uiState.update { it.copy(isSubscribed = isSubscribed) }
+                            }
+                        }
+                        launch {
+                            subscriptionRepository.getSubscription(channelId).collect { subscription ->
+                                _uiState.update {
+                                    it.copy(isNotificationsEnabled = subscription?.isNotificationEnabled ?: false)
+                                }
+                            }
+                        }
+                    }
             }
-            viewModelScope.launch {
-                subscriptionRepository.getSubscription(channelId).collect { subscription ->
-                    _uiState.value =
-                        _uiState.value.copy(
-                            isNotificationsEnabled = subscription?.isNotificationEnabled ?: false,
-                        )
-                }
-            }
-            viewModelScope.launch {
-                likedVideosRepository.getLikeState(videoId).collect { likeState ->
-                    _uiState.value = _uiState.value.copy(likeState = likeState)
-                }
+            if (likeStateVideoId != videoId || likeStateJob?.isActive != true) {
+                likeStateJob?.cancel()
+                likeStateVideoId = videoId
+                likeStateJob =
+                    viewModelScope.launch {
+                        likedVideosRepository.getLikeState(videoId).collect { likeState ->
+                            _uiState.update { it.copy(likeState = likeState) }
+                        }
+                    }
             }
         }
 
