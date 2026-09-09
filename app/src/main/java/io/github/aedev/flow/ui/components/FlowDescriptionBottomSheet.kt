@@ -4,14 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.text.style.URLSpan
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -21,20 +16,15 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -50,11 +40,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.text.HtmlCompat
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
+import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
+import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatViewCount
-import kotlinx.coroutines.launch
 
 fun parseHtmlDescription(rawHtml: String): AnnotatedString {
     // 1. Parse HTML into an Android Spanned object (Handles <br>, <a>, &amp;)
@@ -130,7 +123,7 @@ fun parseHtmlDescription(rawHtml: String): AnnotatedString {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FlowDescriptionBottomSheet(
     video: Video,
@@ -145,26 +138,7 @@ fun FlowDescriptionBottomSheet(
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    val density = LocalDensity.current
-    val coroutineScope = rememberCoroutineScope()
-    val latestOnDismiss by rememberUpdatedState(onDismiss)
-    val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
-    val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
-    val collapsedHeightPx = with(density) { collapsedHeight.toPx() }.coerceIn(0f, expandedHeightPx)
-    val sheetProgressRangePx = (expandedHeightPx - collapsedHeightPx).coerceAtLeast(1f)
-    val dismissThresholdPx = collapsedHeightPx + sheetProgressRangePx * 0.55f
-    val sheetHeightPx = remember { Animatable(0f) }
-    var isAnimatingOut by remember { mutableStateOf(false) }
-    val sheetProgress =
-        if (expandedHeightPx > 0f) {
-            ((sheetHeightPx.value - collapsedHeightPx) / sheetProgressRangePx).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-    SideEffect {
-        onSheetProgressChange(sheetProgress)
-    }
+    val sheetState = rememberFlowBottomSheetState()
     val descriptionScrollState = rememberScrollState()
 
     val descriptionText =
@@ -183,135 +157,28 @@ fun FlowDescriptionBottomSheet(
                 .toList()
         }
 
-    fun animateToExpanded() {
-        coroutineScope.launch {
-            sheetHeightPx.animateTo(
-                targetValue = expandedHeightPx,
-                animationSpec =
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessLow,
-                    ),
-            )
-        }
-    }
-
-    fun animateToDismiss() {
-        if (isAnimatingOut) return
-        isAnimatingOut = true
-        coroutineScope.launch {
-            sheetHeightPx.animateTo(
-                targetValue = collapsedHeightPx,
-                animationSpec =
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessLow,
-                    ),
-            )
-            latestOnDismiss()
-        }
-    }
-
-    LaunchedEffect(expandedHeightPx, collapsedHeightPx) {
-        isAnimatingOut = false
-        sheetHeightPx.updateBounds(lowerBound = collapsedHeightPx, upperBound = expandedHeightPx)
-        if (sheetHeightPx.value == 0f || sheetHeightPx.value < collapsedHeightPx) {
-            sheetHeightPx.snapTo(collapsedHeightPx)
-        }
-        sheetHeightPx.animateTo(
-            targetValue = expandedHeightPx,
-            animationSpec =
-                spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessLow,
-                ),
-        )
-    }
-
-    BackHandler(onBack = ::animateToDismiss)
-
-    val headerDragModifier =
-        Modifier.pointerInput(expandedHeightPx, collapsedHeightPx, dismissThresholdPx, isAnimatingOut) {
-            val velocityTracker = VelocityTracker()
-            detectVerticalDragGestures(
-                onVerticalDrag = { change, dragAmount ->
-                    if (isAnimatingOut) return@detectVerticalDragGestures
-                    velocityTracker.addPointerInputChange(change)
-                    coroutineScope.launch {
-                        val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(collapsedHeightPx, expandedHeightPx)
-                        sheetHeightPx.snapTo(nextValue)
-                    }
-                },
-                onDragCancel = {
-                    velocityTracker.resetTracking()
-                    if (!isAnimatingOut) animateToExpanded()
-                },
-                onDragEnd = {
-                    val velocityY = velocityTracker.calculateVelocity().y
-                    velocityTracker.resetTracking()
-                    when {
-                        velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
-                        else -> animateToExpanded()
-                    }
-                },
-            )
-        }
-
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter,
-    ) {
-        if (dismissOnOutsideTap) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .pointerInput(isAnimatingOut) {
-                            detectTapGestures { animateToDismiss() }
-                        },
-            )
-        }
-        Surface(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(with(density) { sheetHeightPx.value.toDp() }),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding(),
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp)
-                            .then(headerDragModifier),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    BottomSheetDefaults.DragHandle()
-                }
-
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .then(headerDragModifier)
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.description),
-                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
+    FlowBottomSheet(
+        onDismiss = onDismiss,
+        modifier = modifier,
+        state = sheetState,
+        expandedHeight = expandedHeight ?: defaultSheetExpandedHeight(),
+        collapsedHeight = collapsedHeight,
+        dismissOnOutsideTap = dismissOnOutsideTap,
+        shape = RectangleShape,
+        containerColor = MaterialTheme.colorScheme.surface,
+        onProgressChange = onSheetProgressChange,
+        header = { dragModifier ->
+            FlowSheetHeader(
+                title = stringResource(R.string.description),
+                onClose = { sheetState.dismiss() },
+                modifier = dragModifier,
+                titleStyle =
+                    MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
+                    ),
+                dividerAlpha = null,
+                actions = {
                     IconButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -328,172 +195,166 @@ fun FlowDescriptionBottomSheet(
                     ) {
                         Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.copy_description))
                     }
-                    IconButton(
-                        onClick = ::animateToDismiss,
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
-                    }
-                }
+                },
+            )
+        },
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(descriptionScrollState),
+        ) {
+            // 1. Video Title
+            Text(
+                text = video.title,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
 
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .verticalScroll(descriptionScrollState),
-                ) {
-                    // 1. Video Title
-                    Text(
-                        text = video.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    )
+            // 2. Stats Row (Clean Layout)
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                StatItem(
+                    value = formatLikeCount(video.likeCount.toInt()),
+                    label = stringResource(R.string.likes),
+                )
+                VerticalHorizontalDivider()
+                StatItem(
+                    value = formatViewCount(video.viewCount),
+                    label = stringResource(R.string.views),
+                )
+                VerticalHorizontalDivider()
+                val dateSettings = rememberDateDisplaySettings()
+                StatItem(
+                    value = dateSettings.format(video.uploadDate, DateContext.DESCRIPTION, video.timestamp),
+                    label = stringResource(R.string.uploaded),
+                )
+            }
 
-                    // 2. Stats Row (Clean Layout)
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        StatItem(
-                            value = formatLikeCount(video.likeCount.toInt()),
-                            label = stringResource(R.string.likes),
-                        )
-                        VerticalHorizontalDivider()
-                        StatItem(
-                            value = formatViewCount(video.viewCount),
-                            label = stringResource(R.string.views),
-                        )
-                        VerticalHorizontalDivider()
-                        val dateSettings = rememberDateDisplaySettings()
-                        StatItem(
-                            value = dateSettings.format(video.uploadDate, DateContext.DESCRIPTION, video.timestamp),
-                            label = stringResource(R.string.uploaded),
-                        )
-                    }
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+            )
 
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
-                    )
-
-                    // 3. Description Container
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface, // Clean background
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                    ) {
-                        Column(modifier = Modifier.padding(top = 8.dp)) {
-                            // Hashtags Row
-                            if (hashtags.isNotEmpty()) {
-                                Row(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    hashtags.forEach { tag ->
-                                        Text(
-                                            text = tag,
-                                            color = Color(0xFF3EA6FF),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            modifier = Modifier.clickable { /* Handle hashtag click */ },
-                                        )
-                                    }
-                                }
-                            }
-
-                            SelectionContainer {
-                                BasicText(
-                                    text = descriptionText,
-                                    style =
-                                        MaterialTheme.typography.bodyMedium.copy(
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            lineHeight = 24.sp,
-                                            fontSize = 15.sp,
-                                        ),
-                                    onTextLayout = { descLayoutResult = it },
-                                    modifier =
-                                        Modifier.pointerInput(descriptionText) {
-                                            detectTapGestures(
-                                                onTap = { tapOffset ->
-                                                    descLayoutResult?.let { result ->
-                                                        val charOffset = result.getOffsetForPosition(tapOffset)
-                                                        val ts =
-                                                            descriptionText
-                                                                .getStringAnnotations("TIMESTAMP", charOffset, charOffset)
-                                                                .firstOrNull()
-                                                        if (ts != null) {
-                                                            onTimestampClick(ts.item)
-                                                        } else {
-                                                            descriptionText
-                                                                .getStringAnnotations("URL", charOffset, charOffset)
-                                                                .firstOrNull()
-                                                                ?.let { uriHandler.openUri(it.item) }
-                                                        }
-                                                    }
-                                                },
-                                            )
-                                        },
-                                )
-                            }
-
-                            // Tags section
-                            if (tags.isNotEmpty()) {
-                                val sortedTags =
-                                    remember(tags) {
-                                        tags.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
-                                    }
-
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(top = 16.dp, bottom = 12.dp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
-                                )
-
+            // 3. Description Container
+            Surface(
+                color = MaterialTheme.colorScheme.surface, // Clean background
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+            ) {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    // Hashtags Row
+                    if (hashtags.isNotEmpty()) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            hashtags.forEach { tag ->
                                 Text(
-                                    text = stringResource(R.string.tags),
+                                    text = tag,
+                                    color = Color(0xFF3EA6FF),
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 10.dp),
+                                    modifier = Modifier.clickable { /* Handle hashtag click */ },
                                 )
-
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    sortedTags.forEach { tag ->
-                                        Surface(
-                                            shape = RoundedCornerShape(50),
-                                            color = MaterialTheme.colorScheme.secondaryContainer,
-                                            modifier = Modifier.clickable { /* future: search for tag */ },
-                                        ) {
-                                            Text(
-                                                text = tag,
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            )
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(48.dp))
+                    SelectionContainer {
+                        BasicText(
+                            text = descriptionText,
+                            style =
+                                MaterialTheme.typography.bodyMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    lineHeight = 24.sp,
+                                    fontSize = 15.sp,
+                                ),
+                            onTextLayout = { descLayoutResult = it },
+                            modifier =
+                                Modifier.pointerInput(descriptionText) {
+                                    detectTapGestures(
+                                        onTap = { tapOffset ->
+                                            descLayoutResult?.let { result ->
+                                                val charOffset = result.getOffsetForPosition(tapOffset)
+                                                val ts =
+                                                    descriptionText
+                                                        .getStringAnnotations("TIMESTAMP", charOffset, charOffset)
+                                                        .firstOrNull()
+                                                if (ts != null) {
+                                                    onTimestampClick(ts.item)
+                                                } else {
+                                                    descriptionText
+                                                        .getStringAnnotations("URL", charOffset, charOffset)
+                                                        .firstOrNull()
+                                                        ?.let { uriHandler.openUri(it.item) }
+                                                }
+                                            }
+                                        },
+                                    )
+                                },
+                        )
+                    }
+
+                    // Tags section
+                    if (tags.isNotEmpty()) {
+                        val sortedTags =
+                            remember(tags) {
+                                tags.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
+                            }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(top = 16.dp, bottom = 12.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+                        )
+
+                        Text(
+                            text = stringResource(R.string.tags),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 10.dp),
+                        )
+
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            sortedTags.forEach { tag ->
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    modifier = Modifier.clickable { /* future: search for tag */ },
+                                ) {
+                                    Text(
+                                        text = tag,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }

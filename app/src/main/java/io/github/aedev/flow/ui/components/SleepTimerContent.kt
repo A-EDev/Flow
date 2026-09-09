@@ -1,0 +1,405 @@
+package io.github.aedev.flow.ui.components
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
+import kotlin.math.roundToInt
+
+@Composable
+internal fun SleepTimerSheetContent(
+    isActive: Boolean,
+    pauseAtEndOfMedia: Boolean,
+    remainingMs: Long,
+    sliderValue: Float,
+    onSliderChange: (Float) -> Unit,
+    customInput: String,
+    onCustomInputChange: (String) -> Unit,
+    inputError: Boolean,
+    onEndOfMedia: () -> Unit,
+    onCancel: () -> Unit,
+    onStart: () -> Unit,
+    closeAppOnExpiry: Boolean,
+    onCloseAppToggle: (Boolean) -> Unit,
+    onReset: () -> Unit,
+    onCancelTimer: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.animateContentSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        AnimatedContent(targetState = isActive, label = "sleepTimerContent") { active ->
+            if (active) {
+                ActiveTimerContent(
+                    pauseAtEndOfMedia = pauseAtEndOfMedia,
+                    remainingMs = remainingMs,
+                    closeAppOnExpiry = closeAppOnExpiry,
+                    onReset = onReset,
+                    onCancel = onCancelTimer,
+                )
+            } else {
+                InactiveTimerContent(
+                    sliderValue = sliderValue,
+                    onSliderChange = onSliderChange,
+                    customInput = customInput,
+                    onCustomInputChange = onCustomInputChange,
+                    inputError = inputError,
+                    onEndOfMedia = onEndOfMedia,
+                    onCancel = onCancel,
+                    onStart = onStart,
+                    closeAppOnExpiry = closeAppOnExpiry,
+                    onCloseAppToggle = onCloseAppToggle,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveTimerContent(
+    pauseAtEndOfMedia: Boolean,
+    remainingMs: Long,
+    onReset: () -> Unit,
+    onCancel: () -> Unit,
+    closeAppOnExpiry: Boolean = false,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Bedtime,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                )
+                Text(
+                    text = stringResource(R.string.sleep_timer_stops_in),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    text =
+                        if (pauseAtEndOfMedia) {
+                            stringResource(R.string.sleep_timer_end_of_media)
+                        } else {
+                            formatCountdown(remainingMs)
+                        },
+                    style =
+                        if (pauseAtEndOfMedia) {
+                            MaterialTheme.typography.headlineMedium
+                        } else {
+                            MaterialTheme.typography.displayLarge
+                        },
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
+        if (closeAppOnExpiry) {
+            Text(
+                text = stringResource(R.string.sleep_timer_will_close_app),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            FilledTonalButton(
+                onClick = onReset,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                enabled = !pauseAtEndOfMedia,
+            ) {
+                Text(stringResource(R.string.sleep_timer_reset))
+            }
+            Button(
+                onClick = onCancel,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(52.dp),
+            ) {
+                Text(stringResource(R.string.sleep_timer_cancel_timer))
+            }
+        }
+    }
+}
+
+@Composable
+private fun InactiveTimerContent(
+    sliderValue: Float,
+    onSliderChange: (Float) -> Unit,
+    customInput: String,
+    onCustomInputChange: (String) -> Unit,
+    inputError: Boolean,
+    onEndOfMedia: () -> Unit,
+    onCancel: () -> Unit,
+    onStart: () -> Unit,
+    closeAppOnExpiry: Boolean,
+    onCloseAppToggle: (Boolean) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = sliderValue.roundToInt().toString(),
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.sleep_timer_unit),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
+
+                Slider(
+                    value = sliderValue,
+                    onValueChange = onSliderChange,
+                    valueRange = 5f..120f,
+                    steps = 22,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = stringResource(R.string.sleep_timer_min_label),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.sleep_timer_max_label),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf(10, 15, 30, 45, 60, 90).forEach { minutes ->
+                val selected = sliderValue.roundToInt() == minutes
+                val corner by animateDpAsState(
+                    targetValue = if (selected) 10.dp else 22.dp,
+                    label = "sleepQuickPickCorner",
+                )
+                Surface(
+                    onClick = { onSliderChange(minutes.toFloat()) },
+                    shape = RoundedCornerShape(corner),
+                    color =
+                        if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        },
+                    contentColor =
+                        if (selected) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        },
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = minutes.toString(),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = customInput,
+            onValueChange = onCustomInputChange,
+            label = { Text(stringResource(R.string.sleep_timer_custom_label)) },
+            supportingText =
+                if (inputError) {
+                    { Text(stringResource(R.string.sleep_timer_input_error)) }
+                } else {
+                    null
+                },
+            isError = inputError,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            trailingIcon = {
+                Text(
+                    text = stringResource(R.string.sleep_timer_unit),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(end = 12.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        FilledTonalButton(
+            onClick = onEndOfMedia,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Bedtime,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.sleep_timer_end_of_song))
+        }
+
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 64.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sleep_timer_close_app),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = stringResource(R.string.sleep_timer_close_app_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = closeAppOnExpiry,
+                    onCheckedChange = onCloseAppToggle,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TextButton(
+                onClick = onCancel,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(52.dp),
+            ) {
+                Text(stringResource(R.string.cancel))
+            }
+            Button(
+                onClick = onStart,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(52.dp),
+            ) {
+                Text(stringResource(R.string.sleep_timer_start))
+            }
+        }
+    }
+}
+
+private fun formatCountdown(ms: Long): String {
+    val totalSeconds = ms / 1000L
+    val hours = totalSeconds / 3600L
+    val minutes = (totalSeconds % 3600L) / 60L
+    val seconds = totalSeconds % 60L
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
+}
