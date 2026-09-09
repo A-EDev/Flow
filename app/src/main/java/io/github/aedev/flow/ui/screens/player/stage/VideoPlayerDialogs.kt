@@ -1,20 +1,16 @@
 package io.github.aedev.flow.ui.screens.player.stage
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.player.dlna.DlnaCastManager
-import io.github.aedev.flow.player.dlna.DlnaDevice
-import io.github.aedev.flow.ui.components.videoplayer.DlnaDevicePickerDialog
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.SbSubmitSegmentDialog
 import io.github.aedev.flow.ui.screens.player.state.MediaSheetHeights
 import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 
 /** Every dialog and bottom sheet the player overlay raises above its own stage. */
 @UnstableApi
@@ -30,12 +26,6 @@ internal fun VideoPlayerDialogs(
     isLoadingComments: Boolean,
     isLoadingMoreComments: Boolean,
     hasMoreComments: Boolean,
-    showSbSubmitDialog: Boolean,
-    onSbSubmitDialogDismiss: () -> Unit,
-    showDlnaDialog: Boolean,
-    onDlnaDialogDismiss: () -> Unit,
-    dlnaDevices: State<List<DlnaDevice>>,
-    isDlnaDiscovering: State<Boolean>,
     onNavigateToChannel: (String) -> Unit,
     onNavigateToShorts: (String) -> Unit,
     onClose: () -> Unit,
@@ -55,54 +45,19 @@ internal fun VideoPlayerDialogs(
         uiState = playerUiState,
         video = completeVideo,
         viewModel = playerViewModel,
-        renderSettingsMenu = !canUseFullscreenSidePanel,
+        hostedInSidePanel = canUseFullscreenSidePanel,
         mediaSheetExpandedHeight = mediaSheetHeights.expanded,
         mediaSheetCollapsedHeight = mediaSheetHeights.collapsed,
         onMediaSheetProgressChange = onMediaSheetProgressChange,
     )
 
     // SB Submit dialog
-    if (showSbSubmitDialog) {
+    if (screenState.activeSheet == PlayerSheet.SbSubmit) {
         val initialPosition = remember { screenState.currentPosition }
         SbSubmitSegmentDialog(
             videoId = video.id,
             currentPositionMs = initialPosition,
-            onDismiss = onSbSubmitDialogDismiss,
-        )
-    }
-
-    // DLNA device picker dialog
-    if (showDlnaDialog) {
-        DlnaDevicePickerDialog(
-            devices = dlnaDevices.value,
-            isDiscovering = isDlnaDiscovering.value,
-            isCasting = DlnaCastManager.isCasting,
-            videoTitle = video.title,
-            onDeviceSelected = { device ->
-                val currentPlayerUrl =
-                    EnhancedPlayerManager
-                        .getInstance()
-                        .getPlayer()
-                        ?.currentMediaItem
-                        ?.localConfiguration
-                        ?.uri
-                        ?.toString()
-                DlnaCastManager.castStreamInfo(
-                    device = device,
-                    title = video.title,
-                    streamInfo = playerUiState.streamInfo,
-                    currentPlayerUrl = currentPlayerUrl,
-                )
-                onDlnaDialogDismiss()
-            },
-            onStopCasting = {
-                DlnaCastManager.disconnect()
-                onDlnaDialogDismiss()
-            },
-            onDismiss = {
-                DlnaCastManager.stopDiscovery()
-                onDlnaDialogDismiss()
-            },
+            onDismiss = { screenState.closeSheet() },
         )
     }
 
@@ -127,9 +82,6 @@ internal fun VideoPlayerDialogs(
             onClose()
             onNavigateToShorts(videoId)
         },
-        onPlayAsMusic = { _ ->
-            // Handle play as music - still placeholder for now
-        },
         onLoadReplies = { comment ->
             playerViewModel.loadCommentReplies(comment)
         },
@@ -140,8 +92,7 @@ internal fun VideoPlayerDialogs(
             onNavigateToChannel(channelId)
         },
         renderCommentsSheet = playerLayoutMode != PlayerLayoutMode.WIDE,
-        renderChaptersSheet = !canUseFullscreenSidePanel,
-        renderSleepTimerSheet = !canUseFullscreenSidePanel,
+        hostedInSidePanel = canUseFullscreenSidePanel,
         onMediaSheetProgressChange = onMediaSheetProgressChange,
     )
 }

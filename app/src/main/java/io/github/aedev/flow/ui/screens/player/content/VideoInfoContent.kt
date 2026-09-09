@@ -24,6 +24,7 @@ import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -198,7 +199,7 @@ internal fun VideoInfoContent(
                 }
             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
         },
-        onDownloadClick = { screenState.showDownloadDialog = true },
+        onDownloadClick = { screenState.open(PlayerSheet.Download) },
         isSaved = isVideoSaved,
         isDownloaded = isVideoDownloaded,
         onBackgroundPlayClick = { viewModel.startBackgroundPlayback() },
@@ -216,12 +217,12 @@ internal fun VideoInfoContent(
             clipboard.setPrimaryClip(ClipData.newPlainText("video_link_at_time", url))
             Toast.makeText(context, context.getString(R.string.link_with_timestamp_copied), Toast.LENGTH_SHORT).show()
         },
-        onDescriptionClick = { screenState.showDescriptionSheet = true },
+        onDescriptionClick = { screenState.open(PlayerSheet.Description) },
     )
 
     if (uiState.isLiveChatAvailable) {
         io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatPreview(
-            onClick = { screenState.showLiveChatSheet = true },
+            onClick = { screenState.open(PlayerSheet.LiveChat()) },
         )
     }
 
@@ -230,7 +231,7 @@ internal fun VideoInfoContent(
             latestComment = if (showCommentsPreview) comments.firstOrNull()?.text else null,
             authorAvatar = if (showCommentsPreview) comments.firstOrNull()?.authorThumbnail else null,
             showPreviewText = showCommentsPreview,
-            onClick = { screenState.showCommentsSheet = true },
+            onClick = { screenState.open(PlayerSheet.Comments()) },
         )
     }
 }

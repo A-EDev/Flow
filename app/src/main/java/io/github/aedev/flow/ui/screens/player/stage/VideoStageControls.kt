@@ -15,6 +15,8 @@ import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerControlsOve
 import io.github.aedev.flow.ui.components.videoplayer.controls.resolvePlayerQualityLabel
 import io.github.aedev.flow.ui.components.videoplayer.overlay.AutoplayCountdownOverlay
 import io.github.aedev.flow.ui.components.videoplayer.placedWhen
+import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 
 /** The transport controls the expanded player mounts once its surfaces are at rest. */
@@ -111,9 +113,9 @@ internal fun VideoStageControls(
             screenState.onInteraction()
         },
         onBack = { playerSheetState.collapse() },
-        onSettingsClick = { screenState.showSettingsMenu = true },
-        onQualityClick = { screenState.showQualitySelector = true },
-        onSpeedClick = { screenState.showPlaybackSpeedSelector = true },
+        onSettingsClick = { screenState.open(PlayerSheet.Settings()) },
+        onQualityClick = { screenState.open(PlayerSheet.Settings(PlayerSettingsPage.Quality)) },
+        onSpeedClick = { screenState.open(PlayerSheet.Settings(PlayerSettingsPage.Speed)) },
         onFullscreenClick = { screenState.toggleFullscreen() },
         isFullscreen = screenState.isFullscreen,
         isPipSupported =
@@ -129,7 +131,7 @@ internal fun VideoStageControls(
             )
         },
         chapters = playerUiState.chapters,
-        onChapterClick = { screenState.showChaptersSheet = true },
+        onChapterClick = { screenState.open(PlayerSheet.Chapters) },
         onSubtitleClick = {
             if (screenState.subtitlesEnabled) {
                 SubtitleSelection.disable(screenState)
@@ -141,10 +143,10 @@ internal fun VideoStageControls(
                         languageTag = prefs.preferredSubtitleLanguage,
                         rememberLanguage = rememberSubtitleLanguage,
                     )
-                if (!enabled) screenState.showSubtitleSelector = true
+                if (!enabled) screenState.open(PlayerSheet.Settings(PlayerSettingsPage.Subtitles))
             }
         },
-        onSubtitleLongClick = { screenState.showSubtitleSelector = true },
+        onSubtitleLongClick = { screenState.open(PlayerSheet.Settings(PlayerSettingsPage.Subtitles)) },
         isSubtitlesEnabled = screenState.subtitlesEnabled,
         autoplayEnabled = playerUiState.autoplayEnabled,
         isLooping = playerState.isLooping,
@@ -169,29 +171,24 @@ internal fun VideoStageControls(
         },
         isLiveChatAvailable = playerUiState.isLiveChatAvailable,
         onLiveChatClick = {
-            if (screenState.showLiveChatFullscreen) {
-                screenState.showLiveChatFullscreen = false
+            val fullscreenLiveChat = PlayerSheet.LiveChat(fullscreen = true)
+            if (screenState.activeSheet == fullscreenLiveChat) {
+                screenState.closeSheet()
             } else {
-                screenState.dismissMediaSheets()
-                screenState.showLiveChatFullscreen = true
+                screenState.open(fullscreenLiveChat)
             }
         },
         isCommentsAvailable = isCommentsAvailable,
-        isCommentsPanelOpen = screenState.showCommentsFullscreen || screenState.showCommentsSheet,
+        isCommentsPanelOpen = screenState.activeSheet is PlayerSheet.Comments,
         onCommentsClick = {
-            if (canUseFullscreenSidePanel) {
-                if (screenState.showCommentsFullscreen) {
-                    screenState.showCommentsFullscreen = false
-                } else {
-                    screenState.dismissMediaSheets()
-                    screenState.showCommentsFullscreen = true
-                }
+            val comments = PlayerSheet.Comments(fullscreen = canUseFullscreenSidePanel)
+            if (canUseFullscreenSidePanel && screenState.activeSheet == comments) {
+                screenState.closeSheet()
             } else {
-                screenState.dismissMediaSheets()
-                screenState.showCommentsSheet = true
+                screenState.open(comments)
             }
         },
-        onSleepTimerClick = { screenState.showSleepTimerSheet = true },
+        onSleepTimerClick = { screenState.open(PlayerSheet.SleepTimer) },
         isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
         showRemainingTime = showRemainingTime,
         onToggleRemainingTime = onToggleRemainingTime,

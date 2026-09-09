@@ -1,37 +1,23 @@
 package io.github.aedev.flow.ui.screens.player.content
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.components.commentTimestampToMs
-import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatList
 import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatPreview
-import io.github.aedev.flow.ui.components.videoplayer.sheet.PlayerCommentsPanel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerCommentsPanelHost
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerLiveChatColumn
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 
 /**
  * Right-hand column of the tablet landscape player. Comments take the column over when opened so
@@ -39,7 +25,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
  * shows live chat, falling back to the related-videos list.
  */
 @Composable
-fun PlayerDetailSideColumn(
+internal fun PlayerDetailSideColumn(
     video: Video,
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel,
@@ -57,55 +43,29 @@ fun PlayerDetailSideColumn(
     val isLoadingMoreComments by viewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
 
     when {
-        screenState.showCommentsSheet && commentsEnabled -> {
-            BackHandler { screenState.showCommentsSheet = false }
-            PlayerCommentsPanel(
+        screenState.activeSheet == PlayerSheet.Comments() && commentsEnabled -> {
+            BackHandler { screenState.closeSheet() }
+            PlayerCommentsPanelHost(
+                videoId = video.id,
+                screenState = screenState,
+                viewModel = viewModel,
                 comments = comments,
                 isLoading = isLoadingComments,
                 isLoadingMore = isLoadingMoreComments,
                 hasMore = hasMoreComments,
-                selectedFilter = screenState.commentSortFilter,
-                onFilterChanged = { screenState.commentSortFilter = it },
-                onTimestampClick = { EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(it)) },
-                onLoadReplies = { viewModel.loadCommentReplies(it) },
-                onLoadMoreReplies = { viewModel.loadMoreCommentReplies(it) },
-                onAuthorClick = { authorChannelRef ->
-                    screenState.showCommentsSheet = false
-                    onChannelClick(authorChannelRef)
-                },
-                onLoadMore = { viewModel.loadMoreComments(video.id) },
-                onClose = { screenState.showCommentsSheet = false },
+                onNavigateToChannel = onChannelClick,
+                onClose = { screenState.closeSheet() },
                 modifier = modifier,
             )
         }
 
         uiState.isLiveChatAvailable && screenState.showLiveChatPanel -> {
-            Column(modifier.fillMaxHeight()) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.live_chat),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { screenState.showLiveChatPanel = false }) {
-                        Text(stringResource(R.string.live_chat_hide))
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-                LiveChatList(
-                    messages = uiState.liveChatMessages,
-                    isLoading = uiState.isLiveChatLoading,
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentPadding = PaddingValues(vertical = 8.dp, horizontal = 0.dp),
-                )
-            }
+            PlayerLiveChatColumn(
+                messages = uiState.liveChatMessages,
+                isLoading = uiState.isLiveChatLoading,
+                onClose = { screenState.showLiveChatPanel = false },
+                modifier = modifier,
+            )
         }
 
         else -> {

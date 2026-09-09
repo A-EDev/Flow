@@ -29,6 +29,7 @@ import io.github.aedev.flow.ui.screens.player.content.relatedVideosContent
 import io.github.aedev.flow.ui.screens.player.content.relatedVideosGridContent
 import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import kotlin.math.roundToInt
@@ -197,7 +198,7 @@ internal fun EnhancedVideoPlayerScreen(
                     playlistName = playerState.queueTitle ?: "",
                     currentIndex = currentQueueIndex,
                     queueSize = queueVideos.size,
-                    onClick = { screenState.showPlaylistQueueSheet = true },
+                    onClick = { screenState.open(PlayerSheet.Queue) },
                     modifier =
                         Modifier
                             .align(Alignment.BottomCenter)

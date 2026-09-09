@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.player.state
 
 import androidx.compose.runtime.*
 import io.github.aedev.flow.ui.components.CommentSortFilter
+import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 
 // Every property is snapshot state, so composables taking this instance can skip on identity.
@@ -26,27 +27,11 @@ class PlayerScreenState {
     var bufferedPosition by mutableLongStateOf(0L)
     var duration by mutableLongStateOf(0L)
 
-    // Dialog States
-    var showQualitySelector by mutableStateOf(false)
-    var showAudioTrackSelector by mutableStateOf(false)
-    var showSubtitleSelector by mutableStateOf(false)
-    var showSettingsMenu by mutableStateOf(false)
-    var showDownloadDialog by mutableStateOf(false)
-    var showPlaybackSpeedSelector by mutableStateOf(false)
-    var showSubtitleStyleCustomizer by mutableStateOf(false)
-    var showSleepTimerSheet by mutableStateOf(false)
-    var showDlnaDialog by mutableStateOf(false)
+    // Sheets, panels and dialogs (exactly one at a time)
+    internal var activeSheet by mutableStateOf<PlayerSheet>(PlayerSheet.None)
 
-    // Bottom Sheet States
-    var showQuickActions by mutableStateOf(false)
-    var showCommentsSheet by mutableStateOf(false)
-    var showDescriptionSheet by mutableStateOf(false)
-    var showChaptersSheet by mutableStateOf(false)
-    var showPlaylistQueueSheet by mutableStateOf(false)
-    var showLiveChatSheet by mutableStateOf(false)
+    // The tablet side column's own show/hide toggle, not a sheet: it survives a sheet dismissal.
     var showLiveChatPanel by mutableStateOf(true)
-    var showLiveChatFullscreen by mutableStateOf(false)
-    var showCommentsFullscreen by mutableStateOf(false)
 
     // Comment Sorting
     var commentSortFilter by mutableStateOf(CommentSortFilter.TOP)
@@ -107,26 +92,8 @@ class PlayerScreenState {
         showSeekForwardAnimation = false
         hasShownShortsPrompt = false
         showShortsPrompt = false
-        showPlaylistQueueSheet = false
-        // Reset dialogs
-        showDownloadDialog = false
-        showQualitySelector = false
-        showAudioTrackSelector = false
-        showSubtitleSelector = false
-        showSettingsMenu = false
-        showPlaybackSpeedSelector = false
-        showSubtitleStyleCustomizer = false
-        showSleepTimerSheet = false
-        showDlnaDialog = false
-        // Reset bottom sheets
-        showQuickActions = false
-        showCommentsSheet = false
-        showDescriptionSheet = false
-        showChaptersSheet = false
-        showLiveChatSheet = false
+        activeSheet = PlayerSheet.None
         showLiveChatPanel = true
-        showLiveChatFullscreen = false
-        showCommentsFullscreen = false
         zoomScale = 1f
         zoomOffsetX = 0f
         zoomOffsetY = 0f
@@ -136,20 +103,28 @@ class PlayerScreenState {
         exitDragProgress = 0f
     }
 
+    internal fun open(sheet: PlayerSheet) {
+        activeSheet = sheet
+    }
+
+    internal fun closeSheet() {
+        activeSheet = PlayerSheet.None
+    }
+
+    internal val isSettingsOpen: Boolean
+        get() = activeSheet is PlayerSheet.Settings
+
+    internal val settingsPage: PlayerSettingsPage
+        get() = (activeSheet as? PlayerSheet.Settings)?.page ?: PlayerSettingsPage.Main
+
+    /**
+     * Re-anchoring the player — collapsing it, entering or leaving fullscreen — drops whatever it
+     * had raised over the stage. Now that [activeSheet] holds a single surface this closes *every*
+     * sheet: the sleep timer, download, cast and quick-action dialogs that the previous
+     * eighteen-boolean state deliberately left standing cannot survive an exclusive state.
+     */
     fun dismissMediaSheets() {
-        showCommentsSheet = false
-        showDescriptionSheet = false
-        showChaptersSheet = false
-        showLiveChatSheet = false
-        showLiveChatFullscreen = false
-        showCommentsFullscreen = false
-        showPlaylistQueueSheet = false
-        showSettingsMenu = false
-        showQualitySelector = false
-        showAudioTrackSelector = false
-        showSubtitleSelector = false
-        showPlaybackSpeedSelector = false
-        showSubtitleStyleCustomizer = false
+        closeSheet()
     }
 
     fun cycleResizeMode() {

@@ -3,13 +3,14 @@ package io.github.aedev.flow.ui.screens.player.state
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import io.github.aedev.flow.ui.components.CommentSortFilter
+import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import org.junit.Test
 
 /**
- * Pins the exact shape of [PlayerScreenState] ahead of its replacement: what every property starts
- * as and precisely which ones each mutator touches. The tables are exhaustive on purpose so the
- * sealed-state successor can be checked row by row against the same expectations.
+ * Pins the exact shape of [PlayerScreenState]: what every property starts as and precisely which
+ * ones each mutator touches. The tables are exhaustive on purpose, so a property added without a
+ * decision about the reset paths fails a test rather than slipping through.
  */
 class PlayerScreenStateTest {
     private val defaults: Map<String, Any?> =
@@ -26,24 +27,8 @@ class PlayerScreenStateTest {
             "currentPosition" to 0L,
             "bufferedPosition" to 0L,
             "duration" to 0L,
-            "showQualitySelector" to false,
-            "showAudioTrackSelector" to false,
-            "showSubtitleSelector" to false,
-            "showSettingsMenu" to false,
-            "showDownloadDialog" to false,
-            "showPlaybackSpeedSelector" to false,
-            "showSubtitleStyleCustomizer" to false,
-            "showSleepTimerSheet" to false,
-            "showDlnaDialog" to false,
-            "showQuickActions" to false,
-            "showCommentsSheet" to false,
-            "showDescriptionSheet" to false,
-            "showChaptersSheet" to false,
-            "showPlaylistQueueSheet" to false,
-            "showLiveChatSheet" to false,
+            "activeSheet" to PlayerSheet.None,
             "showLiveChatPanel" to true,
-            "showLiveChatFullscreen" to false,
-            "showCommentsFullscreen" to false,
             "commentSortFilter" to CommentSortFilter.TOP,
             "brightnessLevel" to 0.5f,
             "volumeLevel" to 0.5f,
@@ -89,24 +74,8 @@ class PlayerScreenStateTest {
             "showSeekForwardAnimation",
             "hasShownShortsPrompt",
             "showShortsPrompt",
-            "showPlaylistQueueSheet",
-            "showDownloadDialog",
-            "showQualitySelector",
-            "showAudioTrackSelector",
-            "showSubtitleSelector",
-            "showSettingsMenu",
-            "showPlaybackSpeedSelector",
-            "showSubtitleStyleCustomizer",
-            "showSleepTimerSheet",
-            "showDlnaDialog",
-            "showQuickActions",
-            "showCommentsSheet",
-            "showDescriptionSheet",
-            "showChaptersSheet",
-            "showLiveChatSheet",
+            "activeSheet",
             "showLiveChatPanel",
-            "showLiveChatFullscreen",
-            "showCommentsFullscreen",
             "zoomScale",
             "zoomOffsetX",
             "zoomOffsetY",
@@ -132,29 +101,19 @@ class PlayerScreenStateTest {
             "normalSpeed",
         )
 
-    private val dismissMediaSheetsClears =
-        setOf(
-            "showCommentsSheet",
-            "showDescriptionSheet",
-            "showChaptersSheet",
-            "showLiveChatSheet",
-            "showLiveChatFullscreen",
-            "showCommentsFullscreen",
-            "showPlaylistQueueSheet",
-            "showSettingsMenu",
-            "showQualitySelector",
-            "showAudioTrackSelector",
-            "showSubtitleSelector",
-            "showPlaybackSpeedSelector",
-            "showSubtitleStyleCustomizer",
-        )
+    private val dismissMediaSheetsClears = setOf("activeSheet")
 
-    private val dismissMediaSheetsLeavesOpen =
-        setOf(
-            "showSleepTimerSheet",
-            "showDownloadDialog",
-            "showDlnaDialog",
-            "showQuickActions",
+    /**
+     * The eighteen-flag state deliberately left the sleep timer, download, cast and quick-action
+     * dialogs standing through a dismissal. One exclusive [PlayerSheet] cannot express that carve
+     * out, so they close with everything else now.
+     */
+    private val dismissMediaSheetsAlsoClosesNow =
+        listOf(
+            PlayerSheet.SleepTimer,
+            PlayerSheet.Download,
+            PlayerSheet.Dlna,
+            PlayerSheet.QuickActions,
         )
 
     /** Every snapshot-backed property except the wall-clock timestamp, keyed by name. */
@@ -172,24 +131,8 @@ class PlayerScreenStateTest {
             "currentPosition" to currentPosition,
             "bufferedPosition" to bufferedPosition,
             "duration" to duration,
-            "showQualitySelector" to showQualitySelector,
-            "showAudioTrackSelector" to showAudioTrackSelector,
-            "showSubtitleSelector" to showSubtitleSelector,
-            "showSettingsMenu" to showSettingsMenu,
-            "showDownloadDialog" to showDownloadDialog,
-            "showPlaybackSpeedSelector" to showPlaybackSpeedSelector,
-            "showSubtitleStyleCustomizer" to showSubtitleStyleCustomizer,
-            "showSleepTimerSheet" to showSleepTimerSheet,
-            "showDlnaDialog" to showDlnaDialog,
-            "showQuickActions" to showQuickActions,
-            "showCommentsSheet" to showCommentsSheet,
-            "showDescriptionSheet" to showDescriptionSheet,
-            "showChaptersSheet" to showChaptersSheet,
-            "showPlaylistQueueSheet" to showPlaylistQueueSheet,
-            "showLiveChatSheet" to showLiveChatSheet,
+            "activeSheet" to activeSheet,
             "showLiveChatPanel" to showLiveChatPanel,
-            "showLiveChatFullscreen" to showLiveChatFullscreen,
-            "showCommentsFullscreen" to showCommentsFullscreen,
             "commentSortFilter" to commentSortFilter,
             "brightnessLevel" to brightnessLevel,
             "volumeLevel" to volumeLevel,
@@ -230,24 +173,8 @@ class PlayerScreenStateTest {
         currentPosition = 90_000L
         bufferedPosition = 120_000L
         duration = 600_000L
-        showQualitySelector = true
-        showAudioTrackSelector = true
-        showSubtitleSelector = true
-        showSettingsMenu = true
-        showDownloadDialog = true
-        showPlaybackSpeedSelector = true
-        showSubtitleStyleCustomizer = true
-        showSleepTimerSheet = true
-        showDlnaDialog = true
-        showQuickActions = true
-        showCommentsSheet = true
-        showDescriptionSheet = true
-        showChaptersSheet = true
-        showPlaylistQueueSheet = true
-        showLiveChatSheet = true
+        activeSheet = PlayerSheet.Settings(PlayerSettingsPage.Quality)
         showLiveChatPanel = false
-        showLiveChatFullscreen = true
-        showCommentsFullscreen = true
         commentSortFilter = CommentSortFilter.NEWEST
         brightnessLevel = 0.9f
         volumeLevel = 0.1f
@@ -315,18 +242,57 @@ class PlayerScreenStateTest {
     }
 
     @Test
-    fun `dismissMediaSheets closes exactly the media sheets and pickers`() {
+    fun `dismissMediaSheets closes the open sheet and leaves the side column toggle alone`() {
         val state = PlayerScreenState().apply { dirtyEverything() }
         val dirty = state.snapshot()
 
         state.dismissMediaSheets()
 
-        val expected = dirty + dismissMediaSheetsClears.associateWith { false }
+        val expected = dirty + dismissMediaSheetsClears.associateWith { PlayerSheet.None }
         assertThat(state.snapshot()).containsExactlyEntriesIn(expected)
-        dismissMediaSheetsLeavesOpen.forEach { name ->
-            assertWithMessage(name).that(state.snapshot()[name]).isEqualTo(true)
-        }
+        assertThat(state.showLiveChatPanel).isFalse()
         assertThat(state.lastInteractionTimestamp).isEqualTo(1L)
+    }
+
+    @Test
+    fun `dismissMediaSheets also closes the dialogs the flag state used to leave standing`() {
+        dismissMediaSheetsAlsoClosesNow.forEach { sheet ->
+            val state = PlayerScreenState().apply { open(sheet) }
+
+            state.dismissMediaSheets()
+
+            assertWithMessage(sheet.toString()).that(state.activeSheet).isEqualTo(PlayerSheet.None)
+        }
+    }
+
+    @Test
+    fun `open replaces whatever sheet was showing and closeSheet clears it`() {
+        val state = PlayerScreenState()
+
+        state.open(PlayerSheet.Chapters)
+        assertThat(state.activeSheet).isEqualTo(PlayerSheet.Chapters)
+
+        state.open(PlayerSheet.Comments(fullscreen = true))
+        assertThat(state.activeSheet).isEqualTo(PlayerSheet.Comments(fullscreen = true))
+
+        state.closeSheet()
+        assertThat(state.activeSheet).isEqualTo(PlayerSheet.None)
+    }
+
+    @Test
+    fun `settingsPage reports the page of an open settings sheet and Main otherwise`() {
+        val state = PlayerScreenState()
+
+        assertThat(state.isSettingsOpen).isFalse()
+        assertThat(state.settingsPage).isEqualTo(PlayerSettingsPage.Main)
+
+        state.open(PlayerSheet.Settings(PlayerSettingsPage.Subtitles))
+        assertThat(state.isSettingsOpen).isTrue()
+        assertThat(state.settingsPage).isEqualTo(PlayerSettingsPage.Subtitles)
+
+        state.open(PlayerSheet.Chapters)
+        assertThat(state.isSettingsOpen).isFalse()
+        assertThat(state.settingsPage).isEqualTo(PlayerSettingsPage.Main)
     }
 
     @Test

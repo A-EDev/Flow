@@ -140,11 +140,6 @@ fun VideoPlayerHost(
         lockModeEnabled = prefs.lockModeEnabled,
     )
 
-    var showSbSubmitDialog by remember { mutableStateOf(false) }
-    var showDlnaDialog by remember { mutableStateOf(false) }
-    val dlnaDevices = DlnaCastManager.devices.collectAsState()
-    val isDlnaDiscovering = DlnaCastManager.isDiscovering.collectAsState()
-
     val localIsInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
 
     val progressProvider =
@@ -499,11 +494,11 @@ fun VideoPlayerHost(
                     onDecodedVideoAspectRatioChanged = { decodedVideoAspectRatio = it },
                     onSbSubmitClick = {
                         screenState.showControls = false
-                        showSbSubmitDialog = true
+                        screenState.open(PlayerSheet.SbSubmit)
                     },
                     onCastClick = {
                         DlnaCastManager.startDiscovery(context)
-                        showDlnaDialog = true
+                        screenState.open(PlayerSheet.Dlna)
                     },
                 )
             },
@@ -568,12 +563,6 @@ fun VideoPlayerHost(
             isLoadingComments = isLoadingComments,
             isLoadingMoreComments = isLoadingMoreComments,
             hasMoreComments = hasMoreComments,
-            showSbSubmitDialog = showSbSubmitDialog,
-            onSbSubmitDialogDismiss = { showSbSubmitDialog = false },
-            showDlnaDialog = showDlnaDialog,
-            onDlnaDialogDismiss = { showDlnaDialog = false },
-            dlnaDevices = dlnaDevices,
-            isDlnaDiscovering = isDlnaDiscovering,
             onNavigateToChannel = onNavigateToChannel,
             onNavigateToShorts = onNavigateToShorts,
             onClose = onClose,

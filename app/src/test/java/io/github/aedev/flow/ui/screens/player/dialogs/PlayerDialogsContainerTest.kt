@@ -15,11 +15,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.fakePlayerState
 import io.github.aedev.flow.ui.screens.player.fakeUiState
 import io.github.aedev.flow.ui.screens.player.fakeVideo
 import io.github.aedev.flow.ui.screens.player.relaxedVideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import kotlinx.coroutines.runBlocking
 import org.junit.Ignore
 import org.junit.Rule
@@ -28,8 +30,8 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 /**
- * Pins which surface each [PlayerScreenState] dialog flag mounts through [PlayerDialogsContainer],
- * including the flag that mounts nothing today.
+ * Pins which surface each [PlayerSheet] mounts through [PlayerDialogsContainer], the cast picker
+ * included: it used to be written by the settings sheet's cast row and read by nobody.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class, qualifiers = "w411dp-h891dp")
@@ -76,24 +78,24 @@ class PlayerDialogsContainerTest {
     }
 
     @Test
-    fun showSettingsMenuMountsTheSettingsSheet() {
-        setContainer(PlayerScreenState().apply { showSettingsMenu = true })
+    fun settingsSheetMountsOnItsMainPage() {
+        setContainer(PlayerScreenState().apply { open(PlayerSheet.Settings()) })
 
         rule.onNodeWithText(string(R.string.player_settings)).assertExists()
     }
 
     @Test
-    fun showQualitySelectorOpensTheSheetOnTheQualityPage() {
-        setContainer(PlayerScreenState().apply { showQualitySelector = true })
+    fun settingsSheetOpensStraightOnTheQualityPage() {
+        setContainer(PlayerScreenState().apply { open(PlayerSheet.Settings(PlayerSettingsPage.Quality)) })
 
         rule.onNodeWithText(string(R.string.video_quality_title)).assertExists()
         rule.onNodeWithText(string(R.string.player_settings)).assertDoesNotExist()
     }
 
     @Test
-    fun showDownloadDialogMountsTheFullDialogWhenPreferred() {
+    fun downloadSheetMountsTheFullDialogWhenPreferred() {
         setDownloadDialogStyle(DownloadDialogStyle.FULL)
-        setContainer(PlayerScreenState().apply { showDownloadDialog = true })
+        setContainer(PlayerScreenState().apply { open(PlayerSheet.Download) })
 
         waitForText(R.string.download_video)
         rule.onNodeWithText(string(R.string.select_quality)).assertExists()
@@ -105,26 +107,25 @@ class PlayerDialogsContainerTest {
             "Compose 1.13.0-alpha01; DownloadQualityDialogCompact's title field trips it. " +
             "Device twin: DownloadDialogsInstrumentedTest.",
     )
-    fun showDownloadDialogMountsTheCompactDialogWhenPreferred() {
+    fun downloadSheetMountsTheCompactDialogWhenPreferred() {
         setDownloadDialogStyle(DownloadDialogStyle.COMPACT)
-        setContainer(PlayerScreenState().apply { showDownloadDialog = true })
+        setContainer(PlayerScreenState().apply { open(PlayerSheet.Download) })
 
         waitForText(R.string.download_video)
         rule.onNodeWithText(string(R.string.download_title_label)).assertExists()
     }
 
     @Test
-    fun showDlnaDialogMountsNothing() {
-        setContainer(PlayerScreenState().apply { showDlnaDialog = true })
+    fun dlnaSheetMountsTheDevicePicker() {
+        setContainer(PlayerScreenState().apply { open(PlayerSheet.Dlna) })
 
-        // Pins the DLNA defect fixed in Phase 2: the flag is written by the cast row but no
-        // surface in this container reads it, so casting silently shows nothing.
-        rule.onRoot().onChildren().assertCountEquals(0)
+        waitForText(R.string.dlna_cast_to_device)
+        rule.onNodeWithText(string(R.string.dlna_cast_to_device)).assertExists()
     }
 
     @Test
-    fun showSubtitleStyleCustomizerMountsTheStyleSheet() {
-        setContainer(PlayerScreenState().apply { showSubtitleStyleCustomizer = true })
+    fun subtitleStyleSheetMountsTheStyleSheet() {
+        setContainer(PlayerScreenState().apply { open(PlayerSheet.SubtitleStyle) })
 
         waitForText(R.string.filter_subtitles)
         rule.onNodeWithContentDescription(string(R.string.back)).assertExists()

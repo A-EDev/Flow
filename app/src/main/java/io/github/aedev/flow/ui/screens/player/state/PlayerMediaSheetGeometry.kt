@@ -110,17 +110,20 @@ internal fun rememberPlayerMediaSheetGeometry(
 ): PlayerMediaSheetGeometry {
     val progressState = remember { MediaSheetProgressState() }
     val progressDrivenMediaSheetVisible =
-        screenState.showCommentsSheet ||
-            screenState.showDescriptionSheet ||
-            screenState.showChaptersSheet ||
-            screenState.showPlaylistQueueSheet ||
-            screenState.showLiveChatSheet ||
-            screenState.showSleepTimerSheet ||
-            screenState.showSettingsMenu ||
-            screenState.showQualitySelector ||
-            screenState.showAudioTrackSelector ||
-            screenState.showPlaybackSpeedSelector ||
-            screenState.showSubtitleSelector
+        when (val sheet = screenState.activeSheet) {
+            is PlayerSheet.Comments -> !sheet.fullscreen
+
+            is PlayerSheet.LiveChat -> !sheet.fullscreen
+
+            is PlayerSheet.Settings,
+            PlayerSheet.Chapters,
+            PlayerSheet.Description,
+            PlayerSheet.Queue,
+            PlayerSheet.SleepTimer,
+            -> true
+
+            else -> false
+        }
     val progressDrivenMediaSheetResize =
         adaptivePlayerSizeEnabled &&
             !screenState.isFullscreen &&

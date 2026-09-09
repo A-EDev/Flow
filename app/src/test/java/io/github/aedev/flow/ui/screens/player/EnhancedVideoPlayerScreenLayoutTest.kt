@@ -7,6 +7,7 @@ import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.media3.common.util.UnstableApi
 import androidx.test.core.app.ApplicationProvider
@@ -62,13 +63,14 @@ class EnhancedVideoPlayerScreenLayoutTest {
         rule.waitForIdle()
     }
 
-    private val sideColumnHideChat
-        get() = rule.onNodeWithText(context.getString(R.string.live_chat_hide))
+    /** The close button on the side column's live chat header; nothing else in the tree carries it. */
+    private val sideColumnCloseChat
+        get() = rule.onNodeWithContentDescription(context.getString(R.string.close))
 
     private fun assertSingleColumn() {
         rule.onNodeWithText(video.title).assertExists()
         rule.onNode(hasScrollToNodeAction() and hasAnyDescendant(hasText(video.title))).assertExists()
-        sideColumnHideChat.assertDoesNotExist()
+        sideColumnCloseChat.assertDoesNotExist()
     }
 
     @Test
@@ -101,6 +103,6 @@ class EnhancedVideoPlayerScreenLayoutTest {
         setScreen()
 
         rule.onNodeWithText(video.title).assertExists()
-        sideColumnHideChat.assertExists()
+        sideColumnCloseChat.assertExists()
     }
 }
