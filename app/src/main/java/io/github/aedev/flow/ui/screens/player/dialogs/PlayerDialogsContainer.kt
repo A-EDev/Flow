@@ -15,7 +15,6 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.shared.MediaDownloadDialog
 import io.github.aedev.flow.ui.components.shared.MediaDownloadDialogCompact
-import io.github.aedev.flow.ui.components.shared.SubtitleStyleCustomizerDialog
 import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
 import io.github.aedev.flow.ui.components.videoplayer.settings.SettingsMenuDialog
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
@@ -177,7 +176,7 @@ fun PlayerDialogsContainer(
 
     // Subtitle Style Customizer
     if (screenState.showSubtitleStyleCustomizer) {
-        SubtitleStyleCustomizerDialog(
+        SubtitleStyleSheet(
             subtitleStyle = screenState.subtitleStyle,
             onStyleChange = {
                 screenState.subtitleStyle = it

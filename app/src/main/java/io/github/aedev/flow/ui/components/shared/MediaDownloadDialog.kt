@@ -26,9 +26,6 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.player.*
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
-import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
-import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleCustomizer
-import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -406,76 +403,6 @@ fun MediaDownloadDialog(
                     modifier = Modifier.align(Alignment.End),
                 ) {
                     Text(stringResource(R.string.cancel))
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SubtitleStyleCustomizerDialog(
-    subtitleStyle: SubtitleStyle,
-    onStyleChange: (SubtitleStyle) -> Unit,
-    onDismiss: () -> Unit,
-    onBack: (() -> Unit)? = null,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = 16.dp),
-            contentPadding = PaddingValues(bottom = 8.dp),
-        ) {
-            item {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                            )
-                        }
-                    } else {
-                        Spacer(modifier = Modifier.width(16.dp))
-                    }
-
-                    Text(
-                        text = stringResource(R.string.filter_subtitles),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-            item {
-                HorizontalDivider()
-            }
-            item {
-                SubtitleCustomizer(
-                    currentStyle = subtitleStyle,
-                    onStyleChange = onStyleChange,
-                )
-            }
-            item {
-                Spacer(Modifier.height(8.dp))
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(end = 16.dp),
-                    contentAlignment = Alignment.CenterEnd,
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.done))
-                    }
                 }
             }
         }
