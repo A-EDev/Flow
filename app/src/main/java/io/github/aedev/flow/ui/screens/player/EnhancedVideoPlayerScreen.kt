@@ -22,7 +22,7 @@ import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
-import io.github.aedev.flow.ui.components.PlaylistQueueDock
+import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueueDock
 import io.github.aedev.flow.ui.screens.player.content.PlayerDetailSideColumn
 import io.github.aedev.flow.ui.screens.player.content.VideoInfoContent
 import io.github.aedev.flow.ui.screens.player.content.relatedVideosContent

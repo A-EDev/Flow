@@ -13,10 +13,13 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.ui.components.shared.MediaDownloadDialog
+import io.github.aedev.flow.ui.components.shared.MediaDownloadDialogCompact
+import io.github.aedev.flow.ui.components.shared.SubtitleStyleCustomizerDialog
+import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
+import io.github.aedev.flow.ui.components.videoplayer.settings.SettingsMenuDialog
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
-import io.github.aedev.flow.ui.screens.player.components.*
-import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
 import kotlinx.coroutines.launch
@@ -53,7 +56,7 @@ fun PlayerDialogsContainer(
     if (screenState.showDownloadDialog) {
         when (downloadDialogStyle) {
             io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT -> {
-                DownloadQualityDialogCompact(
+                MediaDownloadDialogCompact(
                     streamInfo = uiState.streamInfo,
                     streamSizes = uiState.streamSizes,
                     innerTubeVideoFormats = uiState.innerTubeVideoFormats,
@@ -65,7 +68,7 @@ fun PlayerDialogsContainer(
             }
 
             io.github.aedev.flow.data.local.DownloadDialogStyle.FULL -> {
-                DownloadQualityDialog(
+                MediaDownloadDialog(
                     streamInfo = uiState.streamInfo,
                     streamSizes = uiState.streamSizes,
                     innerTubeVideoFormats = uiState.innerTubeVideoFormats,

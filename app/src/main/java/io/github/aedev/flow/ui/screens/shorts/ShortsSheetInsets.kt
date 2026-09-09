@@ -18,7 +18,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import io.github.aedev.flow.ui.components.FlowBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch

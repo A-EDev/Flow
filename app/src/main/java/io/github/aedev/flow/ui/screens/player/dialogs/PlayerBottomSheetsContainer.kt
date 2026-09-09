@@ -27,15 +27,15 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
-import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FlowDescriptionBottomSheet
-import io.github.aedev.flow.ui.components.FlowLiveChatBottomSheet
-import io.github.aedev.flow.ui.components.FlowPlaylistQueueBottomSheet
 import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.commentTimestampToMs
 import io.github.aedev.flow.ui.components.sortCommentsByFilter
+import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowChaptersBottomSheet
+import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
+import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 

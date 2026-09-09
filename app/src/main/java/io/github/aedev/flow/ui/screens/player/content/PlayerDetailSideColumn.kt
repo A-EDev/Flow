@@ -25,10 +25,10 @@ import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.components.LiveChatList
-import io.github.aedev.flow.ui.components.LiveChatPreview
-import io.github.aedev.flow.ui.components.PlayerCommentsPanel
 import io.github.aedev.flow.ui.components.commentTimestampToMs
+import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatList
+import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatPreview
+import io.github.aedev.flow.ui.components.videoplayer.sheet.PlayerCommentsPanel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState

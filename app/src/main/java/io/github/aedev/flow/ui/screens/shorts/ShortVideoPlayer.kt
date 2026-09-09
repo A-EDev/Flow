@@ -64,15 +64,15 @@ import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.toDisplayAspectRatioOrNull
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
-import io.github.aedev.flow.ui.components.PlaybackSpeedSlider
-import io.github.aedev.flow.ui.components.playbackSpeedOptions
-import io.github.aedev.flow.ui.components.playbackSpeedSliderPresets
+import io.github.aedev.flow.ui.components.shared.MediaPlaybackSpeedSlider
+import io.github.aedev.flow.ui.components.shared.MediaSeekBar
+import io.github.aedev.flow.ui.components.shared.playbackSpeedOptions
+import io.github.aedev.flow.ui.components.shared.playbackSpeedSliderPresets
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
-import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorContent
-import io.github.aedev.flow.ui.screens.player.components.PlayerQualitySelectorOption
-import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
-import io.github.aedev.flow.ui.screens.player.components.VideoAmbientBackground
-import io.github.aedev.flow.ui.screens.player.components.rememberAmbientFrame
+import io.github.aedev.flow.ui.components.videoplayer.ambient.VideoAmbientBackground
+import io.github.aedev.flow.ui.components.videoplayer.ambient.rememberAmbientFrame
+import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerQualitySelectorContent
+import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerQualitySelectorOption
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.delay
@@ -1017,7 +1017,7 @@ internal fun ShortVideoPage(
             // ── Scrubbable Progress Bar ──
         }
         if (pageState.duration > 0 && !isInPip) {
-            SeekbarWithPreview(
+            MediaSeekBar(
                 value = {
                     if (pageState.isDragging) {
                         pageState.dragProgress
@@ -1218,7 +1218,7 @@ internal fun ShortVideoPage(
             (pageState.currentStreamInfo != null || pageState.currentInnerTubeVideoFormats.isNotEmpty())
         ) {
             if (settings.downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
-                io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialogCompact(
+                io.github.aedev.flow.ui.components.shared.MediaDownloadDialogCompact(
                     streamInfo = pageState.currentStreamInfo,
                     streamSizes = pageState.currentStreamSizes,
                     innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
@@ -1227,7 +1227,7 @@ internal fun ShortVideoPage(
                     onDismiss = { pageState.showDownloadDialog = false },
                 )
             } else {
-                io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialog(
+                io.github.aedev.flow.ui.components.shared.MediaDownloadDialog(
                     streamInfo = pageState.currentStreamInfo,
                     streamSizes = pageState.currentStreamSizes,
                     innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
@@ -1601,7 +1601,7 @@ private fun ShortsSpeedSheet(
             }
             HorizontalDivider()
             if (speedSliderEnabled) {
-                PlaybackSpeedSlider(
+                MediaPlaybackSpeedSlider(
                     currentSpeed = currentSpeed,
                     quickPresets = sliderPresets,
                     onSpeedSelected = onSpeedSelected,

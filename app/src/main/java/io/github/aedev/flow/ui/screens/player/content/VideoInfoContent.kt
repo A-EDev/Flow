@@ -39,11 +39,11 @@ import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.ui.components.AddToPlaylistDialog
-import io.github.aedev.flow.ui.components.CommentsPreview
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
-import io.github.aedev.flow.ui.components.VideoInfoSection
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
+import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
+import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
@@ -392,7 +392,7 @@ fun VideoInfoContent(
     )
 
     if (uiState.isLiveChatAvailable) {
-        io.github.aedev.flow.ui.components.LiveChatPreview(
+        io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatPreview(
             onClick = { screenState.showLiveChatSheet = true },
         )
     }

@@ -55,6 +55,7 @@ import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
+import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
@@ -688,7 +689,7 @@ fun FlowApp(
         // The video overlay takes the settled target, not the animated value: it only uses the
         // padding to pick the mini player's resting bounds, and an animated Dp parameter
         // recomposed the whole overlay on every frame of the nav bar tween.
-        GlobalPlayerOverlay(
+        VideoPlayerHost(
             video = activeVideo,
             isVisible = playerVisible && !isShortsPlayerRoute,
             playerSheetState = playerSheetState,

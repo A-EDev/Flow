@@ -43,6 +43,7 @@ import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.player.awaitFirstPlaybackResolver
 import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
@@ -55,7 +56,6 @@ import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
-import io.github.aedev.flow.ui.screens.player.util.VideoErrorMapper
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver

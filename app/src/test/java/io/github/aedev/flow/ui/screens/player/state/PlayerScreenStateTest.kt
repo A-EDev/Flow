@@ -3,7 +3,7 @@ package io.github.aedev.flow.ui.screens.player.state
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import io.github.aedev.flow.ui.components.CommentSortFilter
-import io.github.aedev.flow.ui.components.SubtitleStyle
+import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import org.junit.Test
 
 /**

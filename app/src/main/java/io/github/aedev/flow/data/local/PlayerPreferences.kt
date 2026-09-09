@@ -8,7 +8,7 @@ import androidx.datastore.preferences.core.*
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
-import io.github.aedev.flow.ui.components.SubtitleStyle
+import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.DateFormatStyle
