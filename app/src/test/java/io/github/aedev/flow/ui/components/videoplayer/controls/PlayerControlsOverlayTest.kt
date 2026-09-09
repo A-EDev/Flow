@@ -24,12 +24,12 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 /**
- * Pins the visibility contract of [PremiumControlsOverlay]: what is placed when the controls are
+ * Pins the visibility contract of [PlayerControlsOverlay]: what is placed when the controls are
  * shown, hidden, or touch-locked, and what the bottom pill row says about quality and duration.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class, qualifiers = "w411dp-h891dp")
-class PremiumControlsOverlayTest {
+class PlayerControlsOverlayTest {
     @get:Rule
     val rule = createComposeRule()
 
@@ -54,7 +54,7 @@ class PremiumControlsOverlayTest {
                         .fillMaxWidth()
                         .height(231.dp),
                 ) {
-                    PremiumControlsOverlay(
+                    PlayerControlsOverlay(
                         isVisible = isVisible,
                         isPlaying = isPlaying,
                         hasEnded = false,
@@ -119,8 +119,8 @@ class PremiumControlsOverlayTest {
     fun qualityPillShowsTheCompactLabel() {
         setOverlay(qualityLabel = "1080p")
 
-        // The compact label table is a literal mapping inside PremiumControlsOverlay.kt
-        // (toCompactQualityLabel: 1080 -> "FHD"), so the expectation is pinned as a literal too.
+        // The compact label table is a literal mapping inside PlayerQualityLabel.kt
+        // (compactPlayerQualityLabel: 1080 -> "FHD"), so the expectation is pinned as a literal too.
         rule.onNodeWithText("FHD").assertIsDisplayed()
     }
 

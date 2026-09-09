@@ -79,7 +79,7 @@ import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.UpcomingVideoOverlay
 import io.github.aedev.flow.ui.components.videoplayer.VideoPlayerSurface
 import io.github.aedev.flow.ui.components.videoplayer.controls.LockModeTouchShield
-import io.github.aedev.flow.ui.components.videoplayer.controls.PremiumControlsOverlay
+import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerControlsOverlay
 import io.github.aedev.flow.ui.components.videoplayer.controls.resolvePlayerQualityLabel
 import io.github.aedev.flow.ui.components.videoplayer.gesture.videoPlayerControls
 import io.github.aedev.flow.ui.components.videoplayer.gesture.videoPlayerZoom
@@ -1179,7 +1179,7 @@ fun VideoPlayerHost(
                                 quantised.coerceIn(0f, 1f)
                             }
                         }
-                        PremiumControlsOverlay(
+                        PlayerControlsOverlay(
                             modifier = Modifier.placedWhen(expandedSurfacesPlaced),
                             isVisible = controlsShown,
                             isPlaying = playerState.playWhenReady,

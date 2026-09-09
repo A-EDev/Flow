@@ -1,16 +1,13 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
-import android.os.SystemClock
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
@@ -20,7 +17,6 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerBottomBar
 import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerBottomBarMetrics
 import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerControlActions
@@ -32,14 +28,8 @@ import io.github.aedev.flow.ui.components.videoplayer.controls.PortraitFullscree
 import io.github.aedev.flow.ui.components.videoplayer.controls.VideoPlayerTopBar
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.StreamSegment
-import kotlin.math.abs
 
-private const val LIVE_SCRUB_SEEK_INTERVAL_MS = 80L
-private const val LIVE_SCRUB_IMMEDIATE_DELTA_MS = 750L
 private val OverlayActionButtonSize = 40.dp
 private val OverlayActionIconSize = 24.dp
 private val OverlayActionSpacing = 8.dp
@@ -48,12 +38,8 @@ private val OverlayExpandIconSize = 18.dp
 private val OverlayControlRowMinHeight = 44.dp
 private val OverlayActionIconInset = (OverlayActionButtonSize - OverlayActionIconSize) / 2f
 
-// How long the lock-mode unlock affordance stays on screen before it auto-hides
-// for a clean, unobstructed locked view. A single tap re-reveals it (see issue #619).
-private const val LOCKED_OVERLAY_AUTO_HIDE_MS = 3_000L
-
 @Composable
-fun PremiumControlsOverlay(
+fun PlayerControlsOverlay(
     isVisible: Boolean,
     isPlaying: Boolean,
     hasEnded: Boolean,
@@ -113,125 +99,32 @@ fun PremiumControlsOverlay(
     isPortraitFullscreen: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val livePosition by rememberUpdatedState(currentPosition)
-
-    val primaryColor = MaterialTheme.colorScheme.primary
     val resizeModes =
         listOf(
             stringResource(R.string.resize_fit),
             stringResource(R.string.resize_fill),
             stringResource(R.string.resize_zoom),
         )
-    val scrubScope = rememberCoroutineScope()
 
-    var scrubPosition by remember { mutableStateOf<Long?>(null) }
-    var isScrubbing by remember { mutableStateOf(false) }
-    var lastScrubSeekAt by remember { mutableLongStateOf(0L) }
-    var lastScrubSeekPosition by remember { mutableLongStateOf(Long.MIN_VALUE) }
-    var pendingScrubSeekJob by remember { mutableStateOf<Job?>(null) }
+    val scrubController =
+        rememberPlayerScrubController(
+            currentPosition = currentPosition,
+            isLive = isLive,
+            onSeek = onSeek,
+            onScrubbingChange = onScrubbingChange,
+        )
+    val isScrubbing = scrubController.isScrubbing
+    val displayedPosition = scrubController.displayedPosition
+    val onScrubProgress = scrubController.onScrubProgress
+    val onScrubFinished = scrubController.onScrubFinished
 
-    val displayedPosition: () -> Long = { scrubPosition ?: livePosition() }
-
-    // The expanded seek bar and the thin always-visible one drive the same scrub, so the throttling
-    // and hand-off logic lives here once instead of being copied into both call sites.
-    val onScrubProgress: (Float, Long) -> Unit = { progress, seekDuration ->
-        val newPosition = (progress * seekDuration).toLong()
-
-        scrubPosition = newPosition
-
-        if (!isScrubbing) {
-            isScrubbing = true
-            onScrubbingChange(true)
-            EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(true)
-        }
-
-        // Live scrubbing only previews; the seek itself is issued once the thumb is released.
-        if (!isLive) {
-            pendingScrubSeekJob?.cancel()
-
-            val now = SystemClock.elapsedRealtime()
-            val remainingDelay = (LIVE_SCRUB_SEEK_INTERVAL_MS - (now - lastScrubSeekAt)).coerceAtLeast(0L)
-            val movedFarEnough =
-                lastScrubSeekPosition == Long.MIN_VALUE ||
-                    abs(newPosition - lastScrubSeekPosition) >= LIVE_SCRUB_IMMEDIATE_DELTA_MS
-
-            if (remainingDelay == 0L || movedFarEnough) {
-                onSeek(newPosition)
-                lastScrubSeekAt = now
-                lastScrubSeekPosition = newPosition
-            } else {
-                pendingScrubSeekJob =
-                    scrubScope.launch {
-                        delay(remainingDelay)
-                        val targetPosition = scrubPosition ?: return@launch
-                        onSeek(targetPosition)
-                        lastScrubSeekAt = SystemClock.elapsedRealtime()
-                        lastScrubSeekPosition = targetPosition
-                    }
-            }
-        }
-    }
-
-    val onScrubFinished: () -> Unit = {
-        pendingScrubSeekJob?.cancel()
-        pendingScrubSeekJob = null
-        scrubPosition?.let { targetPosition ->
-            onSeek(targetPosition)
-            lastScrubSeekPosition = targetPosition
-        }
-        lastScrubSeekAt = 0L
-        lastScrubSeekPosition = Long.MIN_VALUE
-        isScrubbing = false
-        onScrubbingChange(false)
-        EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
-    }
-
-    // Lock-mode unlock affordance auto-hide (issue #619). While touch-locked, the
-    // unlock button hides itself after a short delay so the locked view is clean,
-    // then a single tap anywhere re-reveals it and restarts the timer.
-    var isLockOverlayVisible by remember { mutableStateOf(true) }
-    // Bumped on every reveal so that re-revealing while already visible still
-    // restarts the auto-hide timer (a no-op `isLockOverlayVisible = true` would not).
-    var lockOverlayRevealTick by remember { mutableIntStateOf(0) }
-
-    val revealLockOverlay: () -> Unit = {
-        isLockOverlayVisible = true
-        lockOverlayRevealTick++
-    }
-
-    // Reset the unlock affordance to visible whenever lock mode is (re-)entered.
-    LaunchedEffect(isTouchLocked, lockOverlayRevealSignal) {
-        if (isTouchLocked) {
-            revealLockOverlay()
-        }
-    }
-
-    // Auto-hide the unlock affordance after the delay while it is showing in lock mode.
-    // Keyed on the reveal tick so each tap restarts the full delay window.
-    LaunchedEffect(isTouchLocked, isLockOverlayVisible, lockOverlayRevealTick) {
-        if (isTouchLocked && isLockOverlayVisible) {
-            delay(LOCKED_OVERLAY_AUTO_HIDE_MS)
-            isLockOverlayVisible = false
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            pendingScrubSeekJob?.cancel()
-            onScrubbingChange(false)
-            EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
-        }
-    }
-
-    val pendingScrubTarget = scrubPosition
-    if (pendingScrubTarget != null && !isScrubbing) {
-        val settledPosition = livePosition()
-        LaunchedEffect(settledPosition, pendingScrubTarget) {
-            if (abs(settledPosition - pendingScrubTarget) <= 1_000L) {
-                scrubPosition = null
-            }
-        }
-    }
+    val lockOverlay =
+        rememberLockOverlayVisibility(
+            isTouchLocked = isTouchLocked,
+            revealSignal = lockOverlayRevealSignal,
+        )
+    val isLockOverlayVisible = lockOverlay.isVisible
+    val revealLockOverlay = lockOverlay.reveal
 
     val currentChapter by remember(chapters) {
         derivedStateOf {
@@ -274,7 +167,6 @@ fun PremiumControlsOverlay(
         } else {
             0.dp
         }
-    val bottomControlsSeekbarOverlap = 0.dp
     val seekbarHorizontalPadding =
         if (isFullscreen) {
             fullscreenSeekbarHorizontalPaddingDp.dp
@@ -283,7 +175,7 @@ fun PremiumControlsOverlay(
         }
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
     val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
-    val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
+    val compactQualityLabel = remember(qualityLabel) { qualityLabel?.let(::compactPlayerQualityLabel) }
     val speedIndicatorLabel = remember(playbackSpeed) { VideoPlayerUtils.formatSpeedLabel(playbackSpeed) }
 
     val showControlsWhileLoading = overlayPreferences.showControlsWhileLoading
@@ -483,37 +375,5 @@ fun PremiumControlsOverlay(
                 )
             }
         }
-    }
-}
-
-@Composable
-fun SleekLoadingAnimation(modifier: Modifier = Modifier) {
-    CircularProgressIndicator(
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.primary,
-        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
-        strokeWidth = 4.dp,
-        strokeCap = StrokeCap.Round,
-    )
-}
-
-private fun String.toCompactQualityLabel(): String {
-    val height =
-        Regex("""\d+""")
-            .find(this)
-            ?.value
-            ?.toIntOrNull()
-            ?.let(QualityManager::normalizeQualityHeight)
-    return when (height) {
-        2160 -> "4K"
-        1440 -> "QHD"
-        1080 -> "FHD"
-        720 -> "HD"
-        480 -> "SD"
-        360 -> "360p"
-        240 -> "240p"
-        144 -> "144p"
-        null -> this
-        else -> "${height}p"
     }
 }

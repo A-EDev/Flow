@@ -27,7 +27,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.pressScale
-import io.github.aedev.flow.ui.components.videoplayer.controls.SleekLoadingAnimation
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimContentDisabled
@@ -81,7 +80,7 @@ internal fun PlayerTransportControls(
                         ) { actions.onPlayPause() },
             ) {
                 if (showBufferingSpinner) {
-                    SleekLoadingAnimation(modifier = Modifier.size(48.dp))
+                    PlayerBufferingIndicator(modifier = Modifier.size(48.dp))
                 } else {
                     Icon(
                         imageVector =
