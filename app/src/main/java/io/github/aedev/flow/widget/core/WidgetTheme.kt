@@ -20,7 +20,35 @@ data class WidgetThemeSignature(
     val systemLightThemeMode: ThemeMode,
     val systemDarkThemeMode: ThemeMode,
     val systemDarkThemeVariant: ThemeVariant,
-)
+) {
+    /**
+     * A form of this signature that survives the process, so a launch can tell "the theme is the
+     * same as last time" from "this is the first value I have seen".
+     *
+     * Built by hand rather than from `hashCode()`: the palettes are keyed by an enum, and
+     * `Enum.hashCode` is identity-based, so a data-class hash of this is stable within one process
+     * and meaningless across two. Roles are sorted by name so map iteration order cannot change it
+     * either.
+     */
+    fun persistedForm(): String =
+        buildString {
+            append(themeMode.name).append('|')
+            append(themeVariant.name).append('|')
+            append(systemLightThemeMode.name).append('|')
+            append(systemDarkThemeMode.name).append('|')
+            append(systemDarkThemeVariant.name)
+            listOf(
+                customThemePalettes.light,
+                customThemePalettes.dark,
+                customThemePalettes.amoled,
+            ).forEach { palette ->
+                append('|')
+                palette.values.entries
+                    .sortedBy { it.key.name }
+                    .joinTo(this, separator = ",") { "${it.key.name}=${it.value}" }
+            }
+        }
+}
 
 fun widgetThemeSignatureFlow(context: Context): Flow<WidgetThemeSignature> {
     val dataManager = LocalDataManager(context.applicationContext)
@@ -48,26 +76,28 @@ fun widgetColorsFlow(context: Context): Flow<ColorProviders> {
     val appContext = context.applicationContext
     return widgetThemeSignatureFlow(appContext).map { signature ->
         androidx.glance.material3.ColorProviders(
-            light = resolveFlowColorScheme(
-                context = appContext,
-                isSystemDark = false,
-                themeMode = signature.themeMode,
-                themeVariant = signature.themeVariant,
-                customThemePalettes = signature.customThemePalettes,
-                systemLightThemeMode = signature.systemLightThemeMode,
-                systemDarkThemeMode = signature.systemDarkThemeMode,
-                systemDarkThemeVariant = signature.systemDarkThemeVariant,
-            ),
-            dark = resolveFlowColorScheme(
-                context = appContext,
-                isSystemDark = true,
-                themeMode = signature.themeMode,
-                themeVariant = signature.themeVariant,
-                customThemePalettes = signature.customThemePalettes,
-                systemLightThemeMode = signature.systemLightThemeMode,
-                systemDarkThemeMode = signature.systemDarkThemeMode,
-                systemDarkThemeVariant = signature.systemDarkThemeVariant,
-            ),
+            light =
+                resolveFlowColorScheme(
+                    context = appContext,
+                    isSystemDark = false,
+                    themeMode = signature.themeMode,
+                    themeVariant = signature.themeVariant,
+                    customThemePalettes = signature.customThemePalettes,
+                    systemLightThemeMode = signature.systemLightThemeMode,
+                    systemDarkThemeMode = signature.systemDarkThemeMode,
+                    systemDarkThemeVariant = signature.systemDarkThemeVariant,
+                ),
+            dark =
+                resolveFlowColorScheme(
+                    context = appContext,
+                    isSystemDark = true,
+                    themeMode = signature.themeMode,
+                    themeVariant = signature.themeVariant,
+                    customThemePalettes = signature.customThemePalettes,
+                    systemLightThemeMode = signature.systemLightThemeMode,
+                    systemDarkThemeMode = signature.systemDarkThemeMode,
+                    systemDarkThemeVariant = signature.systemDarkThemeVariant,
+                ),
         )
     }
 }
