@@ -17,16 +17,20 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerState
 import io.github.aedev.flow.player.audio.AudioEffectsController
+import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
+import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
+import io.github.aedev.flow.ui.components.shared.playbackSpeedLabel
 
 @Composable
 internal fun PlayerSettingsMainPage(
@@ -45,11 +49,11 @@ internal fun PlayerSettingsMainPage(
     onStableVolumeToggle: (Boolean) -> Unit,
     onAmbientModeToggle: (Boolean) -> Unit,
 ) {
-    PlayerSettingsSectionHeader(stringResource(R.string.video))
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.HighQuality,
-        label = stringResource(R.string.quality),
-        value =
+    FlowSectionHeader(stringResource(R.string.video))
+    FlowNavRow(
+        leadingIcon = Icons.Filled.HighQuality,
+        title = stringResource(R.string.quality),
+        trailingText =
             if (playerState.currentQuality == 0) {
                 stringResource(R.string.quality_auto)
             } else {
@@ -61,27 +65,22 @@ internal fun PlayerSettingsMainPage(
     )
 
     // ── Playback Speed ──
-    PlayerSettingsSectionHeader(stringResource(R.string.playback_header))
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.Speed,
-        label = stringResource(R.string.playback_speed),
-        value =
-            if (playerState.playbackSpeed == 1.0f) {
-                stringResource(R.string.normal)
-            } else {
-                "${playerState.playbackSpeed}x"
-            },
+    FlowSectionHeader(stringResource(R.string.playback_header))
+    FlowNavRow(
+        leadingIcon = Icons.Filled.Speed,
+        title = stringResource(R.string.playback_speed),
+        trailingText = playbackSpeedLabel(playerState.playbackSpeed),
         onClick = {
             onNavigateToPage(PlayerSettingsPage.Speed)
         },
     )
 
     // ── Audio Track ──
-    PlayerSettingsSectionHeader(stringResource(R.string.audio_settings_title))
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.AudioFile,
-        label = stringResource(R.string.audio_track),
-        value =
+    FlowSectionHeader(stringResource(R.string.audio_settings_title))
+    FlowNavRow(
+        leadingIcon = Icons.Filled.AudioFile,
+        title = stringResource(R.string.audio_track),
+        trailingText =
             audioTrackDisplayLabel(
                 playerState.availableAudioTracks.getOrNull(playerState.currentAudioTrack),
                 playerState.currentAudioTrack,
@@ -92,104 +91,101 @@ internal fun PlayerSettingsMainPage(
     )
 
     // ── Captions ──
-    PlayerSettingsSectionHeader(stringResource(R.string.captions))
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.Subtitles,
-        label = stringResource(R.string.filter_subtitles),
-        value = if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+    FlowSectionHeader(stringResource(R.string.captions))
+    FlowNavRow(
+        leadingIcon = Icons.Filled.Subtitles,
+        title = stringResource(R.string.filter_subtitles),
+        trailingText =
+            if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off),
         onClick = {
             onNavigateToPage(PlayerSettingsPage.Subtitles)
         },
     )
 
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.Tune,
-        label = stringResource(R.string.subtitle_style),
-        value = "",
+    FlowNavRow(
+        leadingIcon = Icons.Filled.Tune,
+        title = stringResource(R.string.subtitle_style),
         onClick = { onShowSubtitleStyle() },
     )
 
     // ── Cast to TV ──
-    PlayerSettingsSectionHeader(stringResource(R.string.player_settings_overlay_controls))
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.Cast,
-        label = stringResource(R.string.cast_to_tv),
-        value = "",
+    FlowSectionHeader(stringResource(R.string.player_settings_overlay_controls))
+    FlowNavRow(
+        leadingIcon = Icons.Filled.Cast,
+        title = stringResource(R.string.cast_to_tv),
         onClick = onCastClick,
     )
 
     // ── Picture-in-Picture ──
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.PictureInPicture,
-        label = stringResource(R.string.pip_mode),
-        value = "",
+    FlowNavRow(
+        leadingIcon = Icons.Filled.PictureInPicture,
+        title = stringResource(R.string.pip_mode),
         onClick = onPipClick,
     )
 
     // ── Sleep Timer ──
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.Bedtime,
-        label = stringResource(R.string.sleep_timer),
-        value = "",
+    FlowNavRow(
+        leadingIcon = Icons.Filled.Bedtime,
+        title = stringResource(R.string.sleep_timer),
         onClick = onSleepTimerClick,
     )
 
     HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
 
     // ── Loop Video ──
-    PlayerSettingsSectionHeader(stringResource(R.string.playback_header))
-    PlayerSettingsToggleRow(
-        icon = Icons.Rounded.Repeat,
-        label = stringResource(R.string.loop_video),
+    FlowSectionHeader(stringResource(R.string.playback_header))
+    FlowSwitchRow(
+        leadingIcon = Icons.Rounded.Repeat,
+        title = stringResource(R.string.loop_video),
         checked = playerState.isLooping,
-        onToggle = onLoopToggle,
+        onCheckedChange = onLoopToggle,
     )
 
     // ── Autoplay ──
-    PlayerSettingsToggleRow(
-        icon = Icons.Filled.SkipNext,
-        label = stringResource(R.string.autoplay_next),
+    FlowSwitchRow(
+        leadingIcon = Icons.Filled.SkipNext,
+        title = stringResource(R.string.autoplay_next),
         checked = autoplayEnabled,
         enabled = !playerState.isLooping,
-        onToggle = onAutoplayToggle,
+        onCheckedChange = onAutoplayToggle,
     )
 
     // ── Audio Effects ──
-    PlayerSettingsSectionHeader(stringResource(R.string.audio_effects))
+    FlowSectionHeader(stringResource(R.string.audio_effects))
 
     // ── Equalizer ──
-    val eqProfile by AudioEffectsController.eqProfileName.collectAsState()
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.Equalizer,
-        label = stringResource(R.string.equalizer),
-        value = eqProfile,
+    val eqProfile by AudioEffectsController.eqProfileName.collectAsStateWithLifecycle()
+    FlowNavRow(
+        leadingIcon = Icons.Filled.Equalizer,
+        title = stringResource(R.string.equalizer),
+        trailingText = eqProfile,
         onClick = {
             onNavigateToPage(PlayerSettingsPage.Equalizer)
         },
     )
 
     // ── Skip Silence ──
-    PlayerSettingsToggleRow(
-        icon = Icons.Rounded.GraphicEq,
-        label = stringResource(R.string.player_settings_skip_silence),
+    FlowSwitchRow(
+        leadingIcon = Icons.Rounded.GraphicEq,
+        title = stringResource(R.string.player_settings_skip_silence),
         checked = playerState.isSkipSilenceEnabled,
-        onToggle = onSkipSilenceToggle,
+        onCheckedChange = onSkipSilenceToggle,
     )
 
     // ── Stable Voice ──
-    PlayerSettingsToggleRow(
-        icon = Icons.AutoMirrored.Rounded.VolumeUp,
-        label = stringResource(R.string.player_settings_stable_voice),
+    FlowSwitchRow(
+        leadingIcon = Icons.AutoMirrored.Rounded.VolumeUp,
+        title = stringResource(R.string.player_settings_stable_voice),
         checked = playerState.isStableVolumeEnabled,
-        onToggle = onStableVolumeToggle,
+        onCheckedChange = onStableVolumeToggle,
     )
 
     // ── Ambient Mode ──
-    PlayerSettingsSectionHeader(stringResource(R.string.player_settings_display))
-    PlayerSettingsToggleRow(
-        icon = ImageVector.vectorResource(R.drawable.ic_ambient_mode),
-        label = stringResource(R.string.player_settings_ambient_mode),
+    FlowSectionHeader(stringResource(R.string.player_settings_display))
+    FlowSwitchRow(
+        leadingIcon = ImageVector.vectorResource(R.drawable.ic_ambient_mode),
+        title = stringResource(R.string.player_settings_ambient_mode),
         checked = ambientModeEnabled,
-        onToggle = onAmbientModeToggle,
+        onCheckedChange = onAmbientModeToggle,
     )
 }

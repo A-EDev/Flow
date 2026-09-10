@@ -3,8 +3,16 @@ package io.github.aedev.flow.ui.components.videoplayer.settings
 import android.app.Application
 import android.content.Context
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -38,6 +46,10 @@ class PlayerSettingsSheetTest {
         get() = ApplicationProvider.getApplicationContext()
 
     private fun string(id: Int) = context.getString(id)
+
+    private fun speedLabel(value: String) = context.getString(R.string.playback_speed_multiplier, value)
+
+    private fun hasRole(role: Role) = SemanticsMatcher.expectValue(SemanticsProperties.Role, role)
 
     private class Callbacks {
         var dismissed = false
@@ -156,11 +168,52 @@ class PlayerSettingsSheetTest {
         rule.onNodeWithText(string(R.string.playback_speed)).assertIsDisplayed()
         rule.onNodeWithText(string(R.string.normal)).assertExists()
 
-        rule.onNodeWithText("1.5x").performScrollTo().performClick()
+        // The speed rows now render through the shared `playback_speed_multiplier` resource, so the
+        // label carries a multiplication sign rather than the literal "x" the page used to build.
+        rule.onNodeWithText(speedLabel("1.5")).performScrollTo().performClick()
         rule.waitForIdle()
 
         assertThat(callbacks.speed).isEqualTo(1.5f)
         assertThat(callbacks.dismissed).isTrue()
+    }
+
+    @Test
+    fun speedRowsAreRadioButtonsAndTheCurrentSpeedIsSelected() {
+        setMenu(initialPage = PlayerSettingsPage.Speed)
+
+        rule
+            .onNode(hasText(speedLabel("1.5")) and hasRole(Role.RadioButton))
+            .assertIsNotSelected()
+        rule
+            .onNode(hasText(string(R.string.normal)) and hasRole(Role.RadioButton))
+            .assertIsSelected()
+    }
+
+    @Test
+    fun qualityRowsAreRadioButtons() {
+        setMenu(initialPage = PlayerSettingsPage.Quality)
+
+        rule.onNode(hasText("720p") and hasRole(Role.RadioButton)).assertExists()
+    }
+
+    @Test
+    fun mainPageTogglesAreSwitchesThatReportTheirState() {
+        setMenu()
+
+        rule
+            .onNode(hasText(string(R.string.loop_video)) and hasRole(Role.Switch))
+            .performScrollTo()
+            .assertIsOff()
+    }
+
+    @Test
+    fun autoplayToggleIsDisabledWhileLooping() {
+        setMenu(playerState = fakePlayerState().copy(isLooping = true))
+
+        rule
+            .onNode(hasText(string(R.string.autoplay_next)) and hasRole(Role.Switch))
+            .performScrollTo()
+            .assertIsNotEnabled()
     }
 
     @Test

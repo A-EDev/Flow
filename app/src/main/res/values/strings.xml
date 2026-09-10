@@ -171,6 +171,7 @@
     <string name="share_message_template">Check out this song: %1$s by %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
     <string name="hz">Hz</string>
     <string name="kbps">kbps</string>
+    <string name="audio_bitrate_kbps_template">%1$d kbps</string>
     <string name="filter_discover">Discover</string>
     <string name="filter_popular">Popular</string>
     <string name="filter_deep_cuts">Deep cuts</string>
@@ -387,6 +388,8 @@
         <item quantity="other">%1$d songs</item>
     </plurals>
     <string name="metadata_separator">·</string>
+    <!-- Separator between the parts of a one-line detail list, e.g. "OPUS · 160kbps · English" -->
+    <string name="list_separator_dot">" · "</string>
     <string name="player_time_separator"> / </string>
     <string name="you">You</string>
     <string name="empty_downloads">No downloads yet</string>
@@ -420,6 +423,13 @@
     <string name="filter_sort_by">Sort by</string>
     <string name="filter_hd">HD</string>
     <string name="filter_4k">4K</string>
+    <!-- 1440p resolution badge; the 4K and HD badges reuse filter_4k and filter_hd -->
+    <string name="quality_badge_2k">2K</string>
+    <!-- Compact resolution badges on the player quality pill; 4K and HD reuse filter_4k/filter_hd -->
+    <string name="quality_badge_qhd">QHD</string>
+    <string name="quality_badge_fhd">FHD</string>
+    <string name="quality_badge_sd">SD</string>
+    <string name="quality_badge_height_template">%1$dp</string>
     <string name="filter_subtitles">Subtitles</string>
     <string name="date_any">Any time</string>
     <string name="date_last_hour">Last hour</string>
@@ -1881,11 +1891,14 @@
     <string name="download_title_label">Title</string>
     <string name="download_format_label">Format</string>
     <string name="download_threads_label">Threads</string>
+    <string name="download_threads_decrease">Fewer download threads</string>
+    <string name="download_threads_increase">More download threads</string>
     <string name="download_no_compatible_audio">No compatible audio stream — download cannot proceed</string>
+    <!-- Quality shown in the downloads list for a SABR download, whose resolution is not known up front -->
+    <string name="download_quality_best">Best</string>
     <string name="audio_format_unknown">Audio</string>
-    <!-- Approximate download size shown beside a quality; %1$s is a formatted number -->
-    <string name="download_size_estimate_mb">~%1$s MB</string>
-    <string name="download_size_estimate_gb">~%1$s GB</string>
+    <!-- Approximate download size shown beside a quality; %1$s is a platform-formatted file size -->
+    <string name="download_size_estimate">~%1$s</string>
     <!-- Download dialog style (Content settings) -->
     <string name="download_menu_style_title">Download menu style</string>
     <string name="download_menu_style_subtitle">Choose how the download dialog looks</string>
@@ -2164,6 +2177,11 @@
     <string name="player_replay">Replay</string>
     <string name="player_seek_delta_forward">+%1$s</string>
     <string name="player_seek_delta_back">-%1$s</string>
+    <!-- Double-tap seek indicator: the chasing chevrons and the seconds the tap adds or removes -->
+    <string name="player_seek_seconds_forward">+%1$d</string>
+    <string name="player_seek_seconds_back">-%1$d</string>
+    <string name="player_seek_chevron_forward">&gt;</string>
+    <string name="player_seek_chevron_back">&lt;</string>
     <!-- New Video Player Strings -->
     <string name="player_settings_overlay_controls">Overlay Controls</string>
     <string name="player_settings_overlay_cast">Cast Button</string>

@@ -17,11 +17,13 @@ import io.github.aedev.flow.player.AudioTrackOption
 import io.github.aedev.flow.player.QualityOption
 import io.github.aedev.flow.player.SubtitleOption
 import io.github.aedev.flow.player.stream.VideoCodecUtils
-import io.github.aedev.flow.ui.components.shared.MediaPlaybackSpeedSlider
+import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowSelectionRow
+import io.github.aedev.flow.ui.components.shared.MediaAudioTrackRow
+import io.github.aedev.flow.ui.components.shared.MediaPlaybackSpeedPicker
 import io.github.aedev.flow.ui.components.shared.MediaQualitySelectorContent
 import io.github.aedev.flow.ui.components.shared.MediaQualitySelectorOption
-import io.github.aedev.flow.ui.components.shared.playbackSpeedOptions
-import io.github.aedev.flow.ui.components.shared.playbackSpeedSliderPresets
+import io.github.aedev.flow.ui.components.shared.audioTrackFallbackLabel
 
 @Composable
 internal fun PlayerSettingsQualityPage(
@@ -82,33 +84,15 @@ internal fun PlayerSettingsSpeedPage(
     val customSpeedsEnabled by playerPrefs.customSpeedsEnabled.collectAsState(initial = false)
     val customSpeedPresetsRaw by playerPrefs.customSpeedPresets.collectAsState(initial = "")
     val speedSliderEnabled by playerPrefs.speedSliderEnabled.collectAsState(initial = false)
-    val speeds =
-        remember(customSpeedsEnabled, customSpeedPresetsRaw) {
-            playbackSpeedOptions(customSpeedsEnabled, customSpeedPresetsRaw)
-        }
 
-    if (speedSliderEnabled) {
-        val sliderPresets =
-            remember(customSpeedsEnabled, customSpeedPresetsRaw) {
-                playbackSpeedSliderPresets(customSpeedsEnabled, customSpeedPresetsRaw)
-            }
-        MediaPlaybackSpeedSlider(
-            currentSpeed = currentSpeed,
-            quickPresets = sliderPresets,
-            onSpeedSelected = onSpeedSelected,
-        )
-    } else {
-        speeds.forEach { speed ->
-            PlayerSettingsSelectionRow(
-                label = if (speed == 1.0f) stringResource(R.string.normal) else "${speed}x",
-                selected = speed == currentSpeed,
-                onClick = {
-                    onSpeedSelected(speed)
-                    onSpeedSelectionFinished()
-                },
-            )
-        }
-    }
+    MediaPlaybackSpeedPicker(
+        currentSpeed = currentSpeed,
+        sliderEnabled = speedSliderEnabled,
+        customSpeedsEnabled = customSpeedsEnabled,
+        customSpeedPresetsRaw = customSpeedPresetsRaw,
+        onSpeedSelected = onSpeedSelected,
+        onSpeedRowSelected = { onSpeedSelectionFinished() },
+    )
 }
 
 @Composable
@@ -118,11 +102,10 @@ internal fun PlayerSettingsAudioPage(
     onTrackSelected: (Int) -> Unit,
 ) {
     availableAudioTracks.forEachIndexed { index, track ->
-        PlayerSettingsSelectionRow(
+        MediaAudioTrackRow(
             label = audioTrackDisplayLabel(track, index),
             supportingText = track.language.takeIf { it.isNotBlank() },
             selected = index == currentAudioTrack,
-            showSelectedContainer = false,
             onClick = { onTrackSelected(index) },
         )
     }
@@ -139,14 +122,14 @@ internal fun PlayerSettingsSubtitlesPage(
 ) {
     val automaticLabel = stringResource(R.string.quality_auto)
     val translatedLabel = stringResource(R.string.subtitle_translated)
-    PlayerSettingsSelectionRow(
-        label = stringResource(R.string.off),
+    FlowSelectionRow(
+        title = stringResource(R.string.off),
         selected = !subtitlesEnabled,
         onClick = onDisableSubtitles,
     )
     availableSubtitles.forEachIndexed { index, subtitle ->
-        PlayerSettingsSelectionRow(
-            label =
+        FlowSelectionRow(
+            title =
                 when {
                     subtitle.isTranslated -> {
                         stringResource(
@@ -174,10 +157,9 @@ internal fun PlayerSettingsSubtitlesPage(
         )
     }
     HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
-    PlayerSettingsNavRow(
-        icon = Icons.Filled.Tune,
-        label = stringResource(R.string.subtitle_style),
-        value = "",
+    FlowNavRow(
+        title = stringResource(R.string.subtitle_style),
+        leadingIcon = Icons.Filled.Tune,
         onClick = onShowStyleCustomizer,
     )
 }
@@ -186,10 +168,4 @@ internal fun PlayerSettingsSubtitlesPage(
 internal fun audioTrackDisplayLabel(
     track: AudioTrackOption?,
     fallbackIndex: Int,
-): String =
-    track?.label?.takeIf { it.isNotBlank() }
-        ?: stringResource(
-            R.string.audio_track_number_template,
-            stringResource(R.string.audio_track),
-            fallbackIndex + 1,
-        )
+): String = track?.label?.takeIf { it.isNotBlank() } ?: audioTrackFallbackLabel(fallbackIndex)

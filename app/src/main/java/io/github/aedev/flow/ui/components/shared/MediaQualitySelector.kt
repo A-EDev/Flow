@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsSelectionRow
 
 data class MediaQualitySelectorOption<T>(
     val item: T,
@@ -43,8 +42,8 @@ fun <T> MediaQualitySelectorContent(
         options
             .sortedByDescending { it.height }
             .forEach { option ->
-                PlayerSettingsSelectionRow(
-                    label = option.label,
+                FlowSelectionRow(
+                    title = option.label,
                     supportingText = option.supportingText,
                     selected = option.selected,
                     onClick = { onOptionSelected(option.item) },
@@ -54,8 +53,8 @@ fun <T> MediaQualitySelectorContent(
     }
 
     options.firstOrNull { it.height == 0 }?.let { auto ->
-        PlayerSettingsSelectionRow(
-            label = auto.label,
+        FlowSelectionRow(
+            title = auto.label,
             selected = auto.selected,
             onClick = { onOptionSelected(auto.item) },
         )
@@ -69,8 +68,8 @@ fun <T> MediaQualitySelectorContent(
             val codecOptions = options.filter { it.codecKey.isNotBlank() || it.codecLabel.isNotBlank() }
             if (codecOptions.isEmpty()) {
                 val option = options.first()
-                PlayerSettingsSelectionRow(
-                    label = option.label,
+                FlowSelectionRow(
+                    title = option.label,
                     supportingText = option.supportingText,
                     selected = option.selected,
                     onClick = { onOptionSelected(option.item) },
