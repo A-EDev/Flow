@@ -34,17 +34,12 @@ import io.github.aedev.flow.player.MiniPlayerExpansionState
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
-import io.github.aedev.flow.player.stream.CaptionTrackResolver
-import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.MergedPlaybackAssembly
 import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.PlaybackLoadResolver
 import io.github.aedev.flow.player.stream.PlaybackResolutionRequest
 import io.github.aedev.flow.player.stream.ResolvedPlayback
-import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
-import io.github.aedev.flow.player.stream.StreamProcessor
-import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.UpcomingPremiere
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.player.stream.VideoQualityOptions
@@ -64,13 +59,11 @@ import io.github.aedev.flow.ui.screens.player.state.applyPlaybackFailure
 import io.github.aedev.flow.ui.screens.player.state.applyRelatedVideos
 import io.github.aedev.flow.ui.screens.player.state.applyVodFailure
 import io.github.aedev.flow.ui.screens.player.state.applyVodStreams
-import io.github.aedev.flow.ui.screens.player.state.blankVideo
 import io.github.aedev.flow.ui.screens.player.state.liveWatchFallbackVideo
 import io.github.aedev.flow.ui.screens.player.state.neuroSignalVideo
 import io.github.aedev.flow.ui.screens.player.state.primaryMetadataVideo
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.NetworkState
-import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -142,6 +135,8 @@ class VideoPlayerViewModel
                 playerPreferences = playerPreferences,
                 offlineSubtitleStore = offlineSubtitleStore,
             )
+
+        private val streamPreparer = PlaybackStreamPreparer()
 
         private val secondaryMetadata =
             PlayerSecondaryMetadataLoader(
@@ -1251,16 +1246,7 @@ class VideoPlayerViewModel
             loadToken: Long,
         ) {
             try {
-                prepareVodStreamFromInnerTube(
-                    videoId = videoId,
-                    result = step.result,
-                    relatedVideos = step.relatedVideos,
-                    preferredQuality = step.preferredQuality,
-                    preferredAudioLanguage = step.preferredAudioLanguage,
-                    preferredCodecKey = step.preferredCodecKey,
-                    resumePositionOverrideMs = step.resumePositionOverrideMs,
-                    loadToken = loadToken,
-                )
+                prepareVodStreamFromInnerTube(videoId, step, loadToken)
                 step.lateStreamInfo?.let { secondaryMetadata.enrichWhenReady(videoId, it, loadToken) }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -1320,45 +1306,21 @@ class VideoPlayerViewModel
         ) = withContext(Dispatchers.Main) {
             if (!isPlaybackLoadCurrent(loadToken)) return@withContext
 
-            val details = result.playerResponse.videoDetails
-            val cached = _uiState.value.cachedVideo
-            val title = details?.title?.takeIf { it.isNotBlank() } ?: cached?.title ?: "Live"
-            val channel = details?.author?.takeIf { it.isNotBlank() } ?: cached?.channelName ?: ""
-            val channelId = details?.channelId?.takeIf { it.isNotBlank() } ?: cached?.channelId ?: ""
-            val thumbnail =
-                details
-                    ?.thumbnail
-                    ?.thumbnails
-                    ?.maxByOrNull { it.height ?: 0 }
-                    ?.url
-                    ?: cached?.thumbnailUrl ?: ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, null)
+            val streams = streamPreparer.assembleLive(videoId, _uiState.value.cachedVideo, result)
+            val identity = streams.identity
+            GlobalPlayerState.setCurrentVideo(identity.enrichedVideo)
 
-            val enrichedVideo =
-                blankVideo(videoId, cached).copy(
-                    title = title,
-                    channelName = channel,
-                    channelId = channelId,
-                    thumbnailUrl = thumbnail,
-                    duration = 0,
-                )
-            GlobalPlayerState.setCurrentVideo(enrichedVideo)
-
-            playbackPreparer.beginSession(videoId = videoId, title = title, channel = channel, thumbnail = thumbnail)
+            playbackPreparer.beginSession(videoId, identity.title, identity.channel, identity.thumbnail)
             playbackPreparer.applyAutoplayCandidates(videoId = videoId, videos = relatedVideos)
 
-            val liveCaptionStreams =
-                StreamProcessor.processSubtitleStreams(
-                    CaptionTrackResolver.resolve(result.playerResponse),
-                )
-
-            _uiState.update { it.applyLiveStreams(relatedVideos, result.liveHlsUrl) }
+            _uiState.update { it.applyLiveStreams(relatedVideos, streams.hlsUrl) }
 
             val liveStarted =
                 playbackPreparer.prepareLiveStreams(
                     videoId = videoId,
-                    hlsUrl = result.liveHlsUrl,
-                    dashManifestUrl = result.liveDashUrl,
-                    subtitles = liveCaptionStreams,
+                    hlsUrl = streams.hlsUrl,
+                    dashManifestUrl = streams.dashManifestUrl,
+                    subtitles = streams.subtitles,
                     isCurrent = { isPlaybackLoadCurrent(loadToken) },
                 )
             if (!liveStarted) return@withContext
@@ -1366,16 +1328,14 @@ class VideoPlayerViewModel
             secondaryMetadata.loadChannelMetadata(
                 videoId = videoId,
                 uploaderUrl = null,
-                channelId = channelId,
-                embeddedAvatarUrls =
-                    listOfNotNull(cached?.channelThumbnailUrl) +
-                        cached?.channelThumbnailUrls.orEmpty(),
+                channelId = identity.channelId,
+                embeddedAvatarUrls = identity.embeddedAvatarUrls,
                 loadToken = loadToken,
             )
 
             maybeStartLiveChat(videoId)
 
-            secondaryMetadata.refreshLiveWatchMetadata(videoId, enrichedVideo, loadToken)
+            secondaryMetadata.refreshLiveWatchMetadata(videoId, identity.enrichedVideo, loadToken)
         }
 
         private fun applySecondaryMetadata(result: SecondaryMetadata) {
@@ -1437,93 +1397,45 @@ class VideoPlayerViewModel
 
         private suspend fun prepareVodStreamFromInnerTube(
             videoId: String,
-            result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
-            relatedVideos: List<Video>,
-            preferredQuality: VideoQuality,
-            preferredAudioLanguage: String,
-            preferredCodecKey: String,
-            resumePositionOverrideMs: Long? = null,
+            step: ResolvedPlayback.VodFromInnerTube,
             loadToken: Long,
         ) = withContext(Dispatchers.Main) {
             if (!isPlaybackLoadCurrent(loadToken)) return@withContext
 
-            val details = result.playerResponse.videoDetails
-            val cached = _uiState.value.cachedVideo
-            val title = details?.title?.takeIf { it.isNotBlank() } ?: cached?.title ?: ""
-            val channel = details?.author?.takeIf { it.isNotBlank() } ?: cached?.channelName ?: ""
-            val channelId = details?.channelId?.takeIf { it.isNotBlank() } ?: cached?.channelId ?: ""
-            val thumbnail =
-                details
-                    ?.thumbnail
-                    ?.thumbnails
-                    ?.maxByOrNull { it.height ?: 0 }
-                    ?.url
-                    ?: cached?.thumbnailUrl ?: ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, null)
-            val durationSeconds =
-                details?.lengthSeconds?.toLongOrNull()?.takeIf { it > 0 }
-                    ?: cached?.duration?.toLong()?.takeIf { it > 0 }
-                    ?: 0L
+            val result = step.result
+            val relatedVideos = step.relatedVideos
+            val streams = streamPreparer.assembleVod(videoId, _uiState.value.cachedVideo, step)
+            val identity = streams.identity
+            GlobalPlayerState.setCurrentVideo(identity.enrichedVideo)
 
-            val enrichedVideo =
-                blankVideo(videoId, cached).copy(
-                    title = title,
-                    channelName = channel,
-                    channelId = channelId,
-                    thumbnailUrl = thumbnail,
-                    duration = durationSeconds.toInt(),
-                )
-            GlobalPlayerState.setCurrentVideo(enrichedVideo)
-
-            playbackPreparer.beginSession(videoId = videoId, title = title, channel = channel, thumbnail = thumbnail)
-
-            val videoStreams = InnerTubeStreamBridge.convertVideoFormats(result.videoFormats)
-            val audioStreams = InnerTubeStreamBridge.convertAudioFormats(result.audioFormats)
-            val availableQualities = VideoQualityOptions.availableQualities(videoStreams)
-            val selected =
-                ServicePlaybackStreamSelector.selectStreams(
-                    videoCandidates = videoStreams,
-                    audioCandidatesAll = audioStreams,
-                    preferredQuality = preferredQuality,
-                    preferredAudioLanguage = preferredAudioLanguage,
-                    preferredCodecKey = preferredCodecKey,
-                )
-
-            val captionStreams =
-                StreamProcessor.processSubtitleStreams(
-                    CaptionTrackResolver.resolve(result.playerResponse),
-                )
+            playbackPreparer.beginSession(videoId, identity.title, identity.channel, identity.thumbnail)
 
             val autoplay = playbackPreparer.applyAutoplayCandidates(videoId = videoId, videos = relatedVideos)
 
             val savedPositionMs =
-                resumePositionOverrideMs
+                step.resumePositionOverrideMs
                     ?.takeIf { it > 0L }
                     ?: viewHistory.getPlaybackPosition(videoId).first()
-            val isAdaptiveMode = preferredQuality == VideoQuality.AUTO
 
             Log.w(
                 "VideoPlayerViewModel",
                 "VOD fallback playing $videoId via InnerTube ${result.usedClient.clientName} " +
-                    "(sabr=${result.sabrInfo != null}, video=${videoStreams.size}, audio=${audioStreams.size})",
+                    "(sabr=${result.sabrInfo != null}, video=${streams.videoStreams.size}, " +
+                    "audio=${streams.audioStreams.size})",
             )
 
             _uiState.update {
                 it.applyVodStreams(
                     relatedVideos = relatedVideos,
-                    videoStream = selected.first,
-                    audioStream = selected.second,
-                    availableQualities = availableQualities,
+                    videoStream = streams.videoStream,
+                    audioStream = streams.audioStream,
+                    availableQualities = streams.availableQualities,
                     savedPositionMs = savedPositionMs,
-                    isAdaptiveMode = isAdaptiveMode,
+                    isAdaptiveMode = streams.isAdaptiveMode,
                     autoplayEnabled = autoplay,
                     innerTubeVideoFormats = result.videoFormats,
                     innerTubeAudioFormats = result.audioFormats,
-                    streamSizes =
-                        StreamSizeEstimator.fromInnerTubeFormats(
-                            result.videoFormats,
-                            result.audioFormats,
-                            durationSeconds * 1000L,
-                        ),
+                    streamSizes = streams.streamSizes,
                 )
             }
 
@@ -1533,29 +1445,27 @@ class VideoPlayerViewModel
             secondaryMetadata.loadChannelMetadata(
                 videoId = videoId,
                 uploaderUrl = null,
-                channelId = channelId,
-                embeddedAvatarUrls =
-                    listOfNotNull(cached?.channelThumbnailUrl) +
-                        cached?.channelThumbnailUrls.orEmpty(),
+                channelId = identity.channelId,
+                embeddedAvatarUrls = identity.embeddedAvatarUrls,
                 loadToken = loadToken,
             )
 
             playbackPreparer.prepareVodStreams(
                 videoId = videoId,
-                videoStream = selected.first,
-                audioStream = selected.second,
-                videoStreams = videoStreams,
-                audioStreams = audioStreams,
-                subtitles = captionStreams,
-                durationSeconds = durationSeconds,
+                videoStream = streams.videoStream,
+                audioStream = streams.audioStream,
+                videoStreams = streams.videoStreams,
+                audioStreams = streams.audioStreams,
+                subtitles = streams.subtitles,
+                durationSeconds = streams.durationSeconds,
                 savedPositionMs = savedPositionMs,
-                resumeOverrideRequested = resumePositionOverrideMs != null,
-                isAdaptiveMode = isAdaptiveMode,
+                resumeOverrideRequested = step.resumePositionOverrideMs != null,
+                isAdaptiveMode = streams.isAdaptiveMode,
                 sabrInfo = result.sabrInfo,
                 itVideoFormats = result.videoFormats,
                 itAudioFormats = result.audioFormats,
-                preferredVideoCodec = preferredCodecKey,
-                preferredLiveQualityHeight = preferredQuality.height,
+                preferredVideoCodec = step.preferredCodecKey,
+                preferredLiveQualityHeight = step.preferredQuality.height,
                 isCurrent = { isPlaybackLoadCurrent(loadToken) },
             )
         }
