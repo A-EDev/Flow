@@ -24,35 +24,30 @@ import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
-import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.notification.UpcomingVideoReminderWorker
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.MiniPlayerExpansionState
-import io.github.aedev.flow.player.PlaybackResumePolicy
 import io.github.aedev.flow.player.PlaybackStartupPolicy
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.VideoErrorMapper
-import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
-import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.MergedPlaybackAssembly
 import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.PlaybackResolutionRequest
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
-import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.UpcomingPremiere
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
-import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.stream.VideoPlaybackResolver
 import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
@@ -2151,23 +2146,14 @@ class VideoPlayerViewModel
             val state = _uiState.value
             val streamInfo = state.streamInfo ?: return
             viewModelScope.launch {
-                val audioLangPref = playerPreferences.preferredAudioLanguage.first()
-                val codecPref = playerPreferences.videoCodecPriority.first()
-                val innerTubeVideoStreams = InnerTubeStreamBridge.convertVideoFormats(state.innerTubeVideoFormats)
-                val innerTubeAudioStreams = InnerTubeStreamBridge.convertAudioFormats(state.innerTubeAudioFormats)
-                val effectiveVideo =
-                    StreamMergeUtils.mergeVideoStreams(
-                        innerTubeVideoStreams,
-                        (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
-                    )
-                val effectiveAudio: List<AudioStream> = StreamMergeUtils.mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
                 val streams =
-                    ServicePlaybackStreamSelector.selectStreams(
-                        videoCandidates = effectiveVideo,
-                        audioCandidatesAll = effectiveAudio,
-                        preferredQuality = quality,
-                        preferredAudioLanguage = audioLangPref,
-                        preferredCodecKey = codecPref,
+                    MergedPlaybackAssembly.selectQualityStreams(
+                        streamInfo = streamInfo,
+                        innerTubeVideoFormats = state.innerTubeVideoFormats,
+                        innerTubeAudioFormats = state.innerTubeAudioFormats,
+                        quality = quality,
+                        preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first(),
+                        preferredCodecKey = playerPreferences.videoCodecPriority.first(),
                     )
 
                 _uiState.value =

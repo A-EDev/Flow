@@ -177,6 +177,40 @@ object MergedPlaybackAssembly {
         )
     }
 
+    /**
+     * Re-picks the streams for [quality] from a result that is already on screen, over the InnerTube
+     * formats the screen kept from the load.
+     *
+     * The InnerTube streams lead the merge here and trail it in [assemble]: the merge de-duplicates
+     * by URL, so a format both stacks produced resolves to the InnerTube stream object on a quality
+     * switch and to the extractor's on the initial load.
+     */
+    fun selectQualityStreams(
+        streamInfo: StreamInfo,
+        innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format>,
+        innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format>,
+        quality: VideoQuality,
+        preferredAudioLanguage: String,
+        preferredCodecKey: String,
+    ): Pair<VideoStream?, AudioStream?> {
+        val innerTubeVideoStreams = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats)
+        val innerTubeAudioStreams = InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats)
+        val effectiveVideo =
+            StreamMergeUtils.mergeVideoStreams(
+                innerTubeVideoStreams,
+                (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
+            )
+        val effectiveAudio: List<AudioStream> =
+            StreamMergeUtils.mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
+        return ServicePlaybackStreamSelector.selectStreams(
+            videoCandidates = effectiveVideo,
+            audioCandidatesAll = effectiveAudio,
+            preferredQuality = quality,
+            preferredAudioLanguage = preferredAudioLanguage,
+            preferredCodecKey = preferredCodecKey,
+        )
+    }
+
     private fun logChosenStack(
         streamInfo: StreamInfo,
         innerTubeResult: InnerTubeVideoStreamExtractor.VideoExtractionResult?,
