@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import android.content.Context
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SmartDisplay
@@ -19,9 +18,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
@@ -29,12 +29,15 @@ import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
 import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
+import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
+import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.utils.DateContext
 
 @Composable
 internal fun PlayerBottomSheetsContainer(
@@ -61,8 +64,8 @@ internal fun PlayerBottomSheetsContainer(
     hostedInSidePanel: Boolean = false,
     onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
-    val shareWithoutText by remember { PlayerPreferences(context).shareWithoutText }
-        .collectAsStateWithLifecycle(initialValue = false)
+    val shareVideoAction = rememberVideoShareAction()
+    val dateSettings = rememberDateDisplaySettings()
 
     val sortedComments =
         remember(comments, screenState.commentSortFilter) {
@@ -102,19 +105,7 @@ internal fun PlayerBottomSheetsContainer(
             onDismiss = { screenState.closeSheet() },
             onShare = {
                 screenState.closeSheet()
-                val shareText =
-                    if (shareWithoutText) {
-                        context.getString(R.string.share_link_only_template, completeVideo.id)
-                    } else {
-                        context.getString(R.string.check_out_video_template, completeVideo.title, completeVideo.id)
-                    }
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, completeVideo.title)
-                        putExtra(Intent.EXTRA_TEXT, shareText)
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
+                shareVideoAction(completeVideo.id, completeVideo.title)
             },
             onDownload = {
                 screenState.open(PlayerSheet.Download)
@@ -167,34 +158,19 @@ internal fun PlayerBottomSheetsContainer(
     // Description Bottom Sheet
     if (screenState.activeSheet == PlayerSheet.Description) {
         val currentVideo =
-            remember(uiState.streamInfo, video) {
-                val streamInfo = uiState.streamInfo
-                if (streamInfo != null) {
-                    Video(
-                        id = streamInfo.id ?: video.id,
-                        title = streamInfo.name ?: video.title,
-                        channelName = streamInfo.uploaderName ?: video.channelName,
-                        channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
-                        thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
-                        duration = streamInfo.duration.toInt(),
-                        viewCount = streamInfo.viewCount,
-                        likeCount = streamInfo.likeCount,
-                        uploadDate =
-                            streamInfo.textualUploadDate ?: streamInfo.uploadDate?.run {
-                                try {
-                                    val date = java.util.Date.from(offsetDateTime().toInstant())
-                                    val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                                    sdf.format(date)
-                                } catch (e: Exception) {
-                                    video.uploadDate
-                                }
-                            } ?: video.uploadDate,
-                        description = streamInfo.description?.content ?: video.description,
-                        channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
-                    )
-                } else {
-                    video
-                }
+            remember(uiState.streamInfo, video, uiState.channelAvatarUrl, dateSettings) {
+                val streamInfo = uiState.streamInfo ?: return@remember video
+                streamInfo.toVideo(
+                    base = video,
+                    uploadDateText =
+                        streamInfo.textualUploadDate
+                            ?: streamInfo.uploadDateMillis
+                                ?.let { dateSettings.format(date = null, context = DateContext.DESCRIPTION, timestampFallbackMs = it) }
+                                ?.takeIf { it.isNotBlank() }
+                            ?: video.uploadDate,
+                    channelAvatarUrl = uiState.channelAvatarUrl,
+                    likeCount = streamInfo.likeCount,
+                )
             }
 
         FlowDescriptionBottomSheet(

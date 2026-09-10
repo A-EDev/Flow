@@ -22,6 +22,7 @@ import io.github.aedev.flow.ui.components.videoplayer.gesture.videoPlayerControl
 import io.github.aedev.flow.ui.components.videoplayer.gesture.videoPlayerZoom
 import io.github.aedev.flow.ui.components.videoplayer.placedWhen
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.Media3SubtitleOverlay
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 private const val EXIT_DRAG_MIN_SCALE = 0.94f
 
@@ -179,7 +180,7 @@ internal fun VideoStage(
             if (playerUiState.isRestoredSession) {
                 val thumbUrl =
                     video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                        ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
+                        ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id)
                 coil3.compose.AsyncImage(
                     model = thumbUrl,
                     contentDescription = null,

@@ -2,8 +2,11 @@ package io.github.aedev.flow.ui.screens.player.effects
 
 import androidx.compose.runtime.*
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.bestThumbnailUrl
+import io.github.aedev.flow.data.model.uploaderChannelId
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.delay
 import org.schabi.newpipe.extractor.stream.StreamType
 
@@ -61,11 +64,11 @@ internal fun buildWatchHistoryEntry(
         duration = duration,
         title = title,
         thumbnailUrl =
-            streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+            streamInfo?.bestThumbnailUrl
                 ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
+                ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id),
         channelName = resolveHistoryChannelName(video, streamInfo?.uploaderName),
-        channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
+        channelId = streamInfo?.uploaderChannelId ?: video.channelId,
         isShort = video.isShort,
     )
 }

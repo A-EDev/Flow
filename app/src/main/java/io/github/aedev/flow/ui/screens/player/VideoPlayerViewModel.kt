@@ -2999,7 +2999,7 @@ class VideoPlayerViewModel
                     title = video.title,
                     thumbnailUrl =
                         video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                            ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
+                            ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id),
                     channelName = video.channelName,
                     channelId = video.channelId,
                     isShort = video.isShort,

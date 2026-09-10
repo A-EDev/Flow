@@ -10,9 +10,13 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
+import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
+import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
+import io.github.aedev.flow.utils.DateContext
 import org.schabi.newpipe.extractor.stream.StreamType
 
 /**
@@ -80,30 +84,21 @@ internal fun rememberPlayerVideoMetadata(
                 }
             }
         }
+    val dateSettings = rememberDateDisplaySettings()
     val dialogVideo =
-        remember(video, uiState.streamInfo, uiState.channelAvatarUrl, resolvedVideoTitle) {
+        remember(video, uiState.streamInfo, uiState.channelAvatarUrl, resolvedVideoTitle, streamUploadDate, dateSettings) {
             uiState.streamInfo?.let { streamInfo ->
-                Video(
-                    id = streamInfo.id ?: video.id,
+                streamInfo.toVideo(
+                    base = video,
                     title = resolvedVideoTitle,
-                    channelName = streamInfo.uploaderName ?: video.channelName,
-                    channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
-                    thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
-                    duration = streamInfo.duration.toInt(),
-                    viewCount = streamInfo.viewCount,
+                    uploadDateText =
+                        streamUploadDate
+                            ?: streamInfo.uploadDateMillis
+                                ?.let { dateSettings.format(date = null, context = DateContext.WATCH, timestampFallbackMs = it) }
+                                ?.takeIf { it.isNotBlank() }
+                            ?: video.uploadDate,
+                    channelAvatarUrl = uiState.channelAvatarUrl,
                     likeCount = streamInfo.likeCount,
-                    uploadDate =
-                        streamUploadDate ?: streamInfo.uploadDate?.run {
-                            try {
-                                val date = java.util.Date.from(offsetDateTime().toInstant())
-                                val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                                sdf.format(date)
-                            } catch (e: Exception) {
-                                video.uploadDate
-                            }
-                        } ?: video.uploadDate,
-                    description = streamInfo.description?.content ?: video.description,
-                    channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
                     timestamp = video.timestamp,
                     isMusic = video.isMusic,
                 )

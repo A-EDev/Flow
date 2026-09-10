@@ -2,8 +2,40 @@ package io.github.aedev.flow.utils
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class DateDisplayTest {
+    /**
+     * `formatExactDate` moved from `SimpleDateFormat` to `DateTimeFormatter`. Every configured
+     * style is a y/M/d pattern, which both formatters read identically, so the replacement must be
+     * output-for-output equal to the one it replaced.
+     */
+    @Test
+    fun `every configured date style still formats exactly as SimpleDateFormat did`() {
+        val timestamps = listOf(1_672_920_000_000L, 1_700_000_000_000L, 946_684_800_000L)
+        val locales = listOf(Locale.US, Locale.UK, Locale.GERMANY)
+
+        for (timestamp in timestamps) {
+            for (locale in locales) {
+                for (style in DateFormatStyle.entries) {
+                    val pattern = style.pattern ?: continue
+                    assertEquals(
+                        SimpleDateFormat(pattern, locale).format(Date(timestamp)),
+                        formatExactDate(timestamp, style, locale),
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `an unset timestamp formats to nothing`() {
+        assertEquals("", formatExactDate(0L, DateFormatStyle.ISO, Locale.US))
+        assertEquals("", formatExactDate(-1L, DateFormatStyle.ISO, Locale.US))
+    }
+
     @Test
     fun `stored timestamp ages instead of resetting relative text`() {
         val now = 2_000_000_000_000L
@@ -14,8 +46,8 @@ class DateDisplayTest {
             resolveDisplayUploadTimestamp(
                 date = "1 hour ago",
                 timestampFallbackMs = publicationTimestamp,
-                nowMillis = now
-            )
+                nowMillis = now,
+            ),
         )
     }
 
@@ -28,8 +60,8 @@ class DateDisplayTest {
             resolveDisplayUploadTimestamp(
                 date = "1 hour ago",
                 timestampFallbackMs = 0L,
-                nowMillis = now
-            )
+                nowMillis = now,
+            ),
         )
     }
 
@@ -42,8 +74,8 @@ class DateDisplayTest {
             resolveDisplayUploadTimestamp(
                 date = "2 years ago",
                 timestampFallbackMs = now,
-                nowMillis = now
-            )
+                nowMillis = now,
+            ),
         )
     }
 }

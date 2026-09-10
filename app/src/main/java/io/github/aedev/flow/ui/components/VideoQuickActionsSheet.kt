@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.components
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +41,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +66,8 @@ import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
+import io.github.aedev.flow.utils.youtubeWatchUrl
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +103,7 @@ fun VideoQuickActionsBottomSheet(
             video.collaboratorItems(resolvedCollaborators)
         }
     val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
+    val shareVideoAction = rememberVideoShareAction()
 
     if (showCollaborators) {
         CollaboratorsBottomSheet(
@@ -267,18 +268,7 @@ fun VideoQuickActionsBottomSheet(
                                     if (onShare != null) {
                                         onShare()
                                     } else {
-                                        val shareIntent =
-                                            Intent(Intent.ACTION_SEND).apply {
-                                                type = "text/plain"
-                                                putExtra(Intent.EXTRA_SUBJECT, video.title)
-                                                putExtra(
-                                                    Intent.EXTRA_TEXT,
-                                                    "https://www.youtube.com/watch?v=${video.id}",
-                                                )
-                                            }
-                                        context.startActivity(
-                                            Intent.createChooser(shareIntent, context.getString(R.string.share_video)),
-                                        )
+                                        shareVideoAction(video.id, video.title)
                                     }
                                     onDismiss()
                                 },
@@ -493,7 +483,7 @@ fun VideoQuickActionsBottomSheet(
                                     icon = { Icon(Icons.Rounded.ContentCopy, null) },
                                     title = { Text(stringResource(R.string.copy_video_link)) },
                                     onClick = {
-                                        val videoUrl = "https://www.youtube.com/watch?v=${video.id}"
+                                        val videoUrl = youtubeWatchUrl(video.id)
                                         val clipboard = context.getSystemService(ClipboardManager::class.java)
                                         clipboard?.setPrimaryClip(ClipData.newPlainText("video_link", videoUrl))
                                         android.widget.Toast

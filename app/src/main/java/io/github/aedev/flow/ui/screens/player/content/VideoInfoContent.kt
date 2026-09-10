@@ -3,28 +3,28 @@ package io.github.aedev.flow.ui.screens.player.content
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.AddToPlaylistDialog
+import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.utils.youtubeWatchUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -37,15 +37,14 @@ internal fun VideoInfoContent(
     comments: List<Comment>,
     commentsEnabled: Boolean = true,
     showCommentsPreview: Boolean = true,
+    deArrowEnabled: Boolean,
     context: Context,
     scope: CoroutineScope,
     snackbarHostState: SnackbarHostState,
     onChannelClick: (String) -> Unit,
 ) {
     var showAddToPlaylistDialog by remember(video.id) { mutableStateOf(false) }
-    val playerPrefs = remember { PlayerPreferences(context) }
-    val shareWithoutText by playerPrefs.shareWithoutText.collectAsState(initial = false)
-    val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
+    val shareVideoAction = rememberVideoShareAction()
     val metadata =
         rememberPlayerVideoMetadata(
             video = video,
@@ -69,10 +68,10 @@ internal fun VideoInfoContent(
         )
     }
 
-    val downloadedVideoIds by viewModel.downloadedVideoIds.collectAsState()
+    val downloadedVideoIds by viewModel.downloadedVideoIds.collectAsStateWithLifecycle()
     val isVideoDownloaded = remember(downloadedVideoIds, video.id) { downloadedVideoIds.contains(video.id) }
     val isVideoSaved by remember(video.id) { viewModel.isVideoSavedToAnyPlaylist(video.id) }
-        .collectAsState(initial = false)
+        .collectAsStateWithLifecycle(initialValue = false)
 
     if (showAddToPlaylistDialog) {
         AddToPlaylistDialog(
@@ -184,35 +183,20 @@ internal fun VideoInfoContent(
         },
         onCollaboratorClick = onChannelClick,
         onSaveClick = { showAddToPlaylistDialog = true },
-        onShareClick = {
-            val shareText =
-                if (shareWithoutText) {
-                    context.getString(R.string.share_link_only_template, video.id)
-                } else {
-                    context.getString(R.string.check_out_video_template, resolvedVideoTitle, video.id)
-                }
-            val shareIntent =
-                Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, resolvedVideoTitle)
-                    putExtra(Intent.EXTRA_TEXT, shareText)
-                }
-            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
-        },
+        onShareClick = { shareVideoAction(video.id, resolvedVideoTitle) },
         onDownloadClick = { screenState.open(PlayerSheet.Download) },
         isSaved = isVideoSaved,
         isDownloaded = isVideoDownloaded,
         onBackgroundPlayClick = { viewModel.startBackgroundPlayback() },
         onCopyLinkClick = {
-            val url = "https://www.youtube.com/watch?v=${video.id}"
+            val url = youtubeWatchUrl(video.id)
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("video_link", url))
             Toast.makeText(context, context.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
         },
         onCopyLinkAtTimeClick = {
             val positionMs = EnhancedPlayerManager.getInstance().getCurrentPosition()
-            val positionSeconds = positionMs / 1000L
-            val url = "https://www.youtube.com/watch?v=${video.id}&t=${positionSeconds}s"
+            val url = youtubeWatchUrl(video.id, positionMs / 1000L)
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("video_link_at_time", url))
             Toast.makeText(context, context.getString(R.string.link_with_timestamp_copied), Toast.LENGTH_SHORT).show()
