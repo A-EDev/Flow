@@ -9,8 +9,10 @@ import android.view.PixelCopy
 import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -116,8 +118,14 @@ private val LINEAR_TO_SRGB =
 /**
  * Owns every buffer the effect needs for the lifetime of one STARTED window. Everything is
  * allocated once: the loops below must not allocate in steady state.
+ *
+ * [pixelDispatcher] carries every per-pixel pass — the decimate/blur that builds a target and the
+ * encode that turns the smoothed grid into a bitmap. Both loops themselves stay on the caller's
+ * dispatcher (Main), which is what keeps the buffers they share free of locks.
  */
-internal class AmbientPipeline {
+internal class AmbientPipeline(
+    private val pixelDispatcher: CoroutineDispatcher = Dispatchers.Default,
+) {
     private val sample = Bitmap.createBitmap(SAMPLE_W, SAMPLE_H, Bitmap.Config.ARGB_8888)
     private val samplePixels = IntArray(SAMPLE_W * SAMPLE_H)
     private val previousPixels = IntArray(SAMPLE_W * SAMPLE_H)
@@ -160,7 +168,7 @@ internal class AmbientPipeline {
                         cadence = base
                         // Heavy work off Main; withContext joins before anything is published, so
                         // the staging buffers are never read concurrently.
-                        val accepted = withContext(Dispatchers.Default) { computeTarget() }
+                        val accepted = withContext(pixelDispatcher) { computeTarget() }
                         if (accepted) {
                             stagingGrid.copyInto(targetGrid)
                             hasTarget = true
@@ -233,15 +241,27 @@ internal class AmbientPipeline {
         }
     }
 
-    private fun publish(): AmbientFrameState {
+    /**
+     * The encode is 576 cells of inverse-EOTF plus a bitmap upload, and it ran on Main once per
+     * 60 ms tick for the whole of playback.
+     *
+     * Hopping it needs no copy of [currentGrid]: the smoothing loop is a single sequential
+     * coroutine, so it cannot step the grid while it is awaiting this, and no other loop touches
+     * [currentGrid], [outPixels] or [buffers]. [supported] is read on the caller instead, because
+     * that one *is* written by the capture loop.
+     */
+    internal suspend fun publish(): AmbientFrameState {
+        val frame = withContext(pixelDispatcher) { encodeFrame() }
+        return AmbientFrameState(frame = frame, supported = supported)
+    }
+
+    /** Runs on [pixelDispatcher]. */
+    private fun encodeFrame(): ImageBitmap {
         encodeToPixels(currentGrid, outPixels)
         bufferIndex = bufferIndex xor 1
         val bitmap = buffers[bufferIndex]
         bitmap.setPixels(outPixels, 0, DISPLAY_W, 0, 0, DISPLAY_W, DISPLAY_H)
-        return AmbientFrameState(
-            frame = bitmap.asImageBitmap(),
-            supported = supported,
-        )
+        return bitmap.asImageBitmap()
     }
 }
 
