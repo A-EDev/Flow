@@ -326,7 +326,7 @@ fun VideoPlayerHost(
         currentVideo = { globalCurrentVideo },
         uiState = playerUiState,
         commentsEnabled = prefs.commentsEnabled,
-        expandedBodyVisible = !isMinimized,
+        expandedBodyVisible = expandedSurfacesMounted,
         viewModel = playerViewModel,
     )
 
