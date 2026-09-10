@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -171,16 +170,7 @@ private fun ChapterThumbnail(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(
-                            brush =
-                                Brush.linearGradient(
-                                    colors =
-                                        listOf(
-                                            MaterialTheme.colorScheme.surfaceVariant,
-                                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        ),
-                                ),
-                        ),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             )
         }
 

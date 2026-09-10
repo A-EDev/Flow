@@ -2,6 +2,12 @@ package io.github.aedev.flow.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+/**
+ * The link colour the TV description panel still uses; the phone sheet passes the theme primary
+ * instead, and the TV surface is outside the player refactor's scope.
+ */
+val DescriptionLinkBlue = Color(0xFF3EA6FF)
+
 // YouTube Brand Colors
 val YouTubeRed = Color(0xFFFF0000)
 val YouTubeDark = Color(0xFF0F0F0F)
@@ -31,11 +37,12 @@ val Warning = Color(0xFFFF9800)
 val Info = Color(0xFF2196F3)
 
 // Shimmer Colors
-val ShimmerColorShades = listOf(
-    Color(0xFF3A3A3A),
-    Color(0xFF4A4A4A),
-    Color(0xFF3A3A3A)
-)
+val ShimmerColorShades =
+    listOf(
+        Color(0xFF3A3A3A),
+        Color(0xFF4A4A4A),
+        Color(0xFF3A3A3A),
+    )
 
 // Light Theme Color Scheme
 object LightThemeColors {

@@ -40,6 +40,8 @@ import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.data.model.LiveChatMessageType
 import io.github.aedev.flow.data.model.LiveChatSegment
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.ui.theme.LiveChatMemberGreen
+import io.github.aedev.flow.ui.theme.LiveChatMemberSurface
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -191,7 +193,7 @@ private fun MembershipRow(message: LiveChatMessage) {
                 .fillMaxWidth()
                 .padding(horizontal = 6.dp, vertical = 2.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF0F9D58).copy(alpha = 0.18f))
+                .background(LiveChatMemberSurface)
                 .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -200,7 +202,7 @@ private fun MembershipRow(message: LiveChatMessage) {
             Text(
                 text = message.author.ifBlank { "—" },
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = Color(0xFF0B8043),
+                color = LiveChatMemberGreen,
             )
         }
         if (message.message.isNotBlank() || message.segments.isNotEmpty()) {
@@ -337,7 +339,7 @@ private fun AuthorLine(message: LiveChatMessage) {
         when {
             message.isOwner -> MaterialTheme.colorScheme.error
             message.isModerator -> MaterialTheme.colorScheme.primary
-            message.isMember -> Color(0xFF0B8043)
+            message.isMember -> LiveChatMemberGreen
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
     Row(verticalAlignment = Alignment.CenterVertically) {

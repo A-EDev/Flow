@@ -33,7 +33,6 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,11 +44,15 @@ import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
+import io.github.aedev.flow.ui.theme.DescriptionLinkBlue
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatViewCount
 
-fun parseHtmlDescription(rawHtml: String): AnnotatedString {
+fun parseHtmlDescription(
+    rawHtml: String,
+    linkColor: Color = DescriptionLinkBlue,
+): AnnotatedString {
     // 1. Parse HTML into an Android Spanned object (Handles <br>, <a>, &amp;)
     val spanned = HtmlCompat.fromHtml(rawHtml, HtmlCompat.FROM_HTML_MODE_COMPACT)
     val text = spanned.toString()
@@ -73,7 +76,7 @@ fun parseHtmlDescription(rawHtml: String): AnnotatedString {
             addStyle(
                 style =
                     SpanStyle(
-                        color = Color(0xFF3EA6FF),
+                        color = linkColor,
                         textDecoration = TextDecoration.Underline,
                         fontWeight = FontWeight.SemiBold,
                     ),
@@ -94,7 +97,7 @@ fun parseHtmlDescription(rawHtml: String): AnnotatedString {
                 addStyle(
                     style =
                         SpanStyle(
-                            color = Color(0xFF3EA6FF),
+                            color = linkColor,
                             textDecoration = TextDecoration.Underline,
                             fontWeight = FontWeight.SemiBold,
                         ),
@@ -112,7 +115,7 @@ fun parseHtmlDescription(rawHtml: String): AnnotatedString {
             addStyle(
                 style =
                     SpanStyle(
-                        color = Color(0xFF3EA6FF),
+                        color = linkColor,
                         fontWeight = FontWeight.SemiBold,
                     ),
                 start = start,
@@ -140,10 +143,11 @@ fun FlowDescriptionBottomSheet(
     val context = LocalContext.current
     val sheetState = rememberFlowBottomSheetState()
     val descriptionScrollState = rememberScrollState()
+    val linkColor = MaterialTheme.colorScheme.primary
 
     val descriptionText =
-        remember(video.description) {
-            parseHtmlDescription(video.description)
+        remember(video.description, linkColor) {
+            parseHtmlDescription(video.description, linkColor)
         }
     var descLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
@@ -267,7 +271,7 @@ fun FlowDescriptionBottomSheet(
                             hashtags.forEach { tag ->
                                 Text(
                                     text = tag,
-                                    color = Color(0xFF3EA6FF),
+                                    color = MaterialTheme.colorScheme.primary,
                                     style = MaterialTheme.typography.labelMedium,
                                     modifier = Modifier.clickable { /* Handle hashtag click */ },
                                 )

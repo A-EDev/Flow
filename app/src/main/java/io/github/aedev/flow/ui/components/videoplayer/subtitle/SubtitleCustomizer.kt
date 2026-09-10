@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.SubtitleBackgroundSwatches
+import io.github.aedev.flow.ui.theme.SubtitleTextSwatches
 
 @Composable
 fun SubtitleCustomizer(
@@ -27,28 +29,8 @@ fun SubtitleCustomizer(
     onStyleChange: (SubtitleStyle) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val textColors =
-        remember {
-            listOf(
-                Color.White,
-                Color(0xFFFFF59D),
-                Color(0xFF80DEEA),
-                Color(0xFFA5D6A7),
-                Color(0xFFFFCC80),
-                Color(0xFFF8BBD0),
-            )
-        }
-    val backgroundColors =
-        remember {
-            listOf(
-                Color.Black,
-                Color(0xFF1F2937),
-                Color(0xFF263238),
-                Color(0xFF4E342E),
-                Color(0xFF102A43),
-                Color(0xFF37474F),
-            )
-        }
+    val textColors = SubtitleTextSwatches
+    val backgroundColors = SubtitleBackgroundSwatches
 
     Column(
         modifier =
