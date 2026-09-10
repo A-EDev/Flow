@@ -11,6 +11,7 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PlaybackResumePolicy
 import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
+import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +61,66 @@ internal class PlaybackPreparer(
             playerManager.setAutoplayCandidates(sourceVideoId = videoId, videos = videos, enabled = autoplay)
             autoplay
         }
+
+    /** The merged result a load resolved, unpacked onto the full hand-off below. */
+    suspend fun prepareMergedStreams(
+        videoId: String,
+        step: ResolvedPlayback.Merged,
+        fallbackDurationSeconds: Long,
+        isCurrent: () -> Boolean,
+    ) {
+        val streams = step.streams
+        prepareMergedStreams(
+            videoId = videoId,
+            streamInfo = step.streamInfo,
+            videoStream = streams.selectedVideoStream,
+            audioStream = streams.selectedAudioStream,
+            videoStreams = streams.videoStreams,
+            audioStreams = streams.audioStreams,
+            subtitles = streams.subtitles,
+            savedPosition = step.savedPositionMs,
+            fallbackDurationSeconds = fallbackDurationSeconds,
+            localFilePath = streams.localFilePath,
+            offlineSegments = step.offlineSegments,
+            hlsUrl = streams.hlsUrl,
+            isAdaptiveMode = streams.isAdaptiveMode,
+            resumeOverrideRequested = step.resumeOverrideRequested,
+            isCurrent = isCurrent,
+            sabrInfo = streams.sabrInfo,
+            itVideoFormats = streams.innerTubeVideoFormats,
+            itAudioFormats = streams.innerTubeAudioFormats,
+            preferredVideoCodec = streams.preferredCodecKey,
+            dashManifestUrl = streams.dashManifestUrl,
+            preferSabr = streams.preferSabr,
+            preferredLiveQualityHeight = streams.preferredQuality.height,
+        )
+    }
+
+    /** The InnerTube-only VOD assembly, unpacked onto the full hand-off below. */
+    suspend fun prepareVodStreams(
+        videoId: String,
+        streams: PlaybackStreamPreparer.VodStreams,
+        step: ResolvedPlayback.VodFromInnerTube,
+        savedPositionMs: Long,
+        isCurrent: () -> Boolean,
+    ) = prepareVodStreams(
+        videoId = videoId,
+        videoStream = streams.videoStream,
+        audioStream = streams.audioStream,
+        videoStreams = streams.videoStreams,
+        audioStreams = streams.audioStreams,
+        subtitles = streams.subtitles,
+        durationSeconds = streams.durationSeconds,
+        savedPositionMs = savedPositionMs,
+        resumeOverrideRequested = step.resumePositionOverrideMs != null,
+        isAdaptiveMode = streams.isAdaptiveMode,
+        sabrInfo = step.result.sabrInfo,
+        itVideoFormats = step.result.videoFormats,
+        itAudioFormats = step.result.audioFormats,
+        preferredVideoCodec = step.preferredCodecKey,
+        preferredLiveQualityHeight = step.preferredQuality.height,
+        isCurrent = isCurrent,
+    )
 
     suspend fun prepareMergedStreams(
         videoId: String,

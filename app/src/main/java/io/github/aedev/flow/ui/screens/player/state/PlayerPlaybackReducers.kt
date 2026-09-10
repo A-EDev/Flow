@@ -325,6 +325,42 @@ internal fun VideoPlayerUiState.liveWatchFallbackVideo(
         isLive = true,
     )
 
+/**
+ * The richest [Video] the screen holds for [videoId], or null when it holds none.
+ *
+ * Engine signals are fed from this rather than from the title-only stub a card hands over, so a
+ * like or a watch recorded here carries the tags, description and duration the load resolved.
+ */
+internal fun VideoPlayerUiState.richVideoFor(videoId: String): Video? =
+    cachedVideo?.takeIf { it.id == videoId }
+        ?: streamInfo?.takeIf { it.id == videoId }?.let { info ->
+            Video(
+                id = videoId,
+                title = info.name ?: "",
+                channelName = info.uploaderName ?: "",
+                channelId = info.uploaderUrl?.split("/")?.last() ?: "",
+                thumbnailUrl = info.thumbnails.maxByOrNull { it.height }?.url ?: "",
+                duration = info.duration.toInt(),
+                viewCount = info.viewCount,
+                uploadDate = "",
+                description = info.description?.content ?: "",
+                tags = info.tags ?: emptyList(),
+            )
+        }
+
+/** The quality the user picked, and the streams that choice resolved to. */
+internal fun VideoPlayerUiState.applySelectedQuality(
+    quality: VideoQuality,
+    videoStream: VideoStream?,
+    audioStream: AudioStream?,
+): VideoPlayerUiState =
+    copy(
+        videoStream = videoStream,
+        audioStream = audioStream,
+        selectedQuality = VideoQualityOptions.qualityOf(videoStream),
+        isAdaptiveMode = quality == VideoQuality.AUTO,
+    )
+
 /** The identity a load enriches when the screen holds nothing for the video yet. */
 internal fun blankVideo(
     videoId: String,
