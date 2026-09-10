@@ -38,18 +38,25 @@ class CommentTimestampTest {
     }
 
     @Test
-    fun `a bare number is not a timestamp`() {
-        // Pins current behaviour: "5" has one field, so it maps to 0 rather than 5 seconds.
-        assertThat(commentTimestampToMs("5")).isEqualTo(0L)
+    fun `text that is not a timestamp maps to the start`() {
         assertThat(commentTimestampToMs("abc")).isEqualTo(0L)
         assertThat(commentTimestampToMs("")).isEqualTo(0L)
     }
 
     @Test
-    fun `a non numeric field counts as zero`() {
-        // Pins current behaviour: a malformed field is silently treated as 0, not rejected.
-        assertThat(commentTimestampToMs("1:xx")).isEqualTo(60_000L)
-        assertThat(commentTimestampToMs("x:30")).isEqualTo(30_000L)
+    fun `a bare number is read as seconds`() {
+        // Changed with the move onto the shared parser, which the SponsorBlock dialog also uses:
+        // "5" used to map to 0. The comment link regex always carries a colon, so no rendered
+        // timestamp reaches this branch.
+        assertThat(commentTimestampToMs("5")).isEqualTo(5_000L)
+    }
+
+    @Test
+    fun `a non numeric field rejects the whole timestamp`() {
+        // Changed with the move onto the shared parser: a bad field used to count as 0, so "1:xx"
+        // seeked to a minute in. Now nothing is parsed and the seek goes to the start.
+        assertThat(commentTimestampToMs("1:xx")).isEqualTo(0L)
+        assertThat(commentTimestampToMs("x:30")).isEqualTo(0L)
     }
 
     @Test

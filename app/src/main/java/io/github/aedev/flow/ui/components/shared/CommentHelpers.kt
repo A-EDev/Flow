@@ -5,6 +5,7 @@ import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.utils.formatTimeAgo
+import io.github.aedev.flow.utils.parseTimestampMs
 
 enum class CommentSortFilter {
     TOP,
@@ -43,17 +44,8 @@ fun sortCommentsByFilter(
     return pinned + sortedUnpinned
 }
 
-/** Converts a "H:MM:SS" / "MM:SS" comment timestamp into milliseconds. */
-fun commentTimestampToMs(timestamp: String): Long {
-    val parts = timestamp.split(":").map { it.toLongOrNull() ?: 0L }
-    val seconds =
-        when (parts.size) {
-            3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
-            2 -> parts[0] * 60 + parts[1]
-            else -> 0L
-        }
-    return seconds * 1000L
-}
+/** Converts a "H:MM:SS" / "MM:SS" comment timestamp into milliseconds, or 0 when it is not one. */
+fun commentTimestampToMs(timestamp: String): Long = parseTimestampMs(timestamp) ?: 0L
 
 fun formatAuthorName(author: String): String {
     val trimmed = author.trim()

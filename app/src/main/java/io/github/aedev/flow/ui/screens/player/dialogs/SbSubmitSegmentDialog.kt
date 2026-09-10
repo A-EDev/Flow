@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.*
@@ -12,10 +11,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import io.github.aedev.flow.utils.formatDurationMillis
+import io.github.aedev.flow.utils.parseTimestampMs
 import kotlinx.coroutines.launch
 
 /** All SponsorBlock submit categories shown in the dialog dropdown. */
@@ -48,50 +48,20 @@ internal fun SbSubmitSegmentDialog(
     val playerPreferences = remember { PlayerPreferences(context) }
     val coroutineScope = rememberCoroutineScope()
 
-    fun msToTimestamp(ms: Long): String {
-        val totalSeconds = ms / 1000
-        val h = totalSeconds / 3600
-        val m = (totalSeconds % 3600) / 60
-        val s = totalSeconds % 60
-        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
-    }
-
-    fun timestampToSeconds(ts: String): Float? {
-        val parts = ts.trim().split(":").map { it.trim() }
-        return when (parts.size) {
-            2 -> {
-                val m = parts[0].toFloatOrNull() ?: return null
-                val s = parts[1].toFloatOrNull() ?: return null
-                m * 60 + s
-            }
-
-            3 -> {
-                val h = parts[0].toFloatOrNull() ?: return null
-                val m = parts[1].toFloatOrNull() ?: return null
-                val s = parts[2].toFloatOrNull() ?: return null
-                h * 3600 + m * 60 + s
-            }
-
-            else -> {
-                ts.toFloatOrNull()
-            }
-        }
-    }
-
     var startTime by remember { mutableStateOf("") }
-    var endTime by remember { mutableStateOf(msToTimestamp(currentPositionMs)) }
+    var endTime by remember { mutableStateOf(formatDurationMillis(currentPositionMs, padMinutes = true)) }
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
     var categoryExpanded by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var submitSucceeded by remember { mutableStateOf<Boolean?>(null) }
     var startError by remember { mutableStateOf(false) }
     var endError by remember { mutableStateOf(false) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
             Column(
                 modifier =
@@ -179,13 +149,12 @@ internal fun SbSubmitSegmentDialog(
                     }
                 }
 
-                // Status message
-                statusMessage?.let {
+                submitSucceeded?.let { succeeded ->
                     Text(
-                        text = it,
+                        text = stringResource(if (succeeded) R.string.sb_submit_success else R.string.sb_submit_error),
                         style = MaterialTheme.typography.bodySmall,
                         color =
-                            if (it.startsWith("✓")) {
+                            if (succeeded) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.error
@@ -200,13 +169,13 @@ internal fun SbSubmitSegmentDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.btn_cancel))
+                        Text(stringResource(R.string.cancel))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val start = timestampToSeconds(startTime)
-                            val end = timestampToSeconds(endTime)
+                            val start = parseTimestampMs(startTime)?.let { it / 1000f }
+                            val end = parseTimestampMs(endTime)?.let { it / 1000f }
                             if (start == null) {
                                 startError = true
                                 return@Button
@@ -216,7 +185,7 @@ internal fun SbSubmitSegmentDialog(
                                 return@Button
                             }
                             isSubmitting = true
-                            statusMessage = null
+                            submitSucceeded = null
                             coroutineScope.launch {
                                 val userId = playerPreferences.getOrCreateSbUserId()
                                 val category = SB_SUBMIT_CATEGORIES[selectedCategoryIndex].first
@@ -229,12 +198,7 @@ internal fun SbSubmitSegmentDialog(
                                         userId = userId,
                                     )
                                 isSubmitting = false
-                                statusMessage =
-                                    if (success) {
-                                        context.getString(R.string.sb_submit_success)
-                                    } else {
-                                        context.getString(R.string.sb_submit_error)
-                                    }
+                                submitSucceeded = success
                                 if (success) onDismiss()
                             }
                         },
