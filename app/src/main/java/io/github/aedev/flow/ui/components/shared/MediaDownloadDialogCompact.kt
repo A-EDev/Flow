@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.components.shared
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,23 +9,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.ExposedDropdownMenu
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -46,12 +46,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
@@ -68,13 +68,18 @@ private const val MIN_THREADS = 1
 private const val MAX_THREADS = 8
 private val downloadPrefsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-private val CODEC_PRIORITY = mapOf("vp9" to 0, "h264" to 1, "av1" to 2, "vp8" to 3, "hevc" to 4)
+private const val UNRANKED_CODEC = 99
 
 private fun containerForCodec(codecKey: String): String =
     when (codecKey) {
         "vp9", "vp8" -> "WebM"
         else -> "MP4"
     }
+
+private fun codecOptionLabel(
+    codecKey: String,
+    separator: String,
+): String = "${VideoPlayerUtils.codecLabelFromKey(codecKey)}$separator${containerForCodec(codecKey)}"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -89,7 +94,13 @@ fun MediaDownloadDialogCompact(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val audioFormatUnknownLabel = stringResource(R.string.audio_format_unknown)
+    val separatorDot = stringResource(R.string.list_separator_dot)
+    val audioLabelStrings =
+        AudioLabelStrings(
+            unknownFormat = stringResource(R.string.audio_format_unknown),
+            kbps = stringResource(R.string.kbps),
+            separator = separatorDot,
+        )
     val prefs = remember(context) { PlayerPreferences(context) }
     val preferredLang by prefs.preferredAudioLanguage.collectAsState(initial = "")
     val defaultThreads by prefs.downloadThreads.collectAsState(initial = 3)
@@ -112,20 +123,15 @@ fun MediaDownloadDialogCompact(
 
     val videoStreams =
         remember(innerTubeVideoFormats, streamInfo) {
-            val itVideo = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats)
-            val exVideoOnly = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-            val exMuxed = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-            (itVideo + exVideoOnly + exMuxed)
-                .filter { it.getContent().isNotBlank() }
-                .distinctBy { "${VideoPlayerUtils.qualityHeightFromStream(it)}_${VideoPlayerUtils.codecKeyFromStream(it)}" }
-                .sortedWith(
-                    compareByDescending<VideoStream> { VideoPlayerUtils.qualityHeightFromStream(it) }
-                        .thenBy { CODEC_PRIORITY[VideoPlayerUtils.codecKeyFromStream(it)] ?: 99 },
-                )
+            DownloadStreamPolicy.buildDownloadVideoStreams(
+                innerTubeStreams = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats),
+                videoOnlyStreams = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
+                muxedStreams = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
+            )
         }
     val audioStreams =
         remember(innerTubeAudioFormats, streamInfo) {
-            DownloadStreamHelpers.mergeAudioDownloadStreams(
+            DownloadStreamPolicy.mergeAudioDownloadStreams(
                 InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats),
                 streamInfo?.audioStreams ?: emptyList(),
             )
@@ -156,7 +162,7 @@ fun MediaDownloadDialogCompact(
             .filter { VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight }
             .map { VideoPlayerUtils.codecKeyFromStream(it) }
             .distinct()
-            .sortedBy { CODEC_PRIORITY[it] ?: 99 }
+            .sortedBy { DownloadStreamPolicy.DOWNLOAD_CODEC_PRIORITY[it] ?: UNRANKED_CODEC }
     var selectedCodec by remember(selectedHeight, lastCodec, preferredDownloadCodecKey) {
         mutableStateOf(
             codecsForHeight.firstOrNull { it == preferredDownloadCodecKey }
@@ -167,8 +173,8 @@ fun MediaDownloadDialogCompact(
     }
     var selectedAudioIndex by remember(audioStreams, lastAudioLabel) {
         mutableStateOf(
-            audioStreams.indexOfFirst { audioOptionLabel(it, audioFormatUnknownLabel) == lastAudioLabel }.takeIf { it >= 0 }
-                ?: audioStreams.indices.maxByOrNull { DownloadStreamHelpers.audioBitrateKbps(audioStreams[it]) }
+            audioStreams.indexOfFirst { audioOptionLabel(it, audioLabelStrings) == lastAudioLabel }.takeIf { it >= 0 }
+                ?: audioStreams.indices.maxByOrNull { DownloadStreamPolicy.audioBitrateKbps(audioStreams[it]) }
                 ?: 0,
         )
     }
@@ -180,27 +186,15 @@ fun MediaDownloadDialogCompact(
         val taggedVideo = video.copy(title = finalTitle)
         if (isAudioMode) {
             val stream = audioStreams.getOrNull(selectedAudioIndex) ?: return
-            val url = stream.getContent().takeIf { it.isNotBlank() } ?: return
-            val bitrate = DownloadStreamHelpers.audioBitrateKbps(stream)
-            VideoPlayerUtils.promptStoragePermissionIfNeeded(context)
-            io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
-                context = context,
-                video = taggedVideo,
-                url = url,
-                quality = "${bitrate}kbps",
-                audioOnly = true,
-                audioExtension = DownloadStreamHelpers.audioFileExtension(stream),
-                audioMimeType = stream.format?.mimeType,
-                threads = threads,
-            )
+            if (!startAudioOnlyDownload(context, taggedVideo, stream, threads)) return
             Toast
                 .makeText(
                     context,
-                    context.getString(R.string.downloading_template, audioOptionLabel(stream, audioFormatUnknownLabel)),
+                    context.getString(R.string.downloading_template, audioOptionLabel(stream, audioLabelStrings)),
                     Toast.LENGTH_SHORT,
                 ).show()
             downloadPrefsScope.launch {
-                prefs.setLastDownloadAudioChoice(audioOptionLabel(stream, audioFormatUnknownLabel))
+                prefs.setLastDownloadAudioChoice(audioOptionLabel(stream, audioLabelStrings))
                 prefs.setDownloadThreads(threads)
             }
             onDismiss()
@@ -218,7 +212,7 @@ fun MediaDownloadDialogCompact(
 
         var audioUrl: String? = null
         if (stream.isVideoOnly) {
-            val compatible = DownloadStreamHelpers.pickCompatibleAudioForVideo(selectedCodec, audioStreams, preferredLang)
+            val compatible = DownloadStreamPolicy.pickCompatibleAudioForVideo(selectedCodec, audioStreams, preferredLang)
             audioUrl = compatible?.getContent()?.takeIf { it.isNotBlank() }
             if (audioUrl == null) {
                 Toast.makeText(context, context.getString(R.string.download_no_compatible_audio), Toast.LENGTH_LONG).show()
@@ -241,7 +235,7 @@ fun MediaDownloadDialogCompact(
                 val fbCodecKey = VideoPlayerUtils.codecKeyFromStream(fb)
                 val fbAudio =
                     if (fb.isVideoOnly) {
-                        DownloadStreamHelpers
+                        DownloadStreamPolicy
                             .pickCompatibleAudioForVideo(fbCodecKey, audioStreams, preferredLang)
                             ?.getContent()
                             ?.takeIf { it.isNotBlank() }
@@ -286,12 +280,12 @@ fun MediaDownloadDialogCompact(
         onDismiss()
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
             Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -338,7 +332,7 @@ fun MediaDownloadDialogCompact(
                 if (!isAudioMode && hasVideo) {
                     DownloadDropdownRow(
                         label = stringResource(R.string.quality),
-                        value = "${selectedHeight}p" + (selectedSizeText?.let { "  ·  $it" } ?: ""),
+                        value = listOfNotNull("${selectedHeight}p", selectedSizeText).joinToString(separatorDot),
                         options =
                             heights.map { h ->
                                 "${h}p" to { selectedHeight = h }
@@ -347,19 +341,19 @@ fun MediaDownloadDialogCompact(
                     Spacer(Modifier.height(10.dp))
                     DownloadDropdownRow(
                         label = stringResource(R.string.download_format_label),
-                        value = "${VideoPlayerUtils.codecLabelFromKey(selectedCodec)} · ${containerForCodec(selectedCodec)}",
+                        value = codecOptionLabel(selectedCodec, separatorDot),
                         options =
                             codecsForHeight.map { codec ->
-                                "${VideoPlayerUtils.codecLabelFromKey(codec)} · ${containerForCodec(codec)}" to { selectedCodec = codec }
+                                codecOptionLabel(codec, separatorDot) to { selectedCodec = codec }
                             },
                     )
                 } else if (isAudioMode && hasAudio) {
                     DownloadDropdownRow(
                         label = stringResource(R.string.download_audio),
-                        value = audioStreams.getOrNull(selectedAudioIndex)?.let { audioOptionLabel(it, audioFormatUnknownLabel) } ?: "",
+                        value = audioStreams.getOrNull(selectedAudioIndex)?.let { audioOptionLabel(it, audioLabelStrings) } ?: "",
                         options =
                             audioStreams.mapIndexed { index, stream ->
-                                audioOptionLabel(stream, audioFormatUnknownLabel) to { selectedAudioIndex = index }
+                                audioOptionLabel(stream, audioLabelStrings) to { selectedAudioIndex = index }
                             },
                     )
                 } else {
@@ -379,30 +373,24 @@ fun MediaDownloadDialogCompact(
                         modifier = Modifier.weight(1f),
                     )
                     val currentThreads = threads.coerceIn(MIN_THREADS, MAX_THREADS)
-                    FilledIconButton(
+                    FilledTonalIconButton(
                         onClick = { threads = (currentThreads - 1).coerceAtLeast(MIN_THREADS) },
                         enabled = currentThreads > MIN_THREADS,
-                        colors =
-                            IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                    ) { Icon(Icons.Default.Remove, contentDescription = "-") }
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.download_threads_decrease))
+                    }
                     Text(
                         text = currentThreads.toString(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
-                    FilledIconButton(
+                    FilledTonalIconButton(
                         onClick = { threads = (currentThreads + 1).coerceAtMost(MAX_THREADS) },
                         enabled = currentThreads < MAX_THREADS,
-                        colors =
-                            IconButtonDefaults.filledIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                    ) { Icon(Icons.Default.Add, contentDescription = "+") }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.download_threads_increase))
+                    }
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -424,17 +412,23 @@ fun MediaDownloadDialogCompact(
     }
 }
 
+private data class AudioLabelStrings(
+    val unknownFormat: String,
+    val kbps: String,
+    val separator: String,
+)
+
 private fun audioOptionLabel(
     stream: AudioStream,
-    unknownLabel: String,
+    strings: AudioLabelStrings,
 ): String {
-    val format = DownloadStreamHelpers.audioFormatLabel(stream, unknownLabel)
-    val bitrate = DownloadStreamHelpers.audioBitrateKbps(stream)
-    val lang = DownloadStreamHelpers.audioLanguageLabel(stream)
-    val base = "$format · ${bitrate}kbps"
-    return if (lang != null) "$base · $lang" else base
+    val format = DownloadStreamPolicy.audioFormatLabel(stream, strings.unknownFormat)
+    val bitrate = DownloadStreamPolicy.audioBitrateKbps(stream)
+    val lang = DownloadStreamPolicy.audioLanguageLabel(stream)
+    return listOfNotNull("$format${strings.separator}$bitrate${strings.kbps}", lang).joinToString(strings.separator)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DownloadDropdownRow(
     label: String,
@@ -442,31 +436,34 @@ private fun DownloadDropdownRow(
     options: List<Pair<String, () -> Unit>>,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.width(88.dp),
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
         )
-        Box(modifier = Modifier.weight(1f)) {
-            OutlinedButton(
-                onClick = { expanded = true },
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(text = value, modifier = Modifier.weight(1f))
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                options.forEach { (optLabel, onSelect) ->
-                    DropdownMenuItem(
-                        text = { Text(optLabel) },
-                        onClick = {
-                            onSelect()
-                            expanded = false
-                        },
-                    )
-                }
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { (optLabel, onSelect) ->
+                DropdownMenuItem(
+                    text = { Text(optLabel, style = MaterialTheme.typography.bodyLarge) },
+                    onClick = {
+                        onSelect()
+                        expanded = false
+                    },
+                )
             }
         }
     }

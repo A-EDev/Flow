@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.shared
+package io.github.aedev.flow.data.video
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -7,14 +7,15 @@ import org.schabi.newpipe.extractor.services.youtube.ItagItem
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.AudioTrackType
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
+import org.schabi.newpipe.extractor.stream.VideoStream
 import java.util.Locale
 
 /**
- * Pins the download dialog's audio helpers against real NewPipe [AudioStream]s. `bitrate` on an
- * [AudioStream] only exists through its [ItagItem], which is why the fixture takes the two
- * bitrates separately: the helpers treat them differently.
+ * Pins the download policy against real NewPipe streams. `bitrate` on an [AudioStream] only exists
+ * through its [ItagItem], which is why the fixture takes the two bitrates separately: the helpers
+ * treat them differently.
  */
-class DownloadStreamHelpersTest {
+class DownloadStreamPolicyTest {
     private fun audio(
         id: String,
         format: MediaFormat? = MediaFormat.M4A,
@@ -46,27 +47,48 @@ class DownloadStreamHelpersTest {
         return builder.build()
     }
 
-    private fun kbps(stream: AudioStream) = DownloadStreamHelpers.audioBitrateKbps(stream)
+    /** The itag in [id] is what decides the codec: 137 is h264, 248/247 vp9, 399 av1. */
+    private fun video(
+        id: String,
+        resolution: String,
+        content: String = "https://example.invalid/$id",
+    ): VideoStream =
+        VideoStream
+            .Builder()
+            .setId(id)
+            .setContent(content, true)
+            .setMediaFormat(MediaFormat.MPEG_4)
+            .setResolution(resolution)
+            .setIsVideoOnly(true)
+            .build()
 
-    private fun label(format: MediaFormat) = DownloadStreamHelpers.audioFormatLabel(audio("0", format = format))
+    private fun build(
+        innerTube: List<VideoStream> = emptyList(),
+        videoOnly: List<VideoStream> = emptyList(),
+        muxed: List<VideoStream> = emptyList(),
+    ) = DownloadStreamPolicy.buildDownloadVideoStreams(innerTube, videoOnly, muxed)
 
-    private fun extension(format: MediaFormat?) = DownloadStreamHelpers.audioFileExtension(audio("0", format = format))
+    private fun kbps(stream: AudioStream) = DownloadStreamPolicy.audioBitrateKbps(stream)
 
-    private fun language(stream: AudioStream) = DownloadStreamHelpers.audioLanguageLabel(stream)
+    private fun label(format: MediaFormat) = DownloadStreamPolicy.audioFormatLabel(audio("0", format = format))
+
+    private fun extension(format: MediaFormat?) = DownloadStreamPolicy.audioFileExtension(audio("0", format = format))
+
+    private fun language(stream: AudioStream) = DownloadStreamPolicy.audioLanguageLabel(stream)
 
     private fun trackType(type: AudioTrackType?) =
-        DownloadStreamHelpers.audioTrackTypeLabel(audio("0", trackType = type), originalLabel = "Original", dubbedLabel = "Dubbed")
+        DownloadStreamPolicy.audioTrackTypeLabel(audio("0", trackType = type), originalLabel = "Original", dubbedLabel = "Dubbed")
 
     private fun merge(
         innerTube: List<AudioStream>,
         extractor: List<AudioStream>,
-    ) = DownloadStreamHelpers.mergeAudioDownloadStreams(innerTube, extractor)
+    ) = DownloadStreamPolicy.mergeAudioDownloadStreams(innerTube, extractor)
 
     private fun pick(
         codec: String,
         audio: List<AudioStream>,
         preferredLang: String? = null,
-    ) = DownloadStreamHelpers.pickCompatibleAudioForVideo(codec, audio, preferredLang)
+    ) = DownloadStreamPolicy.pickCompatibleAudioForVideo(codec, audio, preferredLang)
 
     @Test
     fun `bitrate is reported in kbps from the average bitrate first`() {
@@ -107,8 +129,8 @@ class DownloadStreamHelpersTest {
 
     @Test
     fun `an unknown format falls back to the given label`() {
-        assertThat(DownloadStreamHelpers.audioFormatLabel(audio("0", format = null))).isEmpty()
-        assertThat(DownloadStreamHelpers.audioFormatLabel(audio("0", format = null), unknownLabel = "?")).isEqualTo("?")
+        assertThat(DownloadStreamPolicy.audioFormatLabel(audio("0", format = null))).isEmpty()
+        assertThat(DownloadStreamPolicy.audioFormatLabel(audio("0", format = null), unknownLabel = "?")).isEqualTo("?")
     }
 
     @Test
@@ -322,5 +344,34 @@ class DownloadStreamHelpersTest {
         val unknown = audio("0", format = null, itagBitrate = 1)
 
         assertThat(pick("h264", listOf(unknown))).isSameInstanceAs(unknown)
+    }
+
+    @Test
+    fun `the ladder is one row per resolution and codec, tallest first and vp9 ahead of h264 ahead of av1`() {
+        val vp91080 = video("248", "1080p")
+        val h2641080 = video("137", "1080p")
+        val av11080 = video("399", "1080p")
+        val vp9720 = video("247", "720p")
+
+        assertThat(build(innerTube = listOf(av11080, h2641080), videoOnly = listOf(vp91080), muxed = listOf(vp9720)))
+            .containsExactly(vp91080, h2641080, av11080, vp9720)
+            .inOrder()
+    }
+
+    @Test
+    fun `a stream with no url never reaches the ladder`() {
+        // The classic dialog used to list these and then do nothing when one was tapped.
+        val playable = video("137", "720p")
+        val urlless = video("248", "1080p", content = "")
+
+        assertThat(build(innerTube = listOf(urlless), videoOnly = listOf(playable))).containsExactly(playable)
+    }
+
+    @Test
+    fun `the first source wins when two carry the same resolution and codec`() {
+        val innerTube = video("137", "1080p")
+        val extractor = video("137", "1080p", content = "https://example.invalid/extractor")
+
+        assertThat(build(innerTube = listOf(innerTube), videoOnly = listOf(extractor))).containsExactly(innerTube)
     }
 }

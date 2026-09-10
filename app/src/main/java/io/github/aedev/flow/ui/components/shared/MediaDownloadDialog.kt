@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,9 +17,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.player.*
@@ -33,6 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.VideoStream
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaDownloadDialog(
     streamInfo: org.schabi.newpipe.extractor.stream.StreamInfo?,
@@ -50,15 +49,15 @@ fun MediaDownloadDialog(
         }
     val preferredLang by audioLangPref.preferredAudioLanguage.collectAsState(initial = "")
 
-    Dialog(onDismissRequest = onDismiss) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp,
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -90,22 +89,15 @@ fun MediaDownloadDialog(
                             .convertAudioFormats(innerTubeAudioFormats)
                     }
 
-                val extractedVideoOnlyStreams = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-                val extractedMuxedStreams = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-                val videoOnlyStreams = innerTubeVideoStreams + extractedVideoOnlyStreams
-                val muxedStreams = extractedMuxedStreams
                 val effectiveAudioForDownload: List<org.schabi.newpipe.extractor.stream.AudioStream> =
-                    DownloadStreamHelpers.mergeAudioDownloadStreams(innerTubeAudioStreams, streamInfo?.audioStreams ?: emptyList())
+                    DownloadStreamPolicy.mergeAudioDownloadStreams(innerTubeAudioStreams, streamInfo?.audioStreams ?: emptyList())
 
-                val codecPriority = mapOf("vp9" to 0, "h264" to 1, "av1" to 2, "vp8" to 3, "hevc" to 4)
                 val distinctStreams =
-                    (videoOnlyStreams + muxedStreams)
-                        .distinctBy {
-                            "${VideoPlayerUtils.qualityHeightFromStream(it)}_${VideoPlayerUtils.codecKeyFromStream(it)}"
-                        }.sortedWith(
-                            compareByDescending<VideoStream> { VideoPlayerUtils.qualityHeightFromStream(it) }
-                                .thenBy { codecPriority[VideoPlayerUtils.codecKeyFromStream(it)] ?: 99 },
-                        )
+                    DownloadStreamPolicy.buildDownloadVideoStreams(
+                        innerTubeStreams = innerTubeVideoStreams,
+                        videoOnlyStreams = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
+                        muxedStreams = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
+                    )
 
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -140,12 +132,11 @@ fun MediaDownloadDialog(
                         val sizeText =
                             approxDownloadSizeLabel(streamSizes[VideoPlayerUtils.streamSizeKey(qualityHeight, codecKey)])
 
-                        // Resolution badge
                         val resBadge =
                             when {
-                                qualityHeight >= 2160 -> "4K"
-                                qualityHeight >= 1440 -> "2K"
-                                qualityHeight >= 1080 -> "HD"
+                                qualityHeight >= 2160 -> R.string.filter_4k to MaterialTheme.colorScheme.tertiary
+                                qualityHeight >= 1440 -> R.string.quality_badge_2k to MaterialTheme.colorScheme.secondary
+                                qualityHeight >= 1080 -> R.string.filter_hd to MaterialTheme.colorScheme.primary
                                 else -> null
                             }
 
@@ -157,7 +148,7 @@ fun MediaDownloadDialog(
                                     var audioUrl: String? = null
                                     if (stream.isVideoOnly) {
                                         val compatibleAudio =
-                                            DownloadStreamHelpers.pickCompatibleAudioForVideo(
+                                            DownloadStreamPolicy.pickCompatibleAudioForVideo(
                                                 videoCodecKey = codecKey,
                                                 allAudio = effectiveAudioForDownload,
                                                 preferredLang = preferredLang,
@@ -194,8 +185,8 @@ fun MediaDownloadDialog(
                                         ).show()
                                 }
                             },
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
@@ -221,19 +212,14 @@ fun MediaDownloadDialog(
                                 }
 
                                 if (resBadge != null) {
+                                    val (badgeLabel, badgeColor) = resBadge
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Surface(
-                                        color =
-                                            when (resBadge) {
-                                                "4K" -> MaterialTheme.colorScheme.tertiary
-                                                "2K" -> MaterialTheme.colorScheme.secondary
-                                                else -> MaterialTheme.colorScheme.primary
-                                            },
-                                        shape = RoundedCornerShape(4.dp),
+                                        color = badgeColor,
+                                        shape = MaterialTheme.shapes.extraSmall,
                                     ) {
                                         Text(
-                                            text = resBadge,
-                                            color = MaterialTheme.colorScheme.surface,
+                                            text = stringResource(badgeLabel),
                                             style = MaterialTheme.typography.labelSmall,
                                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                             fontWeight = FontWeight.Bold,
@@ -252,7 +238,7 @@ fun MediaDownloadDialog(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Audio Only",
+                                text = stringResource(R.string.ui_audio_only),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -261,13 +247,13 @@ fun MediaDownloadDialog(
                         }
 
                         items(audioStreams) { audioStream ->
-                            val bitrate = DownloadStreamHelpers.audioBitrateKbps(audioStream)
+                            val bitrate = DownloadStreamPolicy.audioBitrateKbps(audioStream)
+                            val bitrateLabel = "$bitrate${stringResource(R.string.kbps)}"
                             val audioFormat =
-                                DownloadStreamHelpers.audioFormatLabel(audioStream, stringResource(R.string.audio_format_unknown))
-                            val audioUrl = audioStream.getContent().takeIf { it.isNotBlank() }
-                            val languageLabel = DownloadStreamHelpers.audioLanguageLabel(audioStream)
+                                DownloadStreamPolicy.audioFormatLabel(audioStream, stringResource(R.string.audio_format_unknown))
+                            val languageLabel = DownloadStreamPolicy.audioLanguageLabel(audioStream)
                             val trackTypeLabel =
-                                DownloadStreamHelpers.audioTrackTypeLabel(
+                                DownloadStreamPolicy.audioTrackTypeLabel(
                                     stream = audioStream,
                                     originalLabel = stringResource(R.string.audio_track_original),
                                     dubbedLabel = stringResource(R.string.audio_track_dubbed),
@@ -276,16 +262,7 @@ fun MediaDownloadDialog(
                             Surface(
                                 onClick = {
                                     onDismiss()
-                                    if (audioUrl != null) {
-                                        io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
-                                            context = context,
-                                            video = video,
-                                            url = audioUrl,
-                                            quality = "${bitrate}kbps",
-                                            audioOnly = true,
-                                            audioExtension = DownloadStreamHelpers.audioFileExtension(audioStream),
-                                            audioMimeType = audioStream.format?.mimeType,
-                                        )
+                                    if (startAudioOnlyDownload(context, video, audioStream)) {
                                         Toast
                                             .makeText(
                                                 context,
@@ -294,8 +271,8 @@ fun MediaDownloadDialog(
                                             ).show()
                                     }
                                 },
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                                shape = MaterialTheme.shapes.large,
+                                color = MaterialTheme.colorScheme.secondaryContainer,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Row(
@@ -310,7 +287,7 @@ fun MediaDownloadDialog(
                                             Modifier
                                                 .size(40.dp)
                                                 .background(
-                                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f),
+                                                    MaterialTheme.colorScheme.secondary,
                                                     CircleShape,
                                                 ),
                                         contentAlignment = Alignment.Center,
@@ -318,7 +295,7 @@ fun MediaDownloadDialog(
                                         Icon(
                                             imageVector = Icons.Rounded.GraphicEq,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.tertiary,
+                                            tint = MaterialTheme.colorScheme.onSecondary,
                                             modifier = Modifier.size(20.dp),
                                         )
                                     }
@@ -327,16 +304,15 @@ fun MediaDownloadDialog(
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "$audioFormat ${bitrate}kbps",
+                                            text = "$audioFormat $bitrateLabel",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                         Text(
                                             text =
                                                 listOfNotNull(languageLabel, trackTypeLabel, stringResource(R.string.ui_audio_only))
-                                                    .joinToString(" • "),
+                                                    .joinToString(stringResource(R.string.list_separator_dot)),
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }
@@ -379,7 +355,7 @@ private suspend fun trySabrDownloadFromDialog(
             io.github.aedev.flow.data.video.downloader.FlowDownloadService.startSabrDownload(
                 context = context,
                 video = video,
-                quality = "best",
+                quality = context.getString(R.string.download_quality_best),
                 sabrStreamingUrl = sabrInfo.streamingUrl,
                 audioItag = sabrInfo.audioItag,
                 audioLmt = sabrInfo.audioLmt,

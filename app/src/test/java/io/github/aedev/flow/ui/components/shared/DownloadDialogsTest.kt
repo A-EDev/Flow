@@ -18,6 +18,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.ui.screens.player.fakeAudioFormats
 import io.github.aedev.flow.ui.screens.player.fakeVideo
@@ -103,9 +104,7 @@ class DownloadDialogsTest {
 
         rule.onNodeWithText(context.getString(R.string.download_video)).assertExists()
         assertThat(renderedHeights()).containsExactly(1080, 720)
-        // "Audio Only" is a hardcoded literal at VideoPlayerDialogs.kt:309 rather than a string
-        // resource; pinned as-is so its move into strings.xml is an explicit change.
-        rule.onNodeWithText("Audio Only").assertExists()
+        rule.onNodeWithText(context.getString(R.string.ui_audio_only)).assertExists()
     }
 
     @Test
@@ -135,13 +134,13 @@ class DownloadDialogsTest {
         rule.waitForIdle()
 
         val merged =
-            DownloadStreamHelpers.mergeAudioDownloadStreams(
+            DownloadStreamPolicy.mergeAudioDownloadStreams(
                 InnerTubeStreamBridge.convertAudioFormats(fakeAudioFormats()),
                 emptyList(),
             )
         val expected =
             listOf("h264", "vp9").map { codec ->
-                DownloadStreamHelpers.pickCompatibleAudioForVideo(codec, merged, "")?.getContent()
+                DownloadStreamPolicy.pickCompatibleAudioForVideo(codec, merged, "")?.getContent()
             }
         assertThat(expected.filterNotNull()).hasSize(2)
         assertThat(expected[0]).isNotEqualTo(expected[1])
