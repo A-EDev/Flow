@@ -12,6 +12,7 @@ import io.github.aedev.flow.innertube.models.MediaInfo
 import io.github.aedev.flow.innertube.models.MusicCarouselShelfRenderer
 import io.github.aedev.flow.innertube.models.MusicShelfRenderer
 import io.github.aedev.flow.innertube.models.PlaylistItem
+import io.github.aedev.flow.innertube.models.ReturnYouTubeDislikeResponse
 import io.github.aedev.flow.innertube.models.Run
 import io.github.aedev.flow.innertube.models.Runs
 import io.github.aedev.flow.innertube.models.SearchSuggestions
@@ -2744,6 +2745,11 @@ object YouTube {
     suspend fun getMediaInfo(videoId: String): Result<MediaInfo> =
         runCatching {
             return innerTube.getMediaInfo(videoId)
+        }
+
+    suspend fun returnYouTubeDislike(videoId: String): Result<ReturnYouTubeDislikeResponse> =
+        runCatching {
+            innerTube.returnYouTubeDislike(videoId).body<ReturnYouTubeDislikeResponse>()
         }
 
     @JvmInline

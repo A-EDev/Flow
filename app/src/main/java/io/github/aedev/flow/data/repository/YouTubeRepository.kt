@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
+import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -21,8 +22,10 @@ import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.newPipeContentCountry
 import io.github.aedev.flow.utils.newPipeLocalization
 import io.github.aedev.flow.utils.parseToTimestamp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -54,6 +57,11 @@ class YouTubeRepository
         private val channelReelIndex: ChannelReelIndex,
     ) {
         private val service = ServiceList.YouTube
+
+        private val returnYouTubeDislikeCoalescer =
+            InFlightRequestCoalescer<String, ReturnYouTubeDislikeCounts?>(
+                CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            )
 
         // Cache for channel avatar URLs to avoid redundant network calls
         private val channelAvatarCache = LruCache<String, String>(300)
@@ -1194,6 +1202,25 @@ class YouTubeRepository
                     .distinctBy { it.id }
             } catch (e: Exception) {
                 emptyList()
+            }
+
+        /** Like and dislike counts from the Return YouTube Dislike archive. */
+        data class ReturnYouTubeDislikeCounts(
+            val likes: Long?,
+            val dislikes: Long?,
+        )
+
+        /**
+         * One request per video id: the player asks for this from both the stream load and the live
+         * metadata refresh, and both want the same response.
+         */
+        suspend fun returnYouTubeDislikeCounts(videoId: String): ReturnYouTubeDislikeCounts? =
+            returnYouTubeDislikeCoalescer.run(videoId) {
+                val response = YouTube.returnYouTubeDislike(videoId).getOrNull() ?: return@run null
+                ReturnYouTubeDislikeCounts(
+                    likes = response.likes?.toLong()?.takeIf { it >= 0L },
+                    dislikes = response.dislikes?.toLong(),
+                )
             }
 
         data class LiveWatchMetadata(

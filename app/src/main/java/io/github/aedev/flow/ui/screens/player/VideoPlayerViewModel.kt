@@ -1289,7 +1289,9 @@ class VideoPlayerViewModel
 
                         viewModelScope.launch(networkDispatcher) {
                             if (playerPreferences.rytdEnabled.first()) {
-                                withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }?.let { dislikeCount ->
+                                withTimeoutOrNull(5000L) {
+                                    repository.returnYouTubeDislikeCounts(videoId)
+                                }?.dislikes?.let { dislikeCount ->
                                     if (isPlaybackLoadCurrent(loadToken) &&
                                         (_uiState.value.cachedVideo?.id == videoId || _uiState.value.streamInfo?.id == videoId)
                                     ) {
@@ -2723,7 +2725,7 @@ class VideoPlayerViewModel
 
                 val likes =
                     if (playerPreferences.rytdEnabled.first()) {
-                        withTimeoutOrNull(5000L) { fetchReturnYouTubeLikes(videoId) }
+                        withTimeoutOrNull(5000L) { repository.returnYouTubeDislikeCounts(videoId) }?.likes
                     } else {
                         null
                     }
@@ -3465,49 +3467,4 @@ class VideoPlayerViewModel
         fun toggleStableVolume(isEnabled: Boolean) {
             playerManager.toggleStableVolume(isEnabled)
         }
-
-        private suspend fun fetchReturnYouTubeDislike(videoId: String): Long? =
-            kotlinx.coroutines.withContext(ioDispatcher) {
-                try {
-                    val url = java.net.URL("https://returnyoutubedislikeapi.com/votes?videoId=$videoId")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.requestMethod = "GET"
-                    connection.connectTimeout = 5000
-                    connection.readTimeout = 5000
-                    connection.connect()
-
-                    if (connection.responseCode == 200) {
-                        val response = connection.inputStream.bufferedReader().use { it.readText() }
-                        val json = org.json.JSONObject(response)
-                        json.getLong("dislikes")
-                    } else {
-                        null
-                    }
-                } catch (e: Exception) {
-                    // Log.e("VideoPlayerViewModel", "Failed to fetch dislikes", e)
-                    null
-                }
-            }
-
-        private suspend fun fetchReturnYouTubeLikes(videoId: String): Long? =
-            kotlinx.coroutines.withContext(ioDispatcher) {
-                try {
-                    val url = java.net.URL("https://returnyoutubedislikeapi.com/votes?videoId=$videoId")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.requestMethod = "GET"
-                    connection.connectTimeout = 5000
-                    connection.readTimeout = 5000
-                    connection.connect()
-
-                    if (connection.responseCode == 200) {
-                        val response = connection.inputStream.bufferedReader().use { it.readText() }
-                        val likes = org.json.JSONObject(response).optLong("likes", -1L)
-                        likes.takeIf { it >= 0L }
-                    } else {
-                        null
-                    }
-                } catch (e: Exception) {
-                    null
-                }
-            }
     }
