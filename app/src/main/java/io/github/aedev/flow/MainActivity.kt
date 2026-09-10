@@ -51,6 +51,7 @@ import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.tv.FlowTvApp
+import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import io.github.aedev.flow.updater.ApkUpdateHelper
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
@@ -346,97 +347,99 @@ class MainActivity : ComponentActivity() {
 
                 // Date preferences: five DataStore flows used to be opened per video card,
                 // metadata line, info section, description sheet and info dialog.
-                ProvideDateDisplaySettings {
-                    // Card preferences and watch progress are collected once here. Cards used to
-                    // collect them individually, so a feed of ten opened ten Room observers and
-                    // fifty DataStore collectors.
-                    ProvideVideoCardState {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .semantics { testTagsAsResourceId = true },
-                        ) {
-                            // 1. MAIN APP (Home/NavHost)
-                            // This loads *behind* the splash screen immediately.
-                            // By the time splash fades, this is ready.
-                            val deeplinkVideoId by this@MainActivity.deeplinkVideoId
-                            val isDeeplinkShort by this@MainActivity.isDeeplinkShort
-                            val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
-                            val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
+                ProvideWindowSizeClass {
+                    ProvideDateDisplaySettings {
+                        // Card preferences and watch progress are collected once here. Cards used to
+                        // collect them individually, so a feed of ten opened ten Room observers and
+                        // fifty DataStore collectors.
+                        ProvideVideoCardState {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .semantics { testTagsAsResourceId = true },
+                            ) {
+                                // 1. MAIN APP (Home/NavHost)
+                                // This loads *behind* the splash screen immediately.
+                                // By the time splash fades, this is ready.
+                                val deeplinkVideoId by this@MainActivity.deeplinkVideoId
+                                val isDeeplinkShort by this@MainActivity.isDeeplinkShort
+                                val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
+                                val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
 
-                            if (appUiRoot == AppUiRoot.TV) {
-                                FlowTvApp(
-                                    deeplinkVideoId = deeplinkVideoId,
-                                    isShort = isDeeplinkShort,
-                                    onDeeplinkConsumed = { consumeDeeplink() },
-                                )
-                            } else {
-                                ProvideChannelGroupLabels {
-                                    FlowApp(
-                                        currentTheme = themeMode,
-                                        themeVariant = themeVariant,
-                                        customThemePalettes = customThemePalettes,
-                                        systemLightThemeMode = systemLightThemeMode,
-                                        systemDarkThemeMode = systemDarkThemeMode,
-                                        systemDarkThemeVariant = systemDarkThemeVariant,
-                                        onThemeChange = { newTheme ->
-                                            themeMode = newTheme
-                                            scope.launch {
-                                                dataManager.setThemeMode(newTheme)
-                                            }
-                                        },
-                                        onThemeVariantChange = { variant ->
-                                            themeVariant = variant
-                                            scope.launch {
-                                                dataManager.setThemeVariant(variant)
-                                            }
-                                        },
-                                        onCustomThemePalettesChange = { palettes ->
-                                            customThemePalettes = palettes
-                                            scope.launch {
-                                                dataManager.setCustomThemePalettes(palettes)
-                                            }
-                                        },
-                                        onSystemLightThemeChange = { newTheme ->
-                                            systemLightThemeMode = newTheme
-                                            scope.launch {
-                                                dataManager.setSystemLightThemeMode(newTheme)
-                                            }
-                                        },
-                                        onSystemDarkThemeChange = { newTheme ->
-                                            systemDarkThemeMode = newTheme
-                                            scope.launch {
-                                                dataManager.setSystemDarkThemeMode(newTheme)
-                                            }
-                                        },
-                                        onSystemDarkThemeVariantChange = { variant ->
-                                            systemDarkThemeVariant = variant
-                                            scope.launch {
-                                                dataManager.setSystemDarkThemeVariant(variant)
-                                            }
-                                        },
+                                if (appUiRoot == AppUiRoot.TV) {
+                                    FlowTvApp(
                                         deeplinkVideoId = deeplinkVideoId,
                                         isShort = isDeeplinkShort,
-                                        openMusicPlayerRequest = openMusicPlayerRequest,
-                                        onDeeplinkConsumed = {
-                                            consumeDeeplink()
-                                        },
-                                        pendingWidgetRoute = pendingWidgetRoute,
-                                        onWidgetRouteConsumed = {
-                                            _pendingWidgetRoute.value = null
+                                        onDeeplinkConsumed = { consumeDeeplink() },
+                                    )
+                                } else {
+                                    ProvideChannelGroupLabels {
+                                        FlowApp(
+                                            currentTheme = themeMode,
+                                            themeVariant = themeVariant,
+                                            customThemePalettes = customThemePalettes,
+                                            systemLightThemeMode = systemLightThemeMode,
+                                            systemDarkThemeMode = systemDarkThemeMode,
+                                            systemDarkThemeVariant = systemDarkThemeVariant,
+                                            onThemeChange = { newTheme ->
+                                                themeMode = newTheme
+                                                scope.launch {
+                                                    dataManager.setThemeMode(newTheme)
+                                                }
+                                            },
+                                            onThemeVariantChange = { variant ->
+                                                themeVariant = variant
+                                                scope.launch {
+                                                    dataManager.setThemeVariant(variant)
+                                                }
+                                            },
+                                            onCustomThemePalettesChange = { palettes ->
+                                                customThemePalettes = palettes
+                                                scope.launch {
+                                                    dataManager.setCustomThemePalettes(palettes)
+                                                }
+                                            },
+                                            onSystemLightThemeChange = { newTheme ->
+                                                systemLightThemeMode = newTheme
+                                                scope.launch {
+                                                    dataManager.setSystemLightThemeMode(newTheme)
+                                                }
+                                            },
+                                            onSystemDarkThemeChange = { newTheme ->
+                                                systemDarkThemeMode = newTheme
+                                                scope.launch {
+                                                    dataManager.setSystemDarkThemeMode(newTheme)
+                                                }
+                                            },
+                                            onSystemDarkThemeVariantChange = { variant ->
+                                                systemDarkThemeVariant = variant
+                                                scope.launch {
+                                                    dataManager.setSystemDarkThemeVariant(variant)
+                                                }
+                                            },
+                                            deeplinkVideoId = deeplinkVideoId,
+                                            isShort = isDeeplinkShort,
+                                            openMusicPlayerRequest = openMusicPlayerRequest,
+                                            onDeeplinkConsumed = {
+                                                consumeDeeplink()
+                                            },
+                                            pendingWidgetRoute = pendingWidgetRoute,
+                                            onWidgetRouteConsumed = {
+                                                _pendingWidgetRoute.value = null
+                                            },
+                                        )
+                                    }
+                                }
+
+                                // 2. THE SPLASH SCREEN (Z-Index Top)
+                                if (showSplash) {
+                                    io.github.aedev.flow.ui.components.FlowSplashScreen(
+                                        onAnimationFinished = {
+                                            showSplash = false
                                         },
                                     )
                                 }
-                            }
-
-                            // 2. THE SPLASH SCREEN (Z-Index Top)
-                            if (showSplash) {
-                                io.github.aedev.flow.ui.components.FlowSplashScreen(
-                                    onAnimationFinished = {
-                                        showSplash = false
-                                    },
-                                )
                             }
                         }
                     }

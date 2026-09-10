@@ -213,6 +213,8 @@ dependencies {
     // --- Lifecycle & Architecture ---
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.window)
+    implementation(libs.androidx.window.core)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
     // --- Layouts ---
