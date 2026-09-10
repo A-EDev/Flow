@@ -6,8 +6,6 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
@@ -1343,7 +1341,7 @@ class VideoPlayerViewModel
                         if (isOfflineAvailable) {
                             Log.d("VideoPlayerViewModel", "Found offline video at ${localFile?.absolutePath}")
                             val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
-                            val offlineSegments = deserializeSponsorBlockSegments(sbJson)
+                            val offlineSegments = sponsorBlockRepository.parseSegments(sbJson)
                             ensureActive()
                             if (!isPlaybackLoadCurrent(loadToken)) return@launch
                             val localPath = offlineLocalPath
@@ -1622,13 +1620,16 @@ class VideoPlayerViewModel
                                     if (localFilePath != null) {
                                         val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
                                         if (sbJson != null) {
-                                            deserializeSponsorBlockSegments(sbJson)
+                                            sponsorBlockRepository.parseSegments(sbJson)
                                         } else {
                                             viewModelScope.launch(networkDispatcher) {
                                                 try {
                                                     val segments = sponsorBlockRepository.getSegments(videoId)
                                                     if (segments.isNotEmpty()) {
-                                                        videoDownloadManager.saveSponsorBlockData(videoId, Gson().toJson(segments))
+                                                        videoDownloadManager.saveSponsorBlockData(
+                                                            videoId,
+                                                            sponsorBlockRepository.serializeSegments(segments),
+                                                        )
                                                         Log.d(
                                                             "VideoPlayerViewModel",
                                                             "Backfilled ${segments.size} SB segments for $videoId",
@@ -1839,7 +1840,7 @@ class VideoPlayerViewModel
                                                 errorHint = null,
                                                 relatedVideos = relatedVideos,
                                                 localFilePath = localFile?.absolutePath,
-                                                offlineSponsorBlockSegments = deserializeSponsorBlockSegments(sbJson),
+                                                offlineSponsorBlockSegments = sponsorBlockRepository.parseSegments(sbJson),
                                                 isUpcoming = false,
                                                 upcomingReleaseTimeMs = null,
                                             )
@@ -1904,7 +1905,10 @@ class VideoPlayerViewModel
                                 prepareLocalMediaForPlayback(
                                     videoId = videoId,
                                     localFilePath = localPath,
-                                    offlineSegments = deserializeSponsorBlockSegments(videoDownloadManager.getSponsorBlockData(videoId)),
+                                    offlineSegments =
+                                        sponsorBlockRepository.parseSegments(
+                                            videoDownloadManager.getSponsorBlockData(videoId),
+                                        ),
                                     savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
                                     loadToken = loadToken,
                                 )
@@ -1934,7 +1938,10 @@ class VideoPlayerViewModel
                                 prepareLocalMediaForPlayback(
                                     videoId = videoId,
                                     localFilePath = localPath,
-                                    offlineSegments = deserializeSponsorBlockSegments(videoDownloadManager.getSponsorBlockData(videoId)),
+                                    offlineSegments =
+                                        sponsorBlockRepository.parseSegments(
+                                            videoDownloadManager.getSponsorBlockData(videoId),
+                                        ),
                                     savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
                                     loadToken = loadToken,
                                 )
@@ -1948,7 +1955,10 @@ class VideoPlayerViewModel
                                     }.first()
 
                             if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
-                                val offlineSegments = deserializeSponsorBlockSegments(videoDownloadManager.getSponsorBlockData(videoId))
+                                val offlineSegments =
+                                    sponsorBlockRepository.parseSegments(
+                                        videoDownloadManager.getSponsorBlockData(videoId),
+                                    )
                                 _uiState.update {
                                     it.copy(
                                         streamInfo = null,
@@ -3433,18 +3443,6 @@ class VideoPlayerViewModel
                 } ?: VideoQuality.AUTO
 
             return Triple(playableVideoStream, safeAudio, actualQuality)
-        }
-
-        /** Deserialize a JSON string into a list of SponsorBlock segments; returns null on failure. */
-        private fun deserializeSponsorBlockSegments(json: String?): List<SponsorBlockSegment>? {
-            if (json.isNullOrBlank()) return null
-            return try {
-                val type = object : TypeToken<List<SponsorBlockSegment>>() {}.type
-                Gson().fromJson<List<SponsorBlockSegment>>(json, type)
-            } catch (e: Exception) {
-                Log.w("VideoPlayerViewModel", "Failed to deserialize SponsorBlock segments", e)
-                null
-            }
         }
 
         private fun extractAvailableQualitiesFromStreams(videoStreams: List<VideoStream>): List<VideoQuality> {

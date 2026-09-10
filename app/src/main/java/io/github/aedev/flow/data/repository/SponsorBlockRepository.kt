@@ -1,8 +1,8 @@
 package io.github.aedev.flow.data.repository
 
-import io.github.aedev.flow.data.model.SponsorBlockSegment
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,79 +15,108 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class SponsorBlockRepository @Inject constructor() {
+class SponsorBlockRepository
+    @Inject
+    constructor() {
+        private val client: OkHttpClient
+            get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
+        private val gson = Gson()
+        private val segmentListType = object : TypeToken<List<SponsorBlockSegment>>() {}.type
+        private val baseUrl = "https://sponsor.ajay.app/api/skipSegments"
 
-    private val client: OkHttpClient
-        get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
-    private val gson = Gson()
-    private val baseUrl = "https://sponsor.ajay.app/api/skipSegments"
+        // Categories to fetch
+        private val categories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
 
-    // Categories to fetch
-    private val categories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
+        suspend fun getSegments(videoId: String): List<SponsorBlockSegment> =
+            withContext(Dispatchers.IO) {
+                try {
+                    val categoriesJson = gson.toJson(categories)
+                    val encodedCategories = URLEncoder.encode(categoriesJson, "UTF-8")
+                    val url = "$baseUrl?videoID=$videoId&categories=$encodedCategories"
 
-    suspend fun getSegments(videoId: String): List<SponsorBlockSegment> = withContext(Dispatchers.IO) {
-        try {
-            val categoriesJson = gson.toJson(categories)
-            val encodedCategories = URLEncoder.encode(categoriesJson, "UTF-8")
-            val url = "$baseUrl?videoID=$videoId&categories=$encodedCategories"
+                    val request =
+                        Request
+                            .Builder()
+                            .url(url)
+                            .build()
 
-            val request = Request.Builder()
-                .url(url)
-                .build()
-
-            val response = client.newCall(request).execute()
-            response.use { resp ->
-                if (resp.isSuccessful) {
-                    val responseBody = resp.body?.string() ?: return@withContext emptyList()
-                    val listType = object : TypeToken<List<SponsorBlockSegment>>() {}.type
-                    return@withContext gson.fromJson(responseBody, listType)
-                } else {
+                    val response = client.newCall(request).execute()
+                    response.use { resp ->
+                        if (resp.isSuccessful) {
+                            val responseBody = resp.body?.string() ?: return@withContext emptyList()
+                            return@withContext parseSegments(responseBody) ?: emptyList()
+                        } else {
+                            return@withContext emptyList()
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                     return@withContext emptyList()
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return@withContext emptyList()
+
+        /**
+         * Read segments back from a stored payload. Null means "nothing stored or nothing readable",
+         * which callers treat differently from an empty segment list.
+         */
+        fun parseSegments(json: String?): List<SponsorBlockSegment>? {
+            if (json.isNullOrBlank()) return null
+            return try {
+                gson.fromJson(json, segmentListType)
+            } catch (e: Exception) {
+                null
+            }
         }
+
+        /** Serialize segments for the download store, in the shape [parseSegments] reads back. */
+        fun serializeSegments(segments: List<SponsorBlockSegment>): String = gson.toJson(segments)
+
+        /**
+         * Submit a new SponsorBlock segment.
+         * Uses query parameters as required by the SponsorBlock API.
+         * @return true if the submission was accepted (HTTP 200), false otherwise.
+         */
+        suspend fun submitSegment(
+            videoId: String,
+            startTime: Float,
+            endTime: Float,
+            category: String,
+            userId: String,
+        ): Boolean =
+            withContext(Dispatchers.IO) {
+                try {
+                    val uuid =
+                        java.util.UUID
+                            .randomUUID()
+                            .toString()
+                            .replace("-", "")
+                    val duration = (endTime - startTime)
+                    val submitUrl =
+                        "https://sponsor.ajay.app/api/skipSegments"
+                            .toHttpUrl()
+                            .newBuilder()
+                            .addQueryParameter("videoID", videoId)
+                            .addQueryParameter("startTime", startTime.toString())
+                            .addQueryParameter("endTime", endTime.toString())
+                            .addQueryParameter("category", category)
+                            .addQueryParameter("userID", userId)
+                            .addQueryParameter("userAgent", "FlowYouTube/1.0")
+                            .addQueryParameter("UUID", uuid)
+                            .addQueryParameter("duration", duration.toString())
+                            .build()
+
+                    val request =
+                        Request
+                            .Builder()
+                            .url(submitUrl)
+                            .post("".toRequestBody())
+                            .build()
+
+                    val response = client.newCall(request).execute()
+                    response.use { resp -> resp.isSuccessful }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    false
+                }
+            }
     }
-
-    /**
-     * Submit a new SponsorBlock segment.
-     * Uses query parameters as required by the SponsorBlock API.
-     * @return true if the submission was accepted (HTTP 200), false otherwise.
-     */
-    suspend fun submitSegment(
-        videoId: String,
-        startTime: Float,
-        endTime: Float,
-        category: String,
-        userId: String
-    ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val uuid = java.util.UUID.randomUUID().toString().replace("-", "")
-            val duration = (endTime - startTime)
-            val submitUrl = "https://sponsor.ajay.app/api/skipSegments".toHttpUrl()
-                .newBuilder()
-                .addQueryParameter("videoID", videoId)
-                .addQueryParameter("startTime", startTime.toString())
-                .addQueryParameter("endTime", endTime.toString())
-                .addQueryParameter("category", category)
-                .addQueryParameter("userID", userId)
-                .addQueryParameter("userAgent", "FlowYouTube/1.0")
-                .addQueryParameter("UUID", uuid)
-                .addQueryParameter("duration", duration.toString())
-                .build()
-
-            val request = Request.Builder()
-                .url(submitUrl)
-                .post("".toRequestBody())
-                .build()
-
-            val response = client.newCall(request).execute()
-            response.use { resp -> resp.isSuccessful }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
-    }
-}
