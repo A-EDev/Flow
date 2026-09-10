@@ -189,6 +189,13 @@ fun VideoPlayerHost(
         screenState = screenState,
     )
 
+    LiveChatVisibilityEffect(
+        playerSheetState = playerSheetState,
+        screenState = screenState,
+        layoutMode = playerLayoutMode,
+        viewModel = playerViewModel,
+    )
+
     // Handle Back press in Fullscreen
     BackHandler(enabled = screenState.isFullscreen) {
         screenState.isFullscreen = false

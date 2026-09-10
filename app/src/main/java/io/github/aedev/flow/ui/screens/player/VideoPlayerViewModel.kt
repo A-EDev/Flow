@@ -137,6 +137,13 @@ class VideoPlayerViewModel
                 onResult = ::applySecondaryMetadata,
             )
 
+        private val liveChat =
+            LiveChatController(
+                repository = liveChatRepository,
+                scope = viewModelScope,
+                dispatcher = networkDispatcher,
+            )
+
         // One terminal watch signal per video view; ignores repeat dispose fires.
         private var lastReportedVideoId: String? = null
 
@@ -154,8 +161,6 @@ class VideoPlayerViewModel
         private var playbackLoadToken: Long = 0L
         private var loadingVideoId: String? = null
         private var clearedUnplayableVideoId: String? = null
-        private var liveChatJob: Job? = null
-        private var liveChatVideoId: String? = null
         private var subscriptionStateJob: Job? = null
         private var subscriptionStateChannelId: String? = null
         private var likeStateJob: Job? = null
@@ -171,13 +176,6 @@ class VideoPlayerViewModel
             // signal rather than navigation noise.
             const val MIN_SKIP_SIGNAL_POSITION_MS = 10_000L
 
-            const val MAX_LIVE_CHAT_MESSAGES = 200
-            const val MAX_LIVE_CHAT_SEEN_IDS = 1500
-            const val LIVE_CHAT_RETRY_MS = 3000L
-            const val LIVE_CHAT_MAX_FAILURES = 6
-            const val LIVE_CHAT_INITIAL_BACKFILL_MESSAGES = 12
-            const val LIVE_CHAT_MIN_DRIP_MS = 90L
-            const val LIVE_CHAT_MAX_DRIP_MS = 250L
             const val SECONDARY_CONTENT_STARTUP_TIMEOUT_MS = 20_000L
         }
 
@@ -206,94 +204,12 @@ class VideoPlayerViewModel
             secondaryMetadata.cancel()
         }
 
-        fun maybeStartLiveChat(videoId: String) {
-            if (liveChatVideoId == videoId && liveChatJob?.isActive == true) return
-            stopLiveChat()
-            liveChatVideoId = videoId
-            _uiState.update { it.copy(isLiveChatLoading = true, isLiveChatAvailable = false, liveChatMessages = emptyList()) }
+        /** Arms the live chat for [videoId]; the drip loop itself waits for a visible panel. */
+        fun maybeStartLiveChat(videoId: String) = liveChat.start(videoId)
 
-            liveChatJob =
-                viewModelScope.launch(networkDispatcher) {
-                    val seed = liveChatRepository.initialContinuation(videoId)
-                    if (seed == null) {
-                        if (liveChatVideoId == videoId) {
-                            _uiState.update { it.copy(isLiveChatAvailable = false, isLiveChatLoading = false) }
-                        }
-                        return@launch
-                    }
-                    if (liveChatVideoId != videoId || !isActive) return@launch
-                    _uiState.update { it.copy(isLiveChatAvailable = true, isLiveChatLoading = false) }
+        fun stopLiveChat() = liveChat.stop()
 
-                    val seen = LinkedHashSet<String>()
-                    var continuation: String? = seed
-                    var consecutiveFailures = 0
-                    var isInitialPage = true
-                    while (isActive && continuation != null && liveChatVideoId == videoId) {
-                        val page = liveChatRepository.poll(continuation)
-                        if (page == null) {
-                            consecutiveFailures++
-                            if (consecutiveFailures >= LIVE_CHAT_MAX_FAILURES) break
-                            delay(LIVE_CHAT_RETRY_MS)
-                            continue
-                        }
-                        consecutiveFailures = 0
-
-                        val fresh = page.messages.filter { seen.add(it.id) }
-                        val visibleFresh =
-                            if (isInitialPage) {
-                                isInitialPage = false
-                                fresh.takeLast(LIVE_CHAT_INITIAL_BACKFILL_MESSAGES)
-                            } else {
-                                fresh
-                            }
-                        while (seen.size > MAX_LIVE_CHAT_SEEN_IDS) {
-                            val it = seen.iterator()
-                            if (it.hasNext()) {
-                                it.next()
-                                it.remove()
-                            } else {
-                                break
-                            }
-                        }
-                        continuation = page.nextContinuation
-
-                        if (visibleFresh.isEmpty()) {
-                            delay(page.timeoutMs)
-                        } else {
-                            val interval =
-                                (page.timeoutMs / visibleFresh.size)
-                                    .coerceIn(LIVE_CHAT_MIN_DRIP_MS, LIVE_CHAT_MAX_DRIP_MS)
-                            var consumed = 0L
-                            for (msg in visibleFresh) {
-                                if (!isActive || liveChatVideoId != videoId) break
-                                appendLiveChatMessage(msg)
-                                delay(interval)
-                                consumed += interval
-                            }
-                            if (consumed < page.timeoutMs) delay(page.timeoutMs - consumed)
-                        }
-                    }
-                }
-        }
-
-        private fun appendLiveChatMessage(message: io.github.aedev.flow.data.model.LiveChatMessage) {
-            _uiState.update { state ->
-                val combined = state.liveChatMessages + message
-                val trimmed =
-                    if (combined.size > MAX_LIVE_CHAT_MESSAGES) {
-                        combined.takeLast(MAX_LIVE_CHAT_MESSAGES)
-                    } else {
-                        combined
-                    }
-                state.copy(liveChatMessages = trimmed)
-            }
-        }
-
-        fun stopLiveChat() {
-            liveChatJob?.cancel()
-            liveChatJob = null
-            liveChatVideoId = null
-        }
+        fun setLiveChatPanelVisible(visible: Boolean) = liveChat.setPanelVisible(visible)
 
         override fun onCleared() {
             super.onCleared()
@@ -322,6 +238,17 @@ class VideoPlayerViewModel
             viewModelScope.launch {
                 playerPreferences.shortsContentEnabled.collect { shortsContentEnabled = it }
             }
+
+            combine(liveChat.messages, liveChat.isLoading, liveChat.isAvailable, ::Triple)
+                .onEach { (messages, isLoading, isAvailable) ->
+                    _uiState.update {
+                        it.copy(
+                            liveChatMessages = messages,
+                            isLiveChatLoading = isLoading,
+                            isLiveChatAvailable = isAvailable,
+                        )
+                    }
+                }.launchIn(viewModelScope)
 
             // Re-fetch streams whenever an expired URL is detected (HTTP 403/410 "data changed")
             viewModelScope.launch {

@@ -16,7 +16,9 @@ import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.motion.EXPANDED_SURFACES_MOUNT_FRACTION
 import io.github.aedev.flow.ui.components.videoplayer.motion.EXPANDED_SURFACES_UNMOUNT_FRACTION
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 
 /** Collapsing the sheet, or leaving fullscreen, drops every surface the expanded player owns. */
@@ -41,6 +43,30 @@ internal fun PlayerSheetCollapseSyncEffects(
         screenState.dismissMediaSheets()
         screenState.exitDragOffsetY = 0f
         screenState.exitDragProgress = 0f
+    }
+}
+
+/**
+ * Live chat is a poll loop, so it only runs while a surface is actually showing it: the sheet or
+ * side panel the user raised, or the wide layout's detail column. The expanded player keeps those
+ * surfaces composed once opened, so composition alone is not evidence anyone is watching.
+ */
+@Composable
+internal fun LiveChatVisibilityEffect(
+    playerSheetState: PlayerDraggableState,
+    screenState: PlayerScreenState,
+    layoutMode: PlayerLayoutMode,
+    viewModel: VideoPlayerViewModel,
+) {
+    LaunchedEffect(viewModel, layoutMode) {
+        snapshotFlow {
+            screenState.activeSheet is PlayerSheet.LiveChat ||
+                (
+                    layoutMode == PlayerLayoutMode.WIDE &&
+                        screenState.showLiveChatPanel &&
+                        playerSheetState.currentValue == PlayerSheetValue.Expanded
+                )
+        }.collect(viewModel::setLiveChatPanelVisible)
     }
 }
 
