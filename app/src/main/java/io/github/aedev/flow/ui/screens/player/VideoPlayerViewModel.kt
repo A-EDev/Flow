@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.*
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.model.Comment
@@ -82,8 +83,7 @@ class VideoPlayerViewModel
         @ApplicationContext private val context: Context,
         private val repository: YouTubeRepository,
         private val viewHistory: ViewHistory,
-        private val subscriptionRepository: SubscriptionRepository,
-        private val likedVideosRepository: LikedVideosRepository,
+        private val engagement: VideoEngagementUseCase,
         private val playlistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
         private val playerPreferences: PlayerPreferences,
         private val videoDownloadManager: VideoDownloadManager,
@@ -162,10 +162,9 @@ class VideoPlayerViewModel
         private var playbackLoadToken: Long = 0L
         private var loadingVideoId: String? = null
         private var clearedUnplayableVideoId: String? = null
-        private var subscriptionStateJob: Job? = null
-        private var subscriptionStateChannelId: String? = null
-        private var likeStateJob: Job? = null
-        private var likeStateVideoId: String? = null
+        private var engagementJob: Job? = null
+        private var engagementChannelId: String? = null
+        private var engagementVideoId: String? = null
         private val streamExpiryRecovery = StreamExpiryRecoveryController()
 
         private companion object {
@@ -1870,31 +1869,8 @@ class VideoPlayerViewModel
             channelThumbnail: String,
         ) {
             viewModelScope.launch {
-                val isSubscribed = subscriptionRepository.isSubscribed(channelId).first()
-                if (isSubscribed) {
-                    subscriptionRepository.unsubscribe(channelId)
-                    _uiState.value = _uiState.value.copy(isSubscribed = false)
-                } else {
-                    subscriptionRepository.subscribe(
-                        ChannelSubscription(
-                            channelId = channelId,
-                            channelName = channelName,
-                            channelThumbnail = channelThumbnail,
-                        ),
-                    )
-                    _uiState.value = _uiState.value.copy(isSubscribed = true)
-                }
-                runCatching {
-                    FlowNeuroEngine.onChannelSubscriptionChanged(
-                        context,
-                        channelId,
-                        channelName,
-                        subscribed = !isSubscribed,
-                    )
-                }.onFailure { Log.w("VideoPlayerViewModel", "Failed to record subscription signal", it) }
-                if (!isSubscribed) {
-                    // Newly subscribed: learn the channel's declared keyword tags.
-                    runCatching { repository.learnChannelTags(context, channelId) }
+                engagement.toggleSubscription(channelId, channelName, channelThumbnail) { isSubscribed ->
+                    _uiState.value = _uiState.value.copy(isSubscribed = isSubscribed)
                 }
             }
         }
@@ -1904,7 +1880,7 @@ class VideoPlayerViewModel
             enabled: Boolean,
         ) {
             viewModelScope.launch {
-                subscriptionRepository.updateNotificationState(channelId, enabled)
+                engagement.setNotificationEnabled(channelId, enabled)
                 _uiState.value = _uiState.value.copy(isNotificationsEnabled = enabled)
             }
         }
@@ -1938,52 +1914,35 @@ class VideoPlayerViewModel
             channelId: String = "",
         ) {
             viewModelScope.launch {
-                likedVideosRepository.likeVideo(
-                    LikedVideoInfo(
-                        videoId = videoId,
+                val liked =
+                    Video(
+                        id = videoId,
                         title = title,
-                        thumbnail = thumbnail,
                         channelName = channelName,
-                    ),
-                )
-                _uiState.value = _uiState.value.copy(likeState = "LIKED")
-                try {
-                    val video =
-                        resolveRichVideo(videoId) ?: Video(
-                            id = videoId,
-                            title = title,
-                            channelName = channelName,
-                            channelId = channelId,
-                            thumbnailUrl = thumbnail,
-                            duration = 0,
-                            viewCount = 0,
-                            uploadDate = "",
-                        )
-                    FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.LIKED)
-                } catch (e: Exception) {
-                    Log.w("VideoPlayerViewModel", "Failed to record like signal", e)
-                }
+                        channelId = channelId,
+                        thumbnailUrl = thumbnail,
+                        duration = 0,
+                        viewCount = 0,
+                        uploadDate = "",
+                    )
+                engagement.like(
+                    video = liked,
+                    signalVideo = resolveRichVideo(videoId) ?: liked,
+                ) { _uiState.value = _uiState.value.copy(likeState = "LIKED") }
             }
         }
 
         fun dislikeVideo(videoId: String) {
             viewModelScope.launch {
-                likedVideosRepository.dislikeVideo(videoId)
-                _uiState.value = _uiState.value.copy(likeState = "DISLIKED")
-                try {
-                    val video = resolveRichVideo(videoId)
-                    if (video != null) {
-                        FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.DISLIKED)
-                    }
-                } catch (e: Exception) {
-                    Log.w("VideoPlayerViewModel", "Failed to record dislike", e)
+                engagement.dislike(videoId, signalVideo = resolveRichVideo(videoId)) {
+                    _uiState.value = _uiState.value.copy(likeState = "DISLIKED")
                 }
             }
         }
 
         fun removeLikeState(videoId: String) {
             viewModelScope.launch {
-                likedVideosRepository.removeLikeState(videoId)
+                engagement.removeLike(videoId)
                 _uiState.value = _uiState.value.copy(likeState = null)
             }
         }
@@ -1992,35 +1951,22 @@ class VideoPlayerViewModel
             channelId: String,
             videoId: String,
         ) {
-            if (subscriptionStateChannelId != channelId || subscriptionStateJob?.isActive != true) {
-                subscriptionStateJob?.cancel()
-                subscriptionStateChannelId = channelId
-                subscriptionStateJob =
-                    viewModelScope.launch {
-                        launch {
-                            subscriptionRepository.isSubscribed(channelId).collect { isSubscribed ->
-                                _uiState.update { it.copy(isSubscribed = isSubscribed) }
-                            }
-                        }
-                        launch {
-                            subscriptionRepository.getSubscription(channelId).collect { subscription ->
-                                _uiState.update {
-                                    it.copy(isNotificationsEnabled = subscription?.isNotificationEnabled ?: false)
-                                }
-                            }
+            if (engagementChannelId == channelId && engagementVideoId == videoId && engagementJob?.isActive == true) return
+            engagementJob?.cancel()
+            engagementChannelId = channelId
+            engagementVideoId = videoId
+            engagementJob =
+                viewModelScope.launch {
+                    engagement.engagement(videoId = videoId, channelId = channelId).collect { state ->
+                        _uiState.update {
+                            it.copy(
+                                isSubscribed = state.isSubscribed,
+                                isNotificationsEnabled = state.isNotificationEnabled,
+                                likeState = state.likeState,
+                            )
                         }
                     }
-            }
-            if (likeStateVideoId != videoId || likeStateJob?.isActive != true) {
-                likeStateJob?.cancel()
-                likeStateVideoId = videoId
-                likeStateJob =
-                    viewModelScope.launch {
-                        likedVideosRepository.getLikeState(videoId).collect { likeState ->
-                            _uiState.update { it.copy(likeState = likeState) }
-                        }
-                    }
-            }
+                }
         }
 
         fun toggleSubtitles(enabled: Boolean) {

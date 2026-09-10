@@ -7,10 +7,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.LikedVideosRepository
+import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
-import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toVideo
@@ -36,7 +35,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -59,8 +57,7 @@ class ShortsViewModel
         @ApplicationContext private val context: Context,
         private val repository: YouTubeRepository,
         private val shortsRepository: ShortsRepository,
-        private val likedVideosRepository: LikedVideosRepository,
-        private val subscriptionRepository: SubscriptionRepository,
+        private val engagement: VideoEngagementUseCase,
         private val playlistRepository: PlaylistRepository,
         private val viewHistory: ViewHistory,
         private val queueFactory: ShortsQueueLoaderFactory,
@@ -132,8 +129,8 @@ class ShortsViewModel
          * past — a few hundred of them after a long session, every one waking on every write.
          */
         fun isVideoLikedState(videoId: String): StateFlow<Boolean> =
-            likedVideosRepository
-                .getLikeState(videoId)
+            engagement
+                .likeState(videoId)
                 .map { it == "LIKED" }
                 .stateIn(
                     scope = viewModelScope,
@@ -147,8 +144,8 @@ class ShortsViewModel
          * Same lifetime rule as [isVideoLikedState].
          */
         fun isChannelSubscribedState(channelId: String): StateFlow<Boolean> =
-            subscriptionRepository
-                .isSubscribed(channelId)
+            engagement
+                .subscriptionState(channelId)
                 .stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5_000),
@@ -313,21 +310,17 @@ class ShortsViewModel
         suspend fun getInnerTubeDownloadFormats(videoId: String) = shortsRepository.getInnerTubeDownloadFormats(videoId)
 
         // USER ACTIONS
+
+        /**
+         * Liking a short carries no learning signal: the deliberate "more like this" action is
+         * what feeds the engine, and firing on the like too would double-count it.
+         */
         suspend fun toggleLike(short: ShortVideo) {
             val video = short.toVideo()
-            val isLiked = likedVideosRepository.getLikeState(video.id).first() == "LIKED"
-
-            if (isLiked) {
-                likedVideosRepository.removeLikeState(video.id)
+            if (engagement.likeState(video.id).first() == "LIKED") {
+                engagement.removeLike(video.id)
             } else {
-                likedVideosRepository.likeVideo(
-                    io.github.aedev.flow.data.local.LikedVideoInfo(
-                        videoId = video.id,
-                        title = video.title,
-                        thumbnail = video.thumbnailUrl,
-                        channelName = video.channelName,
-                    ),
-                )
+                engagement.like(video)
             }
         }
 
@@ -335,33 +328,7 @@ class ShortsViewModel
             channelId: String,
             channelName: String,
             channelThumbnail: String,
-        ) {
-            val isSubscribed = subscriptionRepository.isSubscribed(channelId).first()
-
-            if (isSubscribed) {
-                subscriptionRepository.unsubscribe(channelId)
-            } else {
-                subscriptionRepository.subscribe(
-                    io.github.aedev.flow.data.local.ChannelSubscription(
-                        channelId = channelId,
-                        channelName = channelName,
-                        channelThumbnail = channelThumbnail,
-                    ),
-                )
-            }
-            runCatching {
-                FlowNeuroEngine.onChannelSubscriptionChanged(
-                    context,
-                    channelId,
-                    channelName,
-                    subscribed = !isSubscribed,
-                )
-            }
-            if (!isSubscribed) {
-                // Newly subscribed: learn the channel's declared keyword tags.
-                runCatching { repository.learnChannelTags(context, channelId) }
-            }
-        }
+        ) = engagement.toggleSubscription(channelId, channelName, channelThumbnail)
 
         fun toggleSaveShort(short: ShortVideo) {
             viewModelScope.launch(PerformanceDispatcher.diskIO) {

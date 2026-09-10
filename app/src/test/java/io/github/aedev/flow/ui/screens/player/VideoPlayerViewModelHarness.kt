@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui.screens.player
 
 import android.content.Context
+import io.github.aedev.flow.data.engagement.VideoEngagementSignals
+import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.HomeFeedCacheRepository
 import io.github.aedev.flow.data.local.LikedVideosRepository
@@ -67,6 +69,19 @@ internal class VideoPlayerViewModelHarness(
     val liveChatRepository: LiveChatRepository = mockk(relaxed = true)
     val homeFeedCacheRepository: HomeFeedCacheRepository = mockk(relaxed = true)
     val playerManager: EnhancedPlayerManager = mockk(relaxed = true)
+
+    /**
+     * The real use case over the mocked repositories: every engagement assertion in the suite is
+     * written against [subscriptionRepository]/[likedVideosRepository], so the seam under test
+     * stays the repository call, not the use case.
+     */
+    val engagement: VideoEngagementUseCase by lazy {
+        VideoEngagementUseCase(
+            subscriptionRepository = subscriptionRepository,
+            likedVideosRepository = likedVideosRepository,
+            signals = VideoEngagementSignals(context, repository),
+        )
+    }
 
     val playerState = MutableStateFlow(EnhancedPlayerState())
     val streamExpiredEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -160,8 +175,7 @@ internal class VideoPlayerViewModelHarness(
             context = context,
             repository = repository,
             viewHistory = viewHistory,
-            subscriptionRepository = subscriptionRepository,
-            likedVideosRepository = likedVideosRepository,
+            engagement = engagement,
             playlistRepository = playlistRepository,
             playerPreferences = playerPreferences,
             videoDownloadManager = videoDownloadManager,

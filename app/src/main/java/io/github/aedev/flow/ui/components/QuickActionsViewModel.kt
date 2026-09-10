@@ -7,9 +7,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.ChannelSubscription
+import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.PlaylistRepository
-import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -78,10 +77,9 @@ class QuickActionsViewModel
         private val playlistRepository: PlaylistRepository,
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
         private val videoDownloadManager: VideoDownloadManager,
+        private val engagement: VideoEngagementUseCase,
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
-        private val subscriptionRepository = SubscriptionRepository.getInstance(context)
-
         val watchLaterIds =
             playlistRepository
                 .getWatchLaterIdsFlow()
@@ -106,7 +104,7 @@ class QuickActionsViewModel
 
         fun loadSubscriptionState(channelId: String) {
             viewModelScope.launch {
-                subscriptionRepository.isSubscribed(channelId).collect { subscribed ->
+                engagement.subscriptionState(channelId).collect { subscribed ->
                     if (subscribed) {
                         _subscribedChannelIds.update { it + channelId }
                     } else {
@@ -123,41 +121,36 @@ class QuickActionsViewModel
         ) {
             viewModelScope.launch {
                 try {
-                    val isCurrentlySubscribed = _subscribedChannelIds.value.contains(channelId)
-                    if (isCurrentlySubscribed) {
-                        subscriptionRepository.unsubscribe(channelId)
-                        _subscribedChannelIds.update { it - channelId }
-                        Toast.makeText(context, context.getString(R.string.toast_unsubscribed_from, channelName), Toast.LENGTH_SHORT).show()
-                    } else {
-                        val resolvedThumbnail =
+                    val subscribe = !_subscribedChannelIds.value.contains(channelId)
+                    val resolvedThumbnail =
+                        if (!subscribe) {
+                            channelThumbnail
+                        } else {
                             channelThumbnail
                                 .takeUnless { ThumbnailUrlResolver.isYoutubeVideoThumbnail(it) }
                                 ?.takeIf { it.isNotBlank() }
                                 ?: withContext(Dispatchers.IO) {
                                     repository.fetchChannelAvatarById(channelId)
                                 }
-                        subscriptionRepository.subscribe(
-                            ChannelSubscription(
-                                channelId = channelId,
-                                channelName = channelName,
-                                channelThumbnail = resolvedThumbnail,
-                                subscribedAt = System.currentTimeMillis(),
-                            ),
-                        )
-                        _subscribedChannelIds.update { it + channelId }
-                        Toast.makeText(context, context.getString(R.string.toast_subscribed_to, channelName), Toast.LENGTH_SHORT).show()
-                    }
-                    runCatching {
-                        FlowNeuroEngine.onChannelSubscriptionChanged(
-                            context,
-                            channelId,
-                            channelName,
-                            subscribed = !isCurrentlySubscribed,
-                        )
-                    }
-                    if (!isCurrentlySubscribed) {
-                        // Newly subscribed: learn the channel's declared keyword tags.
-                        runCatching { repository.learnChannelTags(context, channelId) }
+                        }
+                    engagement.applySubscription(
+                        channelId = channelId,
+                        channelName = channelName,
+                        channelThumbnail = resolvedThumbnail,
+                        subscribed = subscribe,
+                    ) { subscribed ->
+                        if (subscribed) {
+                            _subscribedChannelIds.update { it + channelId }
+                            Toast.makeText(context, context.getString(R.string.toast_subscribed_to, channelName), Toast.LENGTH_SHORT).show()
+                        } else {
+                            _subscribedChannelIds.update { it - channelId }
+                            Toast
+                                .makeText(
+                                    context,
+                                    context.getString(R.string.toast_unsubscribed_from, channelName),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                        }
                     }
                 } catch (e: Exception) {
                     Toast
