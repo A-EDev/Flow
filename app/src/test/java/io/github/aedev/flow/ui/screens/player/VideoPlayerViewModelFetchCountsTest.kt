@@ -329,7 +329,7 @@ class VideoPlayerViewModelFetchCountsTest {
         }
 
     @Test
-    fun `loadComments launches a second fetch for the same id while the first is in flight`() =
+    fun `loadComments drops a second request for the same id while the first is in flight`() =
         runTest {
             val viewModel = newViewModel()
             viewModel.playVideo(video("vid_a"))
@@ -356,7 +356,7 @@ class VideoPlayerViewModelFetchCountsTest {
 
             viewModel.loadComments("vid_a")
             runCurrent()
-            coVerify(exactly = 2) { harness.repository.getComments("vid_a") }
+            coVerify(exactly = 1) { harness.repository.getComments("vid_a") }
             assertThat(viewModel.isLoadingComments.value).isTrue()
 
             gate.complete(Unit)

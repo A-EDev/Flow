@@ -9,14 +9,14 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.comments.CommentsPager
+import io.github.aedev.flow.data.comments.CommentsPlaybackState
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.*
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.model.distinctByNonBlankKey
-import io.github.aedev.flow.data.model.mergeDistinctByNonBlankKey
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
@@ -31,7 +31,6 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.MiniPlayerExpansionState
-import io.github.aedev.flow.player.PlaybackStartupPolicy
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.VideoErrorMapper
@@ -100,19 +99,24 @@ class VideoPlayerViewModel
         private val _uiState = MutableStateFlow(VideoPlayerUiState())
         val uiState: StateFlow<VideoPlayerUiState> = _uiState.asStateFlow()
 
-        private val _commentsState = MutableStateFlow<List<io.github.aedev.flow.data.model.Comment>>(emptyList())
-        val commentsState: StateFlow<List<io.github.aedev.flow.data.model.Comment>> = _commentsState.asStateFlow()
+        private val comments =
+            CommentsPager(
+                repository = repository,
+                scope = viewModelScope,
+                playbackState =
+                    uiState.map {
+                        CommentsPlaybackState(
+                            isPlaybackLoading = it.isLoading,
+                            currentVideoId = it.cachedVideo?.id ?: it.streamInfo?.id,
+                        )
+                    },
+                isCurrentVideo = { videoId -> _uiState.value.cachedVideo?.id == videoId },
+            )
 
-        private val _isLoadingComments = MutableStateFlow(false)
-        val isLoadingComments: StateFlow<Boolean> = _isLoadingComments.asStateFlow()
-
-        private var commentsNextPage: org.schabi.newpipe.extractor.Page? = null
-
-        private val _hasMoreComments = MutableStateFlow(false)
-        val hasMoreComments: StateFlow<Boolean> = _hasMoreComments.asStateFlow()
-
-        private val _isLoadingMoreComments = MutableStateFlow(false)
-        val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
+        val commentsState: StateFlow<List<Comment>> = comments.comments
+        val isLoadingComments: StateFlow<Boolean> = comments.isLoading
+        val hasMoreComments: StateFlow<Boolean> = comments.hasMore
+        val isLoadingMoreComments: StateFlow<Boolean> = comments.isLoadingMore
 
         private val navigationHistory = PlayerNavigationHistory()
 
@@ -166,10 +170,6 @@ class VideoPlayerViewModel
         private var engagementChannelId: String? = null
         private var engagementVideoId: String? = null
         private val streamExpiryRecovery = StreamExpiryRecoveryController()
-
-        private companion object {
-            const val SECONDARY_CONTENT_STARTUP_TIMEOUT_MS = 20_000L
-        }
 
         private val _canGoPrevious = MutableStateFlow(false)
         val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
@@ -722,11 +722,7 @@ class VideoPlayerViewModel
             navigationHistory.clear()
             _canGoPrevious.value = false
 
-            _commentsState.value = emptyList()
-            _isLoadingComments.value = false
-            commentsNextPage = null
-            _hasMoreComments.value = false
-            _isLoadingMoreComments.value = false
+            comments.clear()
         }
 
         fun startBackgroundPlayback() {
@@ -2002,117 +1998,22 @@ class VideoPlayerViewModel
 
         fun loadComments(videoId: String) {
             if (isLocalMediaId(videoId)) {
-                _commentsState.value = emptyList()
-                _isLoadingComments.value = false
-                _hasMoreComments.value = false
+                comments.clear()
                 return
             }
-            viewModelScope.launch {
-                _isLoadingComments.value = true
-                _commentsState.value = emptyList()
-                commentsNextPage = null
-                _hasMoreComments.value = false
-                try {
-                    withTimeoutOrNull(SECONDARY_CONTENT_STARTUP_TIMEOUT_MS) {
-                        uiState.first { state ->
-                            !PlaybackStartupPolicy.shouldDelaySecondaryContent(
-                                isPlaybackLoading = state.isLoading,
-                                currentVideoId = state.cachedVideo?.id ?: state.streamInfo?.id,
-                                requestedVideoId = videoId,
-                            )
-                        }
-                    }
-                    if (_uiState.value.cachedVideo?.id != videoId) return@launch
-                    val (comments, nextPage) = repository.getComments(videoId)
-                    if (_uiState.value.cachedVideo?.id != videoId) return@launch
-                    _commentsState.value = comments.distinctByNonBlankKey(Comment::id)
-                    commentsNextPage = nextPage
-                    _hasMoreComments.value = nextPage != null
-                } catch (e: Exception) {
-                    Log.e("VideoPlayerViewModel", "Error loading comments", e)
-                } finally {
-                    _isLoadingComments.value = false
-                }
-            }
+            comments.load(videoId)
         }
 
-        fun loadMoreComments(videoId: String) {
-            val nextPage = commentsNextPage ?: return
-            if (_isLoadingMoreComments.value) return
-            viewModelScope.launch {
-                _isLoadingMoreComments.value = true
-                try {
-                    val (newComments, newNextPage) = repository.getMoreComments(videoId, nextPage)
-                    _commentsState.value =
-                        _commentsState.value.mergeDistinctByNonBlankKey(
-                            newComments,
-                            Comment::id,
-                        )
-                    commentsNextPage = newNextPage
-                    _hasMoreComments.value = newNextPage != null
-                } catch (e: Exception) {
-                    Log.e("VideoPlayerViewModel", "Error loading more comments", e)
-                } finally {
-                    _isLoadingMoreComments.value = false
-                }
-            }
-        }
+        fun loadMoreComments(videoId: String) = comments.loadMore(videoId)
 
-        fun loadCommentReplies(comment: io.github.aedev.flow.data.model.Comment) {
+        fun loadCommentReplies(comment: Comment) {
             val videoId = _uiState.value.streamInfo?.id ?: return
-            val repliesPage = comment.repliesPage ?: return
-
-            viewModelScope.launch {
-                try {
-                    val url = "https://www.youtube.com/watch?v=$videoId"
-                    val (replies, nextPage) = repository.getCommentReplies(url, repliesPage)
-
-                    // Update the comment in the list
-                    _commentsState.value =
-                        _commentsState.value.map { c ->
-                            if (c.id == comment.id) {
-                                c.copy(
-                                    replies = replies.distinctByNonBlankKey(Comment::id),
-                                    repliesPage = nextPage,
-                                )
-                            } else {
-                                c
-                            }
-                        }
-                } catch (e: Exception) {
-                    Log.e("VideoPlayerViewModel", "Error loading replies", e)
-                }
-            }
+            comments.loadReplies(videoId, comment)
         }
 
-        fun loadMoreCommentReplies(comment: io.github.aedev.flow.data.model.Comment) {
+        fun loadMoreCommentReplies(comment: Comment) {
             val videoId = _uiState.value.streamInfo?.id ?: return
-            val repliesPage = comment.repliesPage ?: return
-
-            viewModelScope.launch {
-                try {
-                    val url = "https://www.youtube.com/watch?v=$videoId"
-                    val (replies, nextPage) = repository.getCommentReplies(url, repliesPage)
-
-                    _commentsState.value =
-                        _commentsState.value.map { currentComment ->
-                            if (currentComment.id == comment.id) {
-                                currentComment.copy(
-                                    replies =
-                                        currentComment.replies.mergeDistinctByNonBlankKey(
-                                            replies,
-                                            Comment::id,
-                                        ),
-                                    repliesPage = nextPage,
-                                )
-                            } else {
-                                currentComment
-                            }
-                        }
-                } catch (e: Exception) {
-                    Log.e("VideoPlayerViewModel", "Error loading more replies", e)
-                }
-            }
+            comments.loadMoreReplies(videoId, comment)
         }
 
         fun toggleSkipSilence(isEnabled: Boolean) {

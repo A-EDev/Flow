@@ -7,10 +7,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.comments.CommentsPager
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -35,7 +37,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
 import javax.inject.Inject
@@ -67,11 +68,15 @@ class ShortsViewModel
 
         private var queue: ShortsQueueController? = null
 
-        private val _commentsState = MutableStateFlow<List<io.github.aedev.flow.data.model.Comment>>(emptyList())
-        val commentsState: StateFlow<List<io.github.aedev.flow.data.model.Comment>> = _commentsState.asStateFlow()
+        private val comments =
+            CommentsPager(
+                repository = repository,
+                scope = viewModelScope,
+                fetchTimeoutMs = COMMENTS_FETCH_TIMEOUT_MS,
+            )
 
-        private val _isLoadingComments = MutableStateFlow(false)
-        val isLoadingComments: StateFlow<Boolean> = _isLoadingComments.asStateFlow()
+        val commentsState: StateFlow<List<Comment>> = comments.comments
+        val isLoadingComments: StateFlow<Boolean> = comments.isLoading
 
         private val savedShortIds = MutableStateFlow<Set<String>>(emptySet())
 
@@ -442,48 +447,11 @@ class ShortsViewModel
         }
 
         // COMMENTS
-        fun loadComments(videoId: String) {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _isLoadingComments.value = true
-                _commentsState.value = emptyList()
-                try {
-                    val result =
-                        withTimeoutOrNull(10_000L) {
-                            repository.getComments(videoId)
-                        }
-                    _commentsState.value = result?.first ?: emptyList()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error loading comments", e)
-                } finally {
-                    _isLoadingComments.value = false
-                }
-            }
-        }
+        fun loadComments(videoId: String) = comments.load(videoId)
 
-        fun loadCommentReplies(comment: io.github.aedev.flow.data.model.Comment) {
+        fun loadCommentReplies(comment: Comment) {
             val currentShort = _uiState.value.shorts.getOrNull(_uiState.value.currentIndex) ?: return
-            val repliesPage = comment.repliesPage ?: return
-
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                try {
-                    val url = "https://www.youtube.com/watch?v=${currentShort.id}"
-                    val (replies, nextPage) = repository.getCommentReplies(url, repliesPage)
-
-                    _commentsState.value =
-                        _commentsState.value.map { c ->
-                            if (c.id == comment.id) {
-                                c.copy(
-                                    replies = replies,
-                                    repliesPage = nextPage,
-                                )
-                            } else {
-                                c
-                            }
-                        }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error loading replies", e)
-                }
-            }
+            comments.loadReplies(currentShort.id, comment)
         }
 
         fun wantMoreLikeThis(short: ShortVideo) {
@@ -587,6 +555,8 @@ class ShortsViewModel
 
             /** How close to the end of the queue the pager gets before the next page is fetched. */
             private const val PAGE_AHEAD_THRESHOLD = 5
+
+            private const val COMMENTS_FETCH_TIMEOUT_MS = 10_000L
         }
     }
 
