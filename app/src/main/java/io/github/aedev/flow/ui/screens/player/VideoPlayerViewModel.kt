@@ -135,7 +135,6 @@ class VideoPlayerViewModel
         private var activeLoadJob: Job? = null
         private var playbackLoadToken: Long = 0L
         private var loadingVideoId: String? = null
-        private var playbackAbandonedVideoId: String? = null
         private var clearedUnplayableVideoId: String? = null
         private var channelMetadataJob: Job? = null
         private var channelMetadataVideoId: String? = null
@@ -151,12 +150,9 @@ class VideoPlayerViewModel
             java.util.concurrent.ConcurrentHashMap
                 .newKeySet<String>()
 
-        private var streamExpiryVideoId: String? = null
-        private var streamExpiryCount: Int = 0
+        private val streamExpiryRecovery = StreamExpiryRecoveryController()
 
         private companion object {
-            const val MAX_STREAM_EXPIRY_RETRIES = 3
-
             // Minimum playback before an early abandonment counts as a SKIPPED
             // signal rather than navigation noise.
             const val MIN_SKIP_SIGNAL_POSITION_MS = 10_000L
@@ -322,27 +318,18 @@ class VideoPlayerViewModel
             viewModelScope.launch {
                 playerManager.streamExpiredEvent.collect {
                     val videoId = _uiState.value.cachedVideo?.id ?: return@collect
-                    if (playbackAbandonedVideoId == videoId) {
-                        Log.d("VideoPlayerViewModel", "Ignoring stream expiry for abandoned playback $videoId")
-                        return@collect
-                    }
                     if (activeLoadJob?.isActive == true) {
                         Log.d("VideoPlayerViewModel", "Stream expiry for $videoId coalesced — a stream load is already in flight")
                         return@collect
                     }
 
-                    if (streamExpiryVideoId != videoId) {
-                        streamExpiryVideoId = videoId
-                        streamExpiryCount = 0
+                    val recovery = streamExpiryRecovery.onStreamExpired(videoId)
+                    if (recovery is StreamExpiryRecoveryController.Decision.Ignored) {
+                        Log.d("VideoPlayerViewModel", "Ignoring stream expiry for abandoned playback $videoId")
+                        return@collect
                     }
-                    streamExpiryCount++
-
-                    if (streamExpiryCount > MAX_STREAM_EXPIRY_RETRIES) {
-                        Log.e(
-                            "VideoPlayerViewModel",
-                            "Stream expiry retry limit ($MAX_STREAM_EXPIRY_RETRIES) reached for $videoId — giving up",
-                        )
-                        playbackAbandonedVideoId = videoId
+                    if (recovery is StreamExpiryRecoveryController.Decision.GiveUp) {
+                        Log.e("VideoPlayerViewModel", "Stream expiry retry limit reached for $videoId — giving up")
                         playerPreferences.markVideoUnplayable(videoId)
                         cancelActivePlaybackLoad(invalidateToken = true)
                         playerManager.getPlayer()?.let { p ->
@@ -358,11 +345,12 @@ class VideoPlayerViewModel
                         }
                         return@collect
                     }
+                    val reload = recovery as StreamExpiryRecoveryController.Decision.Reload
 
                     Log.w(
                         "VideoPlayerViewModel",
                         "Stream expired — re-fetching streams for $videoId " +
-                            "(attempt $streamExpiryCount/$MAX_STREAM_EXPIRY_RETRIES)",
+                            "(attempt ${reload.attempt}/${reload.limit})",
                     )
 
                     var recoveryPositionMs = 0L
@@ -390,7 +378,7 @@ class VideoPlayerViewModel
                         player.clearMediaItems()
                     }
 
-                    if (streamExpiryCount >= 2) {
+                    if (reload.evictCache) {
                         try {
                             playerManager.clearCacheForCurrentVideo()
                         } catch (e: Exception) {
@@ -412,7 +400,7 @@ class VideoPlayerViewModel
             viewModelScope.launch {
                 playerManager.playbackAbandonedEvent.collect {
                     val videoId = _uiState.value.cachedVideo?.id ?: return@collect
-                    playbackAbandonedVideoId = videoId
+                    streamExpiryRecovery.onPlaybackAbandoned(videoId)
                     playerPreferences.markVideoUnplayable(videoId)
                     cancelActivePlaybackLoad(invalidateToken = true)
                     Log.w("VideoPlayerViewModel", "Playback abandoned for $videoId — surfacing terminal error")
@@ -710,9 +698,7 @@ class VideoPlayerViewModel
             nextPlaybackLoadToken()
             cancelActivePlaybackLoad()
 
-            playbackAbandonedVideoId = null
-            streamExpiryVideoId = null
-            streamExpiryCount = 0
+            streamExpiryRecovery.onPlaybackRequested()
 
             // Stop current playback and clear everything (including any active queue)
             playerManager.pause()
@@ -753,9 +739,7 @@ class VideoPlayerViewModel
             val loadToken = nextPlaybackLoadToken()
             cancelActivePlaybackLoad()
 
-            playbackAbandonedVideoId = null
-            streamExpiryVideoId = null
-            streamExpiryCount = 0
+            streamExpiryRecovery.onPlaybackRequested()
 
             playerManager.pause()
             playerManager.clearAll()
@@ -797,7 +781,7 @@ class VideoPlayerViewModel
         fun clearVideo() {
             nextPlaybackLoadToken()
             cancelActivePlaybackLoad()
-            playbackAbandonedVideoId = null
+            streamExpiryRecovery.onPlaybackRequested()
             playerManager.stop()
             playerManager.stopBackgroundService()
             playerManager.clearAll()
@@ -862,9 +846,7 @@ class VideoPlayerViewModel
             if (applyUpcomingState(_uiState.value.cachedVideo ?: return)) {
                 return
             }
-            playbackAbandonedVideoId = null
-            streamExpiryVideoId = null
-            streamExpiryCount = 0
+            streamExpiryRecovery.onPlaybackRequested()
             playerManager.clearCurrentVideo()
             _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
             loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
@@ -1028,9 +1010,7 @@ class VideoPlayerViewModel
                     "IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh, " +
                     "escalateToSabr=$escalateToSabr",
             )
-            if (playbackAbandonedVideoId != null && playbackAbandonedVideoId != videoId) {
-                playbackAbandonedVideoId = null
-            }
+            streamExpiryRecovery.onLoadStarted(videoId)
 
             currentState.cachedVideo
                 ?.takeIf { it.id == videoId && it.isUpcoming }
