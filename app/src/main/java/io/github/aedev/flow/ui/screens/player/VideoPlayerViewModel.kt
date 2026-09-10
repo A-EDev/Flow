@@ -6,9 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.R
-import io.github.aedev.flow.data.comments.CommentsPager
-import io.github.aedev.flow.data.comments.CommentsPlaybackState
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.*
 import io.github.aedev.flow.data.model.Comment
@@ -23,7 +20,6 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.MiniPlayerExpansionState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
-import io.github.aedev.flow.player.stream.MergedPlaybackAssembly
 import io.github.aedev.flow.player.stream.PlaybackLoadResolver
 import io.github.aedev.flow.player.stream.PlaybackResolutionRequest
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
@@ -37,7 +33,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.stream.*
 import javax.inject.Inject
 
@@ -73,19 +68,35 @@ class VideoPlayerViewModel
         private val _uiState = MutableStateFlow(VideoPlayerUiState())
         val uiState: StateFlow<VideoPlayerUiState> = _uiState.asStateFlow()
 
-        private val comments =
-            CommentsPager(
+        private val collaborators =
+            PlayerCollaborators(
+                context = context,
                 repository = repository,
+                viewHistory = viewHistory,
+                engagement = engagement,
+                playerPreferences = playerPreferences,
+                videoDownloadManager = videoDownloadManager,
+                offlineSubtitleStore = offlineSubtitleStore,
+                sponsorBlockRepository = sponsorBlockRepository,
+                liveChatRepository = liveChatRepository,
+                homeFeedCacheRepository = homeFeedCacheRepository,
+                playerManager = playerManager,
+                upcomingPremiereProbe = upcomingPremiereProbe,
+                uiState = _uiState,
                 scope = viewModelScope,
-                playbackState =
-                    uiState.map {
-                        CommentsPlaybackState(
-                            isPlaybackLoading = it.isLoading,
-                            currentVideoId = it.cachedVideo?.id ?: it.streamInfo?.id,
-                        )
-                    },
-                isCurrentVideo = { videoId -> _uiState.value.cachedVideo?.id == videoId },
+                networkDispatcher = networkDispatcher,
+                ioDispatcher = ioDispatcher,
+                isLoadCurrent = ::isPlaybackLoadCurrent,
+                shortsEnabled = { shortsContentEnabled },
             )
+
+        private val comments = collaborators.comments
+        private val secondaryMetadata = collaborators.secondaryMetadata
+        private val watchSessions = collaborators.watchSessions
+        private val liveChat = collaborators.liveChat
+        private val engagementState = collaborators.engagementState
+        private val upcomingPremiere = collaborators.upcomingPremiere
+        private val sessionApplier = collaborators.sessionApplier
 
         val commentsState: StateFlow<List<Comment>> = comments.comments
         val isLoadingComments: StateFlow<Boolean> = comments.isLoading
@@ -94,96 +105,50 @@ class VideoPlayerViewModel
 
         private val navigationHistory = PlayerNavigationHistory()
 
-        private val playbackPreparer =
-            PlaybackPreparer(
-                context = context,
-                playerManager = playerManager,
-                playerPreferences = playerPreferences,
-                offlineSubtitleStore = offlineSubtitleStore,
-            )
-
-        private val streamPreparer = PlaybackStreamPreparer()
-
-        private val secondaryMetadata =
-            PlayerSecondaryMetadataLoader(
-                repository = repository,
-                playerManager = playerManager,
-                playerPreferences = playerPreferences,
-                scope = viewModelScope,
-                networkDispatcher = networkDispatcher,
-                currentState = { _uiState.value },
-                relatedVideosFor = ::relatedVideosFor,
-                shortsEnabled = { shortsContentEnabled },
-                isPlaybackCurrent = ::isPlaybackLoadCurrent,
-                onResult = { result -> sessionApplier.applySecondary(result) },
-            )
-
-        private val watchSessions =
-            WatchSessionTracker(
-                context = context,
-                viewHistory = viewHistory,
-                repository = repository,
-                homeFeedCacheRepository = homeFeedCacheRepository,
-                scope = viewModelScope,
-                networkDispatcher = networkDispatcher,
-                shortsEnabled = { shortsContentEnabled },
-                relatedVideosFor = ::relatedVideosFor,
-                richVideoFor = { videoId -> _uiState.value.richVideoFor(videoId) },
-            )
-
-        private val liveChat =
-            LiveChatController(
-                repository = liveChatRepository,
-                scope = viewModelScope,
-                dispatcher = networkDispatcher,
-            )
-
-        private val engagementState =
-            PlayerEngagementController(
-                engagement = engagement,
-                scope = viewModelScope,
-                state = _uiState,
-                richVideoFor = { videoId -> _uiState.value.richVideoFor(videoId) },
-            )
-
-        private val upcomingPremiere =
-            UpcomingPremiereController(
-                context = context,
-                uiState = _uiState,
-                playerPreferences = playerPreferences,
-                probe = upcomingPremiereProbe,
-                scope = viewModelScope,
-                isLoadCurrent = ::isPlaybackLoadCurrent,
-            )
-
-        private val sessionApplier: PlaybackSessionApplier =
-            PlaybackSessionApplier(
-                context = context,
-                uiState = _uiState,
-                isLoadCurrent = ::isPlaybackLoadCurrent,
-                playbackPreparer = playbackPreparer,
-                streamPreparer = streamPreparer,
-                secondaryMetadata = secondaryMetadata,
-                liveChat = liveChat,
-                repository = repository,
-                viewHistory = viewHistory,
-                playerPreferences = playerPreferences,
-                sponsorBlockRepository = sponsorBlockRepository,
-                videoDownloadManager = videoDownloadManager,
-                offlineSubtitleStore = offlineSubtitleStore,
-                playerManager = playerManager,
-                scope = viewModelScope,
-                networkDispatcher = networkDispatcher,
-                ioDispatcher = ioDispatcher,
-                enterUpcoming = upcomingPremiere::enterCountdown,
-                tryEnterUpcoming = upcomingPremiere::tryEnterCountdown,
-            )
-
         private var activeLoadJob: Job? = null
         private var playbackLoadToken: Long = 0L
         private var loadingVideoId: String? = null
         private var clearedUnplayableVideoId: String? = null
-        private val streamExpiryRecovery = StreamExpiryRecoveryController()
+
+        private val recovery =
+            PlaybackRecoveryController(
+                context = context,
+                uiState = _uiState,
+                playerManager = playerManager,
+                playerPreferences = playerPreferences,
+                watchSessions = watchSessions,
+                scope = viewModelScope,
+                isLoadInFlight = { activeLoadJob?.isActive == true },
+                cancelLoad = { cancelActivePlaybackLoad(invalidateToken = true) },
+                reloadStreams = { videoId, resumePositionMs ->
+                    loadVideoInfo(
+                        videoId = videoId,
+                        isWifi = detectIsWifi(),
+                        forceRefresh = true,
+                        escalateToSabr = true,
+                        resumePositionOverrideMs = resumePositionMs,
+                    )
+                },
+            )
+
+        private val settings =
+            PlaybackSettingsController(
+                uiState = _uiState,
+                playerManager = playerManager,
+                playerPreferences = playerPreferences,
+                scope = viewModelScope,
+            )
+
+        private val presence =
+            PlaybackPresenceController(
+                uiState = _uiState,
+                playerManager = playerManager,
+                playerPreferences = playerPreferences,
+                viewHistory = viewHistory,
+                scope = viewModelScope,
+                ioDispatcher = ioDispatcher,
+                resumePlayback = ::playVideo,
+            )
 
         private val _canGoPrevious = MutableStateFlow(false)
         val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
@@ -249,112 +214,20 @@ class VideoPlayerViewModel
                     _uiState.update { it.applyLiveChat(messages, isLoading, isAvailable) }
                 }.launchIn(viewModelScope)
 
-            // Re-fetch streams whenever an expired URL is detected (HTTP 403/410 "data changed")
-            streamExpiryRecovery.collectExpiryEvents(
-                scope = viewModelScope,
-                events = playerManager.streamExpiredEvent,
-                videoIdInPlayback = { _uiState.value.cachedVideo?.id },
-                isLoadInFlight = { activeLoadJob?.isActive == true },
-                onReload = ::reloadExpiredStreams,
-                onGiveUp = ::abandonExhaustedPlayback,
-            )
-
-            playerManager.playbackAbandonedEvent
-                .onEach {
-                    _uiState.value.cachedVideo
-                        ?.id
-                        ?.let { videoId -> abandonReportedPlayback(videoId) }
-                }.launchIn(viewModelScope)
+            recovery.collectPlayerEvents()
 
             playerManager.playerState
                 .onEach(::onPlayerStateChanged)
                 .launchIn(viewModelScope)
 
-            // Restore last watched video session so the mini player appears on launch
-            viewModelScope.launch { restoreLastWatchedSession() }
+            presence.restoreLastWatchedSession()
 
             FeedInvalidationBus.events
                 .onEach { event -> _uiState.update { it.applyFeedInvalidation(event) } }
                 .launchIn(viewModelScope)
 
-            playerPreferences.autoplayEnabled
-                .distinctUntilChanged()
-                .onEach(::applyAutoplayPreference)
-                .launchIn(viewModelScope)
-
+            settings.collectAutoplayPreference()
             upcomingPremiere.collectReminderState()
-        }
-
-        private suspend fun reloadExpiredStreams(
-            videoId: String,
-            reload: StreamExpiryRecoveryController.Decision.Reload,
-        ) {
-            var recoveryPositionMs = 0L
-            playerManager.getPlayer()?.let { player ->
-                val positionMs = player.currentPosition
-                recoveryPositionMs = positionMs.coerceAtLeast(0L)
-                val durationMs =
-                    player.duration.takeIf { it > 0L }
-                        ?: ((_uiState.value.cachedVideo?.duration ?: 0) * 1000L)
-                if (positionMs > 0L && durationMs > 0L) {
-                    watchSessions.saveResumePosition(
-                        videoId = videoId,
-                        positionMs = positionMs,
-                        durationMs = durationMs,
-                        video = _uiState.value.cachedVideo,
-                    )
-                }
-                player.pause()
-                player.stop()
-                player.clearMediaItems()
-            }
-
-            if (reload.evictCache) {
-                try {
-                    playerManager.clearCacheForCurrentVideo()
-                } catch (e: Exception) {
-                    Log.w("VideoPlayerViewModel", "Cache eviction failed: ${e.message}")
-                }
-            }
-
-            _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
-            loadVideoInfo(
-                videoId = videoId,
-                isWifi = detectIsWifi(),
-                forceRefresh = true,
-                escalateToSabr = true,
-                resumePositionOverrideMs = recoveryPositionMs,
-            )
-        }
-
-        /** The expiry budget is spent: stop the player before the screen turns terminal. */
-        private suspend fun abandonExhaustedPlayback(videoId: String) {
-            playerPreferences.markVideoUnplayable(videoId)
-            cancelActivePlaybackLoad(invalidateToken = true)
-            playerManager.getPlayer()?.let { player ->
-                player.stop()
-                player.clearMediaItems()
-            }
-            surfaceTerminalStreamFailure()
-        }
-
-        /** The player itself gave up, so it needs no stopping — only the latch and the screen. */
-        private suspend fun abandonReportedPlayback(videoId: String) {
-            streamExpiryRecovery.onPlaybackAbandoned(videoId)
-            playerPreferences.markVideoUnplayable(videoId)
-            cancelActivePlaybackLoad(invalidateToken = true)
-            Log.w("VideoPlayerViewModel", "Playback abandoned for $videoId — surfacing terminal error")
-            surfaceTerminalStreamFailure()
-        }
-
-        private fun surfaceTerminalStreamFailure() {
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    error = context.getString(R.string.error_all_stream_sources_failed),
-                    errorHint = context.getString(R.string.error_playback_retry_hint),
-                )
-            }
         }
 
         private suspend fun onPlayerStateChanged(playerState: EnhancedPlayerState) {
@@ -371,74 +244,19 @@ class VideoPlayerViewModel
             val videoId = _uiState.value.foreignVideoIdNeedingLoad(playerState) ?: return
             GlobalPlayerState.currentVideo.value?.takeIf { it.id == videoId }?.let { currentVideo ->
                 _uiState.update { it.resetForVideo(currentVideo) }
-                armNotificationFor(currentVideo)
+                presence.armNotificationFor(currentVideo)
                 watchSessions.saveHistoryEntry(currentVideo)
             }
             loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
         }
 
-        /** Brings the last unfinished video back as a mini player, unless music already owns it. */
-        private suspend fun restoreLastWatchedSession() {
-            if (!playerPreferences.miniPlayerContinueWatchingEnabled.first()) return
-            if (EnhancedMusicPlayerManager.currentTrack.value != null) return
-            val lastVideo = withContext(ioDispatcher) { viewHistory.getLatestUnfinishedVideo() } ?: return
-            if (_uiState.value.cachedVideo != null) return
-            _uiState.update { it.copy(cachedVideo = lastVideo.toVideo(), isRestoredSession = true) }
-        }
+        fun resumeRestoredSession(stayMini: Boolean = false) = presence.resumeRestoredSession(stayMini)
 
-        private suspend fun applyAutoplayPreference(autoplay: Boolean) {
-            _uiState.update { it.copy(autoplayEnabled = autoplay) }
-            _uiState.value.cachedVideo?.id?.let { videoId ->
-                playerManager.setAutoplayCandidates(
-                    sourceVideoId = videoId,
-                    videos = _uiState.value.relatedVideos,
-                    enabled = autoplay,
-                )
-            }
-        }
+        fun dismissContinueWatching() = presence.dismissContinueWatching()
 
-        /** The media notification every playback start arms, with the one title fallback it uses. */
-        private fun armNotificationFor(video: Video) =
-            playerManager.startBackgroundService(
-                videoId = video.id,
-                title = video.title.ifEmpty { "Flow Player" },
-                channel = video.channelName,
-                thumbnail = video.thumbnailUrl,
-            )
+        fun ensureNotificationServiceRunning() = presence.ensureNotificationServiceRunning()
 
-        /**
-         * Called when the user interacts with the restored-session mini player (taps play
-         * or expands the sheet). Starts loading streams and transitions to active playback.
-         * @param stayMini if true, the player will keep playing in mini mode (don't auto-expand)
-         */
-        fun resumeRestoredSession(stayMini: Boolean = false) {
-            val video = _uiState.value.cachedVideo ?: return
-            if (!_uiState.value.isRestoredSession) return
-            _uiState.update {
-                it.copy(
-                    isRestoredSession = false,
-                    resumedInMiniPlayer = stayMini,
-                    isBackgroundPlaybackMode = false,
-                )
-            }
-            playVideo(video)
-        }
-
-        fun dismissContinueWatching() {
-            val videoId = _uiState.value.cachedVideo?.id ?: return
-            viewModelScope.launch {
-                viewHistory.markAsWatched(videoId)
-            }
-        }
-
-        fun ensureNotificationServiceRunning() {
-            val video = _uiState.value.cachedVideo ?: return
-            armNotificationFor(video)
-        }
-
-        fun clearResumedInMiniPlayer() {
-            _uiState.update { it.copy(resumedInMiniPlayer = false) }
-        }
+        fun clearResumedInMiniPlayer() = presence.clearResumedInMiniPlayer()
 
         fun toggleUpcomingReminder() = upcomingPremiere.toggleReminder()
 
@@ -465,7 +283,7 @@ class VideoPlayerViewModel
             val isMiniPlayerCollapsed =
                 GlobalPlayerState.miniPlayerExpansionState.value == MiniPlayerExpansionState.COLLAPSED
             if (_uiState.value.shouldReopenInsteadOfPlaying(video.id, playerManager.playerState.value, isMiniPlayerCollapsed)) {
-                showVideoPlayer()
+                presence.showVideoPlayer()
                 _expandPlayerRequest.tryEmit(Unit)
                 return
             }
@@ -477,7 +295,7 @@ class VideoPlayerViewModel
             GlobalPlayerState.setCurrentVideo(video)
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
             watchSessions.saveHistoryEntry(video)
-            armNotificationFor(video)
+            presence.armNotificationFor(video)
             if (upcomingPremiere.applyCountdown(video)) {
                 return
             }
@@ -494,7 +312,7 @@ class VideoPlayerViewModel
             _uiState.value = _uiState.value.startLocalPlaybackOf(video, contentUri)
             GlobalPlayerState.setCurrentVideo(video)
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
-            armNotificationFor(video)
+            presence.armNotificationFor(video)
 
             viewModelScope.launch {
                 sessionApplier.prepareLocalMedia(
@@ -509,7 +327,7 @@ class VideoPlayerViewModel
         /** Drops the load, the queue and the music player so this screen owns playback outright. */
         private fun takeOverPlayback() {
             cancelActivePlaybackLoad()
-            streamExpiryRecovery.onPlaybackRequested()
+            recovery.onPlaybackRequested()
             playerManager.pause()
             playerManager.clearAll()
             EnhancedMusicPlayerManager.stop()
@@ -519,7 +337,7 @@ class VideoPlayerViewModel
         fun clearVideo() {
             nextPlaybackLoadToken()
             cancelActivePlaybackLoad()
-            streamExpiryRecovery.onPlaybackRequested()
+            recovery.onPlaybackRequested()
             playerManager.stop()
             playerManager.stopBackgroundService()
             playerManager.clearAll()
@@ -535,39 +353,11 @@ class VideoPlayerViewModel
             comments.clear()
         }
 
-        fun startBackgroundPlayback() {
-            val state = _uiState.value
-            val video = state.cachedVideo ?: GlobalPlayerState.currentVideo.value ?: return
-            playerManager.startBackgroundService(
-                videoId = video.id,
-                title = video.title,
-                channel = video.channelName,
-                thumbnail = video.thumbnailUrl,
-            )
-            GlobalPlayerState.setExplicitBackgroundPlaybackActive(true)
-            playerManager.continueVideoPlaybackInBackground()
-            _uiState.update {
-                it.copy(
-                    shouldDismissPlayer = true,
-                    isBackgroundPlaybackMode = true,
-                )
-            }
-        }
+        fun startBackgroundPlayback() = presence.startBackgroundPlayback()
 
-        fun resetDismissState() {
-            _uiState.update { it.copy(shouldDismissPlayer = false) }
-        }
+        fun resetDismissState() = presence.resetDismissState()
 
-        fun showVideoPlayer() {
-            GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
-            playerManager.restoreVideoOutput()
-            _uiState.update {
-                it.copy(
-                    shouldDismissPlayer = false,
-                    isBackgroundPlaybackMode = false,
-                )
-            }
-        }
+        fun showVideoPlayer() = presence.showVideoPlayer()
 
         fun retryLoadVideo() {
             val videoId = _uiState.value.cachedVideo?.id ?: return
@@ -575,7 +365,7 @@ class VideoPlayerViewModel
             if (upcomingPremiere.applyCountdown(_uiState.value.cachedVideo ?: return)) {
                 return
             }
-            streamExpiryRecovery.onPlaybackRequested()
+            recovery.onPlaybackRequested()
             playerManager.clearCurrentVideo()
             _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
             loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
@@ -590,58 +380,7 @@ class VideoPlayerViewModel
                 val latest = _uiState.value
                 if (latest.blocksLatePrepare()) return@launch
                 if (playerManager.isPreparedForPlayback(videoId)) return@launch
-                armLatePrepare(videoId, latest, playbackLoadToken)
-            }
-        }
-
-        /** Re-pushes what the screen already holds when the player turns out to own no media item. */
-        private suspend fun armLatePrepare(
-            videoId: String,
-            latest: VideoPlayerUiState,
-            loadToken: Long,
-        ) {
-            when (val prepare = latest.latePrepare(videoId)) {
-                null -> {
-                    if (latest.streamInfo != null) {
-                        Log.w("VideoPlayerViewModel", "Late prepare skipped for $videoId: no playable streams in UI state")
-                    }
-                }
-
-                is LatePrepare.LocalFile -> {
-                    Log.w("VideoPlayerViewModel", "Late prepare: arming local playback for $videoId")
-                    sessionApplier.prepareLocalMedia(
-                        load = LoadContext(videoId, loadToken),
-                        localFilePath = prepare.localFilePath,
-                        offlineSegments = prepare.offlineSegments,
-                        savedPosition = prepare.savedPosition ?: viewHistory.getPlaybackPosition(videoId).first(),
-                    )
-                }
-
-                is LatePrepare.Streams -> {
-                    Log.w(
-                        "VideoPlayerViewModel",
-                        "Late prepare: arming stream playback for $videoId " +
-                            "(audio=${prepare.audioStream != null}, videos=${prepare.videoStreams.size})",
-                    )
-                    playbackPreparer.prepareMergedStreams(
-                        videoId = videoId,
-                        streamInfo = prepare.streamInfo,
-                        videoStream = prepare.videoStream,
-                        audioStream = prepare.audioStream,
-                        videoStreams = prepare.videoStreams,
-                        audioStreams = prepare.streamInfo.audioStreams,
-                        subtitles = prepare.streamInfo.subtitles ?: emptyList(),
-                        savedPosition = prepare.savedPosition ?: viewHistory.getPlaybackPosition(videoId).first(),
-                        fallbackDurationSeconds = prepare.fallbackDurationSeconds,
-                        localFilePath = prepare.localFilePath,
-                        offlineSegments = prepare.offlineSegments,
-                        hlsUrl = prepare.hlsUrl,
-                        isAdaptiveMode = prepare.isAdaptiveMode,
-                        resumeOverrideRequested = false,
-                        isCurrent = { isPlaybackLoadCurrent(loadToken) },
-                        preferredVideoCodec = playerPreferences.videoCodecPriority.first(),
-                    )
-                }
+                sessionApplier.armLatePrepare(LoadContext(videoId, playbackLoadToken), latest)
             }
         }
 
@@ -660,7 +399,7 @@ class VideoPlayerViewModel
 
             _uiState.update { it.resetForVideo(startVideo).copy(queueTitle = title) }
             watchSessions.saveHistoryEntry(startVideo)
-            armNotificationFor(startVideo)
+            presence.armNotificationFor(startVideo)
             if (upcomingPremiere.applyCountdown(startVideo, preserveQueueTitle = title)) {
                 return
             }
@@ -715,7 +454,7 @@ class VideoPlayerViewModel
                     "IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh, " +
                     "escalateToSabr=$escalateToSabr",
             )
-            streamExpiryRecovery.onLoadStarted(videoId)
+            recovery.onLoadStarted(videoId)
 
             if (upcomingPremiere.applyCachedCountdown(videoId)) return
 
@@ -767,23 +506,7 @@ class VideoPlayerViewModel
                 }
         }
 
-        fun switchQuality(quality: VideoQuality) {
-            val state = _uiState.value
-            val streamInfo = state.streamInfo ?: return
-            viewModelScope.launch {
-                val streams =
-                    MergedPlaybackAssembly.selectQualityStreams(
-                        streamInfo = streamInfo,
-                        innerTubeVideoFormats = state.innerTubeVideoFormats,
-                        innerTubeAudioFormats = state.innerTubeAudioFormats,
-                        quality = quality,
-                        preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first(),
-                        preferredCodecKey = playerPreferences.videoCodecPriority.first(),
-                    )
-
-                _uiState.value = state.applySelectedQuality(quality, streams.first, streams.second)
-            }
-        }
+        fun switchQuality(quality: VideoQuality) = settings.switchQuality(quality)
 
         private fun getPreviousVideoId(): String? =
             navigationHistory.previous()?.also {
@@ -810,12 +533,6 @@ class VideoPlayerViewModel
             isShort = isShort,
             isLocal = isLocalMediaId(videoId),
         )
-
-        private fun relatedVideosFor(videoId: String): List<Video> =
-            _uiState.value
-                .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
-                ?.relatedVideos
-                .orEmpty()
 
         fun toggleSubscription(
             channelId: String,
@@ -845,36 +562,11 @@ class VideoPlayerViewModel
             videoId: String,
         ) = engagementState.observe(channelId, videoId)
 
-        fun toggleSubtitles(enabled: Boolean) {
-            _uiState.value = _uiState.value.copy(subtitlesEnabled = enabled)
-        }
+        fun toggleSubtitles(enabled: Boolean) = settings.setSubtitlesEnabled(enabled)
 
-        fun toggleAutoplay(enabled: Boolean) {
-            viewModelScope.launch {
-                val resolvedEnabled =
-                    enabled &&
-                        !playerManager.playerState.value.isLooping
-                playerPreferences.setAutoplayEnabled(resolvedEnabled)
-                _uiState.value = _uiState.value.copy(autoplayEnabled = resolvedEnabled)
-                _uiState.value.cachedVideo?.id?.let { videoId ->
-                    playerManager.setAutoplayCandidates(
-                        sourceVideoId = videoId,
-                        videos = _uiState.value.relatedVideos,
-                        enabled = resolvedEnabled,
-                    )
-                }
-            }
-        }
+        fun toggleAutoplay(enabled: Boolean) = settings.toggleAutoplay(enabled)
 
-        fun toggleLoop(enabled: Boolean) {
-            if (enabled) {
-                viewModelScope.launch {
-                    playerPreferences.setAutoplayEnabled(false)
-                    _uiState.update { it.copy(autoplayEnabled = false) }
-                }
-            }
-            playerManager.toggleLoop(enabled)
-        }
+        fun toggleLoop(enabled: Boolean) = settings.toggleLoop(enabled)
 
         fun loadComments(videoId: String) {
             if (isLocalMediaId(videoId)) {
@@ -896,11 +588,7 @@ class VideoPlayerViewModel
             comments.loadMoreReplies(videoId, comment)
         }
 
-        fun toggleSkipSilence(isEnabled: Boolean) {
-            playerManager.toggleSkipSilence(isEnabled)
-        }
+        fun toggleSkipSilence(isEnabled: Boolean) = settings.toggleSkipSilence(isEnabled)
 
-        fun toggleStableVolume(isEnabled: Boolean) {
-            playerManager.toggleStableVolume(isEnabled)
-        }
+        fun toggleStableVolume(isEnabled: Boolean) = settings.toggleStableVolume(isEnabled)
     }

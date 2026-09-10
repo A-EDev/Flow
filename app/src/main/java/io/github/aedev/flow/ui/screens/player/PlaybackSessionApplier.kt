@@ -165,6 +165,57 @@ internal class PlaybackSessionApplier(
         )
     }
 
+    /** Re-pushes what the screen already holds when the player turns out to own no media item. */
+    suspend fun armLatePrepare(
+        load: LoadContext,
+        latest: VideoPlayerUiState,
+    ) {
+        val videoId = load.videoId
+        when (val prepare = latest.latePrepare(videoId)) {
+            null -> {
+                if (latest.streamInfo != null) {
+                    Log.w(TAG, "Late prepare skipped for $videoId: no playable streams in UI state")
+                }
+            }
+
+            is LatePrepare.LocalFile -> {
+                Log.w(TAG, "Late prepare: arming local playback for $videoId")
+                prepareLocalMedia(
+                    load = load,
+                    localFilePath = prepare.localFilePath,
+                    offlineSegments = prepare.offlineSegments,
+                    savedPosition = prepare.savedPosition ?: viewHistory.getPlaybackPosition(videoId).first(),
+                )
+            }
+
+            is LatePrepare.Streams -> {
+                Log.w(
+                    TAG,
+                    "Late prepare: arming stream playback for $videoId " +
+                        "(audio=${prepare.audioStream != null}, videos=${prepare.videoStreams.size})",
+                )
+                playbackPreparer.prepareMergedStreams(
+                    videoId = videoId,
+                    streamInfo = prepare.streamInfo,
+                    videoStream = prepare.videoStream,
+                    audioStream = prepare.audioStream,
+                    videoStreams = prepare.videoStreams,
+                    audioStreams = prepare.streamInfo.audioStreams,
+                    subtitles = prepare.streamInfo.subtitles ?: emptyList(),
+                    savedPosition = prepare.savedPosition ?: viewHistory.getPlaybackPosition(videoId).first(),
+                    fallbackDurationSeconds = prepare.fallbackDurationSeconds,
+                    localFilePath = prepare.localFilePath,
+                    offlineSegments = prepare.offlineSegments,
+                    hlsUrl = prepare.hlsUrl,
+                    isAdaptiveMode = prepare.isAdaptiveMode,
+                    resumeOverrideRequested = false,
+                    isCurrent = { isLoadCurrent(load.token) },
+                    preferredVideoCodec = playerPreferences.videoCodecPriority.first(),
+                )
+            }
+        }
+    }
+
     private fun applyPrimaryMetadata(
         load: LoadContext,
         streamInfo: StreamInfo,
