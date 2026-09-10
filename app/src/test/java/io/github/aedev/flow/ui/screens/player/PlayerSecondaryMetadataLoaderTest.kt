@@ -71,6 +71,12 @@ class PlayerSecondaryMetadataLoaderTest {
             scope = loaderScope,
             networkDispatcher = testDispatcher,
             currentState = { uiState },
+            relatedVideosFor = { videoId ->
+                uiState
+                    .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
+                    ?.relatedVideos
+                    .orEmpty()
+            },
             shortsEnabled = { shortsEnabled },
             isPlaybackCurrent = { it == currentToken },
             onResult = { results += it },

@@ -132,9 +132,23 @@ class VideoPlayerViewModel
                 scope = viewModelScope,
                 networkDispatcher = networkDispatcher,
                 currentState = { _uiState.value },
+                relatedVideosFor = ::relatedVideosFor,
                 shortsEnabled = { shortsContentEnabled },
                 isPlaybackCurrent = ::isPlaybackLoadCurrent,
                 onResult = ::applySecondaryMetadata,
+            )
+
+        private val watchSessions =
+            WatchSessionTracker(
+                context = context,
+                viewHistory = viewHistory,
+                repository = repository,
+                homeFeedCacheRepository = homeFeedCacheRepository,
+                scope = viewModelScope,
+                networkDispatcher = networkDispatcher,
+                shortsEnabled = { shortsContentEnabled },
+                relatedVideosFor = ::relatedVideosFor,
+                richVideoFor = ::resolveRichVideo,
             )
 
         private val liveChat =
@@ -144,19 +158,6 @@ class VideoPlayerViewModel
                 dispatcher = networkDispatcher,
             )
 
-        // One terminal watch signal per video view; ignores repeat dispose fires.
-        private var lastReportedVideoId: String? = null
-
-        // Tracks the max playback position of the current video so a terminal
-        // watch/skip signal can be reported when the session ends (video swap,
-        // ViewModel teardown). Fed by the periodic savePlaybackPosition calls.
-        private class WatchSessionSnapshot(
-            val video: Video,
-            var maxPositionMs: Long,
-            var durationMs: Long,
-        )
-
-        private var watchSession: WatchSessionSnapshot? = null
         private var activeLoadJob: Job? = null
         private var playbackLoadToken: Long = 0L
         private var loadingVideoId: String? = null
@@ -165,17 +166,9 @@ class VideoPlayerViewModel
         private var subscriptionStateChannelId: String? = null
         private var likeStateJob: Job? = null
         private var likeStateVideoId: String? = null
-        private val prewarmedRelatedVideoIds =
-            java.util.concurrent.ConcurrentHashMap
-                .newKeySet<String>()
-
         private val streamExpiryRecovery = StreamExpiryRecoveryController()
 
         private companion object {
-            // Minimum playback before an early abandonment counts as a SKIPPED
-            // signal rather than navigation noise.
-            const val MIN_SKIP_SIGNAL_POSITION_MS = 10_000L
-
             const val SECONDARY_CONTENT_STARTUP_TIMEOUT_MS = 20_000L
         }
 
@@ -213,8 +206,7 @@ class VideoPlayerViewModel
 
         override fun onCleared() {
             super.onCleared()
-            watchSession?.let { finalizeWatchSession(it) }
-            watchSession = null
+            watchSessions.finalizeActiveSession()
             stopLiveChat()
         }
 
@@ -298,15 +290,11 @@ class VideoPlayerViewModel
                                 ?: ((_uiState.value.cachedVideo?.duration ?: 0) * 1000L)
                         if (positionMs > 0L && durationMs > 0L) {
                             val video = _uiState.value.cachedVideo
-                            viewHistory.savePlaybackPosition(
+                            watchSessions.saveResumePosition(
                                 videoId = videoId,
-                                position = positionMs,
-                                duration = durationMs,
-                                title = video?.title.orEmpty(),
-                                thumbnailUrl = video?.thumbnailUrl.orEmpty(),
-                                channelName = video?.channelName.orEmpty(),
-                                channelId = video?.channelId.orEmpty(),
-                                isShort = video?.isShort == true,
+                                positionMs = positionMs,
+                                durationMs = durationMs,
+                                video = video,
                             )
                         }
                         player.pause()
@@ -391,7 +379,7 @@ class VideoPlayerViewModel
                                     channel = currentVideo.channelName,
                                     thumbnail = currentVideo.thumbnailUrl,
                                 )
-                                saveHistoryEntry(currentVideo)
+                                watchSessions.saveHistoryEntry(currentVideo)
                             }
                             loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
                         }
@@ -654,7 +642,7 @@ class VideoPlayerViewModel
                 )
             GlobalPlayerState.setCurrentVideo(video)
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
-            saveHistoryEntry(video)
+            watchSessions.saveHistoryEntry(video)
             playerManager.startBackgroundService(
                 videoId = video.id,
                 title = video.title.ifEmpty { "Flow Player" },
@@ -875,7 +863,7 @@ class VideoPlayerViewModel
             playerManager.setQueue(videos, startIndex, title)
 
             _uiState.update { it.resetForVideo(startVideo).copy(queueTitle = title) }
-            saveHistoryEntry(startVideo)
+            watchSessions.saveHistoryEntry(startVideo)
             playerManager.startBackgroundService(
                 videoId = startVideo.id,
                 title = startVideo.title.ifEmpty { "Flow Player" },
@@ -1849,23 +1837,6 @@ class VideoPlayerViewModel
                 _canGoPrevious.value = navigationHistory.canGoPrevious
             }
 
-        private fun saveHistoryEntry(video: Video) {
-            if (video.id.startsWith("recovered_")) return
-            viewModelScope.launch {
-                viewHistory.touchHistoryEntry(
-                    videoId = video.id,
-                    duration = if (video.duration > 0) video.duration * 1000L else 0L,
-                    title = video.title,
-                    thumbnailUrl =
-                        video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                            ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id),
-                    channelName = video.channelName,
-                    channelId = video.channelId,
-                    isShort = video.isShort,
-                )
-            }
-        }
-
         fun savePlaybackPosition(
             videoId: String,
             position: Long,
@@ -1875,151 +1846,23 @@ class VideoPlayerViewModel
             channelName: String = "",
             channelId: String = "",
             isShort: Boolean = false,
-        ) {
-            val isLocal = isLocalMediaId(videoId)
-            viewModelScope.launch {
-                viewHistory.savePlaybackPosition(
-                    videoId = videoId,
-                    position = position,
-                    duration = duration,
-                    title = title,
-                    thumbnailUrl = thumbnailUrl,
-                    channelName = channelName,
-                    channelId = channelId,
-                    isShort = isShort,
-                    isLocal = isLocal,
-                )
-            }
-            if (!isLocal && !isShort && duration > 0) {
-                trackWatchSession(videoId, position, duration, title, thumbnailUrl, channelName, channelId)
-            }
-            maybePrewarmRelatedForPlayback(
-                videoId = videoId,
-                positionMs = position,
-                durationMs = duration,
-                isShort = isShort,
-                isLocal = isLocal,
-            )
-        }
+        ) = watchSessions.savePlaybackPosition(
+            videoId = videoId,
+            positionMs = position,
+            durationMs = duration,
+            title = title,
+            thumbnailUrl = thumbnailUrl,
+            channelName = channelName,
+            channelId = channelId,
+            isShort = isShort,
+            isLocal = isLocalMediaId(videoId),
+        )
 
-        private fun maybePrewarmRelatedForPlayback(
-            videoId: String,
-            positionMs: Long,
-            durationMs: Long,
-            isShort: Boolean,
-            isLocal: Boolean,
-        ) {
-            val alreadyPrewarmed = videoId in prewarmedRelatedVideoIds
-            if (!shouldPrewarmRelatedPlayback(videoId, positionMs, durationMs, isShort, isLocal, alreadyPrewarmed)) {
-                return
-            }
-            if (!prewarmedRelatedVideoIds.add(videoId)) return
-
-            val playerRelated = relatedVideosForPrewarm(videoId)
-            viewModelScope.launch(networkDispatcher) {
-                runCatching {
-                    val related =
-                        playerRelated
-                            .ifEmpty {
-                                withTimeoutOrNull(4_000L) { repository.getRelatedCandidates(videoId) }.orEmpty()
-                            }.filter { it.id.isNotBlank() && it.id != videoId }
-                            .distinctBy { it.id }
-
-                    if (related.isEmpty()) return@runCatching
-
-                    homeFeedCacheRepository.saveRelated(videoId, related)
-                    homeFeedCacheRepository.saveReserve(
-                        related.map { video ->
-                            CachedHomeVideo(
-                                video = video,
-                                source = HomeFeedCacheRepository.SOURCE_RELATED,
-                                relatedSeedId = videoId,
-                            )
-                        },
-                    )
-                }.onFailure { error ->
-                    Log.w("VideoPlayerViewModel", "Related prewarm failed for $videoId", error)
-                }
-            }
-        }
-
-        private fun relatedVideosForPrewarm(videoId: String): List<Video> {
-            val state = _uiState.value
-            val belongsToCurrentVideo = state.streamInfo?.id == videoId || state.cachedVideo?.id == videoId
-            return if (belongsToCurrentVideo) state.relatedVideos else emptyList()
-        }
-
-        private fun trackWatchSession(
-            videoId: String,
-            positionMs: Long,
-            durationMs: Long,
-            title: String,
-            thumbnailUrl: String,
-            channelName: String,
-            channelId: String,
-        ) {
-            val session = watchSession
-            if (session != null && session.video.id == videoId) {
-                session.maxPositionMs = maxOf(session.maxPositionMs, positionMs)
-                session.durationMs = maxOf(session.durationMs, durationMs)
-                return
-            }
-            session?.let { finalizeWatchSession(it) }
-            watchSession =
-                WatchSessionSnapshot(
-                    video =
-                        Video(
-                            id = videoId,
-                            title = title,
-                            channelName = channelName,
-                            channelId = channelId,
-                            thumbnailUrl = thumbnailUrl,
-                            duration = (durationMs / 1000L).toInt(),
-                            viewCount = 0,
-                            uploadDate = "",
-                        ),
-                    maxPositionMs = positionMs,
-                    durationMs = durationMs,
-                )
-        }
-
-        // Reports the terminal watch/skip signal for a finished viewing session.
-        // Uses the rich (tags/description) video when the UI state still has it.
-        private fun finalizeWatchSession(session: WatchSessionSnapshot) {
-            val video = resolveRichVideo(session.video.id) ?: session.video
-            reportWatchProgress(video, session.maxPositionMs, session.durationMs)
-        }
-
-        private fun reportWatchProgress(
-            video: io.github.aedev.flow.data.model.Video,
-            position: Long,
-            duration: Long,
-        ) {
-            if (duration <= 0) return
-            if (isLocalMediaId(video.id)) return
-            val watchFraction = position.toDouble() / duration
-            // One terminal signal per video view; ignore repeat dispose fires.
-            if (video.id == lastReportedVideoId) return
-            // Below 20% watched: a meaningful attempt that was abandoned is a skip;
-            // an instant bounce (< 10s of playback) is navigation noise, not signal.
-            if (watchFraction < 0.20 && position < MIN_SKIP_SIGNAL_POSITION_MS) return
-
-            lastReportedVideoId = video.id
-
-            // >= 20% routes through WATCHED, whose percent-scaled learning already
-            // grades a 20-40% view as weak-positive "sampled" — no cliff needed.
-            // < 20% after a real attempt is the explicit abandonment signal.
-            val interactionType =
-                if (watchFraction >= 0.20) InteractionType.WATCHED else InteractionType.SKIPPED
-
-            // Engine-scope dispatch: survives ViewModel teardown (onCleared).
-            FlowNeuroEngine.onVideoInteractionAsync(
-                context,
-                video,
-                interactionType,
-                percentWatched = watchFraction.toFloat(),
-            )
-        }
+        private fun relatedVideosFor(videoId: String): List<Video> =
+            _uiState.value
+                .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
+                ?.relatedVideos
+                .orEmpty()
 
         fun toggleSubscription(
             channelId: String,

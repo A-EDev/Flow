@@ -75,6 +75,7 @@ internal class PlayerSecondaryMetadataLoader(
     private val scope: CoroutineScope,
     private val networkDispatcher: CoroutineDispatcher,
     private val currentState: () -> VideoPlayerUiState,
+    private val relatedVideosFor: (String) -> List<Video>,
     private val shortsEnabled: () -> Boolean,
     private val isPlaybackCurrent: (Long) -> Boolean,
     private val onResult: (SecondaryMetadata) -> Unit,
@@ -410,12 +411,6 @@ internal class PlayerSecondaryMetadataLoader(
         videos: List<Video>,
         loadToken: Long,
     ) = onResult(SecondaryMetadata.Related(videoId = videoId, loadToken = loadToken, videos = videos))
-
-    private fun relatedVideosFor(videoId: String): List<Video> =
-        currentState()
-            .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
-            ?.relatedVideos
-            .orEmpty()
 
     private suspend fun awaitPlaybackStarted(videoId: String) {
         withTimeoutOrNull(PLAYBACK_STARTED_TIMEOUT_MS) {
