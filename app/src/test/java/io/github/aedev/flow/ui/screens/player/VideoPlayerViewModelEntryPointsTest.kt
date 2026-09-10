@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.player
 
-import app.cash.turbine.Event
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -352,45 +351,5 @@ class VideoPlayerViewModelEntryPointsTest {
                 harness.playerManager.toggleSkipSilence(false)
             }
             assertThat(viewModel.uiState.value).isEqualTo(before)
-        }
-
-    @Test
-    fun `isMiniPlayer isFullscreen and metadataError are never written by any entry point`() =
-        runTest {
-            // These three fields have no writer left in the ViewModel; they are removed in Phase 4.
-            val viewModel = newViewModel()
-
-            viewModel.uiState.test {
-                viewModel.playVideo(video("vid_a"))
-                advanceUntilIdle()
-                viewModel.retryLoadVideo()
-                advanceUntilIdle()
-                harness.streamExpiredEvent.tryEmit(Unit)
-                advanceUntilIdle()
-                harness.playbackAbandonedEvent.tryEmit(Unit)
-                advanceUntilIdle()
-                viewModel.loadSubscriptionAndLikeState("ch", "vid_a")
-                viewModel.loadComments("vid_a")
-                advanceUntilIdle()
-                viewModel.playLocalVideo(video("local_1"), "content://media/1")
-                advanceUntilIdle()
-                viewModel.startBackgroundPlayback()
-                viewModel.resetDismissState()
-                viewModel.showVideoPlayer()
-                viewModel.toggleSubtitles(true)
-                viewModel.toggleAutoplay(true)
-                viewModel.toggleLoop(true)
-                viewModel.toggleSkipSilence(true)
-                viewModel.toggleStableVolume(true)
-                advanceUntilIdle()
-                viewModel.clearVideo()
-                advanceUntilIdle()
-
-                val states = cancelAndConsumeRemainingEvents().filterIsInstance<Event.Item<VideoPlayerUiState>>().map { it.value }
-                assertThat(states).isNotEmpty()
-                assertThat(states.filter { it.isMiniPlayer }).isEmpty()
-                assertThat(states.filter { it.isFullscreen }).isEmpty()
-                assertThat(states.mapNotNull { it.metadataError }).isEmpty()
-            }
         }
 }

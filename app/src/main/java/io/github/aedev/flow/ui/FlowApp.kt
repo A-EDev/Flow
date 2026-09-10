@@ -433,7 +433,7 @@ fun FlowApp(
             themeVariant = themeVariant,
             systemLightThemeMode = systemLightThemeMode,
             systemDarkThemeMode = systemDarkThemeMode,
-            isFullscreen = playerUiState.isFullscreen,
+            isFullscreen = false,
             isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.isImmersive,
             musicPlayerFollowsTheme =
                 musicPlayerBackgroundStyle == io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle.DEFAULT,

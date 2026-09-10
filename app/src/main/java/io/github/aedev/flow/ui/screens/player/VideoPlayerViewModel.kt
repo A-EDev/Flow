@@ -460,25 +460,7 @@ class VideoPlayerViewModel
                             (!_uiState.value.isRestoredSession || !hasActiveStreams)
                         ) {
                             GlobalPlayerState.currentVideo.value?.takeIf { it.id == videoId }?.let { currentVideo ->
-                                _uiState.update {
-                                    it.copy(
-                                        cachedVideo = currentVideo,
-                                        isLoading = true,
-                                        error = null,
-                                        errorHint = null,
-                                        metadataError = null,
-                                        streamInfo = null,
-                                        videoStream = null,
-                                        audioStream = null,
-                                        savedPosition = null,
-                                        relatedVideos = emptyList(),
-                                        isSubscribed = false,
-                                        likeState = null,
-                                        hlsUrl = null,
-                                        localFilePath = null,
-                                        localFileVideoId = null,
-                                    )
-                                }
+                                _uiState.update { it.resetForVideo(currentVideo) }
                                 playerManager.startBackgroundService(
                                     videoId = currentVideo.id,
                                     title = currentVideo.title.ifEmpty { "Flow Player" },
@@ -620,25 +602,8 @@ class VideoPlayerViewModel
             if (!video.isUpcoming) return false
             val releaseTimeMs = resolveUpcomingReleaseTime(video) ?: return false
             _uiState.update {
-                it.copy(
-                    cachedVideo = video,
-                    isRestoredSession = false,
-                    resumedInMiniPlayer = it.resumedInMiniPlayer,
+                it.resetForVideo(video).copy(
                     isLoading = false,
-                    error = null,
-                    errorHint = null,
-                    metadataError = null,
-                    streamInfo = null,
-                    videoStream = null,
-                    audioStream = null,
-                    streamSizes = emptyMap(),
-                    savedPosition = null,
-                    relatedVideos = emptyList(),
-                    isSubscribed = false,
-                    likeState = null,
-                    hlsUrl = null,
-                    localFilePath = null,
-                    localFileVideoId = null,
                     queueTitle = preserveQueueTitle,
                     isUpcoming = true,
                     upcomingReleaseTimeMs = releaseTimeMs,
@@ -716,7 +681,6 @@ class VideoPlayerViewModel
                     isLoading = false,
                     error = null,
                     errorHint = null,
-                    metadataError = null,
                     streamInfo = null,
                     videoStream = null,
                     audioStream = null,
@@ -797,29 +761,7 @@ class VideoPlayerViewModel
                 return
             }
 
-            _uiState.update {
-                it.copy(
-                    cachedVideo = video,
-                    isRestoredSession = false,
-                    isLoading = true,
-                    error = null,
-                    errorHint = null,
-                    metadataError = null,
-                    streamInfo = null,
-                    videoStream = null,
-                    audioStream = null,
-                    streamSizes = emptyMap(),
-                    savedPosition = null,
-                    relatedVideos = emptyList(),
-                    isSubscribed = false,
-                    likeState = null,
-                    hlsUrl = null,
-                    localFilePath = null,
-                    localFileVideoId = null,
-                    isUpcoming = false,
-                    upcomingReleaseTimeMs = null,
-                )
-            }
+            _uiState.update { it.resetForVideo(video) }
             loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
         }
 
@@ -867,28 +809,11 @@ class VideoPlayerViewModel
 
             // Cache video metadata for immediate UI display
             _uiState.value =
-                _uiState.value.copy(
-                    cachedVideo = video,
-                    isRestoredSession = false,
-                    resumedInMiniPlayer = _uiState.value.resumedInMiniPlayer,
+                _uiState.value.resetForVideo(video).copy(
                     isBackgroundPlaybackMode = false,
                     shouldDismissPlayer = false,
-                    isLoading = true,
-                    error = null,
-                    errorHint = null,
-                    metadataError = null,
-                    streamInfo = null,
-                    videoStream = null,
-                    audioStream = null,
-                    streamSizes = emptyMap(),
-                    savedPosition = null,
-                    relatedVideos = emptyList(),
                     channelAvatarUrl = video.channelThumbnailUrl.takeIf { it.isNotBlank() },
                     channelSubscriberCount = null,
-                    isSubscribed = false,
-                    likeState = null,
-                    isUpcoming = false,
-                    upcomingReleaseTimeMs = null,
                 )
             GlobalPlayerState.setCurrentVideo(video)
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
@@ -923,27 +848,12 @@ class VideoPlayerViewModel
             EnhancedMusicPlayerManager.clearCurrentTrack()
 
             _uiState.value =
-                _uiState.value.copy(
-                    cachedVideo = video,
-                    isRestoredSession = false,
+                _uiState.value.resetForVideo(video).copy(
                     isBackgroundPlaybackMode = false,
                     shouldDismissPlayer = false,
                     isLoading = false,
-                    error = null,
-                    errorHint = null,
-                    metadataError = null,
-                    streamInfo = null,
-                    videoStream = null,
-                    audioStream = null,
-                    streamSizes = emptyMap(),
-                    savedPosition = null,
-                    relatedVideos = emptyList(),
                     channelAvatarUrl = video.channelThumbnailUrl.takeIf { it.isNotBlank() },
                     channelSubscriberCount = null,
-                    isSubscribed = false,
-                    likeState = null,
-                    isUpcoming = false,
-                    upcomingReleaseTimeMs = null,
                     localFilePath = contentUri,
                     localFileVideoId = video.id,
                     offlineSponsorBlockSegments = null,
@@ -1071,7 +981,7 @@ class VideoPlayerViewModel
                         localFilePath = localFilePath,
                         offlineSegments = latest.offlineSponsorBlockSegments,
                         savedPosition =
-                            latest.savedPosition?.first()
+                            latest.savedPosition
                                 ?: viewHistory.getPlaybackPosition(videoId).first(),
                         loadToken = loadToken,
                     )
@@ -1105,7 +1015,7 @@ class VideoPlayerViewModel
                     audioStreams = streamInfo.audioStreams,
                     subtitles = streamInfo.subtitles ?: emptyList(),
                     savedPosition =
-                        latest.savedPosition?.first()
+                        latest.savedPosition
                             ?: viewHistory.getPlaybackPosition(videoId).first(),
                     localFilePath = localFilePath,
                     offlineSegments = latest.offlineSponsorBlockSegments,
@@ -1131,24 +1041,7 @@ class VideoPlayerViewModel
 
             playerManager.setQueue(videos, startIndex, title)
 
-            _uiState.update {
-                it.copy(
-                    cachedVideo = startVideo,
-                    isLoading = true,
-                    error = null,
-                    errorHint = null,
-                    metadataError = null,
-                    streamInfo = null,
-                    videoStream = null,
-                    audioStream = null,
-                    relatedVideos = emptyList(),
-                    isSubscribed = false,
-                    likeState = null,
-                    queueTitle = title,
-                    isUpcoming = false,
-                    upcomingReleaseTimeMs = null,
-                )
-            }
+            _uiState.update { it.resetForVideo(startVideo).copy(queueTitle = title) }
             saveHistoryEntry(startVideo)
             playerManager.startBackgroundService(
                 videoId = startVideo.id,
@@ -1235,7 +1128,6 @@ class VideoPlayerViewModel
                                 isLoading = false,
                                 error = null,
                                 errorHint = null,
-                                metadataError = null,
                                 streamInfo = null,
                                 videoStream = null,
                                 audioStream = null,
@@ -1278,7 +1170,6 @@ class VideoPlayerViewModel
                     isLoading = true,
                     error = null,
                     errorHint = null,
-                    metadataError = null,
                     streamInfo = null,
                     videoStream = null,
                     audioStream = null,
@@ -1763,7 +1654,6 @@ class VideoPlayerViewModel
                                     StreamProcessor.processSubtitleStreams(
                                         streamInfo.subtitles.orEmpty() + captionStreams,
                                     )
-                                val subtitles = extractSubtitles(mergedSubtitleStreams)
                                 val chapters = streamInfo.streamSegments ?: emptyList()
                                 val liveType =
                                     streamInfo.streamType == StreamType.LIVE_STREAM ||
@@ -1796,12 +1686,9 @@ class VideoPlayerViewModel
                                     )
                                 }
 
-                                // Load saved playback position
-                                val savedPosition =
-                                    resumePositionOverrideMs
-                                        ?.takeIf { it > 0L }
-                                        ?.let(::flowOf)
-                                        ?: viewHistory.getPlaybackPosition(videoId)
+                                // Resolved once for both the UI state and the playback preparation
+                                // below; the read was started in parallel with extraction.
+                                val savedPosition = savedPositionDeferred.await()
 
                                 // Autoplay preference was read in parallel with extraction
                                 val autoplay = autoplayDeferred.await()
@@ -1843,7 +1730,6 @@ class VideoPlayerViewModel
                                         audioStream = if (isUpcomingContent) null else selectedStreams.second,
                                         availableQualities = availableQualities,
                                         selectedQuality = selectedStreams.third,
-                                        subtitles = subtitles,
                                         chapters = chapters,
                                         isLoading = false,
                                         savedPosition = savedPosition,
@@ -1875,7 +1761,7 @@ class VideoPlayerViewModel
                                         videoStreams = effectiveVideoStreams,
                                         audioStreams = effectiveAudioStreams,
                                         subtitles = mergedSubtitleStreams,
-                                        savedPosition = savedPositionDeferred.await(),
+                                        savedPosition = savedPosition,
                                         localFilePath = localFilePath,
                                         offlineSegments = offlineSegments,
                                         hlsUrl = liveHlsUrl,
@@ -2281,7 +2167,6 @@ class VideoPlayerViewModel
                     isLive = true,
                     isUpcoming = false,
                     upcomingReleaseTimeMs = null,
-                    subtitles = extractSubtitles(liveCaptionStreams),
                     innerTubeVideoFormats = emptyList(),
                     innerTubeAudioFormats = emptyList(),
                 )
@@ -2748,11 +2633,10 @@ class VideoPlayerViewModel
                     audioStream = selected.second,
                     availableQualities = availableQualities,
                     selectedQuality = selected.third,
-                    subtitles = extractSubtitles(captionStreams),
                     isLoading = false,
                     error = null,
                     errorHint = null,
-                    savedPosition = flowOf(savedPositionMs),
+                    savedPosition = savedPositionMs,
                     isAdaptiveMode = isAdaptiveMode,
                     autoplayEnabled = autoplay,
                     isLive = false,
@@ -2921,9 +2805,6 @@ class VideoPlayerViewModel
                     preservePosition = startPosition.takeIf { it > 0L },
                     subtitles = offlineSubtitles,
                 )
-                if (offlineSubtitles.isNotEmpty()) {
-                    _uiState.update { it.copy(subtitles = extractSubtitles(offlineSubtitles)) }
-                }
                 applyRememberedPlaybackSpeed(isLive = false, manager = manager)
 
                 if (!isPlaybackLoadCurrent(loadToken)) return@withContext
@@ -3577,17 +3458,6 @@ class VideoPlayerViewModel
                 }.distinct() + listOf(VideoQuality.AUTO)
         }
 
-        private fun extractSubtitles(subtitleStreams: List<org.schabi.newpipe.extractor.stream.SubtitlesStream>): List<SubtitleInfo> =
-            subtitleStreams.map { subtitle ->
-                SubtitleInfo(
-                    url = subtitle.getContent() ?: "",
-                    format = subtitle.format?.mimeType ?: "text/vtt",
-                    language = subtitle.displayLanguageName ?: subtitle.languageTag,
-                    languageCode = subtitle.languageTag,
-                    isAutoGenerated = subtitle.isAutoGenerated,
-                )
-            }
-
         fun toggleSkipSilence(isEnabled: Boolean) {
             playerManager.toggleSkipSilence(isEnabled)
         }
@@ -3641,60 +3511,3 @@ class VideoPlayerViewModel
                 }
             }
     }
-
-data class VideoPlayerUiState(
-    val cachedVideo: Video? = null,
-    val streamInfo: StreamInfo? = null,
-    val relatedVideos: List<Video> = emptyList(),
-    val videoStream: VideoStream? = null,
-    val audioStream: AudioStream? = null,
-    val availableQualities: List<VideoQuality> = emptyList(),
-    val selectedQuality: VideoQuality = VideoQuality.AUTO,
-    val subtitles: List<SubtitleInfo> = emptyList(),
-    val subtitlesEnabled: Boolean = false,
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    /** Optional secondary hint shown below the primary error in the player's error panel. */
-    val errorHint: String? = null,
-    val savedPosition: kotlinx.coroutines.flow.Flow<Long>? = null,
-    val isAdaptiveMode: Boolean = false,
-    val isMiniPlayer: Boolean = false,
-    val isFullscreen: Boolean = false,
-    val isSubscribed: Boolean = false,
-    val isNotificationsEnabled: Boolean = false,
-    val likeState: String? = null,
-    val channelSubscriberCount: Long? = null,
-    val channelAvatarUrl: String? = null,
-    val chapters: List<StreamSegment> = emptyList(),
-    val autoplayEnabled: Boolean = true,
-    val streamSizes: Map<String, Long> = emptyMap(),
-    val localFilePath: String? = null,
-    val localFileVideoId: String? = null,
-    val metadataError: String? = null,
-    val dislikeCount: Long? = null,
-    val queueTitle: String? = null,
-    val hlsUrl: String? = null,
-    val shouldDismissPlayer: Boolean = false,
-    val isBackgroundPlaybackMode: Boolean = false,
-    val isRestoredSession: Boolean = false,
-    val resumedInMiniPlayer: Boolean = false,
-    val isUpcoming: Boolean = false,
-    val upcomingReleaseTimeMs: Long? = null,
-    val isUpcomingReminderSet: Boolean = false,
-    /** SponsorBlock segments loaded from local DB for offline playback. Null when streaming online. */
-    val offlineSponsorBlockSegments: List<SponsorBlockSegment>? = null,
-    val innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
-    val innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
-    val isLive: Boolean = false,
-    val isLiveChatAvailable: Boolean = false,
-    val liveChatMessages: List<io.github.aedev.flow.data.model.LiveChatMessage> = emptyList(),
-    val isLiveChatLoading: Boolean = false,
-)
-
-data class SubtitleInfo(
-    val url: String,
-    val format: String,
-    val language: String,
-    val languageCode: String,
-    val isAutoGenerated: Boolean,
-)
