@@ -12,26 +12,14 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.theme.Dimensions
+import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
+import io.github.aedev.flow.ui.utils.isExpandedWidth
+import io.github.aedev.flow.ui.utils.isMediumWidth
 
-enum class FlowWindowWidth {
-    Compact,
-    Medium,
-    Expanded,
-}
-
-private val MediumWindowWidth = 600.dp
-private val ExpandedWindowWidth = 840.dp
 private val MinLaneItemWidth = 240.dp
 private val MinHeroArtworkSize = 180.dp
 private val MaxHeroArtworkSize = 240.dp
 private const val HERO_ARTWORK_FRACTION = 0.55f
-
-fun Dp.toFlowWindowWidth(): FlowWindowWidth =
-    when {
-        this < MediumWindowWidth -> FlowWindowWidth.Compact
-        this < ExpandedWindowWidth -> FlowWindowWidth.Medium
-        else -> FlowWindowWidth.Expanded
-    }
 
 /**
  * Width available to an adaptive section, measured from the window rather than the display so
@@ -43,9 +31,6 @@ fun flowWindowWidth(): Dp {
     val width = LocalWindowInfo.current.containerSize.width
     return with(density) { width.toDp() }
 }
-
-@Composable
-fun flowWindowWidthClass(): FlowWindowWidth = flowWindowWidth().toFlowWindowWidth()
 
 /**
  * Width of one card in a horizontally scrolling lane of wide items: fills a phone with [peek] of
@@ -68,12 +53,14 @@ fun flowGridColumns(
     compact: Int,
     medium: Int,
     expanded: Int,
-): Int =
-    when (flowWindowWidthClass()) {
-        FlowWindowWidth.Compact -> compact
-        FlowWindowWidth.Medium -> medium
-        FlowWindowWidth.Expanded -> expanded
+): Int {
+    val windowSizeClass = LocalWindowSizeClass.current
+    return when {
+        windowSizeClass.isExpandedWidth -> expanded
+        windowSizeClass.isMediumWidth -> medium
+        else -> compact
     }
+}
 
 @Composable
 fun flowGridCellWidth(

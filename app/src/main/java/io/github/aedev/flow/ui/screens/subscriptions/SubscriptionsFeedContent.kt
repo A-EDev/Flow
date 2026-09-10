@@ -92,7 +92,7 @@ internal fun SubscriptionsFeedContent(
             val feedLayout = rememberFeedGridLayout(maxWidth)
             val gridSpacing = if (state.isFullWidthView) feedLayout.cardSpacing else 0.dp
             LazyVerticalGrid(
-                columns = if (state.isFullWidthView) GridCells.Fixed(feedLayout.columns) else GridCells.Fixed(1),
+                columns = if (state.isFullWidthView) feedLayout.cells else GridCells.Fixed(1),
                 state = gridState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding =

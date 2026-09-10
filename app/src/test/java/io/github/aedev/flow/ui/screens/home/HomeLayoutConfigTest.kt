@@ -6,6 +6,7 @@
 
 package io.github.aedev.flow.ui.screens.home
 
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
@@ -18,7 +19,7 @@ class HomeLayoutConfigTest {
     private fun resolve(
         width: Dp,
         preference: HomeFeedColumns = HomeFeedColumns.AUTO,
-    ) = resolveHomeLayoutConfig(feedGridLayoutFor(width), width, preference)
+    ) = resolveHomeLayoutConfig(feedGridLayoutFor(width), preference)
 
     @Test
     fun `a phone still gets one card per row on auto`() {
@@ -48,6 +49,12 @@ class HomeLayoutConfigTest {
     }
 
     @Test
+    fun `a fixed count pins the grid instead of letting it adapt`() {
+        assertThat(resolve(1400.dp, HomeFeedColumns.TWO).cells).isEqualTo(GridCells.Fixed(2))
+        assertThat(resolve(1400.dp).cells).isEqualTo(feedGridLayoutFor(1400.dp).cells)
+    }
+
+    @Test
     fun `the shorts shelf always starts on a fresh row`() {
         HomeFeedColumns.entries.forEach { preference ->
             listOf(360.dp, 600.dp, 800.dp, 1000.dp, 1400.dp).forEach { width ->
@@ -58,7 +65,7 @@ class HomeLayoutConfigTest {
     }
 
     @Test
-    fun `the shelf position is unchanged for every auto breakpoint`() {
+    fun `the shelf follows the first full row at every auto breakpoint`() {
         assertThat(resolve(360.dp).shortsShelfAfterIndex).isEqualTo(1)
         assertThat(resolve(800.dp).shortsShelfAfterIndex).isEqualTo(2)
         assertThat(resolve(1000.dp).shortsShelfAfterIndex).isEqualTo(3)
@@ -71,15 +78,5 @@ class HomeLayoutConfigTest {
 
         assertThat(config.contentPadding).isEqualTo(0.dp)
         assertThat(config.cardSpacing).isEqualTo(12.dp)
-    }
-
-    @Test
-    fun `the shimmer matches the real grid so the layout does not jump when loading ends`() {
-        HomeFeedColumns.entries.forEach { preference ->
-            listOf(360.dp, 600.dp, 1000.dp).forEach { width ->
-                val config = resolve(width, preference)
-                assertThat(config.shimmerColumns).isEqualTo(config.columns)
-            }
-        }
     }
 }

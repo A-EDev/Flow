@@ -37,7 +37,7 @@ internal fun HomeFeedShimmer(
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
-        columns = if (isListView) GridCells.Fixed(1) else GridCells.Fixed(layoutConfig.shimmerColumns),
+        columns = if (isListView) GridCells.Fixed(1) else layoutConfig.cells,
         modifier = modifier.fillMaxSize(),
         contentPadding =
             PaddingValues(
@@ -53,7 +53,7 @@ internal fun HomeFeedShimmer(
         items(SHIMMER_CARD_COUNT) {
             if (isListView) {
                 ShimmerVideoCardHorizontal()
-            } else if (layoutConfig.shimmerColumns == 1) {
+            } else if (layoutConfig.columns == 1) {
                 ShimmerVideoCardFullWidth()
             } else {
                 ShimmerGridVideoCard()

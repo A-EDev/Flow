@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,9 +32,11 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository.TrendingCategory
 import io.github.aedev.flow.ui.components.ContentFilterChip
+import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
 import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
 import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardHorizontal
@@ -50,24 +51,6 @@ private data class CategoryTab(
     val iconRes: ImageVector? = null,
     val iconResId: Int? = null,
 )
-
-private data class CategoriesLayoutConfig(
-    val columns: Int,
-    val contentPadding: Dp,
-    val cardSpacing: Dp,
-)
-
-@Composable
-private fun rememberCategoriesLayoutConfig(maxWidth: Dp): CategoriesLayoutConfig =
-    remember(maxWidth) {
-        when {
-            maxWidth < 480.dp -> CategoriesLayoutConfig(columns = 1, contentPadding = 0.dp, cardSpacing = 12.dp)
-            maxWidth < 700.dp -> CategoriesLayoutConfig(columns = 1, contentPadding = 12.dp, cardSpacing = 14.dp)
-            maxWidth < 900.dp -> CategoriesLayoutConfig(columns = 2, contentPadding = 16.dp, cardSpacing = 12.dp)
-            maxWidth < 1200.dp -> CategoriesLayoutConfig(columns = 3, contentPadding = 20.dp, cardSpacing = 14.dp)
-            else -> CategoriesLayoutConfig(columns = 4, contentPadding = 24.dp, cardSpacing = 16.dp)
-        }
-    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -160,7 +143,7 @@ fun CategoriesScreen(
                         .weight(1f)
                         .fillMaxWidth(),
             ) {
-                val layoutConfig = rememberCategoriesLayoutConfig(maxWidth)
+                val layoutConfig = rememberFeedGridLayout(maxWidth)
                 when {
                     uiState.isLoading -> {
                         ShimmerContent(isListView = uiState.isListView, layoutConfig = layoutConfig)
@@ -224,7 +207,7 @@ private fun GridContent(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
     onLoadMore: () -> Unit,
-    layoutConfig: CategoriesLayoutConfig,
+    layoutConfig: FeedGridLayout,
 ) {
     val gridState = rememberLazyGridState()
 
@@ -239,7 +222,7 @@ private fun GridContent(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(layoutConfig.columns),
+        columns = layoutConfig.cells,
         state = gridState,
         contentPadding =
             PaddingValues(
@@ -336,7 +319,7 @@ private fun ListContent(
 @Composable
 private fun ShimmerContent(
     isListView: Boolean,
-    layoutConfig: CategoriesLayoutConfig,
+    layoutConfig: FeedGridLayout,
 ) {
     if (isListView) {
         LazyColumn(
@@ -350,7 +333,7 @@ private fun ShimmerContent(
         }
     } else {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(layoutConfig.columns),
+            columns = layoutConfig.cells,
             contentPadding =
                 PaddingValues(
                     horizontal = layoutConfig.contentPadding,

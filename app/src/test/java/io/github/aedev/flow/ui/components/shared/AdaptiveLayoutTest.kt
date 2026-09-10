@@ -16,16 +16,6 @@ import org.junit.Test
  */
 class AdaptiveLayoutTest {
     @Test
-    fun windowClassesFollowTheMaterialBreakpoints() {
-        assertThat(360.dp.toFlowWindowWidth()).isEqualTo(FlowWindowWidth.Compact)
-        assertThat(599.dp.toFlowWindowWidth()).isEqualTo(FlowWindowWidth.Compact)
-        assertThat(600.dp.toFlowWindowWidth()).isEqualTo(FlowWindowWidth.Medium)
-        assertThat(839.dp.toFlowWindowWidth()).isEqualTo(FlowWindowWidth.Medium)
-        assertThat(840.dp.toFlowWindowWidth()).isEqualTo(FlowWindowWidth.Expanded)
-        assertThat(1280.dp.toFlowWindowWidth()).isEqualTo(FlowWindowWidth.Expanded)
-    }
-
-    @Test
     fun laneItemsFillAPhoneWithTheNextItemPeeking() {
         val width = flowLaneItemWidthFor(windowWidth = 360.dp, maxWidth = 360.dp, peek = 48.dp)
         assertThat(width).isEqualTo(360.dp - 24.dp - 48.dp)

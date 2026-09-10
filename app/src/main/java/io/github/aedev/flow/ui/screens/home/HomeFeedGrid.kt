@@ -43,7 +43,7 @@ internal fun HomeFeedGrid(
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
-        columns = if (isListView) GridCells.Fixed(1) else GridCells.Fixed(layoutConfig.columns),
+        columns = if (isListView) GridCells.Fixed(1) else layoutConfig.cells,
         modifier =
             modifier
                 .fillMaxSize()
