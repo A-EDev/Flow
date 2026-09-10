@@ -20,10 +20,10 @@ import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.utils.youtubeWatchUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

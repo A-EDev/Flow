@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 
 /**
  * The played video rebuilt from the loaded stream, for the surfaces that only need the extractor's

@@ -15,9 +15,9 @@ import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.motion.EXPANDED_SURFACES_MOUNT_FRACTION
 import io.github.aedev.flow.ui.components.videoplayer.motion.EXPANDED_SURFACES_UNMOUNT_FRACTION
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 
 /** Collapsing the sheet, or leaving fullscreen, drops every surface the expanded player owns. */
 @Composable

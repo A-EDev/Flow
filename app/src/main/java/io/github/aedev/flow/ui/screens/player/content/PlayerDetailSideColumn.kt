@@ -12,12 +12,12 @@ import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatPreview
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerCommentsPanelHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerLiveChatColumn
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 
 /**
  * Right-hand column of the tablet landscape player. Comments take the column over when opened so

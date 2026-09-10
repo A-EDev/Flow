@@ -14,6 +14,7 @@ import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
 import io.github.aedev.flow.player.state.SubtitleOption
 import io.github.aedev.flow.ui.components.QuickActionsViewModel
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkClass

@@ -15,7 +15,7 @@ import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.utils.DateContext
 import org.schabi.newpipe.extractor.stream.StreamType
 

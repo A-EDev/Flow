@@ -1,6 +1,4 @@
-// Declared in the parent `player` package so the 15 call sites that already import it keep working;
-// the package move is a separate step.
-package io.github.aedev.flow.ui.screens.player
+package io.github.aedev.flow.ui.screens.player.state
 
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.model.LiveChatMessage

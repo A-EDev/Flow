@@ -2,7 +2,7 @@ package io.github.aedev.flow.ui.screens.player.effects
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import org.junit.Test
 import org.schabi.newpipe.extractor.Image
 import org.schabi.newpipe.extractor.stream.StreamInfo

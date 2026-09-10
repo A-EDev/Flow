@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.screens.player.state
 
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.stream.UpcomingPremiere
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.utils.parsePremiereTimestamp
 
 /**

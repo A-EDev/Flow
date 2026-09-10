@@ -13,11 +13,11 @@ import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.settings.SettingsMenuDialog
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

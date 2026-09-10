@@ -663,7 +663,7 @@ private fun TvLiveChatPanelContent(viewModel: VideoPlayerViewModel) {
 
 @Composable
 private fun TvLiveChatMessages(
-    uiState: io.github.aedev.flow.ui.screens.player.VideoPlayerUiState,
+    uiState: io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState,
     listState: androidx.compose.foundation.lazy.LazyListState,
 ) {
     when {

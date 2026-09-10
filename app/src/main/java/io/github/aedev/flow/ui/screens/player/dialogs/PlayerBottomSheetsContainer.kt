@@ -34,9 +34,9 @@ import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.utils.DateContext
 
 @Composable

@@ -43,8 +43,8 @@ import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationScreen
 import io.github.aedev.flow.ui.screens.onboarding.OnboardingScreen
 import io.github.aedev.flow.ui.screens.personality.FlowPersonalityScreen
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.search.SearchScreen

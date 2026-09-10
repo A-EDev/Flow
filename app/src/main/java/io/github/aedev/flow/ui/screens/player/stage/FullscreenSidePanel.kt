@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Comment
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerChaptersSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerCommentsPanelHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerLiveChatColumn
@@ -33,6 +32,7 @@ import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSettingsSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSleepTimerSheetHost
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

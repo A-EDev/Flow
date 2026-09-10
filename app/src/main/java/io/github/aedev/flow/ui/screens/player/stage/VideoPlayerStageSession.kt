@@ -6,12 +6,12 @@ import androidx.compose.runtime.Stable
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.effects.AudioSystemInfo
 import io.github.aedev.flow.ui.screens.player.effects.PipPreferences
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.CoroutineScope
 
 /**

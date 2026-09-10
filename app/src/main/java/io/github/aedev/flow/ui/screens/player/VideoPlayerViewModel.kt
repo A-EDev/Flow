@@ -57,6 +57,7 @@ import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.ui.screens.player.state.PlayerNavigationHistory
 import io.github.aedev.flow.ui.screens.player.state.UpcomingPremierePolicy
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver

@@ -9,6 +9,7 @@ import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModelHarness.Companion.historyEntity
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModelHarness.Companion.video
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.mockk.Called
 import io.mockk.coEvery
 import io.mockk.coVerify

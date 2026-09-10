@@ -8,9 +8,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.media3.common.Player
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.error.PlayerDiagnostics
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.delay
 
 private const val TAG = "PlayerEffects"

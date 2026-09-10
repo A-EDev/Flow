@@ -13,11 +13,11 @@ import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.shared.MediaDownloadDialog
 import io.github.aedev.flow.ui.components.shared.MediaDownloadDialogCompact
 import io.github.aedev.flow.ui.components.videoplayer.DlnaDevicePickerDialog
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.launch
 
 @Composable
