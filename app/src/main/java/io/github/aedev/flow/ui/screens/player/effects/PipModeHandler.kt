@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -124,13 +125,9 @@ private fun PipParamsUpdateEffect(
  */
 @Composable
 internal fun rememberPipPreferences(context: Context): PipPreferences {
-    val autoPipEnabled by remember(context) {
-        PlayerPreferences(context).autoPipEnabled
-    }.collectAsState(initial = false)
-
-    val manualPipButtonEnabled by remember(context) {
-        PlayerPreferences(context).manualPipButtonEnabled
-    }.collectAsState(initial = true)
+    val preferences = remember(context) { PlayerPreferences(context) }
+    val autoPipEnabled by preferences.autoPipEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val manualPipButtonEnabled by preferences.manualPipButtonEnabled.collectAsStateWithLifecycle(initialValue = true)
 
     return PipPreferences(
         autoPipEnabled = autoPipEnabled,

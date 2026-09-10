@@ -6,9 +6,9 @@ import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PlayerHardwareController
@@ -75,7 +75,7 @@ internal fun PlayerVolumeEffects(
         }
     }
 
-    val volumeKeySignal by PlayerHardwareController.volumeKeySignal.collectAsState()
+    val volumeKeySignal by PlayerHardwareController.volumeKeySignal.collectAsStateWithLifecycle()
     LaunchedEffect(volumeKeySignal) {
         if (volumeKeySignal > 0L) {
             syncVolumeFromSystem()

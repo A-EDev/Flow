@@ -2,14 +2,11 @@ package io.github.aedev.flow.ui.screens.player.dialogs
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.data.local.PlayerPreferences
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.dlna.DlnaCastManager
@@ -21,6 +18,7 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
 import kotlinx.coroutines.launch
 
 @Composable
@@ -30,30 +28,24 @@ internal fun PlayerDialogsContainer(
     uiState: VideoPlayerUiState,
     video: Video,
     viewModel: VideoPlayerViewModel,
+    prefs: VideoPlayerPreferencesState,
     hostedInSidePanel: Boolean = false,
     mediaSheetExpandedHeight: Dp? = null,
     mediaSheetCollapsedHeight: Dp = 0.dp,
     onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
-    val context = LocalContext.current
-    val playerPreferences = remember { PlayerPreferences(context) }
-    val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
-    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
-    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
+    val playerPreferences = prefs.preferences
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        playerPreferences.subtitleStyle.collect { style ->
-            if (screenState.subtitleStyle != style) {
-                screenState.subtitleStyle = style
-            }
+    LaunchedEffect(prefs.savedSubtitleStyle) {
+        if (screenState.subtitleStyle != prefs.savedSubtitleStyle) {
+            screenState.subtitleStyle = prefs.savedSubtitleStyle
         }
     }
 
     // Download Quality Dialog
-    val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = null)
     if (screenState.activeSheet == PlayerSheet.Download) {
-        when (downloadDialogStyle) {
+        when (prefs.downloadDialogStyle) {
             io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT -> {
                 MediaDownloadDialogCompact(
                     streamInfo = uiState.streamInfo,
@@ -89,9 +81,9 @@ internal fun PlayerDialogsContainer(
             viewModel = viewModel,
             playerPreferences = playerPreferences,
             scope = coroutineScope,
-            rememberPlaybackSpeed = rememberPlaybackSpeed,
-            ambientModeEnabled = ambientModeEnabled,
-            groupedQualitySelectorEnabled = groupedQualitySelectorEnabled,
+            rememberPlaybackSpeed = prefs.rememberPlaybackSpeed,
+            ambientModeEnabled = prefs.ambientModeEnabled,
+            groupedQualitySelectorEnabled = prefs.groupedQualitySelectorEnabled,
             rememberSubtitleLanguage = { language ->
                 coroutineScope.launch { playerPreferences.setPreferredSubtitleLanguage(language) }
             },
@@ -105,8 +97,8 @@ internal fun PlayerDialogsContainer(
     }
 
     if (screenState.activeSheet == PlayerSheet.Dlna) {
-        val dlnaDevices by DlnaCastManager.devices.collectAsState()
-        val isDlnaDiscovering by DlnaCastManager.isDiscovering.collectAsState()
+        val dlnaDevices by DlnaCastManager.devices.collectAsStateWithLifecycle()
+        val isDlnaDiscovering by DlnaCastManager.isDiscovering.collectAsStateWithLifecycle()
         DlnaDevicePickerDialog(
             devices = dlnaDevices,
             isDiscovering = isDlnaDiscovering,

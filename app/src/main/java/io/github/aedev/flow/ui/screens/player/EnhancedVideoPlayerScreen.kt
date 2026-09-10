@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.player
 
-import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,15 +9,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
-import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -30,8 +26,8 @@ import io.github.aedev.flow.ui.screens.player.content.relatedVideosGridContent
 import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
 import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
-import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import kotlin.math.roundToInt
 
 /**
@@ -49,6 +45,7 @@ internal fun EnhancedVideoPlayerScreen(
     alpha: () -> Float,
     videoPlayerHeightPx: () -> Float = { 0f },
     screenState: PlayerScreenState, // Shared screenState from FlowApp
+    prefs: VideoPlayerPreferencesState,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
 ) {
@@ -60,15 +57,12 @@ internal fun EnhancedVideoPlayerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val comments by viewModel.commentsState.collectAsStateWithLifecycle()
 
-    val preferences = remember { PlayerPreferences(context) }
-    val showRelatedVideosPref by preferences.showRelatedVideos.collectAsState(initial = true)
-    val commentsEnabledPref by preferences.commentsEnabled.collectAsState(initial = true)
-    val showCommentsPreview by preferences.commentsPreviewEnabled.collectAsState(initial = true)
     val isLocalMedia = video.id.startsWith("local_")
-    val showRelatedVideos = showRelatedVideosPref && !isLocalMedia
-    val commentsEnabled = commentsEnabledPref && !isLocalMedia
-    val relatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
-    val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
+    val showRelatedVideos = prefs.showRelatedVideos && !isLocalMedia
+    val commentsEnabled = prefs.commentsEnabled && !isLocalMedia
+    val showCommentsPreview = prefs.commentsPreviewEnabled
+    val relatedCardStyle = prefs.relatedCardStyle
+    val isInPipMode by GlobalPlayerState.isInPipMode.collectAsStateWithLifecycle()
     Box(
         modifier =
             Modifier
@@ -112,6 +106,7 @@ internal fun EnhancedVideoPlayerScreen(
                             comments = comments,
                             commentsEnabled = commentsEnabled,
                             showCommentsPreview = showCommentsPreview,
+                            deArrowEnabled = prefs.deArrowEnabled,
                             context = context,
                             scope = scope,
                             snackbarHostState = snackbarHostState,
@@ -149,6 +144,7 @@ internal fun EnhancedVideoPlayerScreen(
                                     comments = comments,
                                     commentsEnabled = commentsEnabled,
                                     showCommentsPreview = showCommentsPreview,
+                                    deArrowEnabled = prefs.deArrowEnabled,
                                     context = context,
                                     scope = scope,
                                     snackbarHostState = snackbarHostState,

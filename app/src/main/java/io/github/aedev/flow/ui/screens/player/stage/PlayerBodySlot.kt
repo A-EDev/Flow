@@ -35,6 +35,7 @@ internal fun PlayerBodySlot(
             alpha = alpha,
             videoPlayerHeightPx = videoHeightPx,
             screenState = screenState,
+            prefs = session.prefs,
             onVideoClick = { clickedVideo ->
                 if (clickedVideo.isShort) {
                     onClose()

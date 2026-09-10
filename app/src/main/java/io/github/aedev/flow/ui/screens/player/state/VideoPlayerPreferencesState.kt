@@ -6,7 +6,9 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 
@@ -38,6 +40,11 @@ internal class VideoPlayerPreferencesState(
     val commentsEnabled: Boolean,
     val preferredSubtitleLanguage: String,
     val autoEnableSubtitles: Boolean,
+    val commentsPreviewEnabled: Boolean,
+    val showRelatedVideos: Boolean,
+    val relatedCardStyle: PlayerRelatedCardStyle,
+    val deArrowEnabled: Boolean,
+    val downloadDialogStyle: DownloadDialogStyle?,
 )
 
 @Composable
@@ -64,6 +71,11 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
     val preferredSubtitleLanguage by playerPreferences.preferredSubtitleLanguage
         .collectAsState(initial = CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
     val autoEnableSubtitles by playerPreferences.autoEnableSubtitles.collectAsState(initial = false)
+    val commentsPreviewEnabled by playerPreferences.commentsPreviewEnabled.collectAsState(initial = true)
+    val showRelatedVideos by playerPreferences.showRelatedVideos.collectAsState(initial = true)
+    val relatedCardStyle by playerPreferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
+    val deArrowEnabled by playerPreferences.deArrowEnabled.collectAsState(initial = false)
+    val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = null)
 
     return VideoPlayerPreferencesState(
         preferences = playerPreferences,
@@ -87,5 +99,10 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         commentsEnabled = commentsEnabled,
         preferredSubtitleLanguage = preferredSubtitleLanguage,
         autoEnableSubtitles = autoEnableSubtitles,
+        commentsPreviewEnabled = commentsPreviewEnabled,
+        showRelatedVideos = showRelatedVideos,
+        relatedCardStyle = relatedCardStyle,
+        deArrowEnabled = deArrowEnabled,
+        downloadDialogStyle = downloadDialogStyle,
     )
 }

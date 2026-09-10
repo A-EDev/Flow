@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player
 import android.app.Application
 import android.content.Context
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
@@ -14,6 +15,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.rememberVideoPlayerPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
@@ -55,6 +57,7 @@ class EnhancedVideoPlayerScreenLayoutTest {
                     video = video,
                     alpha = { 1f },
                     screenState = screenState,
+                    prefs = rememberVideoPlayerPreferences(LocalContext.current),
                     onVideoClick = {},
                     onChannelClick = {},
                 )

@@ -45,6 +45,7 @@ internal fun VideoPlayerDialogs(
         uiState = playerUiState,
         video = completeVideo,
         viewModel = playerViewModel,
+        prefs = prefs,
         hostedInSidePanel = canUseFullscreenSidePanel,
         mediaSheetExpandedHeight = mediaSheetHeights.expanded,
         mediaSheetCollapsedHeight = mediaSheetHeights.collapsed,

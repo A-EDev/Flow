@@ -28,6 +28,7 @@ import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.stage.*
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.ui.utils.isTabletFormFactor
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -72,7 +73,7 @@ fun VideoPlayerHost(
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity)
     val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
-    val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsState()
+    val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsStateWithLifecycle()
 
     val screenState = rememberPlayerScreenState()
     val audioSystemInfo = rememberAudioSystemInfo(context)
@@ -140,7 +141,7 @@ fun VideoPlayerHost(
         lockModeEnabled = prefs.lockModeEnabled,
     )
 
-    val localIsInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
+    val localIsInPipMode by GlobalPlayerState.isInPipMode.collectAsStateWithLifecycle()
 
     val progressProvider =
         remember {
@@ -316,7 +317,7 @@ fun VideoPlayerHost(
         )
     }
 
-    val globalCurrentVideo by GlobalPlayerState.currentVideo.collectAsState()
+    val globalCurrentVideo by GlobalPlayerState.currentVideo.collectAsStateWithLifecycle()
     GlobalVideoSyncEffect(
         currentVideoId = globalCurrentVideo?.id,
         currentVideo = { globalCurrentVideo },
@@ -446,7 +447,7 @@ fun VideoPlayerHost(
             isFullscreen = screenState.isFullscreen,
             thumbnailUrl =
                 video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
+                    ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id),
             videoAspectRatio = effectiveVideoAspectRatio,
             expandedPlayerHeightFractionOverride = mediaSheetGeometry.playerHeightFractionOverride,
             bottomPadding = bottomPadding,

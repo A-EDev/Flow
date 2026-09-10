@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player.dialogs
 import android.app.Application
 import android.content.Context
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -22,6 +23,7 @@ import io.github.aedev.flow.ui.screens.player.fakeVideo
 import io.github.aedev.flow.ui.screens.player.relaxedVideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.rememberVideoPlayerPreferences
 import kotlinx.coroutines.runBlocking
 import org.junit.Ignore
 import org.junit.Rule
@@ -54,6 +56,7 @@ class PlayerDialogsContainerTest {
                     uiState = fakeUiState(video = video),
                     video = video,
                     viewModel = relaxedVideoPlayerViewModel(),
+                    prefs = rememberVideoPlayerPreferences(LocalContext.current),
                 )
             }
         }

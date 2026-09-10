@@ -3,8 +3,8 @@ package io.github.aedev.flow.ui.screens.player.effects
 import android.util.Log
 import androidx.compose.runtime.*
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.media3.common.Player
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.error.PlayerDiagnostics
@@ -78,16 +78,7 @@ internal fun PlaybackRefocusEffect(
 ) {
     var resumeTrigger by remember { mutableIntStateOf(0) }
 
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    resumeTrigger++
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME, lifecycleOwner) { resumeTrigger++ }
 
     LaunchedEffect(resumeTrigger) {
         if (resumeTrigger == 0) return@LaunchedEffect
