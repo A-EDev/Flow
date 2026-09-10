@@ -5,19 +5,48 @@ import android.icu.text.RelativeDateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
-fun formatDuration(seconds: Int): String {
+/**
+ * Format a duration as `H:MM:SS` or `M:SS`.
+ *
+ * @param padMinutes when true the no-hours form is zero-padded (`MM:SS`), which is what the
+ *   on-video player controls render; every other caller keeps the unpadded default.
+ */
+fun formatDuration(
+    seconds: Int,
+    padMinutes: Boolean = false,
+): String {
     val hours = seconds / 3600
     val minutes = (seconds % 3600) / 60
     val secs = seconds % 60
 
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, secs)
-    } else {
-        String.format("%d:%02d", minutes, secs)
+    return when {
+        hours > 0 -> String.format("%d:%02d:%02d", hours, minutes, secs)
+        padMinutes -> String.format("%02d:%02d", minutes, secs)
+        else -> String.format("%d:%02d", minutes, secs)
     }
 }
 
-fun formatDurationMillis(millis: Long): String = formatDuration((millis / 1000L).toInt())
+fun formatDurationMillis(
+    millis: Long,
+    padMinutes: Boolean = false,
+): String = formatDuration((millis / 1000L).toInt(), padMinutes)
+
+/**
+ * Format a multiplier as a compact label, e.g. `2x`, `1.5x`, `0.75x`.
+ * Trailing zeros are trimmed and the value is clamped to `0.1..maxValue`.
+ */
+fun formatMultiplierLabel(
+    value: Float,
+    maxValue: Float = 10.0f,
+): String {
+    val clamped = value.coerceIn(0.1f, maxValue)
+    return if (kotlin.math.abs(clamped - clamped.toInt()) < 0.01f) {
+        "${clamped.toInt()}x"
+    } else {
+        val rounded = kotlin.math.round(clamped * 100f) / 100f
+        "${rounded.toString().trimEnd('0').trimEnd('.')}x"
+    }
+}
 
 fun formatViewCount(count: Long): String = compactCountFormatter().format(count)
 

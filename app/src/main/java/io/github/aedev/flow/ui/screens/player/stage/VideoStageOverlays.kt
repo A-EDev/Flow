@@ -26,11 +26,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.videoplayer.UpcomingVideoOverlay
+import io.github.aedev.flow.ui.components.videoplayer.gesture.PlayerSpeedBoost
 import io.github.aedev.flow.ui.components.videoplayer.overlay.PlayerGestureOverlays
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import java.util.Locale
@@ -51,7 +50,7 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
         screenState = screenState,
         allowVolumeBoost = prefs.allowVolumeBoost,
         speedBoostSpeed =
-            VideoPlayerUtils.boostedPlaybackSpeed(
+            PlayerSpeedBoost.boostedPlaybackSpeed(
                 currentSpeed = screenState.normalSpeed,
                 targetSpeed = prefs.longPressPlaybackSpeed,
             ),
@@ -59,8 +58,8 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
 
     AnimatedVisibility(
         visible = screenState.showZoomIndicator,
-        enter = fadeIn(),
-        exit = fadeOut(),
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)
@@ -117,7 +116,7 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
                 Text(
                     text = errorMsg,
                     color = PlayerScrimContent,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                 )

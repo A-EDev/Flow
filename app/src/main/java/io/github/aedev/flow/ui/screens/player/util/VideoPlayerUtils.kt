@@ -30,63 +30,6 @@ internal object VideoPlayerUtils {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Format a millisecond duration as `H:MM:SS` or `M:SS`.
-     * @param padMinutes when true the no-hours form is zero-padded (`MM:SS`), matching the
-     *   look used by the main on-video controls; otherwise minutes are unpadded (`M:SS`).
-     */
-    fun formatTime(
-        timeMs: Long,
-        padMinutes: Boolean = false,
-    ): String {
-        val totalSeconds = timeMs / 1000
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
-
-        return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes, seconds)
-        } else if (padMinutes) {
-            String.format("%02d:%02d", minutes, seconds)
-        } else {
-            String.format("%d:%02d", minutes, seconds)
-        }
-    }
-
-    /**
-     * Format a playback speed as a compact label, e.g. `2x`, `1.5x`, `0.75x`.
-     * Trailing zeros are trimmed and the value is clamped to `0.1..maxSpeed`.
-     */
-    const val MAX_BOOST_SPEED = 4.0f
-
-    private const val BOOST_STEP = 0.5f
-
-    fun boostedPlaybackSpeed(
-        currentSpeed: Float,
-        targetSpeed: Float,
-    ): Float {
-        val target = targetSpeed.coerceIn(0.1f, MAX_BOOST_SPEED)
-        val current = currentSpeed.takeIf { it > 0f } ?: 1.0f
-        return if (current < target) {
-            target
-        } else {
-            (current + BOOST_STEP).coerceAtMost(MAX_BOOST_SPEED)
-        }
-    }
-
-    fun formatSpeedLabel(
-        speed: Float,
-        maxSpeed: Float = 10.0f,
-    ): String {
-        val clamped = speed.coerceIn(0.1f, maxSpeed)
-        return if (kotlin.math.abs(clamped - clamped.toInt()) < 0.01f) {
-            "${clamped.toInt()}x"
-        } else {
-            val rounded = kotlin.math.round(clamped * 100f) / 100f
-            "${rounded.toString().trimEnd('0').trimEnd('.')}x"
-        }
-    }
-
-    /**
      * Check whether MANAGE_EXTERNAL_STORAGE permission has been granted (Android 11+).
      * If not, prompt the user to grant it via Settings — but downloads still work
      * because VideoDownloadManager falls back to app-private storage.

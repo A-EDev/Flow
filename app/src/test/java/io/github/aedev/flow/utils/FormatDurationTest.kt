@@ -50,10 +50,24 @@ class FormatDurationTest {
     }
 
     @Test
-    fun `minutes are never zero padded unlike the player overlay formatter`() {
-        // VideoPlayerUtils.formatTime(61_000, padMinutes = true) renders the same value as "01:01".
+    fun `minutes are never zero padded unless the caller asks`() {
         assertThat(formatDurationMillis(61_000L)).isEqualTo("1:01")
         assertThat(formatDuration(61)).isEqualTo("1:01")
+    }
+
+    @Test
+    fun `padded minutes are what the on-video controls render`() {
+        assertThat(formatDurationMillis(0L, padMinutes = true)).isEqualTo("00:00")
+        assertThat(formatDurationMillis(59_000L, padMinutes = true)).isEqualTo("00:59")
+        assertThat(formatDurationMillis(61_000L, padMinutes = true)).isEqualTo("01:01")
+        assertThat(formatDuration(61, padMinutes = true)).isEqualTo("01:01")
+    }
+
+    @Test
+    fun `the hours field is never padded, with or without padded minutes`() {
+        assertThat(formatDurationMillis(3_661_000L, padMinutes = true)).isEqualTo("1:01:01")
+        assertThat(formatDurationMillis(36_000_000L, padMinutes = true)).isEqualTo("10:00:00")
+        assertThat(formatDurationMillis(3_600_000L)).isEqualTo("1:00:00")
     }
 
     @Test
@@ -62,6 +76,45 @@ class FormatDurationTest {
         // zero-padded seconds field.
         assertThat(formatDuration(-61)).isEqualTo("-1:-1")
         assertThat(formatDurationMillis(-1_000L)).isEqualTo("0:-1")
+        assertThat(formatDurationMillis(-1_000L, padMinutes = true)).isEqualTo("00:-1")
         assertThat(formatDurationMillis(-999L)).isEqualTo("0:00")
+        assertThat(formatDurationMillis(-999L, padMinutes = true)).isEqualTo("00:00")
+    }
+}
+
+/**
+ * The playback-speed and speed-boost labels. Whole values lose their decimal point, everything else
+ * is rounded to two places and trimmed, and the value is clamped into `0.1..maxValue`.
+ */
+class FormatMultiplierLabelTest {
+    @Test
+    fun `whole multipliers drop the decimal point`() {
+        assertThat(formatMultiplierLabel(1.0f)).isEqualTo("1x")
+        assertThat(formatMultiplierLabel(2.0f)).isEqualTo("2x")
+        assertThat(formatMultiplierLabel(1.005f)).isEqualTo("1x")
+    }
+
+    @Test
+    fun `fractional multipliers keep the digits that matter`() {
+        assertThat(formatMultiplierLabel(0.25f)).isEqualTo("0.25x")
+        assertThat(formatMultiplierLabel(0.75f)).isEqualTo("0.75x")
+        assertThat(formatMultiplierLabel(1.25f)).isEqualTo("1.25x")
+        assertThat(formatMultiplierLabel(1.5f)).isEqualTo("1.5x")
+        assertThat(formatMultiplierLabel(1.1f)).isEqualTo("1.1x")
+        assertThat(formatMultiplierLabel(1.333f)).isEqualTo("1.33x")
+        assertThat(formatMultiplierLabel(1.999f)).isEqualTo("2x")
+    }
+
+    @Test
+    fun `the value is clamped into the allowed range`() {
+        assertThat(formatMultiplierLabel(0f)).isEqualTo("0.1x")
+        assertThat(formatMultiplierLabel(0.05f)).isEqualTo("0.1x")
+        assertThat(formatMultiplierLabel(12f)).isEqualTo("10x")
+        assertThat(formatMultiplierLabel(5f, maxValue = 4.0f)).isEqualTo("4x")
+    }
+
+    @Test
+    fun `the default ceiling is the settings ceiling, not the boost ceiling`() {
+        assertThat(formatMultiplierLabel(5f)).isEqualTo("5x")
     }
 }

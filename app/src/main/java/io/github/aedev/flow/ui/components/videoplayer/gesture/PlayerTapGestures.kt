@@ -15,7 +15,6 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.media3.common.Player
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 
 /** How long a further tap in the same zone keeps adding to the running double-tap seek total. */
 private const val SEEK_ACCUMULATION_WINDOW_MS = 1_000L
@@ -199,7 +198,7 @@ internal fun Modifier.playerTapGestures(
                     currentOnNormalSpeedChange(restoreSpeed)
                     currentOnSpeedBoostChange(true)
                     manager.setPlaybackSpeed(
-                        VideoPlayerUtils.boostedPlaybackSpeed(
+                        PlayerSpeedBoost.boostedPlaybackSpeed(
                             currentSpeed = restoreSpeed,
                             targetSpeed = currentLongPressPlaybackSpeed,
                         ),
