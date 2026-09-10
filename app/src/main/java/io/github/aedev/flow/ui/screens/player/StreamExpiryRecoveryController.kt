@@ -1,7 +1,13 @@
 package io.github.aedev.flow.ui.screens.player
 
+import android.util.Log
 import io.github.aedev.flow.player.error.StreamExpiryRetryLimiter
 import io.github.aedev.flow.player.error.StreamFailureContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 /**
  * Decides what the player screen does each time the playing streams turn out to be expired
@@ -32,6 +38,49 @@ internal class StreamExpiryRecoveryController(
     }
 
     private var limiter = newLimiter()
+
+    /**
+     * Turns every expiry event on [events] into one decision, on [scope].
+     *
+     * An event that arrives while a load is already in flight is dropped: that load *is* the
+     * recovery, and starting a second one would re-extract the same URLs twice. [onReload] and
+     * [onGiveUp] run on the collecting coroutine, one at a time, in arrival order.
+     */
+    fun collectExpiryEvents(
+        scope: CoroutineScope,
+        events: Flow<Unit>,
+        videoIdInPlayback: () -> String?,
+        isLoadInFlight: () -> Boolean,
+        onReload: suspend (String, Decision.Reload) -> Unit,
+        onGiveUp: suspend (String) -> Unit,
+    ): Job =
+        events
+            .onEach {
+                val videoId = videoIdInPlayback() ?: return@onEach
+                if (isLoadInFlight()) {
+                    Log.d(TAG, "Stream expiry for $videoId coalesced — a stream load is already in flight")
+                    return@onEach
+                }
+                when (val decision = onStreamExpired(videoId)) {
+                    is Decision.Ignored -> {
+                        Log.d(TAG, "Ignoring stream expiry for abandoned playback $videoId")
+                    }
+
+                    is Decision.GiveUp -> {
+                        Log.e(TAG, "Stream expiry retry limit reached for $videoId — giving up")
+                        onGiveUp(videoId)
+                    }
+
+                    is Decision.Reload -> {
+                        Log.w(
+                            TAG,
+                            "Stream expired — re-fetching streams for $videoId " +
+                                "(attempt ${decision.attempt}/${decision.limit})",
+                        )
+                        onReload(videoId, decision)
+                    }
+                }
+            }.launchIn(scope)
 
     /** The video whose playback has been abandoned, if any. */
     var abandonedVideoId: String? = null
@@ -92,6 +141,8 @@ internal class StreamExpiryRecoveryController(
         )
 
     companion object {
+        private const val TAG = "StreamExpiryRecovery"
+
         const val MAX_STREAM_EXPIRY_RETRIES = 3
 
         // The first re-extraction assumes a stale URL; once it happens again the bytes the cache
