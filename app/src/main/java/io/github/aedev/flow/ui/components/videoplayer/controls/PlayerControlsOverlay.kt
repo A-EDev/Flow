@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -13,91 +14,42 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerBottomBar
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerBottomBarMetrics
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerControlActions
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerLockedControls
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerSeekbarContent
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerSeekbarRow
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerTransportControls
-import io.github.aedev.flow.ui.components.videoplayer.controls.PortraitFullscreenEdgeScrims
-import io.github.aedev.flow.ui.components.videoplayer.controls.VideoPlayerTopBar
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
-import org.schabi.newpipe.extractor.stream.StreamSegment
+import io.github.aedev.flow.utils.formatMultiplierLabel
 
 private val OverlayActionButtonSize = 40.dp
 private val OverlayActionIconSize = 24.dp
 private val OverlayActionSpacing = 8.dp
-private val OverlayPillHeight = 28.dp
+internal val OverlayPillHeight = 28.dp
 private val OverlayExpandIconSize = 18.dp
 private val OverlayControlRowMinHeight = 44.dp
 private val OverlayActionIconInset = (OverlayActionButtonSize - OverlayActionIconSize) / 2f
 
+/** Tint over the video while the controls are up; the loading state blacks it out entirely. */
+private const val CONTROLS_BACKDROP_ALPHA = 0.24f
+
+/**
+ * The on-video controls.
+ *
+ * The overlay is deliberately kept composed while it is hidden — the expanded player holds it warm
+ * so the first reveal has nothing to mount — which makes [isLayerPlaced] and the internal placement
+ * flag the only honest signal that anything inside is on screen. Everything that animates on its
+ * own clock is gated on that signal rather than on being composed.
+ */
 @Composable
-fun PlayerControlsOverlay(
-    isVisible: Boolean,
-    isPlaying: Boolean,
-    hasEnded: Boolean,
-    isBuffering: Boolean,
+internal fun PlayerControlsOverlay(
+    state: PlayerControlsUiState,
+    actions: PlayerControlActions,
     currentPosition: () -> Long,
-    duration: Long,
-    qualityLabel: String?,
-    videoTitle: String?,
-    playbackSpeed: Float = 1.0f,
-    resizeMode: Int,
-    onResizeClick: () -> Unit,
-    onPlayPause: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onBack: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onQualityClick: () -> Unit = {},
-    onSpeedClick: () -> Unit = {},
-    onFullscreenClick: () -> Unit,
-    isFullscreen: Boolean,
-    isPipSupported: Boolean = false,
-    onPipClick: () -> Unit = {},
-    chapters: List<StreamSegment> = emptyList(),
-    onChapterClick: () -> Unit = {},
-    onSubtitleClick: () -> Unit = {},
-    onSubtitleLongClick: () -> Unit = {},
-    isSubtitlesEnabled: Boolean = false,
-    autoplayEnabled: Boolean = true,
-    isLooping: Boolean = false,
-    onAutoplayToggle: (Boolean) -> Unit = {},
-    onPrevious: () -> Unit = {},
-    onNext: () -> Unit = {},
-    hasPrevious: Boolean = false,
-    hasNext: Boolean = false,
+    modifier: Modifier = Modifier,
     bufferedPercentage: Float = 0f,
     windowInsets: WindowInsets = WindowInsets.systemBars,
-    sbSubmitEnabled: Boolean = false,
-    onSbSubmitClick: () -> Unit = {},
-    // Cast / Chromecast support
-    onCastClick: () -> Unit = {},
-    isCasting: Boolean = false,
-    isLive: Boolean = false,
-    onLiveClick: () -> Unit = {},
-    isLiveChatAvailable: Boolean = false,
-    onLiveChatClick: () -> Unit = {},
-    isCommentsAvailable: Boolean = false,
-    isCommentsPanelOpen: Boolean = false,
-    onCommentsClick: () -> Unit = {},
-    onSleepTimerClick: () -> Unit = {},
-    isSleepTimerActive: Boolean = false,
-    showRemainingTime: Boolean = false,
-    onToggleRemainingTime: () -> Unit = {},
-    isTouchLocked: Boolean = false,
-    lockModeEnabled: Boolean = false,
-    lockOverlayRevealSignal: Int = 0,
-    onTouchLockToggle: () -> Unit = {},
-    onScrubbingChange: (Boolean) -> Unit = {},
-    isPortraitFullscreen: Boolean = false,
-    modifier: Modifier = Modifier,
+    isLayerPlaced: () -> Boolean = { true },
 ) {
     val resizeModes =
         listOf(
@@ -109,9 +61,9 @@ fun PlayerControlsOverlay(
     val scrubController =
         rememberPlayerScrubController(
             currentPosition = currentPosition,
-            isLive = isLive,
-            onSeek = onSeek,
-            onScrubbingChange = onScrubbingChange,
+            isLive = state.isLive,
+            onSeek = actions.onSeek,
+            onScrubbingChange = actions.onScrubbingChange,
         )
     val isScrubbing = scrubController.isScrubbing
     val displayedPosition = scrubController.displayedPosition
@@ -120,46 +72,40 @@ fun PlayerControlsOverlay(
 
     val lockOverlay =
         rememberLockOverlayVisibility(
-            isTouchLocked = isTouchLocked,
-            revealSignal = lockOverlayRevealSignal,
+            isTouchLocked = state.isTouchLocked,
+            revealSignal = state.lockOverlayRevealSignal,
         )
     val isLockOverlayVisible = lockOverlay.isVisible
     val revealLockOverlay = lockOverlay.reveal
 
-    val currentChapter by remember(chapters) {
+    val currentChapter by remember(state.chapters) {
         derivedStateOf {
             val positionSeconds = displayedPosition() / 1000
-            chapters.lastOrNull { it.startTimeSeconds <= positionSeconds }
+            state.chapters.lastOrNull { it.startTimeSeconds <= positionSeconds }
         }
     }
 
-    val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsState()
+    val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
-    val overlayPreferences by playerPreferences.overlayPreferences.collectAsState(
-        initial = remember { PlayerOverlayPreferences() },
+    val overlayPreferences by playerPreferences.overlayPreferences.collectAsStateWithLifecycle(
+        initialValue = remember { PlayerOverlayPreferences() },
     )
     val sponsorSegmentColors =
         remember(overlayPreferences.sponsorCategoryColors) {
             overlayPreferences.sponsorCategoryColors.mapValues { (_, argb) -> Color(argb) }
         }
-    val overlayCastEnabled = overlayPreferences.castEnabled
-    val overlayCcEnabled = overlayPreferences.captionsEnabled
-    val overlayPipEnabled = overlayPreferences.pipEnabled
-    val overlayAutoplayEnabled = overlayPreferences.autoplayEnabled
-    val overlaySleepTimerEnabled = overlayPreferences.sleepTimerEnabled
-    val overlaySpeedIndicatorEnabled = overlayPreferences.speedIndicatorEnabled
     val overlayCommentsEnabled = overlayPreferences.commentsEnabled
-    val showFullscreenTitle = overlayPreferences.fullscreenTitleEnabled
     val fullscreenSeekbarHorizontalPaddingDp = overlayPreferences.fullscreenSeekbarHorizontalPaddingDp
     val portraitSeekbarHorizontalPaddingDp = overlayPreferences.portraitSeekbarHorizontalPaddingDp
+    val isFullscreen = state.isFullscreen
     val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
     val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 12.dp
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 4.dp
     val portraitFullscreenTopPadding =
-        if (isFullscreen && isPortraitFullscreen) {
+        if (isFullscreen && state.isPortraitFullscreen) {
             WindowInsets.displayCutout
                 .asPaddingValues()
                 .calculateTopPadding()
@@ -175,21 +121,22 @@ fun PlayerControlsOverlay(
         }
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
     val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
-    val compactQualityLabel = remember(qualityLabel) { qualityLabel?.let(::compactPlayerQualityLabel) }
-    val speedIndicatorLabel = remember(playbackSpeed) { VideoPlayerUtils.formatSpeedLabel(playbackSpeed) }
+    val qualityBadge = remember(state.qualityLabel) { state.qualityLabel?.let(::compactPlayerQualityBadge) }
+    val compactQualityLabel = qualityBadge?.let { playerQualityBadgeLabel(it) }
+    val speedIndicatorLabel = remember(state.playbackSpeed) { formatMultiplierLabel(state.playbackSpeed) }
 
     val showControlsWhileLoading = overlayPreferences.showControlsWhileLoading
-    val isInitialLoading by remember(isBuffering, duration) {
-        derivedStateOf { isBuffering && duration <= 0L && displayedPosition() <= 0L }
+    val isInitialLoading by remember(state.isBuffering, state.duration) {
+        derivedStateOf { state.isBuffering && state.duration <= 0L && displayedPosition() <= 0L }
     }
     // When the user opts in, keep the controls visible during the initial load so volume/brightness/
     // back/etc. can be used before the first frame arrives.
     val hideControlsForLoading = isInitialLoading && !showControlsWhileLoading
 
     val seekbarContent =
-        remember(chapters, sponsorSegments, sponsorSegmentColors, bufferedPercentage) {
+        remember(state.chapters, sponsorSegments, sponsorSegmentColors, bufferedPercentage) {
             PlayerSeekbarContent(
-                chapters = chapters,
+                chapters = state.chapters,
                 sponsorSegments = sponsorSegments,
                 sponsorColors = sponsorSegmentColors,
                 bufferedPercentage = bufferedPercentage,
@@ -206,31 +153,8 @@ fun PlayerControlsOverlay(
             expandIconSize = OverlayExpandIconSize,
             chapterMaxWidth = chapterMaxWidth,
         )
-    val controlActions =
-        PlayerControlActions(
-            onPlayPause = onPlayPause,
-            onPrevious = onPrevious,
-            onNext = onNext,
-            onBack = onBack,
-            onSettingsClick = onSettingsClick,
-            onQualityClick = onQualityClick,
-            onSpeedClick = onSpeedClick,
-            onFullscreenClick = onFullscreenClick,
-            onResizeClick = onResizeClick,
-            onPipClick = onPipClick,
-            onChapterClick = onChapterClick,
-            onSubtitleClick = onSubtitleClick,
-            onSubtitleLongClick = onSubtitleLongClick,
-            onAutoplayToggle = onAutoplayToggle,
-            onSbSubmitClick = onSbSubmitClick,
-            onCastClick = onCastClick,
-            onLiveClick = onLiveClick,
-            onLiveChatClick = onLiveChatClick,
-            onCommentsClick = onCommentsClick,
-            onSleepTimerClick = onSleepTimerClick,
-            onToggleRemainingTime = onToggleRemainingTime,
-            onTouchLockToggle = onTouchLockToggle,
-        )
+
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
     Box(
         modifier =
@@ -238,24 +162,26 @@ fun PlayerControlsOverlay(
                 .fillMaxSize()
                 .windowInsetsPadding(windowInsets),
     ) {
-        if (isFullscreen && isPortraitFullscreen) {
+        if (isFullscreen && state.isPortraitFullscreen) {
             PortraitFullscreenEdgeScrims(modifier = Modifier.matchParentSize())
         }
 
+        val isVisible = state.isVisible
         val controlsAlpha = remember { Animatable(if (isVisible) 1f else 0f) }
         var controlsPlaced by remember { mutableStateOf(isVisible) }
         LaunchedEffect(isVisible) {
             if (isVisible) controlsPlaced = true
             controlsAlpha.animateTo(
                 targetValue = if (isVisible) 1f else 0f,
-                animationSpec =
-                    tween(
-                        durationMillis = if (isVisible) 350 else 300,
-                        easing = FastOutSlowInEasing,
-                    ),
+                animationSpec = fadeSpec,
             )
             if (!isVisible) controlsPlaced = false
         }
+        // The one signal that anything inside this layer is actually on screen: the placement flag
+        // and the caller's own answer for the stage that hosts it. Remembered so the gates below
+        // keep their derived state across recompositions of this overlay.
+        val currentIsLayerPlaced by rememberUpdatedState(isLayerPlaced)
+        val isLayerOnScreen = remember { { controlsPlaced && currentIsLayerPlaced() } }
 
         Box(
             modifier =
@@ -269,46 +195,46 @@ fun PlayerControlsOverlay(
                         }
                     }.background(
                         when {
-                            isTouchLocked -> Color.Transparent
+                            state.isTouchLocked -> Color.Transparent
                             isInitialLoading -> PlayerScrim
-                            else -> PlayerScrim.copy(alpha = 0.24f)
+                            else -> PlayerScrim.copy(alpha = CONTROLS_BACKDROP_ALPHA)
                         },
                     ),
         ) {
-            if (isTouchLocked) {
+            if (state.isTouchLocked) {
                 PlayerLockedControls(
                     isOverlayVisible = isLockOverlayVisible,
                     positionProvider = displayedPosition,
-                    duration = duration,
-                    isLive = isLive,
+                    duration = state.duration,
+                    isLive = state.isLive,
                     isFullscreen = isFullscreen,
-                    showRemainingTime = showRemainingTime,
+                    showRemainingTime = state.showRemainingTime,
                     seekbarContent = seekbarContent,
                     pillHeight = OverlayPillHeight,
                     topPadding = portraitFullscreenTopPadding,
                     seekbarHorizontalPadding = seekbarHorizontalPadding,
                     seekbarBottomPadding = fullscreenSeekbarBottomPadding,
                     onRevealUnlock = revealLockOverlay,
-                    onUnlock = onTouchLockToggle,
+                    onUnlock = actions.onTouchLockToggle,
                 )
             } else {
                 if (!hideControlsForLoading) {
                     VideoPlayerTopBar(
                         preferences = overlayPreferences,
                         isFullscreen = isFullscreen,
-                        videoTitle = videoTitle,
+                        videoTitle = state.videoTitle,
                         speedIndicatorLabel = speedIndicatorLabel,
-                        resizeMode = resizeMode,
+                        resizeMode = state.resizeMode,
                         resizeModeLabels = resizeModes,
-                        isPipSupported = isPipSupported,
-                        sbSubmitEnabled = sbSubmitEnabled,
-                        isCasting = isCasting,
-                        isSubtitlesEnabled = isSubtitlesEnabled,
-                        isAutoplayOn = autoplayEnabled,
-                        isLooping = isLooping,
-                        isSleepTimerActive = isSleepTimerActive,
-                        lockModeEnabled = lockModeEnabled,
-                        isLiveChatAvailable = isLiveChatAvailable,
+                        isPipSupported = state.isPipSupported,
+                        sbSubmitEnabled = state.sbSubmitEnabled,
+                        isCasting = state.isCasting,
+                        isSubtitlesEnabled = state.isSubtitlesEnabled,
+                        isAutoplayOn = state.autoplayEnabled,
+                        isLooping = state.isLooping,
+                        isSleepTimerActive = state.isSleepTimerActive,
+                        lockModeEnabled = state.lockModeEnabled,
+                        isLiveChatAvailable = state.isLiveChatAvailable,
                         topPadding = portraitFullscreenTopPadding,
                         horizontalPadding = topControlHorizontalPadding,
                         verticalPadding = topControlVerticalPadding,
@@ -317,38 +243,40 @@ fun PlayerControlsOverlay(
                         actionButtonSize = OverlayActionButtonSize,
                         actionIconSize = OverlayActionIconSize,
                         actionSpacing = OverlayActionSpacing,
-                        actions = controlActions,
+                        actions = actions,
                         modifier = Modifier.align(Alignment.TopStart),
                     )
                 }
 
                 PlayerTransportControls(
-                    isPlaying = isPlaying,
-                    hasEnded = hasEnded,
-                    showBufferingSpinner = (isBuffering || isInitialLoading) && !isScrubbing,
-                    hasPrevious = hasPrevious,
-                    hasNext = hasNext,
+                    isPlaying = state.isPlaying,
+                    hasEnded = state.hasEnded,
+                    showBufferingSpinner = (state.isBuffering || isInitialLoading) && !isScrubbing,
+                    hasPrevious = state.hasPrevious,
+                    hasNext = state.hasNext,
                     showSkipButtons = !hideControlsForLoading,
-                    actions = controlActions,
+                    actions = actions,
+                    isLayerVisible = isLayerOnScreen,
                     modifier = Modifier.align(Alignment.Center),
                 )
 
                 if (!hideControlsForLoading) {
                     PlayerBottomBar(
                         positionProvider = displayedPosition,
-                        duration = duration,
-                        isLive = isLive,
+                        duration = state.duration,
+                        isLive = state.isLive,
                         isFullscreen = isFullscreen,
-                        showRemainingTime = showRemainingTime,
-                        showCommentsButton = overlayCommentsEnabled && isCommentsAvailable && isFullscreen,
-                        isCommentsPanelOpen = isCommentsPanelOpen,
+                        showRemainingTime = state.showRemainingTime,
+                        showCommentsButton = overlayCommentsEnabled && state.isCommentsAvailable && isFullscreen,
+                        isCommentsPanelOpen = state.isCommentsPanelOpen,
                         currentChapter = currentChapter,
                         compactQualityLabel = compactQualityLabel,
                         seekbarContent = seekbarContent,
                         metrics = bottomBarMetrics,
-                        actions = controlActions,
+                        actions = actions,
                         onScrubProgress = onScrubProgress,
                         onScrubFinished = onScrubFinished,
+                        isLayerVisible = isLayerOnScreen,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
@@ -356,16 +284,16 @@ fun PlayerControlsOverlay(
         }
 
         AnimatedVisibility(
-            visible = !isVisible && !isFullscreen && !isInitialLoading && !isTouchLocked,
-            enter = fadeIn(tween(300, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(350, easing = FastOutSlowInEasing)),
+            visible = !isVisible && !isFullscreen && !isInitialLoading && !state.isTouchLocked,
+            enter = fadeIn(fadeSpec),
+            exit = fadeOut(fadeSpec),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 PlayerSeekbarRow(
                     positionProvider = displayedPosition,
-                    duration = duration,
-                    isLive = isLive,
+                    duration = state.duration,
+                    isLive = state.isLive,
                     content = seekbarContent,
                     edgeAligned = true,
                     horizontalPadding = seekbarHorizontalPadding,

@@ -55,24 +55,18 @@ class PlayerControlsOverlayTest {
                         .height(231.dp),
                 ) {
                     PlayerControlsOverlay(
-                        isVisible = isVisible,
-                        isPlaying = isPlaying,
-                        hasEnded = false,
-                        isBuffering = false,
+                        state =
+                            PlayerControlsUiState(
+                                isVisible = isVisible,
+                                isPlaying = isPlaying,
+                                duration = duration,
+                                qualityLabel = qualityLabel,
+                                videoTitle = "Fixture video",
+                                isLive = isLive,
+                                isTouchLocked = isTouchLocked,
+                            ),
+                        actions = PlayerControlActions(onPlayPause = onPlayPause),
                         currentPosition = { 0L },
-                        duration = duration,
-                        qualityLabel = qualityLabel,
-                        videoTitle = "Fixture video",
-                        resizeMode = 0,
-                        onResizeClick = {},
-                        onPlayPause = onPlayPause,
-                        onSeek = {},
-                        onBack = {},
-                        onSettingsClick = {},
-                        onFullscreenClick = {},
-                        isFullscreen = false,
-                        isLive = isLive,
-                        isTouchLocked = isTouchLocked,
                     )
                 }
             }
@@ -130,6 +124,38 @@ class PlayerControlsOverlayTest {
 
         rule.onNodeWithText("02:05").assertIsDisplayed()
         rule.onNodeWithText(string(R.string.player_live_label)).assertDoesNotExist()
+    }
+
+    @Test
+    fun stateAndActionsOverloadRendersTheSameControls() {
+        var toggled = false
+        rule.setContent {
+            MaterialTheme {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(231.dp),
+                ) {
+                    PlayerControlsOverlay(
+                        state =
+                            PlayerControlsUiState(
+                                isVisible = true,
+                                duration = 125_000L,
+                                qualityLabel = "1080p",
+                                videoTitle = "Fixture video",
+                            ),
+                        actions = PlayerControlActions(onPlayPause = { toggled = true }),
+                        currentPosition = { 0L },
+                    )
+                }
+            }
+        }
+
+        rule.onNodeWithText("FHD").assertIsDisplayed()
+        rule.onNodeWithText("02:05").assertIsDisplayed()
+        rule.onNodeWithContentDescription(string(R.string.play)).performClick()
+
+        assertThat(toggled).isTrue()
     }
 
     @Test

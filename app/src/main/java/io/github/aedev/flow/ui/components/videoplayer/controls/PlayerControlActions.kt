@@ -26,4 +26,6 @@ internal data class PlayerControlActions(
     val onSleepTimerClick: () -> Unit = {},
     val onToggleRemainingTime: () -> Unit = {},
     val onTouchLockToggle: () -> Unit = {},
+    val onSeek: (Long) -> Unit = {},
+    val onScrubbingChange: (Boolean) -> Unit = {},
 )
