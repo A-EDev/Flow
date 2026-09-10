@@ -123,6 +123,14 @@ class VideoPlayerViewModel
 
         private val navigationHistory = PlayerNavigationHistory()
 
+        private val playbackPreparer =
+            PlaybackPreparer(
+                context = context,
+                playerManager = playerManager,
+                playerPreferences = playerPreferences,
+                offlineSubtitleStore = offlineSubtitleStore,
+            )
+
         // One terminal watch signal per video view; ignores repeat dispose fires.
         private var lastReportedVideoId: String? = null
 
@@ -906,7 +914,7 @@ class VideoPlayerViewModel
                     "VideoPlayerViewModel",
                     "Late prepare: arming stream playback for $videoId (audio=${audioStream != null}, videos=${videoStreams.size})",
                 )
-                prepareLoadedMediaForPlayback(
+                playbackPreparer.prepareMergedStreams(
                     videoId = videoId,
                     streamInfo = streamInfo,
                     videoStream = latest.videoStream,
@@ -917,12 +925,13 @@ class VideoPlayerViewModel
                     savedPosition =
                         latest.savedPosition
                             ?: viewHistory.getPlaybackPosition(videoId).first(),
+                    fallbackDurationSeconds = cachedDurationSeconds(),
                     localFilePath = localFilePath,
                     offlineSegments = latest.offlineSponsorBlockSegments,
                     hlsUrl = latest.hlsUrl,
                     isAdaptiveMode = latest.isAdaptiveMode,
                     resumeOverrideRequested = false,
-                    loadToken = loadToken,
+                    isCurrent = { isPlaybackLoadCurrent(loadToken) },
                     preferredVideoCodec = playerPreferences.videoCodecPriority.first(),
                 )
             }
@@ -1349,7 +1358,7 @@ class VideoPlayerViewModel
             if (!isPlaybackLoadCurrent(loadToken)) return
 
             if (!step.isUpcomingContent) {
-                prepareLoadedMediaForPlayback(
+                playbackPreparer.prepareMergedStreams(
                     videoId = videoId,
                     streamInfo = streamInfo,
                     videoStream = streams.selectedVideoStream,
@@ -1358,13 +1367,14 @@ class VideoPlayerViewModel
                     audioStreams = streams.audioStreams,
                     subtitles = streams.subtitles,
                     savedPosition = step.savedPositionMs,
+                    fallbackDurationSeconds = cachedDurationSeconds(),
                     localFilePath = streams.localFilePath,
                     offlineSegments = step.offlineSegments,
                     hlsUrl = streams.hlsUrl,
                     dashManifestUrl = streams.dashManifestUrl,
                     isAdaptiveMode = streams.isAdaptiveMode,
                     resumeOverrideRequested = step.resumeOverrideRequested,
-                    loadToken = loadToken,
+                    isCurrent = { isPlaybackLoadCurrent(loadToken) },
                     sabrInfo = streams.sabrInfo,
                     itVideoFormats = streams.innerTubeVideoFormats,
                     itAudioFormats = streams.innerTubeAudioFormats,
@@ -1495,114 +1505,6 @@ class VideoPlayerViewModel
             }
         }
 
-        private suspend fun prepareLoadedMediaForPlayback(
-            videoId: String,
-            streamInfo: StreamInfo,
-            videoStream: VideoStream?,
-            audioStream: AudioStream?,
-            videoStreams: List<VideoStream>,
-            audioStreams: List<AudioStream>,
-            subtitles: List<SubtitlesStream>,
-            savedPosition: Long,
-            localFilePath: String?,
-            offlineSegments: List<SponsorBlockSegment>?,
-            hlsUrl: String?,
-            isAdaptiveMode: Boolean,
-            resumeOverrideRequested: Boolean,
-            loadToken: Long,
-            sabrInfo: SabrStreamInfo? = null,
-            itVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
-            itAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
-            preferredVideoCodec: String = "auto",
-            dashManifestUrl: String? = null,
-            preferSabr: Boolean = false,
-            preferredLiveQualityHeight: Int = 0,
-        ) = withContext(Dispatchers.Main) {
-            if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-            val manager = playerManager
-            if (manager.isPreparedForPlayback(videoId)) return@withContext
-
-            manager.initialize(context)
-
-            val durationMs =
-                when {
-                    streamInfo.duration > 0L -> {
-                        streamInfo.duration * 1000L
-                    }
-
-                    else -> {
-                        (
-                            _uiState.value.cachedVideo
-                                ?.duration
-                                ?.toLong() ?: 0L
-                        ) * 1000L
-                    }
-                }
-            val isLiveStream = streamInfo.streamType == StreamType.LIVE_STREAM
-            val resumePosition =
-                PlaybackResumePolicy.resolveStartPosition(
-                    savedPosition = savedPosition,
-                    durationMs = durationMs,
-                    resumeAllowed =
-                        !isLiveStream &&
-                            hlsUrl.isNullOrEmpty() &&
-                            (resumeOverrideRequested || !manager.isCurrentQueueVideo(videoId)),
-                )
-
-            if (localFilePath != null) {
-                manager.playLocalFile(
-                    videoId = videoId,
-                    filePath = localFilePath,
-                    savedSegments = offlineSegments,
-                    preservePosition = resumePosition.takeIf { it > 0L },
-                    subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId) },
-                )
-            } else {
-                val effectiveDashUrl = dashManifestUrl?.takeIf { it.isNotEmpty() } ?: streamInfo.dashMpdUrl
-                val hasAnySource =
-                    audioStream != null || videoStreams.isNotEmpty() ||
-                        !effectiveDashUrl.isNullOrEmpty() || !hlsUrl.isNullOrEmpty() || sabrInfo != null
-                if (hasAnySource) {
-                    if (audioStream == null) {
-                        Log.w("VideoPlayerViewModel", "Preparing $videoId without a separate audio stream")
-                    }
-                    manager.setStreams(
-                        videoId = videoId,
-                        videoStream = if (isAdaptiveMode) null else videoStream,
-                        audioStream = audioStream,
-                        videoStreams = videoStreams,
-                        audioStreams = audioStreams,
-                        subtitles = subtitles,
-                        durationSeconds = streamInfo.duration,
-                        dashManifestUrl = effectiveDashUrl,
-                        hlsUrl = hlsUrl,
-                        streamType = streamInfo.streamType,
-                        startPosition = resumePosition,
-                        sabrInfo = sabrInfo,
-                        itVideoFormats = itVideoFormats,
-                        itAudioFormats = itAudioFormats,
-                        preferredVideoCodec = preferredVideoCodec,
-                        preferSabr = preferSabr,
-                        preferredLiveQualityHeight = preferredLiveQualityHeight,
-                    )
-                }
-            }
-            applyRememberedPlaybackSpeed(isLive = !hlsUrl.isNullOrEmpty(), manager = manager)
-
-            if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-            manager.play()
-        }
-
-        private suspend fun preferredDefaultQualityHeight(): Int {
-            val quality =
-                if (detectIsWifi()) {
-                    playerPreferences.defaultQualityWifi.first()
-                } else {
-                    playerPreferences.defaultQualityCellular.first()
-                }
-            return quality.height
-        }
-
         private suspend fun prepareLiveStreamFromInnerTube(
             videoId: String,
             result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
@@ -1645,17 +1547,8 @@ class VideoPlayerViewModel
                 )
             GlobalPlayerState.setCurrentVideo(enrichedVideo)
 
-            val manager = playerManager
-            manager.initialize(context)
-            manager.startBackgroundService(
-                videoId = videoId,
-                title = title,
-                channel = channel,
-                thumbnail = thumbnail,
-            )
-
-            val autoplay = playerPreferences.autoplayEnabled.first()
-            manager.setAutoplayCandidates(sourceVideoId = videoId, videos = relatedVideos, enabled = autoplay)
+            playbackPreparer.beginSession(videoId = videoId, title = title, channel = channel, thumbnail = thumbnail)
+            playbackPreparer.applyAutoplayCandidates(videoId = videoId, videos = relatedVideos)
 
             val liveCaptionStreams =
                 StreamProcessor.processSubtitleStreams(
@@ -1678,28 +1571,15 @@ class VideoPlayerViewModel
                 )
             }
 
-            if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-            if (manager.isPreparedForPlayback(videoId)) return@withContext
-
-            manager.setStreams(
-                videoId = videoId,
-                videoStream = null,
-                audioStream = null,
-                videoStreams = emptyList(),
-                audioStreams = emptyList(),
-                subtitles = liveCaptionStreams,
-                durationSeconds = 0L,
-                dashManifestUrl = result.liveDashUrl,
-                hlsUrl = result.liveHlsUrl,
-                streamType = StreamType.LIVE_STREAM,
-                startPosition = 0L,
-                preferredVideoCodec = playerPreferences.videoCodecPriority.first(),
-                preferredLiveQualityHeight = preferredDefaultQualityHeight(),
-            )
-            applyRememberedPlaybackSpeed(isLive = true, manager = manager)
-
-            if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-            manager.play()
+            val liveStarted =
+                playbackPreparer.prepareLiveStreams(
+                    videoId = videoId,
+                    hlsUrl = result.liveHlsUrl,
+                    dashManifestUrl = result.liveDashUrl,
+                    subtitles = liveCaptionStreams,
+                    isCurrent = { isPlaybackLoadCurrent(loadToken) },
+                )
+            if (!liveStarted) return@withContext
 
             loadChannelMetadataAfterPlayback(
                 videoId = videoId,
@@ -2061,9 +1941,7 @@ class VideoPlayerViewModel
                 )
             GlobalPlayerState.setCurrentVideo(enrichedVideo)
 
-            val manager = playerManager
-            manager.initialize(context)
-            manager.startBackgroundService(videoId = videoId, title = title, channel = channel, thumbnail = thumbnail)
+            playbackPreparer.beginSession(videoId = videoId, title = title, channel = channel, thumbnail = thumbnail)
 
             val videoStreams = InnerTubeStreamBridge.convertVideoFormats(result.videoFormats)
             val audioStreams = InnerTubeStreamBridge.convertAudioFormats(result.audioFormats)
@@ -2082,20 +1960,12 @@ class VideoPlayerViewModel
                     CaptionTrackResolver.resolve(result.playerResponse),
                 )
 
-            val autoplay = playerPreferences.autoplayEnabled.first()
-            manager.setAutoplayCandidates(sourceVideoId = videoId, videos = relatedVideos, enabled = autoplay)
+            val autoplay = playbackPreparer.applyAutoplayCandidates(videoId = videoId, videos = relatedVideos)
 
             val savedPositionMs =
                 resumePositionOverrideMs
                     ?.takeIf { it > 0L }
                     ?: viewHistory.getPlaybackPosition(videoId).first()
-            val durationMs = durationSeconds * 1000L
-            val resumePosition =
-                PlaybackResumePolicy.resolveStartPosition(
-                    savedPosition = savedPositionMs,
-                    durationMs = durationMs,
-                    resumeAllowed = resumePositionOverrideMs != null || !manager.isCurrentQueueVideo(videoId),
-                )
             val isAdaptiveMode = preferredQuality == VideoQuality.AUTO
 
             Log.w(
@@ -2145,36 +2015,24 @@ class VideoPlayerViewModel
                 loadToken = loadToken,
             )
 
-            if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-            if (manager.isPreparedForPlayback(videoId)) return@withContext
-
-            val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
-            val preferSabr =
-                result.sabrInfo != null &&
-                    SabrRoutingPolicy.shouldPreferSabr(false, result.sabrInfo.videoHeight, directMaxHeight)
-            manager.setStreams(
+            playbackPreparer.prepareVodStreams(
                 videoId = videoId,
-                videoStream = if (isAdaptiveMode) null else selected.first,
+                videoStream = selected.first,
                 audioStream = selected.second,
                 videoStreams = videoStreams,
                 audioStreams = audioStreams,
                 subtitles = captionStreams,
                 durationSeconds = durationSeconds,
-                dashManifestUrl = null,
-                hlsUrl = null,
-                streamType = StreamType.VIDEO_STREAM,
-                startPosition = resumePosition,
+                savedPositionMs = savedPositionMs,
+                resumeOverrideRequested = resumePositionOverrideMs != null,
+                isAdaptiveMode = isAdaptiveMode,
                 sabrInfo = result.sabrInfo,
                 itVideoFormats = result.videoFormats,
                 itAudioFormats = result.audioFormats,
                 preferredVideoCodec = preferredCodecKey,
-                preferSabr = preferSabr,
                 preferredLiveQualityHeight = preferredQuality.height,
+                isCurrent = { isPlaybackLoadCurrent(loadToken) },
             )
-            applyRememberedPlaybackSpeed(isLive = false, manager = manager)
-
-            if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-            manager.play()
         }
 
         private fun refreshLiveWatchMetadata(
@@ -2264,31 +2122,14 @@ class VideoPlayerViewModel
             savedPosition: Long,
             loadToken: Long,
         ) {
-            val offlineSubtitles = offlineSubtitlesFor(videoId)
-            withContext(Dispatchers.Main) {
-                if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-                val manager = playerManager
-                if (manager.isPreparedForPlayback(videoId)) return@withContext
-
-                manager.initialize(context)
-                val startPosition =
-                    PlaybackResumePolicy.resolveStartPosition(
-                        savedPosition = savedPosition,
-                        durationMs = 0L,
-                        resumeAllowed = !manager.isCurrentQueueVideo(videoId),
-                    )
-                manager.playLocalFile(
-                    videoId = videoId,
-                    filePath = localFilePath,
-                    savedSegments = offlineSegments,
-                    preservePosition = startPosition.takeIf { it > 0L },
-                    subtitles = offlineSubtitles,
-                )
-                applyRememberedPlaybackSpeed(isLive = false, manager = manager)
-
-                if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-                manager.play()
-            }
+            playbackPreparer.prepareLocalMedia(
+                videoId = videoId,
+                localFilePath = localFilePath,
+                offlineSegments = offlineSegments,
+                savedPosition = savedPosition,
+                subtitles = offlineSubtitlesFor(videoId),
+                isCurrent = { isPlaybackLoadCurrent(loadToken) },
+            )
         }
 
         private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
@@ -2301,19 +2142,10 @@ class VideoPlayerViewModel
             return stored
         }
 
-        private suspend fun applyRememberedPlaybackSpeed(
-            isLive: Boolean,
-            manager: EnhancedPlayerManager,
-        ) {
-            if (isLive) {
-                manager.setPlaybackSpeed(1.0f)
-                return
-            }
-
-            if (playerPreferences.rememberPlaybackSpeed.first()) {
-                manager.setPlaybackSpeed(playerPreferences.playbackSpeed.first())
-            }
-        }
+        private fun cachedDurationSeconds(): Long =
+            _uiState.value.cachedVideo
+                ?.duration
+                ?.toLong() ?: 0L
 
         fun switchQuality(quality: VideoQuality) {
             val state = _uiState.value
