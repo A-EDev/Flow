@@ -43,7 +43,8 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.DonationPromptHost
-import io.github.aedev.flow.ui.components.FloatingBottomNavBar
+import io.github.aedev.flow.ui.components.layout.FlowNavigationChrome
+import io.github.aedev.flow.ui.components.layout.flowUsesNavigationRail
 import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpacer
@@ -190,6 +191,8 @@ fun FlowApp(
 
     val selectedBottomNavIndex = remember { mutableIntStateOf(resolvedDefaultNavTabIndex) }
     val showBottomNav = remember { mutableStateOf(true) }
+    val usesNavigationRail = flowUsesNavigationRail()
+    var navigationRailWidth by remember { mutableStateOf(0.dp) }
     val navScrollThresholdPx = with(LocalDensity.current) { 32.dp.toPx() }
 
     LaunchedEffect(resolvedDefaultNavTabIndex) {
@@ -493,6 +496,7 @@ fun FlowApp(
                 targetValue =
                     if (
                         !bottomNavHideOnScroll &&
+                        !usesNavigationRail &&
                         !isInPipMode &&
                         showBottomNav.value &&
                         isNavScrolledVisible &&
@@ -535,10 +539,13 @@ fun FlowApp(
                         } else {
                             paddingValues
                         }
+                    val navigationRailInset =
+                        if (!isInPipMode && usesNavigationRail && showBottomNav.value) navigationRailWidth else 0.dp
                     Box(
                         modifier =
                             Modifier
                                 .padding(if (isInPipMode) PaddingValues(0.dp) else contentPadding)
+                                .padding(start = navigationRailInset)
                                 .padding(bottom = bottomNavContentPadding)
                                 .padding(bottom = musicMiniPlayerContentPadding.coerceAtLeast(0.dp))
                                 .nestedScroll(nestedScrollConnection),
@@ -612,7 +619,7 @@ fun FlowApp(
                                         disableShortsPlayer = disableShortsPlayer,
                                         defaultStartRoute = defaultStartRoute,
                                         bottomNavOverlayPadding = {
-                                            if (showBottomNav.value && isNavScrolledVisible) {
+                                            if (!usesNavigationRail && showBottomNav.value && isNavScrolledVisible) {
                                                 bottomNavContentHeightDp
                                             } else {
                                                 0.dp
@@ -626,53 +633,40 @@ fun FlowApp(
                 }
             }
 
-            // ── Floating bottom nav bar overlay ──────────────────────────────────
-            AnimatedVisibility(
-                visible = !isInPipMode && showBottomNav.value && isNavScrolledVisible,
-                modifier = Modifier.align(Alignment.BottomCenter),
-                enter =
-                    slideInVertically(
-                        initialOffsetY = { it },
-                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 320f),
-                    ) + fadeIn(animationSpec = tween(160, delayMillis = 40)),
-                exit =
-                    slideOutVertically(
-                        targetOffsetY = { it },
-                        animationSpec = spring(dampingRatio = 0.85f, stiffness = 350f),
-                    ) + fadeOut(animationSpec = tween(120)),
-            ) {
-                FloatingBottomNavBar(
-                    selectedIndex = selectedBottomNavIndex.intValue,
-                    isHomeEnabled = isHomeNavigationEnabled,
-                    isShortsEnabled = isShortsNavigationEnabled,
-                    isMusicEnabled = isMusicNavigationEnabled,
-                    isSearchEnabled = isSearchNavigationEnabled,
-                    isCategoriesEnabled = isCategoriesNavigationEnabled,
-                    navOrder = navTabOrder,
-                    onItemSelected = { index ->
-                        val route = navRouteForIndex(index)
+            FlowNavigationChrome(
+                selectedIndex = selectedBottomNavIndex.intValue,
+                visible = !isInPipMode && showBottomNav.value,
+                scrolledAway = !isNavScrolledVisible,
+                onRailWidthChanged = { navigationRailWidth = it },
+                isHomeEnabled = isHomeNavigationEnabled,
+                isShortsEnabled = isShortsNavigationEnabled,
+                isMusicEnabled = isMusicNavigationEnabled,
+                isSearchEnabled = isSearchNavigationEnabled,
+                isCategoriesEnabled = isCategoriesNavigationEnabled,
+                navOrder = navTabOrder,
+                onItemSelected = { index ->
+                    val route = navRouteForIndex(index)
 
-                        val activeRoute = navController.currentBackStackEntry?.destination?.route
-                        if (activeRoute == route) {
-                            TabScrollEventBus.emitScrollToTop(route)
-                        } else {
-                            selectedBottomNavIndex.intValue = index
-                            currentRoute.value = route
-                            navController.navigate(route) {
-                                popUpTo(defaultStartRoute) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
+                    val activeRoute = navController.currentBackStackEntry?.destination?.route
+                    if (activeRoute == route) {
+                        TabScrollEventBus.emitScrollToTop(route)
+                    } else {
+                        selectedBottomNavIndex.intValue = index
+                        currentRoute.value = route
+                        navController.navigate(route) {
+                            popUpTo(defaultStartRoute) {
+                                saveState = true
                             }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                    },
-                )
-            }
+                    }
+                },
+            )
         }
 
         val bottomPaddingTarget =
-            if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) {
+            if (!usesNavigationRail && !isInPipMode && showBottomNav.value && isNavScrolledVisible) {
                 bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
             } else {
                 with(density) { navBarBottomInset.toDp() }
@@ -694,6 +688,7 @@ fun FlowApp(
             isVisible = playerVisible && !isShortsPlayerRoute,
             playerSheetState = playerSheetState,
             bottomPadding = bottomPaddingTarget.coerceAtLeast(0.dp),
+            startInset = if (!isInPipMode && usesNavigationRail && showBottomNav.value) navigationRailWidth else 0.dp,
             miniPlayerScale = miniPlayerScale,
             miniPlayerShowSkipControls = miniPlayerShowSkipControls,
             miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,

@@ -29,7 +29,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,13 +36,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
-
-private data class NavItemSpec(
-    val index: Int,
-    val filledIcon: ImageVector,
-    val outlinedIcon: ImageVector,
-    val labelRes: Int,
-)
+import io.github.aedev.flow.ui.components.layout.FlowNavItemSpec
+import io.github.aedev.flow.ui.components.layout.rememberFlowNavItems
 
 private const val MAX_VISIBLE_NAV_ITEMS = 5
 
@@ -59,26 +53,18 @@ fun FloatingBottomNavBar(
     isCategoriesEnabled: Boolean = false,
     navOrder: List<Int> = listOf(0, 1, 2, 3, 4, 5, 6),
 ) {
-    val shortsIcon = ImageVector.vectorResource(id = R.drawable.ic_shorts)
-
     val enabledItems =
-        remember(isHomeEnabled, isShortsEnabled, isMusicEnabled, isSearchEnabled, isCategoriesEnabled, navOrder) {
-            val items =
-                buildList {
-                    if (isHomeEnabled) add(NavItemSpec(0, Icons.Filled.Home, Icons.Outlined.Home, R.string.nav_home))
-                    if (isShortsEnabled) add(NavItemSpec(1, shortsIcon, shortsIcon, R.string.nav_shorts))
-                    if (isMusicEnabled) add(NavItemSpec(2, Icons.Filled.MusicNote, Icons.Outlined.MusicNote, R.string.nav_music))
-                    add(NavItemSpec(3, Icons.Filled.Subscriptions, Icons.Outlined.Subscriptions, R.string.nav_subs))
-                    add(NavItemSpec(4, Icons.Filled.VideoLibrary, Icons.Outlined.VideoLibrary, R.string.nav_library))
-                    if (isSearchEnabled) add(NavItemSpec(5, Icons.Filled.Search, Icons.Outlined.Search, R.string.nav_search))
-                    if (isCategoriesEnabled) add(NavItemSpec(6, Icons.Filled.Explore, Icons.Outlined.Explore, R.string.nav_explore))
-                }
-            val order = navOrder.withIndex().associate { it.value to it.index }
-            items.sortedBy { order[it.index] ?: Int.MAX_VALUE }
-        }
+        rememberFlowNavItems(
+            isHomeEnabled = isHomeEnabled,
+            isShortsEnabled = isShortsEnabled,
+            isMusicEnabled = isMusicEnabled,
+            isSearchEnabled = isSearchEnabled,
+            isCategoriesEnabled = isCategoriesEnabled,
+            navOrder = navOrder,
+        )
 
-    val visibleItems: List<NavItemSpec>
-    val overflowItems: List<NavItemSpec>
+    val visibleItems: List<FlowNavItemSpec>
+    val overflowItems: List<FlowNavItemSpec>
     if (enabledItems.size <= MAX_VISIBLE_NAV_ITEMS) {
         visibleItems = enabledItems
         overflowItems = emptyList()
