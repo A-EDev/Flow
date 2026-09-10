@@ -58,7 +58,7 @@ internal data class StreamPreferences(
  * one value: an InnerTube result that can start playback is emitted while NewPipe is still running,
  * and that step carries the still-pending NewPipe leg so the caller can replace the metadata later.
  */
-class VideoPlaybackResolver
+class PlaybackLoadResolver
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
@@ -499,7 +499,7 @@ class VideoPlaybackResolver
         }
 
         private companion object {
-            const val TAG = "VideoPlaybackResolver"
+            const val TAG = "PlaybackLoadResolver"
             const val NEWPIPE_ATTEMPTS = 3
             const val NEWPIPE_TIMEOUT_MS = 10_000L
             const val INNERTUBE_TIMEOUT_MS = 25_000L

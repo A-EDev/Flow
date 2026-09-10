@@ -41,6 +41,7 @@ import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.MergedPlaybackAssembly
 import io.github.aedev.flow.player.stream.PlaybackFailure
+import io.github.aedev.flow.player.stream.PlaybackLoadResolver
 import io.github.aedev.flow.player.stream.PlaybackResolutionRequest
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
@@ -48,7 +49,6 @@ import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.UpcomingPremiere
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
-import io.github.aedev.flow.player.stream.VideoPlaybackResolver
 import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.ui.screens.player.state.PlayerNavigationHistory
@@ -95,7 +95,7 @@ class VideoPlayerViewModel
         private val homeFeedCacheRepository: HomeFeedCacheRepository,
         private val playerManager: EnhancedPlayerManager,
         private val upcomingPremiereProbe: UpcomingPremiereProbe,
-        private val playbackResolver: VideoPlaybackResolver,
+        private val playbackResolver: PlaybackLoadResolver,
         @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {

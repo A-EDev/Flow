@@ -41,11 +41,11 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamType
 
 /**
- * Pins what [VideoPlaybackResolver] hands back for each way a load can end, with both extraction
+ * Pins what [PlaybackLoadResolver] hands back for each way a load can end, with both extraction
  * stacks driven from the same fakes the player-screen characterisation harness uses.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class VideoPlaybackResolverTest {
+class PlaybackLoadResolverTest {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
 
@@ -58,7 +58,7 @@ class VideoPlaybackResolverTest {
     private val sponsorBlockRepository: SponsorBlockRepository = mockk(relaxed = true)
     private val downloads = MutableStateFlow<List<DownloadedVideo>>(emptyList())
 
-    private lateinit var resolver: VideoPlaybackResolver
+    private lateinit var resolver: PlaybackLoadResolver
 
     @Before
     fun setUp() {
@@ -83,7 +83,7 @@ class VideoPlaybackResolverTest {
         every { repository.getRelatedVideosFromStreamInfo(any()) } returns emptyList()
 
         resolver =
-            VideoPlaybackResolver(
+            PlaybackLoadResolver(
                 context = context,
                 repository = repository,
                 viewHistory = viewHistory,

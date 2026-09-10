@@ -9,7 +9,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 /** The NewPipe leg's outcome: the info it produced, or the last error that stopped it producing one. */
 typealias NewPipeOutcome = Pair<StreamInfo?, Throwable?>
 
-/** Everything [VideoPlaybackResolver] needs that the player screen owns. */
+/** Everything [PlaybackLoadResolver] needs that the player screen owns. */
 data class PlaybackResolutionRequest(
     val videoId: String,
     val isWifi: Boolean,
