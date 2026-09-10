@@ -42,17 +42,18 @@ import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.player.awaitFirstPlaybackResolver
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.VideoErrorMapper
-import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
 import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.NetworkState
@@ -1598,15 +1599,14 @@ class VideoPlayerViewModel
                                     )
                                 }
 
-                                val availableQualities = extractAvailableQualitiesFromStreams(effectiveVideoStreams)
-                                val initialQuality = preferredQuality
+                                val availableQualities = VideoQualityOptions.availableQualities(effectiveVideoStreams)
                                 val selectedStreams =
-                                    selectStreamsFromLists(
-                                        effectiveVideoStreams,
-                                        effectiveAudioStreams,
-                                        initialQuality,
-                                        preferredAudioLanguage,
-                                        preferredCodecKey,
+                                    ServicePlaybackStreamSelector.selectStreams(
+                                        videoCandidates = effectiveVideoStreams,
+                                        audioCandidatesAll = effectiveAudioStreams,
+                                        preferredQuality = preferredQuality,
+                                        preferredAudioLanguage = preferredAudioLanguage,
+                                        preferredCodecKey = preferredCodecKey,
                                     )
                                 var localFilePath: String? = null
 
@@ -1732,7 +1732,7 @@ class VideoPlayerViewModel
                                         videoStream = if (isUpcomingContent) null else selectedStreams.first,
                                         audioStream = if (isUpcomingContent) null else selectedStreams.second,
                                         availableQualities = availableQualities,
-                                        selectedQuality = selectedStreams.third,
+                                        selectedQuality = VideoQualityOptions.qualityOf(selectedStreams.first),
                                         chapters = chapters,
                                         isLoading = false,
                                         savedPosition = savedPosition,
@@ -2600,14 +2600,14 @@ class VideoPlayerViewModel
 
             val videoStreams = InnerTubeStreamBridge.convertVideoFormats(result.videoFormats)
             val audioStreams = InnerTubeStreamBridge.convertAudioFormats(result.audioFormats)
-            val availableQualities = extractAvailableQualitiesFromStreams(videoStreams)
+            val availableQualities = VideoQualityOptions.availableQualities(videoStreams)
             val selected =
-                selectStreamsFromLists(
-                    videoStreams,
-                    audioStreams,
-                    preferredQuality,
-                    preferredAudioLanguage,
-                    preferredCodecKey,
+                ServicePlaybackStreamSelector.selectStreams(
+                    videoCandidates = videoStreams,
+                    audioCandidatesAll = audioStreams,
+                    preferredQuality = preferredQuality,
+                    preferredAudioLanguage = preferredAudioLanguage,
+                    preferredCodecKey = preferredCodecKey,
                 )
 
             val captionStreams =
@@ -2644,7 +2644,7 @@ class VideoPlayerViewModel
                     videoStream = selected.first,
                     audioStream = selected.second,
                     availableQualities = availableQualities,
-                    selectedQuality = selected.third,
+                    selectedQuality = VideoQualityOptions.qualityOf(selected.first),
                     isLoading = false,
                     error = null,
                     errorHint = null,
@@ -2862,13 +2862,20 @@ class VideoPlayerViewModel
                         (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
                     )
                 val effectiveAudio: List<AudioStream> = StreamMergeUtils.mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
-                val streams = selectStreamsFromLists(effectiveVideo, effectiveAudio, quality, audioLangPref, codecPref)
+                val streams =
+                    ServicePlaybackStreamSelector.selectStreams(
+                        videoCandidates = effectiveVideo,
+                        audioCandidatesAll = effectiveAudio,
+                        preferredQuality = quality,
+                        preferredAudioLanguage = audioLangPref,
+                        preferredCodecKey = codecPref,
+                    )
 
                 _uiState.value =
                     state.copy(
                         videoStream = streams.first,
                         audioStream = streams.second,
-                        selectedQuality = streams.third,
+                        selectedQuality = VideoQualityOptions.qualityOf(streams.first),
                         isAdaptiveMode = quality == VideoQuality.AUTO,
                     )
             }
@@ -3358,104 +3365,6 @@ class VideoPlayerViewModel
                     Log.e("VideoPlayerViewModel", "Error loading more replies", e)
                 }
             }
-        }
-
-        private fun selectStreamsFromLists(
-            videoStreams: List<VideoStream>,
-            audioStreams: List<AudioStream>,
-            preferredQuality: VideoQuality,
-            preferredAudioLanguage: String = "original",
-            preferredCodecKey: String = "auto",
-        ): Triple<VideoStream?, AudioStream?, VideoQuality> {
-            val audioCandidates =
-                audioStreams
-                    .distinctBy { it.content ?: "" }
-                    .sortedByDescending { it.bitrate }
-
-            val audioStream =
-                when (preferredAudioLanguage) {
-                    "original" -> {
-                        audioCandidates.firstOrNull { stream ->
-                            stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                        }
-                            ?: audioCandidates.firstOrNull { stream ->
-                                stream.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
-                            }
-                            ?: audioCandidates.firstOrNull()
-                    }
-
-                    else -> {
-                        audioCandidates.firstOrNull { a ->
-                            val lang = a.audioLocale?.language ?: ""
-                            lang.startsWith(preferredAudioLanguage, true)
-                        }
-                            ?: audioCandidates.firstOrNull { stream ->
-                                stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                            }
-                            ?: audioCandidates.firstOrNull()
-                    }
-                }
-
-            val allVideoStreams =
-                videoStreams.filter {
-                    val mime = it.format?.mimeType
-                    mime?.contains("mp4") == true || mime?.contains("webm") == true
-                }
-
-            val videoStream =
-                when (preferredQuality) {
-                    VideoQuality.AUTO -> {
-                        null
-                    }
-
-                    else -> {
-                        allVideoStreams
-                            .sortedWith(
-                                compareBy<VideoStream> {
-                                    kotlin.math.abs(
-                                        QualityManager.normalizeQualityHeight(
-                                            VideoCodecUtils.qualityHeightFromStream(it),
-                                        ) - preferredQuality.height,
-                                    )
-                                }.thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
-                                    .thenByDescending { it.bitrate },
-                            ).firstOrNull()
-                    }
-                }
-
-            val safeAudio = audioStream ?: audioStreams.firstOrNull()
-            val playableVideoStream =
-                if (safeAudio == null && videoStream == null) {
-                    allVideoStreams
-                        .sortedWith(
-                            compareBy<VideoStream> { if (it.isVideoOnly) 1 else 0 }
-                                .thenByDescending { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
-                                .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
-                                .thenByDescending { it.bitrate },
-                        ).firstOrNull()
-                } else {
-                    videoStream
-                }
-
-            val actualQuality =
-                playableVideoStream?.let {
-                    VideoQuality.fromHeight(QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)))
-                } ?: VideoQuality.AUTO
-
-            return Triple(playableVideoStream, safeAudio, actualQuality)
-        }
-
-        private fun extractAvailableQualitiesFromStreams(videoStreams: List<VideoStream>): List<VideoQuality> {
-            val heights =
-                videoStreams
-                    .map { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
-                    .distinct()
-                    .sorted()
-
-            return heights
-                .map { height ->
-                    VideoQuality.fromHeight(height)
-                }.distinct() + listOf(VideoQuality.AUTO)
         }
 
         fun toggleSkipSilence(isEnabled: Boolean) {

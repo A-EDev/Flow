@@ -52,11 +52,13 @@ class ServicePlaybackStreamSelectorTest {
         videos: List<VideoStream> = emptyList(),
         quality: VideoQuality = VideoQuality.AUTO,
         language: String = "original",
+        codec: String = "auto",
     ) = ServicePlaybackStreamSelector.selectStreams(
         videoCandidates = videos,
         audioCandidatesAll = audio,
         preferredQuality = quality,
         preferredAudioLanguage = language,
+        preferredCodecKey = codec,
     )
 
     @Test
@@ -144,5 +146,34 @@ class ServicePlaybackStreamSelectorTest {
 
         assertNull(audioPicked)
         assertTrue("expected the muxed stream, got ${picked?.id}", picked?.id == "muxed")
+    }
+
+    @Test
+    fun `an all dubbed track list still yields a track when the original is asked for`() {
+        // The player screen used to carry its own copy of this selection, whose last resort was
+        // "the first stream in the list"; nothing may return null while any track exists.
+        val es = audio("es", languageTag = "es", bitrate = 96_000)
+        val fr = audio("fr", languageTag = "fr", bitrate = 160_000)
+
+        assertEquals("fr", select(audio = listOf(es, fr), language = "original").second?.id)
+    }
+
+    @Test
+    fun `streams the player cannot mux are ignored whatever their height`() {
+        val threeGp = video("3gp", "1080p", format = MediaFormat.v3GPP)
+        val mp4 = video("mp4", "360p", format = MediaFormat.MPEG_4)
+
+        val picked = select(videos = listOf(threeGp, mp4), quality = VideoQuality.Q_1080P).first
+
+        assertEquals("mp4", picked?.id)
+    }
+
+    @Test
+    fun `the codec preference breaks a tie between two streams of the same height`() {
+        val avc = video("avc", "1080p", format = MediaFormat.MPEG_4)
+        val webm = video("webm", "1080p", format = MediaFormat.WEBM)
+
+        assertEquals("webm", select(videos = listOf(avc, webm), quality = VideoQuality.Q_1080P, codec = "vp9").first?.id)
+        assertEquals("avc", select(videos = listOf(webm, avc), quality = VideoQuality.Q_1080P, codec = "avc").first?.id)
     }
 }
