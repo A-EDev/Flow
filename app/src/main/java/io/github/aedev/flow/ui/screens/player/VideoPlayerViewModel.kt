@@ -55,6 +55,7 @@ import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
+import io.github.aedev.flow.ui.screens.player.state.PlayerNavigationHistory
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -115,8 +116,7 @@ class VideoPlayerViewModel
         private val _isLoadingMoreComments = MutableStateFlow(false)
         val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
 
-        private val navigationHistory = mutableListOf<String>()
-        private var currentHistoryIndex = -1
+        private val navigationHistory = PlayerNavigationHistory()
 
         // One terminal watch signal per video view; ignores repeat dispose fires.
         private var lastReportedVideoId: String? = null
@@ -897,7 +897,6 @@ class VideoPlayerViewModel
             }
 
             navigationHistory.clear()
-            currentHistoryIndex = -1
             _canGoPrevious.value = false
 
             _commentsState.value = emptyList()
@@ -1153,16 +1152,8 @@ class VideoPlayerViewModel
                 return
             }
 
-            // Track history
-            if (navigationHistory.isEmpty() || navigationHistory[currentHistoryIndex] != videoId) {
-                if (currentHistoryIndex < navigationHistory.size - 1) {
-                    val toRemove = navigationHistory.size - 1 - currentHistoryIndex
-                    repeat(toRemove) { navigationHistory.removeAt(navigationHistory.size - 1) }
-                }
-                navigationHistory.add(videoId)
-                currentHistoryIndex = navigationHistory.size - 1
-                _canGoPrevious.value = currentHistoryIndex > 0
-            }
+            navigationHistory.push(videoId)
+            _canGoPrevious.value = navigationHistory.canGoPrevious
 
             _uiState.value =
                 _uiState.value.copy(
@@ -2881,14 +2872,10 @@ class VideoPlayerViewModel
             }
         }
 
-        private fun getPreviousVideoId(): String? {
-            if (currentHistoryIndex > 0 && currentHistoryIndex < navigationHistory.size) {
-                currentHistoryIndex--
-                _canGoPrevious.value = currentHistoryIndex > 0
-                return navigationHistory.getOrNull(currentHistoryIndex)
+        private fun getPreviousVideoId(): String? =
+            navigationHistory.previous()?.also {
+                _canGoPrevious.value = navigationHistory.canGoPrevious
             }
-            return null
-        }
 
         private fun saveHistoryEntry(video: Video) {
             if (video.id.startsWith("recovered_")) return
