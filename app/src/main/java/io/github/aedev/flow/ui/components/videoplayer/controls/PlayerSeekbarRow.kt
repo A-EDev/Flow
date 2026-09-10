@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -63,7 +66,11 @@ internal fun PlayerSeekbarRow(
         return
     }
 
-    val seekDuration = if (isLive) duration.coerceAtLeast(positionProvider()) else duration
+    // Derived rather than read: a live timeline's duration is recomputed from the playhead, and a
+    // plain read here would recompose this row on every tick for a value that almost never moves.
+    val seekDuration by remember(duration, isLive, positionProvider) {
+        derivedStateOf { if (isLive) duration.coerceAtLeast(positionProvider()) else duration }
+    }
     MediaSeekBar(
         value = {
             if (seekDuration > 0) {

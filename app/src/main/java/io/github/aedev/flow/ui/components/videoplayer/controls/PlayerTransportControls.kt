@@ -1,7 +1,5 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,28 +12,40 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ripple
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimContentDisabled
+
+private val PlayPauseButtonSize = 62.dp
+private val PlayPauseIconSize = 54.dp
+private val BufferingIndicatorSlot = 48.dp
+private val SkipButtonSize = 48.dp
+private val SkipIconSize = 36.dp
 
 /**
  * Previous / play-pause / next.
  *
  * [showSkipButtons] is false during the initial load, when the queue is not yet known well enough
  * for skipping to mean anything — the play button stays so the loading spinner has a home.
+ *
+ * [isLayerVisible] gates the buffering indicator: the controls stay composed behind the video while
+ * hidden, and a morphing indicator nobody can see still costs a frame every frame.
  */
 @Composable
 internal fun PlayerTransportControls(
@@ -47,7 +57,12 @@ internal fun PlayerTransportControls(
     showSkipButtons: Boolean,
     actions: PlayerControlActions,
     modifier: Modifier = Modifier,
+    isLayerVisible: () -> Boolean = { true },
 ) {
+    val showIndicator by remember(showBufferingSpinner, isLayerVisible) {
+        derivedStateOf { showBufferingSpinner && isLayerVisible() }
+    }
+
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center,
@@ -66,21 +81,22 @@ internal fun PlayerTransportControls(
             }
 
             val playPauseInteractionSource = remember { MutableInteractionSource() }
-            Box(
-                contentAlignment = Alignment.Center,
+            FilledIconButton(
+                onClick = actions.onPlayPause,
+                shape = CircleShape,
+                colors =
+                    IconButtonDefaults.filledIconButtonColors(
+                        containerColor = PlayerScrimAffordance,
+                        contentColor = PlayerScrimContent,
+                    ),
+                interactionSource = playPauseInteractionSource,
                 modifier =
                     Modifier
-                        .size(62.dp)
-                        .pressScale(playPauseInteractionSource, pressedScale = 0.88f)
-                        .clip(CircleShape)
-                        .background(PlayerScrimAffordance)
-                        .clickable(
-                            interactionSource = playPauseInteractionSource,
-                            indication = ripple(color = PlayerScrimContent),
-                        ) { actions.onPlayPause() },
+                        .size(PlayPauseButtonSize)
+                        .pressScale(playPauseInteractionSource, pressedScale = 0.88f),
             ) {
-                if (showBufferingSpinner) {
-                    PlayerBufferingIndicator(modifier = Modifier.size(48.dp))
+                if (showIndicator) {
+                    FlowLoadingIndicator(modifier = Modifier.size(BufferingIndicatorSlot))
                 } else {
                     Icon(
                         imageVector =
@@ -95,8 +111,7 @@ internal fun PlayerTransportControls(
                                 isPlaying -> stringResource(R.string.pause)
                                 else -> stringResource(R.string.play)
                             },
-                        tint = PlayerScrimContent,
-                        modifier = Modifier.size(54.dp),
+                        modifier = Modifier.size(PlayPauseIconSize),
                     )
                 }
             }
@@ -126,7 +141,7 @@ private fun SkipButton(
         enabled = enabled,
         modifier =
             Modifier
-                .size(48.dp)
+                .size(SkipButtonSize)
                 .pressScale(interactionSource, pressedScale = 0.82f),
         interactionSource = interactionSource,
     ) {
@@ -134,7 +149,7 @@ private fun SkipButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = if (enabled) PlayerScrimContent else PlayerScrimContentDisabled,
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(SkipIconSize),
         )
     }
 }

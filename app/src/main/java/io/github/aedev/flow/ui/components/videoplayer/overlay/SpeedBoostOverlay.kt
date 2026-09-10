@@ -14,9 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.utils.formatMultiplierLabel
 
 @Composable
 internal fun SpeedBoostOverlay(
@@ -26,8 +26,12 @@ internal fun SpeedBoostOverlay(
 ) {
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+        enter =
+            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                expandVertically(MaterialTheme.motionScheme.fastSpatialSpec(), expandFrom = Alignment.Top),
+        exit =
+            fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec(), shrinkTowards = Alignment.Top),
         modifier = modifier,
     ) {
         Surface(
@@ -41,7 +45,7 @@ internal fun SpeedBoostOverlay(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = VideoPlayerUtils.formatSpeedLabel(speed, maxSpeed = 4.0f),
+                    text = formatMultiplierLabel(speed, maxValue = 4.0f),
                     color = PlayerScrimContent,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,

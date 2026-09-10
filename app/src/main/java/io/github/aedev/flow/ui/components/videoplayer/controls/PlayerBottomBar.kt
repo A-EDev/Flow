@@ -1,7 +1,5 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,9 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,14 +33,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerTimePill
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import org.schabi.newpipe.extractor.stream.StreamSegment
-
-/** Alpha the bottom gradient reaches at the very bottom of the player. */
-private const val BOTTOM_GRADIENT_ALPHA = 0.44f
 
 /** Sizing shared by the pill row and the seek bar beneath it. */
 data class PlayerBottomBarMetrics(
@@ -79,6 +70,7 @@ internal fun PlayerBottomBar(
     onScrubProgress: (progress: Float, duration: Long) -> Unit,
     onScrubFinished: () -> Unit,
     modifier: Modifier = Modifier,
+    isLayerVisible: () -> Boolean = { true },
 ) {
     val accentColor = MaterialTheme.colorScheme.primary
 
@@ -86,12 +78,8 @@ internal fun PlayerBottomBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .background(
-                    brush =
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, PlayerScrim.copy(alpha = BOTTOM_GRADIENT_ALPHA)),
-                        ),
-                ).padding(bottom = metrics.seekbarBottomPadding),
+                .playerEdgeScrim(ScrimEdge.Bottom, PlayerScrim.copy(alpha = BOTTOM_BAR_SCRIM_ALPHA))
+                .padding(bottom = metrics.seekbarBottomPadding),
     ) {
         Row(
             modifier =
@@ -114,22 +102,14 @@ internal fun PlayerBottomBar(
                 modifier = Modifier.weight(1f),
             ) {
                 if (showCommentsButton) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(metrics.pillHeight)
-                                .clip(CircleShape)
-                                .background(PlayerScrimAffordance)
-                                .clickable(onClick = actions.onCommentsClick),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ChatBubbleOutline,
-                            contentDescription = stringResource(R.string.comments),
-                            tint = if (isCommentsPanelOpen) accentColor else PlayerScrimContent,
-                            modifier = Modifier.size(metrics.expandIconSize),
-                        )
-                    }
+                    PlayerPillIconButton(
+                        onClick = actions.onCommentsClick,
+                        icon = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = stringResource(R.string.comments),
+                        buttonSize = metrics.pillHeight,
+                        iconSize = metrics.expandIconSize,
+                        contentColor = if (isCommentsPanelOpen) accentColor else PlayerScrimContent,
+                    )
                 }
 
                 PlayerTimePill(
@@ -139,17 +119,15 @@ internal fun PlayerBottomBar(
                     showRemainingTime = showRemainingTime,
                     onClick = { if (isLive) actions.onLiveClick() else actions.onToggleRemainingTime() },
                     modifier = Modifier.height(metrics.pillHeight),
+                    isLayerVisible = isLayerVisible,
                 )
 
                 if (currentChapter != null) {
                     Surface(
+                        onClick = actions.onChapterClick,
                         color = PlayerScrimAffordance,
                         shape = CircleShape,
-                        modifier =
-                            Modifier
-                                .height(metrics.pillHeight)
-                                .clip(CircleShape)
-                                .clickable(onClick = actions.onChapterClick),
+                        modifier = Modifier.height(metrics.pillHeight),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -182,14 +160,13 @@ internal fun PlayerBottomBar(
             ) {
                 if (compactQualityLabel != null) {
                     Surface(
+                        onClick = actions.onQualityClick,
                         color = PlayerScrimAffordance,
                         shape = CircleShape,
                         modifier =
                             Modifier
                                 .height(metrics.pillHeight)
-                                .widthIn(min = metrics.pillHeight)
-                                .clip(CircleShape)
-                                .clickable(onClick = actions.onQualityClick),
+                                .widthIn(min = metrics.pillHeight),
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
@@ -206,22 +183,13 @@ internal fun PlayerBottomBar(
                     }
                 }
 
-                Box(
-                    modifier =
-                        Modifier
-                            .size(metrics.pillHeight)
-                            .clip(CircleShape)
-                            .background(PlayerScrimAffordance)
-                            .clickable(onClick = actions.onFullscreenClick),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = if (isFullscreen) Icons.Rounded.CloseFullscreen else Icons.Rounded.OpenInFull,
-                        contentDescription = stringResource(R.string.fullscreen),
-                        tint = PlayerScrimContent,
-                        modifier = Modifier.size(metrics.expandIconSize),
-                    )
-                }
+                PlayerPillIconButton(
+                    onClick = actions.onFullscreenClick,
+                    icon = if (isFullscreen) Icons.Rounded.CloseFullscreen else Icons.Rounded.OpenInFull,
+                    contentDescription = stringResource(R.string.fullscreen),
+                    buttonSize = metrics.pillHeight,
+                    iconSize = metrics.expandIconSize,
+                )
             }
         }
 

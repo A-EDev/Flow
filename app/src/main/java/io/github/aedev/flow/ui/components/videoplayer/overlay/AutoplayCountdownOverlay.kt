@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.components.videoplayer.overlay
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -37,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -61,7 +60,7 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 @Composable
 fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
     val manager = remember { EnhancedPlayerManager.getInstance() }
-    val state by manager.autoplayCountdown.collectAsState()
+    val state by manager.autoplayCountdown.collectAsStateWithLifecycle()
 
     var shown by remember { mutableStateOf(state) }
     LaunchedEffect(state) { if (state.isActive) shown = state }
@@ -69,8 +68,8 @@ fun AutoplayCountdownOverlay(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = state.isActive,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200)),
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
             modifier = Modifier.fillMaxSize(),
         ) {
             Box(
@@ -105,16 +104,17 @@ private fun CountdownCard(
     onPlayNow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val progress by animateFloatAsState(
-        targetValue =
-            if (state.totalSeconds > 0) {
-                state.secondsRemaining.toFloat() / state.totalSeconds.toFloat()
-            } else {
-                0f
-            },
-        animationSpec = tween(400),
-        label = "autoplayCountdownProgress",
-    )
+    val progress =
+        animateFloatAsState(
+            targetValue =
+                if (state.totalSeconds > 0) {
+                    state.secondsRemaining.toFloat() / state.totalSeconds.toFloat()
+                } else {
+                    0f
+                },
+            animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+            label = "autoplayCountdownProgress",
+        )
 
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
@@ -129,7 +129,7 @@ private fun CountdownCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
                     CircularProgressIndicator(
-                        progress = { progress },
+                        progress = { progress.value },
                         modifier = Modifier.fillMaxSize(),
                         strokeWidth = 3.dp,
                         color = MaterialTheme.colorScheme.primary,

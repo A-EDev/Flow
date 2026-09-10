@@ -1,7 +1,5 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -41,7 +39,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -57,9 +54,6 @@ import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
-
-/** Alpha the top gradient reaches at the very top of the player. */
-private const val TOP_GRADIENT_ALPHA = 0.38f
 
 /**
  * The row of actions along the top of the player: minimise, title, and the configurable action
@@ -102,12 +96,8 @@ internal fun VideoPlayerTopBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .background(
-                    brush =
-                        Brush.verticalGradient(
-                            colors = listOf(PlayerScrim.copy(alpha = TOP_GRADIENT_ALPHA), Color.Transparent),
-                        ),
-                ).padding(top = topPadding),
+                .playerEdgeScrim(ScrimEdge.Top, PlayerScrim.copy(alpha = TOP_BAR_SCRIM_ALPHA))
+                .padding(top = topPadding),
     ) {
         Row(
             modifier =
@@ -123,25 +113,14 @@ internal fun VideoPlayerTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(actionSpacing),
             ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(actionButtonSize)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(),
-                                onClick = actions.onBack,
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.btn_minimize),
-                        tint = PlayerScrimContent,
-                        modifier = Modifier.size(actionIconSize),
-                    )
-                }
+                PlayerPillIconButton(
+                    onClick = actions.onBack,
+                    icon = Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.btn_minimize),
+                    buttonSize = actionButtonSize,
+                    iconSize = actionIconSize,
+                    containerColor = Color.Transparent,
+                )
 
                 if (isFullscreen && preferences.fullscreenTitleEnabled && !videoTitle.isNullOrBlank()) {
                     Text(
@@ -189,13 +168,10 @@ internal fun VideoPlayerTopBar(
             ) {
                 if (preferences.speedIndicatorEnabled) {
                     Surface(
+                        onClick = actions.onSpeedClick,
                         color = PlayerScrimAffordance,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier =
-                            Modifier
-                                .height(pillHeight)
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable(onClick = actions.onSpeedClick),
+                        shape = SpeedPillShape,
+                        modifier = Modifier.height(pillHeight),
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
@@ -317,6 +293,12 @@ internal fun VideoPlayerTopBar(
         }
     }
 }
+
+/**
+ * The speed pill's radius is half [OverlayPillHeight], which is a stadium rather than any shape
+ * token: `MaterialTheme.shapes` has no 14dp step.
+ */
+private val SpeedPillShape = RoundedCornerShape(14.dp)
 
 @Composable
 private fun TopBarIconButton(

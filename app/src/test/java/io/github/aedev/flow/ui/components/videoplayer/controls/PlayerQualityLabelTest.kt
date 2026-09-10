@@ -1,8 +1,13 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
+import io.github.aedev.flow.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/**
+ * The ladder is asserted on the badge it picks, not on the rendered text: the marketing names are
+ * localisable resources now, so the pure function returns which one to show.
+ */
 class PlayerQualityLabelTest {
     @Test
     fun `loading state does not expose zero as a resolution`() {
@@ -45,32 +50,32 @@ class PlayerQualityLabelTest {
 
     @Test
     fun `high resolutions collapse to their marketing name`() {
-        assertEquals("4K", compactPlayerQualityLabel("2160p"))
-        assertEquals("QHD", compactPlayerQualityLabel("1440p"))
-        assertEquals("FHD", compactPlayerQualityLabel("1080p"))
-        assertEquals("HD", compactPlayerQualityLabel("720p"))
-        assertEquals("SD", compactPlayerQualityLabel("480p"))
+        assertEquals(PlayerQualityBadge.Named(R.string.filter_4k), compactPlayerQualityBadge("2160p"))
+        assertEquals(PlayerQualityBadge.Named(R.string.quality_badge_qhd), compactPlayerQualityBadge("1440p"))
+        assertEquals(PlayerQualityBadge.Named(R.string.quality_badge_fhd), compactPlayerQualityBadge("1080p"))
+        assertEquals(PlayerQualityBadge.Named(R.string.filter_hd), compactPlayerQualityBadge("720p"))
+        assertEquals(PlayerQualityBadge.Named(R.string.quality_badge_sd), compactPlayerQualityBadge("480p"))
     }
 
     @Test
     fun `low resolutions keep their pixel height`() {
-        assertEquals("360p", compactPlayerQualityLabel("360p"))
-        assertEquals("240p", compactPlayerQualityLabel("240p"))
-        assertEquals("144p", compactPlayerQualityLabel("144p"))
+        assertEquals(PlayerQualityBadge.Height(360), compactPlayerQualityBadge("360p"))
+        assertEquals(PlayerQualityBadge.Height(240), compactPlayerQualityBadge("240p"))
+        assertEquals(PlayerQualityBadge.Height(144), compactPlayerQualityBadge("144p"))
     }
 
     @Test
     fun `an off-ladder resolution is rendered as a pixel height`() {
-        assertEquals("1250p", compactPlayerQualityLabel("1250p"))
+        assertEquals(PlayerQualityBadge.Height(1250), compactPlayerQualityBadge("1250p"))
     }
 
     @Test
     fun `the first number in the label is the one that counts`() {
-        assertEquals("FHD", compactPlayerQualityLabel("1080p60"))
+        assertEquals(PlayerQualityBadge.Named(R.string.quality_badge_fhd), compactPlayerQualityBadge("1080p60"))
     }
 
     @Test
     fun `a label without a resolution is passed through unchanged`() {
-        assertEquals("Auto", compactPlayerQualityLabel("Auto"))
+        assertEquals(PlayerQualityBadge.Verbatim("Auto"), compactPlayerQualityBadge("Auto"))
     }
 }

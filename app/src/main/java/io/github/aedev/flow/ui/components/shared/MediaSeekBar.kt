@@ -18,13 +18,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -54,13 +57,16 @@ internal data class SeekTrackColors(
  *   slot, so Material owns dragging, press-to-position, keyboard and accessibility.
  * - Edge-aligned (the thin strip under the video when controls are hidden) is
  *   [EdgeAlignedSeekbar], which cannot be a [Slider] — its documentation records why.
+ *
+ * Both read the playhead out of one [SliderState]: it is a snapshot-backed float, so the track and
+ * the thumb pick a tick up in the layout and draw phases and this composable is not invalidated.
  */
 @Composable
 fun MediaSeekBar(
     /**
      * Progress provider rather than a value: the playhead is written several times a second, and
-     * reading it at the call site subscribed the whole player-controls overlay to that tick.
-     * Invoking it here confines the recomposition to this component.
+     * reading it — here or at the call site — subscribes a composable to that tick. It is collected
+     * into [SliderState] instead, so nothing recomposes between drags.
      */
     value: () -> Float,
     onValueChange: (Float) -> Unit,
@@ -96,14 +102,41 @@ fun MediaSeekBar(
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isInteracting = isPressed || isDragged || edgePointerActive
 
-    val progress = value()
+    // Seeded without read observation so the bar is correct on its first frame without that read
+    // subscribing this composable to the playhead for the rest of its life.
+    val sliderState = remember { SliderState(value = Snapshot.withoutReadObservation { value() }) }
 
     // While the thumb is held the component shows the dragged position; otherwise it follows the
-    // playhead directly. `isScrubbing` is only ever set in the same handler that writes
-    // `scrubValue`, so the displayed value can never be a stale leftover from a previous drag.
-    var scrubValue by remember { mutableFloatStateOf(progress) }
-    var isScrubbing by remember { mutableStateOf(false) }
-    val displayValue = if (isScrubbing) scrubValue else progress
+    // playhead. `isScrubbing` is only ever set in the same handler that writes the state, so the
+    // displayed value can never be a stale leftover from a previous drag.
+    val isScrubbing = remember { mutableStateOf(false) }
+    val currentValue by rememberUpdatedState(value)
+    LaunchedEffect(sliderState) {
+        snapshotFlow { currentValue() }.collect { fraction ->
+            if (!isScrubbing.value) sliderState.value = fraction
+        }
+    }
+
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
+    val onScrub =
+        remember(sliderState) {
+            { newValue: Float ->
+                isScrubbing.value = true
+                sliderState.value = newValue
+                currentOnValueChange(newValue)
+            }
+        }
+    val onScrubFinished: () -> Unit =
+        remember(sliderState) {
+            {
+                isScrubbing.value = false
+                currentOnValueChangeFinished?.invoke()
+                Unit
+            }
+        }
+    sliderState.onValueChange = onScrub
+    sliderState.onValueChangeFinished = onScrubFinished
 
     // Animated in the draw phase rather than through Modifier.height: the track used to grow by
     // animating a layout constraint, which forced a layout pass on every frame of the touch
@@ -146,7 +179,7 @@ fun MediaSeekBar(
         ) {
             if (edgeAligned) {
                 EdgeAlignedSeekbar(
-                    displayValue = displayValue,
+                    displayValueProvider = { sliderState.value },
                     enabled = enabled,
                     chapters = chapters,
                     sponsorSegments = sponsorSegments,
@@ -156,32 +189,16 @@ fun MediaSeekBar(
                     colors = trackColors,
                     expansionProvider = { trackExpansion.value },
                     thumbScaleProvider = { thumbScale.value },
-                    onScrub = { newValue ->
-                        scrubValue = newValue
-                        isScrubbing = true
-                        onValueChange(newValue)
-                    },
+                    onScrub = onScrub,
                     onPointerActiveChange = { active ->
                         edgePointerActive = active
-                        if (!active) {
-                            isScrubbing = false
-                            onValueChangeFinished?.invoke()
-                        }
+                        if (!active) onScrubFinished()
                     },
                 )
             } else {
                 @OptIn(ExperimentalMaterial3Api::class)
                 Slider(
-                    value = displayValue,
-                    onValueChange = { newValue ->
-                        scrubValue = newValue
-                        isScrubbing = true
-                        onValueChange(newValue)
-                    },
-                    onValueChangeFinished = {
-                        isScrubbing = false
-                        onValueChangeFinished?.invoke()
-                    },
+                    state = sliderState,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = enabled,
                     interactionSource = interactionSource,

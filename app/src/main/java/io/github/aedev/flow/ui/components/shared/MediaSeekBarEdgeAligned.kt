@@ -26,7 +26,7 @@ import kotlin.math.abs
  */
 @Composable
 internal fun EdgeAlignedSeekbar(
-    displayValue: Float,
+    displayValueProvider: () -> Float,
     enabled: Boolean,
     chapters: List<StreamSegment>,
     sponsorSegments: List<SponsorBlockSegment>,
@@ -91,6 +91,7 @@ internal fun EdgeAlignedSeekbar(
                     }
                 },
     ) {
+        val displayValue = displayValueProvider()
         val expansion = expansionProvider()
         drawSeekTrack(
             fraction = displayValue,

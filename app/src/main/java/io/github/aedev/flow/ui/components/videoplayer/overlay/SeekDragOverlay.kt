@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.components.videoplayer.overlay
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,9 +14,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.utils.formatDurationMillis
 import kotlin.math.abs
 
 /**
@@ -35,8 +34,12 @@ internal fun SeekDragOverlay(
 ) {
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(tween(120)) + scaleIn(animationSpec = tween(120), initialScale = 0.92f),
-        exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.94f),
+        enter =
+            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                scaleIn(animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(), initialScale = 0.92f),
+        exit =
+            fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                scaleOut(MaterialTheme.motionScheme.fastSpatialSpec(), targetScale = 0.94f),
         modifier = modifier,
     ) {
         val target = targetMs()
@@ -50,7 +53,7 @@ internal fun SeekDragOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = VideoPlayerUtils.formatTime(target, padMinutes = true),
+                text = formatDurationMillis(target, padMinutes = true),
                 color = PlayerScrimContent,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
@@ -60,7 +63,7 @@ internal fun SeekDragOverlay(
                 text =
                     stringResource(
                         if (delta < 0L) R.string.player_seek_delta_back else R.string.player_seek_delta_forward,
-                        VideoPlayerUtils.formatTime(abs(delta)),
+                        formatDurationMillis(abs(delta)),
                     ),
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelLarge,

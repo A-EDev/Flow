@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -11,15 +12,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 
 // Fraction of the player width each seek zone covers; mirrors SEEK_ZONE_FRACTION in the gesture layer.
 private const val SEEK_ZONE_WIDTH_FRACTION = 1f / 3f
 private const val SEEK_RIPPLE_ALPHA = 0.15f
 private const val SEEK_RIPPLE_PULSE_ALPHA = 0.28f
+private val ChevronTravel = 24.dp
 
 @Composable
 internal fun SeekAnimationOverlay(
@@ -28,6 +32,8 @@ internal fun SeekAnimationOverlay(
     seekSeconds: Int = 10,
     modifier: Modifier = Modifier,
 ) {
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+
     Box(modifier = modifier.fillMaxSize()) {
         SeekZoneRipple(
             visible = showSeekBack,
@@ -53,9 +59,9 @@ internal fun SeekAnimationOverlay(
 
         AnimatedVisibility(
             visible = showSeekBack,
-            enter = fadeIn(tween(150)),
+            enter = fadeIn(fadeSpec),
             // Exit instantly when switching to forward (no overlap), otherwise fade normally.
-            exit = fadeOut(tween(if (showSeekForward) 0 else 400)),
+            exit = if (showSeekForward) fadeOut(snap()) else fadeOut(fadeSpec),
             modifier = Modifier.align(Alignment.CenterStart).padding(start = 48.dp),
         ) {
             SeekChevronLabel(forward = false, seconds = seekSeconds)
@@ -63,9 +69,9 @@ internal fun SeekAnimationOverlay(
 
         AnimatedVisibility(
             visible = showSeekForward,
-            enter = fadeIn(tween(150)),
+            enter = fadeIn(fadeSpec),
             // Exit instantly when switching to backward (no overlap), otherwise fade normally.
-            exit = fadeOut(tween(if (showSeekBack) 0 else 400)),
+            exit = if (showSeekBack) fadeOut(snap()) else fadeOut(fadeSpec),
             modifier = Modifier.align(Alignment.CenterEnd).padding(end = 48.dp),
         ) {
             SeekChevronLabel(forward = true, seconds = seekSeconds)
@@ -89,13 +95,14 @@ private fun SeekZoneRipple(
     modifier: Modifier = Modifier,
 ) {
     val rippleAlpha = remember { Animatable(0f) }
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
     LaunchedEffect(visible, pulseKey) {
         if (visible) {
             rippleAlpha.snapTo(SEEK_RIPPLE_PULSE_ALPHA)
-            rippleAlpha.animateTo(SEEK_RIPPLE_ALPHA, tween(300, easing = FastOutSlowInEasing))
+            rippleAlpha.animateTo(SEEK_RIPPLE_ALPHA, fadeSpec)
         } else {
-            rippleAlpha.animateTo(0f, tween(380, easing = FastOutSlowInEasing))
+            rippleAlpha.animateTo(0f, fadeSpec)
         }
     }
 
@@ -121,6 +128,13 @@ private fun SeekZoneRipple(
     }
 }
 
+/**
+ * The chevrons that chase the seek direction.
+ *
+ * The transition lives inside the `AnimatedVisibility` content, so it is cancelled with the label
+ * once the seek indicator leaves; while it runs, its travel and alpha are applied in
+ * `graphicsLayer` so the 800ms loop repaints without recomposing or re-laying out the row.
+ */
 @Composable
 private fun SeekChevronLabel(
     forward: Boolean,
@@ -128,26 +142,30 @@ private fun SeekChevronLabel(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "chevron")
 
-    val progress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(800, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "chevronProgress",
-    )
+    val progress =
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(800, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "chevronProgress",
+        )
 
-    val offsetProgress = LinearOutSlowInEasing.transform(progress)
-    val chevronOffset = if (forward) 24f * offsetProgress else -24f * offsetProgress
-
-    val chevronAlpha =
-        when {
-            progress < 0.2f -> progress * 5f
-            progress > 0.5f -> (1f - progress) * 2f
-            else -> 1f
-        }.coerceIn(0f, 1f)
+    val chevronModifier =
+        Modifier.graphicsLayer {
+            val value = progress.value
+            val travel = ChevronTravel.toPx() * LinearOutSlowInEasing.transform(value)
+            translationX = if (forward) travel else -travel
+            alpha =
+                when {
+                    value < 0.2f -> value * 5f
+                    value > 0.5f -> (1f - value) * 2f
+                    else -> 1f
+                }.coerceIn(0f, 1f)
+        }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -155,26 +173,30 @@ private fun SeekChevronLabel(
     ) {
         if (!forward) {
             Text(
-                text = "<",
-                color = PlayerScrimContent.copy(alpha = chevronAlpha),
+                text = stringResource(R.string.player_seek_chevron_back),
+                color = PlayerScrimContent,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.offset(x = chevronOffset.dp),
+                modifier = chevronModifier,
             )
         }
         Text(
-            text = if (forward) "+$seconds" else "-$seconds",
+            text =
+                stringResource(
+                    if (forward) R.string.player_seek_seconds_forward else R.string.player_seek_seconds_back,
+                    seconds,
+                ),
             color = PlayerScrimContent,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
         )
         if (forward) {
             Text(
-                text = ">",
-                color = PlayerScrimContent.copy(alpha = chevronAlpha),
+                text = stringResource(R.string.player_seek_chevron_forward),
+                color = PlayerScrimContent,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.offset(x = chevronOffset.dp),
+                modifier = chevronModifier,
             )
         }
     }

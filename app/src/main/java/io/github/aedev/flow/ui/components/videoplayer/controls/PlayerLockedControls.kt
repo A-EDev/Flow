@@ -1,12 +1,9 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -15,14 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LockOpen
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.ripple
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,14 +28,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.MediaSeekBar
-import io.github.aedev.flow.ui.components.videoplayer.controls.LockModeTouchShield
-import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerTimePill
 import io.github.aedev.flow.ui.theme.PlayerLiveIndicator
 import io.github.aedev.flow.ui.theme.PlayerScrim
-import io.github.aedev.flow.ui.theme.PlayerScrimContent
 
 /** Backdrop for the unlock button, a shade darker than a normal affordance so it reads as modal. */
 private const val UNLOCK_AFFORDANCE_ALPHA = 0.42f
+
+private val UnlockButtonSize = 44.dp
+private val UnlockIconSize = 24.dp
 
 @Composable
 internal fun BoxScope.PlayerLockedControls(
@@ -63,42 +59,32 @@ internal fun BoxScope.PlayerLockedControls(
         modifier = Modifier.matchParentSize(),
     )
 
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+
     AnimatedVisibility(
         visible = isOverlayVisible,
-        enter = fadeIn(animationSpec = tween(300)),
-        exit = fadeOut(animationSpec = tween(300)),
+        enter = fadeIn(animationSpec = fadeSpec),
+        exit = fadeOut(animationSpec = fadeSpec),
         modifier = Modifier.align(Alignment.TopEnd),
     ) {
-        Surface(
-            color = PlayerScrim.copy(alpha = UNLOCK_AFFORDANCE_ALPHA),
-            shape = CircleShape,
+        PlayerPillIconButton(
+            onClick = onUnlock,
+            icon = Icons.Rounded.LockOpen,
+            contentDescription = stringResource(R.string.player_unlock_controls),
+            buttonSize = UnlockButtonSize,
+            iconSize = UnlockIconSize,
+            containerColor = PlayerScrim.copy(alpha = UNLOCK_AFFORDANCE_ALPHA),
             modifier =
                 Modifier
                     .padding(top = topPadding)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(color = PlayerScrimContent),
-                        onClick = onUnlock,
-                    ),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Rounded.LockOpen,
-                    contentDescription = stringResource(R.string.player_unlock_controls),
-                    tint = PlayerScrimContent,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-        }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+        )
     }
 
     AnimatedVisibility(
         visible = isOverlayVisible,
-        enter = fadeIn(animationSpec = tween(300)),
-        exit = fadeOut(animationSpec = tween(300)),
+        enter = fadeIn(animationSpec = fadeSpec),
+        exit = fadeOut(animationSpec = fadeSpec),
         modifier = Modifier.align(Alignment.BottomCenter),
     ) {
         Column(
@@ -156,7 +142,11 @@ private fun LockedSeekbar(
         return
     }
 
-    val seekDuration = if (isLive) duration.coerceAtLeast(positionProvider()) else duration
+    // Derived rather than read: a live timeline's duration is recomputed from the playhead, and a
+    // plain read here would recompose the locked bar on every tick for a value that rarely moves.
+    val seekDuration by remember(duration, isLive, positionProvider) {
+        derivedStateOf { if (isLive) duration.coerceAtLeast(positionProvider()) else duration }
+    }
     MediaSeekBar(
         value = {
             if (seekDuration > 0) {

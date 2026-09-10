@@ -1,9 +1,7 @@
 package io.github.aedev.flow.ui.components.videoplayer.overlay
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,7 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -91,16 +89,21 @@ fun SponsorBlockSkipButton(
         }
     }
 
-    val buttonAlpha by animateFloatAsState(
-        targetValue = if (isDimmed) SB_SKIP_DIMMED_ALPHA else 1f,
-        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-        label = "sbSkipAlpha",
-    )
+    val buttonAlpha =
+        animateFloatAsState(
+            targetValue = if (isDimmed) SB_SKIP_DIMMED_ALPHA else 1f,
+            animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+            label = "sbSkipAlpha",
+        )
 
     AnimatedVisibility(
         visible = activeSegment != null,
-        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(200)),
-        exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+        enter =
+            slideInHorizontally(MaterialTheme.motionScheme.fastSpatialSpec(), initialOffsetX = { it }) +
+                fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit =
+            slideOutHorizontally(MaterialTheme.motionScheme.fastSpatialSpec(), targetOffsetX = { it }) +
+                fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
         modifier = modifier,
     ) {
         val seg = displaySegment ?: return@AnimatedVisibility
@@ -120,7 +123,7 @@ fun SponsorBlockSkipButton(
             contentColor = PlayerScrimContent,
             shape = RoundedCornerShape(50),
             tonalElevation = 0.dp,
-            modifier = Modifier.alpha(buttonAlpha),
+            modifier = Modifier.graphicsLayer { alpha = buttonAlpha.value },
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
