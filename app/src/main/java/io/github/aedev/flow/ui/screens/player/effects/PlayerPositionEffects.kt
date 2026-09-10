@@ -2,6 +2,9 @@ package io.github.aedev.flow.ui.screens.player.effects
 
 import android.os.SystemClock
 import androidx.compose.runtime.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
@@ -169,6 +172,11 @@ private fun resolveLiveTimelineDuration(player: Player): Long? {
  * the position cannot move on its own, so the loop reads it once and suspends until either key
  * flips instead of waking every second for the whole pause. A seek issued from the notification
  * while paused in the mini player is picked up on the next flip.
+ *
+ * Below STARTED nothing renders the position at all, but background audio keeps `isPlaying` true,
+ * so the loop kept a 250 ms or 1 s wakeup running with the screen off. `repeatOnLifecycle` stops it
+ * there and re-reads the position once on the way back, which is also what picks up a notification
+ * seek made while backgrounded.
  */
 @Composable
 internal fun PositionTrackingEffect(
@@ -176,22 +184,25 @@ internal fun PositionTrackingEffect(
     screenState: PlayerScreenState,
     showsPreciseProgress: Boolean,
 ) {
-    LaunchedEffect(isPlaying, showsPreciseProgress) {
-        val keepPolling = isPlaying || showsPreciseProgress
-        do {
-            EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
-                if (player.playbackState != Player.STATE_IDLE) {
-                    updateScreenPositionFromPlayer(player, screenState)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(isPlaying, showsPreciseProgress, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            val keepPolling = isPlaying || showsPreciseProgress
+            do {
+                EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
+                    if (player.playbackState != Player.STATE_IDLE) {
+                        updateScreenPositionFromPlayer(player, screenState)
+                    }
                 }
-            }
-            if (!keepPolling) break
-            delay(
-                if (isPlaying && showsPreciseProgress) {
-                    ACTIVE_POSITION_TRACKING_INTERVAL_MS
-                } else {
-                    IDLE_POSITION_TRACKING_INTERVAL_MS
-                },
-            )
-        } while (true)
+                if (!keepPolling) break
+                delay(
+                    if (isPlaying && showsPreciseProgress) {
+                        ACTIVE_POSITION_TRACKING_INTERVAL_MS
+                    } else {
+                        IDLE_POSITION_TRACKING_INTERVAL_MS
+                    },
+                )
+            } while (true)
+        }
     }
 }

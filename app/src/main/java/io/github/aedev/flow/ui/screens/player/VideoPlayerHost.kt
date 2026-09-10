@@ -274,14 +274,10 @@ fun VideoPlayerHost(
     SetupPipEffects(
         context = context,
         activity = activity,
-        lifecycleOwner = lifecycleOwner,
         isPlaying = playerState.playWhenReady,
         isBackgroundPlaybackMode = playerUiState.isBackgroundPlaybackMode,
         videoAspectRatio = videoAspectRatio,
         pipPreferences = pipPreferences,
-        onPipModeChanged = { inPipMode ->
-            GlobalPlayerState.setPipMode(inPipMode)
-        },
     )
 
     FullscreenEffect(
@@ -323,6 +319,7 @@ fun VideoPlayerHost(
         currentVideo = { globalCurrentVideo },
         uiState = playerUiState,
         commentsEnabled = prefs.commentsEnabled,
+        expandedBodyVisible = !isMinimized,
         viewModel = playerViewModel,
     )
 

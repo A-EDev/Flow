@@ -6,8 +6,6 @@ import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
@@ -16,29 +14,6 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.PictureInPictureHelper
 
 private const val TAG = "PipModeHandler"
-
-/**
- * Effect to detect PiP mode state changes
- */
-@Composable
-private fun PipModeDetectionEffect(
-    lifecycleOwner: LifecycleOwner,
-    activity: Activity?,
-    onPipModeChanged: (Boolean) -> Unit,
-) {
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, _ ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
-                    onPipModeChanged(activity.isInPictureInPictureMode)
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-}
 
 /**
  * Effect to register PiP broadcast receiver for play/pause controls
@@ -150,20 +125,11 @@ internal data class PipPreferences(
 internal fun SetupPipEffects(
     context: Context,
     activity: Activity?,
-    lifecycleOwner: LifecycleOwner,
     isPlaying: Boolean,
     isBackgroundPlaybackMode: Boolean,
     videoAspectRatio: Float,
     pipPreferences: PipPreferences,
-    onPipModeChanged: (Boolean) -> Unit,
 ) {
-    // Detect PiP state changes
-    PipModeDetectionEffect(
-        lifecycleOwner = lifecycleOwner,
-        activity = activity,
-        onPipModeChanged = onPipModeChanged,
-    )
-
     // Register broadcast receiver
     PipBroadcastReceiverEffect(context)
 

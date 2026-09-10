@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.unit.Dp
@@ -36,12 +35,6 @@ internal fun PlayerDialogsContainer(
 ) {
     val playerPreferences = prefs.preferences
     val coroutineScope = rememberCoroutineScope()
-
-    LaunchedEffect(prefs.savedSubtitleStyle) {
-        if (screenState.subtitleStyle != prefs.savedSubtitleStyle) {
-            screenState.subtitleStyle = prefs.savedSubtitleStyle
-        }
-    }
 
     // Download Quality Dialog
     if (screenState.activeSheet == PlayerSheet.Download) {

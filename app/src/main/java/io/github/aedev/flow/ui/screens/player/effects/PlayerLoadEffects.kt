@@ -65,13 +65,22 @@ internal fun PlayerFreshSessionEffects(
     )
 }
 
-/** Adopts whatever the player singleton is actually playing when it changes underneath the UI. */
+/**
+ * Adopts whatever the player singleton is actually playing when it changes underneath the UI.
+ *
+ * The comments fetch is deliberately not part of that adoption. Only the expanded body renders
+ * comments — the preview under the video and the comments sheet — so while the player is collapsed
+ * to the mini bar a queue advance used to spend a network round trip on a surface nobody can see.
+ * [expandedBodyVisible] defers it, and the per-id latch is what makes expanding later fetch the
+ * comments the collapsed advances skipped without re-fetching the ones already held.
+ */
 @Composable
 internal fun GlobalVideoSyncEffect(
     currentVideoId: String?,
     currentVideo: () -> Video?,
     uiState: VideoPlayerUiState,
     commentsEnabled: Boolean,
+    expandedBodyVisible: Boolean,
     viewModel: VideoPlayerViewModel,
 ) {
     LaunchedEffect(currentVideoId) {
@@ -80,10 +89,16 @@ internal fun GlobalVideoSyncEffect(
             if (current.id != uiState.cachedVideo?.id || uiState.streamInfo?.id != current.id) {
                 viewModel.syncWithCurrentPlayerVideo(current)
             }
-            if (commentsEnabled) {
-                viewModel.loadComments(current.id)
-            }
         }
+    }
+
+    var commentsLoadedFor by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(currentVideoId, expandedBodyVisible) {
+        if (!commentsEnabled || !expandedBodyVisible) return@LaunchedEffect
+        val current = currentVideo() ?: return@LaunchedEffect
+        if (uiState.isRestoredSession || commentsLoadedFor == current.id) return@LaunchedEffect
+        commentsLoadedFor = current.id
+        viewModel.loadComments(current.id)
     }
 }
 
