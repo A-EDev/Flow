@@ -3,8 +3,6 @@ package io.github.aedev.flow.ui.components.videoplayer.motion
 import io.github.aedev.flow.player.sanitizeDisplayAspectRatio
 import io.github.aedev.flow.ui.components.videoplayer.MiniPlayerCorner
 
-private const val TABLET_LARGE_SW_DP = 840
-private const val TABLET_MEDIUM_SW_DP = 720
 private const val WIDE_MODE_SCALE_THRESHOLD = 1.5f
 
 /** Every px value the layout, the effects and the gesture handlers derive from one composition. */
@@ -44,6 +42,12 @@ internal fun miniBoxWidthFor(
     clampedAspect: Float,
 ): Float = if (clampedAspect >= 1f) envelopeSide else envelopeSide * clampedAspect
 
+/**
+ * @param isLargeWindow the window can host one of the detail layouts, so the mini player is sized
+ *   from the window instead of the user's scale and is free to rest anywhere along the edge.
+ * @param isTwoPaneWindow the body puts the detail pane beside the video, so the expanded video
+ *   only takes the leading part of the width.
+ */
 internal fun computeDraggablePlayerGeometry(
     screenWidth: Float,
     screenHeight: Float,
@@ -51,11 +55,10 @@ internal fun computeDraggablePlayerGeometry(
     margin: Float,
     bottomNavPad: Float,
     topBarPad: Float,
-    isTablet: Boolean,
-    isFoldable: Boolean,
-    isSplitLayout: Boolean,
-    smallestScreenWidthDp: Int,
+    isLargeWindow: Boolean,
+    isTwoPaneWindow: Boolean,
     miniPlayerScale: Float,
+    startInset: Float = 0f,
     videoAspectRatio: Float,
     currentSizeScale: Float,
     corner: MiniPlayerCorner,
@@ -65,42 +68,25 @@ internal fun computeDraggablePlayerGeometry(
 ): DraggablePlayerGeometry {
     val effectiveMiniScale =
         when {
-            isTablet -> {
-                when {
-                    smallestScreenWidthDp >= TABLET_LARGE_SW_DP -> 0.32f
-                    smallestScreenWidthDp >= TABLET_MEDIUM_SW_DP -> 0.35f
-                    else -> 0.38f
-                }
-            }
-
-            isFoldable -> {
-                0.42f
-            }
-
-            else -> {
-                miniPlayerScale
-            }
+            isTwoPaneWindow -> 0.32f
+            isLargeWindow -> 0.35f
+            else -> miniPlayerScale
         }
     val baseMiniWidth = screenWidth * effectiveMiniScale
-    val maxWideFraction =
-        when {
-            isFoldable -> 0.55f
-            isTablet -> 0.60f
-            else -> 1.00f
-        }
+    val maxWideFraction = if (isLargeWindow) 0.60f else 1.00f
     val maxWideWidth = ((screenWidth * maxWideFraction) - (margin * 2f)).coerceAtLeast(baseMiniWidth)
     val clampedAspect = sanitizeDisplayAspectRatio(videoAspectRatio)
     val miniWidth = miniBoxWidthFor(baseMiniWidth * currentSizeScale, clampedAspect).coerceAtMost(maxWideWidth)
     val miniHeight = miniWidth / clampedAspect
     val isWideMode = currentSizeScale > WIDE_MODE_SCALE_THRESHOLD
 
-    val expandedVideoWidth = if (isSplitLayout) screenWidth * 0.65f else screenWidth
+    val expandedVideoWidth = if (isTwoPaneWindow) screenWidth * 0.65f else screenWidth
     val baseVideoHeight = expandedVideoWidth * (9f / 16f)
     val expandedVideoHeight = expandedVideoWidth / clampedAspect
     val visualMiniScale = (miniWidth / expandedVideoWidth.coerceAtLeast(1f)).coerceIn(0.01f, 1f)
 
-    val minX = margin
-    val maxX = (screenWidth - miniWidth - margin).coerceAtLeast(margin)
+    val minX = margin + startInset
+    val maxX = (screenWidth - miniWidth - margin).coerceAtLeast(minX)
     val minY = statusBarHeight + topBarPad + margin
     val maxY = (screenHeight - miniHeight - bottomNavPad - margin).coerceAtLeast(minY)
 
@@ -108,7 +94,7 @@ internal fun computeDraggablePlayerGeometry(
     val normalMiniHeight = normalMiniWidth / clampedAspect
     val normalMaxX = (screenWidth - normalMiniWidth - margin).coerceAtLeast(margin)
     val normalMaxY = (screenHeight - normalMiniHeight - bottomNavPad - margin).coerceAtLeast(minY)
-    val normalTargetX = cornerTargetX(corner, minX = margin, maxX = normalMaxX)
+    val normalTargetX = cornerTargetX(corner, minX = minX, maxX = normalMaxX)
     val normalTargetY = cornerTargetY(corner, minY = minY, maxY = normalMaxY)
 
     val stableWideWidth = miniBoxWidthFor(maxWideWidth, clampedAspect)
@@ -117,12 +103,11 @@ internal fun computeDraggablePlayerGeometry(
     val stableWideMaxY = (screenHeight - stableWideHeight - bottomNavPad - margin).coerceAtLeast(minY)
     val stableWideTargetY = cornerTargetY(corner, minY = minY, maxY = stableWideMaxY)
 
-    val isLargeScreen = isTablet || isFoldable
     val targetMiniX =
         when {
             isShrinkingToCorner -> normalTargetX
-            isWideMode && !isLargeScreen -> stablePhoneCenteredX
-            isWideMode && isLargeScreen -> cachedTargetX.takeIf { it != 0f } ?: offsetXFallback().coerceIn(minX, maxX)
+            isWideMode && !isLargeWindow -> stablePhoneCenteredX
+            isWideMode && isLargeWindow -> cachedTargetX.takeIf { it != 0f } ?: offsetXFallback().coerceIn(minX, maxX)
             else -> normalTargetX
         }
     val targetMiniY = if (isWideMode && !isShrinkingToCorner) stableWideTargetY else normalTargetY
@@ -159,8 +144,7 @@ internal fun computeDraggablePlayerGeometry(
 
 internal fun DraggablePlayerGestureMetrics.update(
     geometry: DraggablePlayerGeometry,
-    isTablet: Boolean,
-    isFoldable: Boolean,
+    isLargeWindow: Boolean,
     isLandscape: Boolean,
     isFullscreen: Boolean,
     tapToExpand: Boolean,
@@ -185,9 +169,7 @@ internal fun DraggablePlayerGestureMetrics.update(
     margin = geometry.margin
     bottomNavPad = geometry.bottomNavPad
     stablePhoneCenteredX = geometry.stablePhoneCenteredX
-    this.isTablet = isTablet
-    this.isFoldable = isFoldable
-    isLargeScreen = isTablet || isFoldable
+    isLargeScreen = isLargeWindow
     this.isLandscape = isLandscape
     this.isFullscreen = isFullscreen
     this.tapToExpand = tapToExpand

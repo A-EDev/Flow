@@ -1,25 +1,28 @@
 package io.github.aedev.flow.ui.screens.player.state
 
-import android.content.res.Configuration
+import androidx.window.core.layout.WindowSizeClass
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class PlayerLayoutModeTest {
-    private fun configuration(
-        smallestWidthDp: Int,
-        orientation: Int,
-    ) = Configuration().apply {
-        smallestScreenWidthDp = smallestWidthDp
-        this.orientation = orientation
-    }
+    private fun window(
+        widthDp: Int,
+        heightDp: Int,
+    ) = WindowSizeClass.compute(widthDp.toFloat(), heightDp.toFloat())
 
-    private val phonePortrait = configuration(411, Configuration.ORIENTATION_PORTRAIT)
-    private val phoneLandscape = configuration(411, Configuration.ORIENTATION_LANDSCAPE)
-    private val tabletPortrait = configuration(800, Configuration.ORIENTATION_PORTRAIT)
-    private val tabletLandscape = configuration(800, Configuration.ORIENTATION_LANDSCAPE)
+    private fun modeFor(
+        widthDp: Int,
+        heightDp: Int,
+    ) = playerLayoutModeFor(window(widthDp, heightDp), isFullscreen = false, isInPipMode = false)
+
+    private val phonePortrait = window(411, 891)
+    private val phoneLandscape = window(891, 411)
+    private val mediumPortrait = window(600, 960)
+    private val expandedPortrait = window(840, 1200)
+    private val expandedLandscape = window(1280, 800)
 
     @Test
-    fun `phones always use the compact layout`() {
+    fun `a compact window uses the compact layout in either orientation`() {
         assertThat(playerLayoutModeFor(phonePortrait, isFullscreen = false, isInPipMode = false))
             .isEqualTo(PlayerLayoutMode.COMPACT)
         assertThat(playerLayoutModeFor(phoneLandscape, isFullscreen = false, isInPipMode = false))
@@ -27,64 +30,54 @@ class PlayerLayoutModeTest {
     }
 
     @Test
-    fun `tablet in landscape uses the wide split layout`() {
-        assertThat(playerLayoutModeFor(tabletLandscape, isFullscreen = false, isInPipMode = false))
+    fun `an expanded window uses the wide split layout in either orientation`() {
+        assertThat(playerLayoutModeFor(expandedLandscape, isFullscreen = false, isInPipMode = false))
+            .isEqualTo(PlayerLayoutMode.WIDE)
+        assertThat(playerLayoutModeFor(expandedPortrait, isFullscreen = false, isInPipMode = false))
             .isEqualTo(PlayerLayoutMode.WIDE)
     }
 
     @Test
-    fun `tablet upright uses the portrait grid layout`() {
-        assertThat(playerLayoutModeFor(tabletPortrait, isFullscreen = false, isInPipMode = false))
-            .isEqualTo(PlayerLayoutMode.TABLET_PORTRAIT)
+    fun `a medium window uses the grid layout in either orientation`() {
+        assertThat(playerLayoutModeFor(mediumPortrait, isFullscreen = false, isInPipMode = false))
+            .isEqualTo(PlayerLayoutMode.MEDIUM)
+        assertThat(modeFor(800, 600)).isEqualTo(PlayerLayoutMode.MEDIUM)
     }
 
     @Test
-    fun `fullscreen and pip collapse every device to compact`() {
-        assertThat(playerLayoutModeFor(tabletLandscape, isFullscreen = true, isInPipMode = false))
+    fun `fullscreen and pip collapse every window to compact`() {
+        assertThat(playerLayoutModeFor(expandedLandscape, isFullscreen = true, isInPipMode = false))
             .isEqualTo(PlayerLayoutMode.COMPACT)
-        assertThat(playerLayoutModeFor(tabletLandscape, isFullscreen = false, isInPipMode = true))
+        assertThat(playerLayoutModeFor(expandedLandscape, isFullscreen = false, isInPipMode = true))
             .isEqualTo(PlayerLayoutMode.COMPACT)
     }
 
     @Test
-    fun `the breakpoint is inclusive at 600dp`() {
-        assertThat(playerLayoutModeFor(configuration(599, Configuration.ORIENTATION_LANDSCAPE), false, false))
-            .isEqualTo(PlayerLayoutMode.COMPACT)
-        assertThat(playerLayoutModeFor(configuration(600, Configuration.ORIENTATION_LANDSCAPE), false, false))
-            .isEqualTo(PlayerLayoutMode.WIDE)
-    }
-
-    private fun modeFor(
-        smallestWidthDp: Int,
-        orientation: Int,
-    ) = playerLayoutModeFor(configuration(smallestWidthDp, orientation), isFullscreen = false, isInPipMode = false)
-
-    @Test
-    fun `below 600dp every orientation is compact`() {
-        listOf(411, 599).forEach { smallestWidthDp ->
-            assertThat(modeFor(smallestWidthDp, Configuration.ORIENTATION_PORTRAIT)).isEqualTo(PlayerLayoutMode.COMPACT)
-            assertThat(modeFor(smallestWidthDp, Configuration.ORIENTATION_LANDSCAPE)).isEqualTo(PlayerLayoutMode.COMPACT)
-        }
+    fun `the width breakpoints are inclusive at 600 and 840dp`() {
+        assertThat(modeFor(599, 960)).isEqualTo(PlayerLayoutMode.COMPACT)
+        assertThat(modeFor(600, 960)).isEqualTo(PlayerLayoutMode.MEDIUM)
+        assertThat(modeFor(839, 960)).isEqualTo(PlayerLayoutMode.MEDIUM)
+        assertThat(modeFor(840, 960)).isEqualTo(PlayerLayoutMode.WIDE)
     }
 
     @Test
-    fun `from 600dp the orientation alone picks between the two tablet layouts`() {
-        listOf(600, 839, 840, 1200).forEach { smallestWidthDp ->
-            assertThat(modeFor(smallestWidthDp, Configuration.ORIENTATION_PORTRAIT)).isEqualTo(PlayerLayoutMode.TABLET_PORTRAIT)
-            assertThat(modeFor(smallestWidthDp, Configuration.ORIENTATION_LANDSCAPE)).isEqualTo(PlayerLayoutMode.WIDE)
-        }
+    fun `a window shorter than the medium height breakpoint stays compact however wide it is`() {
+        assertThat(modeFor(700, 400)).isEqualTo(PlayerLayoutMode.COMPACT)
+        assertThat(modeFor(840, 470)).isEqualTo(PlayerLayoutMode.COMPACT)
+        assertThat(modeFor(1280, 479)).isEqualTo(PlayerLayoutMode.COMPACT)
+        assertThat(modeFor(840, 480)).isEqualTo(PlayerLayoutMode.WIDE)
     }
 
     @Test
-    fun `the expanded window breakpoint at 840dp adds no further layout`() {
-        assertThat(modeFor(839, Configuration.ORIENTATION_LANDSCAPE)).isEqualTo(modeFor(840, Configuration.ORIENTATION_LANDSCAPE))
-        assertThat(modeFor(839, Configuration.ORIENTATION_PORTRAIT)).isEqualTo(modeFor(840, Configuration.ORIENTATION_PORTRAIT))
+    fun `a tall narrow window is compact whatever its height`() {
+        assertThat(modeFor(480, 1200)).isEqualTo(PlayerLayoutMode.COMPACT)
+        assertThat(modeFor(599, 2000)).isEqualTo(PlayerLayoutMode.COMPACT)
     }
 
     @Test
-    fun `anything but landscape counts as portrait on a tablet`() {
-        // Pins current behaviour: only ORIENTATION_LANDSCAPE selects WIDE, so an undefined
-        // orientation takes the portrait grid.
-        assertThat(modeFor(800, Configuration.ORIENTATION_UNDEFINED)).isEqualTo(PlayerLayoutMode.TABLET_PORTRAIT)
+    fun `the window mode ignores fullscreen and pip`() {
+        assertThat(playerWindowLayoutModeFor(expandedLandscape)).isEqualTo(PlayerLayoutMode.WIDE)
+        assertThat(playerWindowLayoutModeFor(mediumPortrait)).isEqualTo(PlayerLayoutMode.MEDIUM)
+        assertThat(playerWindowLayoutModeFor(phoneLandscape)).isEqualTo(PlayerLayoutMode.COMPACT)
     }
 }

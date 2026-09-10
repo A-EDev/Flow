@@ -70,17 +70,20 @@ internal fun LiveChatVisibilityEffect(
     }
 }
 
+/**
+ * A window with no room for a detail layout beside or under the video has nothing to show in
+ * landscape but the video, so it goes fullscreen on its own rather than letterboxing the page.
+ */
 @Composable
 internal fun PhoneLandscapeFullscreenEffect(
     isLandscape: Boolean,
-    isTablet: Boolean,
+    isLargeWindow: Boolean,
     isInPipMode: Boolean,
     playerSheetState: PlayerDraggableState,
     screenState: PlayerScreenState,
 ) {
-    LaunchedEffect(isLandscape, isTablet, isInPipMode) {
-        if (isLandscape && !isTablet && !isInPipMode && playerSheetState.currentValue == PlayerSheetValue.Expanded) {
-            // Automatically enter fullscreen on phones when rotated to landscape
+    LaunchedEffect(isLandscape, isLargeWindow, isInPipMode) {
+        if (isLandscape && !isLargeWindow && !isInPipMode && playerSheetState.currentValue == PlayerSheetValue.Expanded) {
             screenState.isFullscreen = true
         }
     }

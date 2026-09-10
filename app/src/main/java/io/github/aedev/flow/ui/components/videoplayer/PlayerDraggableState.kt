@@ -121,15 +121,9 @@ class PlayerDraggableState(
         screenHeight: Float = 0f,
         minY: Float = 0f,
         bottomNavPad: Float = 0f,
-        isTablet: Boolean = false,
-        isFoldable: Boolean = false,
+        isLargeWindow: Boolean = false,
     ) {
-        val maxWideFraction =
-            when {
-                isFoldable -> 0.55f
-                isTablet -> 0.60f
-                else -> 1.00f
-            }
+        val maxWideFraction = if (isLargeWindow) 0.60f else 1.00f
         val maxWideWidth =
             ((screenWidth * maxWideFraction) - (margin * 2f))
                 .coerceAtLeast(baseMiniWidth)
@@ -144,9 +138,8 @@ class PlayerDraggableState(
                 offsetY.value
             }
 
-        val isLargeScreen = isTablet || isFoldable
         val targetX =
-            if (isLargeScreen) {
+            if (isLargeWindow) {
                 val newMaxX =
                     (screenWidth - targetWidth - margin)
                         .coerceAtLeast(margin)

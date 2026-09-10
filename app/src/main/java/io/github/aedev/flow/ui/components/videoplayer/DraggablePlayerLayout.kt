@@ -50,8 +50,6 @@ import io.github.aedev.flow.ui.components.videoplayer.motion.resnapMiniPlayer
 import io.github.aedev.flow.ui.components.videoplayer.motion.resnapTargets
 import io.github.aedev.flow.ui.components.videoplayer.motion.update
 import io.github.aedev.flow.ui.theme.PlayerGround
-import io.github.aedev.flow.ui.utils.TABLET_SMALLEST_WIDTH_DP
-import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -73,6 +71,12 @@ private val MiniPlayerSettleDip = 48.dp
  * The video player as one box that is laid out once at its expanded size and morphed into the
  * floating mini player purely through a graphicsLayer scale and translation. Every animated
  * value is read in the layout or draw phase; composition only sees settled booleans.
+ *
+ * @param isLargeWindow the window can host one of the player's detail layouts, so the video keeps
+ *   the top of the window in landscape instead of going immersive and the mini player is sized
+ *   from the window rather than the user's scale.
+ * @param isTwoPaneWindow the body puts the detail pane beside the video, so the expanded video
+ *   only takes the leading part of the width.
  */
 @Composable
 fun DraggablePlayerLayout(
@@ -86,6 +90,9 @@ fun DraggablePlayerLayout(
     topPadding: Dp = 56.dp,
     bottomPadding: Dp = 0.dp,
     miniPlayerScale: Float = 0.45f,
+    isLargeWindow: Boolean = false,
+    startInset: Dp = 0.dp,
+    isTwoPaneWindow: Boolean = false,
     tapToExpand: Boolean = true,
     onDismiss: () -> Unit = {},
     onCollapseGesture: (() -> Unit)? = null,
@@ -99,12 +106,6 @@ fun DraggablePlayerLayout(
     val density = LocalDensity.current
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val isTablet = config.isTabletFormFactor
-    val isFoldable =
-        remember(config) {
-            config.smallestScreenWidthDp in 480 until TABLET_SMALLEST_WIDTH_DP
-        }
-    val isLargeScreen = isTablet || isFoldable
 
     var playerHeightFraction by remember { mutableFloatStateOf(1f) }
     LaunchedEffect(videoAspectRatio) { playerHeightFraction = 1f }
@@ -129,8 +130,7 @@ fun DraggablePlayerLayout(
             val screenHeight = constraints.maxHeight.toFloat()
             val showImmersiveFullscreen =
                 state.currentValue == PlayerSheetValue.Expanded &&
-                    (isFullscreen || (isLandscape && !isTablet))
-            val isSplitLayout = isLandscape && isTablet
+                    (isFullscreen || (isLandscape && !isLargeWindow))
 
             val geometry =
                 computeDraggablePlayerGeometry(
@@ -138,12 +138,11 @@ fun DraggablePlayerLayout(
                     screenHeight = screenHeight,
                     statusBarHeight = statusBarHeight,
                     margin = with(density) { MiniPlayerMargin.toPx() },
+                    startInset = with(density) { startInset.toPx() },
                     bottomNavPad = with(density) { bottomPadding.toPx() },
                     topBarPad = with(density) { topPadding.toPx() },
-                    isTablet = isTablet,
-                    isFoldable = isFoldable,
-                    isSplitLayout = isSplitLayout,
-                    smallestScreenWidthDp = config.smallestScreenWidthDp,
+                    isLargeWindow = isLargeWindow,
+                    isTwoPaneWindow = isTwoPaneWindow,
                     miniPlayerScale = miniPlayerScale,
                     videoAspectRatio = videoAspectRatio,
                     currentSizeScale = state.miniSizeScale.targetValue,
@@ -195,12 +194,12 @@ fun DraggablePlayerLayout(
             MiniPlayerResnapEffect(
                 state = state,
                 isCollapsedTarget = isCollapsedTarget,
-                targets = geometry.resnapTargets(isLargeScreen = isLargeScreen),
+                targets = geometry.resnapTargets(isLargeScreen = isLargeWindow),
             )
 
             val portraitFsTravel = (screenHeight - geometry.expandedVideoHeight).coerceAtLeast(1f)
             val portraitFsEnabled =
-                !isLandscape && !isTablet && !isFullscreen &&
+                !isLandscape && !isLargeWindow && !isFullscreen &&
                     onEnterPortraitFullscreen != null
             val portraitFsActivationPx = with(density) { PortraitFullscreenActivation.toPx() }
             val portraitFsTravelState = rememberUpdatedState(portraitFsTravel)
@@ -239,12 +238,12 @@ fun DraggablePlayerLayout(
                         }
                     }
                 val videoHeightPlaceholderProvider =
-                    remember(isSplitLayout, currentExpandedVideoHeightProvider) {
-                        if (isSplitLayout) currentExpandedVideoHeightProvider else ({ 0f })
+                    remember(isTwoPaneWindow, currentExpandedVideoHeightProvider) {
+                        if (isTwoPaneWindow) currentExpandedVideoHeightProvider else ({ 0f })
                     }
                 val bodyPaddingTopProvider =
-                    remember(isSplitLayout, statusBarHeight, currentExpandedVideoHeightProvider) {
-                        if (isSplitLayout) {
+                    remember(isTwoPaneWindow, statusBarHeight, currentExpandedVideoHeightProvider) {
+                        if (isTwoPaneWindow) {
                             ({ statusBarHeight })
                         } else {
                             ({ currentExpandedVideoHeightProvider() + statusBarHeight })
@@ -286,8 +285,7 @@ fun DraggablePlayerLayout(
             SideEffect {
                 gestureMetrics.update(
                     geometry = geometry,
-                    isTablet = isTablet,
-                    isFoldable = isFoldable,
+                    isLargeWindow = isLargeWindow,
                     isLandscape = isLandscape,
                     isFullscreen = isFullscreen,
                     tapToExpand = tapToExpand,

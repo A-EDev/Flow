@@ -27,7 +27,7 @@ import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.stage.*
 import io.github.aedev.flow.ui.screens.player.state.*
-import io.github.aedev.flow.ui.utils.isTabletFormFactor
+import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -55,6 +55,7 @@ fun VideoPlayerHost(
     isVisible: Boolean,
     playerSheetState: PlayerDraggableState,
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    startInset: androidx.compose.ui.unit.Dp = 0.dp,
     miniPlayerScale: Float = 0.45f,
     miniPlayerShowSkipControls: Boolean = false,
     miniPlayerShowNextPrevControls: Boolean = false,
@@ -160,8 +161,11 @@ fun VideoPlayerHost(
 
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val isTablet = config.isTabletFormFactor
-    val playerLayoutMode = playerLayoutModeFor(config, screenState.isFullscreen, localIsInPipMode)
+    val windowSizeClass = LocalWindowSizeClass.current
+    val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass)
+    val isLargeWindow = windowLayoutMode != PlayerLayoutMode.COMPACT
+    val isTwoPaneWindow = windowLayoutMode == PlayerLayoutMode.WIDE
+    val playerLayoutMode = playerLayoutModeFor(windowSizeClass, screenState.isFullscreen, localIsInPipMode)
     val windowInsetDensity = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val sponsorSkipEndPadding =
@@ -183,7 +187,7 @@ fun VideoPlayerHost(
 
     PhoneLandscapeFullscreenEffect(
         isLandscape = isLandscape,
-        isTablet = isTablet,
+        isLargeWindow = isLargeWindow,
         isInPipMode = localIsInPipMode,
         playerSheetState = playerSheetState,
         screenState = screenState,
@@ -297,6 +301,7 @@ fun VideoPlayerHost(
         },
         suppressFullscreenRequest = pipForcedFullscreen.value,
         isPortrait = screenState.isFullscreenPortrait,
+        isLargeWindow = isLargeWindow,
     )
 
     OrientationResetEffect(activity)
@@ -456,6 +461,9 @@ fun VideoPlayerHost(
             expandedPlayerHeightFractionOverride = mediaSheetGeometry.playerHeightFractionOverride,
             bottomPadding = bottomPadding,
             miniPlayerScale = miniPlayerScale,
+            isLargeWindow = isLargeWindow,
+            isTwoPaneWindow = isTwoPaneWindow,
+            startInset = startInset,
             tapToExpand = true,
             onDismiss = onClose,
             onCollapseGesture = {

@@ -18,7 +18,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import io.github.aedev.flow.ui.utils.isTabletFormFactor
 import kotlinx.coroutines.delay
 
 @Composable
@@ -30,8 +29,10 @@ internal fun FullscreenEffect(
     fullscreenBrightnessLevel: () -> Float? = { null },
     suppressFullscreenRequest: Boolean = false,
     isPortrait: Boolean = false,
+    isLargeWindow: Boolean = false,
 ) {
     var resumeTrigger by remember { mutableIntStateOf(0) }
+    val currentIsLargeWindow by rememberUpdatedState(isLargeWindow)
     var forcePortraitLock by remember { mutableStateOf(false) }
     var wasFullscreen by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME, lifecycleOwner) { resumeTrigger++ }
@@ -85,9 +86,9 @@ internal fun FullscreenEffect(
                         false
                     }
 
-                // A phone has no landscape layout outside fullscreen, so it is held in portrait
-                // until the user physically rotates back. A tablet's landscape layout is the
-                // primary one and the release listener below can never fire on a device whose
+                // A window with no landscape layout outside fullscreen is held in portrait until
+                // the user physically rotates back. A window that does have one is showing its
+                // primary layout, and the release listener below can never fire on a device whose
                 // natural orientation is portrait but is being held sideways, so pinning one here
                 // would strand it in portrait for the rest of the session (#918).
                 //
@@ -95,7 +96,7 @@ internal fun FullscreenEffect(
                 // and on the first composition, where pinning locks an app that was merely
                 // backgrounded in landscape into portrait until it is force-restarted (#841).
                 when {
-                    leavingFullscreen && cfgLandscape && autoRotateOn && !configuration.isTabletFormFactor -> {
+                    leavingFullscreen && cfgLandscape && autoRotateOn && !currentIsLargeWindow -> {
                         act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                         forcePortraitLock = true
                     }

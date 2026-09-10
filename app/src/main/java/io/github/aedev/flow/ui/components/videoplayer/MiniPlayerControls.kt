@@ -36,7 +36,6 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -50,6 +49,8 @@ import io.github.aedev.flow.ui.theme.PlayerMiniProgress
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimMiniButton
 import io.github.aedev.flow.ui.theme.PlayerScrimMiniTopButton
+import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
+import io.github.aedev.flow.ui.utils.isMediumWidth
 
 /**
  * The controls and progress bar that sit on the floating mini player. Sized at the settled mini
@@ -122,19 +123,18 @@ internal fun MiniPlayerControls(
     onPrevious: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp > 600
+    val isWideWindow = LocalWindowSizeClass.current.isMediumWidth
 
     val scaleMult = sizeScale.coerceIn(1f, 1.6f)
 
-    val baseTouchSize = if (isTablet) 44.dp else 36.dp
-    val baseBgSize = if (isTablet) 34.dp else 24.dp
-    val baseIconSize = if (isTablet) 30.dp else 24.dp
+    val baseTouchSize = if (isWideWindow) 44.dp else 36.dp
+    val baseBgSize = if (isWideWindow) 34.dp else 24.dp
+    val baseIconSize = if (isWideWindow) 30.dp else 24.dp
     val finalTouchSize = baseTouchSize * scaleMult
     val finalBgSize = baseBgSize * scaleMult
     val finalIconSize = baseIconSize * scaleMult
-    val topTouchSize = if (isTablet) 50.dp else 42.dp
-    val topBgSize = if (isTablet) 42.dp else 34.dp
+    val topTouchSize = if (isWideWindow) 50.dp else 42.dp
+    val topBgSize = if (isWideWindow) 42.dp else 34.dp
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -153,7 +153,7 @@ internal fun MiniPlayerControls(
             ) {
                 if (playerState.isBuffering) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(if (isTablet) 30.dp else 24.dp),
+                        modifier = Modifier.size(if (isWideWindow) 30.dp else 24.dp),
                         strokeWidth = 2.dp,
                         color = PlayerScrimContent,
                     )
@@ -172,7 +172,7 @@ internal fun MiniPlayerControls(
                                 else -> stringResource(R.string.play)
                             },
                         tint = PlayerScrimContent,
-                        modifier = Modifier.size(if (isTablet) 42.dp else 34.dp),
+                        modifier = Modifier.size(if (isWideWindow) 42.dp else 34.dp),
                     )
                 }
             }
@@ -198,7 +198,7 @@ internal fun MiniPlayerControls(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = stringResource(R.string.close),
                     tint = PlayerScrimContent,
-                    modifier = Modifier.size(if (isTablet) 34.dp else 30.dp),
+                    modifier = Modifier.size(if (isWideWindow) 34.dp else 30.dp),
                 )
             }
         }

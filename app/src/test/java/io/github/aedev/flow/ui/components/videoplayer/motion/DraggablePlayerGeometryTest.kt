@@ -17,10 +17,8 @@ class DraggablePlayerGeometryTest {
         margin = 24f,
         bottomNavPad = 200f,
         topBarPad = 168f,
-        isTablet = false,
-        isFoldable = false,
-        isSplitLayout = false,
-        smallestScreenWidthDp = 411,
+        isLargeWindow = false,
+        isTwoPaneWindow = false,
         miniPlayerScale = 0.45f,
         videoAspectRatio = videoAspectRatio,
         currentSizeScale = currentSizeScale,
@@ -72,10 +70,7 @@ class DraggablePlayerGeometryTest {
     }
 
     private fun large(
-        isTablet: Boolean,
-        isFoldable: Boolean = false,
-        smallestScreenWidthDp: Int = 720,
-        isSplitLayout: Boolean = false,
+        isTwoPaneWindow: Boolean = false,
         currentSizeScale: Float = 1f,
         cachedTargetX: Float = 0f,
         offsetXFallback: Float = 0f,
@@ -87,10 +82,8 @@ class DraggablePlayerGeometryTest {
         margin = 24f,
         bottomNavPad = 200f,
         topBarPad = 168f,
-        isTablet = isTablet,
-        isFoldable = isFoldable,
-        isSplitLayout = isSplitLayout,
-        smallestScreenWidthDp = smallestScreenWidthDp,
+        isLargeWindow = true,
+        isTwoPaneWindow = isTwoPaneWindow,
         miniPlayerScale = 0.45f,
         videoAspectRatio = 16f / 9f,
         currentSizeScale = currentSizeScale,
@@ -101,49 +94,32 @@ class DraggablePlayerGeometryTest {
     )
 
     @Test
-    fun `tablet mini scale steps down at 720 and 840 smallest width and ignores the user scale`() {
-        assertThat(large(isTablet = true, smallestScreenWidthDp = 600).baseMiniWidth).isWithin(0.01f).of(1600f * 0.38f)
-        assertThat(large(isTablet = true, smallestScreenWidthDp = 719).baseMiniWidth).isWithin(0.01f).of(1600f * 0.38f)
-        assertThat(large(isTablet = true, smallestScreenWidthDp = 720).baseMiniWidth).isWithin(0.01f).of(1600f * 0.35f)
-        assertThat(large(isTablet = true, smallestScreenWidthDp = 839).baseMiniWidth).isWithin(0.01f).of(1600f * 0.35f)
-        assertThat(large(isTablet = true, smallestScreenWidthDp = 840).baseMiniWidth).isWithin(0.01f).of(1600f * 0.32f)
-        assertThat(large(isTablet = true, smallestScreenWidthDp = 1200).baseMiniWidth).isWithin(0.01f).of(1600f * 0.32f)
+    fun `the mini scale follows the window class and ignores the user scale on a large window`() {
+        assertThat(phone().baseMiniWidth).isWithin(0.01f).of(1080f * 0.45f)
+        assertThat(large().baseMiniWidth).isWithin(0.01f).of(1600f * 0.35f)
+        assertThat(large(isTwoPaneWindow = true).baseMiniWidth).isWithin(0.01f).of(1600f * 0.32f)
     }
 
     @Test
-    fun `foldable mini scale is fixed at 0 42 and ignores the smallest width`() {
-        assertThat(large(isTablet = false, isFoldable = true, smallestScreenWidthDp = 600).baseMiniWidth).isWithin(0.01f).of(1600f * 0.42f)
-        assertThat(large(isTablet = false, isFoldable = true, smallestScreenWidthDp = 840).baseMiniWidth).isWithin(0.01f).of(1600f * 0.42f)
-    }
-
-    @Test
-    fun `the wide cap is the full width on phones and a fraction on large screens`() {
+    fun `the wide cap is the full width on a compact window and a fraction on a large one`() {
         assertThat(phone().maxWideWidth).isWithin(0.01f).of(1080f - 48f)
-        assertThat(large(isTablet = false, isFoldable = true).maxWideWidth).isWithin(0.01f).of(1600f * 0.55f - 48f)
-        assertThat(large(isTablet = true).maxWideWidth).isWithin(0.01f).of(1600f * 0.60f - 48f)
+        assertThat(large().maxWideWidth).isWithin(0.01f).of(1600f * 0.60f - 48f)
+        assertThat(large(isTwoPaneWindow = true).maxWideWidth).isWithin(0.01f).of(1600f * 0.60f - 48f)
     }
 
     @Test
-    fun `a device flagged both tablet and foldable takes the tablet mini scale but the foldable wide cap`() {
-        // Pins current behaviour: the two lookups check the flags in opposite orders.
-        val g = large(isTablet = true, isFoldable = true, smallestScreenWidthDp = 720)
-        assertThat(g.baseMiniWidth).isWithin(0.01f).of(1600f * 0.35f)
-        assertThat(g.maxWideWidth).isWithin(0.01f).of(1600f * 0.55f - 48f)
-    }
-
-    @Test
-    fun `a split layout narrows the expanded video to 65 percent of the width`() {
-        val g = large(isTablet = true, isSplitLayout = true)
+    fun `a two-pane window narrows the expanded video to 65 percent of the width`() {
+        val g = large(isTwoPaneWindow = true)
         assertThat(g.expandedVideoWidth).isWithin(0.01f).of(1600f * 0.65f)
         assertThat(g.baseVideoHeight).isWithin(0.01f).of(1600f * 0.65f * 9f / 16f)
         assertThat(g.expandedVideoHeight).isWithin(0.01f).of(g.baseVideoHeight)
         assertThat(g.visualMiniScale).isWithin(0.0001f).of(g.miniWidth / (1600f * 0.65f))
-        assertThat(large(isTablet = true).expandedVideoWidth).isEqualTo(1600f)
+        assertThat(large().expandedVideoWidth).isEqualTo(1600f)
     }
 
     @Test
-    fun `wide mode on a large screen keeps the cached corner x and the wide row`() {
-        val g = large(isTablet = true, currentSizeScale = 2.2f, cachedTargetX = 300f, corner = MiniPlayerCorner.BottomLeft)
+    fun `wide mode on a large window keeps the cached corner x and the wide row`() {
+        val g = large(currentSizeScale = 2.2f, cachedTargetX = 300f, corner = MiniPlayerCorner.BottomLeft)
         assertThat(g.isWideMode).isTrue()
         assertThat(g.miniWidth).isWithin(0.01f).of(g.maxWideWidth)
         assertThat(g.targetMiniX).isEqualTo(300f)
@@ -152,14 +128,14 @@ class DraggablePlayerGeometryTest {
     }
 
     @Test
-    fun `wide mode on a large screen with no cached x clamps the live offset`() {
+    fun `wide mode on a large window with no cached x clamps the live offset`() {
         // Pins current behaviour: a cached x of exactly 0 is read as "unknown" and the live offset
         // is used instead, clamped to the wide-mode drag bounds.
-        val far = large(isTablet = true, currentSizeScale = 2.2f, cachedTargetX = 0f, offsetXFallback = 5000f)
+        val far = large(currentSizeScale = 2.2f, cachedTargetX = 0f, offsetXFallback = 5000f)
         assertThat(far.targetMiniX).isEqualTo(far.maxX)
         assertThat(far.maxX).isWithin(0.01f).of(1600f - far.miniWidth - 24f)
 
-        val near = large(isTablet = false, isFoldable = true, currentSizeScale = 2.2f, cachedTargetX = 0f, offsetXFallback = -50f)
+        val near = large(currentSizeScale = 2.2f, cachedTargetX = 0f, offsetXFallback = -50f)
         assertThat(near.targetMiniX).isEqualTo(near.minX)
         assertThat(near.minX).isEqualTo(24f)
     }

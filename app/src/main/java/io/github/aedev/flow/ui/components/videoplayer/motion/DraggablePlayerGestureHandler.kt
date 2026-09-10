@@ -260,8 +260,7 @@ internal class DraggablePlayerGestureHandler(
                         screenHeight = metrics.screenHeight,
                         minY = metrics.minY,
                         bottomNavPad = metrics.bottomNavPad,
-                        isTablet = metrics.isTablet,
-                        isFoldable = metrics.isFoldable,
+                        isLargeWindow = metrics.isLargeScreen,
                     )
                 }
             }

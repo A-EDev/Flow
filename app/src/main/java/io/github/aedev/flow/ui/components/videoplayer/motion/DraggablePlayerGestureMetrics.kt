@@ -25,8 +25,6 @@ internal class DraggablePlayerGestureMetrics {
     var margin = 0f
     var bottomNavPad = 0f
     var stablePhoneCenteredX = 0f
-    var isTablet = false
-    var isFoldable = false
     var isLargeScreen = false
     var isLandscape = false
     var isFullscreen = false

@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.rememberVideoPlayerPreferences
+import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
@@ -24,8 +25,9 @@ import org.robolectric.annotation.Config
 
 /**
  * Pins which detail layout [EnhancedVideoPlayerScreen] picks for each window class. The window is
- * shaped through Robolectric qualifiers so both the activity window and `LocalConfiguration`
- * (which [io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor] reads) agree.
+ * shaped through Robolectric qualifiers and classified by the real
+ * [io.github.aedev.flow.ui.utils.ProvideWindowSizeClass], the same provider MainActivity installs,
+ * so the size class under test is the one the app would compute.
  *
  * Related videos are deliberately absent: every related card calls `hiltViewModel()`
  * (VideoCard.kt, `VideoCardFullWidth` / `CompactVideoCard`), which androidx.hilt 1.4.0 resolves
@@ -51,16 +53,18 @@ class EnhancedVideoPlayerScreenLayoutTest {
         val viewModel = relaxedVideoPlayerViewModel(uiState = uiState)
         val screenState = PlayerScreenState()
         rule.setContent {
-            MaterialTheme {
-                EnhancedVideoPlayerScreen(
-                    viewModel = viewModel,
-                    video = video,
-                    alpha = { 1f },
-                    screenState = screenState,
-                    prefs = rememberVideoPlayerPreferences(LocalContext.current),
-                    onVideoClick = {},
-                    onChannelClick = {},
-                )
+            ProvideWindowSizeClass {
+                MaterialTheme {
+                    EnhancedVideoPlayerScreen(
+                        viewModel = viewModel,
+                        video = video,
+                        alpha = { 1f },
+                        screenState = screenState,
+                        prefs = rememberVideoPlayerPreferences(LocalContext.current),
+                        onVideoClick = {},
+                        onChannelClick = {},
+                    )
+                }
             }
         }
         rule.waitForIdle()
@@ -94,7 +98,15 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
     @Test
     @Config(qualifiers = "sw600dp-w600dp-h960dp-port")
-    fun tabletPortraitHasNoSideColumn() {
+    fun mediumWindowHasNoSideColumn() {
+        setScreen()
+
+        assertSingleColumn()
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp-w800dp-h600dp-land")
+    fun mediumLandscapeWindowHasNoSideColumn() {
         setScreen()
 
         assertSingleColumn()
@@ -102,10 +114,36 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
     @Test
     @Config(qualifiers = "sw800dp-w1280dp-h800dp-land")
-    fun tabletLandscapeAddsTheSideColumn() {
+    fun expandedLandscapeWindowAddsTheSideColumn() {
         setScreen()
 
         rule.onNodeWithText(video.title).assertExists()
         sideColumnCloseChat.assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "sw800dp-w840dp-h1200dp-port")
+    fun expandedPortraitWindowAddsTheSideColumn() {
+        setScreen()
+
+        rule.onNodeWithText(video.title).assertExists()
+        sideColumnCloseChat.assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "sw411dp-w960dp-h700dp-land")
+    fun aPhoneInAnExpandedWindowAddsTheSideColumn() {
+        setScreen()
+
+        rule.onNodeWithText(video.title).assertExists()
+        sideColumnCloseChat.assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "sw800dp-w1280dp-h470dp-land")
+    fun aWindowShorterThanTheMediumHeightBreakpointStaysCompact() {
+        setScreen()
+
+        assertSingleColumn()
     }
 }

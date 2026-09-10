@@ -20,7 +20,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 
 /**
- * Right-hand column of the tablet landscape player. Comments take the column over when opened so
+ * Right-hand column of the wide player layout. Comments take the column over when opened so
  * the video stays visible instead of being covered by the modal comments sheet (#918); otherwise it
  * shows live chat, falling back to the related-videos list.
  */

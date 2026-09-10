@@ -28,7 +28,14 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
 import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
+import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import kotlin.math.roundToInt
+
+/** The video info pane keeps this much of the width; the detail pane takes the rest. */
+private const val WIDE_INFO_WEIGHT = 0.65f
+
+/** A readable cap for the dock, which would otherwise stretch across a tablet's whole width. */
+private val QueueDockMaxWidth = 600.dp
 
 /**
  * EnhancedVideoPlayerScreen - Simplified version for DraggablePlayerLayout
@@ -50,7 +57,7 @@ internal fun EnhancedVideoPlayerScreen(
     onChannelClick: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    val config = androidx.compose.ui.platform.LocalConfiguration.current
+    val windowSizeClass = LocalWindowSizeClass.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -70,148 +77,139 @@ internal fun EnhancedVideoPlayerScreen(
                 .graphicsLayer { this.alpha = alpha() }
                 .background(MaterialTheme.colorScheme.background),
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val layoutMode = playerLayoutModeFor(config, screenState.isFullscreen, isInPipMode)
-            val isWideLayout = layoutMode == PlayerLayoutMode.WIDE
-            val isTabletPortrait = layoutMode == PlayerLayoutMode.TABLET_PORTRAIT
+        val layoutMode = playerLayoutModeFor(windowSizeClass, screenState.isFullscreen, isInPipMode)
+        val isWideLayout = layoutMode == PlayerLayoutMode.WIDE
+        val isMediumLayout = layoutMode == PlayerLayoutMode.MEDIUM
 
-            if (isWideLayout) {
-                val descriptionWeight = if (maxWidth < 840.dp) 0.55f else 0.65f
-                val relatedWeight = 1f - descriptionWeight
-
-                // Tablet/Foldable Layout
-                Row(Modifier.fillMaxSize()) {
-                    Column(
+        if (isWideLayout) {
+            Row(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .weight(WIDE_INFO_WEIGHT)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Spacer(
                         Modifier
-                            .weight(descriptionWeight)
-                            .fillMaxHeight()
-                            .verticalScroll(rememberScrollState()),
-                    ) {
-                        Spacer(
-                            Modifier
-                                .fillMaxWidth()
-                                .layout { measurable, constraints ->
-                                    val height = videoPlayerHeightPx().roundToInt().coerceAtLeast(0)
-                                    val placeable =
-                                        measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
-                                    layout(placeable.width, height) { placeable.place(0, 0) }
-                                },
-                        )
+                            .fillMaxWidth()
+                            .layout { measurable, constraints ->
+                                val height = videoPlayerHeightPx().roundToInt().coerceAtLeast(0)
+                                val placeable =
+                                    measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+                                layout(placeable.width, height) { placeable.place(0, 0) }
+                            },
+                    )
 
-                        VideoInfoContent(
-                            video = video,
-                            uiState = uiState,
-                            viewModel = viewModel,
-                            screenState = screenState,
-                            comments = comments,
-                            commentsEnabled = commentsEnabled,
-                            showCommentsPreview = showCommentsPreview,
-                            deArrowEnabled = prefs.deArrowEnabled,
-                            context = context,
-                            scope = scope,
-                            snackbarHostState = snackbarHostState,
-                            onChannelClick = onChannelClick,
-                        )
-                    }
-                    PlayerDetailSideColumn(
+                    VideoInfoContent(
                         video = video,
                         uiState = uiState,
                         viewModel = viewModel,
                         screenState = screenState,
                         comments = comments,
                         commentsEnabled = commentsEnabled,
-                        showRelatedVideos = showRelatedVideos,
-                        relatedCardStyle = relatedCardStyle,
-                        onVideoClick = onVideoClick,
+                        showCommentsPreview = showCommentsPreview,
+                        deArrowEnabled = prefs.deArrowEnabled,
+                        context = context,
+                        scope = scope,
+                        snackbarHostState = snackbarHostState,
                         onChannelClick = onChannelClick,
-                        modifier = Modifier.weight(relatedWeight),
                     )
                 }
-            } else {
-                // Phone Portrait or Tablet Portrait Layout
-                Column(Modifier.fillMaxSize()) {
-                    if (!screenState.isFullscreen && !isInPipMode) {
-                        LazyColumn(
-                            Modifier.weight(1f),
-                            contentPadding = PaddingValues(bottom = 80.dp),
-                        ) {
-                            item {
-                                VideoInfoContent(
-                                    video = video,
-                                    uiState = uiState,
-                                    viewModel = viewModel,
-                                    screenState = screenState,
-                                    comments = comments,
-                                    commentsEnabled = commentsEnabled,
-                                    showCommentsPreview = showCommentsPreview,
-                                    deArrowEnabled = prefs.deArrowEnabled,
-                                    context = context,
-                                    scope = scope,
-                                    snackbarHostState = snackbarHostState,
+                PlayerDetailSideColumn(
+                    video = video,
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    screenState = screenState,
+                    comments = comments,
+                    commentsEnabled = commentsEnabled,
+                    showRelatedVideos = showRelatedVideos,
+                    relatedCardStyle = relatedCardStyle,
+                    onVideoClick = onVideoClick,
+                    onChannelClick = onChannelClick,
+                    modifier = Modifier.weight(1f - WIDE_INFO_WEIGHT),
+                )
+            }
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                if (!screenState.isFullscreen && !isInPipMode) {
+                    LazyColumn(
+                        Modifier.weight(1f),
+                        contentPadding = PaddingValues(bottom = 80.dp),
+                    ) {
+                        item {
+                            VideoInfoContent(
+                                video = video,
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                screenState = screenState,
+                                comments = comments,
+                                commentsEnabled = commentsEnabled,
+                                showCommentsPreview = showCommentsPreview,
+                                deArrowEnabled = prefs.deArrowEnabled,
+                                context = context,
+                                scope = scope,
+                                snackbarHostState = snackbarHostState,
+                                onChannelClick = onChannelClick,
+                            )
+                        }
+                        if (showRelatedVideos) {
+                            if (isMediumLayout) {
+                                relatedVideosGridContent(
+                                    relatedVideos = uiState.relatedVideos,
+                                    columns = 2,
+                                    onVideoClick = onVideoClick,
                                     onChannelClick = onChannelClick,
+                                    cardStyle = relatedCardStyle,
                                 )
-                            }
-                            if (showRelatedVideos) {
-                                if (isTabletPortrait) {
-                                    relatedVideosGridContent(
-                                        relatedVideos = uiState.relatedVideos,
-                                        columns = 2,
-                                        onVideoClick = onVideoClick,
-                                        onChannelClick = onChannelClick,
-                                        cardStyle = relatedCardStyle,
-                                    )
-                                } else {
-                                    relatedVideosContent(
-                                        relatedVideos = uiState.relatedVideos,
-                                        onVideoClick = onVideoClick,
-                                        onChannelClick = onChannelClick,
-                                        cardStyle = relatedCardStyle,
-                                    )
-                                }
+                            } else {
+                                relatedVideosContent(
+                                    relatedVideos = uiState.relatedVideos,
+                                    onVideoClick = onVideoClick,
+                                    onChannelClick = onChannelClick,
+                                    cardStyle = relatedCardStyle,
+                                )
                             }
                         }
                     }
                 }
             }
+        }
 
-            // Playlist Queue Dock
-            val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
-            val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
-            val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(
-                initialValue = -1,
-            )
+        val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+        val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
+        val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(
+            initialValue = -1,
+        )
 
-            if ((playerState.queueTitle != null && queueVideos.isNotEmpty()) || (playerState.queueTitle == null && queueVideos.size > 1)) {
-                val nextVideoTitle =
-                    when {
-                        currentQueueIndex < queueVideos.lastIndex -> queueVideos[currentQueueIndex + 1].title
-                        playerState.isQueueLooping -> queueVideos.firstOrNull()?.title
-                        else -> null
-                    }
+        if ((playerState.queueTitle != null && queueVideos.isNotEmpty()) || (playerState.queueTitle == null && queueVideos.size > 1)) {
+            val nextVideoTitle =
+                when {
+                    currentQueueIndex < queueVideos.lastIndex -> queueVideos[currentQueueIndex + 1].title
+                    playerState.isQueueLooping -> queueVideos.firstOrNull()?.title
+                    else -> null
+                }
 
-                PlaylistQueueDock(
-                    nextVideoTitle = nextVideoTitle,
-                    playlistName = playerState.queueTitle ?: "",
-                    currentIndex = currentQueueIndex,
-                    queueSize = queueVideos.size,
-                    onClick = { screenState.open(PlayerSheet.Queue) },
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = if (isWideLayout) 24.dp else 16.dp)
-                            .widthIn(max = 600.dp),
-                )
-            }
-
-            // Snackbar host
-            SnackbarHost(
-                hostState = snackbarHostState,
+            PlaylistQueueDock(
+                nextVideoTitle = nextVideoTitle,
+                playlistName = playerState.queueTitle ?: "",
+                currentIndex = currentQueueIndex,
+                queueSize = queueVideos.size,
+                onClick = { screenState.open(PlayerSheet.Queue) },
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
-                        // Move snackbar up if dock is visible
-                        .padding(bottom = if (playerState.queueTitle != null && queueVideos.isNotEmpty()) 80.dp else 0.dp),
+                        .padding(bottom = if (isWideLayout) 24.dp else 16.dp)
+                        .widthIn(max = QueueDockMaxWidth),
             )
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    // Move snackbar up if dock is visible
+                    .padding(bottom = if (playerState.queueTitle != null && queueVideos.isNotEmpty()) 80.dp else 0.dp),
+        )
     }
 }
