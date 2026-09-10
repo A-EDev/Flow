@@ -32,7 +32,6 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.MiniPlayerExpansionState
 import io.github.aedev.flow.player.PlaybackStartupPolicy
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
-import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
@@ -59,7 +58,6 @@ import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -126,6 +124,19 @@ class VideoPlayerViewModel
                 offlineSubtitleStore = offlineSubtitleStore,
             )
 
+        private val secondaryMetadata =
+            PlayerSecondaryMetadataLoader(
+                repository = repository,
+                playerManager = playerManager,
+                playerPreferences = playerPreferences,
+                scope = viewModelScope,
+                networkDispatcher = networkDispatcher,
+                currentState = { _uiState.value },
+                shortsEnabled = { shortsContentEnabled },
+                isPlaybackCurrent = ::isPlaybackLoadCurrent,
+                onResult = ::applySecondaryMetadata,
+            )
+
         // One terminal watch signal per video view; ignores repeat dispose fires.
         private var lastReportedVideoId: String? = null
 
@@ -143,10 +154,6 @@ class VideoPlayerViewModel
         private var playbackLoadToken: Long = 0L
         private var loadingVideoId: String? = null
         private var clearedUnplayableVideoId: String? = null
-        private var channelMetadataJob: Job? = null
-        private var channelMetadataVideoId: String? = null
-        private var relatedVideosJob: Job? = null
-        private var relatedVideosVideoId: String? = null
         private var liveChatJob: Job? = null
         private var liveChatVideoId: String? = null
         private var subscriptionStateJob: Job? = null
@@ -196,12 +203,7 @@ class VideoPlayerViewModel
             activeLoadJob?.cancel()
             activeLoadJob = null
             loadingVideoId = null
-            channelMetadataJob?.cancel()
-            channelMetadataJob = null
-            channelMetadataVideoId = null
-            relatedVideosJob?.cancel()
-            relatedVideosJob = null
-            relatedVideosVideoId = null
+            secondaryMetadata.cancel()
         }
 
         fun maybeStartLiveChat(videoId: String) {
@@ -1216,7 +1218,7 @@ class VideoPlayerViewModel
 
                 is ResolvedPlayback.Live -> {
                     prepareLiveStreamFromInnerTube(videoId, step.result, step.relatedVideos, loadToken)
-                    step.lateStreamInfo?.let { enrichPlaybackMetadataWhenReady(videoId, it, loadToken) }
+                    step.lateStreamInfo?.let { secondaryMetadata.enrichWhenReady(videoId, it, loadToken) }
                 }
 
                 is ResolvedPlayback.VodFromInnerTube -> {
@@ -1377,7 +1379,7 @@ class VideoPlayerViewModel
                     preferSabr = streams.preferSabr,
                     preferredLiveQualityHeight = streams.preferredQuality.height,
                 )
-                loadChannelMetadataAfterPlayback(
+                secondaryMetadata.loadChannelMetadata(
                     videoId = videoId,
                     uploaderUrl = streamInfo.uploaderUrl,
                     channelId = _uiState.value.cachedVideo?.channelId,
@@ -1385,13 +1387,13 @@ class VideoPlayerViewModel
                     loadToken = loadToken,
                 )
                 if (!streams.isLiveType) {
-                    loadRelatedVideosAfterPlayback(videoId, step.relatedVideos, loadToken)
+                    secondaryMetadata.loadRelatedVideos(videoId, step.relatedVideos, loadToken)
                 }
             }
 
             if (!step.isUpcomingContent && streams.isLiveStream) {
                 maybeStartLiveChat(videoId)
-                refreshLiveWatchMetadata(
+                secondaryMetadata.refreshLiveWatchMetadata(
                     videoId = videoId,
                     fallbackVideo =
                         Video(
@@ -1435,7 +1437,7 @@ class VideoPlayerViewModel
                     resumePositionOverrideMs = step.resumePositionOverrideMs,
                     loadToken = loadToken,
                 )
-                step.lateStreamInfo?.let { enrichPlaybackMetadataWhenReady(videoId, it, loadToken) }
+                step.lateStreamInfo?.let { secondaryMetadata.enrichWhenReady(videoId, it, loadToken) }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1576,7 +1578,7 @@ class VideoPlayerViewModel
                 )
             if (!liveStarted) return@withContext
 
-            loadChannelMetadataAfterPlayback(
+            secondaryMetadata.loadChannelMetadata(
                 videoId = videoId,
                 uploaderUrl = null,
                 channelId = channelId,
@@ -1588,90 +1590,31 @@ class VideoPlayerViewModel
 
             maybeStartLiveChat(videoId)
 
-            refreshLiveWatchMetadata(videoId, enrichedVideo, loadToken)
+            secondaryMetadata.refreshLiveWatchMetadata(videoId, enrichedVideo, loadToken)
         }
 
-        private fun loadChannelMetadataAfterPlayback(
-            videoId: String,
-            uploaderUrl: String?,
-            channelId: String?,
-            embeddedAvatarUrls: List<String>,
-            loadToken: Long,
-        ) {
-            val embeddedAvatar =
-                embeddedAvatarUrls
-                    .firstOrNull()
-                    ?.let(ThumbnailUrlResolver::resolveChannelAvatar)
-                    ?.takeIf { it.isNotBlank() }
-            if (embeddedAvatar != null) {
-                applyChannelMetadata(videoId, embeddedAvatar, subscriberCount = null, loadToken)
+        private fun applySecondaryMetadata(result: SecondaryMetadata) {
+            when (result) {
+                is SecondaryMetadata.Channel -> applyChannelMetadata(result)
+                is SecondaryMetadata.Related -> publishRelatedVideos(result.videoId, result.videos, result.loadToken)
+                is SecondaryMetadata.Enriched -> applyEnrichedMetadata(result)
+                is SecondaryMetadata.LiveWatch -> applyLiveWatchMetadata(result)
             }
-
-            val references = PlayerChannelMetadataPolicy.channelReferences(uploaderUrl, channelId)
-            if (references.isEmpty()) return
-
-            if (channelMetadataVideoId != videoId) {
-                channelMetadataJob?.cancel()
-                channelMetadataJob = null
-                channelMetadataVideoId = videoId
-            } else if (channelMetadataJob?.isActive == true) {
-                return
-            }
-
-            channelMetadataJob =
-                viewModelScope.launch(networkDispatcher) {
-                    // Embedded avatars can update immediately, but the extra channel request waits until
-                    // playback has actually started so it cannot compete with the first media buffer.
-                    withTimeoutOrNull(15_000L) {
-                        playerManager.playerState.first { state ->
-                            state.currentVideoId == videoId && (state.isPlaying || state.hasEnded || state.error != null)
-                        }
-                    }
-                    if (!isPlaybackLoadCurrent(loadToken)) return@launch
-
-                    var channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo? = null
-                    for (reference in references) {
-                        channelInfo =
-                            withTimeoutOrNull(8_000L) {
-                                repository.getChannelInfo(reference)
-                            }
-                        if (channelInfo != null) break
-                    }
-
-                    if (!isPlaybackLoadCurrent(loadToken) || channelInfo == null) return@launch
-
-                    val fetchedAvatar =
-                        channelInfo.avatars
-                            .distinctBestImageUrls(limit = 1)
-                            .firstOrNull()
-                            ?.let(ThumbnailUrlResolver::resolveChannelAvatar)
-                            ?.takeIf { it.isNotBlank() }
-
-                    applyChannelMetadata(
-                        videoId = videoId,
-                        avatarUrl =
-                            PlayerChannelMetadataPolicy.selectAvatarUrl(
-                                fetchedAvatarUrl = fetchedAvatar,
-                                embeddedAvatarUrl = embeddedAvatar,
-                                currentAvatarUrl = _uiState.value.channelAvatarUrl,
-                            ),
-                        subscriberCount = channelInfo.subscriberCount.takeIf { it > 0L },
-                        loadToken = loadToken,
-                    )
-                }
         }
 
-        private fun applyChannelMetadata(
-            videoId: String,
-            avatarUrl: String?,
-            subscriberCount: Long?,
-            loadToken: Long,
-        ) {
-            if (!isPlaybackLoadCurrent(loadToken)) return
+        private fun applyChannelMetadata(result: SecondaryMetadata.Channel) {
+            if (!isPlaybackLoadCurrent(result.loadToken)) return
+
+            val avatarUrl =
+                PlayerChannelMetadataPolicy.selectAvatarUrl(
+                    fetchedAvatarUrl = result.fetchedAvatarUrl,
+                    embeddedAvatarUrl = result.embeddedAvatarUrl,
+                    currentAvatarUrl = _uiState.value.channelAvatarUrl,
+                )
 
             _uiState.update { state ->
                 val cached = state.cachedVideo
-                if (cached?.id != videoId) return@update state
+                if (cached?.id != result.videoId) return@update state
 
                 val selectedAvatar =
                     PlayerChannelMetadataPolicy.selectAvatarUrl(
@@ -1696,87 +1639,17 @@ class VideoPlayerViewModel
                 state.copy(
                     cachedVideo = updatedCached,
                     channelAvatarUrl = selectedAvatar,
-                    channelSubscriberCount = subscriberCount ?: state.channelSubscriberCount,
+                    channelSubscriberCount = result.subscriberCount ?: state.channelSubscriberCount,
                 )
             }
 
             _uiState.value.cachedVideo
-                ?.takeIf { it.id == videoId }
+                ?.takeIf { it.id == result.videoId }
                 ?.let(GlobalPlayerState::setCurrentVideo)
         }
 
-        private fun loadRelatedVideosAfterPlayback(
-            videoId: String,
-            primaryCandidates: List<Video>,
-            loadToken: Long,
-        ) {
-            val manager = playerManager
-            val currentCandidates =
-                _uiState.value
-                    .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
-                    ?.relatedVideos
-                    .orEmpty()
-            val selected =
-                PlayerRelatedVideosPolicy.select(
-                    videoId = videoId,
-                    primary = primaryCandidates,
-                    fallback = manager.relatedCandidatesFor(videoId),
-                    current = currentCandidates,
-                    shortsEnabled = shortsContentEnabled,
-                )
-            if (selected.isNotEmpty()) {
-                if (relatedVideosVideoId == videoId) {
-                    relatedVideosJob?.cancel()
-                    relatedVideosJob = null
-                }
-                relatedVideosVideoId = videoId
-                applyRelatedVideos(videoId, selected, loadToken)
-                return
-            }
-
-            if (relatedVideosVideoId == videoId && relatedVideosJob?.isActive == true) return
-            relatedVideosJob?.cancel()
-            relatedVideosVideoId = videoId
-            relatedVideosJob =
-                viewModelScope.launch(networkDispatcher) {
-                    // Keep this request off the critical startup path. It is only needed when the
-                    // playback resolver did not provide related items with its initial metadata.
-                    withTimeoutOrNull(15_000L) {
-                        playerManager.playerState.first { state ->
-                            state.currentVideoId == videoId && (state.isPlaying || state.hasEnded || state.error != null)
-                        }
-                    }
-                    if (!isPlaybackLoadCurrent(loadToken) || relatedVideosVideoId != videoId) return@launch
-
-                    val managerCandidates = manager.relatedCandidatesFor(videoId)
-                    if (managerCandidates.isNotEmpty()) {
-                        applyRelatedVideos(videoId, managerCandidates, loadToken)
-                        return@launch
-                    }
-
-                    val fallbackCandidates =
-                        withTimeoutOrNull(10_000L) {
-                            repository.getRelatedCandidates(videoId)
-                        }.orEmpty()
-                    if (!isPlaybackLoadCurrent(loadToken) || relatedVideosVideoId != videoId) return@launch
-
-                    val resolved =
-                        PlayerRelatedVideosPolicy.select(
-                            videoId = videoId,
-                            primary = primaryCandidates,
-                            fallback = fallbackCandidates,
-                            current = _uiState.value.relatedVideos,
-                            shortsEnabled = shortsContentEnabled,
-                        )
-                    if (resolved.isNotEmpty()) {
-                        applyRelatedVideos(videoId, resolved, loadToken)
-                    } else {
-                        Log.d("VideoPlayerViewModel", "No related videos resolved for $videoId")
-                    }
-                }
-        }
-
-        private fun applyRelatedVideos(
+        /** The one place related items reach the player: the autoplay queue and the lane together. */
+        private fun publishRelatedVideos(
             videoId: String,
             videos: List<Video>,
             loadToken: Long,
@@ -1804,86 +1677,44 @@ class VideoPlayerViewModel
             }
         }
 
-        private fun enrichPlaybackMetadataWhenReady(
-            videoId: String,
-            streamInfoDeferred: Deferred<Pair<StreamInfo?, Throwable?>>,
-            loadToken: Long,
-        ) {
-            viewModelScope.launch(networkDispatcher) {
-                val streamInfo =
-                    try {
-                        streamInfoDeferred.await().first
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Log.d("VideoPlayerViewModel", "Late NewPipe metadata failed for $videoId: ${e.message}")
-                        null
-                    } ?: return@launch
+        private fun applyEnrichedMetadata(result: SecondaryMetadata.Enriched) {
+            if (!isPlaybackLoadCurrent(result.loadToken) || _uiState.value.cachedVideo?.id != result.videoId) return
 
-                if (!isPlaybackLoadCurrent(loadToken)) return@launch
-
-                val relatedVideos =
-                    PlayerRelatedVideosPolicy.select(
-                        videoId = videoId,
-                        primary = repository.getRelatedVideosFromStreamInfo(streamInfo),
-                        fallback = emptyList(),
-                        current = emptyList(),
-                        shortsEnabled = shortsContentEnabled,
-                    )
-                val cached = _uiState.value.cachedVideo ?: return@launch
-                if (cached.id != videoId) return@launch
-
-                val enriched =
-                    cached.copy(
-                        title = streamInfo.name?.takeIf { it.isNotBlank() } ?: cached.title,
-                        channelName = streamInfo.uploaderName?.takeIf { it.isNotBlank() } ?: cached.channelName,
-                        channelId =
-                            cached.channelId.takeIf { it.isNotBlank() }
-                                ?: streamInfo.uploaderUrl?.substringAfterLast("/").orEmpty(),
-                        thumbnailUrl =
-                            streamInfo.thumbnails.maxByOrNull { it.height }?.url
-                                ?: cached.thumbnailUrl,
-                        duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: cached.duration,
-                        viewCount = streamInfo.viewCount.takeIf { it > 0L } ?: cached.viewCount,
-                        description = streamInfo.description?.content ?: cached.description,
-                    )
-
-                withContext(Dispatchers.Main) {
-                    if (!isPlaybackLoadCurrent(loadToken) || _uiState.value.cachedVideo?.id != videoId) {
-                        return@withContext
-                    }
-                    GlobalPlayerState.setCurrentVideo(enriched)
-                    _uiState.update {
-                        it.copy(
-                            cachedVideo = enriched,
-                            streamInfo = streamInfo,
-                            relatedVideos = relatedVideos.ifEmpty { it.relatedVideos },
-                            chapters = streamInfo.streamSegments ?: it.chapters,
-                            // Late NewPipe metadata adds its own streams to the download dialog's list,
-                            // so their sizes have to join the map the dialog looks them up in.
-                            streamSizes =
-                                StreamSizeEstimator.merge(
-                                    it.streamSizes,
-                                    StreamSizeEstimator.fromExtractorStreams(
-                                        (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
-                                        streamInfo.audioStreams,
-                                        streamInfo.duration,
-                                    ),
-                                ),
-                        )
-                    }
-                }
-
-                loadRelatedVideosAfterPlayback(videoId, relatedVideos, loadToken)
-
-                loadChannelMetadataAfterPlayback(
-                    videoId = videoId,
-                    uploaderUrl = streamInfo.uploaderUrl,
-                    channelId = enriched.channelId,
-                    embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
-                    loadToken = loadToken,
+            val streamInfo = result.streamInfo
+            GlobalPlayerState.setCurrentVideo(result.video)
+            _uiState.update {
+                it.copy(
+                    cachedVideo = result.video,
+                    streamInfo = streamInfo,
+                    relatedVideos = result.relatedVideos.ifEmpty { it.relatedVideos },
+                    chapters = streamInfo.streamSegments ?: it.chapters,
+                    // Late NewPipe metadata adds its own streams to the download dialog's list,
+                    // so their sizes have to join the map the dialog looks them up in.
+                    streamSizes =
+                        StreamSizeEstimator.merge(
+                            it.streamSizes,
+                            StreamSizeEstimator.fromExtractorStreams(
+                                (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
+                                streamInfo.audioStreams,
+                                streamInfo.duration,
+                            ),
+                        ),
                 )
             }
+        }
+
+        private fun applyLiveWatchMetadata(result: SecondaryMetadata.LiveWatch) {
+            if (!isPlaybackLoadCurrent(result.loadToken)) return
+
+            GlobalPlayerState.setCurrentVideo(result.video)
+            _uiState.update {
+                it.copy(
+                    cachedVideo = result.video,
+                    channelAvatarUrl = result.channelAvatarUrl ?: it.channelAvatarUrl,
+                    channelSubscriberCount = result.subscriberCount ?: it.channelSubscriberCount,
+                )
+            }
+            publishRelatedVideos(result.videoId, result.relatedVideos, result.loadToken)
         }
 
         private suspend fun prepareVodStreamFromInnerTube(
@@ -1999,8 +1830,8 @@ class VideoPlayerViewModel
 
             // Queue and preloaded playback may already own this media item. Arm secondary metadata
             // before the prepared-player return so those transitions still populate the screen.
-            loadRelatedVideosAfterPlayback(videoId, relatedVideos, loadToken)
-            loadChannelMetadataAfterPlayback(
+            secondaryMetadata.loadRelatedVideos(videoId, relatedVideos, loadToken)
+            secondaryMetadata.loadChannelMetadata(
                 videoId = videoId,
                 uploaderUrl = null,
                 channelId = channelId,
@@ -2028,86 +1859,6 @@ class VideoPlayerViewModel
                 preferredLiveQualityHeight = preferredQuality.height,
                 isCurrent = { isPlaybackLoadCurrent(loadToken) },
             )
-        }
-
-        private fun refreshLiveWatchMetadata(
-            videoId: String,
-            fallbackVideo: Video,
-            loadToken: Long,
-        ) {
-            viewModelScope.launch(networkDispatcher) {
-                val newPipeMeta =
-                    withTimeoutOrNull(12_000L) {
-                        repository.getLiveWatchMetadataFromNewPipe(videoId)
-                    }
-                val innerTubeMeta =
-                    if (
-                        newPipeMeta == null ||
-                        newPipeMeta.relatedVideos.isEmpty() ||
-                        newPipeMeta.subscriberCount == null
-                    ) {
-                        withTimeoutOrNull(8000L) { repository.getLiveWatchMetadata(videoId) }
-                    } else {
-                        null
-                    }
-                val meta = newPipeMeta ?: innerTubeMeta ?: return@launch
-                if (!isPlaybackLoadCurrent(loadToken)) return@launch
-
-                val likes =
-                    if (playerPreferences.rytdEnabled.first()) {
-                        withTimeoutOrNull(5000L) { repository.returnYouTubeDislikeCounts(videoId) }?.likes
-                    } else {
-                        null
-                    }
-                val enriched =
-                    fallbackVideo.copy(
-                        title = meta.title?.takeIf { it.isNotBlank() } ?: fallbackVideo.title,
-                        channelName = meta.channelName?.takeIf { it.isNotBlank() } ?: fallbackVideo.channelName,
-                        channelId = meta.channelId?.takeIf { it.isNotBlank() } ?: fallbackVideo.channelId,
-                        description = meta.description ?: fallbackVideo.description,
-                        channelThumbnailUrl = meta.channelAvatarUrl ?: fallbackVideo.channelThumbnailUrl,
-                        viewCount = meta.viewCount ?: fallbackVideo.viewCount,
-                        likeCount = likes ?: fallbackVideo.likeCount,
-                        isLive = true,
-                    )
-                val metadataRelated =
-                    (
-                        newPipeMeta?.relatedVideos?.takeIf { it.isNotEmpty() }
-                            ?: innerTubeMeta?.relatedVideos
-                            ?: meta.relatedVideos
-                    ).filter { it.id.isNotBlank() && it.id != videoId }
-                        .distinctBy { it.id }
-                val related =
-                    metadataRelated.ifEmpty {
-                        withTimeoutOrNull(8_000L) {
-                            repository.getLiveRelatedVideosBySearch(
-                                videoId = videoId,
-                                title = enriched.title,
-                                channelName = enriched.channelName,
-                            )
-                        }.orEmpty()
-                    }
-                val autoplay = playerPreferences.autoplayEnabled.first()
-
-                withContext(Dispatchers.Main) {
-                    if (!isPlaybackLoadCurrent(loadToken)) return@withContext
-                    GlobalPlayerState.setCurrentVideo(enriched)
-                    if (related.isNotEmpty()) {
-                        playerManager.setAutoplayCandidates(sourceVideoId = videoId, videos = related, enabled = autoplay)
-                    }
-                    _uiState.update {
-                        it.copy(
-                            cachedVideo = enriched,
-                            relatedVideos = related.ifEmpty { it.relatedVideos },
-                            channelAvatarUrl = meta.channelAvatarUrl ?: it.channelAvatarUrl,
-                            channelSubscriberCount =
-                                meta.subscriberCount
-                                    ?: innerTubeMeta?.subscriberCount
-                                    ?: it.channelSubscriberCount,
-                        )
-                    }
-                }
-            }
         }
 
         private suspend fun prepareLocalMediaForPlayback(
