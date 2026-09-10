@@ -24,8 +24,6 @@ import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
-import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.notification.UpcomingVideoReminderWorker
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
@@ -52,15 +50,17 @@ import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
 import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
+import io.github.aedev.flow.player.stream.UpcomingPremiere
+import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.ui.screens.player.state.PlayerNavigationHistory
+import io.github.aedev.flow.ui.screens.player.state.UpcomingPremierePolicy
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
-import io.github.aedev.flow.utils.parsePremiereTimestamp
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +96,7 @@ class VideoPlayerViewModel
         private val liveChatRepository: io.github.aedev.flow.data.repository.LiveChatRepository,
         private val homeFeedCacheRepository: HomeFeedCacheRepository,
         private val playerManager: EnhancedPlayerManager,
+        private val upcomingPremiereProbe: UpcomingPremiereProbe,
         @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
@@ -585,69 +586,13 @@ class VideoPlayerViewModel
             _uiState.update { it.copy(resumedInMiniPlayer = false) }
         }
 
-        private fun resolveUpcomingReleaseTime(video: Video): Long? {
-            if (!video.isUpcoming) return null
-            val now = System.currentTimeMillis()
-            return when {
-                video.timestamp > now + 60_000L -> video.timestamp
-                else -> parsePremiereTimestamp(video.uploadDate)
-            }?.takeIf { it > now }
-        }
-
         private fun applyUpcomingState(
             video: Video,
             preserveQueueTitle: String? = _uiState.value.queueTitle,
         ): Boolean {
-            if (!video.isUpcoming) return false
-            val releaseTimeMs = resolveUpcomingReleaseTime(video) ?: return false
-            _uiState.update {
-                it.resetForVideo(video).copy(
-                    isLoading = false,
-                    queueTitle = preserveQueueTitle,
-                    isUpcoming = true,
-                    upcomingReleaseTimeMs = releaseTimeMs,
-                )
-            }
+            val releaseTimeMs = UpcomingPremierePolicy.releaseTimeFor(video) ?: return false
+            _uiState.update { UpcomingPremierePolicy.applyTo(it, video, releaseTimeMs, preserveQueueTitle) }
             return true
-        }
-
-        private suspend fun probeUpcomingPremiere(videoId: String): Pair<Boolean, Long?> {
-            return try {
-                val response =
-                    withTimeoutOrNull(6_000L) {
-                        YouTube.player(videoId, client = YouTubeClient.MOBILE).getOrNull()
-                    } ?: return false to null
-                val status = response.playabilityStatus
-                val streamingData = response.streamingData
-                val hasManifest = !streamingData?.hlsManifestUrl.isNullOrBlank()
-                val hasFormats =
-                    (streamingData?.formats?.isNotEmpty() == true) ||
-                        (streamingData?.adaptiveFormats?.isNotEmpty() == true)
-                val reason = status.reason.orEmpty()
-                val looksUpcoming =
-                    !hasManifest && !hasFormats && (
-                        status.status.equals("LIVE_STREAM_OFFLINE", ignoreCase = true) ||
-                            status.liveStreamability != null ||
-                            reason.contains("premiere", ignoreCase = true) ||
-                            reason.contains("will begin", ignoreCase = true) ||
-                            reason.contains("scheduled", ignoreCase = true)
-                    )
-                if (!looksUpcoming) return false to null
-                val scheduledMs =
-                    status.liveStreamability
-                        ?.liveStreamabilityRenderer
-                        ?.offlineSlate
-                        ?.liveStreamOfflineSlateRenderer
-                        ?.scheduledStartTime
-                        ?.toLongOrNull()
-                        ?.times(1000L)
-                        ?.takeIf { it > System.currentTimeMillis() }
-                true to scheduledMs
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                false to null
-            }
         }
 
         private fun enterUpcomingState(
@@ -658,38 +603,8 @@ class VideoPlayerViewModel
             loadToken: Long,
         ): Boolean {
             if (!isPlaybackLoadCurrent(loadToken)) return true
-            val base =
-                cached ?: Video(
-                    id = videoId,
-                    title = "",
-                    channelName = "",
-                    channelId = "",
-                    thumbnailUrl = "",
-                    duration = 0,
-                    viewCount = 0L,
-                    uploadDate = "",
-                )
-            val upcomingVideo =
-                base.copy(
-                    isUpcoming = true,
-                    timestamp = releaseMs ?: base.timestamp,
-                )
-            _uiState.update {
-                it.copy(
-                    cachedVideo = upcomingVideo,
-                    isLoading = false,
-                    error = null,
-                    errorHint = null,
-                    streamInfo = null,
-                    videoStream = null,
-                    audioStream = null,
-                    relatedVideos = relatedVideos.ifEmpty { it.relatedVideos },
-                    hlsUrl = null,
-                    isLive = false,
-                    isUpcoming = true,
-                    upcomingReleaseTimeMs = releaseMs,
-                )
-            }
+            val upcomingVideo = UpcomingPremierePolicy.upcomingVideo(videoId, cached, releaseMs)
+            _uiState.update { UpcomingPremierePolicy.enterFrom(it, upcomingVideo, relatedVideos, releaseMs) }
             GlobalPlayerState.setCurrentVideo(upcomingVideo)
             return true
         }
@@ -697,19 +612,20 @@ class VideoPlayerViewModel
         private suspend fun resolveUpcoming(
             videoId: String,
             knownUpcoming: Boolean,
-        ): Pair<Boolean, Long?> {
+        ): UpcomingPremiere {
             val cached = _uiState.value.cachedVideo?.takeIf { it.id == videoId }
             val flagged = knownUpcoming || cached?.isUpcoming == true
-            val listReleaseMs = cached?.let { resolveUpcomingReleaseTime(it) }
-            if (flagged && listReleaseMs != null) return true to listReleaseMs
-            val probe = probeUpcomingPremiere(videoId)
+            val listReleaseMs = cached?.let { UpcomingPremierePolicy.releaseTimeFor(it) }
+            if (!UpcomingPremierePolicy.needsProbe(flagged, listReleaseMs)) {
+                return UpcomingPremiere(isUpcoming = true, scheduledStartMs = listReleaseMs)
+            }
+            val probe = upcomingPremiereProbe.probe(videoId)
             PlayerDiagnostics.logWarning(
                 "Upcoming",
                 "videoId=$videoId flagged=$flagged known=$knownUpcoming " +
-                    "probe=${probe.first} probeTime=${probe.second}",
+                    "probe=${probe.isUpcoming} probeTime=${probe.scheduledStartMs}",
             )
-            if (!flagged && !probe.first) return false to null
-            return true to (listReleaseMs ?: probe.second)
+            return UpcomingPremierePolicy.resolve(flagged, listReleaseMs, probe)
         }
 
         private suspend fun tryEnterUpcomingState(
@@ -727,7 +643,7 @@ class VideoPlayerViewModel
         fun toggleUpcomingReminder() {
             val state = _uiState.value
             val video = state.cachedVideo ?: return
-            val releaseTimeMs = state.upcomingReleaseTimeMs ?: resolveUpcomingReleaseTime(video) ?: return
+            val releaseTimeMs = state.upcomingReleaseTimeMs ?: UpcomingPremierePolicy.releaseTimeFor(video) ?: return
             if (!state.isUpcoming) return
 
             viewModelScope.launch {
@@ -1119,7 +1035,7 @@ class VideoPlayerViewModel
             currentState.cachedVideo
                 ?.takeIf { it.id == videoId && it.isUpcoming }
                 ?.let { cachedVideo ->
-                    val releaseTimeMs = resolveUpcomingReleaseTime(cachedVideo)
+                    val releaseTimeMs = UpcomingPremierePolicy.releaseTimeFor(cachedVideo)
                     if (releaseTimeMs != null) {
                         _uiState.update {
                             it.copy(
@@ -1670,7 +1586,7 @@ class VideoPlayerViewModel
                                     if (!hasPlayableContent && !isOfflineAvailable) {
                                         resolveUpcoming(videoId, knownUpcoming = liveType || streamInfo.streamType == StreamType.NONE)
                                     } else {
-                                        false to null
+                                        UpcomingPremiere.NOT_UPCOMING
                                     }
                                 if (isUpcomingContent) {
                                     PlayerDiagnostics.logWarning(

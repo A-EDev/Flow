@@ -27,6 +27,7 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.utils.NetworkState
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -168,6 +169,7 @@ internal class VideoPlayerViewModelHarness(
             liveChatRepository = liveChatRepository,
             homeFeedCacheRepository = homeFeedCacheRepository,
             playerManager = playerManager,
+            upcomingPremiereProbe = UpcomingPremiereProbe(),
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )
