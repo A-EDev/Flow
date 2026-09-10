@@ -6,11 +6,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.state.UpcomingPremierePolicy
 import kotlinx.coroutines.delay
-
-private const val UPCOMING_REFRESH_INTERVAL_MS = 30_000L
-private const val UPCOMING_SETTLE_MS = 3_000L
-private const val UPCOMING_MAX_ATTEMPTS = 20
 
 /**
  * A premiere does not flip to playable at its announced time, so after the countdown expires the
@@ -34,13 +31,13 @@ internal fun UpcomingVideoRefreshEffect(
         if (!isUpcoming || releaseMs == null) return@LaunchedEffect
         var attempts = 0
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            if (attempts >= UPCOMING_MAX_ATTEMPTS) return@repeatOnLifecycle
+            if (attempts >= UpcomingPremierePolicy.MAX_REFRESH_ATTEMPTS) return@repeatOnLifecycle
             val waitMs = (releaseMs - System.currentTimeMillis()).coerceAtLeast(0L)
-            delay(waitMs + UPCOMING_SETTLE_MS)
-            while (viewModel.uiState.value.isUpcoming && attempts < UPCOMING_MAX_ATTEMPTS) {
+            delay(waitMs + UpcomingPremierePolicy.SETTLE_MS)
+            while (viewModel.uiState.value.isUpcoming && attempts < UpcomingPremierePolicy.MAX_REFRESH_ATTEMPTS) {
                 viewModel.loadVideoInfo(videoId, forceRefresh = true)
                 attempts++
-                delay(UPCOMING_REFRESH_INTERVAL_MS)
+                delay(UpcomingPremierePolicy.REFRESH_INTERVAL_MS)
             }
         }
     }
