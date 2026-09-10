@@ -18,17 +18,14 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
-import io.github.aedev.flow.notification.UpcomingVideoReminderWorker
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.MiniPlayerExpansionState
-import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.MergedPlaybackAssembly
 import io.github.aedev.flow.player.stream.PlaybackLoadResolver
 import io.github.aedev.flow.player.stream.PlaybackResolutionRequest
-import io.github.aedev.flow.player.stream.UpcomingPremiere
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.ui.screens.player.state.*
@@ -149,6 +146,16 @@ class VideoPlayerViewModel
                 richVideoFor = { videoId -> _uiState.value.richVideoFor(videoId) },
             )
 
+        private val upcomingPremiere =
+            UpcomingPremiereController(
+                context = context,
+                uiState = _uiState,
+                playerPreferences = playerPreferences,
+                probe = upcomingPremiereProbe,
+                scope = viewModelScope,
+                isLoadCurrent = ::isPlaybackLoadCurrent,
+            )
+
         private val sessionApplier: PlaybackSessionApplier =
             PlaybackSessionApplier(
                 context = context,
@@ -168,8 +175,8 @@ class VideoPlayerViewModel
                 scope = viewModelScope,
                 networkDispatcher = networkDispatcher,
                 ioDispatcher = ioDispatcher,
-                enterUpcoming = ::enterUpcomingState,
-                tryEnterUpcoming = ::tryEnterUpcomingState,
+                enterUpcoming = upcomingPremiere::enterCountdown,
+                tryEnterUpcoming = upcomingPremiere::tryEnterCountdown,
             )
 
         private var activeLoadJob: Job? = null
@@ -275,14 +282,7 @@ class VideoPlayerViewModel
                 .onEach(::applyAutoplayPreference)
                 .launchIn(viewModelScope)
 
-            combine(
-                playerPreferences.upcomingVideoReminderIds,
-                uiState.map { it.cachedVideo?.id }.distinctUntilChanged(),
-            ) { reminderIds, videoId ->
-                videoId != null && videoId in reminderIds
-            }.onEach { isReminderSet ->
-                _uiState.update { it.copy(isUpcomingReminderSet = isReminderSet) }
-            }.launchIn(viewModelScope)
+            upcomingPremiere.collectReminderState()
         }
 
         private suspend fun reloadExpiredStreams(
@@ -440,82 +440,7 @@ class VideoPlayerViewModel
             _uiState.update { it.copy(resumedInMiniPlayer = false) }
         }
 
-        private fun applyUpcomingState(
-            video: Video,
-            preserveQueueTitle: String? = _uiState.value.queueTitle,
-        ): Boolean {
-            val releaseTimeMs = UpcomingPremierePolicy.releaseTimeFor(video) ?: return false
-            _uiState.update { UpcomingPremierePolicy.applyTo(it, video, releaseTimeMs, preserveQueueTitle) }
-            return true
-        }
-
-        private fun enterUpcomingState(
-            videoId: String,
-            releaseMs: Long?,
-            relatedVideos: List<Video>,
-            loadToken: Long,
-        ): Boolean {
-            if (!isPlaybackLoadCurrent(loadToken)) return true
-            val cached = _uiState.value.cachedVideo?.takeIf { it.id == videoId }
-            val upcomingVideo = UpcomingPremierePolicy.upcomingVideo(videoId, cached, releaseMs)
-            _uiState.update { UpcomingPremierePolicy.enterFrom(it, upcomingVideo, relatedVideos, releaseMs) }
-            GlobalPlayerState.setCurrentVideo(upcomingVideo)
-            return true
-        }
-
-        private suspend fun resolveUpcoming(
-            videoId: String,
-            knownUpcoming: Boolean,
-        ): UpcomingPremiere {
-            val cached = _uiState.value.cachedVideo?.takeIf { it.id == videoId }
-            val flagged = knownUpcoming || cached?.isUpcoming == true
-            val listReleaseMs = cached?.let { UpcomingPremierePolicy.releaseTimeFor(it) }
-            if (!UpcomingPremierePolicy.needsProbe(flagged, listReleaseMs)) {
-                return UpcomingPremiere(isUpcoming = true, scheduledStartMs = listReleaseMs)
-            }
-            val probe = upcomingPremiereProbe.probe(videoId)
-            PlayerDiagnostics.logWarning(
-                "Upcoming",
-                "videoId=$videoId flagged=$flagged known=$knownUpcoming " +
-                    "probe=${probe.isUpcoming} probeTime=${probe.scheduledStartMs}",
-            )
-            return UpcomingPremierePolicy.resolve(flagged, listReleaseMs, probe)
-        }
-
-        private suspend fun tryEnterUpcomingState(
-            videoId: String,
-            relatedVideos: List<Video>,
-            loadToken: Long,
-        ): Boolean {
-            val (isUpcoming, releaseMs) = resolveUpcoming(videoId, knownUpcoming = false)
-            if (!isUpcoming) return false
-            return enterUpcomingState(videoId, releaseMs, relatedVideos, loadToken)
-        }
-
-        fun toggleUpcomingReminder() {
-            val state = _uiState.value
-            val video = state.cachedVideo ?: return
-            val releaseTimeMs = state.upcomingReleaseTimeMs ?: UpcomingPremierePolicy.releaseTimeFor(video) ?: return
-            if (!state.isUpcoming) return
-
-            viewModelScope.launch {
-                val enableReminder = !state.isUpcomingReminderSet
-                playerPreferences.setUpcomingVideoReminder(video.id, enableReminder)
-                if (enableReminder) {
-                    UpcomingVideoReminderWorker.scheduleReminder(
-                        context = context,
-                        videoId = video.id,
-                        releaseTimeMs = releaseTimeMs,
-                        title = video.title,
-                        channelName = video.channelName,
-                        thumbnailUrl = video.thumbnailUrl,
-                    )
-                } else {
-                    UpcomingVideoReminderWorker.cancelReminder(context, video.id)
-                }
-                _uiState.update { it.copy(isUpcomingReminderSet = enableReminder) }
-            }
-        }
+        fun toggleUpcomingReminder() = upcomingPremiere.toggleReminder()
 
         fun syncWithCurrentPlayerVideo(video: Video) {
             val state = _uiState.value
@@ -524,7 +449,7 @@ class VideoPlayerViewModel
                     (state.streamInfo?.id == video.id || state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty())
             if (alreadySynced) return
 
-            if (applyUpcomingState(video)) {
+            if (upcomingPremiere.applyCountdown(video)) {
                 return
             }
 
@@ -553,7 +478,7 @@ class VideoPlayerViewModel
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
             watchSessions.saveHistoryEntry(video)
             armNotificationFor(video)
-            if (applyUpcomingState(video)) {
+            if (upcomingPremiere.applyCountdown(video)) {
                 return
             }
             loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
@@ -647,7 +572,7 @@ class VideoPlayerViewModel
         fun retryLoadVideo() {
             val videoId = _uiState.value.cachedVideo?.id ?: return
             Log.d("VideoPlayerViewModel", "Retrying video load for $videoId")
-            if (applyUpcomingState(_uiState.value.cachedVideo ?: return)) {
+            if (upcomingPremiere.applyCountdown(_uiState.value.cachedVideo ?: return)) {
                 return
             }
             streamExpiryRecovery.onPlaybackRequested()
@@ -736,7 +661,7 @@ class VideoPlayerViewModel
             _uiState.update { it.resetForVideo(startVideo).copy(queueTitle = title) }
             watchSessions.saveHistoryEntry(startVideo)
             armNotificationFor(startVideo)
-            if (applyUpcomingState(startVideo, preserveQueueTitle = title)) {
+            if (upcomingPremiere.applyCountdown(startVideo, preserveQueueTitle = title)) {
                 return
             }
             loadVideoInfo(startVideo.id, isWifi = detectIsWifi(), forceRefresh = true)
@@ -792,14 +717,7 @@ class VideoPlayerViewModel
             )
             streamExpiryRecovery.onLoadStarted(videoId)
 
-            val knownReleaseTimeMs =
-                currentState.cachedVideo
-                    ?.takeIf { it.id == videoId && it.isUpcoming }
-                    ?.let(UpcomingPremierePolicy::releaseTimeFor)
-            if (knownReleaseTimeMs != null) {
-                _uiState.update { it.applyCachedUpcoming(knownReleaseTimeMs) }
-                return
-            }
+            if (upcomingPremiere.applyCachedCountdown(videoId)) return
 
             currentState.loadSkipReason(videoId, forceRefresh)?.let { skip ->
                 Log.d("VideoPlayerViewModel", "Video $videoId skipped: $skip")
@@ -838,7 +756,7 @@ class VideoPlayerViewModel
                                     allowShorts = shortsContentEnabled,
                                 ),
                             isCurrent = { isPlaybackLoadCurrent(loadToken) },
-                            resolveUpcoming = ::resolveUpcoming,
+                            resolveUpcoming = upcomingPremiere::resolve,
                             onStep = { step -> sessionApplier.apply(step, load) },
                         )
                     } finally {
