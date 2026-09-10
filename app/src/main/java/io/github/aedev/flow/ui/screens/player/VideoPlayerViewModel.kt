@@ -31,13 +31,10 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.MiniPlayerExpansionState
-import io.github.aedev.flow.player.PlaybackResolverReadiness
-import io.github.aedev.flow.player.PlaybackResolverWinner
 import io.github.aedev.flow.player.PlaybackResumePolicy
 import io.github.aedev.flow.player.PlaybackStartupPolicy
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
-import io.github.aedev.flow.player.awaitFirstPlaybackResolver
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
@@ -46,6 +43,9 @@ import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.PlaybackFailure
+import io.github.aedev.flow.player.stream.PlaybackResolutionRequest
+import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
 import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
@@ -53,6 +53,7 @@ import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.UpcomingPremiere
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import io.github.aedev.flow.player.stream.VideoPlaybackResolver
 import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.ui.screens.player.state.PlayerNavigationHistory
@@ -67,6 +68,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
@@ -98,6 +100,7 @@ class VideoPlayerViewModel
         private val homeFeedCacheRepository: HomeFeedCacheRepository,
         private val playerManager: EnhancedPlayerManager,
         private val upcomingPremiereProbe: UpcomingPremiereProbe,
+        private val playbackResolver: VideoPlaybackResolver,
         @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
@@ -1097,796 +1100,399 @@ class VideoPlayerViewModel
             activeLoadJob =
                 viewModelScope.launch(networkDispatcher) {
                     Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
-                    var isOfflineAvailable = false
-                    var offlineLocalPath: String? = null
-
+                    loadDislikeCount(videoId, loadToken)
                     try {
-                        val streamInfoDeferred =
-                            async(networkDispatcher) {
-                                var info: StreamInfo? = null
-                                var lastError: Throwable? = null
-                                var attempt = 0
-                                val maxAttempts = 3
-                                while (info == null && attempt < maxAttempts) {
-                                    try {
-                                        attempt++
-                                        info =
-                                            withTimeoutOrNull(10_000L) {
-                                                repository.getVideoStreamInfo(videoId)
-                                            }
-                                        if (info == null && attempt < maxAttempts) {
-                                            Log.w(
-                                                "VideoPlayerViewModel",
-                                                "Stream info fetch failed (attempt $attempt), retrying in ${attempt * 300}ms...",
-                                            )
-                                            delay(attempt * 300L)
-                                        }
-                                    } catch (e: kotlinx.coroutines.CancellationException) {
-                                        throw e
-                                    } catch (e: org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException) {
-                                        Log.e(
-                                            "VideoPlayerViewModel",
-                                            "Content restriction for $videoId: ${e.javaClass.simpleName}: ${e.message}",
-                                        )
-                                        lastError = e
-                                        break
-                                    } catch (e: Exception) {
-                                        Log.e("VideoPlayerViewModel", "Failed to load stream info (attempt $attempt)", e)
-                                        lastError = e
-                                        if (attempt < maxAttempts) {
-                                            delay(attempt * 300L)
-                                        }
-                                    }
-                                }
-                                if (info == null) {
-                                    Log.e("VideoPlayerViewModel", "Stream info fetch failed after $maxAttempts attempts")
-                                }
-                                Pair(info, lastError)
-                            }
-
-                        val innerTubeDeferred =
-                            async(networkDispatcher) {
-                                try {
-                                    if (escalateToSabr) {
-                                        InnerTubeVideoStreamExtractor.extract(videoId, forceSabr = escalateToSabr)
-                                    } else {
-                                        withTimeoutOrNull(25_000L) {
-                                            InnerTubeVideoStreamExtractor.extract(videoId, forceSabr = false)
-                                        }
-                                    }
-                                } catch (e: kotlinx.coroutines.CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    Log.d("VideoPlayerViewModel", "InnerTube extraction failed for $videoId: ${e.message}")
-                                    null
-                                }
-                            }
-
-                        // Startup-critical disk reads, resolved in parallel with stream extraction so the
-                        // playback-preparation path below never blocks on DataStore/DB.
-                        val savedPositionDeferred =
-                            async(ioDispatcher) {
-                                resumePositionOverrideMs?.takeIf { it > 0L }
-                                    ?: viewHistory.getPlaybackPosition(videoId).first()
-                            }
-                        val autoplayDeferred =
-                            async(ioDispatcher) {
-                                playerPreferences.autoplayEnabled.first()
-                            }
-
-                        viewModelScope.launch(networkDispatcher) {
-                            if (playerPreferences.rytdEnabled.first()) {
-                                withTimeoutOrNull(5000L) {
-                                    repository.returnYouTubeDislikeCounts(videoId)
-                                }?.dislikes?.let { dislikeCount ->
-                                    if (isPlaybackLoadCurrent(loadToken) &&
-                                        (_uiState.value.cachedVideo?.id == videoId || _uiState.value.streamInfo?.id == videoId)
-                                    ) {
-                                        _uiState.update { it.copy(dislikeCount = dislikeCount) }
-                                    }
-                                }
-                            }
-                        }
-
-                        val (qualityAndAudioPrefs, downloadedVideo) =
-                            supervisorScope {
-                                val prefsDeferred =
-                                    async(ioDispatcher) {
-                                        val preferredQuality =
-                                            if (isWifi) {
-                                                playerPreferences.defaultQualityWifi.first()
-                                            } else {
-                                                playerPreferences.defaultQualityCellular.first()
-                                            }
-                                        val preferredAudioLang = playerPreferences.preferredAudioLanguage.first()
-                                        val preferredCodec = playerPreferences.videoCodecPriority.first()
-                                        Triple(preferredQuality, preferredAudioLang, preferredCodec)
-                                    }
-
-                                val downloadedDeferred =
-                                    async(ioDispatcher) {
-                                        try {
-                                            videoDownloadManager.downloadedVideos
-                                                .map { list ->
-                                                    list.find { it.video.id == videoId }
-                                                }.first()
-                                        } catch (e: Exception) {
-                                            null
-                                        }
-                                    }
-
-                                prefsDeferred.await() to downloadedDeferred.await()
-                            }
-
-                        val preferredQuality = qualityAndAudioPrefs.first
-                        val preferredAudioLanguage = qualityAndAudioPrefs.second
-                        val preferredCodecKey = qualityAndAudioPrefs.third
-
-                        // Check for offline file immediately (video downloads and audio-only downloads)
-                        val localFile = if (downloadedVideo != null) java.io.File(downloadedVideo.filePath) else null
-                        isOfflineAvailable = localFile?.exists() == true
-                        offlineLocalPath = localFile?.absolutePath?.takeIf { isOfflineAvailable }
-
-                        if (isOfflineAvailable) {
-                            Log.d("VideoPlayerViewModel", "Found offline video at ${localFile?.absolutePath}")
-                            val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
-                            val offlineSegments = sponsorBlockRepository.parseSegments(sbJson)
-                            ensureActive()
-                            if (!isPlaybackLoadCurrent(loadToken)) return@launch
-                            val localPath = offlineLocalPath
-                            _uiState.update {
-                                it.copy(
-                                    localFilePath = localPath,
-                                    localFileVideoId = videoId,
-                                    offlineSponsorBlockSegments = offlineSegments,
-                                    error = null,
-                                    errorHint = null,
-                                    isLoading = false,
-                                    isUpcoming = false,
-                                    upcomingReleaseTimeMs = null,
-                                )
-                            }
-                            if (localPath != null) {
-                                prepareLocalMediaForPlayback(
+                        playbackResolver.resolve(
+                            scope = this,
+                            request =
+                                PlaybackResolutionRequest(
                                     videoId = videoId,
-                                    localFilePath = localPath,
-                                    offlineSegments = offlineSegments,
-                                    savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
-                                    loadToken = loadToken,
-                                )
-                            }
-
-                            if (!NetworkState.isOnline(context)) {
-                                Log.d("VideoPlayerViewModel", "Offline with a local copy of $videoId — skipping stream resolution")
-                                streamInfoDeferred.cancel()
-                                innerTubeDeferred.cancel()
-                                return@launch
-                            }
-                        }
-
-                        val playbackLoadTimeoutMs = if (escalateToSabr) 120_000L else 30_000L
-                        kotlinx.coroutines.withTimeout(playbackLoadTimeoutMs) {
-                            Log.d(
-                                "VideoPlayerViewModel",
-                                "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)",
-                            )
-
-                            var streamResolution: Pair<StreamInfo?, Throwable?> = null to null
-                            var innerTubeResult: InnerTubeVideoStreamExtractor.VideoExtractionResult? = null
-                            var lateStreamInfoDeferred: Deferred<Pair<StreamInfo?, Throwable?>>? = null
-
-                            if (escalateToSabr) {
-                                streamInfoDeferred.cancel()
-                                innerTubeResult = innerTubeDeferred.await()
-                            } else {
-                                when (val winner = awaitFirstPlaybackResolver(streamInfoDeferred, innerTubeDeferred)) {
-                                    is PlaybackResolverWinner.Primary -> {
-                                        streamResolution = winner.value
-                                        val readiness = classifyNewPipePlaybackResult(winner.value.first)
-                                        if (readiness == PlaybackResolverReadiness.NEEDS_FALLBACK) {
-                                            innerTubeResult = innerTubeDeferred.await()
-                                        } else {
-                                            Log.d(
-                                                "VideoPlayerViewModel",
-                                                "NewPipe resolved playback first for $videoId; skipping redundant InnerTube wait",
-                                            )
-                                            innerTubeDeferred.cancel()
-                                        }
-                                    }
-
-                                    is PlaybackResolverWinner.Fallback -> {
-                                        innerTubeResult = winner.value
-                                        if (winner.value != null && innerTubeCanStartPlayback(winner.value)) {
-                                            Log.d(
-                                                "VideoPlayerViewModel",
-                                                "InnerTube resolved playback first for $videoId; preparing before NewPipe metadata",
-                                            )
-                                            lateStreamInfoDeferred = streamInfoDeferred
-                                        } else {
-                                            streamResolution = streamInfoDeferred.await()
-                                        }
-                                    }
-                                }
-                            }
-
-                            val (streamInfo, streamError) = streamResolution
-                            ensureActive()
-                            if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
-
-                            if (escalateToSabr && innerTubeResult == null) {
-                                // The blanket refusal below was written when every fast client was
-                                // session-gated, so a re-extraction could only hand back the URLs that
-                                // had just 403'd. The fast path is VISIONOS now, whose URLs GVS honours
-                                // untokened for the whole video, so one full-ladder retry is a real
-                                // second chance — and the only thing standing between a device that
-                                // cannot mint a PoToken (no/broken WebView) and playback that never
-                                // resumes. Still bounded by MAX_STREAM_EXPIRY_RETRIES.
-                                Log.w(
-                                    "VideoPlayerViewModel",
-                                    "Forced-SABR reload for $videoId produced no SABR session — retrying the full client ladder",
-                                )
-                                innerTubeResult =
-                                    withTimeoutOrNull(25_000L) {
-                                        InnerTubeVideoStreamExtractor.extract(videoId, forceSabr = false)
-                                    }?.takeIf { innerTubeCanStartPlayback(it) }
-                                ensureActive()
-                                if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
-                            }
-
-                            if (escalateToSabr && innerTubeResult == null) {
-                                Log.e(
-                                    "VideoPlayerViewModel",
-                                    "Forced-SABR reload for $videoId produced no playable session — giving up on this attempt",
-                                )
-                                if (isPlaybackLoadCurrent(loadToken)) {
-                                    val videoError = VideoErrorMapper.from(context, null, videoId)
-                                    _uiState.update {
-                                        it.copy(
-                                            isLoading = false,
-                                            error = videoError.message,
-                                            errorHint = videoError.hint,
-                                        )
-                                    }
-                                }
-                                return@withTimeout
-                            }
-
-                            val liveFromInnerTube =
-                                innerTubeResult?.isLive == true &&
-                                    (!innerTubeResult.liveHlsUrl.isNullOrEmpty() || !innerTubeResult.liveDashUrl.isNullOrEmpty())
-
-                            // Extract related videos directly from the stream info (avoids extra network call)
-                            val relatedVideos =
-                                if (streamInfo != null) {
-                                    repository
-                                        .getRelatedVideosFromStreamInfo(streamInfo)
-                                        .filter { shortsContentEnabled || !it.isShort }
-                                } else {
-                                    emptyList()
-                                }
-
-                            if (streamInfo != null && streamInfo.streamType == StreamType.NONE && !isOfflineAvailable) {
-                                tryEnterUpcomingState(videoId, relatedVideos, loadToken, knownUpcoming = true)
-                                return@withTimeout
-                            }
-
-                            if (streamInfo != null) {
-                                // Record interaction for Flow Neuro Engine — off the startup path: it takes
-                                // the brain mutex and updates vectors, none of which first frame needs.
-                                viewModelScope.launch(ioDispatcher) {
-                                    try {
-                                        val video =
-                                            Video(
-                                                id = videoId,
-                                                title = streamInfo.name ?: "",
-                                                channelName = streamInfo.uploaderName ?: "",
-                                                channelId = streamInfo.uploaderUrl?.split("/")?.last() ?: "",
-                                                thumbnailUrl = streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
-                                                duration = streamInfo.duration.toInt(),
-                                                viewCount = streamInfo.viewCount,
-                                                uploadDate = "",
-                                                description = streamInfo.description?.content ?: "",
-                                                tags = streamInfo.tags ?: emptyList(),
-                                            )
-                                        FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
-                                    } catch (e: Exception) {
-                                        Log.e("VideoPlayerViewModel", "Failed to record interaction", e)
-                                    }
-                                }
-
-                                val realTitle = streamInfo.name?.takeIf { it.isNotBlank() }
-                                val realChannel = streamInfo.uploaderName?.takeIf { it.isNotBlank() }
-                                val realThumbnail =
-                                    streamInfo.thumbnails
-                                        ?.maxByOrNull { it.height }
-                                        ?.url
-                                        ?.takeIf { it.isNotBlank() }
-                                if (realTitle != null) {
-                                    val currentCached = _uiState.value.cachedVideo
-                                    val enrichedVideo =
-                                        (
-                                            currentCached ?: Video(
-                                                id = videoId,
-                                                title = "",
-                                                channelName = "",
-                                                channelId = "",
-                                                thumbnailUrl = "",
-                                                duration = 0,
-                                                viewCount = 0L,
-                                                uploadDate = "",
-                                            )
-                                        ).copy(
-                                            title = realTitle,
-                                            channelName = realChannel ?: currentCached?.channelName ?: "",
-                                            channelId =
-                                                currentCached?.channelId?.takeIf { it.isNotBlank() }
-                                                    ?: streamInfo.uploaderUrl?.split("/")?.last() ?: "",
-                                            thumbnailUrl = realThumbnail ?: currentCached?.thumbnailUrl ?: "",
-                                            duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: (currentCached?.duration ?: 0),
-                                        )
-                                    if (isPlaybackLoadCurrent(loadToken)) {
-                                        GlobalPlayerState.setCurrentVideo(enrichedVideo)
-                                        playerManager.startBackgroundService(
-                                            videoId = videoId,
-                                            title = realTitle,
-                                            channel = realChannel ?: "",
-                                            thumbnail = realThumbnail ?: "",
-                                        )
-                                    }
-                                }
-
-                                val innerTubeVideoStreams =
-                                    innerTubeResult?.let {
-                                        InnerTubeStreamBridge.convertVideoFormats(it.videoFormats)
-                                    } ?: emptyList()
-                                val innerTubeAudioStreams =
-                                    innerTubeResult?.let {
-                                        InnerTubeStreamBridge.convertAudioFormats(it.audioFormats)
-                                    } ?: emptyList()
-
-                                val extractorVideoStreams =
-                                    (streamInfo.videoStreams + streamInfo.videoOnlyStreams)
-                                        .filterIsInstance<VideoStream>()
-                                val effectiveVideoStreams: List<VideoStream> =
-                                    StreamMergeUtils.mergeVideoStreams(extractorVideoStreams, innerTubeVideoStreams)
-                                val effectiveAudioStreams: List<AudioStream> =
-                                    StreamMergeUtils.mergeAudioStreams(streamInfo.audioStreams, innerTubeAudioStreams)
-                                val downloadStreamSizes =
-                                    StreamSizeEstimator.merge(
-                                        StreamSizeEstimator.fromExtractorStreams(
-                                            effectiveVideoStreams,
-                                            effectiveAudioStreams,
-                                            streamInfo.duration,
-                                        ),
-                                        StreamSizeEstimator.fromInnerTubeFormats(
-                                            innerTubeResult?.videoFormats.orEmpty(),
-                                            innerTubeResult?.audioFormats.orEmpty(),
-                                            streamInfo.duration * 1000L,
-                                        ),
-                                    )
-
-                                if (extractorVideoStreams.isNotEmpty()) {
-                                    Log.i(
-                                        "VideoPlayerViewModel",
-                                        "Using NewPipe streams: ${extractorVideoStreams.size} video, " +
-                                            "${streamInfo.audioStreams.size} audio " +
-                                            "(merged=${effectiveVideoStreams.size})",
-                                    )
-                                } else if (innerTubeVideoStreams.isNotEmpty()) {
-                                    Log.i(
-                                        "VideoPlayerViewModel",
-                                        "Using InnerTube streams: ${innerTubeVideoStreams.size} video, " +
-                                            "${innerTubeAudioStreams.size} audio " +
-                                            "(client=${innerTubeResult?.usedClient?.clientName})",
-                                    )
-                                } else {
-                                    Log.d(
-                                        "VideoPlayerViewModel",
-                                        "No direct-URL streams; relying on manifests/SABR " +
-                                            "(sabr=${innerTubeResult?.sabrInfo != null})",
-                                    )
-                                }
-
-                                val availableQualities = VideoQualityOptions.availableQualities(effectiveVideoStreams)
-                                val selectedStreams =
-                                    ServicePlaybackStreamSelector.selectStreams(
-                                        videoCandidates = effectiveVideoStreams,
-                                        audioCandidatesAll = effectiveAudioStreams,
-                                        preferredQuality = preferredQuality,
-                                        preferredAudioLanguage = preferredAudioLanguage,
-                                        preferredCodecKey = preferredCodecKey,
-                                    )
-                                var localFilePath: String? = null
-
-                                // If downloaded (video or audio-only), override with local path
-                                if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
-                                    localFilePath = downloadedVideo.filePath
-                                }
-
-                                // Load SponsorBlock segments from DB if we're going to play offline
-                                val offlineSegments =
-                                    if (localFilePath != null) {
-                                        val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
-                                        if (sbJson != null) {
-                                            sponsorBlockRepository.parseSegments(sbJson)
-                                        } else {
-                                            viewModelScope.launch(networkDispatcher) {
-                                                try {
-                                                    val segments = sponsorBlockRepository.getSegments(videoId)
-                                                    if (segments.isNotEmpty()) {
-                                                        videoDownloadManager.saveSponsorBlockData(
-                                                            videoId,
-                                                            sponsorBlockRepository.serializeSegments(segments),
-                                                        )
-                                                        Log.d(
-                                                            "VideoPlayerViewModel",
-                                                            "Backfilled ${segments.size} SB segments for $videoId",
-                                                        )
-                                                        _uiState.update { it.copy(offlineSponsorBlockSegments = segments) }
-                                                    } else {
-                                                        Log.d("VideoPlayerViewModel", "No SB segments available for $videoId (backfill)")
-                                                    }
-                                                } catch (e: Exception) {
-                                                    Log.w("VideoPlayerViewModel", "SB backfill failed for $videoId", e)
-                                                }
-                                            }
-                                            null
-                                        }
-                                    } else {
-                                        null
-                                    }
-
-                                val captionStreams =
-                                    innerTubeResult
-                                        ?.playerResponse
-                                        ?.let { CaptionTrackResolver.resolve(it) }
-                                        .orEmpty()
-                                val mergedSubtitleStreams =
-                                    StreamProcessor.processSubtitleStreams(
-                                        streamInfo.subtitles.orEmpty() + captionStreams,
-                                    )
-                                val chapters = streamInfo.streamSegments ?: emptyList()
-                                val liveType =
-                                    streamInfo.streamType == StreamType.LIVE_STREAM ||
-                                        streamInfo.streamType == StreamType.POST_LIVE_STREAM ||
-                                        innerTubeResult?.isLive == true
-                                val liveHlsUrl =
-                                    streamInfo.hlsUrl?.takeIf { liveType && it.isNotEmpty() }
-                                        ?: innerTubeResult?.liveHlsUrl?.takeIf { liveFromInnerTube }
-                                val effectiveDashUrl =
-                                    streamInfo.dashMpdUrl?.takeIf { it.isNotEmpty() }
-                                        ?: innerTubeResult?.liveDashUrl?.takeIf { liveFromInnerTube }
-
-                                val hasPlayableContent =
-                                    effectiveVideoStreams.isNotEmpty() ||
-                                        !liveHlsUrl.isNullOrEmpty() ||
-                                        !effectiveDashUrl.isNullOrEmpty() ||
-                                        localFilePath != null ||
-                                        innerTubeResult?.sabrInfo != null
-                                val (isUpcomingContent, upcomingReleaseMs) =
-                                    if (!hasPlayableContent && !isOfflineAvailable) {
-                                        resolveUpcoming(videoId, knownUpcoming = liveType || streamInfo.streamType == StreamType.NONE)
-                                    } else {
-                                        UpcomingPremiere.NOT_UPCOMING
-                                    }
-                                if (isUpcomingContent) {
-                                    PlayerDiagnostics.logWarning(
-                                        "Upcoming",
-                                        "no playable content videoId=$videoId type=${streamInfo.streamType} " +
-                                            "liveType=$liveType release=$upcomingReleaseMs",
-                                    )
-                                }
-
-                                // Resolved once for both the UI state and the playback preparation
-                                // below; the read was started in parallel with extraction.
-                                val savedPosition = savedPositionDeferred.await()
-
-                                // Autoplay preference was read in parallel with extraction
-                                val autoplay = autoplayDeferred.await()
-                                playerManager.setAutoplayCandidates(
-                                    sourceVideoId = videoId,
-                                    videos = relatedVideos,
-                                    enabled = autoplay,
-                                )
-
-                                val resolvedSabrInfo = innerTubeResult?.sabrInfo
-                                // Prefer SABR for playback only when it actually beats the best direct/
-                                // NewPipe stream we already have (or a 403-expiry escalation forces it),
-                                // so a working direct ladder is never swapped for a SABR session needlessly.
-                                val directMaxHeightForSabr =
-                                    effectiveVideoStreams
-                                        .maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
-                                val preferSabrForPlayback =
-                                    resolvedSabrInfo != null &&
-                                        SabrRoutingPolicy.shouldPreferSabr(
-                                            escalateToSabr,
-                                            resolvedSabrInfo.videoHeight,
-                                            directMaxHeightForSabr,
-                                        )
-                                if (resolvedSabrInfo != null) {
-                                    Log.d(
-                                        "VideoPlayerViewModel",
-                                        "SABR available: audioItag=${resolvedSabrInfo.audioItag}, " +
-                                            "videoItag=${resolvedSabrInfo.videoItag}, " +
-                                            "sabrHeight=${resolvedSabrInfo.videoHeight}, " +
-                                            "directMax=$directMaxHeightForSabr, prefer=$preferSabrForPlayback",
-                                    )
-                                }
-
-                                _uiState.value =
-                                    _uiState.value.copy(
-                                        streamInfo = streamInfo,
-                                        relatedVideos = relatedVideos,
-                                        videoStream = if (isUpcomingContent) null else selectedStreams.first,
-                                        audioStream = if (isUpcomingContent) null else selectedStreams.second,
-                                        availableQualities = availableQualities,
-                                        selectedQuality = VideoQualityOptions.qualityOf(selectedStreams.first),
-                                        chapters = chapters,
-                                        isLoading = false,
-                                        savedPosition = savedPosition,
-                                        isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
-                                        autoplayEnabled = autoplay,
-                                        streamSizes = downloadStreamSizes,
-                                        localFilePath = localFilePath,
-                                        localFileVideoId = if (localFilePath != null) videoId else null,
-                                        offlineSponsorBlockSegments = offlineSegments,
-                                        hlsUrl = if (isUpcomingContent) null else liveHlsUrl,
-                                        isLive =
-                                            !isUpcomingContent &&
-                                                (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true),
-                                        isUpcoming = isUpcomingContent,
-                                        upcomingReleaseTimeMs = upcomingReleaseMs,
-                                        innerTubeVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
-                                        innerTubeAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
-                                    )
-
-                                ensureActive()
-                                if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
-
-                                if (!isUpcomingContent) {
-                                    prepareLoadedMediaForPlayback(
-                                        videoId = videoId,
-                                        streamInfo = streamInfo,
-                                        videoStream = selectedStreams.first,
-                                        audioStream = selectedStreams.second,
-                                        videoStreams = effectiveVideoStreams,
-                                        audioStreams = effectiveAudioStreams,
-                                        subtitles = mergedSubtitleStreams,
-                                        savedPosition = savedPosition,
-                                        localFilePath = localFilePath,
-                                        offlineSegments = offlineSegments,
-                                        hlsUrl = liveHlsUrl,
-                                        dashManifestUrl = effectiveDashUrl,
-                                        isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
-                                        resumeOverrideRequested = resumePositionOverrideMs != null,
-                                        loadToken = loadToken,
-                                        sabrInfo = resolvedSabrInfo,
-                                        itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
-                                        itAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
-                                        preferredVideoCodec = preferredCodecKey,
-                                        preferSabr = preferSabrForPlayback,
-                                        preferredLiveQualityHeight = preferredQuality.height,
-                                    )
-                                    loadChannelMetadataAfterPlayback(
-                                        videoId = videoId,
-                                        uploaderUrl = streamInfo.uploaderUrl,
-                                        channelId = _uiState.value.cachedVideo?.channelId,
-                                        embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
-                                        loadToken = loadToken,
-                                    )
-                                    if (!liveType) {
-                                        loadRelatedVideosAfterPlayback(videoId, relatedVideos, loadToken)
-                                    }
-                                }
-
-                                if (!isUpcomingContent &&
-                                    (streamInfo.streamType == StreamType.LIVE_STREAM || innerTubeResult?.isLive == true)
-                                ) {
-                                    maybeStartLiveChat(videoId)
-                                    refreshLiveWatchMetadata(
-                                        videoId = videoId,
-                                        fallbackVideo =
-                                            Video(
-                                                id = videoId,
-                                                title = streamInfo.name ?: _uiState.value.cachedVideo?.title ?: "Live",
-                                                channelName = streamInfo.uploaderName ?: _uiState.value.cachedVideo?.channelName ?: "",
-                                                channelId =
-                                                    streamInfo.uploaderUrl?.substringAfterLast("/")
-                                                        ?: _uiState.value.cachedVideo?.channelId ?: "",
-                                                thumbnailUrl =
-                                                    streamInfo.thumbnails.maxByOrNull { it.height }?.url
-                                                        ?: _uiState.value.cachedVideo?.thumbnailUrl
-                                                        ?: ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, null),
-                                                duration = 0,
-                                                viewCount = streamInfo.viewCount,
-                                                uploadDate = "",
-                                                description =
-                                                    streamInfo.description?.content
-                                                        ?: _uiState.value.cachedVideo?.description
-                                                        ?: "",
-                                                isLive = true,
-                                            ),
-                                        loadToken = loadToken,
-                                    )
-                                }
-                            } else if (liveFromInnerTube && innerTubeResult != null) {
-                                Log.w("VideoPlayerViewModel", "Live fallback for $videoId via InnerTube manifest (NewPipe StreamInfo null)")
-                                prepareLiveStreamFromInnerTube(videoId, innerTubeResult, relatedVideos, loadToken)
-                                lateStreamInfoDeferred?.let {
-                                    enrichPlaybackMetadataWhenReady(videoId, it, loadToken)
-                                }
-                            } else {
-                                // Offline fallback
-                                if (isOfflineAvailable) {
-                                    Log.d("VideoPlayerViewModel", "Using offline video for $videoId (Network fetch failed)")
-                                    val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
-                                    if (isPlaybackLoadCurrent(loadToken)) {
-                                        _uiState.update {
-                                            it.copy(
-                                                isLoading = false,
-                                                error = null,
-                                                errorHint = null,
-                                                relatedVideos = relatedVideos,
-                                                localFilePath = localFile?.absolutePath,
-                                                offlineSponsorBlockSegments = sponsorBlockRepository.parseSegments(sbJson),
-                                                isUpcoming = false,
-                                                upcomingReleaseTimeMs = null,
-                                            )
-                                        }
-                                    }
-                                } else if (innerTubeResult != null && innerTubeHasPlayableVod(innerTubeResult)) {
-                                    try {
-                                        Log.w("VideoPlayerViewModel", "VOD fallback for $videoId via InnerTube (NewPipe StreamInfo null)")
-                                        prepareVodStreamFromInnerTube(
-                                            videoId = videoId,
-                                            result = innerTubeResult,
-                                            relatedVideos = relatedVideos,
-                                            preferredQuality = preferredQuality,
-                                            preferredAudioLanguage = preferredAudioLanguage,
-                                            preferredCodecKey = preferredCodecKey,
-                                            resumePositionOverrideMs = resumePositionOverrideMs,
-                                            loadToken = loadToken,
-                                        )
-                                        lateStreamInfoDeferred?.let {
-                                            enrichPlaybackMetadataWhenReady(videoId, it, loadToken)
-                                        }
-                                    } catch (e: kotlinx.coroutines.CancellationException) {
-                                        throw e
-                                    } catch (e: Exception) {
-                                        Log.e("VideoPlayerViewModel", "InnerTube VOD fallback failed for $videoId", e)
-                                        if (!tryEnterUpcomingState(videoId, relatedVideos, loadToken)) {
-                                            val videoError = VideoErrorMapper.from(context, streamError ?: e, videoId)
-                                            if (isPlaybackLoadCurrent(loadToken)) {
-                                                _uiState.update {
-                                                    it.copy(
-                                                        isLoading = false,
-                                                        relatedVideos = relatedVideos,
-                                                        error = videoError.message,
-                                                        errorHint = videoError.hint,
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if (!tryEnterUpcomingState(videoId, relatedVideos, loadToken)) {
-                                    Log.e("VideoPlayerViewModel", "Stream info is null for $videoId and no offline copy found.")
-                                    val videoError = VideoErrorMapper.from(context, streamError, videoId)
-                                    if (isPlaybackLoadCurrent(loadToken)) {
-                                        _uiState.update {
-                                            it.copy(
-                                                isLoading = false,
-                                                relatedVideos = relatedVideos,
-                                                error = videoError.message,
-                                                errorHint = videoError.hint,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                        Log.e("VideoPlayerViewModel", "Video info load timed out for $videoId after 30s")
-                        if (isPlaybackLoadCurrent(loadToken) && isOfflineAvailable) {
-                            Log.d("VideoPlayerViewModel", "Ignoring timeout, playing offline video")
-                            _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
-                            offlineLocalPath?.let { localPath ->
-                                prepareLocalMediaForPlayback(
-                                    videoId = videoId,
-                                    localFilePath = localPath,
-                                    offlineSegments =
-                                        sponsorBlockRepository.parseSegments(
-                                            videoDownloadManager.getSponsorBlockData(videoId),
-                                        ),
-                                    savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
-                                    loadToken = loadToken,
-                                )
-                            }
-                        } else if (isPlaybackLoadCurrent(loadToken) && !tryEnterUpcomingState(videoId, emptyList(), loadToken)) {
-                            val videoError = VideoErrorMapper.fromTimeout(context)
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = videoError.message,
-                                    errorHint = videoError.hint,
-                                )
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e("VideoPlayerViewModel", "Exception loading video $videoId", e)
-
-                        if (isPlaybackLoadCurrent(loadToken) && isOfflineAvailable) {
-                            Log.d("VideoPlayerViewModel", "Ignoring exception, playing offline video")
-                            _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
-                            val downloadedVideo =
-                                videoDownloadManager.downloadedVideos
-                                    .map { list ->
-                                        list.find { it.video.id == videoId }
-                                    }.first()
-                            downloadedVideo?.filePath?.takeIf { java.io.File(it).exists() }?.let { localPath ->
-                                prepareLocalMediaForPlayback(
-                                    videoId = videoId,
-                                    localFilePath = localPath,
-                                    offlineSegments =
-                                        sponsorBlockRepository.parseSegments(
-                                            videoDownloadManager.getSponsorBlockData(videoId),
-                                        ),
-                                    savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
-                                    loadToken = loadToken,
-                                )
-                            }
-                        } else if (isPlaybackLoadCurrent(loadToken)) {
-                            // Final fallback if everything fails
-                            val downloadedVideo =
-                                videoDownloadManager.downloadedVideos
-                                    .map { list ->
-                                        list.find { it.video.id == videoId }
-                                    }.first()
-
-                            if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
-                                val offlineSegments =
-                                    sponsorBlockRepository.parseSegments(
-                                        videoDownloadManager.getSponsorBlockData(videoId),
-                                    )
-                                _uiState.update {
-                                    it.copy(
-                                        streamInfo = null,
-                                        isLoading = false,
-                                        error = null,
-                                        errorHint = null,
-                                        localFilePath = downloadedVideo.filePath,
-                                        localFileVideoId = videoId,
-                                        offlineSponsorBlockSegments = offlineSegments,
-                                        isUpcoming = false,
-                                        upcomingReleaseTimeMs = null,
-                                    )
-                                }
-                                prepareLocalMediaForPlayback(
-                                    videoId = videoId,
-                                    localFilePath = downloadedVideo.filePath,
-                                    offlineSegments = offlineSegments,
-                                    savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
-                                    loadToken = loadToken,
-                                )
-                            } else if (!tryEnterUpcomingState(videoId, emptyList(), loadToken)) {
-                                val videoError = VideoErrorMapper.from(context, e, videoId)
-                                if (!videoError.isRetryable) {
-                                    playerPreferences.markVideoUnplayable(videoId)
-                                }
-                                _uiState.update {
-                                    it.copy(
-                                        isLoading = false,
-                                        error = videoError.message,
-                                        errorHint = videoError.hint,
-                                    )
-                                }
-                            }
-                        }
+                                    isWifi = isWifi,
+                                    escalateToSabr = escalateToSabr,
+                                    resumePositionOverrideMs = resumePositionOverrideMs,
+                                    allowShorts = shortsContentEnabled,
+                                ),
+                            isCurrent = { isPlaybackLoadCurrent(loadToken) },
+                            resolveUpcoming = ::resolveUpcoming,
+                            onStep = { step -> applyResolvedPlayback(videoId, step, loadToken) },
+                        )
                     } finally {
                         if (isPlaybackLoadCurrent(loadToken)) {
                             activeLoadJob = null
                         }
                     }
                 }
+        }
+
+        private fun loadDislikeCount(
+            videoId: String,
+            loadToken: Long,
+        ) {
+            viewModelScope.launch(networkDispatcher) {
+                if (playerPreferences.rytdEnabled.first()) {
+                    withTimeoutOrNull(5000L) {
+                        repository.returnYouTubeDislikeCounts(videoId)
+                    }?.dislikes?.let { dislikeCount ->
+                        if (isPlaybackLoadCurrent(loadToken) &&
+                            (_uiState.value.cachedVideo?.id == videoId || _uiState.value.streamInfo?.id == videoId)
+                        ) {
+                            _uiState.update { it.copy(dislikeCount = dislikeCount) }
+                        }
+                    }
+                }
+            }
+        }
+
+        private suspend fun applyResolvedPlayback(
+            videoId: String,
+            step: ResolvedPlayback,
+            loadToken: Long,
+        ) {
+            when (step) {
+                is ResolvedPlayback.PrimaryMetadata -> {
+                    applyPrimaryMetadata(videoId, step.streamInfo, loadToken)
+                }
+
+                is ResolvedPlayback.LocalCopyReady -> {
+                    _uiState.update {
+                        it.copy(
+                            streamInfo = if (step.clearStreamInfo) null else it.streamInfo,
+                            localFilePath = step.localFilePath,
+                            localFileVideoId = videoId,
+                            offlineSponsorBlockSegments = step.offlineSegments,
+                            error = null,
+                            errorHint = null,
+                            isLoading = false,
+                            isUpcoming = false,
+                            upcomingReleaseTimeMs = null,
+                        )
+                    }
+                    prepareLocalMediaForPlayback(
+                        videoId = videoId,
+                        localFilePath = step.localFilePath,
+                        offlineSegments = step.offlineSegments,
+                        savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
+                        loadToken = loadToken,
+                    )
+                }
+
+                is ResolvedPlayback.LocalCopyAfterFailure -> {
+                    _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
+                    step.localFilePath?.let { localPath ->
+                        prepareLocalMediaForPlayback(
+                            videoId = videoId,
+                            localFilePath = localPath,
+                            offlineSegments = step.offlineSegments,
+                            savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
+                            loadToken = loadToken,
+                        )
+                    }
+                }
+
+                is ResolvedPlayback.OfflineFallback -> {
+                    if (isPlaybackLoadCurrent(loadToken)) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = null,
+                                errorHint = null,
+                                relatedVideos = step.relatedVideos,
+                                localFilePath = step.localFilePath,
+                                offlineSponsorBlockSegments = step.offlineSegments,
+                                isUpcoming = false,
+                                upcomingReleaseTimeMs = null,
+                            )
+                        }
+                    }
+                }
+
+                is ResolvedPlayback.Merged -> {
+                    applyMergedPlayback(videoId, step, loadToken)
+                }
+
+                is ResolvedPlayback.Live -> {
+                    prepareLiveStreamFromInnerTube(videoId, step.result, step.relatedVideos, loadToken)
+                    step.lateStreamInfo?.let { enrichPlaybackMetadataWhenReady(videoId, it, loadToken) }
+                }
+
+                is ResolvedPlayback.VodFromInnerTube -> {
+                    applyVodFromInnerTube(videoId, step, loadToken)
+                }
+
+                is ResolvedPlayback.Upcoming -> {
+                    enterUpcomingState(
+                        videoId = videoId,
+                        cached = _uiState.value.cachedVideo?.takeIf { it.id == videoId },
+                        releaseMs = step.releaseTimeMs,
+                        relatedVideos = step.relatedVideos,
+                        loadToken = loadToken,
+                    )
+                }
+
+                is ResolvedPlayback.Failed -> {
+                    applyPlaybackFailure(videoId, step, loadToken)
+                }
+            }
+        }
+
+        private fun applyPrimaryMetadata(
+            videoId: String,
+            streamInfo: StreamInfo,
+            loadToken: Long,
+        ) {
+            // Record interaction for Flow Neuro Engine — off the startup path: it takes the brain
+            // mutex and updates vectors, none of which first frame needs.
+            viewModelScope.launch(ioDispatcher) {
+                try {
+                    val video =
+                        Video(
+                            id = videoId,
+                            title = streamInfo.name ?: "",
+                            channelName = streamInfo.uploaderName ?: "",
+                            channelId = streamInfo.uploaderUrl?.split("/")?.last() ?: "",
+                            thumbnailUrl = streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
+                            duration = streamInfo.duration.toInt(),
+                            viewCount = streamInfo.viewCount,
+                            uploadDate = "",
+                            description = streamInfo.description?.content ?: "",
+                            tags = streamInfo.tags ?: emptyList(),
+                        )
+                    FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
+                } catch (e: Exception) {
+                    Log.e("VideoPlayerViewModel", "Failed to record interaction", e)
+                }
+            }
+
+            val realTitle = streamInfo.name?.takeIf { it.isNotBlank() } ?: return
+            val realChannel = streamInfo.uploaderName?.takeIf { it.isNotBlank() }
+            val realThumbnail =
+                streamInfo.thumbnails
+                    ?.maxByOrNull { it.height }
+                    ?.url
+                    ?.takeIf { it.isNotBlank() }
+            val currentCached = _uiState.value.cachedVideo
+            val enrichedVideo =
+                (
+                    currentCached ?: Video(
+                        id = videoId,
+                        title = "",
+                        channelName = "",
+                        channelId = "",
+                        thumbnailUrl = "",
+                        duration = 0,
+                        viewCount = 0L,
+                        uploadDate = "",
+                    )
+                ).copy(
+                    title = realTitle,
+                    channelName = realChannel ?: currentCached?.channelName ?: "",
+                    channelId =
+                        currentCached?.channelId?.takeIf { it.isNotBlank() }
+                            ?: streamInfo.uploaderUrl?.split("/")?.last() ?: "",
+                    thumbnailUrl = realThumbnail ?: currentCached?.thumbnailUrl ?: "",
+                    duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: (currentCached?.duration ?: 0),
+                )
+            if (isPlaybackLoadCurrent(loadToken)) {
+                GlobalPlayerState.setCurrentVideo(enrichedVideo)
+                playerManager.startBackgroundService(
+                    videoId = videoId,
+                    title = realTitle,
+                    channel = realChannel ?: "",
+                    thumbnail = realThumbnail ?: "",
+                )
+            }
+        }
+
+        private suspend fun applyMergedPlayback(
+            videoId: String,
+            step: ResolvedPlayback.Merged,
+            loadToken: Long,
+        ) {
+            val streamInfo = step.streamInfo
+            val streams = step.streams
+            if (step.sponsorBlockBackfillNeeded) {
+                backfillSponsorBlockSegments(videoId)
+            }
+
+            playerManager.setAutoplayCandidates(
+                sourceVideoId = videoId,
+                videos = step.relatedVideos,
+                enabled = step.autoplayEnabled,
+            )
+
+            _uiState.value =
+                _uiState.value.copy(
+                    streamInfo = streamInfo,
+                    relatedVideos = step.relatedVideos,
+                    videoStream = if (step.isUpcomingContent) null else streams.selectedVideoStream,
+                    audioStream = if (step.isUpcomingContent) null else streams.selectedAudioStream,
+                    availableQualities = streams.availableQualities,
+                    selectedQuality = VideoQualityOptions.qualityOf(streams.selectedVideoStream),
+                    chapters = streams.chapters,
+                    isLoading = false,
+                    savedPosition = step.savedPositionMs,
+                    isAdaptiveMode = streams.isAdaptiveMode,
+                    autoplayEnabled = step.autoplayEnabled,
+                    streamSizes = streams.streamSizes,
+                    localFilePath = streams.localFilePath,
+                    localFileVideoId = if (streams.localFilePath != null) videoId else null,
+                    offlineSponsorBlockSegments = step.offlineSegments,
+                    hlsUrl = if (step.isUpcomingContent) null else streams.hlsUrl,
+                    isLive = !step.isUpcomingContent && streams.isLiveStream,
+                    isUpcoming = step.isUpcomingContent,
+                    upcomingReleaseTimeMs = step.upcomingReleaseTimeMs,
+                    innerTubeVideoFormats = streams.innerTubeVideoFormats,
+                    innerTubeAudioFormats = streams.innerTubeAudioFormats,
+                )
+
+            currentCoroutineContext().ensureActive()
+            if (!isPlaybackLoadCurrent(loadToken)) return
+
+            if (!step.isUpcomingContent) {
+                prepareLoadedMediaForPlayback(
+                    videoId = videoId,
+                    streamInfo = streamInfo,
+                    videoStream = streams.selectedVideoStream,
+                    audioStream = streams.selectedAudioStream,
+                    videoStreams = streams.videoStreams,
+                    audioStreams = streams.audioStreams,
+                    subtitles = streams.subtitles,
+                    savedPosition = step.savedPositionMs,
+                    localFilePath = streams.localFilePath,
+                    offlineSegments = step.offlineSegments,
+                    hlsUrl = streams.hlsUrl,
+                    dashManifestUrl = streams.dashManifestUrl,
+                    isAdaptiveMode = streams.isAdaptiveMode,
+                    resumeOverrideRequested = step.resumeOverrideRequested,
+                    loadToken = loadToken,
+                    sabrInfo = streams.sabrInfo,
+                    itVideoFormats = streams.innerTubeVideoFormats,
+                    itAudioFormats = streams.innerTubeAudioFormats,
+                    preferredVideoCodec = streams.preferredCodecKey,
+                    preferSabr = streams.preferSabr,
+                    preferredLiveQualityHeight = streams.preferredQuality.height,
+                )
+                loadChannelMetadataAfterPlayback(
+                    videoId = videoId,
+                    uploaderUrl = streamInfo.uploaderUrl,
+                    channelId = _uiState.value.cachedVideo?.channelId,
+                    embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
+                    loadToken = loadToken,
+                )
+                if (!streams.isLiveType) {
+                    loadRelatedVideosAfterPlayback(videoId, step.relatedVideos, loadToken)
+                }
+            }
+
+            if (!step.isUpcomingContent && streams.isLiveStream) {
+                maybeStartLiveChat(videoId)
+                refreshLiveWatchMetadata(
+                    videoId = videoId,
+                    fallbackVideo =
+                        Video(
+                            id = videoId,
+                            title = streamInfo.name ?: _uiState.value.cachedVideo?.title ?: "Live",
+                            channelName = streamInfo.uploaderName ?: _uiState.value.cachedVideo?.channelName ?: "",
+                            channelId =
+                                streamInfo.uploaderUrl?.substringAfterLast("/")
+                                    ?: _uiState.value.cachedVideo?.channelId ?: "",
+                            thumbnailUrl =
+                                streamInfo.thumbnails.maxByOrNull { it.height }?.url
+                                    ?: _uiState.value.cachedVideo?.thumbnailUrl
+                                    ?: ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, null),
+                            duration = 0,
+                            viewCount = streamInfo.viewCount,
+                            uploadDate = "",
+                            description =
+                                streamInfo.description?.content
+                                    ?: _uiState.value.cachedVideo?.description
+                                    ?: "",
+                            isLive = true,
+                        ),
+                    loadToken = loadToken,
+                )
+            }
+        }
+
+        private suspend fun applyVodFromInnerTube(
+            videoId: String,
+            step: ResolvedPlayback.VodFromInnerTube,
+            loadToken: Long,
+        ) {
+            try {
+                prepareVodStreamFromInnerTube(
+                    videoId = videoId,
+                    result = step.result,
+                    relatedVideos = step.relatedVideos,
+                    preferredQuality = step.preferredQuality,
+                    preferredAudioLanguage = step.preferredAudioLanguage,
+                    preferredCodecKey = step.preferredCodecKey,
+                    resumePositionOverrideMs = step.resumePositionOverrideMs,
+                    loadToken = loadToken,
+                )
+                step.lateStreamInfo?.let { enrichPlaybackMetadataWhenReady(videoId, it, loadToken) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("VideoPlayerViewModel", "InnerTube VOD fallback failed for $videoId", e)
+                if (!tryEnterUpcomingState(videoId, step.relatedVideos, loadToken)) {
+                    val videoError = VideoErrorMapper.from(context, step.streamError ?: e, videoId)
+                    if (isPlaybackLoadCurrent(loadToken)) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                relatedVideos = step.relatedVideos,
+                                error = videoError.message,
+                                errorHint = videoError.hint,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        private suspend fun applyPlaybackFailure(
+            videoId: String,
+            step: ResolvedPlayback.Failed,
+            loadToken: Long,
+        ) {
+            if (!isPlaybackLoadCurrent(loadToken)) return
+            val videoError =
+                when (step.failure) {
+                    PlaybackFailure.TIMEOUT -> VideoErrorMapper.fromTimeout(context)
+                    else -> VideoErrorMapper.from(context, step.cause, videoId)
+                }
+            if (step.failure == PlaybackFailure.UNEXPECTED && !videoError.isRetryable) {
+                playerPreferences.markVideoUnplayable(videoId)
+            }
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    relatedVideos = step.relatedVideos ?: it.relatedVideos,
+                    error = videoError.message,
+                    errorHint = videoError.hint,
+                )
+            }
+        }
+
+        private fun backfillSponsorBlockSegments(videoId: String) {
+            viewModelScope.launch(networkDispatcher) {
+                try {
+                    val segments = sponsorBlockRepository.getSegments(videoId)
+                    if (segments.isNotEmpty()) {
+                        videoDownloadManager.saveSponsorBlockData(
+                            videoId,
+                            sponsorBlockRepository.serializeSegments(segments),
+                        )
+                        Log.d("VideoPlayerViewModel", "Backfilled ${segments.size} SB segments for $videoId")
+                        _uiState.update { it.copy(offlineSponsorBlockSegments = segments) }
+                    } else {
+                        Log.d("VideoPlayerViewModel", "No SB segments available for $videoId (backfill)")
+                    }
+                } catch (e: Exception) {
+                    Log.w("VideoPlayerViewModel", "SB backfill failed for $videoId", e)
+                }
+            }
         }
 
         private suspend fun prepareLoadedMediaForPlayback(
@@ -2108,33 +1714,6 @@ class VideoPlayerViewModel
             maybeStartLiveChat(videoId)
 
             refreshLiveWatchMetadata(videoId, enrichedVideo, loadToken)
-        }
-
-        private fun innerTubeHasPlayableVod(result: InnerTubeVideoStreamExtractor.VideoExtractionResult): Boolean {
-            if (result.isLive) return false
-            if (result.sabrInfo != null) return true
-            val hasVideo = result.videoFormats.any { !it.url.isNullOrEmpty() }
-            val hasAudio = result.audioFormats.any { !it.url.isNullOrEmpty() }
-            return hasVideo && hasAudio
-        }
-
-        private fun innerTubeCanStartPlayback(result: InnerTubeVideoStreamExtractor.VideoExtractionResult): Boolean {
-            val hasLiveManifest =
-                result.isLive &&
-                    (!result.liveHlsUrl.isNullOrEmpty() || !result.liveDashUrl.isNullOrEmpty())
-            return hasLiveManifest || innerTubeHasPlayableVod(result)
-        }
-
-        private fun classifyNewPipePlaybackResult(streamInfo: StreamInfo?): PlaybackResolverReadiness {
-            if (streamInfo == null) return PlaybackResolverReadiness.NEEDS_FALLBACK
-            return PlaybackStartupPolicy.classifyNewPipeResult(
-                hasProgressiveVideo = streamInfo.videoStreams.isNotEmpty(),
-                hasVideoOnly = streamInfo.videoOnlyStreams.isNotEmpty(),
-                hasAudio = streamInfo.audioStreams.isNotEmpty(),
-                hasDashManifest = !streamInfo.dashMpdUrl.isNullOrEmpty(),
-                hasHlsManifest = !streamInfo.hlsUrl.isNullOrEmpty(),
-                isKnownUpcoming = streamInfo.streamType == StreamType.NONE,
-            )
         }
 
         private fun loadChannelMetadataAfterPlayback(

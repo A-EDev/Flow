@@ -28,6 +28,7 @@ import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
+import io.github.aedev.flow.player.stream.VideoPlaybackResolver
 import io.github.aedev.flow.utils.NetworkState
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -170,6 +171,17 @@ internal class VideoPlayerViewModelHarness(
             homeFeedCacheRepository = homeFeedCacheRepository,
             playerManager = playerManager,
             upcomingPremiereProbe = UpcomingPremiereProbe(),
+            playbackResolver =
+                VideoPlaybackResolver(
+                    context = context,
+                    repository = repository,
+                    viewHistory = viewHistory,
+                    playerPreferences = playerPreferences,
+                    videoDownloadManager = videoDownloadManager,
+                    sponsorBlockRepository = sponsorBlockRepository,
+                    networkDispatcher = testDispatcher,
+                    ioDispatcher = testDispatcher,
+                ),
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )
