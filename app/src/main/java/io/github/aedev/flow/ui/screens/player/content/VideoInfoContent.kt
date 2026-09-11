@@ -21,6 +21,7 @@ import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
@@ -34,7 +35,7 @@ internal fun VideoInfoContent(
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel,
     screenState: PlayerScreenState,
-    comments: List<Comment>,
+    commentsUiState: PlayerCommentsUiState,
     commentsEnabled: Boolean = true,
     showCommentsPreview: Boolean = true,
     deArrowEnabled: Boolean,
@@ -212,8 +213,9 @@ internal fun VideoInfoContent(
 
     if (commentsEnabled) {
         CommentsPreview(
-            latestComment = if (showCommentsPreview) comments.firstOrNull()?.text else null,
-            authorAvatar = if (showCommentsPreview) comments.firstOrNull()?.authorThumbnail else null,
+            latestComment = if (showCommentsPreview) commentsUiState.comments.firstOrNull()?.text else null,
+            authorAvatar = if (showCommentsPreview) commentsUiState.comments.firstOrNull()?.authorThumbnail else null,
+            totalText = commentsUiState.totalText,
             showPreviewText = showCommentsPreview,
             onClick = { screenState.open(PlayerSheet.Comments()) },
         )

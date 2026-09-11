@@ -30,6 +30,8 @@ import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
+import io.github.aedev.flow.ui.components.shared.applyVideoCommentFilters
+import io.github.aedev.flow.ui.components.shared.videoCommentSortFor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -115,35 +117,15 @@ fun ShortsScreen(
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
     var commentSortFilter by remember { mutableStateOf(CommentSortFilter.TOP) }
+    var commentsTimedOnly by remember { mutableStateOf(false) }
     val comments by viewModel.commentsState.collectAsState()
     val isLoadingComments by viewModel.isLoadingComments.collectAsState()
+    val commentSortOptions by viewModel.commentSortOptions.collectAsState()
+    val commentTotalText by viewModel.commentTotalText.collectAsState()
 
-    fun relativeTimeToSeconds(timeStr: String): Long {
-        val lower = timeStr.lowercase().trim()
-        val number = Regex("\\d+").find(lower)?.value?.toLongOrNull() ?: 0L
-        return when {
-            "second" in lower -> number
-            "minute" in lower -> number * 60L
-            "hour" in lower -> number * 3_600L
-            "day" in lower -> number * 86_400L
-            "week" in lower -> number * 604_800L
-            "month" in lower -> number * 2_592_000L
-            "year" in lower -> number * 31_536_000L
-            else -> Long.MAX_VALUE
-        }
-    }
-
-    val sortedComments =
-        remember(comments, commentSortFilter) {
-            val pinned = comments.filter { it.isPinned }
-            val unpinned = comments.filterNot { it.isPinned }
-            val sortedUnpinned =
-                when (commentSortFilter) {
-                    CommentSortFilter.TOP -> unpinned.sortedByDescending { it.likeCount }
-                    CommentSortFilter.NEWEST -> unpinned.sortedBy { relativeTimeToSeconds(it.publishedTime) }
-                    CommentSortFilter.OLDEST -> unpinned.sortedByDescending { relativeTimeToSeconds(it.publishedTime) }
-                }
-            pinned + sortedUnpinned
+    val visibleComments =
+        remember(comments, commentSortFilter, commentsTimedOnly) {
+            applyVideoCommentFilters(comments, commentSortFilter, commentsTimedOnly)
         }
 
     LaunchedEffect(source) {
@@ -404,10 +386,20 @@ fun ShortsScreen(
         if (showCommentsSheet) {
             DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
             FlowCommentsBottomSheet(
-                comments = sortedComments,
+                comments = visibleComments,
                 isLoading = isLoadingComments,
                 selectedFilter = commentSortFilter,
-                onFilterChanged = { commentSortFilter = it },
+                totalText = commentTotalText,
+                timedOnly = commentsTimedOnly,
+                onTimedChange = { commentsTimedOnly = it },
+                onFilterChanged = { filter ->
+                    commentSortFilter = filter
+                    videoCommentSortFor(commentSortOptions, filter)?.let { sort ->
+                        uiState.shorts.getOrNull(uiState.currentIndex)?.id?.let { videoId ->
+                            viewModel.selectCommentSort(videoId, sort)
+                        }
+                    }
+                },
                 onLoadReplies = { viewModel.loadCommentReplies(it) },
                 onAuthorClick = { authorChannelRef ->
                     showCommentsSheet = false

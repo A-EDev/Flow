@@ -1,16 +1,55 @@
 package io.github.aedev.flow.ui.components.shared
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.innertube.pages.VideoCommentSort
 import io.github.aedev.flow.utils.formatTimeAgo
 import io.github.aedev.flow.utils.parseTimestampMs
 
-enum class CommentSortFilter {
-    TOP,
-    NEWEST,
-    OLDEST,
+enum class CommentSortFilter(
+    @param:StringRes val labelRes: Int,
+) {
+    TOP(R.string.filter_top),
+    NEWEST(R.string.filter_newest),
+    OLDEST(R.string.filter_oldest),
+}
+
+/**
+ * The continuation that serves [filter], out of the orders the section offered.
+ *
+ * The menu is matched by position rather than by title, because the titles arrive in the user's
+ * language. YouTube serves two orders and no third: Oldest reads the chronological one and reverses
+ * what it has, which is why it maps to the same continuation as Newest.
+ */
+fun videoCommentSortFor(
+    options: List<VideoCommentSort>,
+    filter: CommentSortFilter,
+): VideoCommentSort? =
+    when (filter) {
+        CommentSortFilter.TOP -> options.getOrNull(0)
+        CommentSortFilter.NEWEST, CommentSortFilter.OLDEST -> options.getOrNull(1)
+    }
+
+/**
+ * What a video's comment list shows for the current chips.
+ *
+ * Top and Newest are already the order the server returned, so they are left alone; only Oldest
+ * re-orders, and only over the pages loaded so far.
+ */
+fun applyVideoCommentFilters(
+    comments: List<Comment>,
+    filter: CommentSortFilter,
+    timedOnly: Boolean,
+): List<Comment> {
+    val filtered = if (timedOnly) comments.filter { it.richText?.hasTimestamp == true } else comments
+    return if (filter == CommentSortFilter.OLDEST) {
+        sortCommentsByFilter(filtered, filter)
+    } else {
+        filtered
+    }
 }
 
 private fun relativeTimeToSeconds(timeStr: String): Long {

@@ -7,8 +7,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,13 +21,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -50,12 +53,14 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.utils.formatLikeCount
-import io.github.aedev.flow.utils.formatRichText
+
+private val ReplyIndentWidth = 2.dp
+private val ReplyIndentGap = 12.dp
 
 @Composable
 fun FlowCommentItem(
     comment: Comment,
-    onTimestampClick: (String) -> Unit,
+    onSeekMs: (Long) -> Unit,
     onLoadReplies: (Comment) -> Unit,
     onLoadMoreReplies: (Comment) -> Unit,
     onAuthorClick: (String) -> Unit = {},
@@ -74,19 +79,8 @@ fun FlowCommentItem(
         isLoadingReplies = false
     }
 
-    // Process text — cached so it isn't rebuilt on every recomposition.
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onSurface = MaterialTheme.colorScheme.onSurface
-    val annotatedText =
-        remember(comment.text, primaryColor) {
-            formatRichText(
-                text = comment.text,
-                primaryColor = primaryColor,
-                textColor = onSurface,
-            )
-        }
+    val commentText = rememberCommentText(comment)
 
-    // Full-size image viewer
     if (showFullSizeImage) {
         FullSizeImageDialog(
             imageUrl = toHighQualityAvatarUrl(comment.authorThumbnail),
@@ -117,7 +111,6 @@ fun FlowCommentItem(
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            // Pinned indicator
             if (comment.isPinned) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -131,7 +124,7 @@ fun FlowCommentItem(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = stringResource(R.string.pinned_by_creator),
+                        text = comment.pinnedByText?.takeIf { it.isNotBlank() } ?: stringResource(R.string.pinned_by_creator),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium,
@@ -139,39 +132,18 @@ fun FlowCommentItem(
                 }
             }
 
-            // Header: Author + Time
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = formatAuthorName(comment.author),
-                    style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier =
-                        Modifier
-                            .weight(1f, fill = false)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(),
-                                onClick = { onAuthorClick(commentAuthorChannelRef(comment)) },
-                            ),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = localizedCommentPublishedTime(comment.publishedTime),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            CommentAuthorRow(
+                comment = comment,
+                onAuthorClick = onAuthorClick,
+            )
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Comment Body with "Read More" logic
             Box(modifier = Modifier.animateContentSize()) {
                 SelectionContainer {
                     BasicText(
-                        text = annotatedText,
+                        text = commentText.annotated,
+                        inlineContent = commentText.inlineContent,
                         style =
                             MaterialTheme.typography.bodyMedium.copy(
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -184,31 +156,21 @@ fun FlowCommentItem(
                             if (result.hasVisualOverflow) isOverflowing = true
                         },
                         modifier =
-                            Modifier.pointerInput(annotatedText) {
+                            Modifier.pointerInput(commentText.annotated) {
                                 detectTapGestures(
                                     onTap = { tapOffset ->
-                                        commentTextLayoutResult?.let { result ->
-                                            val offset = result.getOffsetForPosition(tapOffset)
-                                            val ts =
-                                                annotatedText
-                                                    .getStringAnnotations("TIMESTAMP", offset, offset)
-                                                    .firstOrNull()
-                                            val url =
-                                                annotatedText
-                                                    .getStringAnnotations("URL", offset, offset)
-                                                    .firstOrNull()
-                                            if (ts != null) {
-                                                onTimestampClick(ts.item)
-                                            } else if (url != null) {
-                                                try {
-                                                    uriHandler.openUri(url.item)
-                                                } catch (e: Exception) {
-                                                    e.printStackTrace()
-                                                }
-                                            } else {
-                                                if (!isExpanded && isOverflowing) isExpanded = true
-                                            }
-                                        }
+                                        val result = commentTextLayoutResult ?: return@detectTapGestures
+                                        val offset = result.getOffsetForPosition(tapOffset)
+                                        val handled =
+                                            commentText.handleTap(
+                                                offset = offset,
+                                                onSeekMs = onSeekMs,
+                                                onOpenUrl = { url ->
+                                                    runCatching { uriHandler.openUri(url) }
+                                                },
+                                                onAuthorClick = onAuthorClick,
+                                            )
+                                        if (!handled && !isExpanded && isOverflowing) isExpanded = true
                                     },
                                 )
                             },
@@ -231,46 +193,8 @@ fun FlowCommentItem(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Bar (Like, Dislike, Reply)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Like
-                Icon(
-                    imageVector = Icons.Outlined.ThumbUp,
-                    contentDescription = stringResource(R.string.like),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                if (comment.likeCount > 0) {
-                    Text(
-                        text = formatLikeCount(comment.likeCount),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            CommentEngagementRow(comment = comment)
 
-                Spacer(modifier = Modifier.width(24.dp))
-
-                // Dislike (Visual only usually)
-                Icon(
-                    imageVector = Icons.Outlined.ThumbDown,
-                    contentDescription = stringResource(R.string.dislikes),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp),
-                )
-
-                Spacer(modifier = Modifier.width(24.dp))
-
-                // Replies
-                Icon(
-                    imageVector = Icons.Outlined.ChatBubbleOutline,
-                    contentDescription = stringResource(R.string.reply),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp),
-                )
-            }
-
-            // View Replies Button
             if (comment.replyCount > 0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -321,40 +245,164 @@ fun FlowCommentItem(
                 }
             }
 
-            // Display Replies
             if (isRepliesVisible && comment.replies.isNotEmpty()) {
-                Column(
+                Row(
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .height(IntrinsicSize.Min)
                             .padding(top = 8.dp),
                 ) {
-                    comment.replies.forEach { reply ->
-                        FlowReplyItem(
-                            reply = reply,
-                            onTimestampClick = onTimestampClick,
-                            onAuthorClick = onAuthorClick,
-                            onAvatarClick = onAvatarClick,
-                        )
-                    }
+                    Box(
+                        modifier =
+                            Modifier
+                                .width(ReplyIndentWidth)
+                                .fillMaxHeight()
+                                .background(
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    shape = RoundedCornerShape(ReplyIndentWidth),
+                                ),
+                    )
+                    Spacer(modifier = Modifier.width(ReplyIndentGap))
+                    Column(modifier = Modifier.weight(1f)) {
+                        comment.replies.forEach { reply ->
+                            FlowReplyItem(
+                                reply = reply,
+                                onSeekMs = onSeekMs,
+                                onAuthorClick = onAuthorClick,
+                                onAvatarClick = onAvatarClick,
+                            )
+                        }
 
-                    if (comment.repliesPage != null || comment.continuationToken != null) {
-                        Text(
-                            text = stringResource(R.string.load_more_replies),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier =
-                                Modifier
-                                    .padding(top = 8.dp)
-                                    .clickable {
-                                        isLoadingReplies = true
-                                        onLoadMoreReplies(comment)
-                                    },
-                        )
+                        if (comment.repliesPage != null || comment.continuationToken != null) {
+                            Text(
+                                text = stringResource(R.string.load_more_replies),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier =
+                                    Modifier
+                                        .padding(top = 8.dp)
+                                        .clickable {
+                                            isLoadingReplies = true
+                                            onLoadMoreReplies(comment)
+                                        },
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+internal fun CommentAuthorRow(
+    comment: Comment,
+    onAuthorClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        CommentAuthorName(
+            comment = comment,
+            onAuthorClick = onAuthorClick,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        if (comment.isVerified || comment.isArtist) {
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Rounded.Verified,
+                contentDescription = stringResource(R.string.verified),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(13.dp),
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = localizedCommentPublishedTime(comment.publishedTime),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun CommentAuthorName(
+    comment: Comment,
+    onAuthorClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val name = formatAuthorName(comment.author)
+    val clickable =
+        modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = ripple(),
+            onClick = { onAuthorClick(commentAuthorChannelRef(comment)) },
+        )
+    if (comment.isCreator) {
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            shape = CircleShape,
+            modifier = clickable,
+        ) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        return
+    }
+    Text(
+        text = name,
+        style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = clickable,
+    )
+}
+
+/**
+ * The like count, and the heart the creator left on this comment.
+ *
+ * The thumbs-down and reply icons that used to sit here were decoration: neither was clickable,
+ * and neither has an action this app can perform without a signed-in session.
+ */
+@Composable
+internal fun CommentEngagementRow(
+    comment: Comment,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = Icons.Outlined.ThumbUp,
+            contentDescription = stringResource(R.string.like),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(14.dp),
+        )
+        val likeText = comment.likeCountText.takeIf { it.isNotBlank() } ?: comment.likeCount.takeIf { it > 0 }?.let(::formatLikeCount)
+        if (likeText != null) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = likeText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (comment.isHearted) {
+            Spacer(modifier = Modifier.width(14.dp))
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = comment.heartedByText ?: stringResource(R.string.comment_hearted_by_creator),
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(14.dp),
+            )
         }
     }
 }

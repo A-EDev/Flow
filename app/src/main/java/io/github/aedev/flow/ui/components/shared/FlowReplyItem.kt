@@ -46,21 +46,12 @@ import io.github.aedev.flow.utils.formatRichText
 @Composable
 fun FlowReplyItem(
     reply: Comment,
-    onTimestampClick: (String) -> Unit,
+    onSeekMs: (Long) -> Unit,
     onAuthorClick: (String) -> Unit = {},
     onAvatarClick: (String) -> Unit = {},
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onSurface = MaterialTheme.colorScheme.onSurface
     val uriHandler = LocalUriHandler.current
-    val annotatedText =
-        remember(reply.text, primaryColor) {
-            formatRichText(
-                text = reply.text,
-                primaryColor = primaryColor,
-                textColor = onSurface,
-            )
-        }
+    val replyText = rememberCommentText(reply)
     var replyTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     var showFullSizeImage by remember { mutableStateOf(false) }
 
@@ -95,37 +86,18 @@ fun FlowReplyItem(
 
         Column(modifier = Modifier.weight(1f)) {
             // Header: Author + Time
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = formatAuthorName(reply.author),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier =
-                        Modifier
-                            .weight(1f, fill = false)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(),
-                                onClick = { onAuthorClick(commentAuthorChannelRef(reply)) },
-                            ),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = localizedCommentPublishedTime(reply.publishedTime),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            CommentAuthorRow(
+                comment = reply,
+                onAuthorClick = onAuthorClick,
+            )
 
             Spacer(modifier = Modifier.height(2.dp))
 
             // Reply Body
             SelectionContainer {
                 BasicText(
-                    text = annotatedText,
+                    text = replyText.annotated,
+                    inlineContent = replyText.inlineContent,
                     style =
                         MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onSurface,
@@ -133,29 +105,16 @@ fun FlowReplyItem(
                         ),
                     onTextLayout = { replyTextLayoutResult = it },
                     modifier =
-                        Modifier.pointerInput(annotatedText) {
+                        Modifier.pointerInput(replyText.annotated) {
                             detectTapGestures(
                                 onTap = { tapOffset ->
-                                    replyTextLayoutResult?.let { result ->
-                                        val offset = result.getOffsetForPosition(tapOffset)
-                                        val ts =
-                                            annotatedText
-                                                .getStringAnnotations("TIMESTAMP", offset, offset)
-                                                .firstOrNull()
-                                        if (ts != null) {
-                                            onTimestampClick(ts.item)
-                                        } else {
-                                            annotatedText
-                                                .getStringAnnotations("URL", offset, offset)
-                                                .firstOrNull()
-                                                ?.let {
-                                                    try {
-                                                        uriHandler.openUri(it.item)
-                                                    } catch (_: Exception) {
-                                                    }
-                                                }
-                                        }
-                                    }
+                                    val result = replyTextLayoutResult ?: return@detectTapGestures
+                                    replyText.handleTap(
+                                        offset = result.getOffsetForPosition(tapOffset),
+                                        onSeekMs = onSeekMs,
+                                        onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } },
+                                        onAuthorClick = onAuthorClick,
+                                    )
                                 },
                             )
                         },
@@ -165,22 +124,7 @@ fun FlowReplyItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             // Action Bar (Minimal for replies)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.ThumbUp,
-                    contentDescription = stringResource(R.string.like),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(12.dp),
-                )
-                if (reply.likeCount > 0) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = formatLikeCount(reply.likeCount),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            CommentEngagementRow(comment = reply)
         }
     }
 }

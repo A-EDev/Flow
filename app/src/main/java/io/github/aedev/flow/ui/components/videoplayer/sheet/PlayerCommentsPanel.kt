@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -16,17 +17,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.ui.components.shared.CommentSortChips
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
-import io.github.aedev.flow.ui.components.shared.CommentSortFilterChips
 import io.github.aedev.flow.ui.components.shared.FlowCommentsList
-import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 
 /**
  * Comments rendered as an inline panel rather than a modal sheet, so the video stays visible.
@@ -40,18 +39,17 @@ fun PlayerCommentsPanel(
     hasMore: Boolean,
     selectedFilter: CommentSortFilter,
     onFilterChanged: (CommentSortFilter) -> Unit,
-    onTimestampClick: (String) -> Unit,
+    onSeekMs: (Long) -> Unit,
     onLoadReplies: (Comment) -> Unit,
     onLoadMoreReplies: (Comment) -> Unit,
     onAuthorClick: (String) -> Unit,
     onLoadMore: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    totalText: String? = null,
+    timedOnly: Boolean = false,
+    onTimedChange: ((Boolean) -> Unit)? = null,
 ) {
-    val sortedComments =
-        remember(comments, selectedFilter) {
-            sortCommentsByFilter(comments, selectedFilter)
-        }
     val listState = rememberLazyListState()
     LaunchedEffect(selectedFilter) {
         listState.scrollToItem(0)
@@ -70,6 +68,14 @@ fun PlayerCommentsPanel(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            if (!totalText.isNullOrBlank()) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = totalText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onClose) {
                 Icon(
@@ -78,18 +84,20 @@ fun PlayerCommentsPanel(
                 )
             }
         }
-        CommentSortFilterChips(
-            selectedFilter = selectedFilter,
-            onFilterChanged = onFilterChanged,
+        CommentSortChips(
+            selected = selectedFilter,
+            onSelect = onFilterChanged,
+            timedOnly = timedOnly,
+            onTimedChange = onTimedChange,
             modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
         FlowCommentsList(
-            comments = sortedComments,
+            comments = comments,
             isLoading = isLoading,
             listState = listState,
             selectedFilter = selectedFilter,
-            onTimestampClick = onTimestampClick,
+            onSeekMs = onSeekMs,
             onLoadReplies = onLoadReplies,
             onLoadMoreReplies = onLoadMoreReplies,
             onAuthorClick = onAuthorClick,
@@ -97,6 +105,7 @@ fun PlayerCommentsPanel(
             isLoadingMore = isLoadingMore,
             onLoadMore = onLoadMore,
             hasMore = hasMore,
+            emptyMessageRes = if (timedOnly) R.string.no_timed_comments else R.string.no_comments_yet,
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
     }

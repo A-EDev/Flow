@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.shared
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +28,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -40,7 +40,7 @@ fun FlowCommentsList(
     isLoading: Boolean,
     listState: LazyListState,
     selectedFilter: CommentSortFilter,
-    onTimestampClick: (String) -> Unit,
+    onSeekMs: (Long) -> Unit,
     onLoadReplies: (Comment) -> Unit,
     onLoadMoreReplies: (Comment) -> Unit,
     onAuthorClick: (String) -> Unit,
@@ -50,6 +50,7 @@ fun FlowCommentsList(
     hasMore: Boolean,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(bottom = 32.dp),
+    @StringRes emptyMessageRes: Int = R.string.no_comments_yet,
 ) {
     val latestOnLoadMore by rememberUpdatedState(onLoadMore)
     val uniqueComments =
@@ -77,7 +78,7 @@ fun FlowCommentsList(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        stringResource(R.string.no_comments_yet),
+                        stringResource(emptyMessageRes),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -89,7 +90,7 @@ fun FlowCommentsList(
             ) { comment ->
                 FlowCommentItem(
                     comment = comment,
-                    onTimestampClick = onTimestampClick,
+                    onSeekMs = onSeekMs,
                     onLoadReplies = onLoadReplies,
                     onLoadMoreReplies = onLoadMoreReplies,
                     onAuthorClick = onAuthorClick,
@@ -118,17 +119,24 @@ fun FlowCommentsList(
     }
 }
 
+/**
+ * A still placeholder rather than a shimmering one: the comments sheet is kept composed behind the
+ * player, and a looping animation there would keep producing frames while nothing is on screen.
+ */
 @Composable
 fun CommentSkeleton() {
+    val placeholder = MaterialTheme.colorScheme.surfaceVariant
     Row(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
-        Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.Gray.copy(0.2f)))
+        Box(modifier = Modifier.size(40.dp).background(placeholder, CircleShape))
         Spacer(modifier = Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Box(modifier = Modifier.width(100.dp).height(12.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(4.dp)))
+            Box(modifier = Modifier.width(100.dp).height(12.dp).background(placeholder, SkeletonShape))
             Spacer(modifier = Modifier.height(8.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(12.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(4.dp)))
+            Box(modifier = Modifier.fillMaxWidth().height(12.dp).background(placeholder, SkeletonShape))
             Spacer(modifier = Modifier.height(4.dp))
-            Box(modifier = Modifier.width(200.dp).height(12.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(4.dp)))
+            Box(modifier = Modifier.width(200.dp).height(12.dp).background(placeholder, SkeletonShape))
         }
     }
 }
+
+private val SkeletonShape = RoundedCornerShape(4.dp)

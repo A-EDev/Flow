@@ -34,6 +34,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
 import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
+import io.github.aedev.flow.ui.screens.player.state.rememberPlayerCommentsUiState
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import kotlin.math.roundToInt
 
@@ -65,7 +66,7 @@ internal fun EnhancedVideoPlayerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val comments by viewModel.commentsState.collectAsStateWithLifecycle()
+    val commentsUiState = rememberPlayerCommentsUiState(viewModel)
 
     val isLocalMedia = video.id.startsWith("local_")
     val showRelatedVideos = prefs.showRelatedVideos && !isLocalMedia
@@ -118,7 +119,7 @@ internal fun EnhancedVideoPlayerScreen(
                                 uiState = uiState,
                                 viewModel = viewModel,
                                 screenState = screenState,
-                                comments = comments,
+                                commentsUiState = commentsUiState,
                                 commentsEnabled = commentsEnabled,
                                 showCommentsPreview = showCommentsPreview,
                                 deArrowEnabled = prefs.deArrowEnabled,
@@ -139,7 +140,6 @@ internal fun EnhancedVideoPlayerScreen(
                             viewModel = viewModel,
                             screenState = screenState,
                             prefs = prefs,
-                            comments = comments,
                             commentsEnabled = commentsEnabled,
                             showRelatedVideos = showRelatedVideos,
                             relatedCardStyle = relatedCardStyle,
@@ -164,7 +164,7 @@ internal fun EnhancedVideoPlayerScreen(
                                 uiState = uiState,
                                 viewModel = viewModel,
                                 screenState = screenState,
-                                comments = comments,
+                                commentsUiState = commentsUiState,
                                 commentsEnabled = commentsEnabled,
                                 showCommentsPreview = showCommentsPreview,
                                 deArrowEnabled = prefs.deArrowEnabled,

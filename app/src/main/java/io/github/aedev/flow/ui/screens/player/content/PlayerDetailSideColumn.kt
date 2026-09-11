@@ -27,6 +27,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.rememberPlayerCommentsUiState
 import kotlinx.coroutines.launch
 
 /**
@@ -43,7 +44,6 @@ internal fun PlayerDetailSideColumn(
     viewModel: VideoPlayerViewModel,
     screenState: PlayerScreenState,
     prefs: VideoPlayerPreferencesState,
-    comments: List<Comment>,
     commentsEnabled: Boolean,
     showRelatedVideos: Boolean,
     relatedCardStyle: PlayerRelatedCardStyle,
@@ -51,9 +51,7 @@ internal fun PlayerDetailSideColumn(
     onChannelClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isLoadingComments by viewModel.isLoadingComments.collectAsStateWithLifecycle()
-    val hasMoreComments by viewModel.hasMoreComments.collectAsStateWithLifecycle()
-    val isLoadingMoreComments by viewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
+    val commentsUiState = rememberPlayerCommentsUiState(viewModel)
     val scope = rememberCoroutineScope()
     val playerPreferences = prefs.preferences
     val closeSheet = { screenState.closeSheet() }
@@ -68,10 +66,7 @@ internal fun PlayerDetailSideColumn(
                     videoId = video.id,
                     screenState = screenState,
                     viewModel = viewModel,
-                    comments = comments,
-                    isLoading = isLoadingComments,
-                    isLoadingMore = isLoadingMoreComments,
-                    hasMore = hasMoreComments,
+                    commentsUiState = commentsUiState,
                     onNavigateToChannel = onChannelClick,
                     onClose = closeSheet,
                     modifier = paneModifier,

@@ -9,8 +9,10 @@ import io.github.aedev.flow.ui.screens.player.dialogs.PlayerBottomSheetsContaine
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
 import io.github.aedev.flow.ui.screens.player.dialogs.SbSubmitSegmentDialog
 import io.github.aedev.flow.ui.screens.player.state.MediaSheetHeights
+import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.selectCommentSort
 
 /** Every dialog and bottom sheet the player overlay raises above its own stage. */
 @UnstableApi
@@ -22,10 +24,7 @@ internal fun VideoPlayerDialogs(
     onMediaSheetProgressChange: (Float) -> Unit,
     canUseFullscreenSidePanel: Boolean,
     playerLayoutMode: PlayerLayoutMode,
-    comments: List<Comment>,
-    isLoadingComments: Boolean,
-    isLoadingMoreComments: Boolean,
-    hasMoreComments: Boolean,
+    commentsUiState: PlayerCommentsUiState,
     onNavigateToChannel: (String) -> Unit,
     onNavigateToShorts: (String) -> Unit,
     onClose: () -> Unit,
@@ -71,12 +70,12 @@ internal fun VideoPlayerDialogs(
         completeVideo = completeVideo,
         disableShortsPlayer = prefs.disableShortsPlayer,
         showShortsPlayerPrompt = prefs.showShortsPlayerPrompt,
-        comments = comments,
+        commentsUiState = commentsUiState,
         commentsEnabled = prefs.commentsEnabled,
-        isLoadingComments = isLoadingComments,
-        isLoadingMoreComments = isLoadingMoreComments,
-        hasMoreComments = hasMoreComments,
         onLoadMoreComments = { videoId -> playerViewModel.loadMoreComments(videoId) },
+        onSelectCommentSort = { filter ->
+            commentsUiState.selectCommentSort(filter, video.id, screenState, playerViewModel)
+        },
         mediaSheetExpandedHeight = mediaSheetHeights.expanded,
         mediaSheetCollapsedHeight = mediaSheetHeights.collapsed,
         context = context,

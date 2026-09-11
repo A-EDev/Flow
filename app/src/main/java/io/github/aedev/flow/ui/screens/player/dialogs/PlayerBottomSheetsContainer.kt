@@ -24,15 +24,16 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
+import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
-import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
-import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
+import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.visibleComments
 
 @Composable
 internal fun PlayerBottomSheetsContainer(
@@ -42,12 +43,10 @@ internal fun PlayerBottomSheetsContainer(
     completeVideo: Video,
     disableShortsPlayer: Boolean,
     showShortsPlayerPrompt: Boolean,
-    comments: List<Comment>,
+    commentsUiState: PlayerCommentsUiState,
     commentsEnabled: Boolean = true,
-    isLoadingComments: Boolean,
-    isLoadingMoreComments: Boolean = false,
-    hasMoreComments: Boolean = false,
     onLoadMoreComments: (videoId: String) -> Unit = {},
+    onSelectCommentSort: (CommentSortFilter) -> Unit = {},
     mediaSheetExpandedHeight: Dp? = null,
     mediaSheetCollapsedHeight: Dp = 0.dp,
     context: Context,
@@ -60,16 +59,11 @@ internal fun PlayerBottomSheetsContainer(
 ) {
     val shareVideoAction = rememberVideoShareAction()
 
-    val sortedComments =
-        remember(comments, screenState.commentSortFilter) {
-            sortCommentsByFilter(comments, screenState.commentSortFilter)
-        }
+    val visibleComments = commentsUiState.visibleComments(screenState)
 
-    val handleTimestampClick: (String) -> Unit =
+    val handleSeek: (Long) -> Unit =
         remember {
-            { timestamp ->
-                EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(timestamp))
-            }
+            { positionMs -> EnhancedPlayerManager.getInstance().seekTo(positionMs) }
         }
 
     LaunchedEffect(Unit) {
@@ -114,17 +108,18 @@ internal fun PlayerBottomSheetsContainer(
     // Comments Bottom Sheet
     if (screenState.activeSheet == PlayerSheet.Comments() && commentsEnabled && !hostedInSidePanel) {
         FlowCommentsBottomSheet(
-            comments = sortedComments,
-            isLoading = isLoadingComments,
+            comments = visibleComments,
+            isLoading = commentsUiState.isLoading,
             selectedFilter = screenState.commentSortFilter,
-            onFilterChanged = { filter ->
-                screenState.commentSortFilter = filter
-            },
+            totalText = commentsUiState.totalText,
+            timedOnly = screenState.commentsTimedOnly,
+            onTimedChange = { screenState.commentsTimedOnly = it },
+            onFilterChanged = onSelectCommentSort,
             onLoadReplies = onLoadReplies,
             onLoadMoreReplies = onLoadMoreReplies,
-            onTimestampClick = handleTimestampClick,
-            isLoadingMore = isLoadingMoreComments,
-            hasMore = hasMoreComments,
+            onSeekMs = handleSeek,
+            isLoadingMore = commentsUiState.isLoadingMore,
+            hasMore = commentsUiState.hasMore,
             onLoadMore = { onLoadMoreComments(video.id) },
             onAuthorClick = { authorChannelRef ->
                 screenState.closeSheet()

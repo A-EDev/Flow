@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.shared
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,12 +7,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,11 +38,14 @@ fun FlowCommentsBottomSheet(
     comments: List<Comment>,
     isLoading: Boolean,
     onDismiss: () -> Unit,
-    onTimestampClick: (String) -> Unit = {},
+    onSeekMs: (Long) -> Unit = {},
     onFilterChanged: (CommentSortFilter) -> Unit = {},
     onLoadReplies: (Comment) -> Unit = {},
     onLoadMoreReplies: (Comment) -> Unit = {},
     selectedFilter: CommentSortFilter = CommentSortFilter.TOP,
+    totalText: String? = null,
+    timedOnly: Boolean = false,
+    onTimedChange: ((Boolean) -> Unit)? = null,
     isLoadingMore: Boolean = false,
     onLoadMore: () -> Unit = {},
     hasMore: Boolean = false,
@@ -77,6 +79,9 @@ fun FlowCommentsBottomSheet(
             // and above the divider, which no header parameter can express.
             CommentsSheetHeader(
                 selectedFilter = selectedFilter,
+                totalText = totalText,
+                timedOnly = timedOnly,
+                onTimedChange = onTimedChange,
                 onFilterChanged = onFilterChanged,
                 onClose = { sheetState.dismiss() },
                 dragModifier = dragModifier,
@@ -88,7 +93,7 @@ fun FlowCommentsBottomSheet(
             isLoading = isLoading,
             listState = commentsListState,
             selectedFilter = selectedFilter,
-            onTimestampClick = onTimestampClick,
+            onSeekMs = onSeekMs,
             onLoadReplies = onLoadReplies,
             onLoadMoreReplies = onLoadMoreReplies,
             onAuthorClick = onAuthorClick,
@@ -96,6 +101,7 @@ fun FlowCommentsBottomSheet(
             isLoadingMore = isLoadingMore,
             onLoadMore = onLoadMore,
             hasMore = hasMore,
+            emptyMessageRes = if (timedOnly) R.string.no_timed_comments else R.string.no_comments_yet,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -108,6 +114,9 @@ fun FlowCommentsBottomSheet(
 @Composable
 private fun CommentsSheetHeader(
     selectedFilter: CommentSortFilter,
+    totalText: String?,
+    timedOnly: Boolean,
+    onTimedChange: ((Boolean) -> Unit)?,
     onFilterChanged: (CommentSortFilter) -> Unit,
     onClose: () -> Unit,
     dragModifier: Modifier,
@@ -139,6 +148,14 @@ private fun CommentsSheetHeader(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+                if (!totalText.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = totalText,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(
                     onClick = onClose,
@@ -147,40 +164,14 @@ private fun CommentsSheetHeader(
                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                 }
             }
-            CommentSortFilterChips(
-                selectedFilter = selectedFilter,
-                onFilterChanged = onFilterChanged,
+            CommentSortChips(
+                selected = selectedFilter,
+                onSelect = onFilterChanged,
+                timedOnly = timedOnly,
+                onTimedChange = onTimedChange,
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-    }
-}
-
-@Composable
-fun CommentSortFilterChips(
-    selectedFilter: CommentSortFilter,
-    onFilterChanged: (CommentSortFilter) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        FilterChip(
-            selected = selectedFilter == CommentSortFilter.TOP,
-            onClick = { onFilterChanged(CommentSortFilter.TOP) },
-            label = { Text(stringResource(R.string.filter_top)) },
-        )
-        FilterChip(
-            selected = selectedFilter == CommentSortFilter.NEWEST,
-            onClick = { onFilterChanged(CommentSortFilter.NEWEST) },
-            label = { Text(stringResource(R.string.filter_newest)) },
-        )
-        FilterChip(
-            selected = selectedFilter == CommentSortFilter.OLDEST,
-            onClick = { onFilterChanged(CommentSortFilter.OLDEST) },
-            label = { Text(stringResource(R.string.filter_oldest)) },
-        )
     }
 }

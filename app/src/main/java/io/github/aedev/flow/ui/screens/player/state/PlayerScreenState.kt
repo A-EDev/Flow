@@ -35,6 +35,7 @@ class PlayerScreenState {
 
     // Comment Sorting
     var commentSortFilter by mutableStateOf(CommentSortFilter.TOP)
+    var commentsTimedOnly by mutableStateOf(false)
 
     // Gesture States
     var brightnessLevel by mutableFloatStateOf(0.5f)

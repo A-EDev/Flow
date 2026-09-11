@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -24,8 +23,9 @@ import io.github.aedev.flow.utils.formatRichText
 internal fun CommentsPreview(
     latestComment: String?,
     authorAvatar: String?,
-    showPreviewText: Boolean = true,
     onClick: () -> Unit,
+    totalText: String? = null,
+    showPreviewText: Boolean = true,
 ) {
     Surface(
         onClick = onClick,
@@ -39,7 +39,12 @@ internal fun CommentsPreview(
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = stringResource(R.string.comments),
+                    text =
+                        if (totalText.isNullOrBlank()) {
+                            stringResource(R.string.comments)
+                        } else {
+                            stringResource(R.string.comments_with_count_template, totalText)
+                        },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -56,7 +61,7 @@ internal fun CommentsPreview(
                             Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(Color.Gray),
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentScale = ContentScale.Crop,
                     )
                     Spacer(modifier = Modifier.width(12.dp))

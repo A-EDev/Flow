@@ -26,6 +26,7 @@ import io.github.aedev.flow.data.shorts.queue.ShortsQueueLoaderFactory
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.shorts.queue.openAtVideoId
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.innertube.pages.VideoCommentSort
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -77,6 +78,8 @@ class ShortsViewModel
 
         val commentsState: StateFlow<List<Comment>> = comments.comments
         val isLoadingComments: StateFlow<Boolean> = comments.isLoading
+        val commentSortOptions: StateFlow<List<VideoCommentSort>> = comments.sortOptions
+        val commentTotalText: StateFlow<String?> = comments.totalText
 
         private val savedShortIds = MutableStateFlow<Set<String>>(emptySet())
 
@@ -448,6 +451,11 @@ class ShortsViewModel
 
         // COMMENTS
         fun loadComments(videoId: String) = comments.load(videoId)
+
+        fun selectCommentSort(
+            videoId: String,
+            sort: VideoCommentSort,
+        ) = comments.selectSort(videoId, sort)
 
         fun loadCommentReplies(comment: Comment) {
             val currentShort = _uiState.value.shorts.getOrNull(_uiState.value.currentIndex) ?: return

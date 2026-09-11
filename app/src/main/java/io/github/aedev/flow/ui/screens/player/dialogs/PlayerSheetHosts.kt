@@ -38,8 +38,11 @@ import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowChaptersBottomSh
 import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatList
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlayerCommentsPanel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.selectCommentSort
+import io.github.aedev.flow.ui.screens.player.state.visibleComments
 import io.github.aedev.flow.utils.DateContext
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
@@ -142,22 +145,24 @@ internal fun PlayerCommentsPanelHost(
     videoId: String,
     screenState: PlayerScreenState,
     viewModel: VideoPlayerViewModel,
-    comments: List<Comment>,
-    isLoading: Boolean,
-    isLoadingMore: Boolean,
-    hasMore: Boolean,
+    commentsUiState: PlayerCommentsUiState,
     onNavigateToChannel: (String) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PlayerCommentsPanel(
-        comments = comments,
-        isLoading = isLoading,
-        isLoadingMore = isLoadingMore,
-        hasMore = hasMore,
+        comments = commentsUiState.visibleComments(screenState),
+        isLoading = commentsUiState.isLoading,
+        isLoadingMore = commentsUiState.isLoadingMore,
+        hasMore = commentsUiState.hasMore,
         selectedFilter = screenState.commentSortFilter,
-        onFilterChanged = { screenState.commentSortFilter = it },
-        onTimestampClick = { EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(it)) },
+        totalText = commentsUiState.totalText,
+        timedOnly = screenState.commentsTimedOnly,
+        onTimedChange = { screenState.commentsTimedOnly = it },
+        onFilterChanged = { filter ->
+            commentsUiState.selectCommentSort(filter, videoId, screenState, viewModel)
+        },
+        onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
         onLoadReplies = { viewModel.loadCommentReplies(it) },
         onLoadMoreReplies = { viewModel.loadMoreCommentReplies(it) },
         onAuthorClick = { authorChannelRef ->

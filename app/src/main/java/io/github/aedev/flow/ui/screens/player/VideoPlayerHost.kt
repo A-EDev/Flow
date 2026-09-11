@@ -86,10 +86,7 @@ fun VideoPlayerHost(
     val pipPreferences = rememberPipPreferences(context)
     val completeVideo = rememberCompleteVideo(video, playerUiState)
     val canGoPrevious by playerViewModel.canGoPrevious.collectAsStateWithLifecycle()
-    val comments by playerViewModel.commentsState.collectAsStateWithLifecycle()
-    val isLoadingComments by playerViewModel.isLoadingComments.collectAsStateWithLifecycle()
-    val hasMoreComments by playerViewModel.hasMoreComments.collectAsStateWithLifecycle()
-    val isLoadingMoreComments by playerViewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
+    val commentsUiState = rememberPlayerCommentsUiState(playerViewModel)
 
     val prefs = rememberVideoPlayerPreferences(context)
     val rememberSubtitleLanguage: (String) -> Unit = { language ->
@@ -563,10 +560,7 @@ fun VideoPlayerHost(
             FullscreenSidePanel(
                 session = stageSession,
                 panelState = sidePanelState,
-                comments = comments,
-                isLoadingComments = isLoadingComments,
-                isLoadingMoreComments = isLoadingMoreComments,
-                hasMoreComments = hasMoreComments,
+                commentsUiState = commentsUiState,
                 videoAspectRatio = videoAspectRatio,
                 rememberSubtitleLanguage = rememberSubtitleLanguage,
                 onNavigateToChannel = onNavigateToChannel,
@@ -580,10 +574,7 @@ fun VideoPlayerHost(
             onMediaSheetProgressChange = mediaSheetGeometry.onProgressChange,
             canUseFullscreenSidePanel = canUseFullscreenSidePanel,
             playerLayoutMode = playerLayoutMode,
-            comments = comments,
-            isLoadingComments = isLoadingComments,
-            isLoadingMoreComments = isLoadingMoreComments,
-            hasMoreComments = hasMoreComments,
+            commentsUiState = commentsUiState,
             onNavigateToChannel = onNavigateToChannel,
             onNavigateToShorts = onNavigateToShorts,
             onClose = onClose,

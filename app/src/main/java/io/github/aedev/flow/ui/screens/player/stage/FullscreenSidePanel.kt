@@ -30,6 +30,7 @@ import io.github.aedev.flow.ui.screens.player.dialogs.PlayerCommentsPanelHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerLiveChatColumn
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSettingsSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSleepTimerSheetHost
+import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
@@ -188,10 +189,7 @@ internal fun rememberFullscreenSidePanelState(
 internal fun BoxScope.FullscreenSidePanel(
     session: VideoPlayerStageSession,
     panelState: FullscreenSidePanelState,
-    comments: List<Comment>,
-    isLoadingComments: Boolean,
-    isLoadingMoreComments: Boolean,
-    hasMoreComments: Boolean,
+    commentsUiState: PlayerCommentsUiState,
     videoAspectRatio: Float,
     rememberSubtitleLanguage: (String) -> Unit,
     onNavigateToChannel: (String) -> Unit,
@@ -261,10 +259,7 @@ internal fun BoxScope.FullscreenSidePanel(
                 videoId = video.id,
                 screenState = screenState,
                 viewModel = playerViewModel,
-                comments = comments,
-                isLoading = isLoadingComments,
-                isLoadingMore = isLoadingMoreComments,
-                hasMore = hasMoreComments,
+                commentsUiState = commentsUiState,
                 onNavigateToChannel = onNavigateToChannel,
                 onClose = closeFullscreenSidePanel,
             )
