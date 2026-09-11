@@ -6,7 +6,7 @@ data class VideoCollaborator(
     val name: String,
     val channelId: String = "",
     val thumbnailUrl: String = "",
-    val subscriberCountText: String = ""
+    val subscriberCountText: String = "",
 )
 
 data class Video(
@@ -32,7 +32,7 @@ data class Video(
     val collaborators: List<VideoCollaborator> = emptyList(),
     // Transient: when this video was added to the playlist currently being viewed. Not persisted
     // on the video row — populated only by playlist-scoped queries.
-    val addedAtInPlaylist: Long? = null
+    val addedAtInPlaylist: Long? = null,
 )
 
 data class Channel(
@@ -43,7 +43,8 @@ data class Channel(
     val description: String = "",
     val isSubscribed: Boolean = false,
     val isMusic: Boolean = false,
-    val url: String = "" // Full channel URL for navigation
+    // Full channel URL for navigation
+    val url: String = "",
 )
 
 data class Playlist(
@@ -53,8 +54,9 @@ data class Playlist(
     val videoCount: Int,
     val description: String = "",
     val videos: List<Video> = emptyList(),
-    val isLocal: Boolean = true
+    val isLocal: Boolean = true,
 )
+
 data class Comment(
     val id: String,
     val author: String,
@@ -75,16 +77,18 @@ data class Comment(
     val heartedByText: String? = null,
     val isVerified: Boolean = false,
     val isCreator: Boolean = false,
-    val isArtist: Boolean = false
+    val isArtist: Boolean = false,
 )
 
 data class SearchResult(
     val videos: List<Video> = emptyList(),
     val channels: List<Channel> = emptyList(),
-    val playlists: List<Playlist> = emptyList()
+    val playlists: List<Playlist> = emptyList(),
 )
 
 enum class SearchFilter {
-    ALL, VIDEOS, CHANNELS, PLAYLISTS
+    ALL,
+    VIDEOS,
+    CHANNELS,
+    PLAYLISTS,
 }
-
