@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +27,7 @@ import io.github.aedev.flow.ui.components.ChannelAvatarStack
 import io.github.aedev.flow.ui.components.CollaboratorsBottomSheet
 import io.github.aedev.flow.ui.components.rememberCollaboratorChannelDisplayName
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
+import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.DateContext
@@ -106,69 +108,77 @@ internal fun VideoInfoSection(
         val titleMaxLinesPref by prefs.videoTitleMaxLines.collectAsState(initial = 1)
         val titleMaxLines = if (titleMaxLinesPref <= 0) Int.MAX_VALUE else titleMaxLinesPref
         val dateSettings = rememberDateDisplaySettings()
-        Text(
-            text = title,
-            style =
-                MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    lineHeight = 28.sp,
-                ),
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = titleMaxLines,
-            overflow = if (titleMaxLinesPref <= 0) TextOverflow.Clip else TextOverflow.Ellipsis,
-            modifier =
-                Modifier.combinedClickable(
-                    onClick = {},
-                    onLongClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(
-                            ClipData.newPlainText(context.getString(R.string.title_label), title),
-                        )
-                        Toast.makeText(context, context.getString(R.string.title_copied), Toast.LENGTH_SHORT).show()
-                    },
-                ),
-        )
-
-        // View count and date in a subtle row below title
-        Row(
+        // Title, counts and "…more" are one target: tapping any of them opens the description,
+        // which is what the "…more" affordance was already promising.
+        Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                    .clip(MaterialTheme.shapes.small)
+                    .clickable(onClick = onDescriptionClick),
         ) {
             Text(
-                text =
-                    when {
-                        isUpcoming && viewCount > 0L -> stringResource(R.string.upcoming_waiting_count, formatViewCount(viewCount))
-                        isUpcoming -> stringResource(R.string.upcoming_label)
-                        else -> stringResource(R.string.views_count_short_template, formatViewCount(viewCount))
-                    },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isUpcoming) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                text = title,
+                style =
+                    MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        lineHeight = 28.sp,
+                    ),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = titleMaxLines,
+                overflow = if (titleMaxLinesPref <= 0) TextOverflow.Clip else TextOverflow.Ellipsis,
+                modifier =
+                    Modifier.combinedClickable(
+                        onClick = onDescriptionClick,
+                        onLongClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(
+                                ClipData.newPlainText(context.getString(R.string.title_label), title),
+                            )
+                            Toast.makeText(context, context.getString(R.string.title_copied), Toast.LENGTH_SHORT).show()
+                        },
+                    ),
             )
 
-            if (!isUpcoming && !uploadDate.isNullOrBlank()) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     text =
-                        stringResource(
-                            R.string.duration_with_dot_template,
-                            dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp),
-                        ),
+                        when {
+                            isUpcoming && viewCount > 0L -> stringResource(R.string.upcoming_waiting_count, formatViewCount(viewCount))
+                            isUpcoming -> stringResource(R.string.upcoming_label)
+                            else -> stringResource(R.string.views_count_short_template, formatViewCount(viewCount))
+                        },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isUpcoming) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                if (!isUpcoming && !uploadDate.isNullOrBlank()) {
+                    Text(
+                        text =
+                            stringResource(
+                                R.string.duration_with_dot_template,
+                                dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp),
+                            ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                Text(
+                    text = stringResource(R.string.desc_more),
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            Text(
-                text = stringResource(R.string.desc_more),
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.clickable(onClick = onDescriptionClick),
-            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -222,6 +232,7 @@ internal fun VideoInfoSection(
             Spacer(modifier = Modifier.width(8.dp))
 
             FlowSubscribeButton(
+                size = FlowSubscribeButtonSize.Compact,
                 isSubscribed = isSubscribed,
                 isNotificationsEnabled = isNotificationsEnabled,
                 onSubscribeClick = onSubscribeClick,
