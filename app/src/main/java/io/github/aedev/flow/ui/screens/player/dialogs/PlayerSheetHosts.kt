@@ -26,14 +26,21 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.LiveChatMessage
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
+import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowChaptersBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatList
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlayerCommentsPanel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.utils.DateContext
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 /**
@@ -68,6 +75,45 @@ internal fun PlayerChaptersSheetHost(
         collapsedHeight = collapsedHeight,
         enableVerticalDismiss = !asSidePanel,
         onSheetProgressChange = onSheetProgressChange,
+        modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
+    )
+}
+
+@Composable
+internal fun PlayerDescriptionSheetHost(
+    video: Video,
+    uiState: VideoPlayerUiState,
+    asSidePanel: Boolean,
+    expandedHeight: Dp?,
+    onDismiss: () -> Unit,
+    collapsedHeight: Dp = 0.dp,
+    onSheetProgressChange: (Float) -> Unit = {},
+) {
+    val dateSettings = rememberDateDisplaySettings()
+    val currentVideo =
+        remember(uiState.streamInfo, video, uiState.channelAvatarUrl, dateSettings) {
+            val streamInfo = uiState.streamInfo ?: return@remember video
+            streamInfo.toVideo(
+                base = video,
+                uploadDateText =
+                    streamInfo.textualUploadDate
+                        ?: streamInfo.uploadDateMillis
+                            ?.let { dateSettings.format(date = null, context = DateContext.DESCRIPTION, timestampFallbackMs = it) }
+                            ?.takeIf { it.isNotBlank() }
+                        ?: video.uploadDate,
+                channelAvatarUrl = uiState.channelAvatarUrl,
+                likeCount = streamInfo.likeCount,
+            )
+        }
+    FlowDescriptionBottomSheet(
+        video = currentVideo,
+        tags = uiState.streamInfo?.tags ?: emptyList(),
+        onTimestampClick = { EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(it)) },
+        expandedHeight = expandedHeight,
+        collapsedHeight = collapsedHeight,
+        enableVerticalDismiss = !asSidePanel,
+        onSheetProgressChange = onSheetProgressChange,
+        onDismiss = onDismiss,
         modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
     )
 }

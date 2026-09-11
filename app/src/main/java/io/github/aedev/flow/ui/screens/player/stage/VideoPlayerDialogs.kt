@@ -37,6 +37,7 @@ internal fun VideoPlayerDialogs(
     val playerUiState = session.uiState
     val playerViewModel = session.viewModel
     val prefs = session.prefs
+    val hostedInSidePanel = canUseFullscreenSidePanel || playerLayoutMode == PlayerLayoutMode.WIDE
 
     // Dialogs
     PlayerDialogsContainer(
@@ -46,7 +47,7 @@ internal fun VideoPlayerDialogs(
         video = completeVideo,
         viewModel = playerViewModel,
         prefs = prefs,
-        hostedInSidePanel = canUseFullscreenSidePanel,
+        hostedInSidePanel = hostedInSidePanel,
         mediaSheetExpandedHeight = mediaSheetHeights.expanded,
         mediaSheetCollapsedHeight = mediaSheetHeights.collapsed,
         onMediaSheetProgressChange = onMediaSheetProgressChange,
@@ -92,8 +93,7 @@ internal fun VideoPlayerDialogs(
         onNavigateToChannel = { channelId ->
             onNavigateToChannel(channelId)
         },
-        renderCommentsSheet = playerLayoutMode != PlayerLayoutMode.WIDE,
-        hostedInSidePanel = canUseFullscreenSidePanel,
+        hostedInSidePanel = hostedInSidePanel,
         onMediaSheetProgressChange = onMediaSheetProgressChange,
     )
 }

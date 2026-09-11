@@ -20,16 +20,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.model.toVideo
-import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
-import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
 import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
-import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
@@ -37,7 +33,6 @@ import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBot
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
-import io.github.aedev.flow.utils.DateContext
 
 @Composable
 internal fun PlayerBottomSheetsContainer(
@@ -60,12 +55,10 @@ internal fun PlayerBottomSheetsContainer(
     onLoadReplies: (Comment) -> Unit = {},
     onLoadMoreReplies: (Comment) -> Unit = {},
     onNavigateToChannel: ((String) -> Unit)? = null,
-    renderCommentsSheet: Boolean = true,
     hostedInSidePanel: Boolean = false,
     onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
     val shareVideoAction = rememberVideoShareAction()
-    val dateSettings = rememberDateDisplaySettings()
 
     val sortedComments =
         remember(comments, screenState.commentSortFilter) {
@@ -119,7 +112,7 @@ internal fun PlayerBottomSheetsContainer(
     }
 
     // Comments Bottom Sheet
-    if (screenState.activeSheet == PlayerSheet.Comments() && commentsEnabled && renderCommentsSheet) {
+    if (screenState.activeSheet == PlayerSheet.Comments() && commentsEnabled && !hostedInSidePanel) {
         FlowCommentsBottomSheet(
             comments = sortedComments,
             isLoading = isLoadingComments,
@@ -156,31 +149,15 @@ internal fun PlayerBottomSheetsContainer(
     }
 
     // Description Bottom Sheet
-    if (screenState.activeSheet == PlayerSheet.Description) {
-        val currentVideo =
-            remember(uiState.streamInfo, video, uiState.channelAvatarUrl, dateSettings) {
-                val streamInfo = uiState.streamInfo ?: return@remember video
-                streamInfo.toVideo(
-                    base = video,
-                    uploadDateText =
-                        streamInfo.textualUploadDate
-                            ?: streamInfo.uploadDateMillis
-                                ?.let { dateSettings.format(date = null, context = DateContext.DESCRIPTION, timestampFallbackMs = it) }
-                                ?.takeIf { it.isNotBlank() }
-                            ?: video.uploadDate,
-                    channelAvatarUrl = uiState.channelAvatarUrl,
-                    likeCount = streamInfo.likeCount,
-                )
-            }
-
-        FlowDescriptionBottomSheet(
-            video = currentVideo,
-            tags = uiState.streamInfo?.tags ?: emptyList(),
-            onTimestampClick = handleTimestampClick,
+    if (screenState.activeSheet == PlayerSheet.Description && !hostedInSidePanel) {
+        PlayerDescriptionSheetHost(
+            video = video,
+            uiState = uiState,
+            asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.closeSheet() },
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
-            onDismiss = { screenState.closeSheet() },
         )
     }
 

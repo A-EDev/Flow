@@ -73,6 +73,7 @@ internal fun EnhancedVideoPlayerScreen(
     val showCommentsPreview = prefs.commentsPreviewEnabled
     val relatedCardStyle = prefs.relatedCardStyle
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsStateWithLifecycle()
+    val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
     Box(
         modifier =
             Modifier
@@ -134,8 +135,10 @@ internal fun EnhancedVideoPlayerScreen(
                         PlayerDetailSideColumn(
                             video = video,
                             uiState = uiState,
+                            playerState = playerState,
                             viewModel = viewModel,
                             screenState = screenState,
+                            prefs = prefs,
                             comments = comments,
                             commentsEnabled = commentsEnabled,
                             showRelatedVideos = showRelatedVideos,
@@ -194,7 +197,6 @@ internal fun EnhancedVideoPlayerScreen(
             }
         }
 
-        val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
         val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
         val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(
             initialValue = -1,

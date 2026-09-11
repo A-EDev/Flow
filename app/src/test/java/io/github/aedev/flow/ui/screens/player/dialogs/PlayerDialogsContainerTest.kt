@@ -127,10 +127,11 @@ class PlayerDialogsContainerTest {
     }
 
     @Test
-    fun subtitleStyleSheetMountsTheStyleSheet() {
-        setContainer(PlayerScreenState().apply { open(PlayerSheet.SubtitleStyle) })
+    fun theSubtitleStylePageOpensInsideTheSettingsSheet() {
+        setContainer(PlayerScreenState().apply { open(PlayerSheet.Settings(PlayerSettingsPage.SubtitleStyle)) })
 
-        waitForText(R.string.filter_subtitles)
+        waitForText(R.string.subtitle_style)
+        rule.onNodeWithText(string(R.string.subtitle_customization_title)).assertExists()
         rule.onNodeWithContentDescription(string(R.string.back)).assertExists()
     }
 }

@@ -110,11 +110,22 @@ fun VideoPlayerHost(
         playerState.sourceVideoAspectRatio
             .takeIf { playerState.currentVideoId == video.id }
             ?: decodedVideoAspectRatio
+    val localIsInPipMode by GlobalPlayerState.isInPipMode.collectAsStateWithLifecycle()
+    val config = LocalConfiguration.current
+    val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val windowSizeClass = LocalWindowSizeClass.current
+    val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass)
+    val isLargeWindow = windowLayoutMode != PlayerLayoutMode.COMPACT
+    val isTwoPaneWindow = windowLayoutMode == PlayerLayoutMode.WIDE
+    val paneScaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())
+    val detailPaneWidth = if (isTwoPaneWindow) paneScaffoldDirective.supportingPaneReserve() else 0.dp
+    val playerLayoutMode = playerLayoutModeFor(windowSizeClass, screenState.isFullscreen, localIsInPipMode)
     val mediaSheetGeometry =
         rememberPlayerMediaSheetGeometry(
             screenState = screenState,
             adaptivePlayerSizeEnabled = prefs.adaptivePlayerSizeEnabled,
             videoAspectRatio = videoAspectRatio,
+            sheetsHostedBesideVideo = playerLayoutMode == PlayerLayoutMode.WIDE,
         )
     val effectiveVideoAspectRatio = mediaSheetGeometry.effectiveVideoAspectRatio
     var expandedPlayerBottom by remember { mutableStateOf(0.dp) }
@@ -147,8 +158,6 @@ fun VideoPlayerHost(
         lockModeEnabled = prefs.lockModeEnabled,
     )
 
-    val localIsInPipMode by GlobalPlayerState.isInPipMode.collectAsStateWithLifecycle()
-
     val progressProvider =
         remember {
             {
@@ -164,15 +173,6 @@ fun VideoPlayerHost(
         screenState = screenState,
     )
 
-    val config = LocalConfiguration.current
-    val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val windowSizeClass = LocalWindowSizeClass.current
-    val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass)
-    val isLargeWindow = windowLayoutMode != PlayerLayoutMode.COMPACT
-    val isTwoPaneWindow = windowLayoutMode == PlayerLayoutMode.WIDE
-    val paneScaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())
-    val detailPaneWidth = if (isTwoPaneWindow) paneScaffoldDirective.supportingPaneReserve() else 0.dp
-    val playerLayoutMode = playerLayoutModeFor(windowSizeClass, screenState.isFullscreen, localIsInPipMode)
     val windowInsetDensity = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val sponsorSkipEndPadding =

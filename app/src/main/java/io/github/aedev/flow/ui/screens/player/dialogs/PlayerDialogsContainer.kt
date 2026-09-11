@@ -124,17 +124,4 @@ internal fun PlayerDialogsContainer(
             },
         )
     }
-
-    // Subtitle Style Customizer
-    if (screenState.activeSheet == PlayerSheet.SubtitleStyle) {
-        SubtitleStyleSheet(
-            subtitleStyle = screenState.subtitleStyle,
-            onStyleChange = {
-                screenState.subtitleStyle = it
-                coroutineScope.launch { playerPreferences.setSubtitleStyle(it) }
-            },
-            onDismiss = { screenState.closeSheet() },
-            onBack = { screenState.open(PlayerSheet.Settings()) },
-        )
-    }
 }

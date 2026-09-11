@@ -81,7 +81,11 @@ internal fun PlayerSettingsSheetHost(
         onAutoplayToggle = { viewModel.toggleAutoplay(it) },
         onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
         onStableVolumeToggle = { viewModel.toggleStableVolume(it) },
-        onShowSubtitleStyle = { screenState.open(PlayerSheet.SubtitleStyle) },
+        subtitleStyle = screenState.subtitleStyle,
+        onSubtitleStyleChange = { style ->
+            screenState.subtitleStyle = style
+            scope.launch { playerPreferences.setSubtitleStyle(style) }
+        },
         onLoopToggle = { viewModel.toggleLoop(it) },
         ambientModeEnabled = ambientModeEnabled,
         onAmbientModeToggle = { scope.launch { playerPreferences.setVideoAmbientModeEnabled(it) } },

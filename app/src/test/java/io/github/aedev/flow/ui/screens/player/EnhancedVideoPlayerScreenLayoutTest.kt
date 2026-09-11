@@ -11,6 +11,7 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Dp
@@ -20,7 +21,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.rememberVideoPlayerPreferences
 import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,10 +57,9 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
     private val video = fakeVideo()
 
-    private fun setScreen() {
+    private fun setScreen(screenState: PlayerScreenState = PlayerScreenState()) {
         val uiState = MutableStateFlow(fakeUiState(video = video, isLiveChatAvailable = true))
         val viewModel = relaxedVideoPlayerViewModel(uiState = uiState)
-        val screenState = PlayerScreenState()
         rule.setContent {
             ProvideWindowSizeClass {
                 MaterialTheme {
@@ -154,6 +156,31 @@ class EnhancedVideoPlayerScreenLayoutTest {
         rule.onNodeWithText(video.title).assertExists()
         sideColumnCloseChat.assertExists()
         assertPanes(mainPaneWidth = 456.dp, supportingPaneStart = 480.dp)
+    }
+
+    /**
+     * Every surface the wide layout routes into the supporting pane shows its title past the main
+     * pane's edge, and nothing of it lands in the bottom-sheet slot over the video.
+     */
+    @Test
+    @Config(qualifiers = "sw800dp-w840dp-h1200dp-port")
+    fun expandedWindowHostsTheSheetsInTheSupportingPane() {
+        val screenState = PlayerScreenState()
+        setScreen(screenState)
+        val paneStartPx = 480f * rule.density.density
+
+        listOf(
+            PlayerSheet.Description to R.string.description,
+            PlayerSheet.Chapters to R.string.in_this_video,
+            PlayerSheet.Settings() to R.string.player_settings,
+            PlayerSheet.Settings(PlayerSettingsPage.SubtitleStyle) to R.string.subtitle_style,
+            PlayerSheet.SleepTimer to R.string.sleep_timer,
+        ).forEach { (sheet, title) ->
+            rule.runOnIdle { screenState.open(sheet) }
+            rule.waitForIdle()
+            val titles = rule.onAllNodesWithText(context.getString(title)).fetchSemanticsNodes()
+            assertThat(titles.map { it.boundsInRoot.left }.filter { it >= paneStartPx }).isNotEmpty()
+        }
     }
 
     @Test

@@ -20,8 +20,6 @@ internal sealed interface PlayerSheet {
 
     data object Download : PlayerSheet
 
-    data object SubtitleStyle : PlayerSheet
-
     data object SleepTimer : PlayerSheet
 
     data object Dlna : PlayerSheet

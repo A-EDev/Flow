@@ -137,6 +137,7 @@ fun FlowDescriptionBottomSheet(
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
     dismissOnOutsideTap: Boolean = false,
+    enableVerticalDismiss: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val uriHandler = LocalUriHandler.current
@@ -167,6 +168,7 @@ fun FlowDescriptionBottomSheet(
         state = sheetState,
         expandedHeight = expandedHeight ?: defaultSheetExpandedHeight(),
         collapsedHeight = collapsedHeight,
+        dismissible = enableVerticalDismiss,
         dismissOnOutsideTap = dismissOnOutsideTap,
         shape = RectangleShape,
         containerColor = MaterialTheme.colorScheme.surface,

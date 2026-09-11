@@ -25,6 +25,7 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
+import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import io.github.aedev.flow.ui.screens.player.FIXTURE_QUALITY_720
 import io.github.aedev.flow.ui.screens.player.fakePlayerState
 import org.junit.Rule
@@ -59,13 +60,13 @@ class PlayerSettingsSheetTest {
         var subtitlesDisabled = false
         var sleepTimer = false
         var cast = false
-        var subtitleStyle = false
     }
 
     private fun setMenu(
         initialPage: PlayerSettingsPage = PlayerSettingsPage.Main,
         playerState: EnhancedPlayerState = fakePlayerState(),
         subtitlesEnabled: Boolean = false,
+        enableVerticalDismiss: Boolean = true,
     ): Callbacks {
         val callbacks = Callbacks()
         rule.setContent {
@@ -83,10 +84,12 @@ class PlayerSettingsSheetTest {
                     onAutoplayToggle = {},
                     onSkipSilenceToggle = {},
                     onStableVolumeToggle = {},
-                    onShowSubtitleStyle = { callbacks.subtitleStyle = true },
+                    subtitleStyle = SubtitleStyle(),
+                    onSubtitleStyleChange = {},
                     onLoopToggle = {},
                     onCastClick = { callbacks.cast = true },
                     onSleepTimerClick = { callbacks.sleepTimer = true },
+                    enableVerticalDismiss = enableVerticalDismiss,
                 )
             }
         }
@@ -253,14 +256,45 @@ class PlayerSettingsSheetTest {
     }
 
     @Test
-    fun subtitleStyleRowFiresWithoutDismissing() {
+    fun sleepTimerRowInAPanelHostFiresWithoutDismissing() {
+        val callbacks = setMenu(enableVerticalDismiss = false)
+
+        rule.onNodeWithText(string(R.string.sleep_timer)).performScrollTo().performClick()
+        rule.waitForIdle()
+
+        assertThat(callbacks.sleepTimer).isTrue()
+        assertThat(callbacks.dismissed).isFalse()
+    }
+
+    @Test
+    fun subtitleStyleOpensAsAPageAndBackReturnsToMain() {
         val callbacks = setMenu()
 
         rule.onNodeWithText(string(R.string.subtitle_style)).performScrollTo().performClick()
         rule.waitForIdle()
 
-        assertThat(callbacks.subtitleStyle).isTrue()
+        rule.onNodeWithText(string(R.string.subtitle_customization_title)).assertExists()
         assertThat(callbacks.dismissed).isFalse()
+
+        rule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        rule.waitForIdle()
+
+        rule.onNodeWithText(string(R.string.player_settings)).assertIsDisplayed()
+    }
+
+    @Test
+    fun subtitleStyleFromTheSubtitlesPageReturnsToTheSubtitlesPage() {
+        setMenu(initialPage = PlayerSettingsPage.Subtitles, subtitlesEnabled = true)
+
+        rule.onNodeWithText(string(R.string.subtitle_style)).performScrollTo().performClick()
+        rule.waitForIdle()
+
+        rule.onNodeWithText(string(R.string.subtitle_customization_title)).assertExists()
+
+        rule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        rule.waitForIdle()
+
+        rule.onNodeWithText(string(R.string.filter_subtitles)).assertIsDisplayed()
     }
 
     @Test

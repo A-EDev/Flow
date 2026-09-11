@@ -26,6 +26,8 @@ import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
+import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleCustomizer
+import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 
 @Composable
 fun SettingsMenuDialog(
@@ -43,7 +45,8 @@ fun SettingsMenuDialog(
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
     onStableVolumeToggle: (Boolean) -> Unit,
-    onShowSubtitleStyle: () -> Unit,
+    subtitleStyle: SubtitleStyle,
+    onSubtitleStyleChange: (SubtitleStyle) -> Unit,
     onLoopToggle: (Boolean) -> Unit,
     ambientModeEnabled: Boolean = false,
     onAmbientModeToggle: (Boolean) -> Unit = {},
@@ -59,6 +62,7 @@ fun SettingsMenuDialog(
 ) {
     val sheetState = rememberFlowBottomSheetState()
     var currentPage by remember { mutableStateOf(initialPage) }
+    var subtitleStyleReturnPage by remember { mutableStateOf(PlayerSettingsPage.Main) }
     val currentTitle =
         when (currentPage) {
             PlayerSettingsPage.Main -> stringResource(R.string.player_settings)
@@ -66,7 +70,22 @@ fun SettingsMenuDialog(
             PlayerSettingsPage.Speed -> stringResource(R.string.playback_speed)
             PlayerSettingsPage.Audio -> stringResource(R.string.audio_track)
             PlayerSettingsPage.Subtitles -> stringResource(R.string.filter_subtitles)
+            PlayerSettingsPage.SubtitleStyle -> stringResource(R.string.subtitle_style)
             PlayerSettingsPage.Equalizer -> stringResource(R.string.equalizer)
+        }
+    val backPage =
+        when (currentPage) {
+            PlayerSettingsPage.Main -> null
+            PlayerSettingsPage.SubtitleStyle -> subtitleStyleReturnPage
+            else -> PlayerSettingsPage.Main
+        }
+    // A panel host swaps the panel's content in place, so a row that opens another surface must not
+    // run the exit animation there: the host's onDismiss would close the panel under the new surface.
+    val leaveFor: (() -> Unit) -> Unit =
+        if (enableVerticalDismiss) {
+            { after -> sheetState.dismiss(after) }
+        } else {
+            { after -> after() }
         }
 
     LaunchedEffect(initialPage) {
@@ -83,24 +102,14 @@ fun SettingsMenuDialog(
         dismissOnOutsideTap = false,
         shape = RectangleShape,
         containerColor = MaterialTheme.colorScheme.surface,
-        onBack =
-            if (currentPage == PlayerSettingsPage.Main) {
-                null
-            } else {
-                { currentPage = PlayerSettingsPage.Main }
-            },
+        onBack = backPage?.let { page -> { currentPage = page } },
         onProgressChange = onSheetProgressChange,
         header = { dragModifier ->
             FlowSheetHeader(
                 title = currentTitle,
                 onClose = { sheetState.dismiss() },
                 modifier = dragModifier,
-                onBack =
-                    if (currentPage == PlayerSettingsPage.Main) {
-                        null
-                    } else {
-                        { currentPage = PlayerSettingsPage.Main }
-                    },
+                onBack = backPage?.let { page -> { currentPage = page } },
                 contentPadding = PaddingValues(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
                 closeButtonSize = null,
                 dividerAlpha = 0.4f,
@@ -122,10 +131,13 @@ fun SettingsMenuDialog(
                         subtitlesEnabled = subtitlesEnabled,
                         ambientModeEnabled = ambientModeEnabled,
                         onNavigateToPage = { currentPage = it },
-                        onShowSubtitleStyle = onShowSubtitleStyle,
-                        onCastClick = { sheetState.dismiss(onCastClick) },
+                        onShowSubtitleStyle = {
+                            subtitleStyleReturnPage = PlayerSettingsPage.Main
+                            currentPage = PlayerSettingsPage.SubtitleStyle
+                        },
+                        onCastClick = { leaveFor(onCastClick) },
                         onPipClick = { sheetState.dismiss(onPipClick) },
-                        onSleepTimerClick = { sheetState.dismiss(onSleepTimerClick) },
+                        onSleepTimerClick = { leaveFor(onSleepTimerClick) },
                         onLoopToggle = onLoopToggle,
                         onAutoplayToggle = onAutoplayToggle,
                         onSkipSilenceToggle = onSkipSilenceToggle,
@@ -189,9 +201,16 @@ fun SettingsMenuDialog(
                             sheetState.dismiss()
                         },
                         onShowStyleCustomizer = {
-                            currentPage = PlayerSettingsPage.Main
-                            sheetState.dismiss(onShowSubtitleStyle)
+                            subtitleStyleReturnPage = PlayerSettingsPage.Subtitles
+                            currentPage = PlayerSettingsPage.SubtitleStyle
                         },
+                    )
+                }
+
+                PlayerSettingsPage.SubtitleStyle -> {
+                    SubtitleCustomizer(
+                        currentStyle = subtitleStyle,
+                        onStyleChange = onSubtitleStyleChange,
                     )
                 }
             }
@@ -205,5 +224,6 @@ enum class PlayerSettingsPage {
     Speed,
     Audio,
     Subtitles,
+    SubtitleStyle,
     Equalizer,
 }

@@ -107,23 +107,25 @@ internal fun rememberPlayerMediaSheetGeometry(
     screenState: PlayerScreenState,
     adaptivePlayerSizeEnabled: Boolean,
     videoAspectRatio: Float,
+    sheetsHostedBesideVideo: Boolean = false,
 ): PlayerMediaSheetGeometry {
     val progressState = remember { MediaSheetProgressState() }
     val progressDrivenMediaSheetVisible =
-        when (val sheet = screenState.activeSheet) {
-            is PlayerSheet.Comments -> !sheet.fullscreen
+        !sheetsHostedBesideVideo &&
+            when (val sheet = screenState.activeSheet) {
+                is PlayerSheet.Comments -> !sheet.fullscreen
 
-            is PlayerSheet.LiveChat -> !sheet.fullscreen
+                is PlayerSheet.LiveChat -> !sheet.fullscreen
 
-            is PlayerSheet.Settings,
-            PlayerSheet.Chapters,
-            PlayerSheet.Description,
-            PlayerSheet.Queue,
-            PlayerSheet.SleepTimer,
-            -> true
+                is PlayerSheet.Settings,
+                PlayerSheet.Chapters,
+                PlayerSheet.Description,
+                PlayerSheet.Queue,
+                PlayerSheet.SleepTimer,
+                -> true
 
-            else -> false
-        }
+                else -> false
+            }
     val progressDrivenMediaSheetResize =
         adaptivePlayerSizeEnabled &&
             !screenState.isFullscreen &&
