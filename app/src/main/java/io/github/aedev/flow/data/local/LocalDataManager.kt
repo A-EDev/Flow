@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.*
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.theme.CustomThemeColors
 import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
@@ -139,7 +138,7 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
     }
 
     val customThemePalettes: Flow<CustomThemePalettes> = context.dataStore.data.map { prefs ->
-        deserializeCustomThemePalettes(
+        decodeCustomThemePalettes(
             raw = prefs[CUSTOM_THEME_PALETTES],
             legacyRaw = prefs[CUSTOM_THEME_COLORS]
         )
@@ -147,24 +146,7 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
 
     suspend fun setCustomThemePalettes(palettes: CustomThemePalettes) {
         context.dataStore.edit { prefs ->
-            prefs[CUSTOM_THEME_PALETTES] = gson.toJson(palettes)
-        }
-    }
-
-    private fun deserializeCustomThemePalettes(raw: String?, legacyRaw: String?): CustomThemePalettes {
-        if (!raw.isNullOrBlank()) {
-            runCatching { gson.fromJson(raw, CustomThemePalettes::class.java) }
-                .getOrNull()
-                ?.let { return it }
-        }
-        val legacyValues = legacyRaw
-            ?.split(',')
-            ?.mapNotNull(String::toLongOrNull)
-            ?.takeIf { it.size == 16 }
-        return if (legacyValues != null) {
-            CustomThemePalettes(dark = CustomThemeColors.fromLegacy(legacyValues))
-        } else {
-            CustomThemePalettes()
+            prefs[CUSTOM_THEME_PALETTES] = encodeCustomThemePalettes(palettes)
         }
     }
 
