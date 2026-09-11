@@ -154,6 +154,7 @@ internal fun PlayerBottomSheetsContainer(
             asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.closeSheet() },
+            onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
         )

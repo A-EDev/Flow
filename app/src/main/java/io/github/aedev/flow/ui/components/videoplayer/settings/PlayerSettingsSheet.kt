@@ -121,7 +121,8 @@ fun SettingsMenuDialog(
                 Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = SheetContentVerticalPadding),
         ) {
             when (currentPage) {
                 PlayerSettingsPage.Main -> {
@@ -227,3 +228,5 @@ enum class PlayerSettingsPage {
     SubtitleStyle,
     Equalizer,
 }
+
+private val SheetContentVerticalPadding = 12.dp

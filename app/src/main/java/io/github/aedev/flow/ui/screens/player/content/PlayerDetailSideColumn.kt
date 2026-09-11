@@ -103,6 +103,7 @@ internal fun PlayerDetailSideColumn(
                     asSidePanel = true,
                     expandedHeight = paneHeight,
                     onDismiss = closeSheet,
+                    onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
                 )
             }
 

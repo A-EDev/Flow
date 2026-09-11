@@ -12,8 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
-import io.github.aedev.flow.ui.components.musicplayer.MusicPaletteColors
-import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPalette
+import io.github.aedev.flow.ui.components.shared.MediaPalette
+import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
 import io.github.aedev.flow.ui.theme.ensureContrastOn
 import io.github.aedev.flow.ui.theme.tone
 import io.github.aedev.flow.ui.theme.withTone
@@ -30,13 +30,13 @@ private const val GRAPHIC_CONTRAST = 3f
  */
 @Composable
 fun rememberMusicCollectionColorScheme(thumbnailUrl: String?): ColorScheme {
-    val palette = rememberMusicPalette(thumbnailUrl, animated = false)
+    val palette = rememberMediaPalette(thumbnailUrl, animated = false)
     val appScheme = MaterialTheme.colorScheme
     return remember(palette, appScheme) { collectionColorScheme(palette, appScheme) }
 }
 
 internal fun collectionColorScheme(
-    palette: MusicPaletteColors,
+    palette: MediaPalette,
     app: ColorScheme,
 ): ColorScheme {
     val base = palette.base

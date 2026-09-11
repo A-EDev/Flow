@@ -92,6 +92,7 @@ internal fun PlayerDescriptionSheetHost(
     asSidePanel: Boolean,
     expandedHeight: Dp?,
     onDismiss: () -> Unit,
+    onChaptersClick: (() -> Unit)? = null,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
 ) {
@@ -119,6 +120,9 @@ internal fun PlayerDescriptionSheetHost(
         video = currentVideo,
         descriptionPage = descriptionPage,
         tags = uiState.streamInfo?.tags ?: emptyList(),
+        chapterCount = uiState.chapters.size,
+        onChaptersClick = onChaptersClick,
+        artworkUrl = currentVideo.thumbnailUrl,
         onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,

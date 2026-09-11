@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
+import io.github.aedev.flow.ui.components.shared.MediaPalette
+import io.github.aedev.flow.ui.components.shared.PaletteInkDark
 import io.github.aedev.flow.ui.theme.contrastRatio
 import io.github.aedev.flow.ui.theme.ensureContrastOn
 import io.github.aedev.flow.ui.theme.tone
@@ -20,7 +22,7 @@ import io.github.aedev.flow.ui.theme.withTone
  */
 @Composable
 fun rememberMusicPlayerColorScheme(
-    palette: MusicPaletteColors,
+    palette: MediaPalette,
     style: MusicPlayerBackgroundStyle,
 ): ColorScheme {
     val appScheme = MaterialTheme.colorScheme
@@ -39,7 +41,7 @@ fun rememberMusicPlayerColorScheme(
  * readability no longer depends on how light or dark the extracted swatches happen to be.
  */
 private fun paletteColorScheme(
-    palette: MusicPaletteColors,
+    palette: MediaPalette,
     appError: Color,
 ): ColorScheme {
     val surface = palette.base.let { if (it.tone() > 30.0) it.withTone(26.0) else it }

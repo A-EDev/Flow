@@ -13,8 +13,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
-import io.github.aedev.flow.ui.components.musicplayer.MusicPaletteColors
-import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPalette
+import io.github.aedev.flow.ui.components.shared.MediaPalette
+import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
 import io.github.aedev.flow.ui.theme.ensureContrastOn
 import io.github.aedev.flow.ui.theme.tone
 import io.github.aedev.flow.ui.theme.withTone
@@ -39,13 +39,13 @@ data class MusicArtworkColors(
 
 @Composable
 fun rememberMusicArtworkColors(thumbnailUrl: String?): MusicArtworkColors {
-    val palette = rememberMusicPalette(thumbnailUrl, animated = false)
+    val palette = rememberMediaPalette(thumbnailUrl, animated = false)
     val scheme = MaterialTheme.colorScheme
     return remember(palette, scheme) { artworkColors(palette, scheme) }
 }
 
 internal fun artworkColors(
-    palette: MusicPaletteColors,
+    palette: MediaPalette,
     scheme: ColorScheme,
 ): MusicArtworkColors {
     val seed = palette.accent

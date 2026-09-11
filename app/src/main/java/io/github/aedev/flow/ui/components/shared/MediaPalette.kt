@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -22,9 +22,9 @@ import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Artwork-derived colors shared by the mobile and TV music players. */
+/** Artwork-derived colours, shared by the music players and the video description sheet. */
 @Immutable
-data class MusicPaletteColors(
+data class MediaPalette(
     val base: Color,
     val accent: Color,
     /** Readable ink over [base] (white on dark swatches, near-black on light). */
@@ -39,10 +39,10 @@ internal val PaletteInkDark = Color(0xFF161616)
  * under the theme, so pages take the settled colours in one step instead.
  */
 @Composable
-fun rememberMusicPalette(
+fun rememberMediaPalette(
     thumbnailUrl: String?,
     animated: Boolean = true,
-): MusicPaletteColors {
+): MediaPalette {
     val context = LocalContext.current
     var baseSwatch by remember { mutableStateOf<Color?>(null) }
     var accentSwatch by remember { mutableStateOf<Color?>(null) }
@@ -82,7 +82,7 @@ fun rememberMusicPalette(
             animateColorAsState(
                 targetValue = baseTarget,
                 animationSpec = tween(1000),
-                label = "musicPaletteBase",
+                label = "mediaPaletteBase",
             ).value
         } else {
             baseTarget
@@ -92,7 +92,7 @@ fun rememberMusicPalette(
             animateColorAsState(
                 targetValue = accentTarget,
                 animationSpec = tween(1000),
-                label = "musicPaletteAccent",
+                label = "mediaPaletteAccent",
             ).value
         } else {
             accentTarget
@@ -101,5 +101,5 @@ fun rememberMusicPalette(
         remember(base) {
             if (base.luminance() < 0.45f) Color.White else PaletteInkDark
         }
-    return MusicPaletteColors(base = base, accent = accent, onBase = onBase)
+    return MediaPalette(base = base, accent = accent, onBase = onBase)
 }

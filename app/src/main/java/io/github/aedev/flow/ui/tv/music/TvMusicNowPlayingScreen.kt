@@ -61,7 +61,7 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.ui.components.musicplayer.PlayerBackground
 import io.github.aedev.flow.ui.components.musicplayer.PlayerProgressSlider
-import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPalette
+import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.tv.components.TvIconButton
 import io.github.aedev.flow.ui.tv.components.TvIconButtonColors
@@ -101,7 +101,7 @@ fun TvMusicNowPlayingScreen(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT,
     )
     val artworkUrl = track?.highResThumbnailUrl ?: track?.thumbnailUrl
-    val palette = rememberMusicPalette(artworkUrl)
+    val palette = rememberMediaPalette(artworkUrl)
     // Translucent chips over the always-dark PlayerBackground; latched toggles
     // (like, shuffle, repeat, panels) light up with the artwork accent.
     val playerButtonColors =

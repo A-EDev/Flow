@@ -64,6 +64,7 @@ import io.github.aedev.flow.ui.components.musicplayer.motion.miniPlayerDismissHo
 import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetSettleSpring
 import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetVerticalDragGesture
 import io.github.aedev.flow.ui.components.musicplayer.motion.rememberMiniPlayerDismissGestureHandler
+import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -125,7 +126,7 @@ fun UnifiedMusicPlayerSheet(
         initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT,
     )
     val hideArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
-    val palette = rememberMusicPalette(displayTrack.highResThumbnailUrl)
+    val palette = rememberMediaPalette(displayTrack.highResThumbnailUrl)
     val playerScheme = rememberMusicPlayerColorScheme(palette, backgroundStyle)
 
     val motionController =

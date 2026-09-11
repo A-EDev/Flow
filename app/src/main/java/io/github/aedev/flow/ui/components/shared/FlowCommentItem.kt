@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -54,8 +56,12 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.utils.formatLikeCount
 
-private val ReplyIndentWidth = 2.dp
-private val ReplyIndentGap = 12.dp
+private val ThreadHorizontalPadding = 16.dp
+private val ThreadLineWidth = 2.dp
+
+/** Centre of the parent avatar: the row's start padding plus half the 40 dp avatar, less the line. */
+private val ThreadLineStart = 35.dp
+private val ThreadLineGap = 15.dp
 
 @Composable
 fun FlowCommentItem(
@@ -88,210 +94,254 @@ fun FlowCommentItem(
         )
     }
 
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = ThreadHorizontalPadding)
+                    .padding(top = 12.dp, bottom = 4.dp),
+        ) {
+            ChannelAvatarImage(
+                url = comment.authorThumbnail,
+                contentDescription = null,
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable {
+                            onAvatarClick(comment.authorThumbnail)
+                            showFullSizeImage = true
+                        },
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                if (comment.isPinned) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = stringResource(R.string.pinned_comment),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = comment.pinnedByText?.takeIf { it.isNotBlank() } ?: stringResource(R.string.pinned_by_creator),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+
+                CommentAuthorRow(
+                    comment = comment,
+                    onAuthorClick = onAuthorClick,
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Box(modifier = Modifier.animateContentSize()) {
+                    SelectionContainer {
+                        BasicText(
+                            text = commentText.annotated,
+                            inlineContent = commentText.inlineContent,
+                            style =
+                                MaterialTheme.typography.bodyMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    lineHeight = 20.sp,
+                                ),
+                            maxLines = if (isExpanded) Int.MAX_VALUE else 4,
+                            overflow = TextOverflow.Ellipsis,
+                            onTextLayout = { result ->
+                                commentTextLayoutResult = result
+                                if (result.hasVisualOverflow) isOverflowing = true
+                            },
+                            modifier =
+                                Modifier.pointerInput(commentText.annotated) {
+                                    detectTapGestures(
+                                        onTap = { tapOffset ->
+                                            val result = commentTextLayoutResult ?: return@detectTapGestures
+                                            val offset = result.getOffsetForPosition(tapOffset)
+                                            val handled =
+                                                commentText.handleTap(
+                                                    offset = offset,
+                                                    onSeekMs = onSeekMs,
+                                                    onOpenUrl = { url ->
+                                                        runCatching { uriHandler.openUri(url) }
+                                                    },
+                                                    onAuthorClick = onAuthorClick,
+                                                )
+                                            if (!handled && !isExpanded && isOverflowing) isExpanded = true
+                                        },
+                                    )
+                                },
+                        )
+                    }
+                }
+
+                if (isOverflowing && !isExpanded) {
+                    Text(
+                        text = stringResource(R.string.read_more),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier =
+                            Modifier
+                                .padding(top = 4.dp)
+                                .clickable { isExpanded = true },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                CommentEngagementRow(comment = comment)
+
+                if (comment.replyCount > 0) {
+                    RepliesToggle(
+                        replyCount = comment.replyCount,
+                        expanded = isRepliesVisible,
+                        loading = isLoadingReplies,
+                        onClick = {
+                            if (!isRepliesVisible && comment.replies.isEmpty()) {
+                                isLoadingReplies = true
+                                onLoadReplies(comment)
+                            }
+                            isRepliesVisible = !isRepliesVisible
+                        },
+                    )
+                }
+            }
+        }
+
+        if (isRepliesVisible && comment.replies.isNotEmpty()) {
+            ReplyThread(
+                replies = comment.replies,
+                hasMore = comment.repliesPage != null || comment.continuationToken != null,
+                onSeekMs = onSeekMs,
+                onAuthorClick = onAuthorClick,
+                onAvatarClick = onAvatarClick,
+                onLoadMore = {
+                    isLoadingReplies = true
+                    onLoadMoreReplies(comment)
+                },
+            )
+        }
+    }
+}
+
+/**
+ * The replies under one comment, beside the line that ties them to it.
+ *
+ * The line is aligned to the centre of the parent's avatar rather than to the start of its text,
+ * so the thread reads as one branch instead of a rule floating in the gutter.
+ */
+@Composable
+private fun ReplyThread(
+    replies: List<Comment>,
+    hasMore: Boolean,
+    onSeekMs: (Long) -> Unit,
+    onAuthorClick: (String) -> Unit,
+    onAvatarClick: (String) -> Unit,
+    onLoadMore: () -> Unit,
+) {
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 16.dp),
+                .height(IntrinsicSize.Min)
+                .padding(start = ThreadLineStart, end = ThreadHorizontalPadding, bottom = 4.dp),
     ) {
-        ChannelAvatarImage(
-            url = comment.authorThumbnail,
-            contentDescription = null,
+        Box(
             modifier =
                 Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable {
-                        onAvatarClick(comment.authorThumbnail)
-                        showFullSizeImage = true
-                    },
+                    .width(ThreadLineWidth)
+                    .fillMaxHeight()
+                    .background(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(ThreadLineWidth),
+                    ),
         )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            if (comment.isPinned) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PushPin,
-                        contentDescription = stringResource(R.string.pinned_comment),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(12.dp),
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = comment.pinnedByText?.takeIf { it.isNotBlank() } ?: stringResource(R.string.pinned_by_creator),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-
-            CommentAuthorRow(
-                comment = comment,
-                onAuthorClick = onAuthorClick,
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Box(modifier = Modifier.animateContentSize()) {
-                SelectionContainer {
-                    BasicText(
-                        text = commentText.annotated,
-                        inlineContent = commentText.inlineContent,
-                        style =
-                            MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = 20.sp,
-                            ),
-                        maxLines = if (isExpanded) Int.MAX_VALUE else 4,
-                        overflow = TextOverflow.Ellipsis,
-                        onTextLayout = { result ->
-                            commentTextLayoutResult = result
-                            if (result.hasVisualOverflow) isOverflowing = true
-                        },
-                        modifier =
-                            Modifier.pointerInput(commentText.annotated) {
-                                detectTapGestures(
-                                    onTap = { tapOffset ->
-                                        val result = commentTextLayoutResult ?: return@detectTapGestures
-                                        val offset = result.getOffsetForPosition(tapOffset)
-                                        val handled =
-                                            commentText.handleTap(
-                                                offset = offset,
-                                                onSeekMs = onSeekMs,
-                                                onOpenUrl = { url ->
-                                                    runCatching { uriHandler.openUri(url) }
-                                                },
-                                                onAuthorClick = onAuthorClick,
-                                            )
-                                        if (!handled && !isExpanded && isOverflowing) isExpanded = true
-                                    },
-                                )
-                            },
-                    )
-                }
-            }
-
-            if (isOverflowing && !isExpanded) {
-                Text(
-                    text = stringResource(R.string.read_more),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier =
-                        Modifier
-                            .padding(top = 4.dp)
-                            .clickable { isExpanded = true },
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(start = ThreadLineGap),
+        ) {
+            replies.forEach { reply ->
+                FlowReplyItem(
+                    reply = reply,
+                    onSeekMs = onSeekMs,
+                    onAuthorClick = onAuthorClick,
+                    onAvatarClick = onAvatarClick,
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            CommentEngagementRow(comment = comment)
-
-            if (comment.replyCount > 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+            if (hasMore) {
+                Text(
+                    text = stringResource(R.string.load_more_replies),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
                     modifier =
                         Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .clickable {
-                                if (!isRepliesVisible && comment.replies.isEmpty()) {
-                                    isLoadingReplies = true
-                                    onLoadReplies(comment)
-                                }
-                                isRepliesVisible = !isRepliesVisible
-                            }.padding(vertical = 4.dp),
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(24.dp, 1.dp)
-                                .background(MaterialTheme.colorScheme.primary),
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text =
-                            if (isRepliesVisible) {
-                                stringResource(
-                                    R.string.hide_replies,
-                                )
-                            } else {
-                                pluralStringResource(
-                                    R.plurals.view_replies_template,
-                                    comment.replyCount,
-                                    comment.replyCount,
-                                )
-                            },
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    if (isLoadingReplies) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(12.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
+                            .clickable(onClick = onLoadMore)
+                            .padding(vertical = 8.dp),
+                )
             }
+        }
+    }
+}
 
-            if (isRepliesVisible && comment.replies.isNotEmpty()) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min)
-                            .padding(top = 8.dp),
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .width(ReplyIndentWidth)
-                                .fillMaxHeight()
-                                .background(
-                                    color = MaterialTheme.colorScheme.outlineVariant,
-                                    shape = RoundedCornerShape(ReplyIndentWidth),
-                                ),
-                    )
-                    Spacer(modifier = Modifier.width(ReplyIndentGap))
-                    Column(modifier = Modifier.weight(1f)) {
-                        comment.replies.forEach { reply ->
-                            FlowReplyItem(
-                                reply = reply,
-                                onSeekMs = onSeekMs,
-                                onAuthorClick = onAuthorClick,
-                                onAvatarClick = onAvatarClick,
-                            )
-                        }
-
-                        if (comment.repliesPage != null || comment.continuationToken != null) {
-                            Text(
-                                text = stringResource(R.string.load_more_replies),
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier =
-                                    Modifier
-                                        .padding(top = 8.dp)
-                                        .clickable {
-                                            isLoadingReplies = true
-                                            onLoadMoreReplies(comment)
-                                        },
-                            )
-                        }
-                    }
-                }
-            }
+/** "12 replies" with the chevron that says it opens, in place of the rule that used to sit here. */
+@Composable
+private fun RepliesToggle(
+    replyCount: Int,
+    expanded: Boolean,
+    loading: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .padding(top = 4.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+    ) {
+        Icon(
+            imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text =
+                if (expanded) {
+                    stringResource(R.string.hide_replies)
+                } else {
+                    pluralStringResource(R.plurals.view_replies_template, replyCount, replyCount)
+                },
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        if (loading) {
+            Spacer(modifier = Modifier.width(8.dp))
+            CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }

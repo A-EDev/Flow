@@ -4,28 +4,38 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.text.style.URLSpan
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -33,6 +43,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -143,6 +154,9 @@ fun FlowDescriptionBottomSheet(
     onTagClick: ((String) -> Unit)? = null,
     descriptionPage: VideoDescriptionPage? = null,
     tags: List<String> = emptyList(),
+    chapterCount: Int = 0,
+    onChaptersClick: (() -> Unit)? = null,
+    artworkUrl: String? = null,
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
@@ -154,7 +168,8 @@ fun FlowDescriptionBottomSheet(
     val context = LocalContext.current
     val sheetState = rememberFlowBottomSheetState()
     val descriptionScrollState = rememberScrollState()
-    val linkColor = MaterialTheme.colorScheme.primary
+    val tint = rememberMediaArtworkTint(artworkUrl ?: video.thumbnailUrl)
+    val linkColor = tint.accent
     val textColor = MaterialTheme.colorScheme.onSurface
 
     val richDescription = descriptionPage?.description
@@ -230,18 +245,17 @@ fun FlowDescriptionBottomSheet(
                 Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .verticalScroll(descriptionScrollState),
+                    .verticalScroll(descriptionScrollState)
+                    .padding(horizontal = SheetHorizontalPadding),
+            verticalArrangement = Arrangement.spacedBy(SectionSpacing),
         ) {
-            // 1. Video Title
             Text(
                 text = video.title,
                 style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
 
-            // 2. Stats Row (Clean Layout)
             val dateSettings = rememberDateDisplaySettings()
             val stats =
                 descriptionPage?.factoids?.takeIf { it.isNotEmpty() }
@@ -261,170 +275,267 @@ fun FlowDescriptionBottomSheet(
                             label = stringResource(R.string.uploaded),
                         ),
                     )
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                stats.forEachIndexed { index, factoid ->
-                    if (index > 0) VerticalHorizontalDivider()
-                    StatItem(
-                        value = factoid.value,
-                        label = factoid.label,
+
+            Row(horizontalArrangement = Arrangement.spacedBy(CardSpacing)) {
+                stats.forEach { factoid ->
+                    FactoidCard(
+                        factoid = factoid,
+                        tint = tint,
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+            DescriptionBody(
+                text = descriptionText,
+                tint = tint,
+                onLayout = { descLayoutResult = it },
+                onTap = { offset ->
+                    descriptionText.handleDescriptionTap(
+                        offset = offset,
+                        onSeekMs = onSeekMs,
+                        onHashtagClick = onHashtagClick,
+                        onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } },
+                    )
+                },
+                layoutResult = descLayoutResult,
             )
 
-            // 3. Description Container
-            Surface(
-                color = MaterialTheme.colorScheme.surface, // Clean background
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-            ) {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    // Hashtags Row
-                    if (hashtags.isNotEmpty()) {
-                        Row(
+            if (hashtags.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ChipSpacing),
+                    verticalArrangement = Arrangement.spacedBy(ChipSpacing),
+                ) {
+                    hashtags.forEach { tag ->
+                        Text(
+                            text = tag,
+                            color = tint.accent,
+                            style = MaterialTheme.typography.labelLarge,
                             modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            hashtags.forEach { tag ->
-                                Text(
-                                    text = tag,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    modifier =
-                                        if (onHashtagClick == null) {
-                                            Modifier
-                                        } else {
-                                            Modifier.clickable { onHashtagClick(tag.removePrefix("#")) }
-                                        },
-                                )
-                            }
-                        }
-                    }
-
-                    SelectionContainer {
-                        BasicText(
-                            text = descriptionText,
-                            style =
-                                MaterialTheme.typography.bodyMedium.copy(
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    lineHeight = 24.sp,
-                                    fontSize = 15.sp,
-                                ),
-                            onTextLayout = { descLayoutResult = it },
-                            modifier =
-                                Modifier.pointerInput(descriptionText) {
-                                    detectTapGestures(
-                                        onTap = { tapOffset ->
-                                            val result = descLayoutResult ?: return@detectTapGestures
-                                            val charOffset = result.getOffsetForPosition(tapOffset)
-                                            descriptionText.handleDescriptionTap(
-                                                offset = charOffset,
-                                                onSeekMs = onSeekMs,
-                                                onHashtagClick = onHashtagClick,
-                                                onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } },
-                                            )
-                                        },
-                                    )
+                                if (onHashtagClick == null) {
+                                    Modifier
+                                } else {
+                                    Modifier
+                                        .clip(CircleShape)
+                                        .clickable { onHashtagClick(tag.removePrefix("#")) }
                                 },
                         )
                     }
+                }
+            }
 
-                    // Tags section
-                    if (tags.isNotEmpty()) {
-                        val sortedTags =
-                            remember(tags) {
-                                tags.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
-                            }
+            if (chapterCount > 0 && onChaptersClick != null) {
+                DescriptionSectionRow(
+                    title = stringResource(R.string.chapters),
+                    subtitle = pluralStringResource(R.plurals.chapters_count_template, chapterCount, chapterCount),
+                    tint = tint,
+                    onClick = onChaptersClick,
+                )
+            }
 
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 16.dp, bottom = 12.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
-                        )
-
-                        Text(
-                            text = stringResource(R.string.tags),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 10.dp),
-                        )
-
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            sortedTags.forEach { tag ->
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    modifier =
-                                        if (onTagClick == null) Modifier else Modifier.clickable { onTagClick(tag) },
-                                ) {
-                                    Text(
-                                        text = tag,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    )
-                                }
+            if (tags.isNotEmpty()) {
+                val sortedTags =
+                    remember(tags) {
+                        tags.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
+                    }
+                Column(verticalArrangement = Arrangement.spacedBy(ChipSpacing)) {
+                    Text(
+                        text = stringResource(R.string.tags),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ChipSpacing),
+                        verticalArrangement = Arrangement.spacedBy(ChipSpacing),
+                    ) {
+                        sortedTags.forEach { tag ->
+                            Surface(
+                                shape = CircleShape,
+                                color = tint.container,
+                                contentColor = tint.onContainer,
+                                modifier =
+                                    if (onTagClick == null) Modifier else Modifier.clickable { onTagClick(tag) },
+                            ) {
+                                Text(
+                                    text = tag,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
                             }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(SheetBottomSpacing))
         }
     }
 }
 
+/** One of the three figures above the description: a big value over the label that names it. */
 @Composable
-fun StatItem(
-    value: String,
-    label: String,
+private fun FactoidCard(
+    factoid: VideoDescriptionFactoid,
+    tint: MediaArtworkTint,
+    modifier: Modifier = Modifier,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge, // Bigger
-            fontWeight = FontWeight.Bold, // Bolder
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = tint.container,
+        contentColor = tint.onContainer,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = FactoidVerticalPadding, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = factoid.value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = factoid.label,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
+/**
+ * The description text in its own tinted card, collapsed until the reader asks for the rest.
+ *
+ * The button only appears once the text has actually overflowed, so a two-line description does
+ * not get a control that expands nothing.
+ */
 @Composable
-fun VerticalHorizontalDivider() {
-    Box(
-        modifier =
-            Modifier
-                .height(24.dp)
-                .width(1.dp)
-                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)),
-    )
+private fun DescriptionBody(
+    text: AnnotatedString,
+    tint: MediaArtworkTint,
+    layoutResult: TextLayoutResult?,
+    onLayout: (TextLayoutResult) -> Unit,
+    onTap: (Int) -> Unit,
+) {
+    var expanded by rememberSaveable(text.text) { mutableStateOf(false) }
+    var overflowed by remember(text.text) { mutableStateOf(false) }
+
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = tint.container,
+        contentColor = tint.onContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(BodyPadding),
+            verticalArrangement = Arrangement.spacedBy(BodySpacing),
+        ) {
+            SelectionContainer {
+                BasicText(
+                    text = text,
+                    style =
+                        MaterialTheme.typography.bodyMedium.copy(
+                            color = tint.onContainer,
+                            lineHeight = 24.sp,
+                            fontSize = 15.sp,
+                        ),
+                    maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_BODY_LINES,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { result ->
+                        onLayout(result)
+                        if (result.hasVisualOverflow) overflowed = true
+                    },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .animateContentSize()
+                            .pointerInput(text) {
+                                detectTapGestures(
+                                    onTap = { tapOffset ->
+                                        val result = layoutResult ?: return@detectTapGestures
+                                        onTap(result.getOffsetForPosition(tapOffset))
+                                    },
+                                )
+                            },
+                )
+            }
+
+            if (overflowed) {
+                OutlinedButton(
+                    onClick = { expanded = !expanded },
+                    shapes = ButtonDefaults.shapes(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = tint.onContainer),
+                    border = BorderStroke(width = 1.dp, color = tint.onContainer.copy(alpha = BODY_BUTTON_BORDER_ALPHA)),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text =
+                            if (expanded) {
+                                stringResource(R.string.desc_see_less)
+                            } else {
+                                stringResource(R.string.desc_see_more)
+                            },
+                    )
+                }
+            }
+        }
+    }
 }
+
+/** A titled row that opens another surface, in the same tinted card language as the body. */
+@Composable
+private fun DescriptionSectionRow(
+    title: String,
+    subtitle: String,
+    tint: MediaArtworkTint,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        color = tint.container,
+        contentColor = tint.onContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+            )
+        }
+    }
+}
+
+private val SheetHorizontalPadding = 16.dp
+private val SheetBottomSpacing = 32.dp
+private val SectionSpacing = 16.dp
+private val CardSpacing = 8.dp
+private val ChipSpacing = 8.dp
+private val FactoidVerticalPadding = 14.dp
+private val BodyPadding = PaddingValues(16.dp)
+private val BodySpacing = 12.dp
+private const val COLLAPSED_BODY_LINES = 6
+private const val BODY_BUTTON_BORDER_ALPHA = 0.35f
 
 /**
  * Routes a tap in the description to whatever the span under it points at.
