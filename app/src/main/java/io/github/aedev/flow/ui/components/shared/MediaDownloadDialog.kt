@@ -5,7 +5,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -123,7 +123,7 @@ fun MediaDownloadDialog(
                         }
                     }
 
-                    items(distinctStreams) { stream ->
+                    itemsIndexed(distinctStreams) { streamIndex, stream ->
                         val codecKey = VideoPlayerUtils.codecKeyFromStream(stream)
                         val codecLabel = VideoPlayerUtils.codecLabelFromKey(codecKey)
                         val qualityHeight = VideoPlayerUtils.qualityHeightFromStream(stream)
@@ -134,9 +134,9 @@ fun MediaDownloadDialog(
 
                         val resBadge =
                             when {
-                                qualityHeight >= 2160 -> R.string.filter_4k to MaterialTheme.colorScheme.tertiary
-                                qualityHeight >= 1440 -> R.string.quality_badge_2k to MaterialTheme.colorScheme.secondary
-                                qualityHeight >= 1080 -> R.string.filter_hd to MaterialTheme.colorScheme.primary
+                                qualityHeight >= 2160 -> R.string.filter_4k
+                                qualityHeight >= 1440 -> R.string.quality_badge_2k
+                                qualityHeight >= 1080 -> R.string.filter_hd
                                 else -> null
                             }
 
@@ -185,7 +185,7 @@ fun MediaDownloadDialog(
                                         ).show()
                                 }
                             },
-                            shape = MaterialTheme.shapes.large,
+                            shape = flowRowGroupShape(streamIndex, distinctStreams.size),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -212,19 +212,12 @@ fun MediaDownloadDialog(
                                 }
 
                                 if (resBadge != null) {
-                                    val (badgeLabel, badgeColor) = resBadge
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Surface(
-                                        color = badgeColor,
-                                        shape = MaterialTheme.shapes.extraSmall,
-                                    ) {
-                                        Text(
-                                            text = stringResource(badgeLabel),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                    }
+                                    MediaTextBadge(
+                                        text = stringResource(resBadge),
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
                         }
@@ -246,7 +239,7 @@ fun MediaDownloadDialog(
                             )
                         }
 
-                        items(audioStreams) { audioStream ->
+                        itemsIndexed(audioStreams) { audioIndex, audioStream ->
                             val bitrate = DownloadStreamPolicy.audioBitrateKbps(audioStream)
                             val bitrateLabel = "$bitrate${stringResource(R.string.kbps)}"
                             val audioFormat =
@@ -271,8 +264,8 @@ fun MediaDownloadDialog(
                                             ).show()
                                     }
                                 },
-                                shape = MaterialTheme.shapes.large,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = flowRowGroupShape(audioIndex, audioStreams.size),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Row(
@@ -287,7 +280,7 @@ fun MediaDownloadDialog(
                                             Modifier
                                                 .size(40.dp)
                                                 .background(
-                                                    MaterialTheme.colorScheme.secondary,
+                                                    MaterialTheme.colorScheme.secondaryContainer,
                                                     CircleShape,
                                                 ),
                                         contentAlignment = Alignment.Center,
@@ -295,7 +288,7 @@ fun MediaDownloadDialog(
                                         Icon(
                                             imageVector = Icons.Rounded.GraphicEq,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSecondary,
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                             modifier = Modifier.size(20.dp),
                                         )
                                     }

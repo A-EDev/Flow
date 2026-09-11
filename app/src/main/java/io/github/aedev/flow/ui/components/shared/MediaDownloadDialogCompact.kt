@@ -14,9 +14,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenu
@@ -28,9 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,7 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -314,18 +316,23 @@ fun MediaDownloadDialogCompact(
                 Spacer(Modifier.height(16.dp))
 
                 if (hasVideo && hasAudio) {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = !isAudioMode,
-                            onClick = { isAudioMode = false },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        ) { Text(stringResource(R.string.video)) }
-                        SegmentedButton(
-                            selected = isAudioMode,
-                            onClick = { isAudioMode = true },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        ) { Text(stringResource(R.string.download_audio)) }
-                    }
+                    FlowConnectedToggleGroup(
+                        options =
+                            listOf(
+                                FlowToggleOption(
+                                    value = false,
+                                    label = stringResource(R.string.video),
+                                    icon = Icons.Outlined.VideoLibrary,
+                                ),
+                                FlowToggleOption(
+                                    value = true,
+                                    label = stringResource(R.string.download_audio),
+                                    icon = Icons.Outlined.MusicNote,
+                                ),
+                            ),
+                        selected = isAudioMode,
+                        onSelected = { isAudioMode = it },
+                    )
                     Spacer(Modifier.height(16.dp))
                 }
 
@@ -373,8 +380,14 @@ fun MediaDownloadDialogCompact(
                         modifier = Modifier.weight(1f),
                     )
                     val currentThreads = threads.coerceIn(MIN_THREADS, MAX_THREADS)
+                    val haptics = LocalHapticFeedback.current
                     FilledTonalIconButton(
-                        onClick = { threads = (currentThreads - 1).coerceAtLeast(MIN_THREADS) },
+                        onClick = {
+                            haptics.performHapticFeedback(
+                                if (currentThreads > MIN_THREADS) HapticFeedbackType.SegmentTick else HapticFeedbackType.Reject,
+                            )
+                            threads = (currentThreads - 1).coerceAtLeast(MIN_THREADS)
+                        },
                         enabled = currentThreads > MIN_THREADS,
                     ) {
                         Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.download_threads_decrease))
@@ -386,7 +399,12 @@ fun MediaDownloadDialogCompact(
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     FilledTonalIconButton(
-                        onClick = { threads = (currentThreads + 1).coerceAtMost(MAX_THREADS) },
+                        onClick = {
+                            haptics.performHapticFeedback(
+                                if (currentThreads < MAX_THREADS) HapticFeedbackType.SegmentTick else HapticFeedbackType.Reject,
+                            )
+                            threads = (currentThreads + 1).coerceAtMost(MAX_THREADS)
+                        },
                         enabled = currentThreads < MAX_THREADS,
                     ) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.download_threads_increase))
@@ -402,8 +420,13 @@ fun MediaDownloadDialogCompact(
                 ) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                     Spacer(Modifier.width(8.dp))
+                    val confirmHaptics = LocalHapticFeedback.current
                     Button(
-                        onClick = { confirmDownload() },
+                        onClick = {
+                            confirmHaptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                            confirmDownload()
+                        },
+                        shapes = ButtonDefaults.shapes(),
                         enabled = (isAudioMode && hasAudio) || (!isAudioMode && hasVideo && selectedCodec.isNotEmpty()),
                     ) { Text(stringResource(R.string.download)) }
                 }

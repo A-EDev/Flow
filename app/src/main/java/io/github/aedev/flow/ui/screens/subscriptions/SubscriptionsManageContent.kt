@@ -37,6 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 
 private val ContentHorizontalPadding = 16.dp
 private val SelectorVerticalPadding = 8.dp
@@ -83,30 +85,28 @@ internal fun SubscriptionsManageContent(
         }
 
     Column(modifier = modifier.fillMaxSize()) {
-        Row(
+        FlowConnectedToggleGroup(
+            options =
+                listOf(
+                    FlowToggleOption(
+                        value = 0,
+                        label = stringResource(R.string.subscriptions_video_section_title),
+                        icon = Icons.Default.OndemandVideo,
+                    ),
+                    FlowToggleOption(
+                        value = 1,
+                        label = stringResource(R.string.subscriptions_music_section_title),
+                        icon = Icons.Default.MusicNote,
+                    ),
+                ),
+            selected = selectedTabIndex,
+            onSelected = { selectedTabIndex = it },
             modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = ContentHorizontalPadding, vertical = SelectorVerticalPadding),
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        ) {
-            SubscriptionKindToggle(
-                selected = selectedTabIndex == 0,
-                onSelect = { selectedTabIndex = 0 },
-                icon = Icons.Default.OndemandVideo,
-                label = stringResource(R.string.subscriptions_video_section_title),
-                shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
-                modifier = Modifier.weight(1f),
-            )
-            SubscriptionKindToggle(
-                selected = selectedTabIndex == 1,
-                onSelect = { selectedTabIndex = 1 },
-                icon = Icons.Default.MusicNote,
-                label = stringResource(R.string.subscriptions_music_section_title),
-                shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
-                modifier = Modifier.weight(1f),
-            )
-        }
+                Modifier.padding(
+                    horizontal = ContentHorizontalPadding,
+                    vertical = SelectorVerticalPadding,
+                ),
+        )
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -156,37 +156,5 @@ internal fun SubscriptionsManageContent(
                 }
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun SubscriptionKindToggle(
-    selected: Boolean,
-    onSelect: () -> Unit,
-    icon: ImageVector,
-    label: String,
-    shapes: ToggleButtonShapes,
-    modifier: Modifier = Modifier,
-) {
-    ToggleButton(
-        checked = selected,
-        onCheckedChange = { onSelect() },
-        shapes = shapes,
-        contentPadding = SelectorContentPadding,
-        modifier = modifier,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(SelectorIconSize),
-        )
-        Spacer(modifier = Modifier.width(SelectorIconSpacing))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
