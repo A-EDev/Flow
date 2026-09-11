@@ -49,9 +49,12 @@ fun FlowReplyItem(
     onSeekMs: (Long) -> Unit,
     onAuthorClick: (String) -> Unit = {},
     onAvatarClick: (String) -> Unit = {},
+    tint: MediaArtworkTint? = null,
 ) {
     val uriHandler = LocalUriHandler.current
-    val replyText = rememberCommentText(reply)
+    val accent = tint?.accent ?: MaterialTheme.colorScheme.primary
+    val chipColor = tint?.container ?: MaterialTheme.colorScheme.surfaceContainerHighest
+    val replyText = rememberCommentText(reply, accent)
     var replyTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     var showFullSizeImage by remember { mutableStateOf(false) }
 
@@ -105,19 +108,24 @@ fun FlowReplyItem(
                         ),
                     onTextLayout = { replyTextLayoutResult = it },
                     modifier =
-                        Modifier.pointerInput(replyText.annotated) {
-                            detectTapGestures(
-                                onTap = { tapOffset ->
-                                    val result = replyTextLayoutResult ?: return@detectTapGestures
-                                    replyText.handleTap(
-                                        offset = result.getOffsetForPosition(tapOffset),
-                                        onSeekMs = onSeekMs,
-                                        onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } },
-                                        onAuthorClick = onAuthorClick,
-                                    )
-                                },
-                            )
-                        },
+                        Modifier
+                            .richTextHighlights(
+                                text = replyText.annotated,
+                                layoutResult = { replyTextLayoutResult },
+                                color = chipColor,
+                            ).pointerInput(replyText.annotated) {
+                                detectTapGestures(
+                                    onTap = { tapOffset ->
+                                        val result = replyTextLayoutResult ?: return@detectTapGestures
+                                        replyText.handleTap(
+                                            offset = result.getOffsetForPosition(tapOffset),
+                                            onSeekMs = onSeekMs,
+                                            onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } },
+                                            onAuthorClick = onAuthorClick,
+                                        )
+                                    },
+                                )
+                            },
                 )
             }
 

@@ -88,6 +88,7 @@ fun FlowCommentItem(
     onLoadMoreReplies: (Comment) -> Unit,
     onAuthorClick: (String) -> Unit = {},
     onAvatarClick: (String) -> Unit = {},
+    tint: MediaArtworkTint? = null,
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     var isRepliesVisible by remember { mutableStateOf(false) }
@@ -102,7 +103,9 @@ fun FlowCommentItem(
         isLoadingReplies = false
     }
 
-    val commentText = rememberCommentText(comment)
+    val accent = tint?.accent ?: MaterialTheme.colorScheme.primary
+    val chipColor = tint?.container ?: MaterialTheme.colorScheme.surfaceContainerHighest
+    val commentText = rememberCommentText(comment, accent)
 
     if (showFullSizeImage) {
         FullSizeImageDialog(
@@ -181,24 +184,29 @@ fun FlowCommentItem(
                                 if (result.hasVisualOverflow) isOverflowing = true
                             },
                             modifier =
-                                Modifier.pointerInput(commentText.annotated) {
-                                    detectTapGestures(
-                                        onTap = { tapOffset ->
-                                            val result = commentTextLayoutResult ?: return@detectTapGestures
-                                            val offset = result.getOffsetForPosition(tapOffset)
-                                            val handled =
-                                                commentText.handleTap(
-                                                    offset = offset,
-                                                    onSeekMs = onSeekMs,
-                                                    onOpenUrl = { url ->
-                                                        runCatching { uriHandler.openUri(url) }
-                                                    },
-                                                    onAuthorClick = onAuthorClick,
-                                                )
-                                            if (!handled && !isExpanded && isOverflowing) isExpanded = true
-                                        },
-                                    )
-                                },
+                                Modifier
+                                    .richTextHighlights(
+                                        text = commentText.annotated,
+                                        layoutResult = { commentTextLayoutResult },
+                                        color = chipColor,
+                                    ).pointerInput(commentText.annotated) {
+                                        detectTapGestures(
+                                            onTap = { tapOffset ->
+                                                val result = commentTextLayoutResult ?: return@detectTapGestures
+                                                val offset = result.getOffsetForPosition(tapOffset)
+                                                val handled =
+                                                    commentText.handleTap(
+                                                        offset = offset,
+                                                        onSeekMs = onSeekMs,
+                                                        onOpenUrl = { url ->
+                                                            runCatching { uriHandler.openUri(url) }
+                                                        },
+                                                        onAuthorClick = onAuthorClick,
+                                                    )
+                                                if (!handled && !isExpanded && isOverflowing) isExpanded = true
+                                            },
+                                        )
+                                    },
                         )
                     }
                 }
@@ -243,6 +251,7 @@ fun FlowCommentItem(
                 nodes = tree,
                 hasMore = comment.repliesPage != null || comment.continuationToken != null,
                 startPadding = ThreadLineStart,
+                tint = tint,
                 onSeekMs = onSeekMs,
                 onAuthorClick = onAuthorClick,
                 onAvatarClick = onAvatarClick,
@@ -268,6 +277,7 @@ private fun ReplyThread(
     nodes: List<CommentReplyNode>,
     hasMore: Boolean,
     startPadding: Dp,
+    tint: MediaArtworkTint?,
     onSeekMs: (Long) -> Unit,
     onAuthorClick: (String) -> Unit,
     onAvatarClick: (String) -> Unit,
@@ -294,12 +304,14 @@ private fun ReplyThread(
                         onSeekMs = onSeekMs,
                         onAuthorClick = onAuthorClick,
                         onAvatarClick = onAvatarClick,
+                        tint = tint,
                     )
                     if (node.children.isNotEmpty()) {
                         ReplyThread(
                             nodes = node.children,
                             hasMore = false,
                             startPadding = NestedThreadStart,
+                            tint = tint,
                             onSeekMs = onSeekMs,
                             onAuthorClick = onAuthorClick,
                             onAvatarClick = onAvatarClick,

@@ -260,6 +260,7 @@ internal fun BoxScope.FullscreenSidePanel(
                 screenState = screenState,
                 viewModel = playerViewModel,
                 commentsUiState = commentsUiState,
+                artworkUrl = video.thumbnailUrl,
                 onNavigateToChannel = onNavigateToChannel,
                 onClose = closeFullscreenSidePanel,
             )

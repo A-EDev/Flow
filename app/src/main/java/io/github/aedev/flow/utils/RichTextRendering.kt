@@ -85,6 +85,8 @@ fun RichText.toAnnotatedString(
             val highlighted = highlightRanges.any { start >= it.first && end <= it.last + 1 }
             when (val target = span.target) {
                 is RichTextTarget.Timestamp -> {
+                    // Colour and weight alone: a timestamp sits mid-sentence, and a chip around
+                    // three digits reads as a button dropped into the middle of a paragraph.
                     addStyle(SpanStyle(color = linkColor, fontWeight = FontWeight.Bold), start, end)
                     addStringAnnotation(RICH_TEXT_SEEK, target.seconds.toString(), start, end)
                 }

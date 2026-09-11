@@ -44,6 +44,7 @@ fun FlowCommentsBottomSheet(
     onLoadMoreReplies: (Comment) -> Unit = {},
     selectedFilter: CommentSortFilter = CommentSortFilter.TOP,
     totalText: String? = null,
+    artworkUrl: String? = null,
     timedOnly: Boolean = false,
     onTimedChange: ((Boolean) -> Unit)? = null,
     isLoadingMore: Boolean = false,
@@ -59,6 +60,7 @@ fun FlowCommentsBottomSheet(
 ) {
     val sheetState = rememberFlowBottomSheetState()
     val commentsListState = rememberLazyListState()
+    val tint = rememberMediaArtworkTint(artworkUrl)
 
     LaunchedEffect(selectedFilter) {
         commentsListState.scrollToItem(0)
@@ -102,6 +104,7 @@ fun FlowCommentsBottomSheet(
             onLoadMore = onLoadMore,
             hasMore = hasMore,
             emptyMessageRes = if (timedOnly) R.string.no_timed_comments else R.string.no_comments_yet,
+            tint = tint,
             modifier =
                 Modifier
                     .fillMaxWidth()

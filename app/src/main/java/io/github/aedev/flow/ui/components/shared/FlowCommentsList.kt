@@ -51,6 +51,7 @@ fun FlowCommentsList(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(bottom = 32.dp),
     @StringRes emptyMessageRes: Int = R.string.no_comments_yet,
+    tint: MediaArtworkTint? = null,
 ) {
     val latestOnLoadMore by rememberUpdatedState(onLoadMore)
     val uniqueComments =
@@ -90,6 +91,7 @@ fun FlowCommentsList(
             ) { comment ->
                 FlowCommentItem(
                     comment = comment,
+                    tint = tint,
                     onSeekMs = onSeekMs,
                     onLoadReplies = onLoadReplies,
                     onLoadMoreReplies = onLoadMoreReplies,

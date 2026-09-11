@@ -26,6 +26,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.ui.components.shared.CommentSortChips
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsList
+import io.github.aedev.flow.ui.components.shared.rememberMediaArtworkTint
 
 /**
  * Comments rendered as an inline panel rather than a modal sheet, so the video stays visible.
@@ -47,10 +48,12 @@ fun PlayerCommentsPanel(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     totalText: String? = null,
+    artworkUrl: String? = null,
     timedOnly: Boolean = false,
     onTimedChange: ((Boolean) -> Unit)? = null,
 ) {
     val listState = rememberLazyListState()
+    val tint = rememberMediaArtworkTint(artworkUrl)
     LaunchedEffect(selectedFilter) {
         listState.scrollToItem(0)
     }
@@ -106,6 +109,7 @@ fun PlayerCommentsPanel(
             onLoadMore = onLoadMore,
             hasMore = hasMore,
             emptyMessageRes = if (timedOnly) R.string.no_timed_comments else R.string.no_comments_yet,
+            tint = tint,
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
     }

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
@@ -65,8 +66,11 @@ internal data class CommentTextContent(
  * the comment came from the fallback path.
  */
 @Composable
-internal fun rememberCommentText(comment: Comment): CommentTextContent {
-    val linkColor = MaterialTheme.colorScheme.primary
+internal fun rememberCommentText(
+    comment: Comment,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+): CommentTextContent {
+    val linkColor = accentColor
     val textColor = MaterialTheme.colorScheme.onSurface
     val richText = comment.richText
     val annotated =

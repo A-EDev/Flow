@@ -1,19 +1,27 @@
 package io.github.aedev.flow.ui.components.videoplayer.sheet
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,6 +29,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 
+private val DockHeight = 76.dp
+private val DockHorizontalPadding = 12.dp
+private val OverlineTracking = 0.8.sp
+
+/**
+ * The bar that sits under the player while a queue is playing, and opens it.
+ *
+ * One opaque container on the Material 3 surface roles rather than a translucent panel with an
+ * accent-tinted tile: the dock floats over video, and a see-through surface with a coloured outline
+ * was reading as part of the frame behind it. What is coming next is the line that matters, so it
+ * takes the title style and the icon that only repeated the label is gone.
+ */
 @Composable
 fun PlaylistQueueDock(
     nextVideoTitle: String?,
@@ -30,109 +50,84 @@ fun PlaylistQueueDock(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-    val contentColor = MaterialTheme.colorScheme.onSurface
-    val secondaryContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val accentContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-    val accentContentColor = MaterialTheme.colorScheme.onPrimary
+    val haptics = LocalHapticFeedback.current
+    val open = {
+        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+        onClick()
+    }
+    val position = (currentIndex + 1).coerceIn(1, queueSize.coerceAtLeast(1))
 
     Surface(
-        color = containerColor,
-        contentColor = contentColor,
-        tonalElevation = 3.dp,
-        shadowElevation = 4.dp,
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.extraLarge,
+        shadowElevation = 3.dp,
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = DockHorizontalPadding)
                 .safeDrawingPadding()
-                .height(68.dp)
-                .clickable(onClick = onClick),
+                .height(DockHeight)
+                .clickable(onClick = open),
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(start = 12.dp, end = 8.dp),
+                    .padding(start = 20.dp, end = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(42.dp)
-                        .background(accentContainerColor, RoundedCornerShape(12.dp))
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                            shape = RoundedCornerShape(12.dp),
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
-                    contentDescription = null,
-                    tint = accentContentColor,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.next_up).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = OverlineTracking,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                    if (queueSize > 0) {
+                        Text(
+                            text = stringResource(R.string.queue_position_template, position, queueSize),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
+                }
+
                 Text(
-                    text =
-                        if (nextVideoTitle != null) {
-                            stringResource(
-                                R.string.next_up_template,
-                                stringResource(R.string.next_up),
-                                nextVideoTitle,
-                            )
-                        } else {
-                            stringResource(R.string.playlist_queue)
-                        },
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor,
+                    text = nextVideoTitle ?: stringResource(R.string.playlist_queue),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = playlistName,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = secondaryContentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-
-                    Text(
-                        text = " • ",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = secondaryContentColor,
-                    )
-
-                    Text(
-                        text = "${currentIndex + 1}/$queueSize",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = secondaryContentColor,
-                    )
-                }
+                Text(
+                    text = playlistName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
 
-            IconButton(onClick = onClick) {
+            FilledTonalIconButton(
+                onClick = open,
+                shapes = IconButtonDefaults.shapes(),
+            ) {
                 Icon(
-                    imageVector = Icons.Default.ExpandLess,
+                    imageVector = Icons.Rounded.KeyboardArrowUp,
                     contentDescription = stringResource(R.string.playlist_queue),
-                    tint = contentColor,
                 )
             }
         }

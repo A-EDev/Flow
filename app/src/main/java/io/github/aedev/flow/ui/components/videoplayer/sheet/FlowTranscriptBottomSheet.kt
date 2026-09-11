@@ -39,8 +39,10 @@ import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
+import io.github.aedev.flow.ui.components.shared.MediaArtworkTint
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
+import io.github.aedev.flow.ui.components.shared.rememberMediaArtworkTint
 import io.github.aedev.flow.utils.formatDurationMillis
 
 private val TimestampWidth = 52.dp
@@ -63,6 +65,7 @@ fun FlowTranscriptBottomSheet(
     cues: List<TranscriptCue>,
     isLoading: Boolean,
     currentPositionMs: () -> Long,
+    artworkUrl: String?,
     onSeekMs: (Long) -> Unit,
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
@@ -73,6 +76,7 @@ fun FlowTranscriptBottomSheet(
 ) {
     val sheetState = rememberFlowBottomSheetState()
     val listState = rememberLazyListState()
+    val tint = rememberMediaArtworkTint(artworkUrl)
     var query by remember { mutableStateOf("") }
 
     val visibleCues =
@@ -171,6 +175,7 @@ fun FlowTranscriptBottomSheet(
                         TranscriptRow(
                             cue = cue,
                             isActive = cue.startMs == activeStartMs,
+                            tint = tint,
                             onClick = { onSeekMs(cue.startMs) },
                         )
                     }
@@ -184,6 +189,7 @@ fun FlowTranscriptBottomSheet(
 private fun TranscriptRow(
     cue: TranscriptCue,
     isActive: Boolean,
+    tint: MediaArtworkTint,
     onClick: () -> Unit,
 ) {
     Row(
@@ -198,25 +204,15 @@ private fun TranscriptRow(
                 Modifier
                     .width(TimestampWidth)
                     .clip(TimestampShape)
-                    .background(
-                        if (isActive) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHigh
-                        },
-                    ).padding(horizontal = 8.dp, vertical = 3.dp),
+                    .background(if (isActive) tint.accent else tint.container)
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = formatDurationMillis(cue.startMs),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color =
-                    if (isActive) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                color = if (isActive) tint.container else tint.onContainer,
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
