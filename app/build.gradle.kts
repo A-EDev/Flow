@@ -215,6 +215,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.window)
     implementation(libs.androidx.window.core)
+    implementation(libs.androidx.material3.adaptive.layout)
+    implementation(libs.androidx.material3.adaptive.navigation)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
     // --- Layouts ---
