@@ -116,6 +116,7 @@ internal fun PlayerDetailSideColumn(
                 BackHandler(onBack = closeSheet)
                 PlayerTranscriptSheetHost(
                     viewModel = viewModel,
+                    screenState = screenState,
                     trackUrl = transcriptTrackUrl(playerState, screenState),
                     asSidePanel = true,
                     expandedHeight = paneHeight,

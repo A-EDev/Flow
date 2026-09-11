@@ -365,6 +365,8 @@
     <string name="transcript_show">Show transcript</string>
     <string name="transcript_subtitle">Follow along using the transcript.</string>
     <string name="transcript_unavailable">No transcript is available for this video</string>
+    <string name="transcript_search_hint">Search transcript</string>
+    <string name="transcript_no_matches">No lines match your search</string>
     <string name="channel_links">Links</string>
     <string name="artist">Artist</string>
     <string name="playlist">Playlist</string>

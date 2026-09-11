@@ -14,6 +14,7 @@ import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.unit.em
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.data.model.RichText
 import io.github.aedev.flow.utils.RICH_TEXT_CHANNEL
 import io.github.aedev.flow.utils.RICH_TEXT_EMOJI_PREFIX
 import io.github.aedev.flow.utils.RICH_TEXT_SEEK
@@ -73,24 +74,38 @@ internal fun rememberCommentText(comment: Comment): CommentTextContent {
             richText?.toAnnotatedString(linkColor = linkColor, textColor = textColor)
                 ?: formatRichText(text = comment.text, primaryColor = linkColor, textColor = textColor)
         }
-    val inlineContent =
-        richText?.emojis.orEmpty().associate { emoji ->
-            RICH_TEXT_EMOJI_PREFIX + emoji.imageUrl to
+    return CommentTextContent(annotated = annotated, inlineContent = rememberRichTextInlineContent(richText))
+}
+
+/**
+ * The inline images a piece of rich text carries, keyed the way [toAnnotatedString] references them.
+ *
+ * Comment emoji are square; a platform icon in a description is wider than it is tall, so both are
+ * given a box a little wider than the line and left to fit inside it.
+ */
+@Composable
+fun rememberRichTextInlineContent(richText: RichText?): Map<String, InlineTextContent> {
+    val images = richText?.emojis.orEmpty()
+    return remember(images) {
+        images.associate { image ->
+            RICH_TEXT_EMOJI_PREFIX + image.imageUrl to
                 InlineTextContent(
                     placeholder =
                         Placeholder(
-                            width = EmojiSize,
+                            width = if (image.length == 0) InsertedImageWidth else EmojiSize,
                             height = EmojiSize,
                             placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter,
                         ),
                 ) {
                     AsyncImage(
-                        model = emoji.imageUrl,
-                        contentDescription = emoji.label.takeIf { it.isNotBlank() },
+                        model = image.imageUrl,
+                        contentDescription = image.label.takeIf { it.isNotBlank() },
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
         }
-    return CommentTextContent(annotated = annotated, inlineContent = inlineContent)
+    }
 }
+
+private val InsertedImageWidth = 1.5.em

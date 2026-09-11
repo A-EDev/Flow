@@ -172,6 +172,7 @@ internal fun PlayerBottomSheetsContainer(
     if (screenState.activeSheet == PlayerSheet.Transcript && !hostedInSidePanel) {
         PlayerTranscriptSheetHost(
             viewModel = viewModel,
+            screenState = screenState,
             trackUrl = transcriptTrackUrl(playerState, screenState),
             asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,

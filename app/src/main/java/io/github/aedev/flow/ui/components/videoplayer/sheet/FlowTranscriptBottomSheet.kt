@@ -1,7 +1,9 @@
 package io.github.aedev.flow.ui.components.videoplayer.sheet
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,11 +14,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,26 +37,32 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.transcript.TranscriptCue
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
 import io.github.aedev.flow.utils.formatDurationMillis
 
-private val TimestampWidth = 56.dp
+private val TimestampWidth = 52.dp
 private val RowVerticalPadding = 10.dp
 private val ListHorizontalPadding = 16.dp
 private val EmptyStateHeight = 160.dp
+private val TimestampShape = RoundedCornerShape(50)
+
+/** How far up the list the line being spoken is parked when the transcript follows playback. */
+private const val FOLLOW_OFFSET_ITEMS = 2
 
 /**
- * The video's captions as a readable, seekable list.
+ * The video's captions as a readable, seekable list that follows playback.
  *
- * Built from the caption track the player already resolved, so a video whose transcript is never
- * opened costs nothing and an open one costs a few KB of text.
+ * The position arrives as a lambda and is read inside `derivedStateOf`, so a clock that ticks every
+ * second only recomposes the rows when the line being spoken actually changes.
  */
 @Composable
 fun FlowTranscriptBottomSheet(
     cues: List<TranscriptCue>,
     isLoading: Boolean,
+    currentPositionMs: () -> Long,
     onSeekMs: (Long) -> Unit,
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
@@ -57,6 +73,33 @@ fun FlowTranscriptBottomSheet(
 ) {
     val sheetState = rememberFlowBottomSheetState()
     val listState = rememberLazyListState()
+    var query by remember { mutableStateOf("") }
+
+    val visibleCues =
+        remember(cues, query) {
+            if (query.isBlank()) cues else cues.filter { it.text.contains(query, ignoreCase = true) }
+        }
+
+    val activeStartMs by remember(cues) {
+        derivedStateOf {
+            val position = currentPositionMs()
+            cues.lastOrNull { it.startMs <= position }?.startMs
+        }
+    }
+
+    // The list follows playback until the reader takes over: a search, or a scroll of their own,
+    // means they are looking for something else and must not be dragged away from it.
+    val following by remember {
+        derivedStateOf { query.isBlank() && !listState.isScrollInProgress }
+    }
+
+    LaunchedEffect(activeStartMs, following, visibleCues) {
+        if (!following) return@LaunchedEffect
+        val index = visibleCues.indexOfFirst { it.startMs == activeStartMs }
+        if (index >= 0) {
+            listState.animateScrollToItem((index - FOLLOW_OFFSET_ITEMS).coerceAtLeast(0))
+        }
+    }
 
     FlowBottomSheet(
         onDismiss = onDismiss,
@@ -69,11 +112,26 @@ fun FlowTranscriptBottomSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         onProgressChange = onSheetProgressChange,
         header = { dragModifier ->
-            FlowSheetHeader(
-                title = stringResource(R.string.transcript),
-                onClose = { sheetState.dismiss() },
-                modifier = dragModifier,
-            )
+            Column(modifier = dragModifier) {
+                FlowSheetHeader(
+                    title = stringResource(R.string.transcript),
+                    onClose = { sheetState.dismiss() },
+                    dividerAlpha = null,
+                )
+                if (cues.isNotEmpty()) {
+                    FlowSearchField(
+                        query = query,
+                        onQueryChange = { query = it },
+                        placeholder = stringResource(R.string.transcript_search_hint),
+                        onClear = { query = "" },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = ListHorizontalPadding)
+                                .padding(bottom = 8.dp),
+                    )
+                }
+            }
         },
     ) {
         when {
@@ -86,13 +144,16 @@ fun FlowTranscriptBottomSheet(
                 }
             }
 
-            cues.isEmpty() -> {
+            visibleCues.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(EmptyStateHeight),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = stringResource(R.string.transcript_unavailable),
+                        text =
+                            stringResource(
+                                if (cues.isEmpty()) R.string.transcript_unavailable else R.string.transcript_no_matches,
+                            ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -106,8 +167,12 @@ fun FlowTranscriptBottomSheet(
                     state = listState,
                     modifier = Modifier.fillMaxSize().weight(1f),
                 ) {
-                    items(items = cues, key = { it.startMs }) { cue ->
-                        TranscriptRow(cue = cue, onClick = { onSeekMs(cue.startMs) })
+                    items(items = visibleCues, key = { it.startMs }) { cue ->
+                        TranscriptRow(
+                            cue = cue,
+                            isActive = cue.startMs == activeStartMs,
+                            onClick = { onSeekMs(cue.startMs) },
+                        )
                     }
                 }
             }
@@ -118,6 +183,7 @@ fun FlowTranscriptBottomSheet(
 @Composable
 private fun TranscriptRow(
     cue: TranscriptCue,
+    isActive: Boolean,
     onClick: () -> Unit,
 ) {
     Row(
@@ -127,18 +193,38 @@ private fun TranscriptRow(
                 .clickable(onClick = onClick)
                 .padding(horizontal = ListHorizontalPadding, vertical = RowVerticalPadding),
     ) {
-        Text(
-            text = formatDurationMillis(cue.startMs),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.width(TimestampWidth),
-        )
-        Spacer(modifier = Modifier.width(4.dp))
+        Box(
+            modifier =
+                Modifier
+                    .width(TimestampWidth)
+                    .clip(TimestampShape)
+                    .background(
+                        if (isActive) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        },
+                    ).padding(horizontal = 8.dp, vertical = 3.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = formatDurationMillis(cue.startMs),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color =
+                    if (isActive) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = cue.text,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
     }

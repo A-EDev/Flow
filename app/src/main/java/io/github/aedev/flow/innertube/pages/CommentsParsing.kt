@@ -3,6 +3,7 @@ package io.github.aedev.flow.innertube.pages
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.RichText
 import io.github.aedev.flow.data.model.RichTextEmoji
+import io.github.aedev.flow.data.model.RichTextHighlight
 import io.github.aedev.flow.data.model.RichTextSpan
 import io.github.aedev.flow.data.model.RichTextTarget
 import kotlinx.serialization.json.JsonElement
@@ -161,7 +162,12 @@ internal fun JsonElement?.toRichText(ownVideoId: String?): RichText? {
             .arrayOrNull()
             .orEmpty()
             .mapNotNull { run -> run.objectOrNull()?.toRichTextEmoji(text.length) }
-    return RichText(text = text, spans = spans, emojis = emojis)
+    val highlights =
+        value["decorationRuns"]
+            .arrayOrNull()
+            .orEmpty()
+            .mapNotNull { run -> run.objectOrNull()?.toRichTextHighlight(text.length) }
+    return RichText(text = text, spans = spans, emojis = emojis, highlights = highlights)
 }
 
 private fun JsonObject.toRichTextSpan(
@@ -214,10 +220,23 @@ private fun JsonObject.toRichTextTarget(ownVideoId: String?): RichTextTarget? {
     return RichTextTarget.Url(unwrapRedirectUrl(webUrl))
 }
 
+private fun JsonObject.toRichTextHighlight(textLength: Int): RichTextHighlight? {
+    val highlight =
+        this["textDecorator"]
+            .objectOrNull()
+            ?.get("highlightTextDecorator")
+            .objectOrNull()
+            ?: return null
+    val start = highlight["startIndex"].intOrNull() ?: return null
+    val length = highlight["length"].intOrNull() ?: return null
+    if (start < 0 || length <= 0 || start + length > textLength) return null
+    return RichTextHighlight(start = start, length = length)
+}
+
 private fun JsonObject.toRichTextEmoji(textLength: Int): RichTextEmoji? {
     val start = this["startIndex"].intOrNull() ?: return null
     val length = this["length"].intOrNull() ?: return null
-    if (start < 0 || length <= 0 || start + length > textLength) return null
+    if (start < 0 || length < 0 || start + length > textLength) return null
     val element = this["element"].objectOrNull() ?: return null
     val image =
         element["type"]

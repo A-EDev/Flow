@@ -142,6 +142,7 @@ internal fun PlayerDescriptionSheetHost(
 @Composable
 internal fun PlayerTranscriptSheetHost(
     viewModel: VideoPlayerViewModel,
+    screenState: PlayerScreenState,
     trackUrl: String?,
     asSidePanel: Boolean,
     expandedHeight: Dp?,
@@ -156,6 +157,7 @@ internal fun PlayerTranscriptSheetHost(
     FlowTranscriptBottomSheet(
         cues = transcript.cues,
         isLoading = transcript.isLoading,
+        currentPositionMs = { screenState.currentPosition },
         onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
         onDismiss = onDismiss,
         expandedHeight = expandedHeight,

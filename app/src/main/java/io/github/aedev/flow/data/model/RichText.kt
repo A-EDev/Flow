@@ -40,13 +40,26 @@ sealed interface RichTextTarget {
     ) : RichTextTarget
 }
 
-/** A custom emoji YouTube substitutes for a range of the text. */
+/**
+ * An image YouTube places in the text.
+ *
+ * A [length] of zero inserts the image without consuming any text — how a platform icon is put in
+ * front of a social link; anything larger replaces that range, which is how a custom emoji arrives.
+ */
 data class RichTextEmoji(
     val start: Int,
     val length: Int,
     val imageUrl: String,
     val label: String,
 )
+
+/** A range YouTube marks with a rounded tint, like the chip behind a social link. */
+data class RichTextHighlight(
+    val start: Int,
+    val length: Int,
+) {
+    val end: Int get() = start + length
+}
 
 /**
  * Text plus the spans and emoji the server described for it.
@@ -58,6 +71,7 @@ data class RichText(
     val text: String,
     val spans: List<RichTextSpan> = emptyList(),
     val emojis: List<RichTextEmoji> = emptyList(),
+    val highlights: List<RichTextHighlight> = emptyList(),
 ) {
     val hasTimestamp: Boolean get() = spans.any { it.target is RichTextTarget.Timestamp }
 }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,8 +31,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -61,9 +67,11 @@ import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
+import io.github.aedev.flow.ui.components.shared.rememberRichTextInlineContent
 import io.github.aedev.flow.ui.theme.DescriptionLinkBlue
 import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.RICH_TEXT_HASHTAG
+import io.github.aedev.flow.utils.RICH_TEXT_HIGHLIGHT
 import io.github.aedev.flow.utils.RICH_TEXT_SEEK
 import io.github.aedev.flow.utils.RICH_TEXT_URL
 import io.github.aedev.flow.utils.formatLikeCount
@@ -178,6 +186,7 @@ fun FlowDescriptionBottomSheet(
     val textColor = MaterialTheme.colorScheme.onSurface
 
     val richDescription = descriptionPage?.description
+    val descriptionEmoji = rememberRichTextInlineContent(richDescription)
     val descriptionText =
         remember(richDescription, video.description, linkColor, textColor) {
             richDescription?.toAnnotatedString(linkColor = linkColor, textColor = textColor)
@@ -293,6 +302,7 @@ fun FlowDescriptionBottomSheet(
 
             DescriptionBody(
                 text = descriptionText,
+                inlineContent = descriptionEmoji,
                 tint = tint,
                 onLayout = { descLayoutResult = it },
                 onTap = { offset ->
@@ -441,11 +451,17 @@ private fun FactoidCard(
 @Composable
 private fun DescriptionBody(
     text: AnnotatedString,
+    inlineContent: Map<String, InlineTextContent>,
     tint: MediaArtworkTint,
     layoutResult: TextLayoutResult?,
     onLayout: (TextLayoutResult) -> Unit,
     onTap: (Int) -> Unit,
 ) {
+    val highlightColor = tint.onContainer.copy(alpha = HIGHLIGHT_ALPHA)
+    val highlightRanges =
+        remember(text) {
+            text.getStringAnnotations(RICH_TEXT_HIGHLIGHT, 0, text.length).map { it.start to it.end }
+        }
     var expanded by rememberSaveable(text.text) { mutableStateOf(false) }
     var overflowed by remember(text.text) { mutableStateOf(false) }
 
@@ -462,6 +478,7 @@ private fun DescriptionBody(
             SelectionContainer {
                 BasicText(
                     text = text,
+                    inlineContent = inlineContent,
                     style =
                         MaterialTheme.typography.bodyMedium.copy(
                             color = tint.onContainer,
@@ -478,7 +495,12 @@ private fun DescriptionBody(
                         Modifier
                             .fillMaxWidth()
                             .animateContentSize()
-                            .pointerInput(text) {
+                            .drawBehind {
+                                val result = layoutResult ?: return@drawBehind
+                                highlightRanges.forEach { (start, end) ->
+                                    drawTextHighlight(result, start, end, highlightColor)
+                                }
+                            }.pointerInput(text) {
                                 detectTapGestures(
                                     onTap = { tapOffset ->
                                         val result = layoutResult ?: return@detectTapGestures
@@ -695,3 +717,41 @@ internal fun AnnotatedString.handleDescriptionTap(
 }
 
 private const val LEGACY_TIMESTAMP_TAG = "TIMESTAMP"
+
+/**
+ * Paints the rounded tint YouTube puts behind a marked range, one rounded rect per line the range
+ * covers, so a link that wraps keeps a chip on each of its rows rather than one box around both.
+ */
+private fun DrawScope.drawTextHighlight(
+    layout: TextLayoutResult,
+    start: Int,
+    end: Int,
+    color: Color,
+) {
+    if (start >= end || end > layout.layoutInput.text.length) return
+    val firstLine = layout.getLineForOffset(start)
+    val lastLine = layout.getLineForOffset((end - 1).coerceAtLeast(start))
+    for (line in firstLine..lastLine) {
+        if (line >= layout.lineCount) break
+        val lineStart = layout.getLineStart(line)
+        val lineEnd = layout.getLineEnd(line, visibleEnd = true)
+        val from = maxOf(start, lineStart)
+        val to = minOf(end, lineEnd)
+        if (from >= to) continue
+        val left = layout.getHorizontalPosition(from, usePrimaryDirection = true)
+        val right = layout.getHorizontalPosition(to, usePrimaryDirection = true)
+        val top = layout.getLineTop(line)
+        val bottom = layout.getLineBottom(line)
+        if (right <= left) continue
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(left, top + HIGHLIGHT_INSET_PX),
+            size = Size(right - left, (bottom - top) - HIGHLIGHT_INSET_PX * 2),
+            cornerRadius = CornerRadius(HIGHLIGHT_CORNER_PX, HIGHLIGHT_CORNER_PX),
+        )
+    }
+}
+
+private const val HIGHLIGHT_ALPHA = 0.12f
+private const val HIGHLIGHT_CORNER_PX = 20f
+private const val HIGHLIGHT_INSET_PX = 1f
