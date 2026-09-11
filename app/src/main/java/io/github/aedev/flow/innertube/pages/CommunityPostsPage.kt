@@ -4,9 +4,6 @@ import io.github.aedev.flow.data.model.Comment
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.longOrNull
 
 data class CommunityPost(
     val id: String,
@@ -85,20 +82,7 @@ internal fun JsonElement.toCommunityPostsPage(
 
 internal fun JsonElement.toCommunityCommentsPage(): CommunityCommentsPage {
     val root = objectOrNull()
-    val mutations =
-        root
-            ?.get("frameworkUpdates")
-            .objectOrNull()
-            ?.get("entityBatchUpdate")
-            .objectOrNull()
-            ?.get("mutations")
-            .arrayOrNull()
-            .orEmpty()
-            .mapNotNull { mutation ->
-                val objectValue = mutation.objectOrNull() ?: return@mapNotNull null
-                val key = objectValue["entityKey"].stringOrNull() ?: return@mapNotNull null
-                key to objectValue["payload"]
-            }.toMap()
+    val mutations = commentMutations()
 
     val comments = mutableListOf<Comment>()
     var continuation: String? = null
@@ -189,7 +173,7 @@ private fun JsonObject.toCommunityPost(
             .objectOrNull()
     val navigationEndpoint = replyButton?.get("navigationEndpoint").objectOrNull()
     val authorAvatar =
-        this["authorThumbnail"].largestThumbnailUrl()
+        this["authorThumbnail"].bestThumbnailUrl()
             ?: fallbackAuthorAvatarUrl
     return CommunityPost(
         id = id,
@@ -225,117 +209,6 @@ private fun JsonObject.toCommunityPost(
     )
 }
 
-private fun JsonObject.toModernComment(
-    mutations: Map<String, JsonElement?>,
-    repliesRenderer: JsonObject?,
-): Comment? {
-    val commentKey = this["commentKey"].stringOrNull() ?: return null
-    val entity =
-        mutations[commentKey]
-            .objectOrNull()
-            ?.get("commentEntityPayload")
-            .objectOrNull()
-            ?: return null
-    val properties = entity["properties"].objectOrNull() ?: return null
-    val author = entity["author"].objectOrNull()
-    val toolbar = entity["toolbar"].objectOrNull()
-    val id =
-        properties["commentId"].stringOrNull()
-            ?: this["commentId"].stringOrNull()
-            ?: return null
-    // Post comments carry the avatar only as this flat author URL; the nested image/sources
-    // objects below exist on video comments and are kept as fallbacks.
-    val avatar =
-        author?.get("avatarThumbnailUrl").stringOrNull()?.takeIf(String::isNotBlank)
-            ?: entity["avatar"]
-                .objectOrNull()
-                ?.get("image")
-                .objectOrNull()
-                ?.get("sources")
-                .largestThumbnailUrl()
-            ?: author
-                ?.get("avatar")
-                .objectOrNull()
-                ?.get("image")
-                .objectOrNull()
-                ?.get("sources")
-                .largestThumbnailUrl()
-            ?: ""
-    return Comment(
-        id = id,
-        author = author?.get("displayName").stringOrNull().orEmpty(),
-        authorThumbnail = normalizeImageUrl(avatar),
-        text = properties["content"].youtubeText().orEmpty(),
-        likeCount = parseCount(toolbar?.get("likeCountNotliked")),
-        publishedTime = properties["publishedTime"].stringOrNull().orEmpty(),
-        replyCount = parseCount(toolbar?.get("replyCount")),
-        isPinned = properties["pinnedText"] != null,
-        continuationToken = repliesRenderer?.findReplyContinuation(),
-        authorChannelId =
-            author?.get("channelId").stringOrNull()
-                ?: author
-                    ?.get("navigationEndpoint")
-                    .objectOrNull()
-                    ?.get("browseEndpoint")
-                    .objectOrNull()
-                    ?.get("browseId")
-                    .stringOrNull()
-                ?: "",
-    )
-}
-
-private fun JsonObject.toLegacyComment(repliesRenderer: JsonObject?): Comment? {
-    val id = this["commentId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
-    return Comment(
-        id = id,
-        author = this["authorText"].youtubeText().orEmpty(),
-        authorThumbnail = normalizeImageUrl(this["authorThumbnail"].largestThumbnailUrl().orEmpty()),
-        text = this["contentText"].youtubeText().orEmpty(),
-        likeCount = parseCount(this["voteCount"]),
-        publishedTime = this["publishedTimeText"].youtubeText().orEmpty(),
-        replyCount = parseCount(this["replyCount"]),
-        isPinned = this["pinnedCommentBadge"] != null,
-        continuationToken = repliesRenderer?.findReplyContinuation(),
-        authorChannelId =
-            this["authorEndpoint"]
-                .objectOrNull()
-                ?.get("browseEndpoint")
-                .objectOrNull()
-                ?.get("browseId")
-                .stringOrNull()
-                ?: "",
-    )
-}
-
-private fun JsonObject.continuationToken(): String? =
-    this["continuationEndpoint"]
-        .objectOrNull()
-        ?.get("continuationCommand")
-        .objectOrNull()
-        ?.get("token")
-        .stringOrNull()
-        ?: this["button"]
-            .objectOrNull()
-            ?.get("buttonRenderer")
-            .objectOrNull()
-            ?.get("command")
-            .objectOrNull()
-            ?.get("continuationCommand")
-            .objectOrNull()
-            ?.get("token")
-            .stringOrNull()
-
-private fun JsonObject.findReplyContinuation(): String? =
-    this["contents"]
-        .arrayOrNull()
-        ?.firstNotNullOfOrNull { content ->
-            content
-                .objectOrNull()
-                ?.get("continuationItemRenderer")
-                .objectOrNull()
-                ?.continuationToken()
-        }
-
 private fun JsonElement?.findFirstBackstageImageUrl(): String? {
     when (this) {
         is JsonArray -> {
@@ -346,7 +219,7 @@ private fun JsonElement?.findFirstBackstageImageUrl(): String? {
             this["backstageImageRenderer"]
                 .objectOrNull()
                 ?.get("image")
-                .largestThumbnailUrl()
+                .bestThumbnailUrl()
                 ?.let { return normalizeImageUrl(it) }
             values.forEach { child -> child.findFirstBackstageImageUrl()?.let { return it } }
         }
@@ -357,34 +230,6 @@ private fun JsonElement?.findFirstBackstageImageUrl(): String? {
     }
     return null
 }
-
-private fun JsonElement?.largestThumbnailUrl(): String? {
-    val thumbnails =
-        objectOrNull()?.get("thumbnails").arrayOrNull()
-            ?: arrayOrNull()
-            ?: return null
-    return thumbnails
-        .maxByOrNull { thumbnail ->
-            val objectValue = thumbnail.objectOrNull()
-            val width = (objectValue?.get("width") as? JsonPrimitive)?.intOrNull ?: 0
-            val height = (objectValue?.get("height") as? JsonPrimitive)?.intOrNull ?: 0
-            width.toLong() * height.toLong()
-        }?.objectOrNull()
-        ?.let { thumbnail ->
-            thumbnail["url"].stringOrNull() ?: thumbnail["uri"].stringOrNull()
-        }
-}
-
-private fun JsonObject.accessibilityLabel(): String? =
-    this["accessibility"].objectOrNull()?.get("label").stringOrNull()
-        ?: this["accessibilityData"]
-            .objectOrNull()
-            ?.get("accessibilityData")
-            .objectOrNull()
-            ?.get("label")
-            .stringOrNull()
-
-private fun String.countTextFromAccessibilityLabel(): String = Regex("""[\d.,]+\s*[KkMmBb]?""").find(this)?.value?.trim() ?: this
 
 private fun findCommentCountText(root: JsonObject?): String? {
     val panels = root?.get("engagementPanels").arrayOrNull().orEmpty()
@@ -408,14 +253,3 @@ private fun findCommentCountText(root: JsonObject?): String? {
     }
     return null
 }
-
-private fun parseCount(element: JsonElement?): Int {
-    val primitive = element as? JsonPrimitive
-    primitive?.intOrNull?.let { return it.coerceAtLeast(0) }
-    primitive?.longOrNull?.let { return it.coerceIn(0, Int.MAX_VALUE.toLong()).toInt() }
-    return parseYouTubeViewCount(element.youtubeText() ?: primitive?.content)
-        .coerceIn(0, Int.MAX_VALUE.toLong())
-        .toInt()
-}
-
-private fun normalizeImageUrl(url: String): String = if (url.startsWith("//")) "https:$url" else url
