@@ -2,6 +2,8 @@ package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 
@@ -19,6 +21,7 @@ fun MediaAudioTrackRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     supportingText: String? = null,
+    shape: Shape = RectangleShape,
 ) {
     FlowSelectionRow(
         title = label,
@@ -27,6 +30,7 @@ fun MediaAudioTrackRow(
         modifier = modifier,
         supportingText = supportingText,
         showSelectedContainer = false,
+        shape = shape,
     )
 }
 

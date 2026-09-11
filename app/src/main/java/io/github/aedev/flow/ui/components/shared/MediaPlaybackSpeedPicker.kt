@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.shared
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -46,11 +45,12 @@ fun MediaPlaybackSpeedPicker(
         remember(customSpeedsEnabled, customSpeedPresetsRaw) {
             playbackSpeedOptions(customSpeedsEnabled, customSpeedPresetsRaw)
         }
-    Column(modifier = modifier.fillMaxWidth()) {
-        speeds.forEach { speed ->
+    FlowRowGroup(modifier = modifier.fillMaxWidth()) {
+        speeds.forEachIndexed { index, speed ->
             FlowSelectionRow(
                 title = playbackSpeedLabel(speed),
                 selected = speed == currentSpeed,
+                shape = flowRowGroupShape(index, speeds.size),
                 onClick = {
                     onSpeedSelected(speed)
                     onSpeedRowSelected(speed)

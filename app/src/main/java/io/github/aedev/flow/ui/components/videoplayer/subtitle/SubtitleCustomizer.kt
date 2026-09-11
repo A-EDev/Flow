@@ -6,16 +6,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,8 +56,11 @@ fun SubtitleCustomizer(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
-                    .background(Color.DarkGray.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                    .height(PreviewHeight)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = MaterialTheme.shapes.large,
+                    ),
             contentAlignment = Alignment.BottomCenter,
         ) {
             Surface(
@@ -162,6 +171,7 @@ fun SubtitleCustomizer(
 
         OutlinedButton(
             onClick = { onStyleChange(SubtitleStyle()) },
+            shapes = ButtonDefaults.shapes(),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.subtitle_reset_default))
@@ -169,6 +179,10 @@ fun SubtitleCustomizer(
     }
 }
 
+/**
+ * A swatch marks its selection with a check inside the colour rather than a ring around it: an
+ * accent-coloured outline reads as decoration next to a row of colours.
+ */
 @Composable
 private fun ColorSwatch(
     color: Color,
@@ -178,16 +192,39 @@ private fun ColorSwatch(
     Box(
         modifier =
             Modifier
-                .size(42.dp)
+                .size(SwatchSize)
                 .clip(CircleShape)
                 .background(color)
                 .border(
-                    width = if (selected) 3.dp else 1.dp,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                    width = SwatchBorderWidth,
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     shape = CircleShape,
-                ).clickable(onClick = onClick),
-    )
+                ).selectable(
+                    selected = selected,
+                    role = Role.RadioButton,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                tint = contentColorForSwatch(color),
+                modifier = Modifier.size(SwatchCheckSize),
+            )
+        }
+    }
 }
+
+/** Black or white, whichever the swatch it sits on can actually show. */
+private fun contentColorForSwatch(color: Color): Color = if (color.luminance() > SWATCH_LUMINANCE_SPLIT) Color.Black else Color.White
+
+private val PreviewHeight = 150.dp
+private val SwatchSize = 42.dp
+private val SwatchBorderWidth = 1.dp
+private val SwatchCheckSize = 20.dp
+private const val SWATCH_LUMINANCE_SPLIT = 0.5f
 
 private fun sameRgb(
     first: Color,

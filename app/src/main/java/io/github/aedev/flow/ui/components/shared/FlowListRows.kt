@@ -1,6 +1,9 @@
 package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,12 +27,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 private val RowHorizontalPadding = 20.dp
+private val GroupedRowHorizontalPadding = 16.dp
+private val GroupHorizontalPadding = 12.dp
 private val SelectionRowVerticalPadding = 16.dp
 private val NavRowVerticalPadding = 14.dp
 private val SwitchRowVerticalPadding = 6.dp
@@ -55,6 +62,7 @@ fun FlowSelectionRow(
     supportingText: String? = null,
     leadingIcon: ImageVector? = null,
     showSelectedContainer: Boolean = true,
+    shape: Shape = RectangleShape,
 ) {
     val supporting = rowSupportingContent(supportingText)
     val leading = rowLeadingContent(leadingIcon)
@@ -82,14 +90,14 @@ fun FlowSelectionRow(
         supportingContent = supporting,
         leadingContent = leading,
         trailingContent = trailing,
-        shapes = ListItemDefaults.shapes(shape = RectangleShape),
+        shapes = ListItemDefaults.shapes(shape = shape),
         colors =
             ListItemDefaults.colors(
                 containerColor =
                     if (selected && showSelectedContainer) {
                         MaterialTheme.colorScheme.primary.copy(alpha = SELECTED_CONTAINER_ALPHA)
                     } else {
-                        Color.Transparent
+                        groupedContainerColor(shape)
                     },
                 contentColor =
                     if (selected) {
@@ -103,7 +111,7 @@ fun FlowSelectionRow(
             ),
         contentPadding =
             PaddingValues(
-                horizontal = RowHorizontalPadding,
+                horizontal = rowHorizontalPadding(shape),
                 vertical = SelectionRowVerticalPadding,
             ),
     ) {
@@ -123,6 +131,7 @@ fun FlowNavRow(
     supportingText: String? = null,
     leadingIcon: ImageVector? = null,
     trailingText: String? = null,
+    shape: Shape = RectangleShape,
 ) {
     val supporting = rowSupportingContent(supportingText)
     val leading = rowLeadingContent(leadingIcon)
@@ -150,10 +159,10 @@ fun FlowNavRow(
                 )
             }
         },
-        shapes = ListItemDefaults.shapes(shape = RectangleShape),
+        shapes = ListItemDefaults.shapes(shape = shape),
         colors =
             ListItemDefaults.colors(
-                containerColor = Color.Transparent,
+                containerColor = groupedContainerColor(shape),
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 trailingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -161,7 +170,7 @@ fun FlowNavRow(
             ),
         contentPadding =
             PaddingValues(
-                horizontal = RowHorizontalPadding,
+                horizontal = rowHorizontalPadding(shape),
                 vertical = NavRowVerticalPadding,
             ),
     ) {
@@ -185,6 +194,7 @@ fun FlowSwitchRow(
     supportingText: String? = null,
     leadingIcon: ImageVector? = null,
     enabled: Boolean = true,
+    shape: Shape = RectangleShape,
 ) {
     val supporting = rowSupportingContent(supportingText)
     val leading = rowLeadingContent(leadingIcon)
@@ -209,15 +219,15 @@ fun FlowSwitchRow(
                 onCheckedChange = null,
             )
         },
-        shapes = ListItemDefaults.shapes(shape = RectangleShape),
+        shapes = ListItemDefaults.shapes(shape = shape),
         colors =
             ListItemDefaults.colors(
-                containerColor = Color.Transparent,
+                containerColor = groupedContainerColor(shape),
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 trailingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledContainerColor = Color.Transparent,
+                disabledContainerColor = groupedContainerColor(shape),
                 disabledContentColor =
                     MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_CONTENT_ALPHA),
                 disabledLeadingContentColor =
@@ -229,7 +239,7 @@ fun FlowSwitchRow(
             ),
         contentPadding =
             PaddingValues(
-                horizontal = RowHorizontalPadding,
+                horizontal = rowHorizontalPadding(shape),
                 vertical = SwitchRowVerticalPadding,
             ),
     ) {
@@ -275,3 +285,32 @@ private fun rowLeadingContent(leadingIcon: ImageVector?): (@Composable () -> Uni
             )
         }
     }
+
+/**
+ * Lays rows out as one Material 3 segmented group: the outer rows carry the group's rounded ends,
+ * the rest the small corners, with the gap the list-item tokens define between them.
+ */
+@Composable
+fun FlowRowGroup(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier.padding(horizontal = GroupHorizontalPadding),
+        verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
+        content = content,
+    )
+}
+
+/** The shape of row [index] of [count] inside a [FlowRowGroup]. */
+@Composable
+fun flowRowGroupShape(
+    index: Int,
+    count: Int,
+): Shape = flowSegmentShape(index = index, count = count)
+
+@Composable
+private fun groupedContainerColor(shape: Shape): Color =
+    if (shape == RectangleShape) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh
+
+private fun rowHorizontalPadding(shape: Shape): Dp = if (shape == RectangleShape) RowHorizontalPadding else GroupedRowHorizontalPadding

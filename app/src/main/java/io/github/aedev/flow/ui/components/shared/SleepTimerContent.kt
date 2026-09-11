@@ -2,10 +2,10 @@ package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +29,13 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -104,7 +108,7 @@ private fun ActiveTimerContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Surface(
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.fillMaxWidth(),
@@ -180,6 +184,7 @@ private fun ActiveTimerContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun InactiveTimerContent(
     sliderValue: Float,
@@ -198,7 +203,7 @@ private fun InactiveTimerContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Surface(
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -250,43 +255,32 @@ private fun InactiveTimerContent(
             }
         }
 
+        val haptics = LocalHapticFeedback.current
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         ) {
-            listOf(10, 15, 30, 45, 60, 90).forEach { minutes ->
-                val selected = sliderValue.roundToInt() == minutes
-                val corner by animateDpAsState(
-                    targetValue = if (selected) 10.dp else 22.dp,
-                    label = "sleepQuickPickCorner",
-                )
-                Surface(
-                    onClick = { onSliderChange(minutes.toFloat()) },
-                    shape = RoundedCornerShape(corner),
-                    color =
-                        if (selected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.secondaryContainer
+            SleepTimerPresets.forEachIndexed { index, minutes ->
+                ToggleButton(
+                    checked = sliderValue.roundToInt() == minutes,
+                    onCheckedChange = {
+                        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        onSliderChange(minutes.toFloat())
+                    },
+                    shapes =
+                        when (index) {
+                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            SleepTimerPresets.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                         },
-                    contentColor =
-                        if (selected) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        },
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .height(44.dp),
+                    contentPadding = PresetContentPadding,
+                    modifier = Modifier.weight(1f),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = minutes.toString(),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
+                    Text(
+                        text = minutes.toString(),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                    )
                 }
             }
         }
@@ -332,7 +326,7 @@ private fun InactiveTimerContent(
         }
 
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -368,23 +362,36 @@ private fun InactiveTimerContent(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         ) {
-            TextButton(
+            FilledTonalButton(
                 onClick = onCancel,
+                shapes =
+                    ButtonDefaults.shapes(
+                        shape = ButtonGroupDefaults.connectedLeadingButtonShape,
+                        pressedShape = ButtonGroupDefaults.connectedLeadingButtonPressShape,
+                    ),
                 modifier =
                     Modifier
                         .weight(1f)
-                        .height(52.dp),
+                        .height(ActionButtonHeight),
             ) {
                 Text(stringResource(R.string.cancel))
             }
             Button(
-                onClick = onStart,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                    onStart()
+                },
+                shapes =
+                    ButtonDefaults.shapes(
+                        shape = ButtonGroupDefaults.connectedTrailingButtonShape,
+                        pressedShape = ButtonGroupDefaults.connectedTrailingButtonPressShape,
+                    ),
                 modifier =
                     Modifier
                         .weight(1f)
-                        .height(52.dp),
+                        .height(ActionButtonHeight),
             ) {
                 Text(stringResource(R.string.sleep_timer_start))
             }
@@ -403,3 +410,7 @@ private fun formatCountdown(ms: Long): String {
         String.format("%02d:%02d", minutes, seconds)
     }
 }
+
+private val SleepTimerPresets = listOf(10, 15, 30, 45, 60, 90)
+private val PresetContentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)
+private val ActionButtonHeight = 52.dp

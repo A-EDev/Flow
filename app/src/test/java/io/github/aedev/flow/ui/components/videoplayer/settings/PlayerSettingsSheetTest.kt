@@ -127,13 +127,12 @@ class PlayerSettingsSheetTest {
     }
 
     @Test
-    fun mainPageShowsThePlaybackHeaderTwice() {
+    fun mainPageShowsThePlaybackHeaderOnce() {
         setMenu()
 
-        // Known defect: the "Playback" section header is emitted once above the speed row
-        // (PlayerSettingsMainPage.kt:64) and again above the loop/autoplay toggles
-        // (PlayerSettingsMainPage.kt:140). Pinned so a fix is a deliberate change, not a side effect.
-        rule.onAllNodesWithText(string(R.string.playback_header)).assertCountEquals(2)
+        // The speed row and the loop/autoplay toggles used to sit under two separate headers with
+        // the same title; they are one group now.
+        rule.onAllNodesWithText(string(R.string.playback_header)).assertCountEquals(1)
     }
 
     @Test
