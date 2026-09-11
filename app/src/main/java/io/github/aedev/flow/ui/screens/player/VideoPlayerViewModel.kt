@@ -16,6 +16,7 @@ import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
 import io.github.aedev.flow.innertube.pages.VideoCommentSort
+import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -92,6 +93,7 @@ class VideoPlayerViewModel
             )
 
         private val comments = collaborators.comments
+        private val descriptions = collaborators.descriptions
         private val secondaryMetadata = collaborators.secondaryMetadata
         private val watchSessions = collaborators.watchSessions
         private val liveChat = collaborators.liveChat
@@ -105,6 +107,7 @@ class VideoPlayerViewModel
         val isLoadingMoreComments: StateFlow<Boolean> = comments.isLoadingMore
         val commentSortOptions: StateFlow<List<VideoCommentSort>> = comments.sortOptions
         val commentTotalText: StateFlow<String?> = comments.totalText
+        val descriptionState: StateFlow<VideoDescriptionPage?> = descriptions.description
 
         private val navigationHistory = PlayerNavigationHistory()
 
@@ -354,6 +357,7 @@ class VideoPlayerViewModel
             _canGoPrevious.value = false
 
             comments.clear()
+            descriptions.clear()
         }
 
         fun startBackgroundPlayback() = presence.startBackgroundPlayback()
@@ -570,6 +574,14 @@ class VideoPlayerViewModel
         fun toggleAutoplay(enabled: Boolean) = settings.toggleAutoplay(enabled)
 
         fun toggleLoop(enabled: Boolean) = settings.toggleLoop(enabled)
+
+        fun loadDescription(videoId: String) {
+            if (isLocalMediaId(videoId)) {
+                descriptions.clear()
+                return
+            }
+            descriptions.load(videoId)
+        }
 
         fun loadComments(videoId: String) {
             if (isLocalMediaId(videoId)) {

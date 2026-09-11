@@ -99,6 +99,7 @@ internal fun PlayerDetailSideColumn(
                 PlayerDescriptionSheetHost(
                     video = video,
                     uiState = uiState,
+                    viewModel = viewModel,
                     asSidePanel = true,
                     expandedHeight = paneHeight,
                     onDismiss = closeSheet,

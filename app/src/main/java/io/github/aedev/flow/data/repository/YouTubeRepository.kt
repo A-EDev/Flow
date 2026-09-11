@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
+import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.RelativeUploadDateParser
@@ -1039,6 +1040,13 @@ class YouTubeRepository
                     ?.also { watchNextCache.put(videoId, it) }
             }
         }
+
+        /** The watch page description for [videoId], or null when the response could not be read. */
+        suspend fun getVideoDescription(videoId: String): VideoDescriptionPage? =
+            withContext(Dispatchers.IO) {
+                val response = watchNextResponse(videoId) ?: return@withContext null
+                YouTube.videoDescription(response, videoId).takeIf { !it.isEmpty }
+            }
 
         /**
          * The first page of a video's comments, in the order [sortToken] names, or the section's

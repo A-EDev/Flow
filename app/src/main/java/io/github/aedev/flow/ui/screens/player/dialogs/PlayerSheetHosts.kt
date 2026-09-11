@@ -15,6 +15,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.LiveChatMessage
@@ -86,12 +88,17 @@ internal fun PlayerChaptersSheetHost(
 internal fun PlayerDescriptionSheetHost(
     video: Video,
     uiState: VideoPlayerUiState,
+    viewModel: VideoPlayerViewModel,
     asSidePanel: Boolean,
     expandedHeight: Dp?,
     onDismiss: () -> Unit,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
 ) {
+    val descriptionPage by viewModel.descriptionState.collectAsStateWithLifecycle()
+    LaunchedEffect(video.id) {
+        viewModel.loadDescription(video.id)
+    }
     val dateSettings = rememberDateDisplaySettings()
     val currentVideo =
         remember(uiState.streamInfo, video, uiState.channelAvatarUrl, dateSettings) {
@@ -110,8 +117,9 @@ internal fun PlayerDescriptionSheetHost(
         }
     FlowDescriptionBottomSheet(
         video = currentVideo,
+        descriptionPage = descriptionPage,
         tags = uiState.streamInfo?.tags ?: emptyList(),
-        onTimestampClick = { EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(it)) },
+        onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,
         enableVerticalDismiss = !asSidePanel,

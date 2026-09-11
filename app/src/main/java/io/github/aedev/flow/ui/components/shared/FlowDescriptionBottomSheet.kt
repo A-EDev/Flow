@@ -38,7 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.text.HtmlCompat
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.RichTextTarget
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.pages.VideoDescriptionFactoid
+import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
@@ -46,8 +49,12 @@ import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
 import io.github.aedev.flow.ui.theme.DescriptionLinkBlue
 import io.github.aedev.flow.utils.DateContext
+import io.github.aedev.flow.utils.RICH_TEXT_HASHTAG
+import io.github.aedev.flow.utils.RICH_TEXT_SEEK
+import io.github.aedev.flow.utils.RICH_TEXT_URL
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatViewCount
+import io.github.aedev.flow.utils.toAnnotatedString
 
 fun parseHtmlDescription(
     rawHtml: String,
@@ -131,7 +138,10 @@ fun parseHtmlDescription(
 fun FlowDescriptionBottomSheet(
     video: Video,
     onDismiss: () -> Unit,
-    onTimestampClick: (String) -> Unit = {},
+    onSeekMs: (Long) -> Unit = {},
+    onHashtagClick: ((String) -> Unit)? = null,
+    onTagClick: ((String) -> Unit)? = null,
+    descriptionPage: VideoDescriptionPage? = null,
     tags: List<String> = emptyList(),
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
@@ -145,21 +155,31 @@ fun FlowDescriptionBottomSheet(
     val sheetState = rememberFlowBottomSheetState()
     val descriptionScrollState = rememberScrollState()
     val linkColor = MaterialTheme.colorScheme.primary
+    val textColor = MaterialTheme.colorScheme.onSurface
 
+    val richDescription = descriptionPage?.description
     val descriptionText =
-        remember(video.description, linkColor) {
-            parseHtmlDescription(video.description, linkColor)
+        remember(richDescription, video.description, linkColor, textColor) {
+            richDescription?.toAnnotatedString(linkColor = linkColor, textColor = textColor)
+                ?: parseHtmlDescription(video.description, linkColor)
         }
     var descLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
-    // Auto-extract hashtags (This regex is still fine for finding hashtags in the clean text)
+    // The server marks its own hashtags; a description that only arrived as HTML is still scanned.
     val hashtags =
-        remember(descriptionText.text) {
-            Regex("#\\w+")
-                .findAll(descriptionText.text)
-                .map { it.value }
-                .take(5)
-                .toList()
+        remember(richDescription, descriptionText.text) {
+            richDescription
+                ?.spans
+                ?.mapNotNull { span -> (span.target as? RichTextTarget.Hashtag)?.tag }
+                ?.map { tag -> if (tag.startsWith("#")) tag else "#$tag" }
+                ?.distinct()
+                ?.take(5)
+                ?: Regex("""#\w+""")
+                    .findAll(descriptionText.text)
+                    .map { it.value }
+                    .distinct()
+                    .take(5)
+                    .toList()
         }
 
     FlowBottomSheet(
@@ -222,6 +242,25 @@ fun FlowDescriptionBottomSheet(
             )
 
             // 2. Stats Row (Clean Layout)
+            val dateSettings = rememberDateDisplaySettings()
+            val stats =
+                descriptionPage?.factoids?.takeIf { it.isNotEmpty() }
+                    ?: listOf(
+                        VideoDescriptionFactoid(
+                            value = formatLikeCount(video.likeCount.toInt()),
+                            label = stringResource(R.string.likes),
+                        ),
+                        VideoDescriptionFactoid(
+                            value = formatViewCount(descriptionPage?.viewCount ?: video.viewCount),
+                            label = stringResource(R.string.views),
+                        ),
+                        VideoDescriptionFactoid(
+                            value =
+                                descriptionPage?.publishedDateText
+                                    ?: dateSettings.format(video.uploadDate, DateContext.DESCRIPTION, video.timestamp),
+                            label = stringResource(R.string.uploaded),
+                        ),
+                    )
             Row(
                 modifier =
                     Modifier
@@ -230,21 +269,13 @@ fun FlowDescriptionBottomSheet(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                StatItem(
-                    value = formatLikeCount(video.likeCount.toInt()),
-                    label = stringResource(R.string.likes),
-                )
-                VerticalHorizontalDivider()
-                StatItem(
-                    value = formatViewCount(video.viewCount),
-                    label = stringResource(R.string.views),
-                )
-                VerticalHorizontalDivider()
-                val dateSettings = rememberDateDisplaySettings()
-                StatItem(
-                    value = dateSettings.format(video.uploadDate, DateContext.DESCRIPTION, video.timestamp),
-                    label = stringResource(R.string.uploaded),
-                )
+                stats.forEachIndexed { index, factoid ->
+                    if (index > 0) VerticalHorizontalDivider()
+                    StatItem(
+                        value = factoid.value,
+                        label = factoid.label,
+                    )
+                }
             }
 
             HorizontalDivider(
@@ -275,7 +306,12 @@ fun FlowDescriptionBottomSheet(
                                     text = tag,
                                     color = MaterialTheme.colorScheme.primary,
                                     style = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.clickable { /* Handle hashtag click */ },
+                                    modifier =
+                                        if (onHashtagClick == null) {
+                                            Modifier
+                                        } else {
+                                            Modifier.clickable { onHashtagClick(tag.removePrefix("#")) }
+                                        },
                                 )
                             }
                         }
@@ -295,21 +331,14 @@ fun FlowDescriptionBottomSheet(
                                 Modifier.pointerInput(descriptionText) {
                                     detectTapGestures(
                                         onTap = { tapOffset ->
-                                            descLayoutResult?.let { result ->
-                                                val charOffset = result.getOffsetForPosition(tapOffset)
-                                                val ts =
-                                                    descriptionText
-                                                        .getStringAnnotations("TIMESTAMP", charOffset, charOffset)
-                                                        .firstOrNull()
-                                                if (ts != null) {
-                                                    onTimestampClick(ts.item)
-                                                } else {
-                                                    descriptionText
-                                                        .getStringAnnotations("URL", charOffset, charOffset)
-                                                        .firstOrNull()
-                                                        ?.let { uriHandler.openUri(it.item) }
-                                                }
-                                            }
+                                            val result = descLayoutResult ?: return@detectTapGestures
+                                            val charOffset = result.getOffsetForPosition(tapOffset)
+                                            descriptionText.handleDescriptionTap(
+                                                offset = charOffset,
+                                                onSeekMs = onSeekMs,
+                                                onHashtagClick = onHashtagClick,
+                                                onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } },
+                                            )
                                         },
                                     )
                                 },
@@ -345,7 +374,8 @@ fun FlowDescriptionBottomSheet(
                                 Surface(
                                     shape = RoundedCornerShape(50),
                                     color = MaterialTheme.colorScheme.secondaryContainer,
-                                    modifier = Modifier.clickable { /* future: search for tag */ },
+                                    modifier =
+                                        if (onTagClick == null) Modifier else Modifier.clickable { onTagClick(tag) },
                                 ) {
                                     Text(
                                         text = tag,
@@ -395,3 +425,34 @@ fun VerticalHorizontalDivider() {
                 .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)),
     )
 }
+
+/**
+ * Routes a tap in the description to whatever the span under it points at.
+ *
+ * Timestamps carry their seconds when the text came from InnerTube; a description that arrived as
+ * HTML still yields a printed "1:57" that has to be parsed back.
+ */
+internal fun AnnotatedString.handleDescriptionTap(
+    offset: Int,
+    onSeekMs: (Long) -> Unit,
+    onHashtagClick: ((String) -> Unit)?,
+    onOpenUrl: (String) -> Unit,
+) {
+    getStringAnnotations(RICH_TEXT_SEEK, offset, offset).firstOrNull()?.let { seek ->
+        seek.item.toLongOrNull()?.let { onSeekMs(it * 1_000L) }
+        return
+    }
+    getStringAnnotations(LEGACY_TIMESTAMP_TAG, offset, offset).firstOrNull()?.let { legacy ->
+        onSeekMs(commentTimestampToMs(legacy.item))
+        return
+    }
+    getStringAnnotations(RICH_TEXT_HASHTAG, offset, offset).firstOrNull()?.let { hashtag ->
+        onHashtagClick?.invoke(hashtag.item.removePrefix("#"))
+        return
+    }
+    getStringAnnotations(RICH_TEXT_URL, offset, offset).firstOrNull()?.let { url ->
+        onOpenUrl(url.item)
+    }
+}
+
+private const val LEGACY_TIMESTAMP_TAG = "TIMESTAMP"

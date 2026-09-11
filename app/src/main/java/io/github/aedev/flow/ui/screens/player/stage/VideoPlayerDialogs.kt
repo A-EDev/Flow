@@ -70,6 +70,7 @@ internal fun VideoPlayerDialogs(
         completeVideo = completeVideo,
         disableShortsPlayer = prefs.disableShortsPlayer,
         showShortsPlayerPrompt = prefs.showShortsPlayerPrompt,
+        viewModel = playerViewModel,
         commentsUiState = commentsUiState,
         commentsEnabled = prefs.commentsEnabled,
         onLoadMoreComments = { videoId -> playerViewModel.loadMoreComments(videoId) },

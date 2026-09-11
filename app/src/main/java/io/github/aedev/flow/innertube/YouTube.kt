@@ -71,15 +71,17 @@ import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.SearchVideosPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
+import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.innertube.pages.channelSortOptions
 import io.github.aedev.flow.innertube.pages.toChannelShortsPage
-import io.github.aedev.flow.innertube.pages.toCommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
+import io.github.aedev.flow.innertube.pages.toCommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.toSearchVideosPage
 import io.github.aedev.flow.innertube.pages.toShortsPage
 import io.github.aedev.flow.innertube.pages.toVideoCommentsPage
+import io.github.aedev.flow.innertube.pages.toVideoDescriptionPage
 import io.github.aedev.flow.innertube.pages.videoCommentsContinuation
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.ktor.client.call.body
@@ -2489,6 +2491,12 @@ object YouTube {
         runCatching {
             Json.parseToJsonElement(innerTube.nextWatch(videoId = videoId).bodyAsText())
         }
+
+    /** The description, its typed spans and the figures beside it, from an already-fetched watch response. */
+    fun videoDescription(
+        watchNext: JsonElement,
+        videoId: String,
+    ): VideoDescriptionPage = watchNext.toVideoDescriptionPage(videoId)
 
     /** The continuation that opens [videoId]'s comment section, from an already-fetched watch response. */
     fun commentsContinuation(watchNext: JsonElement): String? = watchNext.videoCommentsContinuation()

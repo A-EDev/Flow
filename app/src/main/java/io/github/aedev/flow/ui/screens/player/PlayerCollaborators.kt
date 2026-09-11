@@ -64,6 +64,13 @@ internal class PlayerCollaborators(
             isCurrentVideo = { videoId -> uiState.value.cachedVideo?.id == videoId },
         )
 
+    val descriptions =
+        VideoDescriptionLoader(
+            repository = repository,
+            scope = scope,
+            networkDispatcher = networkDispatcher,
+        )
+
     private val playbackPreparer =
         PlaybackPreparer(
             context = context,

@@ -29,6 +29,7 @@ import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
+import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
@@ -43,6 +44,7 @@ internal fun PlayerBottomSheetsContainer(
     completeVideo: Video,
     disableShortsPlayer: Boolean,
     showShortsPlayerPrompt: Boolean,
+    viewModel: VideoPlayerViewModel,
     commentsUiState: PlayerCommentsUiState,
     commentsEnabled: Boolean = true,
     onLoadMoreComments: (videoId: String) -> Unit = {},
@@ -148,6 +150,7 @@ internal fun PlayerBottomSheetsContainer(
         PlayerDescriptionSheetHost(
             video = video,
             uiState = uiState,
+            viewModel = viewModel,
             asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.closeSheet() },
