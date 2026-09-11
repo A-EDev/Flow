@@ -4,6 +4,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +30,7 @@ import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.stage.*
 import io.github.aedev.flow.ui.screens.player.state.*
+import io.github.aedev.flow.ui.screens.player.state.supportingPaneReserve
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
@@ -49,6 +53,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * @param onNavigateToShorts Called when navigating to shorts
  */
 @UnstableApi
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun VideoPlayerHost(
     video: Video?,
@@ -165,6 +170,8 @@ fun VideoPlayerHost(
     val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass)
     val isLargeWindow = windowLayoutMode != PlayerLayoutMode.COMPACT
     val isTwoPaneWindow = windowLayoutMode == PlayerLayoutMode.WIDE
+    val paneScaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())
+    val detailPaneWidth = if (isTwoPaneWindow) paneScaffoldDirective.supportingPaneReserve() else 0.dp
     val playerLayoutMode = playerLayoutModeFor(windowSizeClass, screenState.isFullscreen, localIsInPipMode)
     val windowInsetDensity = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -463,6 +470,7 @@ fun VideoPlayerHost(
             miniPlayerScale = miniPlayerScale,
             isLargeWindow = isLargeWindow,
             isTwoPaneWindow = isTwoPaneWindow,
+            detailPaneWidth = detailPaneWidth,
             startInset = startInset,
             tapToExpand = true,
             onDismiss = onClose,

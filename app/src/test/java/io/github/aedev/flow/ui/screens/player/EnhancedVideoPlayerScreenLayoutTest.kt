@@ -4,15 +4,21 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.assertLeftPositionInRootIsEqualTo
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.rememberVideoPlayerPreferences
@@ -74,6 +80,24 @@ class EnhancedVideoPlayerScreenLayoutTest {
     private val sideColumnCloseChat
         get() = rule.onNodeWithContentDescription(context.getString(R.string.close))
 
+    /** The main pane's scroller: the only scrollable that holds the title. */
+    private val mainPaneScroller
+        get() = rule.onNode(hasScrollAction() and hasAnyDescendant(hasText(video.title)))
+
+    /**
+     * The main pane spans the window minus the supporting pane and its spacer, the same reserve the
+     * host hands the video (PlayerDetailPanes.supportingPaneReserve), and the side column starts
+     * past that reserve.
+     */
+    private fun assertPanes(
+        mainPaneWidth: Dp,
+        supportingPaneStart: Dp,
+    ) {
+        mainPaneScroller.assertLeftPositionInRootIsEqualTo(0.dp).assertWidthIsEqualTo(mainPaneWidth)
+        val closeLeftPx = sideColumnCloseChat.fetchSemanticsNode().boundsInRoot.left
+        assertThat(closeLeftPx).isAtLeast(supportingPaneStart.value * rule.density.density)
+    }
+
     private fun assertSingleColumn() {
         rule.onNodeWithText(video.title).assertExists()
         rule.onNode(hasScrollToNodeAction() and hasAnyDescendant(hasText(video.title))).assertExists()
@@ -119,6 +143,7 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
         rule.onNodeWithText(video.title).assertExists()
         sideColumnCloseChat.assertExists()
+        assertPanes(mainPaneWidth = 896.dp, supportingPaneStart = 920.dp)
     }
 
     @Test
@@ -128,6 +153,7 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
         rule.onNodeWithText(video.title).assertExists()
         sideColumnCloseChat.assertExists()
+        assertPanes(mainPaneWidth = 456.dp, supportingPaneStart = 480.dp)
     }
 
     @Test

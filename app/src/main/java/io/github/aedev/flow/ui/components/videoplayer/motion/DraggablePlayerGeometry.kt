@@ -47,6 +47,8 @@ internal fun miniBoxWidthFor(
  *   from the window instead of the user's scale and is free to rest anywhere along the edge.
  * @param isTwoPaneWindow the body puts the detail pane beside the video, so the expanded video
  *   only takes the leading part of the width.
+ * @param detailPaneWidth the width the detail pane and its spacer take from the video's row in a
+ *   two-pane window; the expanded video gets what is left.
  */
 internal fun computeDraggablePlayerGeometry(
     screenWidth: Float,
@@ -59,6 +61,7 @@ internal fun computeDraggablePlayerGeometry(
     isTwoPaneWindow: Boolean,
     miniPlayerScale: Float,
     startInset: Float = 0f,
+    detailPaneWidth: Float = 0f,
     videoAspectRatio: Float,
     currentSizeScale: Float,
     corner: MiniPlayerCorner,
@@ -80,7 +83,7 @@ internal fun computeDraggablePlayerGeometry(
     val miniHeight = miniWidth / clampedAspect
     val isWideMode = currentSizeScale > WIDE_MODE_SCALE_THRESHOLD
 
-    val expandedVideoWidth = if (isTwoPaneWindow) screenWidth * 0.65f else screenWidth
+    val expandedVideoWidth = if (isTwoPaneWindow) screenWidth - detailPaneWidth else screenWidth
     val baseVideoHeight = expandedVideoWidth * (9f / 16f)
     val expandedVideoHeight = expandedVideoWidth / clampedAspect
     val visualMiniScale = (miniWidth / expandedVideoWidth.coerceAtLeast(1f)).coerceIn(0.01f, 1f)

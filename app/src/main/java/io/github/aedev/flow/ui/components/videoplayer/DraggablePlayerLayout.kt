@@ -77,6 +77,8 @@ private val MiniPlayerSettleDip = 48.dp
  *   from the window rather than the user's scale.
  * @param isTwoPaneWindow the body puts the detail pane beside the video, so the expanded video
  *   only takes the leading part of the width.
+ * @param detailPaneWidth the width the detail pane and its spacer take from the video's row in a
+ *   two-pane window; the expanded video gets what is left.
  */
 @Composable
 fun DraggablePlayerLayout(
@@ -93,6 +95,7 @@ fun DraggablePlayerLayout(
     isLargeWindow: Boolean = false,
     startInset: Dp = 0.dp,
     isTwoPaneWindow: Boolean = false,
+    detailPaneWidth: Dp = 0.dp,
     tapToExpand: Boolean = true,
     onDismiss: () -> Unit = {},
     onCollapseGesture: (() -> Unit)? = null,
@@ -143,6 +146,7 @@ fun DraggablePlayerLayout(
                     topBarPad = with(density) { topPadding.toPx() },
                     isLargeWindow = isLargeWindow,
                     isTwoPaneWindow = isTwoPaneWindow,
+                    detailPaneWidth = with(density) { detailPaneWidth.toPx() },
                     miniPlayerScale = miniPlayerScale,
                     videoAspectRatio = videoAspectRatio,
                     currentSizeScale = state.miniSizeScale.targetValue,

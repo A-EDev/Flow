@@ -6,6 +6,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
+import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
+import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,9 +37,6 @@ import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import kotlin.math.roundToInt
 
-/** The video info pane keeps this much of the width; the detail pane takes the rest. */
-private const val WIDE_INFO_WEIGHT = 0.65f
-
 /** A readable cap for the dock, which would otherwise stretch across a tablet's whole width. */
 private val QueueDockMaxWidth = 600.dp
 
@@ -44,7 +47,7 @@ private val QueueDockMaxWidth = 600.dp
  * The video player surface and all effects are handled by FlowApp.kt
  */
 @UnstableApi
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 internal fun EnhancedVideoPlayerScreen(
     viewModel: VideoPlayerViewModel,
@@ -82,53 +85,69 @@ internal fun EnhancedVideoPlayerScreen(
         val isMediumLayout = layoutMode == PlayerLayoutMode.MEDIUM
 
         if (isWideLayout) {
-            Row(Modifier.fillMaxSize()) {
-                Column(
-                    Modifier
-                        .weight(WIDE_INFO_WEIGHT)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    Spacer(
-                        Modifier
-                            .fillMaxWidth()
-                            .layout { measurable, constraints ->
-                                val height = videoPlayerHeightPx().roundToInt().coerceAtLeast(0)
-                                val placeable =
-                                    measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
-                                layout(placeable.width, height) { placeable.place(0, 0) }
-                            },
-                    )
-
-                    VideoInfoContent(
-                        video = video,
-                        uiState = uiState,
-                        viewModel = viewModel,
-                        screenState = screenState,
-                        comments = comments,
-                        commentsEnabled = commentsEnabled,
-                        showCommentsPreview = showCommentsPreview,
-                        deArrowEnabled = prefs.deArrowEnabled,
-                        context = context,
-                        scope = scope,
-                        snackbarHostState = snackbarHostState,
-                        onChannelClick = onChannelClick,
-                    )
-                }
-                PlayerDetailSideColumn(
-                    video = video,
-                    uiState = uiState,
-                    viewModel = viewModel,
-                    screenState = screenState,
-                    comments = comments,
-                    commentsEnabled = commentsEnabled,
-                    showRelatedVideos = showRelatedVideos,
-                    relatedCardStyle = relatedCardStyle,
-                    onVideoClick = onVideoClick,
-                    onChannelClick = onChannelClick,
-                    modifier = Modifier.weight(1f - WIDE_INFO_WEIGHT),
+            // The host sizes the video from the same directive (PlayerDetailPanes.supportingPaneReserve),
+            // so the video row above the main pane and the scaffold's main pane keep one width.
+            val navigator =
+                rememberSupportingPaneScaffoldNavigator(
+                    scaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo()),
                 )
-            }
+            SupportingPaneScaffold(
+                directive = navigator.scaffoldDirective,
+                scaffoldState = navigator.scaffoldState,
+                mainPane = {
+                    AnimatedPane {
+                        Column(
+                            Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            Spacer(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .layout { measurable, constraints ->
+                                        val height = videoPlayerHeightPx().roundToInt().coerceAtLeast(0)
+                                        val placeable =
+                                            measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+                                        layout(placeable.width, height) { placeable.place(0, 0) }
+                                    },
+                            )
+
+                            VideoInfoContent(
+                                video = video,
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                screenState = screenState,
+                                comments = comments,
+                                commentsEnabled = commentsEnabled,
+                                showCommentsPreview = showCommentsPreview,
+                                deArrowEnabled = prefs.deArrowEnabled,
+                                context = context,
+                                scope = scope,
+                                snackbarHostState = snackbarHostState,
+                                onChannelClick = onChannelClick,
+                            )
+                        }
+                    }
+                },
+                supportingPane = {
+                    AnimatedPane {
+                        PlayerDetailSideColumn(
+                            video = video,
+                            uiState = uiState,
+                            viewModel = viewModel,
+                            screenState = screenState,
+                            comments = comments,
+                            commentsEnabled = commentsEnabled,
+                            showRelatedVideos = showRelatedVideos,
+                            relatedCardStyle = relatedCardStyle,
+                            onVideoClick = onVideoClick,
+                            onChannelClick = onChannelClick,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
         } else {
             Column(Modifier.fillMaxSize()) {
                 if (!screenState.isFullscreen && !isInPipMode) {

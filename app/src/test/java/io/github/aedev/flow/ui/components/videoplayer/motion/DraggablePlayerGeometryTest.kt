@@ -71,6 +71,7 @@ class DraggablePlayerGeometryTest {
 
     private fun large(
         isTwoPaneWindow: Boolean = false,
+        detailPaneWidth: Float = 0f,
         currentSizeScale: Float = 1f,
         cachedTargetX: Float = 0f,
         offsetXFallback: Float = 0f,
@@ -84,6 +85,7 @@ class DraggablePlayerGeometryTest {
         topBarPad = 168f,
         isLargeWindow = true,
         isTwoPaneWindow = isTwoPaneWindow,
+        detailPaneWidth = detailPaneWidth,
         miniPlayerScale = 0.45f,
         videoAspectRatio = 16f / 9f,
         currentSizeScale = currentSizeScale,
@@ -108,13 +110,13 @@ class DraggablePlayerGeometryTest {
     }
 
     @Test
-    fun `a two-pane window narrows the expanded video to 65 percent of the width`() {
-        val g = large(isTwoPaneWindow = true)
-        assertThat(g.expandedVideoWidth).isWithin(0.01f).of(1600f * 0.65f)
-        assertThat(g.baseVideoHeight).isWithin(0.01f).of(1600f * 0.65f * 9f / 16f)
+    fun `a two-pane window gives the expanded video the width left beside the detail pane`() {
+        val g = large(isTwoPaneWindow = true, detailPaneWidth = 500f)
+        assertThat(g.expandedVideoWidth).isWithin(0.01f).of(1100f)
+        assertThat(g.baseVideoHeight).isWithin(0.01f).of(1100f * 9f / 16f)
         assertThat(g.expandedVideoHeight).isWithin(0.01f).of(g.baseVideoHeight)
-        assertThat(g.visualMiniScale).isWithin(0.0001f).of(g.miniWidth / (1600f * 0.65f))
-        assertThat(large().expandedVideoWidth).isEqualTo(1600f)
+        assertThat(g.visualMiniScale).isWithin(0.0001f).of(g.miniWidth / 1100f)
+        assertThat(large(detailPaneWidth = 500f).expandedVideoWidth).isEqualTo(1600f)
     }
 
     @Test
