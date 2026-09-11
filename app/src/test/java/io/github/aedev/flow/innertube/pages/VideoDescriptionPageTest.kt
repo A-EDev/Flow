@@ -52,6 +52,21 @@ class VideoDescriptionPageTest {
     }
 
     @Test
+    fun `reads the channel card and unwraps its creator links`() {
+        val page = Json.parseToJsonElement(WATCH_RESPONSE).toVideoDescriptionPage(ownVideoId = "fJ9rUzIMcZQ")
+        val channel = requireNotNull(page.channel)
+
+        assertEquals("Lex Fridman", channel.name)
+        assertEquals("5.05M subscribers", channel.subscribersText)
+        assertEquals("UCSHZKyawb77ixDdsGog4iWA", channel.channelId)
+        assertEquals("https://avatar/lex", channel.avatarUrl)
+        assertEquals(listOf("Lex Clips Channel", "Twitter"), channel.links.map { it.title })
+        assertEquals("https://www.youtube.com/lexclips", channel.links.first().url)
+        assertEquals("https://twitter.com/lexfridman", channel.links.last().url)
+        assertEquals("https://icon/yt.png", channel.links.first().iconUrl)
+    }
+
+    @Test
     fun `an empty response reports itself empty`() {
         val page = Json.parseToJsonElement("""{"contents":{}}""").toVideoDescriptionPage(ownVideoId = "vid")
 
@@ -113,6 +128,25 @@ class VideoDescriptionPageTest {
                     }},
                     {"expandableVideoDescriptionBodyRenderer": {
                       "attributedDescriptionBodyText": {"content": "Panel body"}
+                    }},
+                    {"videoDescriptionInfocardsSectionRenderer": {
+                      "sectionTitle": {"simpleText": "Lex Fridman"},
+                      "sectionSubtitle": {"simpleText": "5.05M subscribers"},
+                      "channelAvatar": {"thumbnails": [{"url": "https://avatar/lex", "width": 88, "height": 88}]},
+                      "channelEndpoint": {"browseEndpoint": {"browseId": "UCSHZKyawb77ixDdsGog4iWA"}},
+                      "creatorCustomUrlButtons": [
+                        {"buttonViewModel": {
+                          "title": "Lex Clips Channel",
+                          "iconImage": {"url": "https://icon/yt.png", "width": 16, "height": 16},
+                          "onTap": {"innertubeCommand": {"urlEndpoint": {"url": "https://www.youtube.com/lexclips"}}}
+                        }},
+                        {"buttonViewModel": {
+                          "title": "Twitter",
+                          "onTap": {"innertubeCommand": {"urlEndpoint": {
+                            "url": "https://www.youtube.com/redirect?event=Watch_SD_EP&q=https%3A%2F%2Ftwitter.com%2Flexfridman"
+                          }}}
+                        }}
+                      ]
                     }}
                   ]}}
                 }}

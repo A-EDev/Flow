@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.EnhancedPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
@@ -34,6 +35,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.transcriptTrackUrl
 import io.github.aedev.flow.ui.screens.player.state.visibleComments
 
 @Composable
@@ -45,6 +47,7 @@ internal fun PlayerBottomSheetsContainer(
     disableShortsPlayer: Boolean,
     showShortsPlayerPrompt: Boolean,
     viewModel: VideoPlayerViewModel,
+    playerState: EnhancedPlayerState,
     commentsUiState: PlayerCommentsUiState,
     commentsEnabled: Boolean = true,
     onLoadMoreComments: (videoId: String) -> Unit = {},
@@ -154,7 +157,25 @@ internal fun PlayerBottomSheetsContainer(
             asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.closeSheet() },
+            hasTranscriptTrack = transcriptTrackUrl(playerState, screenState) != null,
             onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
+            onTranscriptClick = { screenState.open(PlayerSheet.Transcript) },
+            onChannelClick = { channelId ->
+                screenState.closeSheet()
+                onNavigateToChannel?.invoke(channelId)
+            },
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
+        )
+    }
+
+    if (screenState.activeSheet == PlayerSheet.Transcript && !hostedInSidePanel) {
+        PlayerTranscriptSheetHost(
+            viewModel = viewModel,
+            trackUrl = transcriptTrackUrl(playerState, screenState),
+            asSidePanel = false,
+            expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.closeSheet() },
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
         )

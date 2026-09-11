@@ -37,6 +37,7 @@ import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowChaptersBottomSheet
+import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowTranscriptBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatList
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlayerCommentsPanel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
@@ -93,6 +94,9 @@ internal fun PlayerDescriptionSheetHost(
     expandedHeight: Dp?,
     onDismiss: () -> Unit,
     onChaptersClick: (() -> Unit)? = null,
+    onTranscriptClick: (() -> Unit)? = null,
+    onChannelClick: ((String) -> Unit)? = null,
+    hasTranscriptTrack: Boolean = false,
     collapsedHeight: Dp = 0.dp,
     onSheetProgressChange: (Float) -> Unit = {},
 ) {
@@ -122,6 +126,8 @@ internal fun PlayerDescriptionSheetHost(
         tags = uiState.streamInfo?.tags ?: emptyList(),
         chapterCount = uiState.chapters.size,
         onChaptersClick = onChaptersClick,
+        onTranscriptClick = onTranscriptClick?.takeIf { hasTranscriptTrack },
+        onChannelClick = onChannelClick,
         artworkUrl = currentVideo.thumbnailUrl,
         onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
         expandedHeight = expandedHeight,
@@ -129,6 +135,33 @@ internal fun PlayerDescriptionSheetHost(
         enableVerticalDismiss = !asSidePanel,
         onSheetProgressChange = onSheetProgressChange,
         onDismiss = onDismiss,
+        modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
+    )
+}
+
+@Composable
+internal fun PlayerTranscriptSheetHost(
+    viewModel: VideoPlayerViewModel,
+    trackUrl: String?,
+    asSidePanel: Boolean,
+    expandedHeight: Dp?,
+    onDismiss: () -> Unit,
+    collapsedHeight: Dp = 0.dp,
+    onSheetProgressChange: (Float) -> Unit = {},
+) {
+    val transcript by viewModel.transcriptState.collectAsStateWithLifecycle()
+    LaunchedEffect(trackUrl) {
+        viewModel.loadTranscript(trackUrl)
+    }
+    FlowTranscriptBottomSheet(
+        cues = transcript.cues,
+        isLoading = transcript.isLoading,
+        onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
+        onDismiss = onDismiss,
+        expandedHeight = expandedHeight,
+        collapsedHeight = collapsedHeight,
+        enableVerticalDismiss = !asSidePanel,
+        onSheetProgressChange = onSheetProgressChange,
         modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
     )
 }

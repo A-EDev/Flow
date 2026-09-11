@@ -35,6 +35,8 @@ internal sealed interface PlayerSheet {
 
     data object Chapters : PlayerSheet
 
+    data object Transcript : PlayerSheet
+
     data object Queue : PlayerSheet
 
     /** [fullscreen] picks the landscape side panel over the bottom sheet. */

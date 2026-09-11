@@ -48,11 +48,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.text.HtmlCompat
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.RichTextTarget
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.pages.VideoDescriptionChannel
 import io.github.aedev.flow.innertube.pages.VideoDescriptionFactoid
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
+import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
@@ -156,6 +159,8 @@ fun FlowDescriptionBottomSheet(
     tags: List<String> = emptyList(),
     chapterCount: Int = 0,
     onChaptersClick: (() -> Unit)? = null,
+    onTranscriptClick: (() -> Unit)? = null,
+    onChannelClick: ((String) -> Unit)? = null,
     artworkUrl: String? = null,
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
@@ -334,6 +339,24 @@ fun FlowDescriptionBottomSheet(
                 )
             }
 
+            if (onTranscriptClick != null) {
+                DescriptionSectionRow(
+                    title = stringResource(R.string.transcript),
+                    subtitle = stringResource(R.string.transcript_subtitle),
+                    tint = tint,
+                    onClick = onTranscriptClick,
+                )
+            }
+
+            descriptionPage?.channel?.let { channel ->
+                ChannelCard(
+                    channel = channel,
+                    tint = tint,
+                    onChannelClick = onChannelClick,
+                    onOpenLink = { url -> runCatching { uriHandler.openUri(url) } },
+                )
+            }
+
             if (tags.isNotEmpty()) {
                 val sortedTags =
                     remember(tags) {
@@ -488,6 +511,109 @@ private fun DescriptionBody(
     }
 }
 
+/**
+ * The creator behind the video, and the links they publish beside their channel.
+ *
+ * The links are the creator's own — a second channel, a social profile — and open outside the app,
+ * which is why each carries the site's icon rather than a generic one.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChannelCard(
+    channel: VideoDescriptionChannel,
+    tint: MediaArtworkTint,
+    onChannelClick: ((String) -> Unit)?,
+    onOpenLink: (String) -> Unit,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = tint.container,
+        contentColor = tint.onContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(BodyPadding),
+            verticalArrangement = Arrangement.spacedBy(BodySpacing),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                    if (onChannelClick == null || channel.channelId.isBlank()) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { onChannelClick(channel.channelId) }
+                    },
+            ) {
+                ChannelAvatarImage(
+                    url = channel.avatarUrl,
+                    contentDescription = null,
+                    modifier =
+                        Modifier
+                            .size(ChannelAvatarSize)
+                            .clip(CircleShape),
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = channel.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (channel.subscribersText.isNotBlank()) {
+                        Text(
+                            text = channel.subscribersText,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+
+            if (channel.links.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ChipSpacing),
+                    verticalArrangement = Arrangement.spacedBy(ChipSpacing),
+                ) {
+                    channel.links.forEach { link ->
+                        Surface(
+                            onClick = { onOpenLink(link.url) },
+                            shape = CircleShape,
+                            color = Color.Transparent,
+                            contentColor = tint.onContainer,
+                            border = BorderStroke(width = 1.dp, color = tint.onContainer.copy(alpha = BODY_BUTTON_BORDER_ALPHA)),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            ) {
+                                if (link.iconUrl.isNotBlank()) {
+                                    AsyncImage(
+                                        model = link.iconUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(LinkIconSize),
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(
+                                    text = link.title,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** A titled row that opens another surface, in the same tinted card language as the body. */
 @Composable
 private fun DescriptionSectionRow(
@@ -534,6 +660,8 @@ private val ChipSpacing = 8.dp
 private val FactoidVerticalPadding = 14.dp
 private val BodyPadding = PaddingValues(16.dp)
 private val BodySpacing = 12.dp
+private val ChannelAvatarSize = 40.dp
+private val LinkIconSize = 16.dp
 private const val COLLAPSED_BODY_LINES = 6
 private const val BODY_BUTTON_BORDER_ALPHA = 0.35f
 

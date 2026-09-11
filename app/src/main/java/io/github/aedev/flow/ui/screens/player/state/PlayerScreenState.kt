@@ -158,3 +158,17 @@ class PlayerScreenState {
 
 @Composable
 fun rememberPlayerScreenState(): PlayerScreenState = remember { PlayerScreenState() }
+
+/**
+ * The caption track a transcript should read.
+ *
+ * The user's own choice wins; otherwise the first authored track, since an auto-translation is a
+ * machine pass over a track already in the list and reads worse than the original.
+ */
+internal fun transcriptTrackUrl(
+    playerState: io.github.aedev.flow.player.EnhancedPlayerState,
+    screenState: PlayerScreenState,
+): String? =
+    screenState.selectedSubtitleUrl
+        ?: playerState.availableSubtitles.firstOrNull { !it.isTranslated }?.url
+        ?: playerState.availableSubtitles.firstOrNull()?.url

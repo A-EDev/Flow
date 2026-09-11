@@ -23,11 +23,13 @@ import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDescriptionSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerLiveChatColumn
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSettingsSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSleepTimerSheetHost
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerTranscriptSheetHost
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerCommentsUiState
+import io.github.aedev.flow.ui.screens.player.state.transcriptTrackUrl
 import kotlinx.coroutines.launch
 
 /**
@@ -103,7 +105,21 @@ internal fun PlayerDetailSideColumn(
                     asSidePanel = true,
                     expandedHeight = paneHeight,
                     onDismiss = closeSheet,
+                    hasTranscriptTrack = transcriptTrackUrl(playerState, screenState) != null,
                     onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
+                    onTranscriptClick = { screenState.open(PlayerSheet.Transcript) },
+                    onChannelClick = onChannelClick,
+                )
+            }
+
+            screenState.activeSheet == PlayerSheet.Transcript -> {
+                BackHandler(onBack = closeSheet)
+                PlayerTranscriptSheetHost(
+                    viewModel = viewModel,
+                    trackUrl = transcriptTrackUrl(playerState, screenState),
+                    asSidePanel = true,
+                    expandedHeight = paneHeight,
+                    onDismiss = closeSheet,
                 )
             }
 

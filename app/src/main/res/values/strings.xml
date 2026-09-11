@@ -361,6 +361,11 @@
     <string name="close_player">Close player</string>
     <string name="views_template">%1$s views</string>
     <string name="chapters">Chapters</string>
+    <string name="transcript">Transcript</string>
+    <string name="transcript_show">Show transcript</string>
+    <string name="transcript_subtitle">Follow along using the transcript.</string>
+    <string name="transcript_unavailable">No transcript is available for this video</string>
+    <string name="channel_links">Links</string>
     <string name="artist">Artist</string>
     <string name="playlist">Playlist</string>
     <string name="app_name_uppercase">FLOW</string>

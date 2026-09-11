@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.transcript.TranscriptRepository
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
@@ -52,6 +53,7 @@ class VideoPlayerViewModel
     constructor(
         @ApplicationContext private val context: Context,
         private val repository: YouTubeRepository,
+        private val transcriptRepository: TranscriptRepository,
         private val viewHistory: ViewHistory,
         private val engagement: VideoEngagementUseCase,
         private val playlistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
@@ -74,6 +76,7 @@ class VideoPlayerViewModel
             PlayerCollaborators(
                 context = context,
                 repository = repository,
+                transcriptRepository = transcriptRepository,
                 viewHistory = viewHistory,
                 engagement = engagement,
                 playerPreferences = playerPreferences,
@@ -94,6 +97,7 @@ class VideoPlayerViewModel
 
         private val comments = collaborators.comments
         private val descriptions = collaborators.descriptions
+        private val transcripts = collaborators.transcripts
         private val secondaryMetadata = collaborators.secondaryMetadata
         private val watchSessions = collaborators.watchSessions
         private val liveChat = collaborators.liveChat
@@ -108,6 +112,7 @@ class VideoPlayerViewModel
         val commentSortOptions: StateFlow<List<VideoCommentSort>> = comments.sortOptions
         val commentTotalText: StateFlow<String?> = comments.totalText
         val descriptionState: StateFlow<VideoDescriptionPage?> = descriptions.description
+        val transcriptState: StateFlow<TranscriptState> = transcripts.state
 
         private val navigationHistory = PlayerNavigationHistory()
 
@@ -358,6 +363,7 @@ class VideoPlayerViewModel
 
             comments.clear()
             descriptions.clear()
+            transcripts.clear()
         }
 
         fun startBackgroundPlayback() = presence.startBackgroundPlayback()
@@ -574,6 +580,8 @@ class VideoPlayerViewModel
         fun toggleAutoplay(enabled: Boolean) = settings.toggleAutoplay(enabled)
 
         fun toggleLoop(enabled: Boolean) = settings.toggleLoop(enabled)
+
+        fun loadTranscript(trackUrl: String?) = transcripts.load(trackUrl)
 
         fun loadDescription(videoId: String) {
             if (isLocalMediaId(videoId)) {

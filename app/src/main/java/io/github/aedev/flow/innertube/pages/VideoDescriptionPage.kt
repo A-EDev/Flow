@@ -13,6 +13,22 @@ data class VideoDescriptionFactoid(
     val accessibilityText: String? = null,
 )
 
+/** A link the creator put on their channel, as the watch page offers it. */
+data class VideoDescriptionLink(
+    val title: String,
+    val url: String,
+    val iconUrl: String,
+)
+
+/** The channel behind the video, with the links it publishes. */
+data class VideoDescriptionChannel(
+    val name: String,
+    val subscribersText: String,
+    val avatarUrl: String,
+    val channelId: String,
+    val links: List<VideoDescriptionLink> = emptyList(),
+)
+
 /**
  * The watch page's own description: the text with its typed spans, and the figures beside it.
  *
@@ -26,9 +42,10 @@ data class VideoDescriptionPage(
     val publishedDateText: String? = null,
     val relativeDateText: String? = null,
     val factoids: List<VideoDescriptionFactoid> = emptyList(),
+    val channel: VideoDescriptionChannel? = null,
 ) {
     val isEmpty: Boolean
-        get() = description == null && viewCount == null && factoids.isEmpty()
+        get() = description == null && viewCount == null && factoids.isEmpty() && channel == null
 }
 
 internal fun JsonElement.toVideoDescriptionPage(ownVideoId: String?): VideoDescriptionPage {
@@ -72,6 +89,61 @@ internal fun JsonElement.toVideoDescriptionPage(ownVideoId: String?): VideoDescr
         publishedDateText = primary?.get("dateText").youtubeText(),
         relativeDateText = primary?.get("relativeDateText").youtubeText(),
         factoids = structuredDescriptionItems().flatMap { it.toFactoids() },
+        channel = structuredDescriptionItems().firstNotNullOfOrNull { it.toChannel() },
+    )
+}
+
+/**
+ * The channel card the structured description carries, with the creator's own links.
+ *
+ * The links arrive as button view models whose external targets are wrapped in YouTube's redirect,
+ * so each one is unwrapped to the address it actually opens.
+ */
+private fun JsonObject.toChannel(): VideoDescriptionChannel? {
+    val section = this["videoDescriptionInfocardsSectionRenderer"].objectOrNull() ?: return null
+    val name = section["sectionTitle"].youtubeText()?.takeIf { it.isNotBlank() } ?: return null
+    val channelId =
+        section["channelEndpoint"]
+            .objectOrNull()
+            ?.get("browseEndpoint")
+            .objectOrNull()
+            ?.get("browseId")
+            .stringOrNull()
+            .orEmpty()
+    val links =
+        section["creatorCustomUrlButtons"]
+            .arrayOrNull()
+            .orEmpty()
+            .mapNotNull { entry ->
+                val button = entry.objectOrNull()?.get("buttonViewModel").objectOrNull() ?: return@mapNotNull null
+                val title = button["title"].stringOrNull()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val url =
+                    button["onTap"]
+                        .objectOrNull()
+                        ?.get("innertubeCommand")
+                        .objectOrNull()
+                        ?.get("urlEndpoint")
+                        .objectOrNull()
+                        ?.get("url")
+                        .stringOrNull()
+                        ?: return@mapNotNull null
+                VideoDescriptionLink(
+                    title = title,
+                    url = unwrapRedirectUrl(url),
+                    iconUrl =
+                        button["iconImage"]
+                            .objectOrNull()
+                            ?.get("url")
+                            .stringOrNull()
+                            .orEmpty(),
+                )
+            }
+    return VideoDescriptionChannel(
+        name = name,
+        subscribersText = section["sectionSubtitle"].youtubeText().orEmpty(),
+        avatarUrl = normalizeImageUrl(section["channelAvatar"].bestThumbnailUrl().orEmpty()),
+        channelId = channelId,
+        links = links,
     )
 }
 
