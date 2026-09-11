@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.repository
 
 import android.util.Log
 import android.util.LruCache
+import io.github.aedev.flow.data.comments.CommentsPageResult
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
@@ -34,6 +35,7 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonElement
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.ServiceList
@@ -62,6 +64,15 @@ class YouTubeRepository
             InFlightRequestCoalescer<String, ReturnYouTubeDislikeCounts?>(
                 CoroutineScope(SupervisorJob() + Dispatchers.IO),
             )
+
+        private val watchNextCoalescer =
+            InFlightRequestCoalescer<String, JsonElement?>(
+                CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            )
+
+        // The comment section, the attributed description and the related lane all read one watch
+        // response, so it is fetched once per video and held for the few videos in play.
+        private val watchNextCache = LruCache<String, JsonElement>(WATCH_NEXT_CACHE_SIZE)
 
         // Cache for channel avatar URLs to avoid redundant network calls
         private val channelAvatarCache = LruCache<String, String>(300)
@@ -1014,6 +1025,70 @@ class YouTubeRepository
             }
 
         /**
+         * The web watch response for [videoId], fetched once and shared.
+         *
+         * Returns null when the request fails; callers fall back to whatever they used before
+         * rather than failing the surface.
+         */
+        suspend fun watchNextResponse(videoId: String): JsonElement? {
+            watchNextCache.get(videoId)?.let { return it }
+            return watchNextCoalescer.run(videoId) {
+                YouTube
+                    .watchNextJson(videoId)
+                    .getOrNull()
+                    ?.also { watchNextCache.put(videoId, it) }
+            }
+        }
+
+        /**
+         * The first page of a video's comments, in the order [sortToken] names, or the section's
+         * own default when it is null.
+         *
+         * Falls back to the extractor when InnerTube returns nothing, so a schema change degrades
+         * the section instead of emptying it.
+         */
+        suspend fun getVideoComments(
+            videoId: String,
+            sortToken: String? = null,
+        ): CommentsPageResult =
+            withContext(Dispatchers.IO) {
+                val token =
+                    sortToken
+                        ?: watchNextResponse(videoId)?.let(YouTube::commentsContinuation)
+                val page = token?.let { YouTube.comments(it, videoId).getOrNull() }
+                if (page != null && page.comments.isNotEmpty()) {
+                    return@withContext CommentsPageResult(
+                        comments = page.comments,
+                        continuation = page.continuation,
+                        sortOptions = page.sortOptions,
+                        totalText = page.totalText,
+                        totalCount = page.totalCount,
+                    )
+                }
+                Log.i(TAG, "InnerTube comments empty for $videoId, falling back to the extractor")
+                val (comments, legacyPage) = getComments(videoId)
+                CommentsPageResult(comments = comments, legacyPage = legacyPage)
+            }
+
+        suspend fun getMoreVideoComments(
+            videoId: String,
+            continuation: String,
+        ): CommentsPageResult =
+            withContext(Dispatchers.IO) {
+                val page = YouTube.comments(continuation, videoId).getOrNull() ?: return@withContext CommentsPageResult.EMPTY
+                CommentsPageResult(comments = page.comments, continuation = page.continuation)
+            }
+
+        suspend fun getVideoCommentReplies(
+            videoId: String,
+            continuation: String,
+        ): CommentsPageResult =
+            withContext(Dispatchers.IO) {
+                val page = YouTube.commentReplies(continuation, videoId).getOrNull() ?: return@withContext CommentsPageResult.EMPTY
+                CommentsPageResult(comments = page.comments, continuation = page.continuation)
+            }
+
+        /**
          * Fetch the first page of comments for a video.
          * Returns the comments and a next-page token (null if no more pages).
          */
@@ -1606,6 +1681,7 @@ class YouTubeRepository
             private const val COMMENT_AVATAR_FETCH_CONCURRENCY = 4
             private const val COMMENT_AVATAR_FETCH_TIMEOUT_MS = 6_000L
             private const val REEL_INDEX_TIMEOUT_MS = 3_000L
+            private const val WATCH_NEXT_CACHE_SIZE = 3
 
             @Volatile
             private var instance: YouTubeRepository? = null

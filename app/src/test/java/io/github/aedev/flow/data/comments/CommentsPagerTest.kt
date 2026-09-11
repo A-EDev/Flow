@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.comments
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.innertube.pages.VideoCommentSort
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -20,7 +21,8 @@ import org.schabi.newpipe.extractor.Page
 
 /**
  * Pins the paging contract the player and Shorts now share: one request per video in flight, a
- * deduplicated list, and an answer that is dropped when the surface has moved on.
+ * deduplicated list, an answer that is dropped when the surface has moved on, and a sort that is a
+ * different continuation rather than a re-ordering of what is loaded.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CommentsPagerTest {
@@ -31,6 +33,7 @@ class CommentsPagerTest {
         id: String,
         text: String = "text $id",
         repliesPage: Page? = null,
+        continuationToken: String? = null,
         replies: List<Comment> = emptyList(),
     ) = Comment(
         id = id,
@@ -41,6 +44,7 @@ class CommentsPagerTest {
         publishedTime = "",
         replies = replies,
         repliesPage = repliesPage,
+        continuationToken = continuationToken,
     )
 
     private fun pager(
@@ -48,21 +52,25 @@ class CommentsPagerTest {
         playbackState: MutableStateFlow<CommentsPlaybackState> = MutableStateFlow(CommentsPlaybackState.READY),
         isCurrentVideo: (String) -> Boolean = { true },
         fetchTimeoutMs: Long? = null,
+        prefetchPages: Int = 0,
     ) = CommentsPager(
         repository = repository,
         scope = scope,
         playbackState = playbackState,
         isCurrentVideo = isCurrentVideo,
         fetchTimeoutMs = fetchTimeoutMs,
+        prefetchPages = prefetchPages,
     )
 
     @Test
     fun `the first page is deduplicated by comment id and reports whether more is available`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
-            val nextPage = Page("https://example.invalid/next")
-            coEvery { repository.getComments("vid_a") } returns
-                (listOf(comment("c1"), comment("c1", text = "duplicate"), comment("c2")) to nextPage)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(
+                    comments = listOf(comment("c1"), comment("c1", text = "duplicate"), comment("c2")),
+                    continuation = "page_2",
+                )
             val pager = pager(scope)
 
             pager.load("vid_a")
@@ -80,13 +88,81 @@ class CommentsPagerTest {
         }
 
     @Test
+    fun `the header count and the sort menu are published from the first page`() =
+        runTest(testDispatcher) {
+            val scope = CoroutineScope(testDispatcher)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(
+                    comments = listOf(comment("c1")),
+                    sortOptions =
+                        listOf(
+                            VideoCommentSort("Top", "top_token", selected = true),
+                            VideoCommentSort("Newest", "newest_token", selected = false),
+                        ),
+                    totalText = "699K",
+                    totalCount = 699_091L,
+                )
+            val pager = pager(scope)
+
+            pager.load("vid_a")
+            advanceUntilIdle()
+
+            assertThat(pager.sortOptions.value.map { it.title }).containsExactly("Top", "Newest").inOrder()
+            assertThat(pager.totalText.value).isEqualTo("699K")
+            assertThat(pager.totalCount.value).isEqualTo(699_091L)
+            scope.cancel()
+        }
+
+    @Test
+    fun `selecting a sort reloads the section through that continuation`() =
+        runTest(testDispatcher) {
+            val scope = CoroutineScope(testDispatcher)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(comment("top_1")))
+            coEvery { repository.getVideoComments("vid_a", "newest_token") } returns
+                CommentsPageResult(comments = listOf(comment("newest_1")))
+            val pager = pager(scope)
+
+            pager.load("vid_a")
+            advanceUntilIdle()
+            pager.selectSort("vid_a", VideoCommentSort("Newest", "newest_token", selected = false))
+            advanceUntilIdle()
+
+            assertThat(pager.comments.value.map { it.id }).containsExactly("newest_1")
+            coVerify(exactly = 1) { repository.getVideoComments("vid_a", "newest_token") }
+            scope.cancel()
+        }
+
+    @Test
+    fun `the sort menu survives a page that does not repeat it`() =
+        runTest(testDispatcher) {
+            val scope = CoroutineScope(testDispatcher)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(
+                    comments = listOf(comment("c1")),
+                    sortOptions = listOf(VideoCommentSort("Top", "top_token", selected = true)),
+                )
+            coEvery { repository.getVideoComments("vid_a", "top_token") } returns
+                CommentsPageResult(comments = listOf(comment("c2")))
+            val pager = pager(scope)
+
+            pager.load("vid_a")
+            advanceUntilIdle()
+            pager.selectSort("vid_a", VideoCommentSort("Top", "top_token", selected = true))
+            advanceUntilIdle()
+
+            assertThat(pager.sortOptions.value.map { it.title }).containsExactly("Top")
+            scope.cancel()
+        }
+
+    @Test
     fun `loadMore appends the next page without repeating a comment`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
-            val nextPage = Page("https://example.invalid/next")
-            coEvery { repository.getComments("vid_a") } returns (listOf(comment("c1")) to nextPage)
-            coEvery { repository.getMoreComments("vid_a", nextPage) } returns
-                (listOf(comment("c1"), comment("c2")) to null)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(comment("c1")), continuation = "page_2")
+            coEvery { repository.getMoreVideoComments("vid_a", "page_2") } returns
+                CommentsPageResult(comments = listOf(comment("c1"), comment("c2")))
             val pager = pager(scope)
 
             pager.load("vid_a")
@@ -101,10 +177,11 @@ class CommentsPagerTest {
         }
 
     @Test
-    fun `loadMore without a page from the first fetch never reaches the repository`() =
+    fun `loadMore without a continuation from the first fetch never reaches the repository`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
-            coEvery { repository.getComments("vid_a") } returns (listOf(comment("c1")) to null)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(comment("c1")))
             val pager = pager(scope)
 
             pager.load("vid_a")
@@ -112,7 +189,49 @@ class CommentsPagerTest {
             pager.loadMore("vid_a")
             advanceUntilIdle()
 
-            coVerify(exactly = 0) { repository.getMoreComments(any(), any()) }
+            coVerify(exactly = 0) { repository.getMoreVideoComments(any(), any()) }
+            scope.cancel()
+        }
+
+    @Test
+    fun `the prefetch walks a bounded number of further pages and then stops`() =
+        runTest(testDispatcher) {
+            val scope = CoroutineScope(testDispatcher)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(comment("c1")), continuation = "page_2")
+            coEvery { repository.getMoreVideoComments("vid_a", "page_2") } returns
+                CommentsPageResult(comments = listOf(comment("c2")), continuation = "page_3")
+            coEvery { repository.getMoreVideoComments("vid_a", "page_3") } returns
+                CommentsPageResult(comments = listOf(comment("c3")), continuation = "page_4")
+            coEvery { repository.getMoreVideoComments("vid_a", "page_4") } returns
+                CommentsPageResult(comments = listOf(comment("c4")), continuation = "page_5")
+            val pager = pager(scope, prefetchPages = 2)
+
+            pager.load("vid_a")
+            advanceUntilIdle()
+
+            assertThat(pager.comments.value.map { it.id }).containsExactly("c1", "c2", "c3").inOrder()
+            coVerify(exactly = 0) { repository.getMoreVideoComments("vid_a", "page_4") }
+            assertThat(pager.hasMore.value).isTrue()
+            scope.cancel()
+        }
+
+    @Test
+    fun `the prefetch stops at the end of the section`() =
+        runTest(testDispatcher) {
+            val scope = CoroutineScope(testDispatcher)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(comment("c1")), continuation = "page_2")
+            coEvery { repository.getMoreVideoComments("vid_a", "page_2") } returns
+                CommentsPageResult(comments = listOf(comment("c2")))
+            val pager = pager(scope, prefetchPages = 3)
+
+            pager.load("vid_a")
+            advanceUntilIdle()
+
+            assertThat(pager.comments.value.map { it.id }).containsExactly("c1", "c2").inOrder()
+            assertThat(pager.hasMore.value).isFalse()
+            coVerify(exactly = 1) { repository.getMoreVideoComments("vid_a", "page_2") }
             scope.cancel()
         }
 
@@ -121,9 +240,9 @@ class CommentsPagerTest {
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
             val gate = CompletableDeferred<Unit>()
-            coEvery { repository.getComments("vid_a") } coAnswers {
+            coEvery { repository.getVideoComments("vid_a", null) } coAnswers {
                 gate.await()
-                listOf(comment("c1")) to null
+                CommentsPageResult(comments = listOf(comment("c1")))
             }
             val pager = pager(scope)
 
@@ -133,7 +252,7 @@ class CommentsPagerTest {
             pager.load("vid_a")
             runCurrent()
 
-            coVerify(exactly = 1) { repository.getComments("vid_a") }
+            coVerify(exactly = 1) { repository.getVideoComments("vid_a", null) }
             assertThat(pager.isLoading.value).isTrue()
 
             gate.complete(Unit)
@@ -148,11 +267,12 @@ class CommentsPagerTest {
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
             val gateA = CompletableDeferred<Unit>()
-            coEvery { repository.getComments("vid_a") } coAnswers {
+            coEvery { repository.getVideoComments("vid_a", null) } coAnswers {
                 gateA.await()
-                listOf(comment("c_a")) to null
+                CommentsPageResult(comments = listOf(comment("c_a")))
             }
-            coEvery { repository.getComments("vid_b") } returns (listOf(comment("c_b")) to null)
+            coEvery { repository.getVideoComments("vid_b", null) } returns
+                CommentsPageResult(comments = listOf(comment("c_b")))
             val pager = pager(scope)
 
             pager.load("vid_a")
@@ -173,13 +293,14 @@ class CommentsPagerTest {
     fun `a result for a video the owner no longer shows never reaches the list`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
-            coEvery { repository.getComments("vid_a") } returns (listOf(comment("c1")) to null)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(comment("c1")))
             val pager = pager(scope, isCurrentVideo = { false })
 
             pager.load("vid_a")
             advanceUntilIdle()
 
-            coVerify(exactly = 0) { repository.getComments(any()) }
+            coVerify(exactly = 0) { repository.getVideoComments(any(), any()) }
             assertThat(pager.comments.value).isEmpty()
             assertThat(pager.isLoading.value).isFalse()
             scope.cancel()
@@ -191,17 +312,18 @@ class CommentsPagerTest {
             val scope = CoroutineScope(testDispatcher)
             val playbackState =
                 MutableStateFlow(CommentsPlaybackState(isPlaybackLoading = true, currentVideoId = "vid_a"))
-            coEvery { repository.getComments("vid_a") } returns (listOf(comment("c1")) to null)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(comment("c1")))
             val pager = pager(scope, playbackState = playbackState)
 
             pager.load("vid_a")
             runCurrent()
-            coVerify(exactly = 0) { repository.getComments(any()) }
+            coVerify(exactly = 0) { repository.getVideoComments(any(), any()) }
 
             playbackState.value = CommentsPlaybackState(isPlaybackLoading = false, currentVideoId = "vid_a")
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { repository.getComments("vid_a") }
+            coVerify(exactly = 1) { repository.getVideoComments("vid_a", null) }
             assertThat(pager.comments.value.map { it.id }).containsExactly("c1")
             scope.cancel()
         }
@@ -210,9 +332,9 @@ class CommentsPagerTest {
     fun `a fetch that outruns the timeout leaves the list empty and stops loading`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
-            coEvery { repository.getComments("vid_a") } coAnswers {
+            coEvery { repository.getVideoComments("vid_a", null) } coAnswers {
                 CompletableDeferred<Unit>().await()
-                listOf(comment("c1")) to null
+                CommentsPageResult(comments = listOf(comment("c1")))
             }
             val pager = pager(scope, fetchTimeoutMs = 10_000L)
 
@@ -228,13 +350,13 @@ class CommentsPagerTest {
     fun `replies replace the comment's list and a repeat while in flight is dropped`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
-            val repliesPage = Page("https://example.invalid/replies")
-            val parent = comment("c1", repliesPage = repliesPage)
-            coEvery { repository.getComments("vid_a") } returns (listOf(parent) to null)
+            val parent = comment("c1", continuationToken = "replies_token")
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(parent))
             val gate = CompletableDeferred<Unit>()
-            coEvery { repository.getCommentReplies(any(), repliesPage) } coAnswers {
+            coEvery { repository.getVideoCommentReplies("vid_a", "replies_token") } coAnswers {
                 gate.await()
-                listOf(comment("r1"), comment("r1"), comment("r2")) to null
+                CommentsPageResult(comments = listOf(comment("r1"), comment("r1"), comment("r2")))
             }
             val pager = pager(scope)
 
@@ -245,7 +367,7 @@ class CommentsPagerTest {
             runCurrent()
             pager.loadReplies("vid_a", parent)
             runCurrent()
-            coVerify(exactly = 1) { repository.getCommentReplies(any(), repliesPage) }
+            coVerify(exactly = 1) { repository.getVideoCommentReplies("vid_a", "replies_token") }
 
             gate.complete(Unit)
             advanceUntilIdle()
@@ -258,7 +380,7 @@ class CommentsPagerTest {
             assertThat(
                 pager.comments.value
                     .single()
-                    .repliesPage,
+                    .continuationToken,
             ).isNull()
             scope.cancel()
         }
@@ -267,11 +389,11 @@ class CommentsPagerTest {
     fun `loadMoreReplies merges the next page into the replies already shown`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
-            val repliesPage = Page("https://example.invalid/replies")
-            val parent = comment("c1", repliesPage = repliesPage, replies = listOf(comment("r1")))
-            coEvery { repository.getComments("vid_a") } returns (listOf(parent) to null)
-            coEvery { repository.getCommentReplies(any(), repliesPage) } returns
-                (listOf(comment("r1"), comment("r2")) to null)
+            val parent = comment("c1", continuationToken = "replies_token", replies = listOf(comment("r1")))
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(parent))
+            coEvery { repository.getVideoCommentReplies("vid_a", "replies_token") } returns
+                CommentsPageResult(comments = listOf(comment("r1"), comment("r2")))
             val pager = pager(scope)
 
             pager.load("vid_a")
@@ -289,13 +411,47 @@ class CommentsPagerTest {
         }
 
     @Test
+    fun `a fallback page keeps paging and its replies on the extractor`() =
+        runTest(testDispatcher) {
+            val scope = CoroutineScope(testDispatcher)
+            val firstPage = Page("https://example.invalid/next")
+            val repliesPage = Page("https://example.invalid/replies")
+            val parent = comment("c1", repliesPage = repliesPage)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(comments = listOf(parent), legacyPage = firstPage)
+            coEvery { repository.getMoreComments("vid_a", firstPage) } returns (listOf(comment("c2")) to null)
+            coEvery { repository.getCommentReplies(any(), repliesPage) } returns (listOf(comment("r1")) to null)
+            val pager = pager(scope)
+
+            pager.load("vid_a")
+            advanceUntilIdle()
+            assertThat(pager.hasMore.value).isTrue()
+
+            pager.loadMore("vid_a")
+            advanceUntilIdle()
+            assertThat(pager.comments.value.map { it.id }).containsExactly("c1", "c2").inOrder()
+            assertThat(pager.hasMore.value).isFalse()
+
+            pager.loadReplies("vid_a", parent)
+            advanceUntilIdle()
+            assertThat(
+                pager.comments.value
+                    .first()
+                    .replies
+                    .map { it.id },
+            ).containsExactly("r1")
+            coVerify(exactly = 0) { repository.getVideoCommentReplies(any(), any()) }
+            scope.cancel()
+        }
+
+    @Test
     fun `clear empties the list and cancels the request in flight`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)
             val gate = CompletableDeferred<Unit>()
-            coEvery { repository.getComments("vid_a") } coAnswers {
+            coEvery { repository.getVideoComments("vid_a", null) } coAnswers {
                 gate.await()
-                listOf(comment("c1")) to null
+                CommentsPageResult(comments = listOf(comment("c1")))
             }
             val pager = pager(scope)
 
@@ -306,6 +462,8 @@ class CommentsPagerTest {
             assertThat(pager.comments.value).isEmpty()
             assertThat(pager.isLoading.value).isFalse()
             assertThat(pager.hasMore.value).isFalse()
+            assertThat(pager.sortOptions.value).isEmpty()
+            assertThat(pager.totalText.value).isNull()
 
             gate.complete(Unit)
             advanceUntilIdle()

@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
+import io.github.aedev.flow.innertube.pages.VideoCommentSort
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -102,6 +103,8 @@ class VideoPlayerViewModel
         val isLoadingComments: StateFlow<Boolean> = comments.isLoading
         val hasMoreComments: StateFlow<Boolean> = comments.hasMore
         val isLoadingMoreComments: StateFlow<Boolean> = comments.isLoadingMore
+        val commentSortOptions: StateFlow<List<VideoCommentSort>> = comments.sortOptions
+        val commentTotalText: StateFlow<String?> = comments.totalText
 
         private val navigationHistory = PlayerNavigationHistory()
 
@@ -577,6 +580,11 @@ class VideoPlayerViewModel
         }
 
         fun loadMoreComments(videoId: String) = comments.loadMore(videoId)
+
+        fun selectCommentSort(
+            videoId: String,
+            sort: VideoCommentSort,
+        ) = comments.selectSort(videoId, sort)
 
         fun loadCommentReplies(comment: Comment) {
             val videoId = _uiState.value.streamInfo?.id ?: return

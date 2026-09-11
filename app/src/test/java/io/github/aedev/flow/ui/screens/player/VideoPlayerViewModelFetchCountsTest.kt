@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.comments.CommentsPageResult
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.innertube.YouTube
@@ -344,19 +345,19 @@ class VideoPlayerViewModelFetchCountsTest {
                     likeCount = 0,
                     publishedTime = "",
                 )
-            coEvery { harness.repository.getComments("vid_a") } coAnswers {
+            coEvery { harness.repository.getVideoComments("vid_a", null) } coAnswers {
                 gate.await()
-                listOf(comment) to null as Page?
+                CommentsPageResult(comments = listOf(comment))
             }
 
             viewModel.loadComments("vid_a")
             runCurrent()
             assertThat(viewModel.isLoadingComments.value).isTrue()
-            coVerify(exactly = 1) { harness.repository.getComments("vid_a") }
+            coVerify(exactly = 1) { harness.repository.getVideoComments("vid_a", null) }
 
             viewModel.loadComments("vid_a")
             runCurrent()
-            coVerify(exactly = 1) { harness.repository.getComments("vid_a") }
+            coVerify(exactly = 1) { harness.repository.getVideoComments("vid_a", null) }
             assertThat(viewModel.isLoadingComments.value).isTrue()
 
             gate.complete(Unit)

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.player
 
 import android.content.Context
+import io.github.aedev.flow.data.comments.CommentsPageResult
 import io.github.aedev.flow.data.engagement.VideoEngagementSignals
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.ChannelSubscription
@@ -164,6 +165,7 @@ internal class VideoPlayerViewModelHarness(
         coEvery { repository.getVideoStreamInfo(any()) } throws RuntimeException("newpipe unavailable")
         every { repository.getRelatedVideosFromStreamInfo(any()) } returns emptyList()
         coEvery { repository.getComments(any()) } returns (emptyList<Comment>() to null as Page?)
+        coEvery { repository.getVideoComments(any(), any()) } returns CommentsPageResult.EMPTY
 
         every { subscriptionRepository.isSubscribed(any()) } returns isSubscribed
         every { subscriptionRepository.getSubscription(any()) } returns subscription
