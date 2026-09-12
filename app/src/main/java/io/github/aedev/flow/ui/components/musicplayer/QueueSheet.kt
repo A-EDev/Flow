@@ -113,6 +113,7 @@ fun QueueSheet(
     onToggleEndlessRadio: (Boolean) -> Unit,
     onShuffleQueue: () -> Unit,
     onCycleRepeat: () -> Unit,
+    isPlaying: Boolean = true,
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier,
 ) {
@@ -316,6 +317,7 @@ fun QueueSheet(
                         QueueTrackRow(
                             track = track,
                             isCurrent = isCurrent,
+                            isPlaying = isPlaying,
                             isRadioItem = false,
                             isDragging = isDragging,
                             swipeEnabled = !isCurrent && !isDragging,
@@ -434,6 +436,7 @@ private fun RadioLoadingRow() {
 private fun QueueTrackRow(
     track: MusicTrack,
     isCurrent: Boolean,
+    isPlaying: Boolean = true,
     isRadioItem: Boolean,
     isDragging: Boolean,
     swipeEnabled: Boolean,
@@ -557,6 +560,7 @@ private fun QueueTrackRow(
                         ) {
                             PlayingWaveform(
                                 color = Color.White.copy(alpha = 0.9f),
+                                animate = isPlaying,
                                 barCount = 3,
                                 barWidth = 2.5.dp,
                                 barSpacing = 1.5.dp,

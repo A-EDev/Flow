@@ -747,6 +747,7 @@ internal fun FullMusicPlayerContent(
                     onToggleEndlessRadio = { viewModel.setEndlessRadioEnabled(it) },
                     onShuffleQueue = { viewModel.toggleShuffle() },
                     onCycleRepeat = { viewModel.toggleRepeat() },
+                    isPlaying = uiState.isPlaying,
                     dragHandleModifier = queueDragHandleModifier,
                 )
             }
