@@ -235,8 +235,7 @@ class DownloadUtil
             val requestLength =
                 when {
                     dataSpec.length > 0 -> dataSpec.length
-                    dataSpec.length == C.LENGTH_UNSET.toLong() -> CHUNK_LENGTH
-                    else -> CHUNK_LENGTH
+                    else -> C.LENGTH_UNSET.toLong()
                 }
 
             return dataSpec

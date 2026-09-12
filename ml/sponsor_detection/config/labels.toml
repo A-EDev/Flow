@@ -1,0 +1,19 @@
+[labels]
+input_path = "sb-mirror/sponsorTimes.csv"
+profile_path = "ml/sponsor_detection/reports/sponsorblock_inventory.json"
+output_path = "ml/sponsor_detection/data/labels/sponsor_annotations.parquet"
+manifest_path = "ml/sponsor_detection/reports/sponsor_labels_manifest.json"
+batch_size = 100000
+compression = "zstd"
+progress_every_rows = 5000000
+
+[eligibility]
+category = "sponsor"
+service = "YouTube"
+action_type = "skip"
+minimum_votes = 0
+exclude_hidden = true
+exclude_shadow_hidden = true
+duration_tolerance_seconds = 1.0
+duration_tolerance_ratio = 0.01
+

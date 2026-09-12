@@ -5,7 +5,9 @@ import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.CacheKeyFactory
 import androidx.media3.datasource.cache.SimpleCache
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.config.PlayerConfig
@@ -15,8 +17,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 @UnstableApi
-class PlayerCacheManager(private val context: Context) {
-
+class PlayerCacheManager(
+    private val context: Context,
+) {
     companion object {
         private const val TAG = "PlayerCacheManager"
 
@@ -37,20 +40,22 @@ class PlayerCacheManager(private val context: Context) {
          * main thread during startup. Call this before [initialize] on any latency-sensitive
          * path; [initialize] stays correct without it, just blocking.
          */
-        suspend fun preload(context: Context): Unit = withContext(Dispatchers.IO) {
-            val appContext = context.applicationContext
-            val configured = runCatching {
-                PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(appContext).mediaCacheSizeMb.first())
-            }.getOrDefault(0L)
-            val resolved = if (configured <= 0) PlayerConfig.CACHE_SIZE_BYTES else configured
-            preloadedCacheSizeBytes = resolved
-            runCatching { SharedPlayerCacheProvider.getOrCreate(appContext, maxCacheSizeBytes = resolved) }
-                .onFailure { Log.w(TAG, "Cache preload failed; initialize() will retry", it) }
-        }
+        suspend fun preload(context: Context): Unit =
+            withContext(Dispatchers.IO) {
+                val appContext = context.applicationContext
+                val configured =
+                    runCatching {
+                        PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(appContext).mediaCacheSizeMb.first())
+                    }.getOrDefault(0L)
+                val resolved = if (configured <= 0) PlayerConfig.CACHE_SIZE_BYTES else configured
+                preloadedCacheSizeBytes = resolved
+                runCatching { SharedPlayerCacheProvider.getOrCreate(appContext, maxCacheSizeBytes = resolved) }
+                    .onFailure { Log.w(TAG, "Cache preload failed; initialize() will retry", it) }
+            }
     }
 
     private var cache: SimpleCache? = null
-    
+
     // Data source factories
     private var sharedDataSourceFactory: DataSource.Factory? = null
     private var sharedDashDataSourceFactory: DataSource.Factory? = null
@@ -58,59 +63,110 @@ class PlayerCacheManager(private val context: Context) {
     private var sharedHlsDataSourceFactory: DataSource.Factory? = null
     private var sharedLiveDashDataSourceFactory: DataSource.Factory? = null
     private var sharedLiveHlsDataSourceFactory: DataSource.Factory? = null
-    
+
     /**
      * Initialize cache and data source factories.
+     *
+     * @param transferListener Optional listener (such as ExoPlayer's DefaultBandwidthMeter)
+     *   notified of network data transfers so bandwidth estimation updates accurately.
      */
-    fun initialize(): Boolean {
+    fun initialize(transferListener: TransferListener? = null): Boolean {
         // Build shared DataSource Factories (NewPipe Architecture)
-        val dashHttpFactory = YouTubeHttpDataSource.Factory()
-        val progressiveHttpFactory = YouTubeHttpDataSource.Factory()
-        val hlsHttpFactory = YouTubeHttpDataSource.Factory()
+        val dashHttpFactory = YouTubeHttpDataSource.Factory(transferListener)
+        val progressiveHttpFactory = YouTubeHttpDataSource.Factory(transferListener)
+        val hlsHttpFactory = YouTubeHttpDataSource.Factory(transferListener)
 
-        val dashUpstream = DefaultDataSource.Factory(context, dashHttpFactory)
-        val progressiveUpstream = DefaultDataSource.Factory(context, progressiveHttpFactory)
-        val hlsUpstream = DefaultDataSource.Factory(context, hlsHttpFactory)
+        val dashUpstream =
+            DefaultDataSource.Factory(context, dashHttpFactory).apply {
+                transferListener?.let { setTransferListener(it) }
+            }
+        val progressiveUpstream =
+            DefaultDataSource.Factory(context, progressiveHttpFactory).apply {
+                transferListener?.let { setTransferListener(it) }
+            }
+        val hlsUpstream =
+            DefaultDataSource.Factory(context, hlsHttpFactory).apply {
+                transferListener?.let { setTransferListener(it) }
+            }
         sharedLiveDashDataSourceFactory = dashUpstream
         sharedLiveHlsDataSourceFactory = hlsUpstream
-        
+
         // Legacy/Fallback
-        val legacyHttpFactory = YouTubeHttpDataSource.Factory()
-        val upstream = DefaultDataSource.Factory(context, legacyHttpFactory)
+        val legacyHttpFactory = YouTubeHttpDataSource.Factory(transferListener)
+        val upstream =
+            DefaultDataSource.Factory(context, legacyHttpFactory).apply {
+                transferListener?.let { setTransferListener(it) }
+            }
 
         try {
             // Falls back to a blocking read only when preload() has not run — the media service
             // can build a player without going through the cold-start path.
-            val cacheSizeBytes = preloadedCacheSizeBytes ?: kotlinx.coroutines.runBlocking {
-                PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(context).mediaCacheSizeMb.first())
-            }
-            cache = SharedPlayerCacheProvider.getOrCreate(
-                context,
-                maxCacheSizeBytes = if (cacheSizeBytes <= 0) PlayerConfig.CACHE_SIZE_BYTES else cacheSizeBytes
-            )
-            
-            val cacheFactory = CacheDataSource.Factory()
-                .setCache(cache!!)
-                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+            val cacheSizeBytes =
+                preloadedCacheSizeBytes ?: kotlinx.coroutines.runBlocking {
+                    PlayerConfig.cacheSizeMbToBytes(PlayerPreferences(context).mediaCacheSizeMb.first())
+                }
+            cache =
+                SharedPlayerCacheProvider.getOrCreate(
+                    context,
+                    maxCacheSizeBytes = if (cacheSizeBytes <= 0) PlayerConfig.CACHE_SIZE_BYTES else cacheSizeBytes,
+                )
+
+            // Normalizes YouTube URLs so cached media chunks survive ephemeral URL parameter rotations.
+            val youtubeCacheKeyFactory =
+                CacheKeyFactory { dataSpec ->
+                    if (!dataSpec.key.isNullOrEmpty()) {
+                        dataSpec.key!!
+                    } else {
+                        val uri = dataSpec.uri
+                        val host = uri.host
+                        if (host != null && (host.contains("googlevideo.com") || host.contains("youtube.com"))) {
+                            val id = uri.getQueryParameter("id") ?: uri.getQueryParameter("docid")
+                            val itag = uri.getQueryParameter("itag")
+                            if (!id.isNullOrEmpty() && !itag.isNullOrEmpty()) {
+                                "${id}_$itag"
+                            } else {
+                                uri.toString()
+                            }
+                        } else {
+                            uri.toString()
+                        }
+                    }
+                }
+
+            val cacheFactory =
+                CacheDataSource
+                    .Factory()
+                    .setCache(cache!!)
+                    .setCacheKeyFactory(youtubeCacheKeyFactory)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
             // Create the 3 specific factories
-            sharedDashDataSourceFactory = CacheDataSource.Factory()
-                .setCache(cache!!)
-                .setUpstreamDataSourceFactory(dashUpstream)
-                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-                
-            sharedProgressiveDataSourceFactory = CacheDataSource.Factory()
-                .setCache(cache!!)
-                .setUpstreamDataSourceFactory(progressiveUpstream)
-                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-                
-            sharedHlsDataSourceFactory = CacheDataSource.Factory()
-                .setCache(cache!!)
-                .setUpstreamDataSourceFactory(hlsUpstream)
-                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+            sharedDashDataSourceFactory =
+                CacheDataSource
+                    .Factory()
+                    .setCache(cache!!)
+                    .setCacheKeyFactory(youtubeCacheKeyFactory)
+                    .setUpstreamDataSourceFactory(dashUpstream)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+            sharedProgressiveDataSourceFactory =
+                CacheDataSource
+                    .Factory()
+                    .setCache(cache!!)
+                    .setCacheKeyFactory(youtubeCacheKeyFactory)
+                    .setUpstreamDataSourceFactory(progressiveUpstream)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+            sharedHlsDataSourceFactory =
+                CacheDataSource
+                    .Factory()
+                    .setCache(cache!!)
+                    .setCacheKeyFactory(youtubeCacheKeyFactory)
+                    .setUpstreamDataSourceFactory(hlsUpstream)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
             sharedDataSourceFactory = cacheFactory.setUpstreamDataSourceFactory(upstream)
-            
+
             Log.d(TAG, "Cache initialized successfully")
             return true
         } catch (e: Exception) {
@@ -124,12 +180,12 @@ class PlayerCacheManager(private val context: Context) {
             return false
         }
     }
-    
+
     /**
      * Get the legacy/default data source factory.
      */
     fun getDataSourceFactory(): DataSource.Factory? = sharedDataSourceFactory
-    
+
     /**
      * Get the DASH-specific data source factory.
      */
@@ -139,12 +195,12 @@ class PlayerCacheManager(private val context: Context) {
      * Live DASH manifests are timeline data, so keep them off the persistent media cache.
      */
     fun getLiveDashDataSourceFactory(): DataSource.Factory? = sharedLiveDashDataSourceFactory
-    
+
     /**
      * Get the progressive media data source factory.
      */
     fun getProgressiveDataSourceFactory(): DataSource.Factory? = sharedProgressiveDataSourceFactory
-    
+
     /**
      * Get the HLS data source factory.
      */
@@ -154,12 +210,12 @@ class PlayerCacheManager(private val context: Context) {
      * Live HLS playlists move constantly, so use an uncached upstream source for them.
      */
     fun getLiveHlsDataSourceFactory(): DataSource.Factory? = sharedLiveHlsDataSourceFactory
-    
+
     /**
      * Get cache size in bytes.
      */
     fun getCacheSize(): Long = cache?.cacheSpace ?: 0L
-    
+
     /**
      * Clear all cached data.
      */
@@ -176,7 +232,7 @@ class PlayerCacheManager(private val context: Context) {
             Log.e(TAG, "Error clearing cache", e)
         }
     }
-    
+
     /**
      * Release cache resources.
      */
@@ -194,7 +250,7 @@ class PlayerCacheManager(private val context: Context) {
             Log.w(TAG, "Error releasing cache", e)
         }
     }
-    
+
     /**
      * Check if cache is initialized and available.
      */

@@ -57,6 +57,7 @@ private val RestTrackHeight = 5.dp
 private val ActiveTrackHeight = 10.dp
 private val EdgeAlignedHeight = 14.dp
 private val ExpandedRowHeight = 32.dp
+private val MinSponsorMarkWidth = 4.dp
 
 /** Colours the track needs, resolved once in composition so the draw lambda stays theme-free. */
 private data class SeekTrackColors(
@@ -494,13 +495,18 @@ private fun DrawScope.drawSeekTrack(
 
         // Drawn above progress so a segment stays visible after playback passes it.
         if (duration > 0) {
+            val minMarkWidth = MinSponsorMarkWidth.toPx()
             sponsorSegments.forEach { segment ->
                 val startRatio = (segment.startTime * 1000f / duration.toFloat()).coerceIn(0f, 1f)
                 val endRatio = (segment.endTime * 1000f / duration.toFloat()).coerceIn(0f, 1f)
 
                 if (endRatio > startRatio) {
-                    val startX = startRatio * width
-                    val segWidth = (endRatio * width) - startX
+                    var startX = startRatio * width
+                    var segWidth = (endRatio * width) - startX
+                    if (segWidth < minMarkWidth) {
+                        segWidth = minMarkWidth.coerceAtMost(width)
+                        startX = ((endRatio * width) - segWidth).coerceIn(0f, width - segWidth)
+                    }
                     val segmentColor =
                         (
                             sponsorColors[segment.category]

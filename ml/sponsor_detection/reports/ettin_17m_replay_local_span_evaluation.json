@@ -1,0 +1,103 @@
+{
+  "boundary_error_characters_at_iou_0.5": {
+    "end_median": 3,
+    "end_p95": 108,
+    "iou_median": 0.9790964261631827,
+    "iou_p05": 0.7104677060133631,
+    "matched_spans": 9047,
+    "start_median": 4,
+    "start_p95": 172
+  },
+  "breakdown_by_label_kind": {
+    "hard_negative": {
+      "expected_spans": 0,
+      "false_positive": 306,
+      "predicted_spans": 314,
+      "true_negative": 5707,
+      "windows": 6013
+    },
+    "ordinary_negative": {
+      "expected_spans": 0,
+      "false_positive": 207,
+      "predicted_spans": 213,
+      "true_negative": 16352,
+      "windows": 16559
+    },
+    "positive": {
+      "expected_spans": 11107,
+      "false_negative": 1606,
+      "predicted_spans": 9505,
+      "true_positive": 9400,
+      "windows": 11006
+    }
+  },
+  "character_coverage": {
+    "expected": 10851030,
+    "f1": 0.9129579051464715,
+    "overlap": 9651969,
+    "precision": 0.9376888596143533,
+    "predicted": 10293360,
+    "recall": 0.889497955493626
+  },
+  "checkpoint": {
+    "model_sha256": "da7e03a80f00a4854a63289e3eda9f1142a34e1930e780f86c535ec6428d6a59",
+    "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_v3_replay"
+  },
+  "dataset": {
+    "manifest_sha256": "cac777516fe731424efab5735196a1ba2a9962a0fe1f3c8eb1181f17e4302405",
+    "rows": 33578,
+    "test_sha256": "08fdb9dbfa789bca20511552ea5413c4297a94464cf50ebb4c10ff07f55eff18"
+  },
+  "decoder": {
+    "confidence_threshold": 0.0,
+    "config_path": null
+  },
+  "predicted_span_confidence": {
+    "count": 10032,
+    "median": 0.9621442883861493,
+    "p05": 0.6241575994012342,
+    "p95": 0.9932052638134693
+  },
+  "runtime": {
+    "batch_size": 16,
+    "bf16": true,
+    "device": "cuda",
+    "elapsed_seconds": 158.623
+  },
+  "schema_version": 1,
+  "span_metrics_by_character_iou": {
+    "0.3": {
+      "f1": 0.8753488812148161,
+      "false_negative": 1855,
+      "false_positive": 780,
+      "precision": 0.9222488038277512,
+      "recall": 0.8329882056360853,
+      "true_positive": 9252
+    },
+    "0.5": {
+      "f1": 0.8559534509674063,
+      "false_negative": 2060,
+      "false_positive": 985,
+      "precision": 0.9018141945773525,
+      "recall": 0.8145313766093455,
+      "true_positive": 9047
+    },
+    "0.7": {
+      "f1": 0.8165003074885282,
+      "false_negative": 2477,
+      "false_positive": 1402,
+      "precision": 0.8602472089314195,
+      "recall": 0.7769874853695867,
+      "true_positive": 8630
+    }
+  },
+  "window_presence": {
+    "f1": 0.8987045269850376,
+    "false_negative": 1606,
+    "false_positive": 513,
+    "precision": 0.9482497730253203,
+    "recall": 0.8540795929493004,
+    "true_negative": 22059,
+    "true_positive": 9400
+  }
+}

@@ -1,0 +1,203 @@
+{
+  "annotation_maps": {
+    "processed_database.json": {
+      "bytes": 71809456,
+      "categories": {
+        "interaction": 59151,
+        "selfpromo": 53222,
+        "sponsor": 177496
+      },
+      "invalid_segments": 0,
+      "path": "ml/sponsor_detection/data/external/xenova_sponsorblock_768/processed_database.json",
+      "segments": 289869,
+      "videos": 221707
+    },
+    "segments.json": {
+      "bytes": 33086945,
+      "categories": {
+        "interaction": 32701,
+        "selfpromo": 27479,
+        "sponsor": 73334
+      },
+      "invalid_segments": 0,
+      "path": "ml/sponsor_detection/data/external/xenova_sponsorblock_768/segments.json",
+      "segments": 133514,
+      "videos": 98219
+    }
+  },
+  "coverage": {
+    "current_sponsorblock_labels": {
+      "dataset_video_coverage": 0.619335,
+      "eligible_rows": 104056,
+      "matched_rows": 122521,
+      "matched_videos": 59855,
+      "path": "ml/sponsor_detection/data/labels/sponsor_annotations.parquet",
+      "source_rows": 5222102,
+      "videos_with_eligible_current_labels": 57643
+    },
+    "dataset_videos_in_processed_database": 96644,
+    "dataset_videos_in_segments_map": 96644
+  },
+  "elapsed_seconds": 9.71,
+  "generated_at": "2026-08-30T10:44:21.752458+00:00",
+  "schema_version": 1,
+  "source": {
+    "checksums": {
+      "processed_database.json": {
+        "actual": "a02808a7290642bc7ae0dc3371bd47d404823bd8fb8544bb7b1e4590ca1683ac",
+        "expected": "a02808a7290642bc7ae0dc3371bd47d404823bd8fb8544bb7b1e4590ca1683ac",
+        "matches": true
+      },
+      "segments.json": {
+        "actual": "9ff225437a0e05e1faf0ae80074399601a0084fb71e82d6b7b25575726ef2b61",
+        "expected": "9ff225437a0e05e1faf0ae80074399601a0084fb71e82d6b7b25575726ef2b61",
+        "matches": true
+      },
+      "test.json": {
+        "actual": "7d0b8e77eaf842a4c14bbb6fbe3473f40a0d2e7fbdd482ac22ed635931adfbd4",
+        "expected": "7d0b8e77eaf842a4c14bbb6fbe3473f40a0d2e7fbdd482ac22ed635931adfbd4",
+        "matches": true
+      },
+      "train.json": {
+        "actual": "a3fdeb5e5d620efbd7f115422f6042386ab23d66fdb5fb7f7fffdad0010d6b08",
+        "expected": "a3fdeb5e5d620efbd7f115422f6042386ab23d66fdb5fb7f7fffdad0010d6b08",
+        "matches": true
+      },
+      "valid.json": {
+        "actual": "ee794ae82e7059c7175bea83501e75715c27e9e2be42356c16bc82c8ed66afcd",
+        "expected": "ee794ae82e7059c7175bea83501e75715c27e9e2be42356c16bc82c8ed66afcd",
+        "matches": true
+      }
+    },
+    "directory": "ml/sponsor_detection/data/external/xenova_sponsorblock_768",
+    "repository": "Xenova/sponsorblock-768",
+    "revision": "09cace13dc72455e7558cfd2ad13e60a41688c8d"
+  },
+  "split_video_overlap": {
+    "train_test": 15103,
+    "train_valid": 15078,
+    "valid_test": 3451
+  },
+  "splits": {
+    "test": {
+      "bytes": 46657561,
+      "category_rows": {
+        "INTERACTION": 1912,
+        "SELFPROMO": 1827,
+        "SPONSOR": 5924
+      },
+      "conflicting_windows_seen_so_far": 0,
+      "empty_text_rows": 0,
+      "exact_duplicates_seen_so_far": 0,
+      "invalid_json_rows": 0,
+      "invalid_timestamp_rows": 0,
+      "invalid_video_ids": 0,
+      "label_shapes": {
+        "multi_category": 370,
+        "negative": 9293,
+        "single_category": 8907
+      },
+      "path": "ml/sponsor_detection/data/external/xenova_sponsorblock_768/test.json",
+      "rows": 18570,
+      "rows_missing_required_fields": 0,
+      "text_characters": {
+        "maximum": 3989.0,
+        "minimum": 2.0,
+        "p50": 2547.0,
+        "p95": 3404.0,
+        "p99": 3614.0
+      },
+      "unique_video_ids": 16113,
+      "unique_video_indexes": 16113,
+      "window_duration_seconds": {
+        "maximum": 323.759,
+        "minimum": 0.24,
+        "p50": 141.92,
+        "p95": 210.16,
+        "p99": 236.16
+      }
+    },
+    "train": {
+      "bytes": 845867199,
+      "category_rows": {
+        "INTERACTION": 33647,
+        "SELFPROMO": 32601,
+        "SPONSOR": 107919
+      },
+      "conflicting_windows_seen_so_far": 0,
+      "empty_text_rows": 0,
+      "exact_duplicates_seen_so_far": 0,
+      "invalid_json_rows": 0,
+      "invalid_timestamp_rows": 0,
+      "invalid_video_ids": 0,
+      "label_shapes": {
+        "multi_category": 6770,
+        "negative": 167154,
+        "single_category": 160341
+      },
+      "path": "ml/sponsor_detection/data/external/xenova_sponsorblock_768/train.json",
+      "rows": 334265,
+      "rows_missing_required_fields": 0,
+      "text_characters": {
+        "maximum": 4267.0,
+        "minimum": 1.0,
+        "p50": 2584.0,
+        "p95": 3415.0,
+        "p99": 3614.0
+      },
+      "unique_video_ids": 94732,
+      "unique_video_indexes": 94732,
+      "window_duration_seconds": {
+        "maximum": 383.18,
+        "minimum": 0.08,
+        "p50": 143.099,
+        "p95": 211.29,
+        "p99": 237.42
+      }
+    },
+    "valid": {
+      "bytes": 46675866,
+      "category_rows": {
+        "INTERACTION": 1892,
+        "SELFPROMO": 1801,
+        "SPONSOR": 5997
+      },
+      "conflicting_windows_seen_so_far": 0,
+      "empty_text_rows": 0,
+      "exact_duplicates_seen_so_far": 0,
+      "invalid_json_rows": 0,
+      "invalid_timestamp_rows": 0,
+      "invalid_video_ids": 0,
+      "label_shapes": {
+        "multi_category": 363,
+        "negative": 9256,
+        "single_category": 8952
+      },
+      "path": "ml/sponsor_detection/data/external/xenova_sponsorblock_768/valid.json",
+      "rows": 18571,
+      "rows_missing_required_fields": 0,
+      "text_characters": {
+        "maximum": 3967.0,
+        "minimum": 2.0,
+        "p50": 2549.0,
+        "p95": 3419.0,
+        "p99": 3614.0
+      },
+      "unique_video_ids": 16123,
+      "unique_video_indexes": 16123,
+      "window_duration_seconds": {
+        "maximum": 305.84,
+        "minimum": 0.171,
+        "p50": 141.332,
+        "p95": 210.06,
+        "p99": 236.941
+      }
+    }
+  },
+  "totals": {
+    "conflicting_windows": 0,
+    "exact_duplicate_rows": 0,
+    "rows": 371406,
+    "unique_video_ids": 96644
+  }
+}

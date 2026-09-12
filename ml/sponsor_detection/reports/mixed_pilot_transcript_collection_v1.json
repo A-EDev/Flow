@@ -1,0 +1,38 @@
+{
+  "configuration": {
+    "block_cooldown_seconds": 0.0,
+    "languages": [
+      "en",
+      "en-US",
+      "en-GB"
+    ],
+    "max_attempts_per_run": 10,
+    "max_transient_attempts_per_video": 2,
+    "maximum_request_delay_seconds": 0.5,
+    "minimum_request_delay_seconds": 0.25,
+    "provider": "transcript_api",
+    "stop_on_block": true,
+    "target_successes": 140
+  },
+  "cooldown_active": false,
+  "counts": {
+    "attempts_this_run": 4,
+    "candidate_videos": 600,
+    "existing_successes": 100,
+    "new_successes": 2,
+    "skipped_permanent": 91,
+    "skipped_retry_exhausted": 3,
+    "statuses_this_run": {
+      "no_transcript": 1,
+      "provider_error": 1,
+      "success": 2
+    },
+    "total_successes": 102
+  },
+  "elapsed_seconds": 19.554,
+  "generated_at": "2026-08-31T15:47:14.890347+00:00",
+  "schema_version": 1,
+  "source_pilot_sha256": "cb81e6aa5e79f0b911a27b1efb210896d1188ac90ba5426ee91b8d6a6c54816d",
+  "stopped_for_block": true,
+  "target_reached": false
+}

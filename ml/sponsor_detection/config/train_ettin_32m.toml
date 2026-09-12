@@ -1,0 +1,33 @@
+[dataset]
+manifest_path = "ml/sponsor_detection/reports/sponsor_windows_v1_manifest.json"
+train_path = "ml/sponsor_detection/data/training/sponsor_windows_v1/train.parquet"
+validation_path = "ml/sponsor_detection/data/training/sponsor_windows_v1/validation.parquet"
+test_path = "ml/sponsor_detection/data/training/sponsor_windows_v1/test.parquet"
+
+[model]
+encoder = "jhu-clsp/ettin-encoder-32m"
+revision = "1b8ba06455dd44f80fc9c1ca9e22806157a57379"
+max_length = 1024
+dropout = 0.10
+labels = ["O", "B-SPONSOR", "I-SPONSOR", "L-SPONSOR", "U-SPONSOR"]
+
+[validation]
+tokenization_report_path = "ml/sponsor_detection/reports/ettin_32m_tokenization.json"
+
+[training]
+output_directory = "ml/sponsor_detection/checkpoints/ettin_32m_sponsor_v1"
+seed = 20260830
+epochs = 3
+learning_rate = 0.00003
+weight_decay = 0.01
+warmup_steps = 1650
+train_batch_size = 4
+eval_batch_size = 8
+gradient_accumulation_steps = 8
+bf16 = true
+preprocessing_workers = 4
+eval_steps = 1000
+eval_accumulation_steps = 16
+save_steps = 1000
+logging_steps = 50
+save_total_limit = 2

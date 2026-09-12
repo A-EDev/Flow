@@ -1,0 +1,12 @@
+{
+  "dataset_hashes_verified": true,
+  "dataset_rows": {
+    "test": 33578,
+    "train": 298069,
+    "validation": 34156
+  },
+  "gpu_smoke_test_passed": true,
+  "initial_checkpoint_matches_v3_release": true,
+  "smoke_metrics_path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_v4_smoke/smoke_test_metrics.json",
+  "tokenization_validation_reused": "ml/sponsor_detection/reports/ettin_17m_audited_tokenization.json"
+}

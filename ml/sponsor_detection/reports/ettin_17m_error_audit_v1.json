@@ -1,0 +1,342 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-30T15:27:04.804583+00:00",
+  "source_error_report": "ml/sponsor_detection/reports/ettin_17m_local_span_errors.json",
+  "evaluation_report": "ml/sponsor_detection/reports/ettin_17m_local_span_evaluation.json",
+  "methodology": {
+    "sample": "top 100 highest-confidence false-positive windows and top 100 largest missed-sponsor windows",
+    "classification": "rule-assisted semantic triage using explicit commercial-language, first-party, and topic-context cues",
+    "caveat": "These categories are review candidates, not corrected ground truth. Explicit language can occur outside a paid sponsorship, and absence of a cue does not prove a label is wrong."
+  },
+  "false_positive_triage_counts": {
+    "likely_genuine_topic_false_positive": 5,
+    "likely_annotation_or_category_issue": 66,
+    "likely_first_party_or_self_promo": 5,
+    "ambiguous_needs_adjudication": 24
+  },
+  "miss_triage_counts": {
+    "no_prediction_long_span": 17,
+    "partial_detection_long_span_with_commercial_cue": 10,
+    "no_prediction_long_span_with_commercial_cue": 4,
+    "partial_detection_long_span": 11,
+    "partial_detection": 20,
+    "partial_detection_with_commercial_cue": 14,
+    "no_prediction": 23,
+    "no_prediction_with_commercial_cue": 1
+  },
+  "false_positive_signal_counts": {
+    "explicit_commercial_language": 66,
+    "first_party_signal": 19,
+    "topic_context_signal": 19
+  },
+  "miss_signal_counts": {
+    "partial_prediction": 55,
+    "no_prediction": 45,
+    "long_expected_span_over_2500_chars": 42,
+    "explicit_commercial_language": 29
+  },
+  "representative_false_positives": [
+    {
+      "video_id": "-qMjcJNcjIg",
+      "label_kind": "ordinary_negative",
+      "confidence": 0.9951742551072094,
+      "triage": "likely_genuine_topic_false_positive",
+      "excerpt": "it stable for time lapses there's some really interesting features you can now literally schedule a time when the gopro is going to turn on and start recording so let's say for example you want to get that nice sunrise time lapse and instead of actually waking up at NUMBER_TOKEN NUMBER_TOKEN am in the morning you can set it up the night before schedule so i…"
+    },
+    {
+      "video_id": "kC9qvhkWYhw",
+      "label_kind": "hard_negative",
+      "confidence": 0.9869817368122763,
+      "triage": "likely_annotation_or_category_issue",
+      "excerpt": "this video is brought to you by up to seventy dollars and totally free stock you can get for free when you go to URL_TOKEN public go to URL_TOKEN public sign up for a URL_TOKEN account feel free to follow me there at meet kevin and you can get up to seventy dollars completely for free they don't sell your information and they don't use payment for order flo…"
+    },
+    {
+      "video_id": "amhtGiiUDWA",
+      "label_kind": "ordinary_negative",
+      "confidence": 0.986675223924228,
+      "triage": "likely_annotation_or_category_issue",
+      "excerpt": "so bitcoin uh on ftx us check out the link down below to sign up for ftx it's a really cool platform because you can buy crypto and they integrate the trading view charts which tradingview is like one of my favorite uh uh like a chart you know providers but but they don't like you can't trade on there but here they've integrated the trading view charts it's…"
+    },
+    {
+      "video_id": "GPWZ4aAtt3c",
+      "label_kind": "hard_negative",
+      "confidence": 0.9861148798698777,
+      "triage": "likely_first_party_or_self_promo",
+      "excerpt": "i'm scott rouse i'm a body language expert and analyst and i trained law enforcement in the military in interrogation and body language and i created the uh body language membership the only online body language membership for body language with greg hartley mark i'm mark bowden i'm an expert in human behavior and body language i help people all over the wo…"
+    },
+    {
+      "video_id": "9J1ttTzkwL8",
+      "label_kind": "ordinary_negative",
+      "confidence": 0.9856204349810698,
+      "triage": "likely_genuine_topic_false_positive",
+      "excerpt": "delegated proof of authority theta's blockchain is powered by NUMBER_TOKEN enterprise validator nodes run by tech giants such as google and sony which must stake a minimum of NUMBER_TOKEN million theta naturally you need to be a big company to become an enterprise validator node theta would therefore be permissioned and centralized were it not for the fact …"
+    },
+    {
+      "video_id": "9F-k1hle_gI",
+      "label_kind": "hard_negative",
+      "confidence": 0.9849693747497286,
+      "triage": "likely_annotation_or_category_issue",
+      "excerpt": "ld give us a good real-world breakdown of what it's like to run one of these heavily depreciated luxury coupes before i get onto the video i just wanted to mention something last year i created an online educational course to help people get into or at least learn more about the used car business i kept being asked for advice on how best to get into the ind…"
+    },
+    {
+      "video_id": "gzqNTDycbXM",
+      "label_kind": "ordinary_negative",
+      "confidence": 0.9844786492242481,
+      "triage": "likely_annotation_or_category_issue",
+      "excerpt": "th will nuff because he was doing an impression of chris farley i don't think he had any idea you listen to me today's show is brought to you by cashm now i personally don't have any cash but if i did i'd damn well send it via my cell phone to my ex-wife who's PROFANITY_TOKEN gouging me i got two kids bill he's five nancy she's seven i haven't seen him in y…"
+    },
+    {
+      "video_id": "Z1totMpGEY0",
+      "label_kind": "hard_negative",
+      "confidence": 0.9834858806414101,
+      "triage": "likely_annotation_or_category_issue",
+      "excerpt": "its first year on four carriers and in four countries but it would soon sell hundreds and hundreds of millions on almost every carrier on almost every corner of earth and to change not only the world but so many of our lives and i've got a whole entire documentary up on how it affected me but also mkbhd ijustine john gruber and so many more it was like ces …"
+    },
+    {
+      "video_id": "mnIvl8tJQ1A",
+      "label_kind": "hard_negative",
+      "confidence": 0.9811616036011662,
+      "triage": "likely_annotation_or_category_issue",
+      "excerpt": "if the market is stressing you out make sure to save money on insurance by going to URL_TOKEN a lemonade you can get homeowners insurance renters insurance pet insurance and life insurance and soon car insurance by going to URL_TOKEN lemonade check out met URL_TOKEN lemonade in the link down below hey everyone we kevin here the market is shifting and it's t…"
+    },
+    {
+      "video_id": "Ci8zTFuXhLw",
+      "label_kind": "hard_negative",
+      "confidence": 0.9804864005368172,
+      "triage": "likely_annotation_or_category_issue",
+      "excerpt": "oded with comments on the bright side the lecture is recorded so i can relive my moment of shame at my leisure today's video is sponsored by expressvpn guys listen it's NUMBER_TOKEN. our lives are more online now than they've ever been you have to take digital security seriously you think my password to my youtube channel is i love yougoNUMBER_TOKEN no it's…"
+    },
+    {
+      "video_id": "KAyywn7mXkc",
+      "label_kind": "ordinary_negative",
+      "confidence": 0.9791976509343385,
+      "triage": "ambiguous_needs_adjudication",
+      "excerpt": "ferment stp stephen tries podcast ryan oh yeah now these are our pick from landscape surefire win stocking stuffers get ready for this number one the manscape signature cologne they've got they've got a lovely little spray out oh yeah yeah number two the shears NUMBER_TOKEN luxury four-piece nail kit wow stickler for cutting my nails yeah if they get any lo…"
+    },
+    {
+      "video_id": "aOmWFQdB3_A",
+      "label_kind": "ordinary_negative",
+      "confidence": 0.9756956816617852,
+      "triage": "ambiguous_needs_adjudication",
+      "excerpt": "content play pure you know purely first and foremost amazon really only cares about the churn rate on prime subscriptions if two percent p of people don't subscribe to prime or like keep prime because of amazon prime video that's worth it they can throw as much money as they want at this and they don't care if it makes money back all they care is that you s…"
+    }
+  ],
+  "representative_misses": [
+    {
+      "video_id": "cqhwL0X2Cvo",
+      "triage": "no_prediction_long_span",
+      "expected_spans": [
+        {
+          "end_char": 3474,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [],
+      "excerpt": "yeah all these these docs are looking for a cash pay way of of of getting paid for their services would i be able to have whatever doctor i wanted how does that work whatever doctor you want so we'll you can get the network mentality out this is go to whatever doctor you want whenever you want wherever you want and you just go in and say hey i'll pay cash i…"
+    },
+    {
+      "video_id": "d2YdQJahe28",
+      "triage": "partial_detection_long_span_with_commercial_cue",
+      "expected_spans": [
+        {
+          "end_char": 3418,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [
+        {
+          "confidence": 0.9533092667948744,
+          "end_char": 3418,
+          "end_token_index": 703,
+          "start_char": 2832,
+          "start_token_index": 581
+        }
+      ],
+      "excerpt": "yeah that's the max yeah exactly so that was a full class and what was really cool was a french guy who was the teacher but he lived in mexico and was teaching a whole bunch we were all americans in the class but we pretty much all lived in europe so it just was a very weird combination but really fun and then my second class was even more intimate um it wa…"
+    },
+    {
+      "video_id": "cqhwL0X2Cvo",
+      "triage": "no_prediction_long_span",
+      "expected_spans": [
+        {
+          "end_char": 3396,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [],
+      "excerpt": "he was so worried about it and somebody in new york a thousand miles away from where you and i live make a determination it was medically unnecessary so i thought you know something's got to change here something's got to change our healthcare costs are going way too high way too fast we we gotta we gotta have an alternative so how does crowd health work as…"
+    },
+    {
+      "video_id": "d2YdQJahe28",
+      "triage": "partial_detection_long_span_with_commercial_cue",
+      "expected_spans": [
+        {
+          "end_char": 3288,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [
+        {
+          "confidence": 0.9032283279771337,
+          "end_char": 1011,
+          "end_token_index": 213,
+          "start_char": 0,
+          "start_token_index": 1
+        }
+      ],
+      "excerpt": "in cash back if you meet all of the requirements those have a couple different options there's the three-month option the six-month option in the NUMBER_TOKEN-month option and those start from six euros or six dollars and NUMBER_TOKEN cents per class and that's with a one-time upfront payment you can also get a discount because of course we have a discount …"
+    },
+    {
+      "video_id": "cqhwL0X2Cvo",
+      "triage": "no_prediction_long_span",
+      "expected_spans": [
+        {
+          "end_char": 3285,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [],
+      "excerpt": "michael malus here we got a special bit before we start the show today with andy schoonover who is the ceo of crowdhealth i've never done this before but since andy's product is something that i thought is of interest to a lot of you and bears explaining at length i was happy to bring him on to discuss this now ex what crowd crowdhealth does is provides mar…"
+    },
+    {
+      "video_id": "AHiCy3rFaGs",
+      "triage": "no_prediction_long_span",
+      "expected_spans": [
+        {
+          "end_char": 3283,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [],
+      "excerpt": "my body celebration morning routine coco kind is i will walk in and say it my favorite skincare brand you guys know i'm a skin charismatic i test out a million different skincare products i love just being a little extra with my routine but when you look at my routine the products that i always go back to the products that i use the most often that i use th…"
+    },
+    {
+      "video_id": "4NN-fX9G0WE",
+      "triage": "no_prediction_long_span",
+      "expected_spans": [
+        {
+          "end_char": 3189,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [],
+      "excerpt": "but they find items down there then it goes back to australia and tries to identify who on that ship this item would have belonged to and track their descendants which which makes it just a really interesting bit of history well and very interesting because one piece that they found was it was a snuff box and it had a name on it and they were so excited abo…"
+    },
+    {
+      "video_id": "PYx10mDxVrs",
+      "triage": "no_prediction_long_span_with_commercial_cue",
+      "expected_spans": [
+        {
+          "end_char": 3188,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [],
+      "excerpt": "think if you guys want to get introduced to supplements you should check out our video and you should also definitely check out iherb i'm going to have a coupon code right here i herb shifts to over NUMBER_TOKEN countries and the facilities are temperature controlled so you can assure everything is being stored properly quality control on deck i organically…"
+    },
+    {
+      "video_id": "PYx10mDxVrs",
+      "triage": "partial_detection_long_span",
+      "expected_spans": [
+        {
+          "end_char": 3182,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [
+        {
+          "confidence": 0.8334843910442397,
+          "end_char": 3182,
+          "end_token_index": 670,
+          "start_char": 2657,
+          "start_token_index": 562
+        }
+      ],
+      "excerpt": "lower cholesterol it can help promote weight management so let's just say you're not trying to lose weight you're just trying to maintain what you already have a lot of people use apple cider vinegar to help contribute to that but apple cider vinegar is disgusting so you take two of these gummies a day oh my god i just dropped the fries i'm just just like a…"
+    },
+    {
+      "video_id": "sxbSBJT7sMI",
+      "triage": "no_prediction_long_span_with_commercial_cue",
+      "expected_spans": [
+        {
+          "end_char": 3136,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [],
+      "excerpt": "I want to highlight that ending December but in a better way taking advantage of the excellent offers that it has for all of you and you should take advantage of this that has cd key of air that is a platform A totally genuine one that focuses on giving you excellent licenses of sting origin xbox play practically of various software so it is that then immed…"
+    },
+    {
+      "video_id": "PYx10mDxVrs",
+      "triage": "partial_detection_long_span_with_commercial_cue",
+      "expected_spans": [
+        {
+          "end_char": 3124,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [
+        {
+          "confidence": 0.8506828307704594,
+          "end_char": 1133,
+          "end_token_index": 244,
+          "start_char": 0,
+          "start_token_index": 1
+        },
+        {
+          "confidence": 0.6099553811247868,
+          "end_char": 2066,
+          "end_token_index": 425,
+          "start_char": 1390,
+          "start_token_index": 293
+        }
+      ],
+      "excerpt": "you are not familiar with irv don't worry i recently wasn't either it's a one-stop shop where you can buy supplements nutritional products groceries pet supplies i even found like feminine care on irb it's pretty much a one-stop shop for all of that stuff and i was first introduced to this website by way of yuki fellow youtuber fellow nigerian and she's als…"
+    },
+    {
+      "video_id": "vk60EHCQDoY",
+      "triage": "partial_detection_long_span",
+      "expected_spans": [
+        {
+          "end_char": 3117,
+          "start_char": 0
+        }
+      ],
+      "predicted_spans": [
+        {
+          "confidence": 0.9876035331183974,
+          "end_char": 1172,
+          "end_token_index": 261,
+          "start_char": 0,
+          "start_token_index": 1
+        },
+        {
+          "confidence": 0.9621423979854908,
+          "end_char": 3117,
+          "end_token_index": 664,
+          "start_char": 1566,
+          "start_token_index": 348
+        }
+      ],
+      "excerpt": "it works on phones laptops even routers so everyone who shares your wi-fi can also be protected i don't what i also like about it is that if you're looking online for a show to watch you might go to netflix you switch it to a different region you wanna watch the sopranos you've got all you've got all sorts of different things going on any every streaming se…"
+    }
+  ],
+  "recommended_actions": [
+    "Adjudicate explicit-commercial false positives first; promote confirmed cases into corrected positives or a dedicated category rather than treating them as model errors.",
+    "Add confirmed genuine hard negatives from the topic/product-context bucket.",
+    "Analyze long-span and partial-detection cases for boundary loss and decoding behavior before increasing encoder size.",
+    "After adjudication, recompute precision/recall on corrected labels and retrain only if the remaining error is genuinely model-driven."
+  ],
+  "evaluation_snapshot": {
+    "dataset_manifest_sha256": "57d711c82807e30475fd679ce97e86419a5b8d8d9f5b87d7c33d194bdc585b51",
+    "test_rows": 33578,
+    "span_iou_0.5": {
+      "f1": 0.8552420496366896,
+      "false_negative": 2044,
+      "false_positive": 1024,
+      "precision": 0.8984831961931199,
+      "recall": 0.8159719096065544,
+      "true_positive": 9063
+    }
+  }
+}

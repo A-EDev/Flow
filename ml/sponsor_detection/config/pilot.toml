@@ -1,0 +1,9 @@
+[pilot]
+labels_path = "ml/sponsor_detection/data/labels/sponsor_annotations.parquet"
+labels_manifest_path = "ml/sponsor_detection/reports/sponsor_labels_manifest.json"
+output_path = "ml/sponsor_detection/data/pilots/transcript_pilot_v1.jsonl"
+manifest_path = "ml/sponsor_detection/reports/transcript_pilot_v1_manifest.json"
+sample_size = 10000
+seed = "flow-sponsor-transcript-pilot-v1"
+batch_size = 65536
+progress_every_rows = 1000000

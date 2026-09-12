@@ -1,0 +1,14 @@
+[collection]
+pilot_path = "ml/sponsor_detection/data/pilots/transcript_pilot_v1.jsonl"
+pilot_manifest_path = "ml/sponsor_detection/reports/transcript_pilot_v1_manifest.json"
+output_directory = "ml/sponsor_detection/data/transcripts/pilot_v1"
+report_path = "ml/sponsor_detection/reports/yt_dlp_canary_v1_report.json"
+languages = ["en", "en-US", "en-GB"]
+provider = "yt_dlp"
+target_successes = 21
+max_attempts_per_run = 1
+minimum_request_delay_seconds = 10.0
+maximum_request_delay_seconds = 15.0
+max_transient_attempts_per_video = 3
+stop_on_block = true
+block_cooldown_seconds = 21600

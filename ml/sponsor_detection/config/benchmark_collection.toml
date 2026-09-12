@@ -1,0 +1,16 @@
+[collection]
+pilot_path = "ml/sponsor_detection/data/benchmarks/mixed_pilot_candidates_v1.jsonl"
+pilot_manifest_path = "ml/sponsor_detection/reports/mixed_pilot_candidates_v1_manifest.json"
+output_directory = "ml/sponsor_detection/data/transcripts/mixed_pilot_v1"
+report_path = "ml/sponsor_detection/reports/mixed_pilot_transcript_collection_v1.json"
+languages = ["en", "en-US", "en-GB"]
+provider = "transcript_api"
+env_path = ".env"
+api_key_environment_variable = "TRANSCRIPT_API_KEY"
+target_successes = 140
+max_attempts_per_run = 10
+minimum_request_delay_seconds = 0.25
+maximum_request_delay_seconds = 0.5
+max_transient_attempts_per_video = 2
+stop_on_block = true
+block_cooldown_seconds = 0

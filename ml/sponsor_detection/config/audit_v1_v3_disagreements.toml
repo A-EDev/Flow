@@ -1,0 +1,19 @@
+[dataset]
+manifest_path = "ml/sponsor_detection/reports/sponsor_windows_v3_replay_manifest.json"
+test_path = "ml/sponsor_detection/data/training/sponsor_windows_v3_replay/test.parquet"
+
+[model_v1]
+checkpoint_path = "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_v1"
+max_length = 1024
+confidence_threshold = 0.0
+
+[model_v3]
+checkpoint_path = "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_v3_replay"
+decoder_config_path = "ml/sponsor_detection/reports/ettin_17m_replay_decoder.json"
+max_length = 1024
+
+[audit]
+batch_size = 16
+bf16 = true
+example_limit = 100
+report_path = "ml/sponsor_detection/reports/ettin_17m_v1_v3_disagreements.json"

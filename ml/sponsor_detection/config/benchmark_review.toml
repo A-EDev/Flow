@@ -1,0 +1,9 @@
+[benchmark_review]
+candidates_path = "ml/sponsor_detection/data/benchmarks/mixed_pilot_candidates_v1.jsonl"
+candidates_manifest_path = "ml/sponsor_detection/reports/mixed_pilot_candidates_v1_manifest.json"
+transcript_directory = "ml/sponsor_detection/data/transcripts/mixed_pilot_v1"
+metadata_path = "ml/sponsor_detection/data/metadata/mixed_pilot_v1.jsonl"
+training_directory = "ml/sponsor_detection/data/training/sponsor_windows_v1"
+output_path = "ml/sponsor_detection/data/benchmarks/mixed_pilot_review_v1.jsonl"
+manifest_path = "ml/sponsor_detection/reports/mixed_pilot_review_v1_manifest.json"
+target_per_class = 15

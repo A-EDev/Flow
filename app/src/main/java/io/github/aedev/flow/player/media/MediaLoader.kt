@@ -178,16 +178,16 @@ class MediaLoader(
                     )
 
                 if (mediaSource != null) {
-                    exoPlayer.setMediaSource(mediaSource)
-                    exoPlayer.prepare()
-                    stateFlow.value = stateFlow.value.copy(isPrepared = true)
-
                     // SABR sessions already start fetching at the position; seeking the
                     // unseekable progressive pipe would restart extraction.
                     if (preservePosition != null && preservePosition > 0 && !lastSourceWasSabr) {
-                        exoPlayer.seekTo(preservePosition)
-                        Log.d(TAG, "Seeking to preserved position: ${preservePosition}ms")
+                        exoPlayer.setMediaSource(mediaSource, preservePosition)
+                        Log.d(TAG, "Configured media source with preserved position: ${preservePosition}ms")
+                    } else {
+                        exoPlayer.setMediaSource(mediaSource)
                     }
+                    exoPlayer.prepare()
+                    stateFlow.value = stateFlow.value.copy(isPrepared = true)
 
                     exoPlayer.playWhenReady = playWhenReady
                     Log.d(TAG, "Media loaded successfully via VideoPlaybackResolver")

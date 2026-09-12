@@ -1,0 +1,39 @@
+{
+  "configuration": {
+    "block_cooldown_seconds": 21600,
+    "languages": [
+      "en",
+      "en-US",
+      "en-GB"
+    ],
+    "max_attempts_per_run": 9976,
+    "max_transient_attempts_per_video": 3,
+    "maximum_request_delay_seconds": 0,
+    "minimum_request_delay_seconds": 0,
+    "provider": "youtube_transcript_api",
+    "stop_on_block": true,
+    "target_successes": 1000
+  },
+  "cooldown_active": false,
+  "counts": {
+    "attempts_this_run": 44,
+    "candidate_videos": 9976,
+    "existing_successes": 21,
+    "new_successes": 19,
+    "skipped_permanent": 0,
+    "skipped_retry_exhausted": 0,
+    "statuses_this_run": {
+      "blocked": 1,
+      "no_transcript": 18,
+      "success": 19,
+      "unavailable": 6
+    },
+    "total_successes": 40
+  },
+  "elapsed_seconds": 132.746,
+  "generated_at": "2026-09-02T17:28:08.980037+00:00",
+  "schema_version": 1,
+  "source_pilot_sha256": "164f58680333b7d8f7c5be62452cf9659891e3dd2b1a121fcdb4cadb3462c6fc",
+  "stopped_for_block": true,
+  "target_reached": false
+}

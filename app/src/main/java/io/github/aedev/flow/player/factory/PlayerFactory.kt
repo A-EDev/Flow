@@ -12,12 +12,15 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.LoadControl
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.renderer.CustomRenderersFactory
@@ -108,14 +111,26 @@ class PlayerFactory {
         }
     }
 
-    fun createLoadControl(context: Context): DefaultLoadControl {
+    fun createLoadControl(
+        context: Context,
+        sponsorSegmentsProvider: () -> List<SponsorBlockSegment> = { emptyList() },
+        categoryActionsProvider: () -> Map<String, SponsorBlockAction> = { emptyMap() },
+        isAutoSkipEnabledProvider: () -> Boolean = { false },
+    ): LoadControl {
         val prefs = ensurePrefs(context)
-        return LoadControlFactory.forVideo(
-            context = context,
-            minMs = prefs.minBufferMs,
-            maxMs = prefs.maxBufferMs,
-            playbackMs = prefs.bufferForPlaybackMs,
-            rebufferMs = prefs.bufferRebufferMs,
+        val defaultLoadControl =
+            LoadControlFactory.forVideo(
+                context = context,
+                minMs = prefs.minBufferMs,
+                maxMs = prefs.maxBufferMs,
+                playbackMs = prefs.bufferForPlaybackMs,
+                rebufferMs = prefs.bufferRebufferMs,
+            )
+        return SegmentAwareLoadControl(
+            delegate = defaultLoadControl,
+            sponsorSegmentsProvider = sponsorSegmentsProvider,
+            categoryActionsProvider = categoryActionsProvider,
+            isAutoSkipEnabledProvider = isAutoSkipEnabledProvider,
         )
     }
 
@@ -141,9 +156,10 @@ class PlayerFactory {
     fun createPlayer(
         context: Context,
         trackSelector: DefaultTrackSelector,
-        loadControl: DefaultLoadControl,
+        loadControl: LoadControl,
         renderersFactory: DefaultRenderersFactory,
         dataSourceFactory: DataSource.Factory?,
+        bandwidthMeter: DefaultBandwidthMeter? = null,
     ): ExoPlayer {
         val factory = dataSourceFactory ?: DefaultDataSource.Factory(context)
         val prefs = ensurePrefs(context)
@@ -152,7 +168,9 @@ class PlayerFactory {
             .Builder(context, renderersFactory)
             .experimentalSetDynamicSchedulingEnabled(PlayerConfig.ENABLE_DYNAMIC_SCHEDULING)
             .setTrackSelector(trackSelector)
-            .setAudioAttributes(
+            .apply {
+                bandwidthMeter?.let { setBandwidthMeter(it) }
+            }.setAudioAttributes(
                 AudioAttributes
                     .Builder()
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)

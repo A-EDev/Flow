@@ -36,8 +36,8 @@ object LoadControlFactory {
     ): DefaultLoadControl {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
         val memoryClassMb = activityManager?.memoryClass ?: 256
-        val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb <= 256
-        val isConstrainedHeap = isLowMemoryDevice || memoryClassMb <= 384
+        val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb < 192
+        val isConstrainedHeap = isLowMemoryDevice || memoryClassMb <= 256
 
         val maxSafeMinBufferMs =
             if (isLowMemoryDevice) {

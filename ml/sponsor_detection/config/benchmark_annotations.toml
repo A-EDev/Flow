@@ -1,0 +1,4 @@
+[benchmark_annotations]
+review_path = "ml/sponsor_detection/data/benchmarks/mixed_pilot_review_v1.jsonl"
+review_manifest_path = "ml/sponsor_detection/reports/mixed_pilot_review_v1_manifest.json"
+annotations_path = "ml/sponsor_detection/data/benchmarks/mixed_pilot_annotations_v1.json"

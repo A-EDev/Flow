@@ -33,12 +33,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
+import io.github.aedev.flow.player.sponsorblock.resolveSponsorBlockAction
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimGestureHud
+import io.github.aedev.flow.ui.theme.sponsorBlockCategoryLabelRes
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -522,19 +525,7 @@ fun SpeedBoostOverlay(
 private const val SB_SKIP_DIM_DELAY_MS = 5_000L
 private const val SB_SKIP_DIMMED_ALPHA = 0.45f
 
-private fun sbCategoryLabelRes(category: String): Int? =
-    when (category) {
-        "sponsor" -> R.string.sb_category_sponsor
-        "selfpromo" -> R.string.sb_category_selfpromo
-        "interaction" -> R.string.sb_category_interaction
-        "intro" -> R.string.sb_category_intro
-        "outro" -> R.string.sb_category_outro
-        "music_offtopic" -> R.string.sb_category_music_offtopic
-        "filler" -> R.string.sb_category_filler
-        "preview" -> R.string.sb_category_preview
-        "exclusive_access" -> R.string.sb_category_exclusive_access
-        else -> null
-    }
+private fun sbCategoryLabelRes(category: String): Int? = sponsorBlockCategoryLabelRes(category)
 
 /**
  * Overlay button that lets the user manually skip a SponsorBlock segment.
@@ -649,9 +640,11 @@ internal fun findActiveManualSponsorSegment(
 
     val positionSeconds = currentPositionMs / 1000f
     return sponsorSegments.find { segment ->
+        if (SponsorBlockCategories.isWholeVideoAction(segment.actionType)) return@find false
+        val action = resolveSponsorBlockAction(segment, categoryActions)
         positionSeconds >= segment.startTime &&
             positionSeconds < segment.endTime &&
             segment.uuid !in skippedUuids &&
-            (categoryActions[segment.category] ?: SponsorBlockAction.SKIP) != SponsorBlockAction.SKIP
+            (action == SponsorBlockAction.SHOW_TOAST || action == SponsorBlockAction.MUTE)
     }
 }

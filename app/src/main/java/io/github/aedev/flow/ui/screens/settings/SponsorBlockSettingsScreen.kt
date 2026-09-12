@@ -1,5 +1,9 @@
 package io.github.aedev.flow.ui.screens.settings
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,26 +30,22 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.theme.sponsorBlockCategoriesAndLabels
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-private val SB_CATEGORIES_AND_LABELS =
-    listOf(
-        "sponsor" to R.string.sb_category_sponsor,
-        "intro" to R.string.sb_category_intro,
-        "outro" to R.string.sb_category_outro,
-        "selfpromo" to R.string.sb_category_selfpromo,
-        "interaction" to R.string.sb_category_interaction,
-        "music_offtopic" to R.string.sb_category_music_offtopic,
-        "filler" to R.string.sb_category_filler,
-        "preview" to R.string.sb_category_preview,
-        "exclusive_access" to R.string.sb_category_exclusive_access,
-    )
+private val SB_CATEGORIES_AND_LABELS = sponsorBlockCategoriesAndLabels()
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun SponsorBlockSettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
@@ -68,8 +68,44 @@ fun SponsorBlockSettingsScreen(onNavigateBack: () -> Unit) {
 
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val sbUserId by playerPreferences.sbUserId.collectAsState(initial = null)
+    val trainingConsent by playerPreferences.sponsorTrainingConsentEnabled.collectAsState(initial = false)
+    val playerManager = remember { EnhancedPlayerManager.getInstance() }
+    val trainingStats by playerManager.sponsorJournalStats.collectAsState()
 
     var showUserIdDialog by remember { mutableStateOf(false) }
+    var showTrainingConsentDialog by remember { mutableStateOf(false) }
+    var showClearTrainingDialog by remember { mutableStateOf(false) }
+    var clearAfterExport by remember { mutableStateOf(false) }
+    val exportSuccessMessage = stringResource(R.string.sponsor_training_export_success)
+    val exportFailedMessage = stringResource(R.string.sponsor_training_export_failed)
+    val clearSuccessMessage = stringResource(R.string.sponsor_training_clear_success)
+
+    val exportTrainingLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/json"),
+        ) { uri: Uri? ->
+            uri ?: return@rememberLauncherForActivityResult
+            coroutineScope.launch {
+                val success =
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.use { output ->
+                            playerManager.exportSponsorTrainingData(output)
+                        } ?: error("Output stream unavailable")
+                    }.isSuccess
+                Toast
+                    .makeText(
+                        context,
+                        if (success) exportSuccessMessage else exportFailedMessage,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                if (success) {
+                    clearAfterExport = true
+                    showClearTrainingDialog = true
+                }
+            }
+        }
+
+    LaunchedEffect(Unit) { playerManager.refreshSponsorJournalStats() }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -218,7 +254,59 @@ fun SponsorBlockSettingsScreen(onNavigateBack: () -> Unit) {
                     }
                 }
             }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SponsorTrainingSettingsSection(
+                    consentEnabled = trainingConsent,
+                    stats = trainingStats,
+                    onConsentChange = { enabled ->
+                        if (enabled) {
+                            showTrainingConsentDialog = true
+                        } else {
+                            coroutineScope.launch { playerPreferences.setSponsorTrainingConsent(false) }
+                        }
+                    },
+                    onExport = {
+                        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+                        exportTrainingLauncher.launch("flow-sponsor-training-$stamp.jsonl")
+                    },
+                    onClear = {
+                        clearAfterExport = false
+                        showClearTrainingDialog = true
+                    },
+                )
+            }
         }
+    }
+
+    if (showTrainingConsentDialog) {
+        SponsorTrainingConsentDialog(
+            onDismiss = { showTrainingConsentDialog = false },
+            onConfirm = {
+                coroutineScope.launch { playerPreferences.setSponsorTrainingConsent(true) }
+                showTrainingConsentDialog = false
+            },
+        )
+    }
+
+    if (showClearTrainingDialog) {
+        SponsorTrainingClearDialog(
+            afterExport = clearAfterExport,
+            onDismiss = { showClearTrainingDialog = false },
+            onConfirm = {
+                coroutineScope.launch {
+                    playerManager.clearSponsorTrainingData()
+                    Toast
+                        .makeText(
+                            context,
+                            clearSuccessMessage,
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
+                showClearTrainingDialog = false
+            },
+        )
     }
 
     if (showUserIdDialog) {

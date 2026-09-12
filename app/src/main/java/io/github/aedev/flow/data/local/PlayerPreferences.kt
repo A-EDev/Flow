@@ -30,6 +30,7 @@ const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
 const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
 const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
 const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
+const val CURRENT_SPONSOR_TRAINING_CONSENT_VERSION = 1
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
 private const val MAX_UNPLAYABLE_VIDEO_IDS = 300
@@ -180,6 +181,7 @@ class PlayerPreferences(
         // SponsorBlock submit
         val SB_SUBMIT_ENABLED = booleanPreferencesKey("sb_submit_enabled")
         val SB_USER_ID = stringPreferencesKey("sb_user_id")
+        val SPONSOR_TRAINING_CONSENT_VERSION = intPreferencesKey("sponsor_training_consent_version")
 
         // DeArrow
         val DEARROW_ENABLED = booleanPreferencesKey("dearrow_enabled")
@@ -650,6 +652,20 @@ class PlayerPreferences(
     suspend fun setSbSubmitEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SB_SUBMIT_ENABLED] = enabled
+        }
+    }
+
+    val sponsorTrainingConsentVersion: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.SPONSOR_TRAINING_CONSENT_VERSION] ?: 0 }
+
+    val sponsorTrainingConsentEnabled: Flow<Boolean> =
+        sponsorTrainingConsentVersion.map { it >= CURRENT_SPONSOR_TRAINING_CONSENT_VERSION }
+
+    suspend fun setSponsorTrainingConsent(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SPONSOR_TRAINING_CONSENT_VERSION] =
+                if (enabled) CURRENT_SPONSOR_TRAINING_CONSENT_VERSION else 0
         }
     }
 
@@ -2860,13 +2876,13 @@ enum class BufferProfile(
     val rebufferBuffer: Int,
 ) {
     // Fast Start: Prioritize quick playback start
-    AGGRESSIVE("Fast Start", 5_000, 30_000, 500, 2_500),
+    AGGRESSIVE("Fast Start", 5_000, 30_000, 500, 1_500),
 
     // Balanced: Good default for most connections
-    STABLE("Balanced", 30_000, 50_000, 2_500, 5_000),
+    STABLE("Balanced", 20_000, 60_000, 1_000, 2_000),
 
     // Data Saver: Minimize data usage with smaller buffers
-    DATASAVER("Data Saver", 12_000, 25_000, 1_500, 3_000),
+    DATASAVER("Data Saver", 12_000, 25_000, 1_000, 2_000),
 
     // Custom: User-defined values
     CUSTOM("Custom", -1, -1, -1, -1),

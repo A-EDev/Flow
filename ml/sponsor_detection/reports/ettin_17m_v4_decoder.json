@@ -1,0 +1,34 @@
+{
+  "calibration_report_metrics": {
+    "span_iou_0.5": {
+      "f1": 0.8876854985680812,
+      "false_negative": 1501,
+      "false_positive": 656,
+      "precision": 0.9285403050108932,
+      "recall": 0.8502743142144639,
+      "true_positive": 8524
+    },
+    "window_presence": {
+      "f1": 0.9196306788374777,
+      "false_negative": 1172,
+      "false_positive": 360,
+      "precision": 0.9605479452054795,
+      "recall": 0.8820569588406963,
+      "true_negative": 23859,
+      "true_positive": 8765
+    }
+  },
+  "calibration_report_path": "ml/sponsor_detection/reports/ettin_17m_v4_calibration.json",
+  "checkpoint": {
+    "model_sha256": "cf22061f2aab6cb9820c3b9f01c224d97b3a95024983e8572028745f93b67534",
+    "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_v4_full"
+  },
+  "confidence_threshold": 0.65,
+  "schema_version": 1,
+  "validation_dataset": {
+    "manifest_sha256": "cac777516fe731424efab5735196a1ba2a9962a0fe1f3c8eb1181f17e4302405",
+    "path": "ml/sponsor_detection/data/training/sponsor_windows_v3_replay/validation.parquet",
+    "rows": 34156,
+    "sha256": "b47fc30ae12c8541f2d3eac527a7ba0124c21496e4e81338ef5ba9042cef9138"
+  }
+}

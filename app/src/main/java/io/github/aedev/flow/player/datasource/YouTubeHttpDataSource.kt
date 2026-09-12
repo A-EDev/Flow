@@ -8,10 +8,14 @@ import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.error.PlayerDiagnostics
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -33,13 +37,18 @@ class YouTubeHttpDataSource private constructor(
     private var dataSource: DataSource? = null
     private var currentUri: Uri? = null
 
-    class Factory : HttpDataSource.Factory {
+    class Factory(
+        private val transferListener: TransferListener? = null,
+    ) : HttpDataSource.Factory {
         private val requestProperties = HashMap<String, String>()
         private var userAgent =
             "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
-        override fun createDataSource(): HttpDataSource = YouTubeHttpDataSource(userAgent, requestProperties.toMap())
+        override fun createDataSource(): HttpDataSource =
+            YouTubeHttpDataSource(userAgent, requestProperties.toMap()).also { source ->
+                transferListener?.let { source.addTransferListener(it) }
+            }
 
         override fun setDefaultRequestProperties(defaultRequestProperties: MutableMap<String, String>): HttpDataSource.Factory {
             requestProperties.clear()
@@ -64,11 +73,25 @@ class YouTubeHttpDataSource private constructor(
 
             return synchronized(clientLock) {
                 cachedClient?.takeIf { cachedProxySignature == proxySignature } ?: run {
+                    val dispatcher =
+                        Dispatcher().apply {
+                            maxRequests = PlayerConfig.MAX_REQUESTS
+                            maxRequestsPerHost = PlayerConfig.MAX_REQUESTS_PER_HOST
+                        }
+                    val connectionPool =
+                        ConnectionPool(
+                            PlayerConfig.CONNECTION_POOL_SIZE,
+                            PlayerConfig.CONNECTION_POOL_KEEP_ALIVE_MINUTES,
+                            TimeUnit.MINUTES,
+                        )
                     val client =
                         AppProxyManager
                             .applyTo(OkHttpClient.Builder())
-                            .connectTimeout(15, TimeUnit.SECONDS)
-                            .readTimeout(30, TimeUnit.SECONDS)
+                            .dispatcher(dispatcher)
+                            .connectionPool(connectionPool)
+                            .connectTimeout(PlayerConfig.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .readTimeout(PlayerConfig.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                            .writeTimeout(PlayerConfig.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                             .followRedirects(true)
                             .followSslRedirects(true)
                             .retryOnConnectionFailure(true)
@@ -84,6 +107,7 @@ class YouTubeHttpDataSource private constructor(
     @UnstableApi
     override fun open(dataSpec: DataSpec): Long {
         currentUri = dataSpec.uri
+        transferInitializing(dataSpec)
 
         val requestUserAgent =
             if (isYouTubeUri(dataSpec.uri)) {
@@ -107,7 +131,9 @@ class YouTubeHttpDataSource private constructor(
 
         dataSource = factory.createDataSource()
         return try {
-            dataSource!!.open(dataSpec)
+            val bytesToRead = dataSource!!.open(dataSpec)
+            transferStarted(dataSpec)
+            bytesToRead
         } catch (e: HttpDataSource.InvalidResponseCodeException) {
             if (e.responseCode == 403) logForbidden(dataSpec)
             throw e
@@ -141,11 +167,21 @@ class YouTubeHttpDataSource private constructor(
         buffer: ByteArray,
         offset: Int,
         length: Int,
-    ): Int = dataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+    ): Int {
+        val bytesRead = dataSource?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
+        if (bytesRead > 0) {
+            bytesTransferred(bytesRead)
+        }
+        return bytesRead
+    }
 
     override fun close() {
-        dataSource?.close()
-        dataSource = null
+        try {
+            dataSource?.close()
+        } finally {
+            dataSource = null
+            transferEnded()
+        }
     }
 
     override fun getUri(): Uri? = currentUri

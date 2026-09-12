@@ -28,8 +28,16 @@ import androidx.media3.session.MediaSession
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.local.VideoQuality
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import io.github.aedev.flow.data.sponsordetection.SponsorDetectionCoordinator
+import io.github.aedev.flow.data.sponsordetection.SponsorDetectionUiState
+import io.github.aedev.flow.data.sponsordetection.SponsorFeedbackVerdict
+import io.github.aedev.flow.data.sponsordetection.SponsorJournalStats
+import io.github.aedev.flow.data.sponsordetection.SponsorPredictedSpan
+import io.github.aedev.flow.data.sponsordetection.SponsorSpan
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -51,6 +59,7 @@ import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.service.BackgroundServiceManager
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
+import io.github.aedev.flow.player.sponsorblock.resolveSponsorBlockAction
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
 import io.github.aedev.flow.player.state.queuePresence
@@ -94,6 +103,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
+import java.util.concurrent.atomic.AtomicLong
 
 @UnstableApi
 class EnhancedPlayerManager private constructor() {
@@ -418,6 +428,9 @@ class EnhancedPlayerManager private constructor() {
     private var qualityManager: QualityManager? = null
     private var surfaceManager: SurfaceManager? = null
     private var sponsorBlockHandler: SponsorBlockHandler? = null
+    private var sponsorDetectionCoordinator: SponsorDetectionCoordinator? = null
+    private var sponsorShadowJob: Job? = null
+    private val lastKnownPlaybackPositionMs = AtomicLong(0L)
     private var playbackTracker: PlaybackTracker? = null
     private var errorHandler: PlayerErrorHandler? = null
 
@@ -479,21 +492,47 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun initializeComponents(context: Context) {
-        // Initialize cache manager
-        cacheManager = PlayerCacheManager(context).also { it.initialize() }
+        // Initialize bandwidth meter and track selector via factory
+        val meter = playerFactory.createBandwidthMeter(context)
+        bandwidthMeter = meter
+        trackSelector = playerFactory.createTrackSelector(context)
+
+        // Initialize cache manager with bandwidth meter as transfer listener
+        cacheManager = PlayerCacheManager(context).also { it.initialize(meter) }
 
         // Initialize surface manager
         surfaceManager = SurfaceManager()
 
         // Initialize sponsor block handler
-        sponsorBlockHandler = SponsorBlockHandler(scope)
+        val coordinator =
+            SponsorDetectionCoordinator(
+                context.applicationContext,
+                onProvisionalPlayback = { provisionalVideoId, segments ->
+                    sponsorBlockHandler?.setProvisionalSegments(provisionalVideoId, segments)
+                },
+                playbackPositionMs = { lastKnownPlaybackPositionMs.get() },
+            )
+        sponsorDetectionCoordinator = coordinator
+        sponsorBlockHandler =
+            SponsorBlockHandler(scope, apiSegments = { videoId ->
+                if (currentIsLiveStream) {
+                    SponsorBlockRepository().getSegments(videoId)
+                } else {
+                    coordinator.evaluate(videoId, availableSubtitles).playbackSegments
+                }
+            }).apply {
+                onSegmentsLoaded = {
+                    player?.let { p ->
+                        if (p.isPlaying || p.playbackState == Player.STATE_READY) {
+                            val pos = p.currentPosition
+                            checkForSkip(pos)?.let { skipToSegmentEnd(it) }
+                        }
+                    }
+                }
+            }
 
         // Initialize audio features manager
         audioFeaturesManager = AudioFeaturesManager(scope, _playerState)
-
-        // Initialize bandwidth meter and track selector via factory
-        bandwidthMeter = playerFactory.createBandwidthMeter(context)
-        trackSelector = playerFactory.createTrackSelector(context)
 
         // Initialize media loader
         mediaLoader =
@@ -562,6 +601,7 @@ class EnhancedPlayerManager private constructor() {
                 // skipToSegmentEnd, not a raw seek: a CLOSEST_SYNC seek lands on the keyframe before a
                 // short segment, which re-arms the skip and loops the outro forever (#814).
                 onSponsorBlockTick = { pos ->
+                    rememberPlaybackPositionMs(pos)
                     sponsorBlockHandler?.checkForSkip(pos)?.let { skipToSegmentEnd(it) }
                 },
                 onBufferingDetected = {
@@ -592,12 +632,21 @@ class EnhancedPlayerManager private constructor() {
                         setPlaybackSpeed(1.0f)
                     }
                 },
+                nextSegmentDelayMsProvider = { pos ->
+                    sponsorBlockHandler?.getNextSkipCheckDelayMs(pos) ?: 1_000L
+                },
             )
     }
 
     private fun initializePlayer(context: Context) {
         AudioEffectsController.initialize(context)
-        val loadControl = playerFactory.createLoadControl(context)
+        val loadControl =
+            playerFactory.createLoadControl(
+                context = context,
+                sponsorSegmentsProvider = { sponsorBlockHandler?.getSegments().orEmpty() },
+                categoryActionsProvider = { sponsorBlockHandler?.categoryActions.orEmpty() },
+                isAutoSkipEnabledProvider = { sponsorBlockHandler?.isEnabled == true },
+            )
         // Fresh processor per player instance — a sink must never share one with a live player.
         val equalizer =
             CustomEqualizerAudioProcessor().also {
@@ -621,6 +670,7 @@ class EnhancedPlayerManager private constructor() {
                 loadControl = loadControl,
                 renderersFactory = renderersFactory,
                 dataSourceFactory = cacheManager?.getDataSourceFactory(),
+                bandwidthMeter = bandwidthMeter,
             )
         player?.addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { currentVideoId })
 
@@ -652,6 +702,27 @@ class EnhancedPlayerManager private constructor() {
         scope.launch {
             prefs.sponsorBlockEnabled.collect { isEnabled ->
                 sponsorBlockHandler?.setEnabled(isEnabled)
+                if (isEnabled && currentLocalFilePath != null) {
+                    val savedSegments = sponsorBlockHandler?.getSegments().orEmpty()
+                    val videoId = currentVideoId
+                    if (videoId != null && savedSegments.isNotEmpty()) {
+                        sponsorShadowJob?.cancel()
+                        sponsorShadowJob =
+                            scope.launch {
+                                sponsorDetectionCoordinator?.evaluate(videoId, availableSubtitles, savedSegments)
+                            }
+                    }
+                } else if (!isEnabled) {
+                    sponsorShadowJob?.cancel()
+                    sponsorShadowJob = null
+                    sponsorDetectionCoordinator?.reset()
+                }
+            }
+        }
+
+        scope.launch {
+            prefs.sponsorTrainingConsentEnabled.collect {
+                sponsorDetectionCoordinator?.refreshConsent()
             }
         }
 
@@ -688,8 +759,7 @@ class EnhancedPlayerManager private constructor() {
         }
 
         // Collect per-category SponsorBlock actions and update handler
-        val sbCategories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
-        sbCategories.forEach { category ->
+        SponsorBlockCategories.ALL.forEach { category ->
             scope.launch {
                 prefs.sbActionForCategory(category).collect { action ->
                     val current = sponsorBlockHandler?.categoryActions?.toMutableMap() ?: mutableMapOf()
@@ -715,6 +785,7 @@ class EnhancedPlayerManager private constructor() {
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    rememberPlaybackPositionMs(player?.currentPosition ?: 0L)
                     val exoLive = player?.isCurrentMediaItemLive == true
                     _playerState.value =
                         _playerState.value.copy(
@@ -786,6 +857,14 @@ class EnhancedPlayerManager private constructor() {
                             }
                         }
                     }
+                }
+
+                override fun onPositionDiscontinuity(
+                    oldPosition: Player.PositionInfo,
+                    newPosition: Player.PositionInfo,
+                    reason: Int,
+                ) {
+                    rememberPlaybackPositionMs(newPosition.positionMs)
                 }
 
                 override fun onMediaItemTransition(
@@ -889,15 +968,23 @@ class EnhancedPlayerManager private constructor() {
         sponsorBlockHandler?.reset()
         if (!savedSegments.isNullOrEmpty()) {
             sponsorBlockHandler?.loadSegmentsFromList(videoId, savedSegments)
+            if (sponsorBlockHandler?.isEnabled == true) {
+                sponsorShadowJob?.cancel()
+                sponsorShadowJob =
+                    scope.launch {
+                        sponsorDetectionCoordinator?.evaluate(videoId, availableSubtitles, savedSegments)
+                    }
+            }
         } else {
             sponsorBlockHandler?.loadSegments(videoId)
         }
 
+        val initialPos = resolveInitialPositionWithSponsorBlock(preservePosition ?: 0L).takeIf { it > 0L }
         loadMediaInternal(
             videoStream = null,
             audioStream = null,
             localFilePath = filePath,
-            preservePosition = preservePosition,
+            preservePosition = initialPos,
         )
     }
 
@@ -973,10 +1060,6 @@ class EnhancedPlayerManager private constructor() {
         audioOnlyMode.applyStreams(keepAudioOnly)
         setVideoTracksDisabled(keepAudioOnly)
 
-        // Reset and load SponsorBlock
-        sponsorBlockHandler?.reset()
-        sponsorBlockHandler?.loadSegments(videoId)
-
         this.currentDurationSeconds = durationSeconds
         this.currentDashManifestUrl = dashManifestUrl
         val useLiveManifest =
@@ -1002,6 +1085,18 @@ class EnhancedPlayerManager private constructor() {
         availableVideoStreams = StreamProcessor.processVideoStreams(videoStreams)
         availableAudioStreams = StreamProcessor.processAudioStreams(audioStreams)
         availableSubtitles = StreamProcessor.processSubtitleStreams(subtitles)
+
+        if (isLiveStream) {
+            scope.launch { sponsorDetectionCoordinator?.reset() }
+        }
+        // VODs run shadow inference; true live streams keep the API-only path.
+        sponsorBlockHandler?.reset()
+        val cachedSegments = SponsorBlockRepository().getCachedSegments(videoId)
+        if (!cachedSegments.isNullOrEmpty()) {
+            sponsorBlockHandler?.loadSegmentsFromList(videoId, cachedSegments)
+        } else {
+            sponsorBlockHandler?.loadSegments(videoId)
+        }
         if (audioStream == null && availableAudioStreams.isEmpty()) {
             Log.w(TAG, "setStreams: no separate audio stream for $videoId; attempting video-only/muxed playback")
         }
@@ -1057,7 +1152,8 @@ class EnhancedPlayerManager private constructor() {
                 liveDurationMs = liveDurationMs,
             )
 
-        val resumePos = startPosition.takeIf { it > 0L }
+        val adjustedStartPos = resolveInitialPositionWithSponsorBlock(startPosition)
+        val resumePos = adjustedStartPos.takeIf { it > 0L }
         when {
             localFilePath != null -> loadMediaInternal(null, audioStream, localFilePath = localFilePath, preservePosition = resumePos)
             currentVideoStream != null -> loadMediaInternal(currentVideoStream, currentAudioStream, preservePosition = resumePos)
@@ -1065,7 +1161,28 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    private fun resolveInitialPositionWithSponsorBlock(requestedPositionMs: Long): Long {
+        val handler = sponsorBlockHandler ?: return requestedPositionMs
+        if (!handler.isEnabled && !handler.hasSegments()) return requestedPositionMs
+        val segments = handler.getSegments()
+        if (segments.isEmpty()) return requestedPositionMs
+        val posSec = requestedPositionMs / 1000f
+        val match = segments.find { posSec >= it.startTime && posSec < it.endTime } ?: return requestedPositionMs
+        val action = resolveSponsorBlockAction(match, handler.categoryActions)
+        return if (action == SponsorBlockAction.SKIP) {
+            Log.d(
+                TAG,
+                "Initial position $requestedPositionMs ms inside sponsor ${match.category} [${match.startTime}-${match.endTime}] - advancing to end",
+            )
+            (match.endTime * 1000).toLong()
+        } else {
+            requestedPositionMs
+        }
+    }
+
     private fun resetPlaybackStateForNewVideo(videoId: String) {
+        sponsorShadowJob?.cancel()
+        sponsorShadowJob = null
         clearAutoplayCountdownInternal()
         currentVideoId = videoId
         liveQualityHeights = emptyList()
@@ -1073,6 +1190,7 @@ class EnhancedPlayerManager private constructor() {
         lastLiveEdgeRecoveryMs = 0L
         qualityManager?.resetForNewVideo()
         playbackTracker?.reset()
+        rememberPlaybackPositionMs(0L)
         errorHandler?.resetExpiryCounter()
         mediaLoader?.releaseSabr()
         currentSabrInfo = null
@@ -1993,6 +2111,8 @@ class EnhancedPlayerManager private constructor() {
         playbackTracker?.reset()
         startPlaybackTracker()
 
+        sponsorShadowJob?.cancel()
+        sponsorShadowJob = null
         sponsorBlockHandler?.reset()
         sponsorBlockHandler?.loadSegments(data.enrichedVideo.id)
 
@@ -2129,15 +2249,15 @@ class EnhancedPlayerManager private constructor() {
             return
         }
         val target = resolveSeekTarget(p, endPositionMs)
-        p.setSeekParameters(SeekParameters.EXACT)
         if (isLive) {
+            p.setSeekParameters(SeekParameters.EXACT)
             markLiveDisplaySeek(target)
+        } else {
+            p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
         }
         p.seekTo(target)
         if (isLive) {
             updateLiveEdgeState(p)
-        } else {
-            p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
         }
     }
 
@@ -2275,6 +2395,10 @@ class EnhancedPlayerManager private constructor() {
     fun getPlayer(): ExoPlayer? = player
 
     fun getCurrentPosition(): Long = player?.currentPosition ?: 0L
+
+    private fun rememberPlaybackPositionMs(positionMs: Long) {
+        lastKnownPlaybackPositionMs.set(positionMs.coerceAtLeast(0L))
+    }
 
     fun getDuration(): Long = player?.duration ?: 0L
 
@@ -2639,6 +2763,24 @@ class EnhancedPlayerManager private constructor() {
     val sponsorSegments: StateFlow<List<SponsorBlockSegment>>
         get() = sponsorBlockHandler?.sponsorSegments ?: MutableStateFlow(emptyList())
 
+    val sponsorDetectionState: StateFlow<SponsorDetectionUiState>
+        get() = sponsorDetectionCoordinator?.state ?: MutableStateFlow(SponsorDetectionUiState())
+
+    val sponsorJournalStats: StateFlow<SponsorJournalStats>
+        get() = sponsorDetectionCoordinator?.journalStats ?: MutableStateFlow(SponsorJournalStats())
+
+    suspend fun recordSponsorFeedback(
+        verdict: SponsorFeedbackVerdict,
+        targetSpan: SponsorPredictedSpan? = null,
+        correctedSpan: SponsorSpan? = null,
+    ): Boolean = sponsorDetectionCoordinator?.recordFeedback(verdict, targetSpan, correctedSpan) ?: false
+
+    suspend fun refreshSponsorJournalStats() = sponsorDetectionCoordinator?.refreshJournalStats()
+
+    suspend fun exportSponsorTrainingData(output: java.io.OutputStream) = sponsorDetectionCoordinator?.exportTo(output)
+
+    suspend fun clearSponsorTrainingData() = sponsorDetectionCoordinator?.clearJournal()
+
     /** Emits the display label of a subtitle track whose fetch failed and will not be retried. */
     val subtitleLoadFailedEvent: SharedFlow<String>
         get() = _subtitleLoadFailedEvent
@@ -2694,7 +2836,7 @@ class EnhancedPlayerManager private constructor() {
                     if (p.playWhenReady) p.play()
                 }
             }
-            if (resyncPausedVideo && p != null) {
+            if (resyncPausedVideo) {
                 val position = p.currentPosition
                 Log.w(
                     "FlowVideoLifecycle",
@@ -2961,6 +3103,11 @@ class EnhancedPlayerManager private constructor() {
         releaseVideoMediaSession()
         pendingReloadJob?.cancel()
         pendingReloadJob = null
+        sponsorShadowJob?.cancel()
+        sponsorShadowJob = null
+        val coordinator = sponsorDetectionCoordinator
+        scope.launch { coordinator?.close() }
+        sponsorDetectionCoordinator = null
         mediaLoader?.releaseSabr()
         clearedMediaRecoveryState.clear()
         playbackTracker?.stop()

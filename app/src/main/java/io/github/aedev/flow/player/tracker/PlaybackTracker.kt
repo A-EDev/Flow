@@ -23,6 +23,7 @@ class PlaybackTracker(
     private val onSmoothPlayback: () -> Unit,
     private val onBandwidthCheckNeeded: () -> Unit,
     private val onLivePlaybackTick: (ExoPlayer) -> Unit = {},
+    private val nextSegmentDelayMsProvider: ((Long) -> Long)? = null,
 ) {
     companion object {
         private const val TAG = "PlaybackTracker"
@@ -48,13 +49,19 @@ class PlaybackTracker(
 
                 while (true) {
                     trackPosition(player)
+                    val intervalMs =
+                        nextSegmentDelayMsProvider
+                            ?.invoke(player.currentPosition)
+                            ?.coerceIn(50L, PlayerConfig.POSITION_TRACKER_INTERVAL_MS)
+                            ?: PlayerConfig.POSITION_TRACKER_INTERVAL_MS
+
                     when {
                         player.isPlaying || player.playbackState == Player.STATE_BUFFERING -> {
-                            delay(PlayerConfig.POSITION_TRACKER_INTERVAL_MS)
+                            delay(intervalMs)
                         }
 
                         stateFlow.value.isPlaying || stateFlow.value.isBuffering -> {
-                            delay(PlayerConfig.POSITION_TRACKER_INTERVAL_MS)
+                            delay(intervalMs)
                         }
 
                         else -> {

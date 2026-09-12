@@ -141,6 +141,12 @@ android {
     }
 
     sourceSets {
+        getByName("main").assets.directories.add(
+            rootProject.layout.projectDirectory
+                .dir(
+                    "ml/sponsor_detection/artifacts/android/ettin_17m_sponsor_v1/android",
+                ).asFile.absolutePath,
+        )
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
 
@@ -193,6 +199,15 @@ composeCompiler {
 }
 
 dependencies {
+    implementation(
+        files(
+            rootProject.layout.projectDirectory.file(
+                "ml/sponsor_detection/artifacts/android/onnxruntime_custom/build/output/aar_out/MinSizeRel/" +
+                    "com/microsoft/onnxruntime/onnxruntime-android/1.29.0/onnxruntime-android-1.29.0.aar",
+            ),
+        ),
+    )
+
     // --- Core Android ---
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

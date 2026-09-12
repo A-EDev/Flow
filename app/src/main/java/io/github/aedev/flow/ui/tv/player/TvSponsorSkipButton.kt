@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.ui.tv.components.TvButton
 import kotlinx.coroutines.delay
@@ -36,15 +37,21 @@ fun TvSponsorSkipButton(
         }
         while (isActive) {
             val positionSec = positionProvider() / 1_000f
-            activeSegment = segments.firstOrNull { positionSec >= it.startTime && positionSec < it.endTime }
+            activeSegment =
+                segments.firstOrNull { segment ->
+                    !SponsorBlockCategories.isWholeVideoAction(segment.actionType) &&
+                        positionSec >= segment.startTime &&
+                        positionSec < segment.endTime
+                }
             delay(1_000L)
         }
     }
 
     activeSegment?.let { segment ->
-        val label = segment.category.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-        }
+        val label =
+            segment.category.replaceFirstChar {
+                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+            }
         TvButton(
             text = stringResource(R.string.tv_player_skip_segment, label),
             onClick = { onSkipTo((segment.endTime * 1_000L).toLong()) },

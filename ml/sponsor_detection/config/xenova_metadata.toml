@@ -1,0 +1,10 @@
+[xenova_metadata]
+dataset_directory = "ml/sponsor_detection/data/external/xenova_sponsorblock_768"
+output_path = "ml/sponsor_detection/data/metadata/xenova_sponsorblock_768.jsonl"
+journal_path = "ml/sponsor_detection/data/metadata/xenova_sponsorblock_768_journal.jsonl"
+manifest_path = "ml/sponsor_detection/reports/xenova_metadata_manifest.json"
+env_path = ".env"
+api_key_environment_variable = "YOUTUBE_DATA_API_KEY"
+batch_size = 50
+max_api_requests_per_run = 2000
+request_delay_seconds = 0.1

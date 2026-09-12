@@ -2,6 +2,7 @@ package io.github.aedev.flow.player.sponsorblock
 
 import android.util.Log
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,10 @@ import kotlinx.coroutines.launch
  */
 class SponsorBlockHandler(
     private val scope: CoroutineScope,
+    private val apiSegments: suspend (String) -> List<SponsorBlockSegment> = { videoId ->
+        SponsorBlockRepository().getSegments(videoId)
+    },
+    private val fallbackSegments: suspend (String) -> List<SponsorBlockSegment> = { emptyList() },
 ) {
     companion object {
         private const val TAG = "SponsorBlockHandler"
@@ -30,8 +35,6 @@ class SponsorBlockHandler(
          * short of the requested end (SABR rebuilds at a segment boundary) cannot loop the skip. */
         private const val SEEK_BACK_REARM_MARGIN_SEC = 1f
     }
-
-    private val sponsorBlockRepository = SponsorBlockRepository()
 
     private val _sponsorSegments = MutableStateFlow<List<SponsorBlockSegment>>(emptyList())
     val sponsorSegments: StateFlow<List<SponsorBlockSegment>> = _sponsorSegments.asStateFlow()
@@ -63,6 +66,9 @@ class SponsorBlockHandler(
 
     /** Map from category string (e.g. "sponsor") to the action to take. Defaults to SKIP for all. */
     var categoryActions: Map<String, SponsorBlockAction> = emptyMap()
+
+    /** Callback invoked whenever new segments are resolved and published. */
+    var onSegmentsLoaded: ((List<SponsorBlockSegment>) -> Unit)? = null
 
     /**
      * Set whether SponsorBlock is enabled.
@@ -102,6 +108,22 @@ class SponsorBlockHandler(
         offlineSegmentsLoaded = segments.isNotEmpty()
         _sponsorSegments.value = segments
         Log.d(TAG, "Loaded ${segments.size} offline SponsorBlock segments for video $videoId")
+        onSegmentsLoaded?.invoke(segments)
+    }
+
+    /**
+     * Apply early streaming model spans while full inference is still running.
+     * Only affects the in-memory segment list; the final load below overwrites
+     * it, and offline-saved state is never touched.
+     */
+    fun setProvisionalSegments(
+        videoId: String,
+        segments: List<SponsorBlockSegment>,
+    ) {
+        if (!isEnabled || currentVideoId != videoId || segments.isEmpty()) return
+        _sponsorSegments.value = segments
+        Log.d(TAG, "Applied ${segments.size} provisional on-device segments for video $videoId")
+        onSegmentsLoaded?.invoke(segments)
     }
 
     /**
@@ -110,7 +132,11 @@ class SponsorBlockHandler(
     fun loadSegments(videoId: String) {
         currentVideoId = videoId
 
-        if (!isEnabled) return
+        if (!isEnabled) {
+            Log.d(TAG, "loadSegments($videoId) ignored: SponsorBlock disabled")
+            return
+        }
+        Log.d(TAG, "loadSegments($videoId) started")
 
         // Cancel previous load and clear state
         loadJob?.cancel()
@@ -121,12 +147,17 @@ class SponsorBlockHandler(
         loadJob =
             scope.launch {
                 try {
-                    val segments = sponsorBlockRepository.getSegments(videoId)
+                    val remoteSegments = apiSegments(videoId)
+                    val segments = remoteSegments.ifEmpty { fallbackSegments(videoId) }
                     _sponsorSegments.value = segments
-                    Log.d(TAG, "Loaded ${segments.size} segments for video $videoId")
+                    Log.d(
+                        TAG,
+                        "Loaded ${segments.size} ${if (remoteSegments.isEmpty()) "on-device" else "API"} segments for video $videoId",
+                    )
                     segments.forEach {
                         Log.d(TAG, "Segment: ${it.category} [${it.startTime} - ${it.endTime}]")
                     }
+                    onSegmentsLoaded?.invoke(segments)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to load segments for video $videoId", e)
                 }
@@ -180,8 +211,8 @@ class SponsorBlockHandler(
         }
 
         if (segment != null && segment.uuid != lastSkippedSegmentUuid) {
-            val action = categoryActions[segment.category] ?: SponsorBlockAction.SKIP
-            Log.d(TAG, "Segment hit: ${segment.category} action=$action")
+            val action = resolveSponsorBlockAction(segment, categoryActions)
+            Log.d(TAG, "Segment hit: ${segment.category} action=$action type=${segment.actionType}")
 
             return when (action) {
                 SponsorBlockAction.SKIP -> {
@@ -222,4 +253,58 @@ class SponsorBlockHandler(
      * Check if segments have been loaded.
      */
     fun hasSegments(): Boolean = _sponsorSegments.value.isNotEmpty()
+
+    /**
+     * Calculates the polling delay for playback position tracking.
+     * When approaching an auto-skip segment within 2 seconds, the delay is reduced
+     * so the skip triggers smoothly right at the segment boundary.
+     */
+    fun getNextSkipCheckDelayMs(currentPositionMs: Long): Long {
+        if (!isEnabled && !offlineSegmentsLoaded) return 1_000L
+        val segments = _sponsorSegments.value
+        if (segments.isEmpty()) return 1_000L
+
+        val posSec = currentPositionMs / 1000f
+
+        val nextSeg =
+            segments
+                .filter { it.startTime > posSec && resolveSponsorBlockAction(it, categoryActions) == SponsorBlockAction.SKIP }
+                .minByOrNull { it.startTime }
+
+        if (nextSeg != null) {
+            val remainingMs = ((nextSeg.startTime - posSec) * 1000).toLong()
+            if (remainingMs in 1L..2_000L) {
+                return remainingMs.coerceIn(50L, 250L)
+            }
+        }
+        return 1_000L
+    }
+}
+
+/**
+ * Combines the user's per-category preference with the API [SponsorBlockSegment.actionType].
+ *
+ * `full` / `poi` / `chapter` mark the whole video or a highlight, not a skippable range —
+ * auto-skip would seek to the end. API `mute` segments stay mute even if the category
+ * default is skip.
+ */
+internal fun resolveSponsorBlockAction(
+    segment: SponsorBlockSegment,
+    categoryActions: Map<String, SponsorBlockAction>,
+): SponsorBlockAction {
+    val userAction = categoryActions[segment.category] ?: SponsorBlockAction.SKIP
+    if (userAction == SponsorBlockAction.IGNORE) return SponsorBlockAction.IGNORE
+    return when {
+        SponsorBlockCategories.isWholeVideoAction(segment.actionType) -> {
+            if (userAction == SponsorBlockAction.SKIP) SponsorBlockAction.SHOW_TOAST else userAction
+        }
+
+        SponsorBlockCategories.isMuteAction(segment.actionType) -> {
+            SponsorBlockAction.MUTE
+        }
+
+        else -> {
+            userAction
+        }
+    }
 }

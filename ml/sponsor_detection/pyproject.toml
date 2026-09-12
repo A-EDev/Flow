@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flow-sponsor-detection"
+version = "0.1.0"
+description = "Dataset and model tooling for transcript-based sponsor detection"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+data = ["pyarrow>=15"]
+acquisition = [
+    "requests==2.33.0",
+    "youtube-transcript-api==1.2.4",
+    "yt-dlp==2026.8.19",
+]
+training = [
+    "accelerate==1.14.0",
+    "datasets==5.0.1",
+    "safetensors>=0.6.2,<0.8",
+    "torch==2.13.0",
+    "transformers==5.5.4",
+]
+export = [
+    "onnx==1.22.0",
+    "onnxruntime==1.29.0",
+    "onnxscript==0.6.2",
+]
+
+[project.scripts]
+sponsor-detection = "sponsor_detection.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

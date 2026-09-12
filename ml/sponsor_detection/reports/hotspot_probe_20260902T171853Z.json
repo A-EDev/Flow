@@ -1,0 +1,32 @@
+{
+  "fresh_requests": true,
+  "generated_at": "2026-09-02T17:19:18.462148+00:00",
+  "provider": "youtube_transcript_api",
+  "results": [
+    {
+      "cues": 5275,
+      "is_generated": true,
+      "language": "en",
+      "path": "ml/sponsor_detection/data/transcripts/hotspot_probe_20260902T171853Z/XInF1SlOTlQ.json",
+      "status": "success",
+      "video_id": "XInF1SlOTlQ"
+    },
+    {
+      "cues": 103,
+      "is_generated": true,
+      "language": "en",
+      "path": "ml/sponsor_detection/data/transcripts/hotspot_probe_20260902T171853Z/-PccMXBOfek.json",
+      "status": "success",
+      "video_id": "-PccMXBOfek"
+    },
+    {
+      "cues": 1784,
+      "is_generated": true,
+      "language": "en",
+      "path": "ml/sponsor_detection/data/transcripts/hotspot_probe_20260902T171853Z/4O6mwAz8Ufc.json",
+      "status": "success",
+      "video_id": "4O6mwAz8Ufc"
+    }
+  ],
+  "stopped_on_block": false
+}

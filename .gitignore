@@ -26,6 +26,7 @@ LibreTube-master
 
 # Secrets and Local configuration
 local.properties
+.env
 *.keystore
 *.jks
 key.properties
@@ -40,3 +41,18 @@ Flow-desktop/
 
 # Local engine diagnostics (real exported brains - personal data, never commit)
 diagnostics/
+
+# Local SponsorBlock database mirror (multi-gigabyte training source)
+/sb-mirror/
+
+# Sponsor-detection ML environments and generated artifacts
+/ml/sponsor_detection/.venv/
+/ml/sponsor_detection/.pytest_cache/
+/ml/sponsor_detection/**/__pycache__/
+/ml/sponsor_detection/*.egg-info/
+/ml/sponsor_detection/src/*.egg-info/
+/ml/sponsor_detection/artifacts/
+/ml/sponsor_detection/checkpoints/
+/ml/sponsor_detection/data/
+/ml/sponsor_detection/reports/*.log
+*.log

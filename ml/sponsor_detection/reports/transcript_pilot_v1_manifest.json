@@ -1,0 +1,22 @@
+{
+  "build_seconds": 13.503,
+  "counts": {
+    "eligible_label_rows": 4532860,
+    "pilot_segments": 14235,
+    "pilot_videos": 10000,
+    "scanned_label_rows": 5222102
+  },
+  "generated_at": "2026-08-30T05:03:31.210439+00:00",
+  "output": {
+    "bytes": 2736026,
+    "path": "ml/sponsor_detection/data/pilots/transcript_pilot_v1.jsonl",
+    "sha256": "b799b99181b62d5d7acf374b4099b80f1a33d9d02ef7553b923e132b81b83f21"
+  },
+  "sampling": {
+    "method": "bottom-k blake2b-64 over unique video IDs",
+    "requested_videos": 10000,
+    "seed": "flow-sponsor-transcript-pilot-v1"
+  },
+  "schema_version": 1,
+  "source_labels_sha256": "d8a64a89a1a04d641367ae920d8d752feba0fc4844a65b3b4717a7d2e42dacd0"
+}

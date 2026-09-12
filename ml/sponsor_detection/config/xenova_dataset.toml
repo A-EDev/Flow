@@ -1,0 +1,12 @@
+[xenova_dataset]
+directory = "ml/sponsor_detection/data/external/xenova_sponsorblock_768"
+report_path = "ml/sponsor_detection/reports/xenova_sponsorblock_768_profile.json"
+revision = "09cace13dc72455e7558cfd2ad13e60a41688c8d"
+current_labels_path = "ml/sponsor_detection/data/labels/sponsor_annotations.parquet"
+
+[xenova_dataset.sha256]
+"processed_database.json" = "a02808a7290642bc7ae0dc3371bd47d404823bd8fb8544bb7b1e4590ca1683ac"
+"segments.json" = "9ff225437a0e05e1faf0ae80074399601a0084fb71e82d6b7b25575726ef2b61"
+"test.json" = "7d0b8e77eaf842a4c14bbb6fbe3473f40a0d2e7fbdd482ac22ed635931adfbd4"
+"train.json" = "a3fdeb5e5d620efbd7f115422f6042386ab23d66fdb5fb7f7fffdad0010d6b08"
+"valid.json" = "ee794ae82e7059c7175bea83501e75715c27e9e2be42356c16bc82c8ed66afcd"

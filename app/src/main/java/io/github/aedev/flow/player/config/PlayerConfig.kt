@@ -33,20 +33,20 @@ object PlayerConfig {
     const val LOW_MEMORY_BACK_BUFFER_DURATION_MS = 0
 
     /** Hard runtime cap for main-player max buffer */
-    const val MAX_SAFE_MAIN_BUFFER_MS = 45_000
+    const val MAX_SAFE_MAIN_BUFFER_MS = 90_000
 
     /** Hard runtime cap for main-player min buffer so low-RAM devices do not over-retain media. */
-    const val MAX_SAFE_MAIN_MIN_BUFFER_MS = 20_000
+    const val MAX_SAFE_MAIN_MIN_BUFFER_MS = 30_000
 
     /** Runtime caps used when Android reports a small app heap. */
-    const val LOW_MEMORY_MAX_SAFE_MAIN_BUFFER_MS = 18_000
-    const val LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS = 8_000
+    const val LOW_MEMORY_MAX_SAFE_MAIN_BUFFER_MS = 25_000
+    const val LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS = 10_000
 
-    const val MAIN_TARGET_BUFFER_BYTES = 32 * 1024 * 1024
+    const val MAIN_TARGET_BUFFER_BYTES = 128 * 1024 * 1024
 
-    /** Smaller target buffer budgets for devices with 256-384 MB app heaps. */
-    const val LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES = 4 * 1024 * 1024
-    const val MID_MEMORY_MAIN_TARGET_BUFFER_BYTES = 12 * 1024 * 1024
+    /** Target buffer budgets for devices with constrained app heaps. */
+    const val LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES = 16 * 1024 * 1024
+    const val MID_MEMORY_MAIN_TARGET_BUFFER_BYTES = 48 * 1024 * 1024
 
     /** Explicit target buffer budget per shorts player in the pooled shorts stack. */
     const val SHORTS_TARGET_BUFFER_BYTES = 4 * 1024 * 1024

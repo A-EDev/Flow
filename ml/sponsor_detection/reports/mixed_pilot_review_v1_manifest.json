@@ -1,0 +1,63 @@
+{
+  "annotations": {
+    "annotations_path": "ml/sponsor_detection/data/benchmarks/mixed_pilot_annotations_v1.json",
+    "annotations_sha256": "bee501f1d47aadd41af611abfbd2fa0d404de0399ca082c715d81e22e0ed6b4b",
+    "reviewed_by_class": {
+      "hard_negative": 17,
+      "ordinary_negative": 15,
+      "sponsor_positive": 13
+    },
+    "reviewed_videos": 45,
+    "source_review_sha256": "070b5d01d235f99cc22ab39d06a704ca949e0937ab3dd4299855577ddbea2f2b",
+    "sponsor_intervals": 19
+  },
+  "counts": {
+    "deficits_by_class": {},
+    "rejections": {
+      "missing_transcript": 83,
+      "not_public": 1,
+      "pilot_channel_overlap": 2,
+      "training_channel_overlap": 43
+    },
+    "selected": 45,
+    "selected_by_class": {
+      "hard_negative": 15,
+      "ordinary_negative": 15,
+      "sponsor_positive": 15
+    }
+  },
+  "enrichment": {
+    "models": [
+      {
+        "checkpoint_path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_v1",
+        "checkpoint_sha256": "7a23c22ce27c7ae3bc9ae909e6c1a34f583445e17692b666b07085f4c97a60d2",
+        "confidence_threshold": 0.0,
+        "name": "v1_raw"
+      },
+      {
+        "checkpoint_path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_v3_replay",
+        "checkpoint_sha256": "da7e03a80f00a4854a63289e3eda9f1142a34e1930e780f86c535ec6428d6a59",
+        "confidence_threshold": 0.65,
+        "name": "v3_replay_calibrated"
+      }
+    ],
+    "predicted_spans": 39,
+    "source_review_sha256": "3fab2d4229ea9e5e6b9b902153d13c60b38f7950645c6498d0ea36e0cd2c04ab",
+    "videos": 45
+  },
+  "generated_at": "2026-08-31T16:31:00.810045+00:00",
+  "output": {
+    "bytes": 149627,
+    "path": "ml/sponsor_detection/data/benchmarks/mixed_pilot_review_v1.jsonl",
+    "sha256": "3244b704bfd9f0f5ab33239ccaa6f24cba9f8e9680b7b13efb24b09dfee0aa1b"
+  },
+  "schema_version": 1,
+  "selection": {
+    "channel_disjoint_from_training": true,
+    "required_total": 45,
+    "target_per_class": 15,
+    "unique_channel_within_pilot": true
+  },
+  "source_candidates_sha256": "cb81e6aa5e79f0b911a27b1efb210896d1188ac90ba5426ee91b8d6a6c54816d",
+  "status": "reviewed"
+}

@@ -1,0 +1,16 @@
+[dataset]
+benchmark_path = "ml/sponsor_detection/data/benchmarks/mixed_pilot_frozen_v1.jsonl"
+benchmark_manifest_path = "ml/sponsor_detection/reports/mixed_pilot_frozen_v1_manifest.json"
+
+[model]
+checkpoint_path = "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_v4_full"
+decoder_config_path = "ml/sponsor_detection/reports/ettin_17m_v4_decoder.json"
+max_length = 768
+overlap_tokens = 128
+
+[evaluation]
+batch_size = 16
+bf16 = true
+merge_gap_characters = 24
+merge_gap_ms = 1500
+report_path = "ml/sponsor_detection/reports/ettin_17m_v4_mixed_pilot_evaluation.json"

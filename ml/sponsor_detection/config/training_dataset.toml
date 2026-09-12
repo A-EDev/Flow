@@ -1,0 +1,13 @@
+[training_dataset]
+dataset_directory = "ml/sponsor_detection/data/external/xenova_sponsorblock_768"
+dataset_profile_path = "ml/sponsor_detection/reports/xenova_sponsorblock_768_profile.json"
+current_labels_path = "ml/sponsor_detection/data/labels/sponsor_annotations.parquet"
+current_labels_manifest_path = "ml/sponsor_detection/reports/sponsor_labels_manifest.json"
+output_directory = "ml/sponsor_detection/data/training/sponsor_windows_v1"
+manifest_path = "ml/sponsor_detection/reports/sponsor_windows_v1_manifest.json"
+seed = "flow-sponsor-windows-v1"
+train_fraction = 0.80
+validation_fraction = 0.10
+current_iou_threshold = 0.50
+batch_size = 8192
+metadata_path = "ml/sponsor_detection/data/metadata/xenova_sponsorblock_768.jsonl"

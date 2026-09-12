@@ -1,0 +1,47 @@
+{
+  "counts": {
+    "excluded_sponsor": 48245,
+    "hard_negative": 32372,
+    "no_target_category": 193,
+    "ordinary_negative": 58757,
+    "queue_by_class": {
+      "hard_negative": 200,
+      "ordinary_negative": 200,
+      "sponsor_positive": 200
+    },
+    "queue_videos": 600,
+    "sampled_eligible_rows": 251040,
+    "sampled_videos": 139567,
+    "scanned_label_rows": 5222102,
+    "scanned_mirror_rows": 21660746
+  },
+  "elapsed_seconds": 88.416,
+  "exclusions": {
+    "prior_pilot_videos": 10000,
+    "training_videos": 96028,
+    "unique_excluded_videos": 105841
+  },
+  "generated_at": "2026-08-30T19:10:20.448755+00:00",
+  "output": {
+    "bytes": 250165,
+    "path": "ml/sponsor_detection/data/benchmarks/mixed_pilot_candidates_v1.jsonl",
+    "sha256": "cb81e6aa5e79f0b911a27b1efb210896d1188ac90ba5426ee91b8d6a6c54816d"
+  },
+  "sampling": {
+    "method": "stable hash bucket followed by per-class bottom-k",
+    "negative_sample_modulus": 64,
+    "pool_per_class": 200,
+    "queue_order": "round-robin by class and within-class stable rank",
+    "seed": "flow-sponsor-mixed-full-video-pilot-v1",
+    "target_per_class": 20
+  },
+  "schema_version": 1,
+  "sources": {
+    "labels_path": "ml/sponsor_detection/data/labels/sponsor_annotations.parquet",
+    "labels_sha256": "d8a64a89a1a04d641367ae920d8d752feba0fc4844a65b3b4717a7d2e42dacd0",
+    "mirror_bytes": 6812995962,
+    "mirror_path": "sb-mirror/sponsorTimes.csv",
+    "training_directory": "ml/sponsor_detection/data/training/sponsor_windows_v1"
+  },
+  "status": "acquisition_pending"
+}

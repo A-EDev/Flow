@@ -1,0 +1,16 @@
+[profile]
+input_path = "sb-mirror/sponsorTimes.csv"
+output_path = "ml/sponsor_detection/reports/sponsorblock_inventory.json"
+compute_sha256 = true
+progress_every_rows = 5000000
+
+[eligibility]
+category = "sponsor"
+service = "YouTube"
+action_type = "skip"
+minimum_votes = 0
+exclude_hidden = true
+exclude_shadow_hidden = true
+duration_tolerance_seconds = 1.0
+duration_tolerance_ratio = 0.01
+

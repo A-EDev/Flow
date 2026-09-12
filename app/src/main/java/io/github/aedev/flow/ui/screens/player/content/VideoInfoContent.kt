@@ -46,6 +46,7 @@ import io.github.aedev.flow.ui.components.VideoInfoSection
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.components.SponsorDetectionReviewControl
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -251,6 +252,12 @@ fun VideoInfoContent(
             onDismiss = { showAddToPlaylistDialog = false },
         )
     }
+
+    SponsorDetectionReviewControl(
+        videoId = video.id,
+        durationMs = ((uiState.streamInfo?.duration ?: video.duration.toLong()).coerceAtLeast(0)) * 1000L,
+        snackbarHostState = snackbarHostState,
+    )
 
     VideoInfoSection(
         video = video,

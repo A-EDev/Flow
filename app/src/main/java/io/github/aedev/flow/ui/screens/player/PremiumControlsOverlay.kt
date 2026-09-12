@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.sponsordetection.overlaySponsorTimelineSegments
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.ui.screens.player.components.PortraitFullscreenEdgeScrims
@@ -240,7 +241,13 @@ fun PremiumControlsOverlay(
         }
     }
 
-    val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsState()
+    val manager = EnhancedPlayerManager.getInstance()
+    val sponsorSegments by manager.sponsorSegments.collectAsState()
+    val sponsorDetection by manager.sponsorDetectionState.collectAsState()
+    val timelineSegments =
+        remember(sponsorSegments, sponsorDetection) {
+            overlaySponsorTimelineSegments(sponsorSegments, sponsorDetection)
+        }
 
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
@@ -295,10 +302,10 @@ fun PremiumControlsOverlay(
     val hideControlsForLoading = isInitialLoading && !showControlsWhileLoading
 
     val seekbarContent =
-        remember(chapters, sponsorSegments, sponsorSegmentColors, bufferedPercentage) {
+        remember(chapters, timelineSegments, sponsorSegmentColors, bufferedPercentage) {
             PlayerSeekbarContent(
                 chapters = chapters,
-                sponsorSegments = sponsorSegments,
+                sponsorSegments = timelineSegments,
                 sponsorColors = sponsorSegmentColors,
                 bufferedPercentage = bufferedPercentage,
             )
