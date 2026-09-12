@@ -42,6 +42,7 @@ class SponsorBlockHandlerTest {
         assertThat(handler.checkForSkip(120_000L)).isNull()
         assertThat(handler.checkForSkip(156_700L)).isEqualTo(157_200L)
     }
+
     @Test
     fun `loadSegments handles cancellation without swallowing CancellationException`() {
         val testScope = CoroutineScope(UnconfinedTestDispatcher())
