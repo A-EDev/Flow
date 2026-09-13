@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
+import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
 import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.formatSubscriberCount
@@ -84,6 +86,9 @@ internal fun ChannelShortCard(
 internal fun ChannelRow(
     channel: Channel,
     onClick: () -> Unit,
+    isSubscribed: Boolean? = null,
+    onSubscribeClick: () -> Unit = {},
+    onUnsubscribeClick: () -> Unit = {},
 ) {
     Row(
         modifier =
@@ -119,6 +124,14 @@ internal fun ChannelRow(
                     color = MaterialTheme.extendedColors.textSecondary,
                 )
             }
+        }
+        if (isSubscribed != null) {
+            FlowSubscribeButton(
+                isSubscribed = isSubscribed,
+                onSubscribeClick = onSubscribeClick,
+                onUnsubscribeClick = onUnsubscribeClick,
+                size = FlowSubscribeButtonSize.Compact,
+            )
         }
     }
 }

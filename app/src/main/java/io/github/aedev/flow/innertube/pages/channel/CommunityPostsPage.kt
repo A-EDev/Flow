@@ -171,7 +171,7 @@ internal fun JsonElement.toCommunityCommentsPage(): CommunityCommentsPage {
     )
 }
 
-private fun JsonObject.toCommunityPost(
+internal fun JsonObject.toCommunityPost(
     fallbackAuthorName: String,
     fallbackAuthorAvatarUrl: String,
     owner: ChannelOwner,

@@ -35,6 +35,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.ChannelItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelSection
 import io.github.aedev.flow.innertube.pages.channel.ChannelSectionStyle
+import io.github.aedev.flow.innertube.pages.channel.CommunityPost
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.ShortsShelf
@@ -59,6 +60,12 @@ internal fun ChannelHomeSections(
     onPlaylistClick: (String) -> Unit,
     onChannelClick: (String) -> Unit,
     onSectionMore: (ChannelSection) -> Unit,
+    canOpenSection: (ChannelSection) -> Boolean,
+    subscribedChannelIds: Set<String>,
+    onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
+    onAuthorClick: () -> Unit,
+    onPostComments: (CommunityPost) -> Unit,
+    onPostShare: (CommunityPost) -> Unit,
 ) {
     if (sections.isEmpty()) {
         if (isLoading) {
@@ -91,6 +98,12 @@ internal fun ChannelHomeSections(
                 onPlaylistClick = onPlaylistClick,
                 onChannelClick = onChannelClick,
                 onSectionMore = onSectionMore,
+                canOpenSection = canOpenSection,
+                subscribedChannelIds = subscribedChannelIds,
+                onSubscribeChannel = onSubscribeChannel,
+                onAuthorClick = onAuthorClick,
+                onPostComments = onPostComments,
+                onPostShare = onPostShare,
             )
         }
         item(key = "bottom_gap") { Spacer(Modifier.height(16.dp)) }
@@ -106,6 +119,12 @@ private fun LazyListScope.homeSection(
     onPlaylistClick: (String) -> Unit,
     onChannelClick: (String) -> Unit,
     onSectionMore: (ChannelSection) -> Unit,
+    canOpenSection: (ChannelSection) -> Boolean,
+    subscribedChannelIds: Set<String>,
+    onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
+    onAuthorClick: () -> Unit,
+    onPostComments: (CommunityPost) -> Unit,
+    onPostShare: (CommunityPost) -> Unit,
 ) {
     if (section.style == ChannelSectionStyle.Trailer) {
         val trailer = section.items.filterIsInstance<ChannelItem.VideoItem>().firstOrNull() ?: return
@@ -132,7 +151,7 @@ private fun LazyListScope.homeSection(
     item(key = "${section.id}:header") {
         ChannelShelfHeader(
             title = section.title,
-            hasMore = section.hasMoreTarget(),
+            hasMore = canOpenSection(section),
             onClick = { onSectionMore(section) },
         )
     }
@@ -161,11 +180,22 @@ private fun LazyListScope.homeSection(
             }
 
             is ChannelItem.RelatedChannelItem -> {
-                ChannelRow(channel = item.channel, onClick = { onChannelClick(item.channel.id) })
+                ChannelRow(
+                    channel = item.channel,
+                    onClick = { onChannelClick(item.channel.id) },
+                    isSubscribed = item.channel.id in subscribedChannelIds,
+                    onSubscribeClick = { onSubscribeChannel(item.channel, true) },
+                    onUnsubscribeClick = { onSubscribeChannel(item.channel, false) },
+                )
             }
 
             is ChannelItem.PostItem -> {
-                Unit
+                CommunityPostCard(
+                    post = item.post,
+                    onAuthorClick = onAuthorClick,
+                    onCommentsClick = { onPostComments(item.post) },
+                    onShareClick = { onPostShare(item.post) },
+                )
             }
         }
     }

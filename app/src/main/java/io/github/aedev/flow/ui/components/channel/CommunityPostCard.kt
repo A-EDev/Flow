@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.channel
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,10 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,11 +38,14 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
-import io.github.aedev.flow.ui.components.channel.CommunityPostAttachment
-import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
+import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatRichText
 
+/**
+ * One community post, laid out as YouTube lays it out: author, text, then the attachment running the
+ * full width of the post rather than inset inside a bordered card.
+ */
 @Composable
 fun CommunityPostCard(
     post: CommunityPost,
@@ -61,119 +61,115 @@ fun CommunityPostCard(
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val formattedText =
         remember(post.text, primaryColor, onSurfaceColor) {
-            formatRichText(
-                text = post.text,
-                primaryColor = primaryColor,
-                textColor = onSurfaceColor,
-            )
+            formatRichText(text = post.text, primaryColor = primaryColor, textColor = onSurfaceColor)
         }
 
-    Card(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    Column(
+        modifier = modifier.fillMaxWidth().padding(top = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onAuthorClick)
+                    .padding(horizontal = PostHorizontalPadding),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
+            AsyncImage(
+                model = ThumbnailUrlResolver.resolveChannelAvatar(post.authorAvatarUrl),
+                contentDescription = null,
                 modifier =
                     Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onAuthorClick),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AsyncImage(
-                    model = ThumbnailUrlResolver.resolveChannelAvatar(post.authorAvatarUrl),
-                    contentDescription = null,
-                    modifier =
-                        Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentScale = ContentScale.Crop,
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = post.authorName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (post.publishedTimeText.isNotBlank()) {
-                        Text(
-                            text = post.publishedTimeText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            if (post.text.isNotBlank()) {
-                Column {
-                    Text(
-                        text = formattedText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = if (textExpanded) Int.MAX_VALUE else 6,
-                        overflow = TextOverflow.Ellipsis,
-                        onTextLayout = { textOverflows = it.hasVisualOverflow },
-                    )
-                    if (!textExpanded && textOverflows) {
-                        TextButton(onClick = { textExpanded = true }) {
-                            Text(stringResource(R.string.read_more))
-                        }
-                    }
-                }
-            }
-
-            post.attachment?.let { attachment ->
-                CommunityPostAttachment(
-                    attachment = attachment,
-                    onVideoClick = onVideoClick,
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ThumbUp,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(6.dp))
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = ContentScale.Crop,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = post.likeCountText.ifBlank { stringResource(R.string.like) },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = post.authorName,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = onCommentsClick) {
-                    Icon(
-                        imageVector = Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(post.commentCountText.ifBlank { stringResource(R.string.comments) })
-                }
-                IconButton(onClick = onShareClick) {
-                    Icon(
-                        imageVector = Icons.Outlined.Share,
-                        contentDescription = stringResource(R.string.share),
+                if (post.publishedTimeText.isNotBlank()) {
+                    Text(
+                        text = post.publishedTimeText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.extendedColors.textSecondary,
                     )
                 }
             }
         }
+
+        if (post.text.isNotBlank()) {
+            Column(modifier = Modifier.padding(horizontal = PostHorizontalPadding)) {
+                Text(
+                    text = formattedText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = if (textExpanded) Int.MAX_VALUE else 6,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { textOverflows = it.hasVisualOverflow },
+                )
+                if (!textExpanded && textOverflows) {
+                    TextButton(onClick = { textExpanded = true }) {
+                        Text(stringResource(R.string.read_more))
+                    }
+                }
+            }
+        }
+
+        post.attachment?.let { attachment ->
+            CommunityPostAttachment(attachment = attachment, onVideoClick = onVideoClick)
+        }
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PostHorizontalPadding),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ThumbUp,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = post.likeCountText.ifBlank { stringResource(R.string.like) },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onShareClick) {
+                Icon(
+                    imageVector = Icons.Outlined.Share,
+                    contentDescription = stringResource(R.string.share),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            TextButton(onClick = onCommentsClick) {
+                Icon(
+                    imageVector = Icons.Outlined.ChatBubbleOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(post.commentCountText.ifBlank { stringResource(R.string.comments) })
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 0.5.dp)
     }
 }
+
+/**
+ * The post's own gutter. A single image ignores it and runs edge to edge, as YouTube's does, so it is
+ * applied per row rather than to the column.
+ */
+internal val PostHorizontalPadding = 16.dp

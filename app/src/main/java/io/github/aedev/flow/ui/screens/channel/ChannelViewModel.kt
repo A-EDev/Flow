@@ -75,6 +75,33 @@ class ChannelViewModel
             }
         }
 
+        /** Which channels the user follows, so a featured-channel row can show its real state. */
+        val subscribedChannelIds: StateFlow<Set<String>> =
+            subscriptionRepository
+                .getAllSubscriptions()
+                .map { subscriptions -> subscriptions.map { it.channelId }.toSet() }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(GROUPS_SUBSCRIPTION_TIMEOUT_MS), emptySet())
+
+        fun setChannelSubscription(
+            channel: io.github.aedev.flow.data.model.Channel,
+            subscribed: Boolean,
+        ) {
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                if (subscribed) {
+                    subscriptionRepository.subscribe(
+                        ChannelSubscription(
+                            channelId = channel.id,
+                            channelName = channel.name,
+                            channelThumbnail = channel.thumbnailUrl,
+                            subscribedAt = System.currentTimeMillis(),
+                        ),
+                    )
+                } else {
+                    subscriptionRepository.unsubscribe(channel.id)
+                }
+            }
+        }
+
         private val _uiState = MutableStateFlow(ChannelUiState())
         val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
         private val communityController = ChannelCommunityController(viewModelScope)

@@ -41,6 +41,8 @@ internal val CHANNEL_ITEM_PARSERS: Map<String, ChannelItemParser> =
         "channelRenderer" to ChannelItemParser { node, _ -> node.toChannelRendererItem() },
         "channelVideoPlayerRenderer" to ChannelItemParser { node, owner -> node.toTrailerItem(owner) },
         "gridShowRenderer" to ChannelItemParser { node, _ -> node.toShowItem() },
+        "postRenderer" to ChannelItemParser { node, owner -> node.toPostItem(owner) },
+        "backstagePostThreadRenderer" to ChannelItemParser { node, owner -> node.toPostThreadItem(owner) },
         "showRenderer" to ChannelItemParser { node, _ -> node.toShowItem() },
     )
 
@@ -278,6 +280,16 @@ private fun JsonElement?.episodeCount(): Int? {
 }
 
 /** Members-only videos carry the badge instead of a view count, which is why their views row is bare. */
+private fun JsonObject.toPostItem(owner: ChannelOwner): ChannelItem? =
+    toCommunityPost(owner.name, owner.avatarUrl, owner)?.let(ChannelItem::PostItem)
+
+private fun JsonObject.toPostThreadItem(owner: ChannelOwner): ChannelItem? =
+    this["post"]
+        .objectOrNull()
+        ?.get("backstagePostRenderer")
+        .objectOrNull()
+        ?.toPostItem(owner)
+
 private fun JsonObject?.membersOnlyBadge(): String? {
     var label: String? = null
     this?.forEachObject { node ->

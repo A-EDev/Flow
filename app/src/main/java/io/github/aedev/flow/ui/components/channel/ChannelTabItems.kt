@@ -2,15 +2,18 @@ package io.github.aedev.flow.ui.components.channel
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,20 +30,22 @@ import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 
 /**
  * Every channel tab's list, whatever it holds.
  *
- * One renderer for all of them because every tab parses to the same [ChannelItem]; a tab the app has
- * no special layout for still shows its contents rather than nothing.
+ * Column counts come from [rememberFeedGridLayout], the decision Home, Subscriptions, Categories and
+ * Search already share, so a tablet lays a channel out like the rest of the app rather than stretching
+ * two cards across the window.
  */
 @Composable
 internal fun ChannelTabItems(
     pagingItems: LazyPagingItems<ChannelItem>?,
     kind: ChannelTabKind,
     isGridView: Boolean,
-    listState: LazyListState,
+    listState: LazyGridState,
     contentPadding: PaddingValues,
     topInset: Dp,
     onVideoClick: (Video) -> Unit,
@@ -70,105 +75,81 @@ internal fun ChannelTabItems(
         return
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = contentPadding,
-    ) {
-        item(key = "top_gap") { Spacer(Modifier.height(8.dp)) }
-        if (kind == ChannelTabKind.Shorts) {
-            shortsRows(pagingItems, onShortClick)
-        } else {
-            channelRows(pagingItems, isGridView, onVideoClick, onShortClick, onPlaylistClick, onChannelClick)
-        }
-        if (pagingItems.loadState.append is LoadState.Loading) {
-            item(key = "append_spinner") {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
-            }
-        }
-        item { Spacer(Modifier.height(16.dp)) }
-    }
-}
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val feedLayout = rememberFeedGridLayout(maxWidth)
+        // Shorts are portrait, so many more fit per row than a 16:9 card ever would.
+        val isShorts = kind == ChannelTabKind.Shorts
+        val cells = if (isShorts) GridCells.Adaptive(ShortCellMinWidth) else feedLayout.cells
+        val gutter = if (isShorts) ShortCellSpacing else feedLayout.cardSpacing
 
-private fun LazyListScope.channelRows(
-    pagingItems: LazyPagingItems<ChannelItem>,
-    isGridView: Boolean,
-    onVideoClick: (Video) -> Unit,
-    onShortClick: (String) -> Unit,
-    onPlaylistClick: (String) -> Unit,
-    onChannelClick: (String) -> Unit,
-) {
-    items(count = pagingItems.itemCount, key = { index -> pagingItems.peek(index)?.itemKey() ?: index }) { index ->
-        when (val item = pagingItems[index]) {
-            is ChannelItem.VideoItem -> {
-                if (isGridView) {
-                    VideoCardFullWidth(
-                        video = item.video,
-                        showChannelAvatar = false,
-                        showChannelName = false,
-                        onClick = { onVideoClick(item.video) },
-                    )
-                } else {
-                    CompactVideoCard(
-                        video = item.video,
-                        showChannelName = false,
-                        onClick = { onVideoClick(item.video) },
-                    )
-                }
-            }
-
-            is ChannelItem.ShortItem -> {
-                CompactVideoCard(
-                    video = item.video,
-                    showChannelName = false,
-                    onClick = { onShortClick(item.video.id) },
-                )
-            }
-
-            is ChannelItem.PlaylistItem -> {
-                PlaylistCard(playlist = item.playlist, onClick = { onPlaylistClick(item.playlist.id) })
-            }
-
-            is ChannelItem.RelatedChannelItem -> {
-                ChannelRow(channel = item.channel, onClick = { onChannelClick(item.channel.id) })
-            }
-
-            is ChannelItem.PostItem, null -> {
-                Unit
-            }
-        }
-    }
-}
-
-private fun LazyListScope.shortsRows(
-    pagingItems: LazyPagingItems<ChannelItem>,
-    onShortClick: (String) -> Unit,
-) {
-    val rowCount = (pagingItems.itemCount + 1) / 2
-    items(count = rowCount, key = { rowIndex -> "shorts_row_$rowIndex" }) { rowIndex ->
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(1.dp),
+        LazyVerticalGrid(
+            columns = cells,
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+            horizontalArrangement = Arrangement.spacedBy(gutter),
+            verticalArrangement = Arrangement.spacedBy(gutter),
         ) {
-            for (column in 0 until 2) {
-                val index = rowIndex * 2 + column
-                Box(modifier = Modifier.weight(1f)) {
-                    if (index < pagingItems.itemCount) {
-                        (pagingItems[index] as? ChannelItem.ShortItem)?.let { short ->
-                            ChannelShortCard(video = short.video, onClick = { onShortClick(short.video.id) })
+            fullSpanItem(key = "top_gap") { Spacer(Modifier.height(8.dp)) }
+            items(
+                count = pagingItems.itemCount,
+                key = { index -> pagingItems.peek(index)?.itemKey() ?: index },
+            ) { index ->
+                when (val item = pagingItems[index]) {
+                    is ChannelItem.VideoItem -> {
+                        if (isGridView) {
+                            VideoCardFullWidth(
+                                video = item.video,
+                                showChannelAvatar = false,
+                                showChannelName = false,
+                                onClick = { onVideoClick(item.video) },
+                            )
+                        } else {
+                            CompactVideoCard(
+                                video = item.video,
+                                showChannelName = false,
+                                onClick = { onVideoClick(item.video) },
+                            )
                         }
+                    }
+
+                    is ChannelItem.ShortItem -> {
+                        ChannelShortCard(video = item.video, onClick = { onShortClick(item.video.id) })
+                    }
+
+                    is ChannelItem.PlaylistItem -> {
+                        PlaylistCard(playlist = item.playlist, onClick = { onPlaylistClick(item.playlist.id) })
+                    }
+
+                    is ChannelItem.RelatedChannelItem -> {
+                        ChannelRow(channel = item.channel, onClick = { onChannelClick(item.channel.id) })
+                    }
+
+                    is ChannelItem.PostItem, null -> {
+                        Unit
                     }
                 }
             }
+            if (pagingItems.loadState.append is LoadState.Loading) {
+                fullSpanItem(key = "append_spinner") {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { CircularProgressIndicator() }
+                }
+            }
+            fullSpanItem(key = "bottom_gap") { Spacer(Modifier.height(16.dp)) }
         }
     }
 }
+
+private fun LazyGridScope.fullSpanItem(
+    key: String,
+    content: @Composable () -> Unit,
+) = item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }
 
 private fun ChannelItem.itemKey(): String =
     when (this) {
@@ -186,3 +167,6 @@ private fun ChannelTabKind.emptyLabel(): Int =
         ChannelTabKind.Playlists, ChannelTabKind.Podcasts -> R.string.error_no_playlists_found
         else -> R.string.error_no_videos_found
     }
+
+private val ShortCellMinWidth = 160.dp
+private val ShortCellSpacing = 2.dp

@@ -290,4 +290,25 @@ class ChannelLivePayloadTest {
 
         assertEquals(ids.size, ids.distinct().size)
     }
+
+    @Test
+    fun `the home tab includes the posts shelf`() {
+        val posts =
+            content("landing", ChannelTabKind.Home)
+                .sections
+                .firstOrNull { section -> section.items.any { it is ChannelItem.PostItem } }
+
+        assertNotNull("the Home posts shelf ships bare postRenderers, not thread wrappers", posts)
+        val post = (posts!!.items.first { it is ChannelItem.PostItem } as ChannelItem.PostItem).post
+        assertTrue(post.id.isNotBlank())
+        assertTrue(post.authorName.isNotBlank())
+    }
+
+    @Test
+    fun `a home shelf only advertises a target it can actually open`() {
+        val sections = content("landing", ChannelTabKind.Home).sections
+
+        assertTrue("some shelf must link somewhere", sections.any { it.morePlaylistId != null || it.moreParams != null })
+        assertTrue("and some must not", sections.any { it.morePlaylistId == null && it.moreParams == null })
+    }
 }

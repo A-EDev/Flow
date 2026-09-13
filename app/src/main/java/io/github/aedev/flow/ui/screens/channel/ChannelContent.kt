@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.pages.channel.ChannelSection
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
 import io.github.aedev.flow.ui.components.channel.ChannelAboutSection
@@ -53,6 +55,7 @@ import io.github.aedev.flow.ui.components.channel.ChannelCommunityPosts
 import io.github.aedev.flow.ui.components.channel.ChannelFilterBar
 import io.github.aedev.flow.ui.components.channel.ChannelHeaderSection
 import io.github.aedev.flow.ui.components.channel.ChannelHomeSections
+import io.github.aedev.flow.ui.components.channel.ChannelReadingPane
 import io.github.aedev.flow.ui.components.channel.ChannelTabItems
 import io.github.aedev.flow.ui.components.channel.ChannelTabRow
 import kotlinx.coroutines.launch
@@ -66,6 +69,8 @@ internal fun ChannelContent(
     communityUiState: ChannelCommunityUiState,
     tabStates: Map<ChannelTabKind, ChannelTabState>,
     onFilterSelected: (ChannelTabKind, Int, Int) -> Unit,
+    subscribedChannelIds: Set<String>,
+    onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
     onShortClick: (String) -> Unit,
@@ -188,16 +193,18 @@ internal fun ChannelContent(
 
     // Persist Videos-tab scroll position across navigation
     val videosListState =
-        rememberLazyListState(
+        rememberLazyGridState(
             initialFirstVisibleItemIndex = initialScrollIndex,
             initialFirstVisibleItemScrollOffset = initialScrollOffset,
         )
-    val shortsListState = rememberLazyListState()
-    val liveListState = rememberLazyListState()
-    val playlistsListState = rememberLazyListState()
+    val shortsListState = rememberLazyGridState()
+    val liveListState = rememberLazyGridState()
+    val playlistsListState = rememberLazyGridState()
     val postsListState = rememberLazyListState()
+    val homeListState = rememberLazyListState()
+    val searchListState = rememberLazyListState()
     val aboutListState = rememberLazyListState()
-    val genericListState = rememberLazyListState()
+    val genericListState = rememberLazyGridState()
 
     fun listStateFor(kind: ChannelTabKind) =
         when (kind) {
@@ -236,37 +243,41 @@ internal fun ChannelContent(
 
             when {
                 tab.isAbout -> {
-                    LazyColumn(
-                        state = aboutListState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = listPadding,
-                    ) {
-                        item { ChannelAboutSection(header = header) }
-                        item { Spacer(Modifier.height(16.dp)) }
+                    ChannelReadingPane {
+                        LazyColumn(
+                            state = aboutListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = listPadding,
+                        ) {
+                            item { ChannelAboutSection(header = header) }
+                            item { Spacer(Modifier.height(16.dp)) }
+                        }
                     }
                 }
 
                 tab.kind == ChannelTabKind.Posts -> {
-                    ChannelCommunityPosts(
-                        posts = communityUiState.posts,
-                        isLoading = communityUiState.isLoadingPosts,
-                        isLoadingMore = communityUiState.isLoadingMorePosts,
-                        hasMore = communityUiState.postsContinuation != null,
-                        errorLog = communityUiState.postsErrorLog,
-                        listState = postsListState,
-                        contentPadding = listPadding,
-                        onAuthorClick = { onChannelClick(header.id) },
-                        onCommentsClick = onCommunityPostComments,
-                        onShareClick = onCommunityPostShare,
-                        onLoadMore = onLoadMoreCommunityPosts,
-                        onRetry = onRetryCommunityPosts,
-                    )
+                    ChannelReadingPane {
+                        ChannelCommunityPosts(
+                            posts = communityUiState.posts,
+                            isLoading = communityUiState.isLoadingPosts,
+                            isLoadingMore = communityUiState.isLoadingMorePosts,
+                            hasMore = communityUiState.postsContinuation != null,
+                            errorLog = communityUiState.postsErrorLog,
+                            listState = postsListState,
+                            contentPadding = listPadding,
+                            onAuthorClick = { onChannelClick(header.id) },
+                            onCommentsClick = onCommunityPostComments,
+                            onShareClick = onCommunityPostShare,
+                            onLoadMore = onLoadMoreCommunityPosts,
+                            onRetry = onRetryCommunityPosts,
+                        )
+                    }
                 }
 
                 uiState.searchActive && uiState.searchQuery.isNotBlank() && tab.kind == ChannelTabKind.Videos -> {
                     ChannelSearchResults(
                         uiState = uiState,
-                        listState = videosListState,
+                        listState = searchListState,
                         contentPadding = listPadding,
                         topInset = visibleHeaderHeightDp,
                         isGridView = isGridView,
@@ -279,28 +290,30 @@ internal fun ChannelContent(
                     ChannelHomeSections(
                         sections = tabStates[tab.kind]?.sections.orEmpty(),
                         isLoading = tabStates[tab.kind]?.sections.isNullOrEmpty(),
-                        listState = listStateFor(tab.kind),
+                        listState = homeListState,
                         contentPadding = listPadding,
                         topInset = visibleHeaderHeightDp,
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
                         onPlaylistClick = onPlaylistClick,
                         onChannelClick = onChannelClick,
+                        canOpenSection = { section -> sectionTarget(section, visibleTabs) != null },
+                        subscribedChannelIds = subscribedChannelIds,
+                        onSubscribeChannel = onSubscribeChannel,
+                        onAuthorClick = { onChannelClick(header.id) },
+                        onPostComments = onCommunityPostComments,
+                        onPostShare = onCommunityPostShare,
                         onSectionMore = { section ->
-                            val playlistId = section.morePlaylistId
-                            val targetTab = visibleTabs.firstOrNull { it.params != null && it.params == section.moreParams }
-                            when {
-                                playlistId != null -> {
-                                    onPlaylistClick(playlistId)
+                            when (val target = sectionTarget(section, visibleTabs)) {
+                                is SectionTarget.Playlist -> {
+                                    onPlaylistClick(target.playlistId)
                                 }
 
-                                targetTab != null -> {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(visibleTabs.indexOf(targetTab))
-                                    }
+                                is SectionTarget.Tab -> {
+                                    coroutineScope.launch { pagerState.animateScrollToPage(target.index) }
                                 }
 
-                                else -> {
+                                null -> {
                                     Unit
                                 }
                             }
@@ -383,3 +396,27 @@ internal fun ChannelContent(
 }
 
 // Filter + grid toggle bar
+
+/**
+ * Where a Home shelf's chevron leads. Most shelves carry a `moreParams` that maps to no tab the app
+ * shows, so the chevron is drawn only when this resolves — a chevron that does nothing reads as broken.
+ */
+private sealed interface SectionTarget {
+    data class Playlist(
+        val playlistId: String,
+    ) : SectionTarget
+
+    data class Tab(
+        val index: Int,
+    ) : SectionTarget
+}
+
+private fun sectionTarget(
+    section: ChannelSection,
+    tabs: List<ChannelScreenTab>,
+): SectionTarget? {
+    section.morePlaylistId?.let { return SectionTarget.Playlist(it) }
+    val params = section.moreParams ?: return null
+    val index = tabs.indexOfFirst { it.params == params }
+    return if (index >= 0) SectionTarget.Tab(index) else null
+}

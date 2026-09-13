@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -65,20 +66,34 @@ private fun PostImages(
     val resolved = remember(urls) { urls.map { ThumbnailUrlResolver.resolveCommunityPostImage(it) } }
     if (resolved.isEmpty()) return
 
-    val pagerState = rememberPagerState(pageCount = { resolved.size })
     var fullSizeIndex by rememberSaveable { mutableIntStateOf(-1) }
-
     if (fullSizeIndex in resolved.indices) {
-        FullSizeImageDialog(
-            imageUrl = resolved[fullSizeIndex],
-            onDismiss = { fullSizeIndex = -1 },
-        )
+        FullSizeImageDialog(imageUrl = resolved[fullSizeIndex], onDismiss = { fullSizeIndex = -1 })
     }
 
+    // A lone image runs edge to edge; a gallery insets so the next page peeks, which is the only cue
+    // that there is one.
+    if (resolved.size == 1) {
+        AsyncImage(
+            model = resolved.first(),
+            contentDescription = stringResource(R.string.community_post_image_content_description),
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 120.dp, max = 520.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { fullSizeIndex = 0 },
+            contentScale = ContentScale.Fit,
+        )
+        return
+    }
+
+    val pagerState = rememberPagerState(pageCount = { resolved.size })
     Box(modifier = modifier.fillMaxWidth()) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(start = PostHorizontalPadding, end = GalleryPeek),
             pageSpacing = 8.dp,
         ) { page ->
             AsyncImage(
@@ -87,30 +102,28 @@ private fun PostImages(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 120.dp, max = 520.dp)
+                        .aspectRatio(1f)
                         .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { fullSizeIndex = page },
-                contentScale = ContentScale.Fit,
+                contentScale = ContentScale.Crop,
             )
         }
 
-        if (resolved.size > 1) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                shape = MaterialTheme.shapes.small,
-                modifier =
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.channel_post_image_count, pagerState.currentPage + 1, resolved.size),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-            }
+        Surface(
+            color = MaterialTheme.colorScheme.scrim,
+            shape = MaterialTheme.shapes.large,
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = GalleryPeek + 12.dp, top = 12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.channel_post_image_count, pagerState.currentPage + 1, resolved.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
         }
     }
 }
@@ -121,7 +134,7 @@ private fun PostPoll(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().padding(horizontal = PostHorizontalPadding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         poll.choices.forEach { choice ->
@@ -175,6 +188,7 @@ private fun PostSharedVideo(
         modifier =
             modifier
                 .fillMaxWidth()
+                .padding(horizontal = PostHorizontalPadding)
                 .clip(MaterialTheme.shapes.medium)
                 .clickable { onVideoClick(video) },
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -236,3 +250,6 @@ private fun PostSharedVideo(
 }
 
 private const val VIDEO_ASPECT_RATIO = 16f / 9f
+
+/** Enough of the next image to read as a gallery rather than a cropped photo. */
+private val GalleryPeek = 48.dp

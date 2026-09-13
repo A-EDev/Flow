@@ -135,6 +135,7 @@ fun ChannelScreen(
     val uiState by viewModel.uiState.collectAsState()
     val communityUiState by viewModel.communityUiState.collectAsState()
     val tabStates by viewModel.tabStates.collectAsStateWithLifecycle()
+    val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsStateWithLifecycle()
     val subscriptionGroups by viewModel.subscriptionGroups.collectAsStateWithLifecycle()
     var showGroupSheet by rememberSaveable { mutableStateOf(false) }
     var showCreateGroupDialog by rememberSaveable { mutableStateOf(false) }
@@ -249,6 +250,8 @@ fun ChannelScreen(
                             communityUiState = communityUiState,
                             tabStates = tabStates,
                             onFilterSelected = viewModel::selectTabFilter,
+                            subscribedChannelIds = subscribedChannelIds,
+                            onSubscribeChannel = viewModel::setChannelSubscription,
                             onVideoClick = onVideoClick,
                             onChannelClick = onChannelClick,
                             onShortClick = { videoId ->
