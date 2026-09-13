@@ -22,12 +22,15 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SmartDisplay
+import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Title
@@ -95,6 +98,9 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
     val currentHomeFeedColumns by preferences.homeFeedColumns.collectAsState(initial = HomeFeedColumns.AUTO)
 
     val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
+    val notesEnabled by preferences.notesEnabled.collectAsState(initial = true)
+    val channelNotesEnabled by preferences.channelNotesEnabled.collectAsState(initial = true)
+    val videoNotesEnabled by preferences.videoNotesEnabled.collectAsState(initial = true)
     val refreshHomeOnReselect by preferences.refreshHomeOnReselect.collectAsState(initial = true)
     val showAppLogoIcon by preferences.showAppLogoIcon.collectAsState(initial = true)
     val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
@@ -383,6 +389,49 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                             }
                         }
                     }
+                }
+            }
+
+            item {
+                SectionHeader(text = stringResource(R.string.content_settings_notes_title))
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.StickyNote2,
+                        title = stringResource(R.string.content_settings_notes_title),
+                        subtitle = stringResource(R.string.content_settings_notes_subtitle),
+                        checked = notesEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch { preferences.setNotesEnabled(enabled) }
+                        },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Person,
+                        title = stringResource(R.string.content_settings_channel_notes_title),
+                        subtitle = stringResource(R.string.content_settings_channel_notes_subtitle),
+                        checked = channelNotesEnabled,
+                        enabled = notesEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch { preferences.setChannelNotesEnabled(enabled) }
+                        },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Movie,
+                        title = stringResource(R.string.content_settings_video_notes_title),
+                        subtitle = stringResource(R.string.content_settings_video_notes_subtitle),
+                        checked = videoNotesEnabled,
+                        enabled = notesEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch { preferences.setVideoNotesEnabled(enabled) }
+                        },
+                    )
                 }
             }
 

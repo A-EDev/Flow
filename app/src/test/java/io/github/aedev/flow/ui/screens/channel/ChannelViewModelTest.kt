@@ -2,13 +2,16 @@ package io.github.aedev.flow.ui.screens.channel
 
 import android.content.Context
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
+import io.github.aedev.flow.data.notes.NotesRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +31,8 @@ class ChannelViewModelTest {
     private val context: Context = mockk(relaxed = true)
     private val subscriptionRepository: SubscriptionRepository = mockk(relaxed = true)
     private val subscriptionGroupDao: SubscriptionGroupDao = mockk(relaxed = true)
+    private val notesRepository: NotesRepository = mockk(relaxed = true)
+    private val playerPreferences: PlayerPreferences = mockk(relaxed = true)
 
     private lateinit var viewModel: ChannelViewModel
 
@@ -36,12 +41,17 @@ class ChannelViewModelTest {
         Dispatchers.setMain(testDispatcher)
         coEvery { subscriptionRepository.getSubscription(any()) } returns flowOf(null)
         coEvery { subscriptionGroupDao.getAllGroups() } returns flowOf(emptyList())
+        coEvery { subscriptionRepository.getAllSubscriptions() } returns flowOf(emptyList())
+        every { playerPreferences.effectiveChannelNotesEnabled } returns flowOf(true)
+        coEvery { notesRepository.observe(any(), any()) } returns flowOf(null)
         viewModel =
             ChannelViewModel(
                 appContext = context,
                 subscriptionRepository = subscriptionRepository,
                 shortsContentFilter = ShortsContentFilter(flowOf(true)),
                 subscriptionGroupDao = subscriptionGroupDao,
+                notesRepository = notesRepository,
+                playerPreferences = playerPreferences,
             )
     }
 

@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ChannelSubscription
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
@@ -16,6 +17,8 @@ import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.toUiModel
+import io.github.aedev.flow.data.notes.NoteKind
+import io.github.aedev.flow.data.notes.NotesRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
@@ -23,6 +26,7 @@ import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
 import io.github.aedev.flow.ui.youtubeChannelBrowseId
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +45,8 @@ class ChannelViewModel
         private val subscriptionRepository: SubscriptionRepository,
         private val shortsContentFilter: ShortsContentFilter,
         private val subscriptionGroupDao: SubscriptionGroupDao,
+        private val notesRepository: NotesRepository,
+        playerPreferences: PlayerPreferences,
     ) : ViewModel() {
         val subscriptionGroups: StateFlow<List<SubscriptionGroup>> =
             subscriptionGroupDao
@@ -99,6 +105,32 @@ class ChannelViewModel
                 } else {
                     subscriptionRepository.unsubscribe(channel.id)
                 }
+            }
+        }
+
+        val notesEnabled: StateFlow<Boolean> =
+            playerPreferences.effectiveChannelNotesEnabled
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(GROUPS_SUBSCRIPTION_TIMEOUT_MS), false)
+
+        private val _channelNote = MutableStateFlow<String?>(null)
+        val channelNote: StateFlow<String?> = _channelNote.asStateFlow()
+
+        private var noteJob: Job? = null
+
+        private fun observeNote(channelId: String) {
+            noteJob?.cancel()
+            noteJob =
+                viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                    notesRepository.observe(NoteKind.Channel, channelId).collect { note ->
+                        _channelNote.value = note?.text
+                    }
+                }
+        }
+
+        fun saveChannelNote(text: String) {
+            val channelId = _uiState.value.channelId ?: return
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                notesRepository.save(NoteKind.Channel, channelId, text)
             }
         }
 
@@ -171,6 +203,7 @@ class ChannelViewModel
                         }
                         communityController.reset(channelId, header.title, header.avatarUrl)
                         loadSubscriptionState(channelId)
+                        observeNote(channelId)
                         shortsEnabled = shortsContentFilter.isEnabled()
                         onTabsResolved()
                     },

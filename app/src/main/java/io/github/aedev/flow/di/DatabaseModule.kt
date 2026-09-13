@@ -31,6 +31,9 @@ object DatabaseModule {
     fun provideNotificationDao(database: AppDatabase): NotificationDao = database.notificationDao()
 
     @Provides
+    fun provideNoteDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.NoteDao = database.noteDao()
+
+    @Provides
     fun provideCacheDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.CacheDao = database.cacheDao()
 
     @Provides

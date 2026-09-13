@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.shared.FlowNoteCard
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -41,6 +42,8 @@ internal fun ChannelHeaderSection(
     onUnsubscribeClick: () -> Unit,
     onNotificationChange: (Boolean) -> Unit,
     onManageGroups: (() -> Unit)?,
+    note: String?,
+    onEditNote: (() -> Unit)?,
 ) {
     val bannerUrl = remember(header.bannerUrl) { ThumbnailUrlResolver.resolveChannelBanner(header.bannerUrl, targetWidth = 2048) }
     var showFullSizeAvatar by remember(header.id) { mutableStateOf(false) }
@@ -91,6 +94,7 @@ internal fun ChannelHeaderSection(
                 onUnsubscribeClick = onUnsubscribeClick,
                 onNotificationChange = onNotificationChange,
                 onManageGroups = onManageGroups,
+                onAddNote = onEditNote,
             )
         }
 
@@ -124,6 +128,14 @@ internal fun ChannelHeaderSection(
                         )
                     }
                 }
+            }
+
+            if (!note.isNullOrBlank() && onEditNote != null) {
+                FlowNoteCard(
+                    text = note,
+                    onEdit = onEditNote,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }

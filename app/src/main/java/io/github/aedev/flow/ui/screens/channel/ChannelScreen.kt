@@ -102,6 +102,7 @@ import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.FlowNoteEditorSheet
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.shared.SaveToCollectionSheet
@@ -136,6 +137,9 @@ fun ChannelScreen(
     val communityUiState by viewModel.communityUiState.collectAsState()
     val tabStates by viewModel.tabStates.collectAsStateWithLifecycle()
     val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsStateWithLifecycle()
+    val channelNote by viewModel.channelNote.collectAsStateWithLifecycle()
+    val notesEnabled by viewModel.notesEnabled.collectAsStateWithLifecycle()
+    var showNoteEditor by rememberSaveable { mutableStateOf(false) }
     val subscriptionGroups by viewModel.subscriptionGroups.collectAsStateWithLifecycle()
     var showGroupSheet by rememberSaveable { mutableStateOf(false) }
     var showCreateGroupDialog by rememberSaveable { mutableStateOf(false) }
@@ -251,6 +255,8 @@ fun ChannelScreen(
                             tabStates = tabStates,
                             onFilterSelected = viewModel::selectTabFilter,
                             subscribedChannelIds = subscribedChannelIds,
+                            channelNote = channelNote.takeIf { notesEnabled },
+                            onEditNote = { showNoteEditor = true }.takeIf { notesEnabled },
                             onSubscribeChannel = viewModel::setChannelSubscription,
                             onVideoClick = onVideoClick,
                             onChannelClick = onChannelClick,
@@ -321,6 +327,15 @@ fun ChannelScreen(
                 showCreateGroupDialog = true
             },
             onDismiss = { showGroupSheet = false },
+        )
+    }
+
+    if (showNoteEditor && notesEnabled) {
+        FlowNoteEditorSheet(
+            initialText = channelNote.orEmpty(),
+            title = stringResource(R.string.note_channel_title),
+            onSave = viewModel::saveChannelNote,
+            onDismiss = { showNoteEditor = false },
         )
     }
 

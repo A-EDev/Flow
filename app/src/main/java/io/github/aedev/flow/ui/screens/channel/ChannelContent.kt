@@ -70,6 +70,8 @@ internal fun ChannelContent(
     tabStates: Map<ChannelTabKind, ChannelTabState>,
     onFilterSelected: (ChannelTabKind, Int, Int) -> Unit,
     subscribedChannelIds: Set<String>,
+    channelNote: String?,
+    onEditNote: (() -> Unit)?,
     onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
@@ -360,6 +362,8 @@ internal fun ChannelContent(
                     onUnsubscribeClick = onUnsubscribeClick,
                     onNotificationChange = onNotificationChange,
                     onManageGroups = onManageGroups.takeIf { uiState.isSubscribed },
+                    note = channelNote,
+                    onEditNote = onEditNote,
                 )
             }
 
