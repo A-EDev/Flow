@@ -45,11 +45,7 @@ import io.github.aedev.flow.innertube.pages.ArtistItemsContinuationPage
 import io.github.aedev.flow.innertube.pages.ArtistItemsPage
 import io.github.aedev.flow.innertube.pages.ArtistPage
 import io.github.aedev.flow.innertube.pages.BrowseResult
-import io.github.aedev.flow.innertube.pages.ChannelShortsPage
-import io.github.aedev.flow.innertube.pages.ChannelSortOption
 import io.github.aedev.flow.innertube.pages.ChartsPage
-import io.github.aedev.flow.innertube.pages.CommunityCommentsPage
-import io.github.aedev.flow.innertube.pages.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.ExplorePage
 import io.github.aedev.flow.innertube.pages.HistoryPage
 import io.github.aedev.flow.innertube.pages.HomePage
@@ -72,11 +68,23 @@ import io.github.aedev.flow.innertube.pages.SearchVideosPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
-import io.github.aedev.flow.innertube.pages.channelSortOptions
-import io.github.aedev.flow.innertube.pages.toChannelShortsPage
+import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
+import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
+import io.github.aedev.flow.innertube.pages.channel.ChannelPage
+import io.github.aedev.flow.innertube.pages.channel.ChannelShortsPage
+import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabContent
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.innertube.pages.channel.CommunityCommentsPage
+import io.github.aedev.flow.innertube.pages.channel.CommunityPostsPage
+import io.github.aedev.flow.innertube.pages.channel.channelSortOptions
+import io.github.aedev.flow.innertube.pages.channel.toChannelHeader
+import io.github.aedev.flow.innertube.pages.channel.toChannelShortsPage
+import io.github.aedev.flow.innertube.pages.channel.toChannelTabContent
+import io.github.aedev.flow.innertube.pages.channel.toChannelTabs
+import io.github.aedev.flow.innertube.pages.channel.toCommunityCommentsPage
+import io.github.aedev.flow.innertube.pages.channel.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
-import io.github.aedev.flow.innertube.pages.toCommunityCommentsPage
-import io.github.aedev.flow.innertube.pages.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.toSearchVideosPage
 import io.github.aedev.flow.innertube.pages.toShortsPage
@@ -664,6 +672,64 @@ object YouTube {
                 "subscribed",
                 "subscribe",
             )
+
+    // ── Channel (native InnerTube) ─────────────────────
+
+    /**
+     * A channel's landing page: header, the tabs it actually has, and the tab YouTube returned with
+     * it. [idOrHandle] takes a channel id or an @handle — InnerTube resolves both as a browseId.
+     */
+    suspend fun channel(idOrHandle: String): Result<ChannelPage> =
+        runCatching {
+            val response = channelBrowseJson(browseId = idOrHandle)
+            val header = response.toChannelHeader(idOrHandle)
+            val tabs = response.toChannelTabs()
+            ChannelPage(
+                header = header,
+                tabs = tabs,
+                initialTab =
+                    tabs
+                        .firstOrNull { it.selected }
+                        ?.let { tab -> response.toChannelTabContent(tab.kind, header.toOwner()) },
+            )
+        }
+
+    suspend fun channelTab(
+        browseId: String,
+        params: String,
+        owner: ChannelOwner = ChannelOwner(id = browseId),
+        kind: ChannelTabKind = ChannelTabKind.Unknown,
+    ): Result<ChannelTabContent> =
+        runCatching {
+            channelBrowseJson(browseId = browseId, params = params).toChannelTabContent(kind, owner)
+        }
+
+    /** Serves paging and sort switching alike — a sort chip's token is just another continuation. */
+    suspend fun channelTabContinuation(
+        continuation: String,
+        owner: ChannelOwner,
+        kind: ChannelTabKind = ChannelTabKind.Unknown,
+    ): Result<ChannelTabContent> =
+        runCatching {
+            channelBrowseJson(continuation = continuation).toChannelTabContent(kind, owner)
+        }
+
+    private suspend fun channelBrowseJson(
+        browseId: String? = null,
+        params: String? = null,
+        continuation: String? = null,
+    ): JsonElement {
+        val response =
+            innerTube.channelBrowse(
+                client = currentWebClient(),
+                channelId = browseId,
+                params = params,
+                continuation = continuation,
+            )
+        return Json.parseToJsonElement(response.bodyAsText())
+    }
+
+    private fun ChannelHeader.toOwner() = ChannelOwner(id = id, name = title, avatarUrl = avatarUrl)
 
     // ── Channel-scoped video search (YouTube.com WEB API) ─────────────────────
 

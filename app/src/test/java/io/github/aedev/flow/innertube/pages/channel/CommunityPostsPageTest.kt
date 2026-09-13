@@ -1,5 +1,6 @@
-package io.github.aedev.flow.innertube.pages
+package io.github.aedev.flow.innertube.pages.channel
 
+import io.github.aedev.flow.innertube.pages.youtubeText
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

@@ -109,7 +109,7 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.innertube.pages.CommunityPost
+import io.github.aedev.flow.innertube.pages.channel.CommunityPost
 import io.github.aedev.flow.ui.components.ChannelBanner
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.PlaylistCard

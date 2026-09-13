@@ -1,4 +1,4 @@
-package io.github.aedev.flow.innertube.pages
+package io.github.aedev.flow.innertube.pages.channel
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject

@@ -26,8 +26,8 @@ import io.github.aedev.flow.data.paging.ChannelShortsPagingSource
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.pages.ChannelSortOption
-import io.github.aedev.flow.innertube.pages.CommunityPost
+import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
+import io.github.aedev.flow.innertube.pages.channel.CommunityPost
 import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver

@@ -1,5 +1,11 @@
-package io.github.aedev.flow.innertube.pages
+package io.github.aedev.flow.innertube.pages.channel
 
+import io.github.aedev.flow.innertube.pages.SearchShortItem
+import io.github.aedev.flow.innertube.pages.arrayOrNull
+import io.github.aedev.flow.innertube.pages.objectOrNull
+import io.github.aedev.flow.innertube.pages.stringOrNull
+import io.github.aedev.flow.innertube.pages.toSearchShorts
+import io.github.aedev.flow.innertube.pages.youtubeText
 import kotlinx.serialization.json.JsonObject
 
 data class ChannelShortsPage(

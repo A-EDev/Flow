@@ -6,7 +6,7 @@ import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.ChannelShortsFeed
 import io.github.aedev.flow.data.shorts.ChannelShortsOwner
-import io.github.aedev.flow.innertube.pages.ChannelSortOption
+import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

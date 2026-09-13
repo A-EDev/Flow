@@ -3,8 +3,6 @@ package io.github.aedev.flow.innertube.pages.channel
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.innertube.pages.ChannelSortOption
-import io.github.aedev.flow.innertube.pages.CommunityPost
 
 /**
  * One page of one channel tab. Grid tabs fill [items], shelf tabs fill [sections].
