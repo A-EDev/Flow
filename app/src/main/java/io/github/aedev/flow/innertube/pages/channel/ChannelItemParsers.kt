@@ -40,6 +40,8 @@ internal val CHANNEL_ITEM_PARSERS: Map<String, ChannelItemParser> =
         "gridChannelRenderer" to ChannelItemParser { node, _ -> node.toChannelRendererItem() },
         "channelRenderer" to ChannelItemParser { node, _ -> node.toChannelRendererItem() },
         "channelVideoPlayerRenderer" to ChannelItemParser { node, owner -> node.toTrailerItem(owner) },
+        "gridShowRenderer" to ChannelItemParser { node, _ -> node.toShowItem() },
+        "showRenderer" to ChannelItemParser { node, _ -> node.toShowItem() },
     )
 
 /**
@@ -228,6 +230,48 @@ private fun JsonObject.toShortItem(
             isShort = true,
         ),
     )
+}
+
+/**
+ * A show is a playlist wearing a different renderer. Its browseId is the playlist id behind a "VL"
+ * prefix, and its thumbnail hides one level deeper than every other grid item's.
+ */
+private fun JsonObject.toShowItem(): ChannelItem? {
+    val browseId =
+        this["navigationEndpoint"]
+            .objectOrNull()
+            ?.get("browseEndpoint")
+            .objectOrNull()
+            ?.get("browseId")
+            .stringOrNull()
+            ?.takeIf(String::isNotBlank)
+            ?: return null
+    val title = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null
+    val thumbnail =
+        this["thumbnailRenderer"]
+            .objectOrNull()
+            ?.get("showCustomThumbnailRenderer")
+            .objectOrNull()
+            ?.get("thumbnail")
+            .largestImageUrl()
+    return ChannelItem.PlaylistItem(
+        Playlist(
+            id = browseId.removePrefix("VL"),
+            name = title,
+            thumbnailUrl = thumbnail.orEmpty(),
+            videoCount = this["thumbnailOverlays"].episodeCount() ?: 0,
+            isLocal = false,
+        ),
+    )
+}
+
+private fun JsonElement?.episodeCount(): Int? {
+    var count: Int? = null
+    forEachObject { node ->
+        if (count != null) return@forEachObject
+        count = node["text"].youtubeText()?.leadingCount()
+    }
+    return count
 }
 
 private fun JsonObject?.metadataParts(): List<String> =

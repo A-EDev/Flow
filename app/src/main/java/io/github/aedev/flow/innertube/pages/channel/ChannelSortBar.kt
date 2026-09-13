@@ -117,6 +117,12 @@ private val ITEM_LIST_HOLDERS =
         "appendContinuationItemsAction" to "continuationItems",
         "richGridContinuation" to "contents",
         "richGridRenderer" to "contents",
+        // Playlists and Shows nest their grid inside a section list rather than a rich grid.
+        "gridRenderer" to "items",
+        "gridContinuation" to "items",
+        "horizontalListRenderer" to "items",
+        "expandedShelfContentsRenderer" to "items",
+        "reelShelfRenderer" to "items",
     )
 
 /**

@@ -28,6 +28,7 @@ data class ChannelHeader(
 
 data class ChannelLink(
     val title: String,
+    val displayText: String,
     val url: String,
     val iconUrl: String? = null,
 )

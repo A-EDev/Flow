@@ -71,7 +71,7 @@ internal fun JsonElement.toChannelHeader(requestedId: String): ChannelHeader {
             about?.get("description").youtubeText()
                 ?: metadata?.get("description").youtubeText()
                 ?: page?.descriptionPreview(),
-        links = about?.channelLinks().orEmpty(),
+        links = emptyList(),
         isVerified = page?.isVerified() ?: legacy?.hasVerifiedBadge() ?: false,
         joinedDateText = about?.get("joinedDateText").youtubeText(),
         viewCountText = about?.get("viewCountText").youtubeText(),
@@ -171,43 +171,6 @@ private fun JsonObject.hasVerifiedBadge(): Boolean =
                 ?.get("style")
                 .stringOrNull()
                 ?.contains("VERIFIED", ignoreCase = true) == true
-        }
-
-private fun JsonObject.channelLinks(): List<ChannelLink> =
-    this["links"]
-        .arrayOrNull()
-        .orEmpty()
-        .mapNotNull { entry ->
-            val link = entry.objectOrNull()?.get("channelExternalLinkViewModel").objectOrNull() ?: return@mapNotNull null
-            val title = link["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return@mapNotNull null
-            val url =
-                link["link"]
-                    .objectOrNull()
-                    ?.linkTargetUrl()
-                    ?: link["link"].youtubeText()
-                    ?: return@mapNotNull null
-            ChannelLink(title = title, url = url, iconUrl = link["favicon"].largestImageUrl())
-        }
-
-/**
- * The visible text is an elided `lttstore.com`; the real destination is on the command run behind it,
- * so a link built from the text alone points nowhere.
- */
-private fun JsonObject.linkTargetUrl(): String? =
-    this["commandRuns"]
-        .arrayOrNull()
-        .orEmpty()
-        .firstNotNullOfOrNull { run ->
-            run
-                .objectOrNull()
-                ?.get("onTap")
-                .objectOrNull()
-                ?.get("innertubeCommand")
-                .objectOrNull()
-                ?.get("urlEndpoint")
-                .objectOrNull()
-                ?.get("url")
-                .stringOrNull()
         }
 
 private fun String.containsWord(word: String): Boolean = contains(word, ignoreCase = true)

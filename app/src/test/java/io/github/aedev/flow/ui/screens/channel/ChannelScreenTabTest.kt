@@ -128,7 +128,7 @@ class ChannelScreenTabTest {
 
     @Test
     fun `about is appended for links alone`() {
-        val withLinks = bareHeader.copy(links = listOf(ChannelLink("Store", "https://example.test")))
+        val withLinks = bareHeader.copy(links = listOf(ChannelLink("Store", "example.test", "https://example.test")))
 
         assertTrue(tabs(listOf(descriptor(ChannelTabKind.Videos)), header = withLinks).any { it.isAbout })
     }
