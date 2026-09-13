@@ -67,6 +67,7 @@ internal fun ChannelHomeSections(
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding,
     ) {
+        item(key = "top_gap") { Spacer(Modifier.height(8.dp)) }
         items(items = sections, key = ChannelSection::id) { section ->
             ChannelHomeSection(section, onVideoClick, onShortClick, onPlaylistClick, onChannelClick)
         }
@@ -99,7 +100,11 @@ private fun ChannelHomeSection(
 
         if (section.style == ChannelSectionStyle.Trailer) {
             section.items.filterIsInstance<ChannelItem.VideoItem>().firstOrNull()?.let { trailer ->
-                VideoCardHorizontal(video = trailer.video, onClick = { onVideoClick(trailer.video) })
+                VideoCardHorizontal(
+                    video = trailer.video,
+                    showChannelName = false,
+                    onClick = { onVideoClick(trailer.video) },
+                )
             }
             return@Column
         }
@@ -114,6 +119,7 @@ private fun ChannelHomeSection(
                         is ChannelItem.VideoItem -> {
                             VideoCardHorizontal(
                                 video = item.video,
+                                showChannelName = false,
                                 onClick = { onVideoClick(item.video) },
                             )
                         }

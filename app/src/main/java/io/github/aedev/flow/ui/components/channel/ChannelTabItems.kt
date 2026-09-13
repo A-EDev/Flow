@@ -75,6 +75,7 @@ internal fun ChannelTabItems(
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding,
     ) {
+        item(key = "top_gap") { Spacer(Modifier.height(8.dp)) }
         if (kind == ChannelTabKind.Shorts) {
             shortsRows(pagingItems, onShortClick)
         } else {

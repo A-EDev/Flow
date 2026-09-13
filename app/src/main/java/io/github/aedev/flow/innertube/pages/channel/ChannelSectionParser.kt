@@ -59,7 +59,9 @@ private fun JsonObject.toSection(
 
     val title = shelf["title"].youtubeText()?.takeIf(String::isNotBlank)
     return ChannelSection(
-        id = title?.let { "shelf:$it" } ?: "shelf:$index",
+        // Position-qualified: a channel may publish two shelves under one title, and a duplicate key
+        // crashes the lazy list that renders them.
+        id = "shelf:$index:${title.orEmpty()}",
         title = title,
         style = ChannelSectionStyle.Carousel,
         items = items,

@@ -58,7 +58,7 @@ class ChannelViewModelTest {
             assertThat(state.channelId).isNull()
             assertThat(state.isLoading).isFalse()
             assertThat(state.isSubscribed).isFalse()
-            assertThat(state.selectedTab).isEqualTo(ChannelTabKind.Videos)
+            assertThat(state.selectedTab).isNull()
         }
 
     @Test

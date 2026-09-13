@@ -82,9 +82,18 @@ internal fun ChannelSearchResults(
                 ) { index ->
                     val video = uiState.searchResults[index]
                     if (isGridView) {
-                        VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
+                        VideoCardFullWidth(
+                            video = video,
+                            showChannelAvatar = false,
+                            showChannelName = false,
+                            onClick = { onVideoClick(video) },
+                        )
                     } else {
-                        CompactVideoCard(video = video, onClick = { onVideoClick(video) })
+                        CompactVideoCard(
+                            video = video,
+                            showChannelName = false,
+                            onClick = { onVideoClick(video) },
+                        )
                     }
                 }
                 item { Spacer(Modifier.height(16.dp)) }

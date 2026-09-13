@@ -5,17 +5,20 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import io.github.aedev.flow.data.paging.ChannelTabPagingSource
+import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelFilterGroup
 import io.github.aedev.flow.innertube.pages.channel.ChannelItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
 import io.github.aedev.flow.innertube.pages.channel.ChannelSection
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 internal data class ChannelTabState(
     val items: Flow<PagingData<ChannelItem>>? = null,
@@ -23,6 +26,8 @@ internal data class ChannelTabState(
     val filters: List<ChannelFilterGroup> = emptyList(),
     /** Index of the chosen option per filter group; -1 where the group is at the tab's default. */
     val selected: List<Int> = emptyList(),
+    val isLoading: Boolean = false,
+    val loaded: Boolean = false,
 )
 
 /**
@@ -56,8 +61,39 @@ internal class ChannelTabController(
         params: String?,
     ) {
         if (browseId.isBlank() || params.isNullOrBlank()) return
+        // Home is shelves, not a pageable grid: nothing collects a pager for it, so a pager would
+        // never run its first load and the tab would spin for ever.
+        if (kind == ChannelTabKind.Home) {
+            loadSections(kind, params)
+            return
+        }
         if (_states.value[kind]?.items != null) return
         build(kind, params, continuation = null, selected = emptyList())
+    }
+
+    private fun loadSections(
+        kind: ChannelTabKind,
+        params: String,
+    ) {
+        if (_states.value[kind]?.loaded == true) return
+        _states.update { it + (kind to (it[kind] ?: ChannelTabState()).copy(isLoading = true)) }
+        scope.launch(PerformanceDispatcher.networkIO) {
+            val page = YouTube.channelTab(browseId, params, owner, kind).getOrNull()
+            _states.update { states ->
+                val current = states[kind] ?: ChannelTabState()
+                states +
+                    (
+                        kind to
+                            current.copy(
+                                sections = page?.sections.orEmpty(),
+                                filters = page?.filters.orEmpty(),
+                                selected = page?.filters.orEmpty().map { group -> group.selectedIndex },
+                                isLoading = false,
+                                loaded = true,
+                            )
+                    )
+            }
+        }
     }
 
     /**

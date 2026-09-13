@@ -73,6 +73,7 @@ private fun JsonObject.toLockupItem(owner: ChannelOwner): ChannelItem? {
     val title = metadata?.get("title").youtubeText()?.takeIf(String::isNotBlank) ?: return null
     val parts = metadata.metadataParts()
     val badges = lockupBadges()
+    val membersOnly = metadata.membersOnlyBadge()
 
     return when (this["contentType"].stringOrNull()) {
         "LOCKUP_CONTENT_TYPE_PLAYLIST",
@@ -108,7 +109,9 @@ private fun JsonObject.toLockupItem(owner: ChannelOwner): ChannelItem? {
         }
 
         else -> {
-            ChannelItem.VideoItem(lockupVideo(contentId, title, parts, badges, owner))
+            ChannelItem.VideoItem(
+                lockupVideo(contentId, title, parts, badges, owner).copy(membersOnlyText = membersOnly),
+            )
         }
     }
 }
@@ -272,6 +275,18 @@ private fun JsonElement?.episodeCount(): Int? {
         count = node["text"].youtubeText()?.leadingCount()
     }
     return count
+}
+
+/** Members-only videos carry the badge instead of a view count, which is why their views row is bare. */
+private fun JsonObject?.membersOnlyBadge(): String? {
+    var label: String? = null
+    this?.forEachObject { node ->
+        if (label != null) return@forEachObject
+        val badge = node["badgeViewModel"].objectOrNull() ?: return@forEachObject
+        if (badge["badgeStyle"].stringOrNull() != "BADGE_MEMBERS_ONLY") return@forEachObject
+        label = badge["badgeText"].youtubeText()?.takeIf(String::isNotBlank)
+    }
+    return label
 }
 
 private fun JsonObject?.metadataParts(): List<String> =

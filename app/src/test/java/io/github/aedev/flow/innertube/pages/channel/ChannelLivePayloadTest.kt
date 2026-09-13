@@ -256,4 +256,38 @@ class ChannelLivePayloadTest {
 
         assertTrue(shorts.items.all { it is ChannelItem.ShortItem })
     }
+
+    // ── members-only ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `members-only uploads carry youtube's own badge text`() {
+        val videos =
+            content("videos", ChannelTabKind.Videos)
+                .items
+                .map { (it as ChannelItem.VideoItem).video }
+
+        val members = videos.filter { it.membersOnlyText != null }
+        assertTrue("the fixture should contain at least one members-only upload", members.isNotEmpty())
+        assertEquals("Members only", members.first().membersOnlyText)
+        assertTrue("an ordinary upload carries no badge", videos.any { it.membersOnlyText == null })
+    }
+
+    @Test
+    fun `a members-only upload has no view count, which is why its badge matters`() {
+        val members =
+            content("videos", ChannelTabKind.Videos)
+                .items
+                .map { (it as ChannelItem.VideoItem).video }
+                .first { it.membersOnlyText != null }
+
+        assertEquals(0L, members.viewCount)
+        assertTrue(members.uploadDate.isNotBlank())
+    }
+
+    @Test
+    fun `home section ids are unique so the lazy list cannot crash on a duplicate key`() {
+        val ids = content("landing", ChannelTabKind.Home).sections.map { it.id }
+
+        assertEquals(ids.size, ids.distinct().size)
+    }
 }

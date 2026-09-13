@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.channel.ChannelFilterGroup
+import io.github.aedev.flow.ui.components.shared.FlowSearchField
 
 /**
  * A tab's filter bar. YouTube ships two controls here and they are not interchangeable: a sort menu
@@ -70,26 +71,16 @@ internal fun ChannelFilterBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (searchActive && showListControls) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
+            FlowSearchField(
+                query = searchQuery,
+                onQueryChange = onSearchQueryChange,
+                placeholder = stringResource(R.string.channel_search_hint),
                 modifier =
                     Modifier
                         .weight(1f)
                         .padding(horizontal = 8.dp),
-                placeholder = {
-                    Text(stringResource(R.string.channel_search_hint), style = MaterialTheme.typography.bodySmall)
-                },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSearchQueryChange(searchQuery) }),
-                shape = RoundedCornerShape(20.dp),
-                colors =
-                    OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    ),
+                onSearch = { onSearchQueryChange(searchQuery) },
+                onClear = { onSearchQueryChange("") },
             )
             IconButton(onClick = onSearchToggle) {
                 Icon(
@@ -101,40 +92,56 @@ internal fun ChannelFilterBar(
             return@Row
         }
 
+        // One lazy item per control: a group emitted as a single item would draw its chips with no
+        // gap, because the row's spacing only separates items.
+        val controls =
+            remember(filterGroups) {
+                filterGroups.flatMapIndexed { groupIndex, group ->
+                    if (group.isDropdown) {
+                        listOf(groupIndex to -1)
+                    } else {
+                        group.options.indices.map { optionIndex -> groupIndex to optionIndex }
+                    }
+                }
+            }
+
         Box(modifier = Modifier.weight(1f)) {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                itemsIndexed(filterGroups) { groupIndex, group ->
+                items(
+                    items = controls,
+                    key = { (groupIndex, optionIndex) -> "f_${groupIndex}_$optionIndex" },
+                ) { (groupIndex, optionIndex) ->
+                    val group = filterGroups[groupIndex]
                     val chosen = selected.getOrElse(groupIndex) { -1 }
-                    if (group.isDropdown) {
+                    if (optionIndex < 0) {
                         ChannelFilterDropdown(
                             group = group,
                             selectedIndex = chosen,
-                            onSelected = { optionIndex -> onFilterSelected(groupIndex, optionIndex) },
+                            onSelected = { option -> onFilterSelected(groupIndex, option) },
                         )
                     } else {
-                        group.options.forEachIndexed { optionIndex, option ->
-                            FilterChip(
-                                selected = optionIndex == chosen,
-                                onClick = { onFilterSelected(groupIndex, optionIndex) },
-                                label = { Text(option.label, style = MaterialTheme.typography.labelMedium) },
-                                shape = RoundedCornerShape(20.dp),
-                                leadingIcon =
-                                    if (optionIndex == chosen) {
-                                        {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Check,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp),
-                                            )
-                                        }
-                                    } else {
-                                        null
-                                    },
-                            )
-                        }
+                        val option = group.options[optionIndex]
+                        FilterChip(
+                            selected = optionIndex == chosen,
+                            onClick = { onFilterSelected(groupIndex, optionIndex) },
+                            label = { Text(option.label, style = MaterialTheme.typography.labelMedium) },
+                            shape = RoundedCornerShape(20.dp),
+                            leadingIcon =
+                                if (optionIndex == chosen) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                        )
                     }
                 }
             }

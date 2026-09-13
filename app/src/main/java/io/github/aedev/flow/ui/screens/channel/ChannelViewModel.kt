@@ -164,7 +164,9 @@ class ChannelViewModel
             val state = _uiState.value
             val channelId = state.channelId ?: return
             tabController.reset(channelId, channelOwner())
-            ensureTabLoaded(state.selectedTab)
+            val first = state.selectedTab ?: state.tabs.firstOrNull()?.kind ?: return
+            _uiState.update { it.copy(selectedTab = first) }
+            ensureTabLoaded(first)
         }
 
         private fun ensureTabLoaded(kind: ChannelTabKind) {
