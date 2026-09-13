@@ -366,7 +366,8 @@ fun FlowDescriptionBottomSheet(
                     FlowNoteCard(
                         text = note,
                         onEdit = onEditNote,
-                        modifier = Modifier.padding(vertical = 4.dp),
+                        containerColor = tint.container,
+                        contentColor = tint.onContainer,
                     )
                 }
             }

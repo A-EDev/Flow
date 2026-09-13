@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -14,16 +15,16 @@ import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +33,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -39,7 +41,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.theme.extendedColors
 
 private const val COLLAPSED_LINES = 3
 
@@ -54,20 +55,24 @@ fun FlowNoteCard(
     text: String,
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    contentColor: Color = contentColorFor(containerColor),
 ) {
     if (text.isBlank()) return
     var expanded by rememberSaveable(text) { mutableStateOf(false) }
 
-    Card(
+    Surface(
+        onClick = { expanded = !expanded },
+        shape = MaterialTheme.shapes.large,
+        color = containerColor,
+        contentColor = contentColor,
         modifier =
             modifier
                 .fillMaxWidth()
                 .animateContentSize(),
-        onClick = { expanded = !expanded },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(
-            modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 12.dp),
+            modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -75,7 +80,6 @@ fun FlowNoteCard(
                     imageVector = Icons.Outlined.StickyNote2,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.extendedColors.textSecondary,
                 )
                 Text(
                     text = stringResource(R.string.note_title),
@@ -85,7 +89,6 @@ fun FlowNoteCard(
                             .padding(start = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.extendedColors.textSecondary,
                 )
                 IconButton(onClick = onEdit) {
                     Icon(
@@ -98,7 +101,7 @@ fun FlowNoteCard(
             SelectionContainer {
                 Text(
                     text = text,
-                    modifier = Modifier.padding(end = 10.dp),
+                    modifier = Modifier.padding(end = 12.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_LINES,
                     overflow = TextOverflow.Ellipsis,
