@@ -62,7 +62,7 @@ class ChannelGridParserTest {
             )
 
         assertEquals(listOf("a", "b"), content.items.map { (it as ChannelItem.VideoItem).video.id })
-        assertEquals(listOf("Latest", "Popular"), content.filters.map { it.label })
+        assertEquals(listOf("Latest", "Popular"), content.filters.flatMap { group -> group.options.map { it.label } })
         assertEquals("TOK_PAGE_2", content.continuation)
         assertEquals("UCXuqSBlHAE6Xw-yeJA0Tunw", content.owner.id)
         assertEquals("Linus Tech Tips", content.owner.name)
@@ -103,7 +103,7 @@ class ChannelGridParserTest {
 
         assertEquals(listOf("d"), content.items.map { (it as ChannelItem.VideoItem).video.id })
         assertEquals("TOK_POPULAR_2", content.continuation)
-        assertEquals(listOf("Popular"), content.filters.map { it.label })
+        assertEquals(listOf("Popular"), content.filters.flatMap { group -> group.options.map { it.label } })
     }
 
     @Test

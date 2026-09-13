@@ -1,5 +1,7 @@
 package io.github.aedev.flow.innertube.pages.channel
 
+import io.github.aedev.flow.innertube.pages.arrayOrNull
+import io.github.aedev.flow.innertube.pages.objectOrNull
 import io.github.aedev.flow.innertube.pages.stringOrNull
 import io.github.aedev.flow.innertube.pages.youtubeText
 import kotlinx.serialization.json.JsonElement
@@ -16,13 +18,19 @@ internal fun JsonElement.toChannelTabContent(
     fallbackOwner: ChannelOwner = ChannelOwner(),
 ): ChannelTabContent {
     val owner = resolveOwner(fallbackOwner)
+    val sections = if (kind == ChannelTabKind.Home) selectedTabContent().toChannelSections(owner) else emptyList()
     return ChannelTabContent(
         kind = kind,
         items =
-            gridItemLists()
-                .flatMap { list -> list.mapNotNull { it.toChannelItem(owner) } }
-                .distinctBy { it.distinctKey() },
-        filters = channelSortOptions(),
+            if (sections.isNotEmpty()) {
+                emptyList()
+            } else {
+                gridItemLists()
+                    .flatMap { list -> list.mapNotNull { it.toChannelItem(owner) } }
+                    .distinctBy { it.distinctKey() }
+            },
+        sections = sections,
+        filters = channelFilterGroups(),
         continuation = channelItemContinuation(),
         owner = owner,
     )
@@ -40,3 +48,20 @@ internal fun JsonElement.resolveOwner(fallback: ChannelOwner): ChannelOwner {
         avatarUrl = metadata?.get("avatar").largestImageUrl() ?: fallback.avatarUrl,
     )
 }
+
+/** The selected tab's own content, so a Home shelf walk cannot wander into another tab's payload. */
+private fun JsonElement.selectedTabContent(): JsonElement =
+    objectOrNull()
+        ?.get("contents")
+        .objectOrNull()
+        ?.get("twoColumnBrowseResultsRenderer")
+        .objectOrNull()
+        ?.get("tabs")
+        .arrayOrNull()
+        .orEmpty()
+        .firstNotNullOfOrNull { tab ->
+            val renderer = tab.objectOrNull()?.get("tabRenderer").objectOrNull() ?: return@firstNotNullOfOrNull null
+            if (renderer["selected"].stringOrNull() != "true") return@firstNotNullOfOrNull null
+            renderer["content"].objectOrNull()?.get("sectionListRenderer")
+        }
+        ?: this

@@ -219,4 +219,41 @@ class ChannelLivePayloadTest {
             fixture("landing").channelAboutContinuation(),
         )
     }
+
+    // ── home ──────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `the home tab is not empty and keeps its shelves separate`() {
+        val home = content("landing", ChannelTabKind.Home)
+
+        assertTrue("home is a section list, not a grid", home.sections.isNotEmpty())
+        assertTrue("shelves must not be flattened into one list", home.items.isEmpty())
+        val titles = home.sections.mapNotNull { it.title }
+        assertTrue(titles.contains("Videos"))
+        assertTrue(titles.contains("Popular videos"))
+        assertTrue(home.sections.all { it.items.isNotEmpty() })
+    }
+
+    @Test
+    fun `the home trailer is its own section`() {
+        val trailer = content("landing", ChannelTabKind.Home).sections.first()
+
+        assertEquals(ChannelSectionStyle.Trailer, trailer.style)
+        assertTrue((trailer.items.single() as ChannelItem.VideoItem).video.id.isNotBlank())
+    }
+
+    @Test
+    fun `a home shelf of sister channels parses as channels`() {
+        val featured =
+            content("landing", ChannelTabKind.Home).sections.first { it.title == "Featured Channels" }
+
+        assertTrue(featured.items.all { it is ChannelItem.RelatedChannelItem })
+    }
+
+    @Test
+    fun `the home shorts shelf parses as shorts`() {
+        val shorts = content("landing", ChannelTabKind.Home).sections.first { it.title == "Shorts" }
+
+        assertTrue(shorts.items.all { it is ChannelItem.ShortItem })
+    }
 }

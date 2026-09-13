@@ -467,6 +467,7 @@
     <string name="channel_about_country">Country</string>
     <string name="channel_about_videos">Videos</string>
     <string name="channel_about_links">Links</string>
+    <string name="channel_about_more_info">More info</string>
     <string name="channel_post_image_count">%1$d / %2$d</string>
     <string name="channel_post_poll_votes">%1$s</string>
     <string name="channel_avatar">Channel avatar</string>

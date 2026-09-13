@@ -52,6 +52,7 @@ import io.github.aedev.flow.ui.components.channel.ChannelAboutSection
 import io.github.aedev.flow.ui.components.channel.ChannelCommunityPosts
 import io.github.aedev.flow.ui.components.channel.ChannelFilterBar
 import io.github.aedev.flow.ui.components.channel.ChannelHeaderSection
+import io.github.aedev.flow.ui.components.channel.ChannelHomeSections
 import io.github.aedev.flow.ui.components.channel.ChannelTabItems
 import io.github.aedev.flow.ui.components.channel.ChannelTabRow
 import kotlinx.coroutines.launch
@@ -64,7 +65,7 @@ internal fun ChannelContent(
     onManageGroups: (() -> Unit)?,
     communityUiState: ChannelCommunityUiState,
     tabStates: Map<ChannelTabKind, ChannelTabState>,
-    onFilterSelected: (ChannelTabKind, Int) -> Unit,
+    onFilterSelected: (ChannelTabKind, Int, Int) -> Unit,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
     onShortClick: (String) -> Unit,
@@ -121,9 +122,9 @@ internal fun ChannelContent(
     }
 
     val activeState = tabStates[settledTab.kind]
-    val activeSorts = activeState?.filters.orEmpty()
-    val activeSortIndex = activeState?.selectedFilter ?: 0
-    val showFilterBar = !settledTab.isAbout && settledTab.kind != ChannelTabKind.Posts
+    val activeFilters = activeState?.filters.orEmpty()
+    val activeSelection = activeState?.selected.orEmpty()
+    val showFilterBar = activeFilters.isNotEmpty() && !settledTab.isAbout
 
     var collapsingHeaderHeightPx by remember { mutableFloatStateOf(0f) }
     var stickySectionHeightPx by remember { mutableFloatStateOf(0f) }
@@ -212,7 +213,7 @@ internal fun ChannelContent(
             .collect { (index, offset) -> onScrollChanged(index, offset) }
     }
 
-    LaunchedEffect(activeSortIndex, settledTab.kind) { listStateFor(settledTab.kind).scrollToItem(0) }
+    LaunchedEffect(activeSelection, settledTab.kind) { listStateFor(settledTab.kind).scrollToItem(0) }
 
     Box(
         modifier =
@@ -274,6 +275,20 @@ internal fun ChannelContent(
                     )
                 }
 
+                tab.kind == ChannelTabKind.Home -> {
+                    ChannelHomeSections(
+                        sections = tabStates[tab.kind]?.sections.orEmpty(),
+                        isLoading = tabStates[tab.kind]?.sections.isNullOrEmpty(),
+                        listState = listStateFor(tab.kind),
+                        contentPadding = listPadding,
+                        topInset = visibleHeaderHeightDp,
+                        onVideoClick = onVideoClick,
+                        onShortClick = onShortClick,
+                        onPlaylistClick = onPlaylistClick,
+                        onChannelClick = onChannelClick,
+                    )
+                }
+
                 else -> {
                     val items = tabStates[tab.kind]?.items?.collectAsLazyPagingItems()
                     ChannelTabItems(
@@ -332,14 +347,14 @@ internal fun ChannelContent(
                 )
                 if (showFilterBar) {
                     ChannelFilterBar(
-                        sortOptions = activeSorts,
-                        selectedSort = activeSortIndex,
+                        filterGroups = activeFilters,
+                        selected = activeSelection,
                         isGridView = isGridView,
                         searchActive = uiState.searchActive,
                         searchQuery = uiState.searchQuery,
                         // The Shorts tab is a fixed portrait grid and has no in-channel search.
                         showListControls = settledTab.kind != ChannelTabKind.Shorts,
-                        onSortSelected = { index -> onFilterSelected(settledTab.kind, index) },
+                        onFilterSelected = { group, option -> onFilterSelected(settledTab.kind, group, option) },
                         onToggleGridView = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } },
                         onSearchToggle = onSearchToggle,
                         onSearchQueryChange = onSearchQueryChange,

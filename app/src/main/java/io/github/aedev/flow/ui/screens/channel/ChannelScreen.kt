@@ -227,7 +227,7 @@ fun ChannelScreen(
                             onVideoClick = onVideoClick,
                             onChannelClick = onChannelClick,
                             onShortClick = { videoId ->
-                                onShortClick(videoId, tabStates[ChannelTabKind.Shorts]?.selectedFilter ?: 0)
+                                onShortClick(videoId, tabStates[ChannelTabKind.Shorts]?.selected?.firstOrNull() ?: 0)
                             },
                             onPlaylistClick = onPlaylistClick,
                             onSubscribeClick = { viewModel.toggleSubscription() },

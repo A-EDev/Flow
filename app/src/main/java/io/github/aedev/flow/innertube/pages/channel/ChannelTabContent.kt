@@ -14,7 +14,7 @@ data class ChannelTabContent(
     val kind: ChannelTabKind,
     val items: List<ChannelItem> = emptyList(),
     val sections: List<ChannelSection> = emptyList(),
-    val filters: List<ChannelSortOption> = emptyList(),
+    val filters: List<ChannelFilterGroup> = emptyList(),
     val continuation: String? = null,
     val owner: ChannelOwner = ChannelOwner(),
 )

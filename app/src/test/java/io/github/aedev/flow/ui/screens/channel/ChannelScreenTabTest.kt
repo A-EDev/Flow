@@ -55,7 +55,6 @@ class ChannelScreenTabTest {
                 ChannelTabKind.Podcasts,
                 ChannelTabKind.Playlists,
                 ChannelTabKind.Posts,
-                ChannelTabKind.Store,
             ),
             resolved.filterNot { it.isAbout }.map { it.kind },
         )
@@ -68,6 +67,12 @@ class ChannelScreenTabTest {
 
         assertTrue(resolved.none { it.kind == ChannelTabKind.Podcasts })
         assertTrue(resolved.none { it.kind == ChannelTabKind.Live })
+    }
+
+    @Test
+    fun `the store tab is dropped even when the channel has one`() {
+        val resolved = tabs(listOf(descriptor(ChannelTabKind.Videos), descriptor(ChannelTabKind.Store)))
+
         assertTrue(resolved.none { it.kind == ChannelTabKind.Store })
     }
 

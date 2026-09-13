@@ -68,6 +68,7 @@ import io.github.aedev.flow.innertube.pages.SearchVideosPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
+import io.github.aedev.flow.innertube.pages.channel.ChannelAbout
 import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
 import io.github.aedev.flow.innertube.pages.channel.ChannelPage
@@ -77,7 +78,9 @@ import io.github.aedev.flow.innertube.pages.channel.ChannelTabContent
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.channel.CommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.channel.CommunityPostsPage
+import io.github.aedev.flow.innertube.pages.channel.channelAboutContinuation
 import io.github.aedev.flow.innertube.pages.channel.channelSortOptions
+import io.github.aedev.flow.innertube.pages.channel.toChannelAbout
 import io.github.aedev.flow.innertube.pages.channel.toChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.toChannelShortsPage
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabContent
@@ -682,7 +685,11 @@ object YouTube {
     suspend fun channel(idOrHandle: String): Result<ChannelPage> =
         runCatching {
             val response = channelBrowseJson(browseId = idOrHandle)
-            val header = response.toChannelHeader(idOrHandle)
+            val about =
+                response
+                    .channelAboutContinuation()
+                    ?.let { token -> runCatching { channelBrowseJson(continuation = token).toChannelAbout() }.getOrNull() }
+            val header = response.toChannelHeader(idOrHandle).mergedWith(about)
             val tabs = response.toChannelTabs()
             ChannelPage(
                 header = header,
@@ -728,6 +735,27 @@ object YouTube {
             )
         return Json.parseToJsonElement(response.bodyAsText())
     }
+
+    /**
+     * The landing response carries a one-line description and nothing else about the channel; the
+     * About panel is a separate continuation and is where the links, country, join date and totals
+     * live.
+     */
+    private fun ChannelHeader.mergedWith(about: ChannelAbout?): ChannelHeader =
+        if (about == null) {
+            this
+        } else {
+            copy(
+                description = about.description ?: description,
+                subscriberCountText = about.subscriberCountText ?: subscriberCountText,
+                videoCountText = about.videoCountText ?: videoCountText,
+                joinedDateText = about.joinedDateText,
+                viewCountText = about.viewCountText,
+                countryText = about.countryText,
+                canonicalUrl = about.canonicalUrl ?: canonicalUrl,
+                links = about.links,
+            )
+        }
 
     private fun ChannelHeader.toOwner() = ChannelOwner(id = id, name = title, avatarUrl = avatarUrl)
 

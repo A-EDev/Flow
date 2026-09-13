@@ -5,9 +5,10 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import io.github.aedev.flow.data.paging.ChannelTabPagingSource
+import io.github.aedev.flow.innertube.pages.channel.ChannelFilterGroup
 import io.github.aedev.flow.innertube.pages.channel.ChannelItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
-import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
+import io.github.aedev.flow.innertube.pages.channel.ChannelSection
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -18,8 +19,10 @@ import kotlinx.coroutines.flow.update
 
 internal data class ChannelTabState(
     val items: Flow<PagingData<ChannelItem>>? = null,
-    val filters: List<String> = emptyList(),
-    val selectedFilter: Int = 0,
+    val sections: List<ChannelSection> = emptyList(),
+    val filters: List<ChannelFilterGroup> = emptyList(),
+    /** Index of the chosen option per filter group; -1 where the group is at the tab's default. */
+    val selected: List<Int> = emptyList(),
 )
 
 /**
@@ -38,7 +41,6 @@ internal class ChannelTabController(
 
     private var browseId: String = ""
     private var owner: ChannelOwner = ChannelOwner()
-    private val filterTokens = mutableMapOf<ChannelTabKind, List<String>>()
 
     fun reset(
         browseId: String,
@@ -46,7 +48,6 @@ internal class ChannelTabController(
     ) {
         this.browseId = browseId
         this.owner = owner
-        filterTokens.clear()
         _states.value = emptyMap()
     }
 
@@ -56,26 +57,47 @@ internal class ChannelTabController(
     ) {
         if (browseId.isBlank() || params.isNullOrBlank()) return
         if (_states.value[kind]?.items != null) return
-        build(kind, params, sortToken = null, selectedFilter = 0)
+        build(kind, params, continuation = null, selected = emptyList())
     }
 
-    /** A chip token is the tab's first page in a different order, not a filter over the current one. */
+    /**
+     * Applies one option of one filter group. Tapping the option already in effect clears it, which is
+     * the only way back to a tab's default once a filter has been chosen.
+     */
     fun selectFilter(
         kind: ChannelTabKind,
-        params: String?,
-        index: Int,
+        tabParams: String?,
+        groupIndex: Int,
+        optionIndex: Int,
     ) {
-        val tokens = filterTokens[kind].orEmpty()
-        if (params.isNullOrBlank() || index !in tokens.indices) return
-        if (index == _states.value[kind]?.selectedFilter) return
-        build(kind, params, sortToken = tokens.getOrNull(index).takeIf { index != 0 }, selectedFilter = index)
+        val state = _states.value[kind] ?: return
+        val group = state.filters.getOrNull(groupIndex) ?: return
+        val option = group.options.getOrNull(optionIndex) ?: return
+        if (tabParams.isNullOrBlank()) return
+
+        val clearing = state.selected.getOrElse(groupIndex) { -1 } == optionIndex
+        val selected =
+            List(state.filters.size) { index ->
+                when {
+                    index != groupIndex -> -1
+                    clearing -> -1
+                    else -> optionIndex
+                }
+            }
+
+        if (clearing) {
+            build(kind, tabParams, continuation = null, selected = selected)
+            return
+        }
+        // A sort menu re-browses with its own params; a chip or dropdown entry is a continuation.
+        build(kind, option.params ?: tabParams, continuation = option.continuation, selected = selected)
     }
 
     private fun build(
         kind: ChannelTabKind,
         params: String,
-        sortToken: String?,
-        selectedFilter: Int,
+        continuation: String?,
+        selected: List<Int>,
     ) {
         val pager =
             Pager(
@@ -85,28 +107,35 @@ internal class ChannelTabController(
                         browseId = browseId,
                         params = params,
                         kind = kind,
-                        sortToken = sortToken,
+                        sortToken = continuation,
                         owner = owner,
-                        onPageLoaded = { page -> publishFilters(kind, page.filters) },
+                        onPageLoaded = { page -> publish(kind, page.filters, page.sections) },
                     )
                 },
             ).flow.cachedIn(scope)
 
         _states.update { states ->
-            states + (kind to (states[kind] ?: ChannelTabState()).copy(items = pager, selectedFilter = selectedFilter))
+            val current = states[kind] ?: ChannelTabState()
+            states + (kind to current.copy(items = pager, selected = selected))
         }
     }
 
-    private fun publishFilters(
+    private fun publish(
         kind: ChannelTabKind,
-        filters: List<ChannelSortOption>,
+        filters: List<ChannelFilterGroup>,
+        sections: List<ChannelSection>,
     ) {
-        if (filters.isEmpty()) return
-        filterTokens[kind] = filters.map { it.token }
-        val labels = filters.map { it.label }
         _states.update { states ->
             val current = states[kind] ?: ChannelTabState()
-            if (current.filters == labels) states else states + (kind to current.copy(filters = labels))
+            val nextFilters = filters.ifEmpty { current.filters }
+            val nextSelected =
+                current.selected.takeIf { it.size == nextFilters.size }
+                    ?: nextFilters.map { it.selectedIndex }
+            if (current.filters == nextFilters && current.sections == sections && current.selected == nextSelected) {
+                states
+            } else {
+                states + (kind to current.copy(filters = nextFilters, sections = sections, selected = nextSelected))
+            }
         }
     }
 

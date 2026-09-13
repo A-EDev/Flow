@@ -95,8 +95,9 @@ class ChannelViewModel
 
         fun selectTabFilter(
             kind: ChannelTabKind,
-            index: Int,
-        ) = tabController.selectFilter(kind, _uiState.value.tabParams(kind), index)
+            groupIndex: Int,
+            optionIndex: Int,
+        ) = tabController.selectFilter(kind, _uiState.value.tabParams(kind), groupIndex, optionIndex)
 
         var listScrollIndex: Int = 0
             private set

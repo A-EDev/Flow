@@ -134,43 +134,4 @@ class ChannelHeaderParserTest {
     fun `keeps the requested id when the response carries none`() {
         assertEquals("UCrequested", parse("""{"contents":{}}""").id)
     }
-
-    @Test
-    fun `reads the about panel and resolves each link to its command target`() {
-        val header =
-            parse(
-                """
-                {
-                  "engagementPanels": [ { "engagementPanelSectionListRenderer": { "content": { "sectionListRenderer": {
-                    "contents": [ { "itemSectionRenderer": { "contents": [ { "aboutChannelRenderer": {
-                      "metadata": { "aboutChannelViewModel": {
-                        "description": "The full about text.",
-                        "joinedDateText": { "content": "Joined Nov 25, 2008" },
-                        "viewCountText": "8,123,456,789 views",
-                        "country": "Canada",
-                        "canonicalChannelUrl": "http://www.youtube.com/@LinusTechTips",
-                        "links": [
-                          { "channelExternalLinkViewModel": {
-                            "title": { "content": "lttstore.com" },
-                            "link": { "content": "lttstore.com", "commandRuns": [ { "onTap": { "innertubeCommand": {
-                              "urlEndpoint": { "url": "https://www.lttstore.com/" }
-                            } } } ] },
-                            "favicon": { "sources": [ { "url": "https://yt3.test/favicon.png", "width": 16, "height": 16 } ] }
-                          } }
-                        ]
-                      } }
-                    } } ] } } ] } } } } ]
-                }
-                """.trimIndent(),
-            )
-
-        assertEquals("The full about text.", header.description)
-        assertEquals("Joined Nov 25, 2008", header.joinedDateText)
-        assertEquals("8,123,456,789 views", header.viewCountText)
-        assertEquals("Canada", header.countryText)
-        assertEquals(1, header.links.size)
-        assertEquals("lttstore.com", header.links.first().title)
-        assertEquals("https://www.lttstore.com/", header.links.first().url)
-        assertEquals("https://yt3.test/favicon.png", header.links.first().iconUrl)
-    }
 }
