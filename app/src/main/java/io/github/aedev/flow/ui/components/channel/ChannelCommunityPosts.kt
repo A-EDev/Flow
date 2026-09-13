@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.channel
+package io.github.aedev.flow.ui.components.channel
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,7 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
-import io.github.aedev.flow.ui.components.CommunityPostCard
+import io.github.aedev.flow.ui.screens.channel.ChannelRequestErrorState
 
 @Composable
 internal fun ChannelCommunityPosts(

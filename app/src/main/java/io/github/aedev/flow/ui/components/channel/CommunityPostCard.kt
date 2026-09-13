@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.channel
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
