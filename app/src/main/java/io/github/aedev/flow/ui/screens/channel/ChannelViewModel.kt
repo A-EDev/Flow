@@ -8,6 +8,8 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import androidx.paging.filter
+import androidx.paging.map
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
@@ -19,18 +21,18 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
-import io.github.aedev.flow.data.model.mergeDistinctByNonBlankKey
 import io.github.aedev.flow.data.model.toUiModel
-import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
 import io.github.aedev.flow.data.paging.ChannelShortsPagingSource
-import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
+import io.github.aedev.flow.data.paging.ChannelTabPagingSource
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.pages.channel.ChannelItem
+import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
 import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
-import io.github.aedev.flow.ui.youtubeChannelUrl
+import io.github.aedev.flow.ui.youtubeChannelBrowseId
 import io.github.aedev.flow.utils.PerformanceDispatcher
-import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -43,14 +45,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.channel.ChannelInfo
-import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
-import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
-import org.schabi.newpipe.extractor.stream.StreamInfoItem
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -154,6 +148,15 @@ class ChannelViewModel
         private val _playlistsPagingFlow = MutableStateFlow<Flow<PagingData<io.github.aedev.flow.data.model.Playlist>>?>(null)
         val playlistsPagingFlow: StateFlow<Flow<PagingData<io.github.aedev.flow.data.model.Playlist>>?> = _playlistsPagingFlow.asStateFlow()
 
+        private fun channelOwner(): ChannelOwner {
+            val state = _uiState.value
+            return ChannelOwner(
+                id = state.channelId.orEmpty(),
+                name = state.header?.title.orEmpty(),
+                avatarUrl = state.header?.avatarUrl.orEmpty(),
+            )
+        }
+
         // Eagerly loaded full video lists (all pages) for filter support
         private val _videosAll = MutableStateFlow<List<Video>>(emptyList())
         val videosAll: StateFlow<List<Video>> = _videosAll.asStateFlow()
@@ -221,11 +224,6 @@ class ChannelViewModel
                 }
         }
 
-        private var currentVideosTab: ListLinkHandler? = null
-        private var currentShortsTab: ListLinkHandler? = null
-        private var currentLiveTab: ListLinkHandler? = null
-        private var currentPlaylistsTab: ListLinkHandler? = null
-
         companion object {
             private const val TAG = "ChannelViewModel"
             private const val GROUPS_SUBSCRIPTION_TIMEOUT_MS = 5_000L
@@ -235,222 +233,95 @@ class ChannelViewModel
 
             /** Safety cap: stops loading beyond this many pages (~1500 videos) */
             private const val MAX_PAGES = 50
-            private const val POSTS_TAB_INDEX = 4
         }
 
         /**
          *  PERFORMANCE OPTIMIZED: Load channel with timeout protection
          */
         fun loadChannel(channelUrl: String) {
-            if (channelUrl.isBlank()) {
+            val browseId = youtubeChannelBrowseId(channelUrl)
+            if (browseId == null) {
                 _uiState.update { it.copy(error = appContext.getString(R.string.error_invalid_channel_url), isLoading = false) }
                 return
             }
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = true,
-                        error = null,
-                        channelVideoCountText = null,
-                    )
-                }
+                _uiState.update { it.copy(isLoading = true, error = null) }
 
-                try {
-                    Log.d(TAG, "Loading channel: $channelUrl")
-
-                    // Normalize the URL
-                    val normalizedUrl = normalizeChannelUrl(channelUrl)
-                    Log.d(TAG, "Normalized URL: $normalizedUrl")
-
-                    val channelInfo =
-                        withTimeoutOrNull(20_000L) {
-                            withContext(PerformanceDispatcher.networkIO) {
-                                // Use NewPipe to fetch channel info
-                                ChannelInfo.getInfo(NewPipe.getService(0), normalizedUrl)
-                            }
-                        }
-
-                    if (channelInfo == null) {
+                YouTube.channel(browseId).fold(
+                    onSuccess = { page ->
+                        val header = page.header
+                        val channelId = header.id.ifBlank { browseId }
                         _uiState.update {
                             it.copy(
-                                error = appContext.getString(R.string.error_channel_loading_timed_out),
+                                channelId = channelId,
+                                header = header,
+                                tabs = page.tabs,
                                 isLoading = false,
                             )
                         }
-                        return@launch
-                    }
-
-                    Log.d(TAG, "Channel loaded: ${channelInfo.name}")
-
-                    val channelId = channelInfo.id
-
-                    _uiState.update {
-                        it.copy(
-                            channelId = channelId,
-                            channelInfo = channelInfo,
-                            isLoading = false,
-                        )
-                    }
-                    val channelAvatar =
-                        channelInfo.avatars.maxByOrNull { it.height }?.url
-                            ?: channelInfo.avatars.firstOrNull()?.url
-                            ?: ""
-                    communityController.reset(channelId, channelInfo.name, channelAvatar)
-                    loadChannelVideoCount(channelId, channelInfo.name, channelAvatar)
-                    if (_uiState.value.selectedTab == POSTS_TAB_INDEX) {
-                        communityController.ensurePostsLoaded()
-                    }
-
-                    // Load subscription state
-                    loadSubscriptionState(channelId)
-
-                    // Load channel tabs (Videos, Shorts, Playlists)
-                    loadChannelTabs(channelInfo)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to load channel", e)
-                    _uiState.update {
-                        it.copy(
-                            error = e.message ?: appContext.getString(R.string.error_failed_to_load_channel),
-                            isLoading = false,
-                        )
-                    }
-                }
-            }
-        }
-
-        private fun normalizeChannelUrl(url: String): String = youtubeChannelUrl(url).orEmpty()
-
-        private fun loadChannelVideoCount(
-            channelId: String,
-            channelName: String,
-            channelThumbnailUrl: String,
-        ) {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                val videoCountText =
-                    YouTube
-                        .channelVideos(
-                            channelId = channelId,
-                            channelName = channelName,
-                            channelThumbnailUrl = channelThumbnailUrl,
-                        ).getOrNull()
-                        ?.channelVideoCountText ?: return@launch
-                _uiState.update { state ->
-                    if (state.channelId == channelId) {
-                        state.copy(channelVideoCountText = videoCountText)
-                    } else {
-                        state
-                    }
-                }
-            }
-        }
-
-        /**
-         *  PERFORMANCE OPTIMIZED: Load channel tabs with optimized dispatcher
-         */
-        private fun loadChannelTabs(channelInfo: ChannelInfo) {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                try {
-                    _uiState.update { it.copy(isLoadingVideos = true) }
-
-                    withContext(PerformanceDispatcher.networkIO) {
-                        // Find the tabs
-                        for (tab in channelInfo.tabs) {
-                            try {
-                                val tabName = tab.contentFilters.joinToString()
-                                val tabUrl = tab.url ?: ""
-                                Log.d(TAG, "Checking tab: Name=$tabName, URL=$tabUrl")
-
-                                val isLive =
-                                    tabName.contains("live", ignoreCase = true) ||
-                                        tabUrl.contains("/streams", ignoreCase = true)
-
-                                val isVideos =
-                                    (
-                                        tabName.contains("video", ignoreCase = true) ||
-                                            tabName.contains("Videos", ignoreCase = true) ||
-                                            tabUrl.contains("/videos", ignoreCase = true)
-                                    ) && !isLive
-
-                                val isShorts =
-                                    tabName.contains("shorts", ignoreCase = true) ||
-                                        tabUrl.contains("/shorts", ignoreCase = true)
-
-                                val isPlaylists =
-                                    tabName.contains("playlist", ignoreCase = true) ||
-                                        tabName.contains("Playlists", ignoreCase = true) ||
-                                        tabUrl.contains("/playlists", ignoreCase = true)
-
-                                if (isLive) {
-                                    currentLiveTab = tab
-                                    Log.d(TAG, "Found live tab")
-                                }
-
-                                if (isVideos) {
-                                    currentVideosTab = tab
-                                    Log.d(TAG, "Found videos tab")
-                                }
-
-                                if (isShorts) {
-                                    currentShortsTab = tab
-                                    Log.d(TAG, "Found shorts tab")
-                                }
-
-                                if (isPlaylists) {
-                                    currentPlaylistsTab = tab
-                                    Log.d(TAG, "Found playlists tab")
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error checking tab", e)
-                            }
+                        communityController.reset(channelId, header.title, header.avatarUrl)
+                        if (_uiState.value.selectedTab == ChannelTabKind.Posts) {
+                            communityController.ensurePostsLoaded()
                         }
-                    }
+                        loadSubscriptionState(channelId)
+                        loadChannelTabs()
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "Failed to load channel", error)
+                        _uiState.update {
+                            it.copy(
+                                error = error.message ?: appContext.getString(R.string.error_failed_to_load_channel),
+                                isLoading = false,
+                            )
+                        }
+                    },
+                )
+            }
+        }
 
-                    // Load all pages for Videos tab (enables full-list filtering)
-                    val videosTab = currentVideosTab
-                    if (videosTab != null) {
-                        videosJob?.cancel()
-                        videosJob =
-                            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                                loadSortedTab(TabKind.Videos, sortToken = null)
-                            }
-                    }
+        private suspend fun loadChannelTabs() {
+            val state = _uiState.value
+            val channelId = state.channelId ?: return
 
-                    // Create the paging flow for Shorts
-                    if (currentShortsTab != null && shortsContentFilter.isEnabled()) {
-                        shortsChannelId = channelInfo.id.orEmpty()
-                        _selectedShortsSort.value = 0
-                        buildShortsPager(shortsChannelId, sortToken = null)
+            if (state.hasTab(ChannelTabKind.Videos)) {
+                videosJob?.cancel()
+                videosJob =
+                    viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                        loadSortedTab(TabKind.Videos, sortToken = null)
                     }
+            }
 
-                    val liveTab = currentLiveTab
-                    if (liveTab != null) {
-                        liveJob?.cancel()
-                        liveJob =
-                            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                                loadSortedTab(TabKind.Live, sortToken = null)
-                            }
-                    }
+            if (state.hasTab(ChannelTabKind.Shorts) && shortsContentFilter.isEnabled()) {
+                shortsChannelId = channelId
+                _selectedShortsSort.value = 0
+                buildShortsPager(shortsChannelId, sortToken = null)
+            }
 
-                    // Create the paging flow for Playlists
-                    if (currentPlaylistsTab != null) {
-                        _playlistsPagingFlow.value =
-                            Pager(
-                                config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-                                pagingSourceFactory = { ChannelPlaylistsPagingSource(currentPlaylistsTab) },
-                            ).flow.cachedIn(viewModelScope)
+            if (state.hasTab(ChannelTabKind.Live)) {
+                liveJob?.cancel()
+                liveJob =
+                    viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                        loadSortedTab(TabKind.Live, sortToken = null)
                     }
+            }
 
-                    _uiState.update { it.copy(isLoadingVideos = false) }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to load channel tabs", e)
-                    _uiState.update {
-                        it.copy(
-                            isLoadingVideos = false,
-                            videosError = e.message,
-                        )
-                    }
-                }
+            state.tabParams(ChannelTabKind.Playlists)?.takeIf { state.hasTab(ChannelTabKind.Playlists) }?.let { params ->
+                val owner = channelOwner()
+                _playlistsPagingFlow.value =
+                    Pager(
+                        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                        pagingSourceFactory = {
+                            ChannelTabPagingSource(
+                                browseId = channelId,
+                                params = params,
+                                kind = ChannelTabKind.Playlists,
+                                owner = owner,
+                            )
+                        },
+                    ).flow
+                        .map { data -> data.filter { it is ChannelItem.PlaylistItem }.map { (it as ChannelItem.PlaylistItem).playlist } }
+                        .cachedIn(viewModelScope)
             }
         }
 
@@ -471,14 +342,9 @@ class ChannelViewModel
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 val state = _uiState.value
                 val channelId = state.channelId ?: return@launch
-                val channelInfo = state.channelInfo ?: return@launch
-                val channelName = channelInfo.name
-                val channelThumbnail =
-                    try {
-                        channelInfo.avatars.firstOrNull()?.url ?: ""
-                    } catch (e: Exception) {
-                        ""
-                    }
+                val header = state.header ?: return@launch
+                val channelName = header.title
+                val channelThumbnail = header.avatarUrl
 
                 if (state.isSubscribed) {
                     // Unsubscribe
@@ -513,9 +379,9 @@ class ChannelViewModel
             }
         }
 
-        fun selectTab(tabIndex: Int) {
-            _uiState.update { it.copy(selectedTab = tabIndex) }
-            if (tabIndex == POSTS_TAB_INDEX) communityController.ensurePostsLoaded()
+        fun selectTab(kind: ChannelTabKind) {
+            _uiState.update { it.copy(selectedTab = kind) }
+            if (kind == ChannelTabKind.Posts) communityController.ensurePostsLoaded()
         }
 
         fun openCommunityPostComments(post: CommunityPost) = communityController.openComments(post)
@@ -547,7 +413,7 @@ class ChannelViewModel
 
         fun searchInChannel(query: String) {
             val channelId = _uiState.value.channelId ?: return
-            val channelInfo = _uiState.value.channelInfo ?: return
+            val header = _uiState.value.header ?: return
             val trimmed = query.trim()
 
             _uiState.update {
@@ -565,20 +431,11 @@ class ChannelViewModel
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 _uiState.update { it.copy(isSearching = true) }
                 try {
-                    val channelThumbnail =
-                        try {
-                            channelInfo.avatars.maxByOrNull { it.height }?.url
-                                ?: channelInfo.avatars.firstOrNull()?.url
-                                ?: ""
-                        } catch (e: Exception) {
-                            ""
-                        }
-
                     val result =
-                        io.github.aedev.flow.innertube.YouTube.channelSearch(
+                        YouTube.channelSearch(
                             channelId = channelId,
-                            channelName = channelInfo.name,
-                            channelThumbnailUrl = channelThumbnail,
+                            channelName = header.title,
+                            channelThumbnailUrl = header.avatarUrl,
                             query = trimmed,
                         )
                     result.fold(
@@ -640,13 +497,13 @@ class ChannelViewModel
             sortToken: String?,
         ) {
             val channelId = _uiState.value.channelId ?: return
-            val channelInfo = _uiState.value.channelInfo
-            val channelName = channelInfo?.name.orEmpty()
+            val channelName =
+                _uiState.value.header
+                    ?.title
+                    .orEmpty()
             val avatar =
-                channelInfo
-                    ?.avatars
-                    ?.maxByOrNull { it.height }
-                    ?.url
+                _uiState.value.header
+                    ?.avatarUrl
                     .orEmpty()
             val target = if (kind == TabKind.Videos) _videosAll else _liveAll
             val isLive = kind == TabKind.Live
@@ -734,104 +591,4 @@ class ChannelViewModel
                 _liveSorts.value = sorts.map { it.label }
             }
         }
-
-        private fun StreamInfoItem.toChannelVideo(channelInfo: ChannelInfo): Video {
-            val videoId =
-                when {
-                    url.contains("v=") -> url.substringAfter("v=").substringBefore("&")
-                    url.contains("/watch/") -> url.substringAfter("/watch/").substringBefore("?")
-                    url.contains("/shorts/") -> url.substringAfter("/shorts/").substringBefore("?")
-                    else -> url.substringAfterLast("/").substringBefore("?")
-                }
-            val thumbnail =
-                ThumbnailUrlResolver.normalizeVideoThumbnail(
-                    videoId,
-                    thumbnails.maxByOrNull { it.width }?.url,
-                )
-            val absoluteUploadTimestamp = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
-            val textualDate = textualUploadDate?.takeIf { it.isNotBlank() }
-            val displayUploadDate =
-                textualDate
-                    ?: io.github.aedev.flow.utils
-                        .formatTimeAgo(uploadDate?.offsetDateTime()?.toString())
-            val uploadTimestamp =
-                absoluteUploadTimestamp
-                    ?: parseRelativeUploadDate(textualDate)
-                    ?: 0L
-            return Video(
-                id = videoId,
-                title = name,
-                thumbnailUrl = thumbnail,
-                channelName = uploaderName ?: channelInfo.name,
-                channelId = channelInfo.id,
-                channelThumbnailUrl =
-                    channelInfo.avatars.maxByOrNull { it.height }?.url
-                        ?: channelInfo.avatars.firstOrNull()?.url
-                        ?: "",
-                viewCount = viewCount,
-                duration = duration.toInt().coerceAtLeast(0),
-                uploadDate = displayUploadDate,
-                timestamp = uploadTimestamp,
-                description = "",
-            )
-        }
-
-        private fun parseRelativeUploadDate(text: String?): Long? {
-            val normalized =
-                text
-                    ?.lowercase(Locale.US)
-                    ?.replace("streamed", "")
-                    ?.replace("premiered", "")
-                    ?.replace("live", "")
-                    ?.replace("ago", "")
-                    ?.trim()
-                    ?: return null
-
-            if (normalized.isBlank()) return null
-            if (normalized.contains("just now") || normalized.contains("today")) return System.currentTimeMillis()
-            if (normalized.contains("yesterday")) return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
-
-            val value =
-                Regex("(\\d+)")
-                    .find(normalized)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.toLongOrNull()
-                    ?: return null
-            val unitMillis =
-                when {
-                    normalized.contains("second") || normalized.endsWith("s") -> 1_000L
-                    normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
-                    normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
-                    normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
-                    normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
-                    normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
-                    normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
-                    else -> return null
-                }
-
-            return System.currentTimeMillis() - (value * unitMillis)
-        }
     }
-
-data class ChannelUiState(
-    val channelId: String? = null,
-    val channelInfo: ChannelInfo? = null,
-    val channelVideos: List<Video> = emptyList(),
-    val channelVideoCountText: String? = null,
-    val isLoading: Boolean = false,
-    val isLoadingVideos: Boolean = false,
-    val error: String? = null,
-    val videosError: String? = null,
-    val isSubscribed: Boolean = false,
-    val isNotificationsEnabled: Boolean = false,
-    val selectedTab: Int = 0,
-    // ── Channel search ──────────────────────────────────────────────────────
-    val searchActive: Boolean = false,
-    val searchQuery: String = "",
-    val searchResults: List<Video> = emptyList(),
-    val isSearching: Boolean = false,
-    val searchErrorLog: String? = null,
-    val searchContinuation: String? = null,
-    val isLoadingMoreSearch: Boolean = false,
-)

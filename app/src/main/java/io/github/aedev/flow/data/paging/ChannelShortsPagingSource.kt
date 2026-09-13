@@ -13,9 +13,6 @@ import kotlinx.coroutines.withContext
 /**
  * The channel Shorts tab grid, in the user's chosen sort order.
  *
- * Separate from [ChannelVideosPagingSource] because sorting is not something NewPipe's
- * `ChannelTabInfo` can express — the Latest/Popular/Oldest chips only exist in the native browse
- * response (#547).
  *
  * @param sortToken the chosen chip's continuation token, or null for the channel's own default.
  * @param onPageLoaded reports the sort bar and channel identity back, so the screen can render the

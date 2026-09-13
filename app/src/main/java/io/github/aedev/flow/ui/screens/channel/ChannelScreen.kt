@@ -92,6 +92,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -109,7 +110,10 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
+import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.ChannelBanner
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.PlaylistCard
@@ -119,6 +123,8 @@ import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
 import io.github.aedev.flow.ui.components.shared.CollectionSheetEntry
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.shared.SaveToCollectionSheet
@@ -127,7 +133,6 @@ import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
-import io.github.aedev.flow.utils.formatSubscriberCount
 import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -170,7 +175,7 @@ fun ChannelScreen(
     LaunchedEffect(channelUrl) { viewModel.loadChannel(channelUrl) }
 
     var showCollapsedChannelTitle by remember(channelUrl) { mutableStateOf(false) }
-    val collapsedChannelTitle = uiState.channelInfo?.name.orEmpty()
+    val collapsedChannelTitle = uiState.header?.title.orEmpty()
     var communityCommentSort by rememberSaveable { mutableStateOf(CommentSortFilter.TOP) }
     val sortedCommunityComments =
         remember(communityUiState.comments, communityCommentSort) {
@@ -224,7 +229,7 @@ fun ChannelScreen(
                 IconButton(onClick = {
                     // channelUrl may already be a full URL, so it must be normalized rather than
                     // pasted behind /channel/ — that produced a nested, unopenable share link.
-                    val shareUrl = youtubeChannelUrl(uiState.channelInfo?.id ?: channelUrl) ?: channelUrl
+                    val shareUrl = youtubeChannelUrl(uiState.header?.id ?: channelUrl) ?: channelUrl
                     val shareIntent =
                         Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
@@ -246,14 +251,14 @@ fun ChannelScreen(
                     }
 
                     uiState.error != null -> {
-                        ErrorState(
-                            message = uiState.error ?: stringResource(R.string.failed_to_load_channel),
+                        FlowErrorState(
+                            error = uiState.error ?: stringResource(R.string.failed_to_load_channel),
                             onRetry = { viewModel.loadChannel(channelUrl) },
                             modifier = Modifier.align(Alignment.Center),
                         )
                     }
 
-                    uiState.channelInfo != null -> {
+                    uiState.header != null -> {
                         ChannelContent(
                             uiState = uiState,
                             communityUiState = communityUiState,
@@ -327,7 +332,7 @@ fun ChannelScreen(
         }
     }
 
-    val channelId = uiState.channelInfo?.id.orEmpty()
+    val channelId = uiState.header?.id.orEmpty()
     if (showGroupSheet && channelId.isNotBlank()) {
         ChannelGroupSheet(
             groups = subscriptionGroups,
@@ -383,7 +388,7 @@ private fun ChannelContent(
     onSubscribeClick: () -> Unit,
     onUnsubscribeClick: () -> Unit,
     onNotificationChange: (Boolean) -> Unit,
-    onTabSelected: (Int) -> Unit,
+    onTabSelected: (ChannelTabKind) -> Unit,
     onSearchToggle: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
     onCommunityPostComments: (CommunityPost) -> Unit,
@@ -395,7 +400,7 @@ private fun ChannelContent(
     onScrollChanged: (index: Int, offset: Int) -> Unit = { _, _ -> },
     onCollapsedTitleVisibilityChange: (Boolean) -> Unit = {},
 ) {
-    val channelInfo = uiState.channelInfo ?: return
+    val header = uiState.header ?: return
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences =
@@ -415,15 +420,15 @@ private fun ChannelContent(
 
     val pagerState =
         rememberPagerState(
-            initialPage = visibleTabs.indexOf(ChannelTab.from(uiState.selectedTab)).coerceAtLeast(0),
+            initialPage = visibleTabs.indexOfFirst { it.kind == uiState.selectedTab }.coerceAtLeast(0),
             pageCount = { visibleTabs.size },
         )
 
     val settledTab = visibleTabs.getOrElse(pagerState.settledPage) { ChannelTab.Videos }
 
     // Persist only fully settled pages so an in-progress swipe cannot trigger a competing animation.
-    LaunchedEffect(channelInfo.id, settledTab) {
-        onTabSelected(settledTab.ordinal)
+    LaunchedEffect(header.id, settledTab) {
+        onTabSelected(settledTab.kind)
     }
 
     val showFilterBar =
@@ -702,7 +707,7 @@ private fun ChannelContent(
                         errorLog = communityUiState.postsErrorLog,
                         listState = postsListState,
                         contentPadding = listPadding,
-                        onAuthorClick = { onChannelClick(channelInfo.id) },
+                        onAuthorClick = { onChannelClick(header.id) },
                         onCommentsClick = onCommunityPostComments,
                         onShareClick = onCommunityPostShare,
                         onLoadMore = onLoadMoreCommunityPosts,
@@ -716,7 +721,7 @@ private fun ChannelContent(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = listPadding,
                     ) {
-                        item { AboutSection(channelInfo = channelInfo) }
+                        item { AboutSection(header = header) }
                         item { Spacer(Modifier.height(16.dp)) }
                     }
                 }
@@ -736,9 +741,8 @@ private fun ChannelContent(
                         .background(MaterialTheme.colorScheme.background)
                         .onSizeChanged { collapsingHeaderHeightPx = it.height.toFloat() },
             ) {
-                ChannelHeader(
-                    channelInfo = channelInfo,
-                    channelVideoCountText = uiState.channelVideoCountText,
+                ChannelHeaderSection(
+                    header = header,
                     isSubscribed = uiState.isSubscribed,
                     isNotificationsEnabled = uiState.isNotificationsEnabled,
                     onSubscribeClick = onSubscribeClick,
@@ -900,9 +904,8 @@ private fun ChannelGroupSheet(
 }
 
 @Composable
-private fun ChannelHeader(
-    channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo,
-    channelVideoCountText: String?,
+private fun ChannelHeaderSection(
+    header: ChannelHeader,
     isSubscribed: Boolean,
     isNotificationsEnabled: Boolean,
     onSubscribeClick: () -> Unit,
@@ -910,34 +913,15 @@ private fun ChannelHeader(
     onNotificationChange: (Boolean) -> Unit,
     onManageGroups: (() -> Unit)?,
 ) {
-    val bannerUrl =
-        try {
-            val rawBanner =
-                channelInfo.banners.maxByOrNull { it.width }?.url
-                    ?: channelInfo.banners.firstOrNull()?.url
-            ThumbnailUrlResolver.resolveChannelBanner(rawBanner, targetWidth = 2048)
-        } catch (e: Exception) {
-            null
-        }
-    // Use highest-res avatar available
-    val avatarUrl =
-        try {
-            channelInfo.avatars.maxByOrNull { it.height }?.url
-                ?: channelInfo.avatars.firstOrNull()?.url
-        } catch (e: Exception) {
-            null
-        }
-    var showFullSizeAvatar by remember { mutableStateOf(false) }
+    val bannerUrl = remember(header.bannerUrl) { ThumbnailUrlResolver.resolveChannelBanner(header.bannerUrl, targetWidth = 2048) }
+    var showFullSizeAvatar by remember(header.id) { mutableStateOf(false) }
 
-    if (showFullSizeAvatar && !avatarUrl.isNullOrEmpty()) {
+    if (showFullSizeAvatar && header.avatarUrl.isNotEmpty()) {
         FullSizeImageDialog(
-            imageUrl = avatarUrl,
+            imageUrl = header.avatarUrl,
             onDismiss = { showFullSizeAvatar = false },
         )
     }
-
-    Log.d("ChannelHeader", "channel=${channelInfo.name} avatarUrl=$avatarUrl bannerUrl=$bannerUrl")
-    val context = LocalContext.current
 
     Column(
         modifier =
@@ -945,9 +929,10 @@ private fun ChannelHeader(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.background),
     ) {
-        ChannelBanner(imageUrl = bannerUrl)
+        if (!bannerUrl.isNullOrBlank()) {
+            ChannelBanner(imageUrl = bannerUrl)
+        }
 
-        // ── Avatar row + subscribe button ────────────────────────────────────
         Row(
             modifier =
                 Modifier
@@ -957,67 +942,16 @@ private fun ChannelHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Avatar: shows image with icon fallback on error or null URL
-            Box(
+            ChannelAvatarImage(
+                url = header.avatarUrl,
+                contentDescription = stringResource(R.string.channel_avatar),
                 modifier =
                     Modifier
                         .size(72.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = CircleShape,
-                        ).clickable(enabled = !avatarUrl.isNullOrEmpty()) {
-                            showFullSizeAvatar = true
-                        },
-                contentAlignment = Alignment.Center,
-            ) {
-                if (!avatarUrl.isNullOrEmpty()) {
-                    var avatarFailed by remember(avatarUrl) { mutableStateOf(false) }
-                    var retryUrl by remember(avatarUrl) { mutableStateOf(avatarUrl) }
-                    var didRetry by remember(avatarUrl) { mutableStateOf(false) }
-                    if (avatarFailed) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize().padding(4.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        AsyncImage(
-                            model = retryUrl,
-                            contentDescription = stringResource(R.string.channel_avatar),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            onError = { err ->
-                                val msg = err.result.throwable?.message ?: "unknown"
-                                if (!didRetry) {
-                                    didRetry = true
-                                    val lowRes = retryUrl.replace(Regex("=s\\d+"), "=s88")
-                                    if (lowRes != retryUrl) {
-                                        Log.w("ChannelHeader", "Avatar failed '$retryUrl' ($msg) → retrying '$lowRes'")
-                                        retryUrl = lowRes
-                                    } else {
-                                        Log.e("ChannelHeader", "Avatar failed '$retryUrl' ($msg), no size param → icon")
-                                        avatarFailed = true
-                                    }
-                                } else {
-                                    Log.e("ChannelHeader", "Avatar retry failed '$retryUrl' ($msg) → icon")
-                                    avatarFailed = true
-                                }
-                            },
-                        )
-                    }
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize().padding(4.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+                        .clickable(enabled = header.avatarUrl.isNotEmpty()) { showFullSizeAvatar = true },
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -1031,7 +965,6 @@ private fun ChannelHeader(
             )
         }
 
-        // ── Channel name + stats ─────────────────────────────────────────────
         Column(
             modifier =
                 Modifier
@@ -1041,33 +974,26 @@ private fun ChannelHeader(
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             Text(
-                text = channelInfo.name,
+                text = header.title,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
 
-            val subText =
-                context.getString(
-                    R.string.subscribers_count_template,
-                    formatSubscriberCount(channelInfo.subscriberCount),
-                )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = subText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.extendedColors.textSecondary,
-                )
-                channelVideoCountText?.let { videoCountText ->
-                    Text(
-                        text = videoCountText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.extendedColors.textSecondary,
-                    )
+            val metadata = remember(header) { listOfNotNull(header.handle, header.subscriberCountText, header.videoCountText) }
+            if (metadata.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    metadata.forEach { entry ->
+                        Text(
+                            text = entry,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.extendedColors.textSecondary,
+                        )
+                    }
                 }
             }
         }
@@ -1128,7 +1054,7 @@ private fun LazyListScope.videosContent(
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
-            item { EmptyState(message = stringResource(R.string.error_no_videos_found)) }
+            item { FlowEmptyState(title = stringResource(R.string.error_no_videos_found)) }
             return
         }
         items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
@@ -1145,7 +1071,7 @@ private fun LazyListScope.videosContent(
     if (pagingItems == null ||
         (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
     ) {
-        item { EmptyState(message = stringResource(R.string.error_no_videos_found)) }
+        item { FlowEmptyState(title = stringResource(R.string.error_no_videos_found)) }
         return
     }
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
@@ -1166,7 +1092,7 @@ private fun LazyListScope.shortsContent(
     if (pagingItems == null ||
         (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
     ) {
-        item { EmptyState(message = stringResource(R.string.error_no_shorts_found)) }
+        item { FlowEmptyState(title = stringResource(R.string.error_no_shorts_found)) }
         return
     }
     val count = pagingItems.itemCount
@@ -1203,7 +1129,7 @@ private fun LazyListScope.liveContent(
 ) {
     if (sortedItems != null) {
         if (sortedItems.isEmpty()) {
-            item { EmptyState(message = stringResource(R.string.error_no_live_videos_found)) }
+            item { FlowEmptyState(title = stringResource(R.string.error_no_live_videos_found)) }
             return
         }
         items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
@@ -1220,7 +1146,7 @@ private fun LazyListScope.liveContent(
     if (pagingItems == null ||
         (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
     ) {
-        item { EmptyState(message = stringResource(R.string.error_no_live_videos_found)) }
+        item { FlowEmptyState(title = stringResource(R.string.error_no_live_videos_found)) }
         return
     }
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
@@ -1241,7 +1167,7 @@ private fun LazyListScope.playlistsContent(
     if (pagingItems == null ||
         (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
     ) {
-        item { EmptyState(message = stringResource(R.string.error_no_playlists_found)) }
+        item { FlowEmptyState(title = stringResource(R.string.error_no_playlists_found)) }
         return
     }
     items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
@@ -1282,9 +1208,9 @@ private fun ShortsGridCard(
                     Modifier
                         .align(Alignment.BottomStart)
                         .padding(6.dp)
-                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.scrim, RoundedCornerShape(4.dp))
                         .padding(horizontal = 5.dp, vertical = 2.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
             )
@@ -1300,10 +1226,20 @@ private fun ShortsGridCard(
     }
 }
 
-// About section
 @Composable
-private fun AboutSection(channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo) {
-    val context = LocalContext.current
+private fun AboutSection(header: ChannelHeader) {
+    val uriHandler = LocalUriHandler.current
+    val rows =
+        remember(header) {
+            listOfNotNull(
+                header.handle?.let { R.string.channel_about_handle to it },
+                header.subscriberCountText?.let { R.string.subscribers to it },
+                header.videoCountText?.let { R.string.channel_about_videos to it },
+                header.viewCountText?.let { R.string.views to it },
+                header.joinedDateText?.let { R.string.channel_about_joined to it },
+                header.countryText?.let { R.string.channel_about_country to it },
+            )
+        }
 
     Column(
         modifier =
@@ -1312,93 +1248,82 @@ private fun AboutSection(channelInfo: org.schabi.newpipe.extractor.channel.Chann
                 .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        if (!channelInfo.description.isNullOrBlank()) {
+        if (!header.description.isNullOrBlank()) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                AboutHeading(stringResource(R.string.about))
                 Text(
-                    text = stringResource(R.string.about),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.extendedColors.textSecondary,
-                )
-                Text(
-                    text = channelInfo.description,
+                    text = header.description,
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
 
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            thickness = 0.5.dp,
-        )
+        if (rows.isNotEmpty()) {
+            if (!header.description.isNullOrBlank()) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 0.5.dp)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AboutHeading(stringResource(R.string.stats))
+                rows.forEach { (labelRes, value) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = stringResource(labelRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.extendedColors.textSecondary,
+                        )
+                        Text(
+                            text = value,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+            }
+        }
 
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                text = stringResource(R.string.stats),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.extendedColors.textSecondary,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(R.string.subscribers),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.extendedColors.textSecondary,
-                )
-                Text(
-                    text =
-                        context.getString(
-                            R.string.subscribers_count_template,
-                            formatSubscriberCount(channelInfo.subscriberCount),
-                        ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
+        if (header.links.isNotEmpty()) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 0.5.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AboutHeading(stringResource(R.string.channel_about_links))
+                header.links.forEach { link ->
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { uriHandler.openUri(link.url) },
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (!link.iconUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = link.iconUrl,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        Text(
+                            text = link.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         }
     }
 }
 
-// Error state
 @Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-        )
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.retry))
-        }
-    }
-}
-
-// Empty state
-@Composable
-private fun EmptyState(message: String) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 64.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.extendedColors.textSecondary,
-        )
-    }
+private fun AboutHeading(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.extendedColors.textSecondary,
+    )
 }

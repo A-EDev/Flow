@@ -462,6 +462,13 @@
     <!-- Channel Screen -->
     <string name="channel_default_title">Channel</string>
     <string name="channel_banner">Channel banner</string>
+    <string name="channel_about_handle">Handle</string>
+    <string name="channel_about_joined">Joined</string>
+    <string name="channel_about_country">Country</string>
+    <string name="channel_about_videos">Videos</string>
+    <string name="channel_about_links">Links</string>
+    <string name="channel_post_image_count">%1$d / %2$d</string>
+    <string name="channel_post_poll_votes">%1$s</string>
     <string name="channel_avatar">Channel avatar</string>
     <string name="subscribe">Subscribe</string>
     <string name="unlike">Unlike</string>

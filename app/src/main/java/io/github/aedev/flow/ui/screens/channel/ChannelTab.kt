@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.channel
 
 import androidx.annotation.StringRes
 import io.github.aedev.flow.R
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 
 /**
  * The channel screen's tabs, addressed by identity rather than by position.
@@ -12,13 +13,14 @@ import io.github.aedev.flow.R
  */
 enum class ChannelTab(
     @StringRes val titleRes: Int,
+    val kind: ChannelTabKind,
 ) {
-    Videos(R.string.tab_videos),
-    Shorts(R.string.tab_shorts),
-    Live(R.string.tab_live),
-    Playlists(R.string.tab_playlists),
-    Posts(R.string.tab_posts),
-    About(R.string.tab_about),
+    Videos(R.string.tab_videos, ChannelTabKind.Videos),
+    Shorts(R.string.tab_shorts, ChannelTabKind.Shorts),
+    Live(R.string.tab_live, ChannelTabKind.Live),
+    Playlists(R.string.tab_playlists, ChannelTabKind.Playlists),
+    Posts(R.string.tab_posts, ChannelTabKind.Posts),
+    About(R.string.tab_about, ChannelTabKind.Unknown),
     ;
 
     companion object {

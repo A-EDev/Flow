@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -57,16 +58,16 @@ class ChannelViewModelTest {
             assertThat(state.channelId).isNull()
             assertThat(state.isLoading).isFalse()
             assertThat(state.isSubscribed).isFalse()
-            assertThat(state.selectedTab).isEqualTo(0)
+            assertThat(state.selectedTab).isEqualTo(ChannelTabKind.Videos)
         }
 
     @Test
     fun `selectTab updates selectedTab in uiState`() =
         runTest {
-            viewModel.selectTab(2)
+            viewModel.selectTab(ChannelTabKind.Live)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            assertThat(viewModel.uiState.value.selectedTab).isEqualTo(2)
+            assertThat(viewModel.uiState.value.selectedTab).isEqualTo(ChannelTabKind.Live)
         }
 
     @Test
