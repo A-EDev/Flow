@@ -77,7 +77,7 @@ internal fun JsonElement.channelItemContinuation(): String? =
  * Every array that holds grid items, across the four shapes a channel tab arrives in: an initial
  * browse, a sort switch, a page append, and the older `richGridContinuation`.
  */
-private fun JsonElement.gridItemLists(): List<JsonArray> {
+internal fun JsonElement.gridItemLists(): List<JsonArray> {
     val lists = mutableListOf<JsonArray>()
 
     fun collect(node: JsonElement) {
