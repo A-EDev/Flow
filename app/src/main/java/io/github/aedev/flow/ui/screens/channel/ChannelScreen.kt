@@ -2,9 +2,6 @@ package io.github.aedev.flow.ui.screens.channel
 
 import android.content.Intent
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,17 +12,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -34,26 +27,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ViewList
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.NotificationsOff
-import androidx.compose.material.icons.rounded.PersonRemove
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,6 +53,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,7 +66,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -102,10 +84,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.SubscriptionGroup
@@ -115,10 +95,8 @@ import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.ChannelBanner
-import io.github.aedev.flow.ui.components.CompactVideoCard
-import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.SortChipRow
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.channel.ChannelTabItems
 import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
 import io.github.aedev.flow.ui.components.shared.CollectionSheetEntry
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
@@ -128,16 +106,12 @@ import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.shared.SaveToCollectionSheet
-import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
 import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
-import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-
-private typealias SortedVideos = List<Video>?
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,23 +128,10 @@ fun ChannelScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val communityUiState by viewModel.communityUiState.collectAsState()
-    val shortsPagingFlow by viewModel.shortsPagingFlow.collectAsState()
-    val playlistsPagingFlow by viewModel.playlistsPagingFlow.collectAsState()
-    val allVideos by viewModel.videosAll.collectAsState()
-    val allLiveVideos by viewModel.liveAll.collectAsState()
-    val isLoadingAllVideos by viewModel.isLoadingAllVideos.collectAsState()
+    val tabStates by viewModel.tabStates.collectAsStateWithLifecycle()
     val subscriptionGroups by viewModel.subscriptionGroups.collectAsStateWithLifecycle()
     var showGroupSheet by rememberSaveable { mutableStateOf(false) }
     var showCreateGroupDialog by rememberSaveable { mutableStateOf(false) }
-
-    val shortsLazyPagingItems = shortsPagingFlow?.collectAsLazyPagingItems()
-    val shortsSorts by viewModel.shortsSorts.collectAsState()
-    val selectedShortsSort by viewModel.selectedShortsSort.collectAsState()
-    val videosSorts by viewModel.videosSorts.collectAsState()
-    val selectedVideosSort by viewModel.selectedVideosSort.collectAsState()
-    val liveSorts by viewModel.liveSorts.collectAsState()
-    val selectedLiveSort by viewModel.selectedLiveSort.collectAsState()
-    val playlistsLazyPagingItems = playlistsPagingFlow?.collectAsLazyPagingItems()
 
     LaunchedEffect(channelUrl) { viewModel.loadChannel(channelUrl) }
 
@@ -262,23 +223,13 @@ fun ChannelScreen(
                         ChannelContent(
                             uiState = uiState,
                             communityUiState = communityUiState,
-                            allVideos = allVideos,
-                            isLoadingAllVideos = isLoadingAllVideos,
-                            shortsLazyPagingItems = shortsLazyPagingItems,
-                            shortsSorts = shortsSorts,
-                            selectedShortsSort = selectedShortsSort,
-                            onShortsSortSelected = viewModel::selectShortsSort,
-                            videosSorts = videosSorts,
-                            selectedVideosSort = selectedVideosSort,
-                            onVideosSortSelected = viewModel::selectVideosSort,
-                            liveSorts = liveSorts,
-                            selectedLiveSort = selectedLiveSort,
-                            onLiveSortSelected = viewModel::selectLiveSort,
-                            allLiveVideos = allLiveVideos,
-                            playlistsLazyPagingItems = playlistsLazyPagingItems,
+                            tabStates = tabStates,
+                            onFilterSelected = viewModel::selectTabFilter,
                             onVideoClick = onVideoClick,
                             onChannelClick = onChannelClick,
-                            onShortClick = { videoId -> onShortClick(videoId, selectedShortsSort) },
+                            onShortClick = { videoId ->
+                                onShortClick(videoId, tabStates[ChannelTabKind.Shorts]?.selectedFilter ?: 0)
+                            },
                             onPlaylistClick = onPlaylistClick,
                             onSubscribeClick = { viewModel.toggleSubscription() },
                             onUnsubscribeClick = { viewModel.unsubscribe() },
@@ -367,20 +318,8 @@ private fun ChannelContent(
     uiState: ChannelUiState,
     onManageGroups: (() -> Unit)?,
     communityUiState: ChannelCommunityUiState,
-    allVideos: List<Video>,
-    isLoadingAllVideos: Boolean,
-    shortsLazyPagingItems: LazyPagingItems<Video>?,
-    shortsSorts: List<String>,
-    selectedShortsSort: Int,
-    onShortsSortSelected: (Int) -> Unit,
-    videosSorts: List<String>,
-    selectedVideosSort: Int,
-    onVideosSortSelected: (Int) -> Unit,
-    liveSorts: List<String>,
-    selectedLiveSort: Int,
-    onLiveSortSelected: (Int) -> Unit,
-    allLiveVideos: List<Video>,
-    playlistsLazyPagingItems: LazyPagingItems<io.github.aedev.flow.data.model.Playlist>?,
+    tabStates: Map<ChannelTabKind, ChannelTabState>,
+    onFilterSelected: (ChannelTabKind, Int) -> Unit,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
     onShortClick: (String) -> Unit,
@@ -412,46 +351,34 @@ private fun ChannelContent(
     val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
     val coroutineScope = rememberCoroutineScope()
 
-    val sortedVideos: List<Video> = allVideos
-    val sortedLive: List<Video> = allLiveVideos
+    val aboutTitle = stringResource(R.string.tab_about)
+    val visibleTabs =
+        remember(uiState.tabs, uiState.header, shortsContentEnabled, aboutTitle) {
+            channelScreenTabs(uiState.tabs, uiState.header, shortsContentEnabled, aboutTitle)
+        }
+    if (visibleTabs.isEmpty()) return
 
-    val visibleTabs = ChannelTab.visible(shortsEnabled = shortsContentEnabled)
-    val tabTitles = visibleTabs.map { stringResource(it.titleRes) }
-
+    // Keyed on the resolved list: the tab count changes once, when the header lands, and a pager
+    // holding a stale count indexes out of bounds on the first swipe.
     val pagerState =
-        rememberPagerState(
-            initialPage = visibleTabs.indexOfFirst { it.kind == uiState.selectedTab }.coerceAtLeast(0),
-            pageCount = { visibleTabs.size },
-        )
+        key(visibleTabs) {
+            rememberPagerState(
+                initialPage = visibleTabs.indexOfFirst { it.kind == uiState.selectedTab }.coerceAtLeast(0),
+                pageCount = { visibleTabs.size },
+            )
+        }
 
-    val settledTab = visibleTabs.getOrElse(pagerState.settledPage) { ChannelTab.Videos }
+    val settledTab = visibleTabs.getOrElse(pagerState.settledPage) { visibleTabs.first() }
 
     // Persist only fully settled pages so an in-progress swipe cannot trigger a competing animation.
     LaunchedEffect(header.id, settledTab) {
         onTabSelected(settledTab.kind)
     }
 
-    val showFilterBar =
-        settledTab == ChannelTab.Videos || settledTab == ChannelTab.Live || settledTab == ChannelTab.Shorts
-
-    val activeSorts =
-        when (settledTab) {
-            ChannelTab.Shorts -> shortsSorts
-            ChannelTab.Live -> liveSorts
-            else -> videosSorts
-        }
-    val activeSortIndex =
-        when (settledTab) {
-            ChannelTab.Shorts -> selectedShortsSort
-            ChannelTab.Live -> selectedLiveSort
-            else -> selectedVideosSort
-        }
-    val onActiveSortSelected: (Int) -> Unit =
-        when (settledTab) {
-            ChannelTab.Shorts -> onShortsSortSelected
-            ChannelTab.Live -> onLiveSortSelected
-            else -> onVideosSortSelected
-        }
+    val activeState = tabStates[settledTab.kind]
+    val activeSorts = activeState?.filters.orEmpty()
+    val activeSortIndex = activeState?.selectedFilter ?: 0
+    val showFilterBar = !settledTab.isAbout && settledTab.kind != ChannelTabKind.Posts
 
     var collapsingHeaderHeightPx by remember { mutableFloatStateOf(0f) }
     var stickySectionHeightPx by remember { mutableFloatStateOf(0f) }
@@ -524,15 +451,23 @@ private fun ChannelContent(
     val playlistsListState = rememberLazyListState()
     val postsListState = rememberLazyListState()
     val aboutListState = rememberLazyListState()
+    val genericListState = rememberLazyListState()
+
+    fun listStateFor(kind: ChannelTabKind) =
+        when (kind) {
+            ChannelTabKind.Videos -> videosListState
+            ChannelTabKind.Shorts -> shortsListState
+            ChannelTabKind.Live -> liveListState
+            ChannelTabKind.Playlists -> playlistsListState
+            else -> genericListState
+        }
 
     LaunchedEffect(videosListState) {
         snapshotFlow { videosListState.firstVisibleItemIndex to videosListState.firstVisibleItemScrollOffset }
             .collect { (index, offset) -> onScrollChanged(index, offset) }
     }
 
-    LaunchedEffect(selectedVideosSort) { videosListState.scrollToItem(0) }
-    LaunchedEffect(selectedLiveSort) { liveListState.scrollToItem(0) }
-    LaunchedEffect(selectedShortsSort) { shortsListState.scrollToItem(0) }
+    LaunchedEffect(activeSortIndex, settledTab.kind) { listStateFor(settledTab.kind).scrollToItem(0) }
 
     Box(
         modifier =
@@ -551,154 +486,21 @@ private fun ChannelContent(
             userScrollEnabled = true,
         ) { page ->
             val listPadding = PaddingValues(top = visibleHeaderHeightDp)
+            val tab = visibleTabs.getOrElse(page) { visibleTabs.first() }
 
-            when (visibleTabs.getOrElse(page) { ChannelTab.Videos }) {
-                ChannelTab.Videos -> {
-                    when {
-                        uiState.searchActive && uiState.searchQuery.isNotBlank() -> {
-                            when {
-                                uiState.isSearching -> {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center,
-                                    ) { CircularProgressIndicator() }
-                                }
-
-                                uiState.searchErrorLog != null -> {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        ChannelRequestErrorState(
-                                            message = stringResource(R.string.channel_search_failed),
-                                            errorLog = uiState.searchErrorLog,
-                                            onRetry = {
-                                                onSearchQueryChange(uiState.searchQuery)
-                                            },
-                                        )
-                                    }
-                                }
-
-                                uiState.searchResults.isEmpty() -> {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.channel_search_no_results, uiState.searchQuery),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-
-                                else -> {
-                                    LazyColumn(
-                                        state = videosListState,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = listPadding,
-                                    ) {
-                                        videosContent(
-                                            pagingItems = null,
-                                            sortedItems = uiState.searchResults,
-                                            isGridView = isGridView,
-                                            listKeyPrefix = "Search_${uiState.searchQuery}",
-                                            onVideoClick = onVideoClick,
-                                        )
-                                        item { Spacer(Modifier.height(16.dp)) }
-                                    }
-                                }
-                            }
-                        }
-
-                        isLoadingAllVideos && sortedVideos.isEmpty() -> {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(top = visibleHeaderHeightDp),
-                                contentAlignment = Alignment.Center,
-                            ) { CircularProgressIndicator() }
-                        }
-
-                        else -> {
-                            LazyColumn(
-                                state = videosListState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = listPadding,
-                            ) {
-                                videosContent(
-                                    pagingItems = null,
-                                    sortedItems = sortedVideos,
-                                    isGridView = isGridView,
-                                    listKeyPrefix = selectedVideosSort.toString(),
-                                    onVideoClick = onVideoClick,
-                                )
-                                item { Spacer(Modifier.height(16.dp)) }
-                            }
-                        }
-                    }
-                }
-
-                ChannelTab.Shorts -> {
+            when {
+                tab.isAbout -> {
                     LazyColumn(
-                        state = shortsListState,
+                        state = aboutListState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = listPadding,
                     ) {
-                        shortsContent(shortsLazyPagingItems, onShortClick)
+                        item { AboutSection(header = header) }
                         item { Spacer(Modifier.height(16.dp)) }
                     }
                 }
 
-                ChannelTab.Live -> {
-                    if (isLoadingAllVideos && sortedLive.isEmpty()) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(top = visibleHeaderHeightDp),
-                            contentAlignment = Alignment.Center,
-                        ) { CircularProgressIndicator() }
-                    } else {
-                        LazyColumn(
-                            state = liveListState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = listPadding,
-                        ) {
-                            liveContent(
-                                pagingItems = null,
-                                sortedItems = sortedLive,
-                                isGridView = isGridView,
-                                listKeyPrefix = selectedLiveSort.toString(),
-                                onVideoClick = onVideoClick,
-                            )
-                            item { Spacer(Modifier.height(16.dp)) }
-                        }
-                    }
-                }
-
-                ChannelTab.Playlists -> {
-                    LazyColumn(
-                        state = playlistsListState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = listPadding,
-                    ) {
-                        playlistsContent(playlistsLazyPagingItems, onPlaylistClick)
-                        item { Spacer(Modifier.height(16.dp)) }
-                    }
-                }
-
-                ChannelTab.Posts -> {
+                tab.kind == ChannelTabKind.Posts -> {
                     ChannelCommunityPosts(
                         posts = communityUiState.posts,
                         isLoading = communityUiState.isLoadingPosts,
@@ -715,15 +517,32 @@ private fun ChannelContent(
                     )
                 }
 
-                ChannelTab.About -> {
-                    LazyColumn(
-                        state = aboutListState,
-                        modifier = Modifier.fillMaxSize(),
+                uiState.searchActive && uiState.searchQuery.isNotBlank() && tab.kind == ChannelTabKind.Videos -> {
+                    ChannelSearchResults(
+                        uiState = uiState,
+                        listState = videosListState,
                         contentPadding = listPadding,
-                    ) {
-                        item { AboutSection(header = header) }
-                        item { Spacer(Modifier.height(16.dp)) }
-                    }
+                        topInset = visibleHeaderHeightDp,
+                        isGridView = isGridView,
+                        onVideoClick = onVideoClick,
+                        onRetry = { onSearchQueryChange(uiState.searchQuery) },
+                    )
+                }
+
+                else -> {
+                    val items = tabStates[tab.kind]?.items?.collectAsLazyPagingItems()
+                    ChannelTabItems(
+                        pagingItems = items,
+                        kind = tab.kind,
+                        isGridView = isGridView,
+                        listState = listStateFor(tab.kind),
+                        contentPadding = listPadding,
+                        topInset = visibleHeaderHeightDp,
+                        onVideoClick = onVideoClick,
+                        onShortClick = onShortClick,
+                        onPlaylistClick = onPlaylistClick,
+                        onChannelClick = onChannelClick,
+                    )
                 }
             }
         }
@@ -761,7 +580,7 @@ private fun ChannelContent(
             ) {
                 ChannelTabRow(
                     selectedIndex = pagerState.currentPage,
-                    tabs = tabTitles,
+                    tabs = visibleTabs.map { it.title },
                     onTabSelected = { idx ->
                         coroutineScope.launch { pagerState.animateScrollToPage(idx) }
                     },
@@ -774,8 +593,8 @@ private fun ChannelContent(
                         searchActive = uiState.searchActive,
                         searchQuery = uiState.searchQuery,
                         // The Shorts tab is a fixed portrait grid and has no in-channel search.
-                        showListControls = settledTab != ChannelTab.Shorts,
-                        onSortSelected = onActiveSortSelected,
+                        showListControls = settledTab.kind != ChannelTabKind.Shorts,
+                        onSortSelected = { index -> onFilterSelected(settledTab.kind, index) },
                         onToggleGridView = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } },
                         onSearchToggle = onSearchToggle,
                         onSearchQueryChange = onSearchQueryChange,
@@ -1041,188 +860,6 @@ private fun ChannelTabRow(
                 )
             }
         }
-    }
-}
-
-// Tab content helpers (LazyListScope)
-private fun LazyListScope.videosContent(
-    pagingItems: LazyPagingItems<Video>?,
-    sortedItems: SortedVideos,
-    isGridView: Boolean,
-    listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit,
-) {
-    if (sortedItems != null) {
-        if (sortedItems.isEmpty()) {
-            item { FlowEmptyState(title = stringResource(R.string.error_no_videos_found)) }
-            return
-        }
-        items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
-            val video = sortedItems[idx]
-            if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
-            } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
-            }
-        }
-        return
-    }
-
-    if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
-    ) {
-        item { FlowEmptyState(title = stringResource(R.string.error_no_videos_found)) }
-        return
-    }
-    items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
-        pagingItems[index]?.let { video ->
-            if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
-            } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
-            }
-        }
-    }
-}
-
-private fun LazyListScope.shortsContent(
-    pagingItems: LazyPagingItems<Video>?,
-    onShortClick: (String) -> Unit,
-) {
-    if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
-    ) {
-        item { FlowEmptyState(title = stringResource(R.string.error_no_shorts_found)) }
-        return
-    }
-    val count = pagingItems.itemCount
-    val rowCount = (count + 1) / 2
-    items(count = rowCount, key = { rowIdx -> "shorts_row_$rowIdx" }) { rowIdx ->
-        val firstIdx = rowIdx * 2
-        val secondIdx = rowIdx * 2 + 1
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(1.dp),
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                pagingItems[firstIdx]?.let { video ->
-                    ShortsGridCard(video = video, onClick = { onShortClick(video.id) })
-                }
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                if (secondIdx < count) {
-                    pagingItems[secondIdx]?.let { video ->
-                        ShortsGridCard(video = video, onClick = { onShortClick(video.id) })
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun LazyListScope.liveContent(
-    pagingItems: LazyPagingItems<Video>?,
-    sortedItems: SortedVideos,
-    isGridView: Boolean,
-    listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit,
-) {
-    if (sortedItems != null) {
-        if (sortedItems.isEmpty()) {
-            item { FlowEmptyState(title = stringResource(R.string.error_no_live_videos_found)) }
-            return
-        }
-        items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
-            val video = sortedItems[idx]
-            if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
-            } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
-            }
-        }
-        return
-    }
-
-    if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
-    ) {
-        item { FlowEmptyState(title = stringResource(R.string.error_no_live_videos_found)) }
-        return
-    }
-    items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
-        pagingItems[index]?.let { video ->
-            if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
-            } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
-            }
-        }
-    }
-}
-
-private fun LazyListScope.playlistsContent(
-    pagingItems: LazyPagingItems<io.github.aedev.flow.data.model.Playlist>?,
-    onPlaylistClick: (String) -> Unit,
-) {
-    if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
-    ) {
-        item { FlowEmptyState(title = stringResource(R.string.error_no_playlists_found)) }
-        return
-    }
-    items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
-        pagingItems[index]?.let { playlist ->
-            PlaylistCard(playlist = playlist, onClick = { onPlaylistClick(playlist.id) })
-        }
-    }
-}
-
-// Shorts grid card (2-column)
-@Composable
-private fun ShortsGridCard(
-    video: Video,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(9f / 16f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-            Text(
-                text = formatViewCount(video.viewCount),
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(6.dp)
-                        .background(MaterialTheme.colorScheme.scrim, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
-                color = MaterialTheme.colorScheme.inverseOnSurface,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium,
-            )
-            ShortWatchedIndicator(videoId = video.id)
-        }
-        Text(
-            text = video.title,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

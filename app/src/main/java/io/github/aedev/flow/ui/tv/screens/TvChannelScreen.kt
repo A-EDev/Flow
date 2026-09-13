@@ -32,10 +32,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.pages.channel.ChannelItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.ui.screens.channel.ChannelViewModel
 import io.github.aedev.flow.ui.tv.components.TvButton
@@ -186,62 +186,15 @@ fun TvChannelScreen(
                 }
             }
 
-            selectedTab == TvChannelTab.PLAYLISTS -> {
-                val flow by viewModel.playlistsPagingFlow.collectAsStateWithLifecycle()
-                val playlists = flow?.collectAsLazyPagingItems()
-                if (playlists == null) {
-                    TvLoadingState(Modifier.weight(1f))
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(CHANNEL_GRID_COLUMNS),
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .tvRowFocus(),
-                        contentPadding =
-                            PaddingValues(
-                                start = dimens.overscanHorizontal,
-                                end = dimens.overscanHorizontal,
-                                bottom = dimens.overscanVertical,
-                            ),
-                        horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
-                        verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
-                    ) {
-                        items(
-                            count = playlists.itemCount,
-                            key = playlists.itemKey { "playlist:${it.id}" },
-                        ) { index ->
-                            playlists[index]?.let { playlist ->
-                                TvPlaylistCard(
-                                    playlist = playlist,
-                                    onClick = { onOpenPlaylist(playlist.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
-                        if (playlists.loadState.append is LoadState.Loading) {
-                            item(span = { GridItemSpan(maxLineSpan) }) { TvLoadingState() }
-                        }
-                    }
-                }
-            }
-
             else -> {
-                // The videos/live tabs are backed by the eagerly loaded full
-                // lists — the ViewModel never populates its paging flows for
-                // them (mobile reads these same lists for filtering support).
-                val videos by if (selectedTab == TvChannelTab.LIVE) {
-                    viewModel.liveAll.collectAsStateWithLifecycle()
-                } else {
-                    viewModel.videosAll.collectAsStateWithLifecycle()
-                }
-                val isLoadingAll by viewModel.isLoadingAllVideos.collectAsStateWithLifecycle()
+                val tabStates by viewModel.tabStates.collectAsStateWithLifecycle()
+                val items = tabStates[selectedTab.kind]?.items?.collectAsLazyPagingItems()
                 when {
-                    videos.isEmpty() && (isLoadingAll || uiState.isLoadingVideos || uiState.isLoading) -> {
+                    items == null || items.loadState.refresh is LoadState.Loading -> {
                         TvLoadingState(Modifier.weight(1f))
                     }
 
-                    videos.isEmpty() -> {
+                    items.itemCount == 0 -> {
                         TvMessageState(
                             title = stringResource(R.string.tv_library_empty),
                             modifier = Modifier.weight(1f),
@@ -264,18 +217,30 @@ fun TvChannelScreen(
                             horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                             verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                         ) {
-                            items(
-                                count = videos.size,
-                                key = { "video:$it:${videos[it].id}" },
-                            ) { index ->
-                                val video = videos[index]
-                                TvVideoCard(
-                                    video = video,
-                                    onClick = { onVideoClick(video) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
+                            items(count = items.itemCount) { index ->
+                                when (val item = items[index]) {
+                                    is ChannelItem.VideoItem -> {
+                                        TvVideoCard(
+                                            video = item.video,
+                                            onClick = { onVideoClick(item.video) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+
+                                    is ChannelItem.PlaylistItem -> {
+                                        TvPlaylistCard(
+                                            playlist = item.playlist,
+                                            onClick = { onOpenPlaylist(item.playlist.id) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+
+                                    else -> {
+                                        Unit
+                                    }
+                                }
                             }
-                            if (isLoadingAll) {
+                            if (items.loadState.append is LoadState.Loading) {
                                 item(span = { GridItemSpan(maxLineSpan) }) { TvLoadingState() }
                             }
                         }
