@@ -108,14 +108,27 @@ private fun LazyListScope.channelRows(
         when (val item = pagingItems[index]) {
             is ChannelItem.VideoItem -> {
                 if (isGridView) {
-                    VideoCardFullWidth(video = item.video, onClick = { onVideoClick(item.video) })
+                    VideoCardFullWidth(
+                        video = item.video,
+                        showChannelAvatar = false,
+                        showChannelName = false,
+                        onClick = { onVideoClick(item.video) },
+                    )
                 } else {
-                    CompactVideoCard(video = item.video, onClick = { onVideoClick(item.video) })
+                    CompactVideoCard(
+                        video = item.video,
+                        showChannelName = false,
+                        onClick = { onVideoClick(item.video) },
+                    )
                 }
             }
 
             is ChannelItem.ShortItem -> {
-                CompactVideoCard(video = item.video, onClick = { onShortClick(item.video.id) })
+                CompactVideoCard(
+                    video = item.video,
+                    showChannelName = false,
+                    onClick = { onShortClick(item.video.id) },
+                )
             }
 
             is ChannelItem.PlaylistItem -> {
