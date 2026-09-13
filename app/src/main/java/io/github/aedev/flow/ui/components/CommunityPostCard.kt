@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,7 +39,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
+import io.github.aedev.flow.ui.components.channel.CommunityPostAttachment
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatRichText
@@ -52,11 +53,10 @@ fun CommunityPostCard(
     onCommentsClick: () -> Unit,
     onShareClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onVideoClick: (Video) -> Unit = {},
 ) {
     var textExpanded by rememberSaveable(post.id) { mutableStateOf(false) }
     var textOverflows by rememberSaveable(post.id) { mutableStateOf(false) }
-    var showFullSizeImage by rememberSaveable(post.id) { mutableStateOf(false) }
-    val resolvedImageUrl = ThumbnailUrlResolver.resolveCommunityPostImage(post.imageUrl)
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val formattedText =
@@ -67,13 +67,6 @@ fun CommunityPostCard(
                 textColor = onSurfaceColor,
             )
         }
-
-    if (showFullSizeImage && resolvedImageUrl.isNotBlank()) {
-        FullSizeImageDialog(
-            imageUrl = resolvedImageUrl,
-            onDismiss = { showFullSizeImage = false },
-        )
-    }
 
     Card(
         modifier =
@@ -141,18 +134,10 @@ fun CommunityPostCard(
                 }
             }
 
-            if (resolvedImageUrl.isNotBlank()) {
-                AsyncImage(
-                    model = resolvedImageUrl,
-                    contentDescription = stringResource(R.string.community_post_image_content_description),
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 120.dp, max = 520.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { showFullSizeImage = true },
-                    contentScale = ContentScale.Fit,
+            post.attachment?.let { attachment ->
+                CommunityPostAttachment(
+                    attachment = attachment,
+                    onVideoClick = onVideoClick,
                 )
             }
 

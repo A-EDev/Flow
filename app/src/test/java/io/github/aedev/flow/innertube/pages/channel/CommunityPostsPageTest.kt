@@ -89,7 +89,7 @@ class CommunityPostsPageTest {
         assertEquals("Flow", post.authorName)
         assertEquals("https://avatar-large", post.authorAvatarUrl)
         assertEquals("Hello community", post.text)
-        assertEquals("https://post-large", post.imageUrl)
+        assertEquals(listOf("https://post-large"), (post.attachment as PostAttachment.Images).urls)
         assertEquals("1.2K", post.likeCountText)
         assertEquals("45", post.commentCountText)
         assertEquals("post-params", post.commentEndpointParams)
