@@ -468,6 +468,7 @@
     <string name="channel_about_videos">Videos</string>
     <string name="channel_about_links">Links</string>
     <string name="note_title">Note</string>
+    <string name="sync_collection_notes">Notes</string>
     <string name="note_edit">Edit note</string>
     <string name="note_add">Add note</string>
     <string name="note_placeholder">Write a note for yourself…</string>

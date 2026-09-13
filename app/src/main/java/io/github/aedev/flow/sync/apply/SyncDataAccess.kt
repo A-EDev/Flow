@@ -9,12 +9,14 @@ import io.github.aedev.flow.data.local.dao.PlaylistDao
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.local.entity.NoteEntity
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainStorage
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalLike
 import io.github.aedev.flow.sync.canonical.CanonicalMusicBrain
+import io.github.aedev.flow.sync.canonical.CanonicalNote
 import io.github.aedev.flow.sync.canonical.CanonicalPlaylist
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
@@ -57,6 +59,7 @@ class SyncDataAccess
         private val playlistDao: PlaylistDao,
         private val videoDao: VideoDao,
         private val subscriptionGroupDao: SubscriptionGroupDao,
+        private val noteDao: io.github.aedev.flow.data.local.dao.NoteDao,
         private val brainCrdtStore: BrainCrdtStore,
         private val musicBrainCrdtStore: MusicBrainCrdtStore,
         private val musicBrainEngine: MusicBrainEngine,
@@ -160,6 +163,37 @@ class SyncDataAccess
             val toUpsert = merged.filter { !it.deleted }.map { SubscriptionsMapper.toEntity(it) }
             if (toUpsert.isNotEmpty()) subscriptionGroupDao.insertAll(toUpsert)
             for (g in merged) if (g.deleted) subscriptionGroupDao.deleteGroup(g.name)
+        }
+
+        // --- notes ---
+
+        suspend fun readNotes(): List<CanonicalNote> =
+            noteDao.getAll().map { note ->
+                CanonicalNote(
+                    id = note.id,
+                    targetId = note.targetId,
+                    kind = note.kind,
+                    text = note.text,
+                    updatedAt = note.updatedAt,
+                )
+            }
+
+        suspend fun writeNotes(merged: List<CanonicalNote>) {
+            val live = merged.filter { !it.deleted && it.text.isNotBlank() }
+            if (live.isNotEmpty()) {
+                noteDao.upsertAll(
+                    live.map { note ->
+                        NoteEntity(
+                            id = note.id,
+                            targetId = note.targetId,
+                            kind = note.kind,
+                            text = note.text,
+                            updatedAt = note.updatedAt,
+                        )
+                    },
+                )
+            }
+            for (note in merged) if (note.deleted) noteDao.deleteById(note.id)
         }
 
         // --- playlists ---

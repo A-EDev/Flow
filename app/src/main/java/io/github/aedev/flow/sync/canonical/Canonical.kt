@@ -116,6 +116,16 @@ data class CanonicalSetting(
 )
 
 @Serializable
+data class CanonicalNote(
+    val id: String,
+    val targetId: String = "",
+    val kind: String = "",
+    val text: String = "",
+    val updatedAt: Long = 0L,
+    val deleted: Boolean = false,
+)
+
+@Serializable
 data class CanonicalSubscriptionGroup(
     val name: String,
     val channelIds: List<String> = emptyList(),

@@ -3,6 +3,7 @@ package io.github.aedev.flow.sync.protocol
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalLike
 import io.github.aedev.flow.sync.canonical.CanonicalMusicBrain
+import io.github.aedev.flow.sync.canonical.CanonicalNote
 import io.github.aedev.flow.sync.canonical.CanonicalPlaylist
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
@@ -128,6 +129,12 @@ object SyncSerialization {
 
     fun decodeSubscriptions(lines: List<String>): List<CanonicalSubscriptionGroup> =
         lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalSubscriptionGroup.serializer(), it) }
+
+    // --- notes ---
+    fun encodeNotes(records: List<CanonicalNote>) = wire(records.sortedBy { it.id }, CanonicalNote.serializer())
+
+    fun decodeNotes(lines: List<String>): List<CanonicalNote> =
+        lines.filter { it.isNotBlank() }.map { json.decodeFromString(CanonicalNote.serializer(), it) }
 
     // --- brain ---
     fun encodeBrain(brain: CanonicalBrain): CollectionWire {
