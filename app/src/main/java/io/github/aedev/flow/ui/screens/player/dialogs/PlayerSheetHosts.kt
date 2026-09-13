@@ -36,7 +36,7 @@ import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
-import io.github.aedev.flow.ui.components.shared.FlowNoteEditorSheet
+import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
@@ -148,7 +148,7 @@ internal fun PlayerDescriptionSheetHost(
     )
 
     if (showNoteEditor && videoNotesEnabled) {
-        FlowNoteEditorSheet(
+        FlowNoteEditorDialog(
             initialText = videoNote.orEmpty(),
             title = stringResource(R.string.note_video_title),
             onSave = { text -> viewModel.saveVideoNote(currentVideo.id, text) },

@@ -102,7 +102,7 @@ import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
-import io.github.aedev.flow.ui.components.shared.FlowNoteEditorSheet
+import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.shared.SaveToCollectionSheet
@@ -331,7 +331,7 @@ fun ChannelScreen(
     }
 
     if (showNoteEditor && notesEnabled) {
-        FlowNoteEditorSheet(
+        FlowNoteEditorDialog(
             initialText = channelNote.orEmpty(),
             title = stringResource(R.string.note_channel_title),
             onSave = viewModel::saveChannelNote,

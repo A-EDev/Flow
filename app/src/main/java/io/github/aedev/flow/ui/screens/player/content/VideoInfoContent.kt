@@ -19,7 +19,7 @@ import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.AddToPlaylistDialog
-import io.github.aedev.flow.ui.components.shared.FlowNoteEditorSheet
+import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
@@ -230,7 +230,7 @@ internal fun VideoInfoContent(
     }
 
     if (showNoteEditor && videoNotesEnabled) {
-        FlowNoteEditorSheet(
+        FlowNoteEditorDialog(
             initialText = videoNote.orEmpty(),
             title = stringResource(R.string.note_video_title),
             onSave = { text -> viewModel.saveVideoNote(video.id, text) },

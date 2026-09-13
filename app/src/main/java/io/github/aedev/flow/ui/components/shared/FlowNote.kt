@@ -6,17 +6,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -115,9 +112,8 @@ fun FlowNoteCard(
  * Writes or clears one note. Saving empty text deletes it, so there is no separate delete action to
  * reason about.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun FlowNoteEditorSheet(
+fun FlowNoteEditorDialog(
     initialText: String,
     title: String,
     onSave: (String) -> Unit,
@@ -125,45 +121,42 @@ fun FlowNoteEditorSheet(
 ) {
     var value by remember(initialText) { mutableStateOf(TextFieldValue(initialText, TextRange(initialText.length))) }
 
-    FlowBottomSheet(onDismiss = onDismiss) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Outlined.StickyNote2,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
             )
+        },
+        title = { Text(title) },
+        text = {
             OutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 140.dp),
+                        .heightIn(min = EditorMinHeight),
                 placeholder = { Text(stringResource(R.string.note_placeholder)) },
                 shape = MaterialTheme.shapes.large,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-            ) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-                Button(
-                    onClick = {
-                        onSave(value.text)
-                        onDismiss()
-                    },
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(stringResource(R.string.save))
-                }
+        },
+        confirmButton = {
+            Button(onClick = {
+                onSave(value.text)
+                onDismiss()
+            }) {
+                Text(stringResource(R.string.save))
             }
-        }
-    }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
 }
+
+private val EditorMinHeight = 140.dp
