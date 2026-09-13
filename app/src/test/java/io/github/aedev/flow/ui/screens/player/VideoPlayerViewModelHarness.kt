@@ -145,6 +145,7 @@ internal class VideoPlayerViewModelHarness(
         every { context.getString(any(), *anyVararg()) } answers { "res:${firstArg<Int>()}" }
 
         every { playerPreferences.shortsContentEnabled } returns flowOf(true)
+        every { playerPreferences.effectiveVideoNotesEnabled } returns flowOf(false)
         every { playerPreferences.miniPlayerContinueWatchingEnabled } returns continueWatchingEnabled
         every { playerPreferences.autoplayEnabled } returns autoplayEnabled
         every { playerPreferences.upcomingVideoReminderIds } returns flowOf(emptySet())
@@ -201,6 +202,7 @@ internal class VideoPlayerViewModelHarness(
                     networkDispatcher = testDispatcher,
                     ioDispatcher = testDispatcher,
                 ),
+            notesRepository = mockk(relaxed = true),
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )

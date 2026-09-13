@@ -66,11 +66,22 @@ class VideoPlayerViewModel
         private val playerManager: EnhancedPlayerManager,
         private val upcomingPremiereProbe: UpcomingPremiereProbe,
         private val playbackResolver: PlaybackLoadResolver,
+        notesRepository: io.github.aedev.flow.data.notes.NotesRepository,
         @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(VideoPlayerUiState())
         val uiState: StateFlow<VideoPlayerUiState> = _uiState.asStateFlow()
+
+        private val notes = PlayerNotes(notesRepository, playerPreferences, viewModelScope)
+
+        val videoNote: StateFlow<String?> = notes.note
+        val videoNotesEnabled: StateFlow<Boolean> = notes.enabled
+
+        fun saveVideoNote(
+            videoId: String,
+            text: String,
+        ) = notes.save(videoId, text)
 
         private val collaborators =
             PlayerCollaborators(
@@ -456,6 +467,7 @@ class VideoPlayerViewModel
             escalateToSabr: Boolean = false,
             resumePositionOverrideMs: Long? = null,
         ) {
+            notes.observe(videoId)
             if (isLocalMediaId(videoId)) {
                 Log.d("VideoPlayerViewModel", "loadVideoInfo: $videoId is a local file — skipping all network loading")
                 return
