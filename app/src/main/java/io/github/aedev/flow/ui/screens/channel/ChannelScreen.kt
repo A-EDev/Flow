@@ -125,12 +125,24 @@ fun ChannelScreen(
     viewModel: ChannelViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val preferences =
+        remember(context) {
+            io.github.aedev.flow.data.local
+                .PlayerPreferences(context)
+        }
+    val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
     val uiState by viewModel.uiState.collectAsState()
     val communityUiState by viewModel.communityUiState.collectAsState()
     val tabStates by viewModel.tabStates.collectAsStateWithLifecycle()
     val subscriptionGroups by viewModel.subscriptionGroups.collectAsStateWithLifecycle()
     var showGroupSheet by rememberSaveable { mutableStateOf(false) }
     var showCreateGroupDialog by rememberSaveable { mutableStateOf(false) }
+
+    // Shelves and posts have their own layout; only the item grids can switch.
+    val showLayoutToggle =
+        uiState.selectedTab != null &&
+            uiState.selectedTab !in setOf(ChannelTabKind.Home, ChannelTabKind.Posts)
 
     LaunchedEffect(channelUrl) { viewModel.loadChannel(channelUrl) }
 
@@ -183,6 +195,19 @@ fun ChannelScreen(
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (showLayoutToggle) {
+                    IconButton(onClick = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } }) {
+                        Icon(
+                            imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
+                            contentDescription =
+                                if (isGridView) {
+                                    stringResource(R.string.ui_list_view)
+                                } else {
+                                    stringResource(R.string.ui_grid_view)
+                                },
                         )
                     }
                 }

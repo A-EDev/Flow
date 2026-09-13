@@ -14,9 +14,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
@@ -54,12 +52,10 @@ import io.github.aedev.flow.ui.components.shared.FlowSearchField
 internal fun ChannelFilterBar(
     filterGroups: List<ChannelFilterGroup>,
     selected: List<Int>,
-    isGridView: Boolean,
     searchActive: Boolean = false,
     searchQuery: String = "",
     showListControls: Boolean = true,
     onFilterSelected: (groupIndex: Int, optionIndex: Int) -> Unit,
-    onToggleGridView: () -> Unit,
     onSearchToggle: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
 ) {
@@ -152,18 +148,6 @@ internal fun ChannelFilterBar(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(R.string.channel_search_open),
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        IconButton(onClick = onToggleGridView) {
-            Icon(
-                imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
-                contentDescription =
-                    if (isGridView) {
-                        stringResource(R.string.ui_list_view)
-                    } else {
-                        stringResource(R.string.ui_grid_view)
-                    },
                 modifier = Modifier.size(22.dp),
             )
         }

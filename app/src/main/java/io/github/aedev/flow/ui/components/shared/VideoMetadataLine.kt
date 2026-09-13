@@ -28,8 +28,14 @@ fun videoMetadataLine(
             dateSettings.format(video.uploadDate, DateContext.LISTS, video.timestamp)
         }
 
-    if (video.viewCount < 0L) {
-        return stringResource(R.string.video_metadata_short_template, channelName, uploadedAt)
+    // A zero count means "not reported" — members-only uploads carry no view count at all — so the
+    // row shows the date alone rather than a literal "0 views".
+    if (video.viewCount <= 0L) {
+        return if (includeChannel) {
+            stringResource(R.string.video_metadata_short_template, channelName, uploadedAt)
+        } else {
+            uploadedAt
+        }
     }
 
     val views = stringResource(R.string.views_template, formatViewCount(video.viewCount))

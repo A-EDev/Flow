@@ -286,6 +286,25 @@ internal fun ChannelContent(
                         onShortClick = onShortClick,
                         onPlaylistClick = onPlaylistClick,
                         onChannelClick = onChannelClick,
+                        onSectionMore = { section ->
+                            val playlistId = section.morePlaylistId
+                            val targetTab = visibleTabs.firstOrNull { it.params != null && it.params == section.moreParams }
+                            when {
+                                playlistId != null -> {
+                                    onPlaylistClick(playlistId)
+                                }
+
+                                targetTab != null -> {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(visibleTabs.indexOf(targetTab))
+                                    }
+                                }
+
+                                else -> {
+                                    Unit
+                                }
+                            }
+                        },
                     )
                 }
 
@@ -349,13 +368,11 @@ internal fun ChannelContent(
                     ChannelFilterBar(
                         filterGroups = activeFilters,
                         selected = activeSelection,
-                        isGridView = isGridView,
                         searchActive = uiState.searchActive,
                         searchQuery = uiState.searchQuery,
                         // The Shorts tab is a fixed portrait grid and has no in-channel search.
                         showListControls = settledTab.kind != ChannelTabKind.Shorts,
                         onFilterSelected = { group, option -> onFilterSelected(settledTab.kind, group, option) },
-                        onToggleGridView = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } },
                         onSearchToggle = onSearchToggle,
                         onSearchQueryChange = onSearchQueryChange,
                     )
