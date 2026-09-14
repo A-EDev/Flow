@@ -117,4 +117,7 @@
     <string name="library_settings_data_header"><![CDATA[設定とデータ]]></string>
     <string name="library_manage_data_label">データを管理</string>
     <string name="about">概要</string>
+    <string name="top_bar_clear_search">検索をクリア</string>
+    <string name="top_bar_close_search">検索を閉じる</string>
+    <string name="home_refresh_feed">フィードを更新</string>
 </resources>
