@@ -2,13 +2,13 @@ package io.github.aedev.flow.ui.components.channel
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +19,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
+import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.screens.channel.ChannelRequestErrorState
 
 @Composable
@@ -45,15 +47,7 @@ internal fun ChannelCommunityPosts(
         when {
             isLoading && posts.isEmpty() -> {
                 item(key = "posts_loading") {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillParentMaxSize()
-                                .padding(32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                    FlowLoadingIndicator(modifier = Modifier.fillParentMaxSize())
                 }
             }
 
@@ -107,16 +101,10 @@ internal fun ChannelCommunityPosts(
                 if (hasMore) {
                     item(key = "posts_load_more") {
                         LaunchedEffect(posts.size) { onLoadMore() }
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (isLoadingMore) {
-                                CircularProgressIndicator()
-                            }
+                        if (isLoadingMore) {
+                            FlowFeedProgress()
+                        } else {
+                            Spacer(Modifier.height(16.dp))
                         }
                     }
                 }

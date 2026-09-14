@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.ChannelItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
@@ -32,19 +32,24 @@ import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 
 /**
  * Every channel tab's list, whatever it holds.
  *
  * Column counts come from [rememberFeedGridLayout], the decision Home, Subscriptions, Categories and
  * Search already share, so a tablet lays a channel out like the rest of the app rather than stretching
- * two cards across the window.
+ * two cards across the window. Playlists, shows and podcasts stay single-column rows at every width:
+ * a thumbnail-left row shrunk into a grid cell is two words and a stamp.
  */
 @Composable
 internal fun ChannelTabItems(
     pagingItems: LazyPagingItems<ChannelItem>?,
     kind: ChannelTabKind,
     isGridView: Boolean,
+    columnPreference: HomeFeedColumns,
+    hasFilterBar: Boolean,
     listState: LazyGridState,
     contentPadding: PaddingValues,
     topInset: Dp,
@@ -54,13 +59,7 @@ internal fun ChannelTabItems(
     onChannelClick: (String) -> Unit,
 ) {
     if (pagingItems == null || pagingItems.loadState.refresh is LoadState.Loading) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(top = topInset),
-            contentAlignment = Alignment.Center,
-        ) { CircularProgressIndicator() }
+        FlowLoadingIndicator(modifier = Modifier.padding(top = topInset))
         return
     }
 
@@ -76,28 +75,45 @@ internal fun ChannelTabItems(
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val feedLayout = rememberFeedGridLayout(maxWidth)
+        val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, CHANNEL_MAX_AUTO_COLUMNS)
         // Shorts are portrait, so many more fit per row than a 16:9 card ever would.
         val isShorts = kind == ChannelTabKind.Shorts
-        val cells = if (isShorts) GridCells.Adaptive(ShortCellMinWidth) else feedLayout.cells
-        val gutter = if (isShorts) ShortCellSpacing else feedLayout.cardSpacing
+        val loneItem = feedLayout.columns > 1 && !channelCardsFormGrid(feedLayout.columns, pagingItems.itemCount)
+        val cells =
+            when {
+                isShorts -> GridCells.Adaptive(ShortCellMinWidth)
+                loneItem -> GridCells.Fixed(1)
+                else -> feedLayout.cells
+            }
+        val rowGutter = if (isShorts) ShortCellSpacing else feedLayout.cardSpacing
+        // Cards carry their own 12 dp inset, so no column gutter still leaves 24 dp between thumbnails
+        // and keeps them flush with the chips above.
+        val columnGutter = if (isShorts) ShortCellSpacing else 0.dp
+        val gridCards = isGridView && !loneItem
+        // Even a zero-height item collects the row gutter, so a wide window with chips above adds none.
+        val topGap = if (feedLayout.isCompact || !hasFilterBar) 8.dp else null
 
         LazyVerticalGrid(
             columns = cells,
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = contentPadding,
-            horizontalArrangement = Arrangement.spacedBy(gutter),
-            verticalArrangement = Arrangement.spacedBy(gutter),
+            horizontalArrangement = Arrangement.spacedBy(columnGutter),
+            verticalArrangement = Arrangement.spacedBy(rowGutter),
         ) {
-            fullSpanItem(key = "top_gap") { Spacer(Modifier.height(8.dp)) }
+            if (topGap != null) {
+                fullSpanItem(key = "top_gap") { Spacer(Modifier.height(topGap)) }
+            }
             items(
                 count = pagingItems.itemCount,
                 key = { index -> pagingItems.peek(index)?.itemKey() ?: index },
+                span = { index ->
+                    if (pagingItems.peek(index).spansRow()) GridItemSpan(maxLineSpan) else GridItemSpan(1)
+                },
             ) { index ->
                 when (val item = pagingItems[index]) {
                     is ChannelItem.VideoItem -> {
-                        if (isGridView) {
+                        if (gridCards) {
                             VideoCardFullWidth(
                                 video = item.video,
                                 showChannelAvatar = false,
@@ -131,15 +147,7 @@ internal fun ChannelTabItems(
                 }
             }
             if (pagingItems.loadState.append is LoadState.Loading) {
-                fullSpanItem(key = "append_spinner") {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        contentAlignment = Alignment.Center,
-                    ) { CircularProgressIndicator() }
-                }
+                fullSpanItem(key = "append_spinner") { FlowFeedProgress() }
             }
             fullSpanItem(key = "bottom_gap") { Spacer(Modifier.height(16.dp)) }
         }
@@ -150,6 +158,12 @@ private fun LazyGridScope.fullSpanItem(
     key: String,
     content: @Composable () -> Unit,
 ) = item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }
+
+private fun ChannelItem?.spansRow(): Boolean =
+    when (this) {
+        is ChannelItem.PlaylistItem, is ChannelItem.RelatedChannelItem, is ChannelItem.PostItem -> true
+        is ChannelItem.VideoItem, is ChannelItem.ShortItem, null -> false
+    }
 
 private fun ChannelItem.itemKey(): String =
     when (this) {

@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.ChannelSection
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
@@ -58,6 +59,7 @@ import io.github.aedev.flow.ui.components.channel.ChannelHomeSections
 import io.github.aedev.flow.ui.components.channel.ChannelReadingPane
 import io.github.aedev.flow.ui.components.channel.ChannelTabItems
 import io.github.aedev.flow.ui.components.channel.ChannelTabRow
+import io.github.aedev.flow.ui.components.channel.PostsPaneMaxWidth
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -102,6 +104,7 @@ internal fun ChannelContent(
         }
     val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
     val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
+    val columnPreference by preferences.homeFeedColumns.collectAsState(initial = HomeFeedColumns.AUTO)
     val coroutineScope = rememberCoroutineScope()
 
     val aboutTitle = stringResource(R.string.tab_about)
@@ -203,7 +206,7 @@ internal fun ChannelContent(
     val liveListState = rememberLazyGridState()
     val playlistsListState = rememberLazyGridState()
     val postsListState = rememberLazyListState()
-    val homeListState = rememberLazyListState()
+    val homeListState = rememberLazyGridState()
     val searchListState = rememberLazyListState()
     val aboutListState = rememberLazyListState()
     val genericListState = rememberLazyGridState()
@@ -258,7 +261,7 @@ internal fun ChannelContent(
                 }
 
                 tab.kind == ChannelTabKind.Posts -> {
-                    ChannelReadingPane {
+                    ChannelReadingPane(maxWidth = PostsPaneMaxWidth) {
                         ChannelCommunityPosts(
                             posts = communityUiState.posts,
                             isLoading = communityUiState.isLoadingPosts,
@@ -293,6 +296,7 @@ internal fun ChannelContent(
                         sections = tabStates[tab.kind]?.sections.orEmpty(),
                         isLoading = tabStates[tab.kind]?.sections.isNullOrEmpty(),
                         listState = homeListState,
+                        columnPreference = columnPreference,
                         contentPadding = listPadding,
                         topInset = visibleHeaderHeightDp,
                         onVideoClick = onVideoClick,
@@ -329,6 +333,8 @@ internal fun ChannelContent(
                         pagingItems = items,
                         kind = tab.kind,
                         isGridView = isGridView,
+                        columnPreference = columnPreference,
+                        hasFilterBar = tabStates[tab.kind]?.filters.orEmpty().isNotEmpty(),
                         listState = listStateFor(tab.kind),
                         contentPadding = listPadding,
                         topInset = visibleHeaderHeightDp,

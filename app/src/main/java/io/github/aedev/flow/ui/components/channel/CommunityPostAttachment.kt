@@ -50,9 +50,10 @@ internal fun CommunityPostAttachment(
     attachment: PostAttachment,
     onVideoClick: (Video) -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     when (attachment) {
-        is PostAttachment.Images -> PostImages(attachment.urls, modifier)
+        is PostAttachment.Images -> PostImages(attachment.urls, modifier, compact)
         is PostAttachment.Poll -> PostPoll(attachment, modifier)
         is PostAttachment.SharedVideo -> PostSharedVideo(attachment.video, onVideoClick, modifier)
     }
@@ -62,6 +63,7 @@ internal fun CommunityPostAttachment(
 private fun PostImages(
     urls: List<String>,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val resolved = remember(urls) { urls.map { ThumbnailUrlResolver.resolveCommunityPostImage(it) } }
     if (resolved.isEmpty()) return
@@ -80,10 +82,15 @@ private fun PostImages(
             modifier =
                 modifier
                     .fillMaxWidth()
-                    .heightIn(min = 120.dp, max = 520.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .then(
+                        if (compact) {
+                            Modifier.aspectRatio(VIDEO_ASPECT_RATIO)
+                        } else {
+                            Modifier.heightIn(min = 120.dp, max = 520.dp)
+                        },
+                    ).background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { fullSizeIndex = 0 },
-            contentScale = ContentScale.Fit,
+            contentScale = if (compact) ContentScale.Crop else ContentScale.Fit,
         )
         return
     }

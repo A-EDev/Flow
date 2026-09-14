@@ -95,13 +95,14 @@ import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.channel.CommunityPost
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.channel.ChannelBanner
-import io.github.aedev.flow.ui.components.channel.ChannelSortChipRow
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
 import io.github.aedev.flow.ui.components.shared.CollectionSheetEntry
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
@@ -170,29 +171,10 @@ fun ChannelScreen(
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background),
         ) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.background)
-                        .height(48.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.close),
-                    )
-                }
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
-                ) {
+            FlowTopBar(
+                title = {
                     androidx.compose.animation.AnimatedVisibility(
                         visible = showCollapsedChannelTitle && collapsedChannelTitle.isNotBlank(),
-                        modifier = Modifier.align(Alignment.CenterStart),
                     ) {
                         Text(
                             text = collapsedChannelTitle,
@@ -202,42 +184,45 @@ fun ChannelScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                }
-                if (showLayoutToggle) {
-                    IconButton(onClick = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } }) {
+                },
+                onBack = onBackClick,
+                actions = {
+                    if (showLayoutToggle) {
+                        IconButton(onClick = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } }) {
+                            Icon(
+                                imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
+                                contentDescription =
+                                    if (isGridView) {
+                                        stringResource(R.string.ui_list_view)
+                                    } else {
+                                        stringResource(R.string.ui_grid_view)
+                                    },
+                            )
+                        }
+                    }
+                    IconButton(onClick = {
+                        // channelUrl may already be a full URL, so it must be normalized rather than
+                        // pasted behind /channel/ — that produced a nested, unopenable share link.
+                        val shareUrl = youtubeChannelUrl(uiState.header?.id ?: channelUrl) ?: channelUrl
+                        val shareIntent =
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, shareUrl)
+                            }
+                        context.startActivity(Intent.createChooser(shareIntent, null))
+                    }) {
                         Icon(
-                            imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
-                            contentDescription =
-                                if (isGridView) {
-                                    stringResource(R.string.ui_list_view)
-                                } else {
-                                    stringResource(R.string.ui_grid_view)
-                                },
+                            imageVector = Icons.Default.Share,
+                            contentDescription = stringResource(R.string.share),
                         )
                     }
-                }
-                IconButton(onClick = {
-                    // channelUrl may already be a full URL, so it must be normalized rather than
-                    // pasted behind /channel/ — that produced a nested, unopenable share link.
-                    val shareUrl = youtubeChannelUrl(uiState.header?.id ?: channelUrl) ?: channelUrl
-                    val shareIntent =
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareUrl)
-                        }
-                    context.startActivity(Intent.createChooser(shareIntent, null))
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = stringResource(R.string.share),
-                    )
-                }
-            }
+                },
+            )
 
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
                     uiState.isLoading -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        FlowLoadingIndicator()
                     }
 
                     uiState.error != null -> {

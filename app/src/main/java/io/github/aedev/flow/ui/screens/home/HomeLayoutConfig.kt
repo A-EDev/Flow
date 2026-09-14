@@ -21,25 +21,17 @@ internal fun rememberHomeLayoutConfig(
     maxWidth: Dp,
     columnPreference: HomeFeedColumns = HomeFeedColumns.AUTO,
 ): HomeLayoutConfig {
-    val base = rememberFeedGridLayout(maxWidth)
-    return remember(base, columnPreference) {
-        resolveHomeLayoutConfig(base, columnPreference)
-    }
+    val base = rememberFeedGridLayout(maxWidth, columnPreference)
+    return remember(base) { resolveHomeLayoutConfig(base) }
 }
 
-internal fun resolveHomeLayoutConfig(
-    base: FeedGridLayout,
-    columnPreference: HomeFeedColumns,
-): HomeLayoutConfig {
-    val fixedColumns = columnPreference.fixedCount
-    val columns = fixedColumns ?: base.columns
-    return HomeLayoutConfig(
-        cells = if (fixedColumns == null) base.cells else GridCells.Fixed(fixedColumns),
-        columns = columns,
+internal fun resolveHomeLayoutConfig(base: FeedGridLayout): HomeLayoutConfig =
+    HomeLayoutConfig(
+        cells = base.cells,
+        columns = base.columns,
         contentPadding = base.contentPadding,
         cardSpacing = base.cardSpacing,
         // The shelf spans every column, so it has to start on a fresh row or the row above it
         // renders with holes in it.
-        shortsShelfAfterIndex = columns,
+        shortsShelfAfterIndex = base.columns,
     )
-}

@@ -44,7 +44,8 @@ import io.github.aedev.flow.utils.formatRichText
 
 /**
  * One community post, laid out as YouTube lays it out: author, text, then the attachment running the
- * full width of the post rather than inset inside a bordered card.
+ * full width of the post rather than inset inside a bordered card. [compact] is the shelf variant:
+ * a few lines of text and a 16:9 crop, so every card in a row shares one height.
  */
 @Composable
 fun CommunityPostCard(
@@ -54,6 +55,8 @@ fun CommunityPostCard(
     onShareClick: () -> Unit,
     modifier: Modifier = Modifier,
     onVideoClick: (Video) -> Unit = {},
+    showDivider: Boolean = true,
+    compact: Boolean = false,
 ) {
     var textExpanded by rememberSaveable(post.id) { mutableStateOf(false) }
     var textOverflows by rememberSaveable(post.id) { mutableStateOf(false) }
@@ -110,11 +113,16 @@ fun CommunityPostCard(
                 Text(
                     text = formattedText,
                     style = MaterialTheme.typography.bodyMedium,
-                    maxLines = if (textExpanded) Int.MAX_VALUE else 6,
+                    maxLines =
+                        when {
+                            compact -> COMPACT_TEXT_LINES
+                            textExpanded -> Int.MAX_VALUE
+                            else -> FULL_TEXT_LINES
+                        },
                     overflow = TextOverflow.Ellipsis,
                     onTextLayout = { textOverflows = it.hasVisualOverflow },
                 )
-                if (!textExpanded && textOverflows) {
+                if (!compact && !textExpanded && textOverflows) {
                     TextButton(onClick = { textExpanded = true }) {
                         Text(stringResource(R.string.read_more))
                     }
@@ -123,7 +131,7 @@ fun CommunityPostCard(
         }
 
         post.attachment?.let { attachment ->
-            CommunityPostAttachment(attachment = attachment, onVideoClick = onVideoClick)
+            CommunityPostAttachment(attachment = attachment, onVideoClick = onVideoClick, compact = compact)
         }
 
         Row(
@@ -150,21 +158,23 @@ fun CommunityPostCard(
                 Icon(
                     imageVector = Icons.Outlined.Share,
                     contentDescription = stringResource(R.string.share),
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(ActionIconSize),
                 )
             }
             TextButton(onClick = onCommentsClick) {
                 Icon(
                     imageVector = Icons.Outlined.ChatBubbleOutline,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(ActionIconSize),
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(post.commentCountText.ifBlank { stringResource(R.string.comments) })
             }
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 0.5.dp)
+        if (showDivider) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 0.5.dp)
+        }
     }
 }
 
@@ -173,3 +183,7 @@ fun CommunityPostCard(
  * applied per row rather than to the column.
  */
 internal val PostHorizontalPadding = 16.dp
+
+private val ActionIconSize = 20.dp
+private const val FULL_TEXT_LINES = 6
+private const val COMPACT_TEXT_LINES = 4

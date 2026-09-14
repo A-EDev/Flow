@@ -9,18 +9,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +37,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.pages.channel.ChannelFilterGroup
+import io.github.aedev.flow.ui.components.shared.FlowDropdownFilterChip
+import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
 
 /**
@@ -120,23 +119,10 @@ internal fun ChannelFilterBar(
                         )
                     } else {
                         val option = group.options[optionIndex]
-                        FilterChip(
+                        FlowFilterChip(
+                            label = option.label,
                             selected = optionIndex == chosen,
                             onClick = { onFilterSelected(groupIndex, optionIndex) },
-                            label = { Text(option.label, style = MaterialTheme.typography.labelMedium) },
-                            shape = RoundedCornerShape(20.dp),
-                            leadingIcon =
-                                if (optionIndex == chosen) {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                    }
-                                } else {
-                                    null
-                                },
                         )
                     }
                 }
@@ -170,18 +156,10 @@ private fun ChannelFilterDropdown(
             .orEmpty()
 
     Box {
-        FilterChip(
+        FlowDropdownFilterChip(
+            label = label,
             selected = selectedIndex >= 0,
             onClick = { expanded = true },
-            label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-            shape = RoundedCornerShape(20.dp),
-            trailingIcon = {
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-            },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             group.options.forEachIndexed { index, option ->

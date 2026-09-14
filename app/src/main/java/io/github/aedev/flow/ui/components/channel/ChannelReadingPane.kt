@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -15,9 +16,12 @@ import androidx.compose.ui.unit.dp
  * tablet, where a full-width line of text is unreadable.
  */
 @Composable
-internal fun ChannelReadingPane(content: @Composable () -> Unit) {
+internal fun ChannelReadingPane(
+    maxWidth: Dp = ReadingPaneMaxWidth,
+    content: @Composable () -> Unit,
+) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        if (maxWidth <= ReadingPaneMaxWidth) {
+        if (this.maxWidth <= maxWidth) {
             content()
             return@BoxWithConstraints
         }
@@ -25,9 +29,12 @@ internal fun ChannelReadingPane(content: @Composable () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.TopCenter,
         ) {
-            Box(modifier = Modifier.widthIn(max = ReadingPaneMaxWidth)) { content() }
+            Box(modifier = Modifier.widthIn(max = maxWidth)) { content() }
         }
     }
 }
 
 private val ReadingPaneMaxWidth = 640.dp
+
+/** Posts carry images, which read better wider than a column of prose. */
+internal val PostsPaneMaxWidth = 760.dp

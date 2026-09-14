@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
+import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.ui.theme.Dimensions
 
 /**
@@ -38,9 +39,18 @@ data class FeedGridLayout(
     val columns: Int,
     val contentPadding: Dp,
     val cardSpacing: Dp,
+    val isCompact: Boolean,
 )
 
-fun feedGridLayoutFor(maxWidth: Dp): FeedGridLayout {
+/**
+ * [columnPreference] pins the count the user chose in settings; [maxAutoColumns] caps only the
+ * automatic derivation, for surfaces whose cards read as squashed past a certain count.
+ */
+fun feedGridLayoutFor(
+    maxWidth: Dp,
+    columnPreference: HomeFeedColumns = HomeFeedColumns.AUTO,
+    maxAutoColumns: Int = Int.MAX_VALUE,
+): FeedGridLayout {
     val isCompact = maxWidth < WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND.dp
     val spacing =
         when {
@@ -49,11 +59,20 @@ fun feedGridLayoutFor(maxWidth: Dp): FeedGridLayout {
             else -> WideWindowSpacing
         }
     val availableWidth = maxWidth - spacing.contentPadding * 2
+    val autoColumns = if (isCompact) 1 else adaptiveColumnsFor(availableWidth, spacing.cardSpacing)
+    val columns = columnPreference.fixedCount ?: autoColumns.coerceAtMost(maxAutoColumns)
+    val cells =
+        if (columnPreference.fixedCount != null || isCompact || columns < autoColumns) {
+            GridCells.Fixed(columns)
+        } else {
+            GridCells.Adaptive(FeedCardMinWidth)
+        }
     return FeedGridLayout(
-        cells = if (isCompact) GridCells.Fixed(1) else GridCells.Adaptive(FeedCardMinWidth),
-        columns = if (isCompact) 1 else adaptiveColumnsFor(availableWidth, spacing.cardSpacing),
+        cells = cells,
+        columns = columns,
         contentPadding = spacing.contentPadding,
         cardSpacing = spacing.cardSpacing,
+        isCompact = isCompact,
     )
 }
 
@@ -64,4 +83,11 @@ private fun adaptiveColumnsFor(
 ): Int = ((availableWidth + cardSpacing) / (FeedCardMinWidth + cardSpacing)).toInt().coerceAtLeast(1)
 
 @Composable
-fun rememberFeedGridLayout(maxWidth: Dp): FeedGridLayout = remember(maxWidth) { feedGridLayoutFor(maxWidth) }
+fun rememberFeedGridLayout(
+    maxWidth: Dp,
+    columnPreference: HomeFeedColumns = HomeFeedColumns.AUTO,
+    maxAutoColumns: Int = Int.MAX_VALUE,
+): FeedGridLayout =
+    remember(maxWidth, columnPreference, maxAutoColumns) {
+        feedGridLayoutFor(maxWidth, columnPreference, maxAutoColumns)
+    }
