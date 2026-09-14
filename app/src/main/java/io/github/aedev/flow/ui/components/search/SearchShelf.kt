@@ -50,7 +50,7 @@ fun SearchShelf(
     onChannelClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth().padding(vertical = SectionSpacing)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         // The Shorts strip draws its own branded heading; the other two take the response's title.
         if (shelf.kind != SearchShelfKind.SHORTS) shelf.title?.let { ShelfTitle(it) }
@@ -125,6 +125,7 @@ private fun PostStrip(shelf: SearchResultItem.ShelfResult) {
     }
 }
 
+private val SectionSpacing = 8.dp
 private val StripHorizontalPadding = 12.dp
 private val StripVerticalPadding = 8.dp
 private val TitleVerticalPadding = 10.dp

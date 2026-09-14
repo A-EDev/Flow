@@ -19,7 +19,6 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,7 +27,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -71,7 +73,6 @@ fun SearchScreen(
     onShortsQueue: (ShortsQueueSource) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    onTypingChange: (Boolean) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -111,6 +112,19 @@ fun SearchScreen(
         }
 
     val showResults = uiState.query.isNotBlank() && !state.isTyping
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(showResults) {
+        if (showResults) {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        } else {
+            runCatching { focusRequester.requestFocus() }
+            keyboard?.show()
+        }
+    }
 
     LaunchedEffect(uiState.query) {
         if (uiState.query.isNotBlank()) gridState.scrollToItem(0)
@@ -125,10 +139,6 @@ fun SearchScreen(
     // Back leaves the screen, but a query typed over a finished search returns to that search first.
     BackHandler(enabled = state.isTyping && uiState.query.isNotBlank()) { state.stopTyping() }
 
-    // While the field owns the screen, nothing else should: the shell drops its navigation bar.
-    LaunchedEffect(showResults) { onTypingChange(!showResults) }
-    DisposableEffect(Unit) { onDispose { onTypingChange(false) } }
-
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize()) {
             SearchTopBar(
@@ -136,6 +146,8 @@ fun SearchScreen(
                 onSearch = submit,
                 onBack = onBack,
                 onVoiceSearch = { launchVoiceSearch(context, voiceSearchLauncher::launch) },
+                focusRequester = focusRequester,
+                onFieldFocused = state::startTyping,
                 actions =
                     if (showResults) {
                         {

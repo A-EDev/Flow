@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 @Stable
 class SearchScreenState(
     val textFieldState: TextFieldState,
+    private var submittedQuery: String?,
     private val scope: CoroutineScope,
     private val history: SearchHistoryRepository,
     private val preferences: PlayerPreferences,
@@ -47,10 +48,8 @@ class SearchScreenState(
         private set
 
     /** True while the field owns the screen; submitting or going back hands it to the results. */
-    var isTyping by mutableStateOf(true)
+    var isTyping by mutableStateOf(submittedQuery == null)
         private set
-
-    private var submittedQuery: String? = null
 
     val isGridMode: Boolean get() = gridModeState.value
     val shortsContentEnabled: Boolean get() = shortsEnabledState.value
@@ -81,6 +80,11 @@ class SearchScreenState(
     /** Editing reopens the suggestions; re-arriving at the submitted text does not. */
     internal fun onTextChanged(text: String) {
         if (text.trim() != submittedQuery?.trim()) isTyping = true
+    }
+
+    /** Tapping the field reopens the suggestions over a finished search. */
+    fun startTyping() {
+        isTyping = true
     }
 
     fun stopTyping() {
@@ -121,7 +125,6 @@ fun rememberSearchState(viewModel: SearchViewModel): SearchScreenState {
     val scope = rememberCoroutineScope()
     val historyRepository = remember(context) { SearchHistoryRepository(context) }
     val preferences = remember(context) { PlayerPreferences(context) }
-    val textFieldState = remember { TextFieldState() }
 
     val allHistory = historyRepository.getSearchHistoryFlow().collectAsStateWithLifecycle(emptyList())
     val suggestionsEnabled = historyRepository.isSearchSuggestionsEnabledFlow().collectAsStateWithLifecycle(true)
@@ -129,10 +132,18 @@ fun rememberSearchState(viewModel: SearchViewModel): SearchScreenState {
     val shortsEnabled = preferences.shortsContentEnabled.collectAsStateWithLifecycle(true)
     val feedColumns = preferences.homeFeedColumns.collectAsStateWithLifecycle(HomeFeedColumns.AUTO)
 
+    // Coming back from a result recreates this composable while the ViewModel keeps the query, so the
+    // field and the typing mode are seeded from it rather than starting empty.
+    val restoredQuery =
+        viewModel.uiState.value.query
+            .takeIf(String::isNotBlank)
+    val textFieldState = remember { TextFieldState(initialText = restoredQuery.orEmpty()) }
+
     val state =
         remember(historyRepository, preferences) {
             SearchScreenState(
                 textFieldState = textFieldState,
+                submittedQuery = restoredQuery,
                 scope = scope,
                 history = historyRepository,
                 preferences = preferences,

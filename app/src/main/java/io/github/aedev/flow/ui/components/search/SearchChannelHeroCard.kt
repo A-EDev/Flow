@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -33,9 +32,9 @@ import io.github.aedev.flow.utils.formatSubscriberCount
 /**
  * The creator block search puts above the results for a channel-name query.
  *
- * Centred like YouTube's, with the avatar leading a single metadata line and the two actions
- * — subscribe and open — on their own row, rather than a three-column squeeze that leaves the
- * description two words wide.
+ * The avatar leads a single metadata line and the two actions sit on their own row. The channel's
+ * blurb is deliberately absent: it arrives as one unstyled run with raw urls in it, and the card is
+ * a way in to the channel rather than somewhere to read.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -46,7 +45,7 @@ fun SearchChannelHeroCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth().padding(vertical = SectionSpacing)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Column(
             modifier =
@@ -104,18 +103,6 @@ fun SearchChannelHeroCard(
                 }
             }
 
-            if (channel.description.isNotBlank()) {
-                Text(
-                    text = channel.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(ActionSpacing),
@@ -158,6 +145,7 @@ private fun Channel.metadataLine(): String? {
 }
 
 private const val SEPARATOR = " • "
+private val SectionSpacing = 8.dp
 private val CardHorizontalPadding = 16.dp
 private val CardVerticalPadding = 14.dp
 private val AvatarSize = 56.dp
