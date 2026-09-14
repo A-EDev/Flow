@@ -6,7 +6,7 @@
     <string name="view_all_button_label">Tout voir</string>
     <string name="subscribed">Abonné</string>
     <string name="no_subscriptions_yet">Aucun abonnement pour l\'instant</string>
-    <string name="empty_subscriptions_body">Abonnez-vous aux chaînes pour voir leurs\ndernières vidéos ici</string>
+    <string name="empty_subscriptions_body">Abonnez-vous aux chaînes pour découvrir leurs dernières vidéos ici</string>
     <string name="home_refresh_feed">Actualiser le flux</string>
     <string name="retry">Réessayer</string>
     <string name="shorts">Shorts</string>
@@ -2538,4 +2538,8 @@
     <string name="lyrics_saved">Paroles enregistrées</string>
     <string name="lyrics_save_failed">Impossible d\'enregistrer les paroles</string>
     <string name="lyrics_choose_source">Choisissez la source des paroles</string>
+    <string name="subscriptions_failed_channels_copy_logs">Copier les journaux</string>
+    <string name="content_settings_channel_group_badge_title">Afficher le groupe sur les avatars des chaînes</string>
+    <string name="content_settings_channel_group_badge_subtitle">Attribuer aux avatars des chaînes et des artistes le groupe d\'abonnement auquel ils appartiennent</string>
+    <string name="channel_add_to_group">Ajouter au groupe</string>
 </resources>
