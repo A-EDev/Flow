@@ -433,6 +433,7 @@
     <string name="clear_search_history">Clear search history</string>
     <!-- Search Filters -->
     <string name="search_filter_all">All</string>
+    <string name="search_filter_movies">Movies</string>
     <string name="search_toggle_view_mode">Toggle search result view</string>
     <string name="filter_upload_date">Upload date</string>
     <string name="filter_duration">Duration</string>
@@ -454,8 +455,8 @@
     <string name="date_this_month">This month</string>
     <string name="date_this_year">This year</string>
     <string name="duration_any">Any duration</string>
-    <string name="duration_under_4">Under 4 min</string>
-    <string name="duration_4_20">4-20 min</string>
+    <string name="duration_under_3">Under 3 min</string>
+    <string name="duration_3_20">3-20 min</string>
     <string name="duration_over_20">Over 20 min</string>
     <string name="sort_relevance">Relevance</string>
     <string name="sort_upload_date">Upload date</string>

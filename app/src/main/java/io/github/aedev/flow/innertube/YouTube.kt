@@ -64,7 +64,6 @@ import io.github.aedev.flow.innertube.pages.SearchShortItem
 import io.github.aedev.flow.innertube.pages.SearchSuggestionPage
 import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
-import io.github.aedev.flow.innertube.pages.SearchVideosPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
@@ -87,9 +86,10 @@ import io.github.aedev.flow.innertube.pages.renderer.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityPostsPage
+import io.github.aedev.flow.innertube.pages.search.SearchResultsPage
+import io.github.aedev.flow.innertube.pages.search.toSearchResultsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
-import io.github.aedev.flow.innertube.pages.toSearchVideosPage
 import io.github.aedev.flow.innertube.pages.toShortsPage
 import io.github.aedev.flow.innertube.pages.toVideoCommentsPage
 import io.github.aedev.flow.innertube.pages.toVideoDescriptionPage
@@ -312,24 +312,24 @@ object YouTube {
         }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
             .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
 
-    suspend fun searchByViews(
+    /** One page of video search. Filters and sorting ride in [params]; paging rides in [continuation]. */
+    suspend fun videoSearch(
         query: String,
-        searchParams: String,
+        params: String? = null,
         continuation: String? = null,
-    ): Result<SearchVideosPage> =
+    ): Result<SearchResultsPage> =
         runCatching {
             ensureVisitorData()
-            val searchClient = currentWebClient()
             innerTube
                 .webSearch(
-                    client = searchClient,
+                    client = currentWebClient(),
                     query = query.takeIf { continuation == null },
-                    params = searchParams.takeIf { continuation == null },
+                    params = params?.takeIf { continuation == null },
                     continuation = continuation,
                     anonymous = true,
                     includeVisitorData = true,
                 ).body<JsonObject>()
-                .toSearchVideosPage()
+                .toSearchResultsPage()
         }
 
     private suspend fun ensureVisitorData() {

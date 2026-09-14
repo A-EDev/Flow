@@ -59,6 +59,7 @@ import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatSubscriberCount
 import io.github.aedev.flow.utils.formatViewCount
+import io.github.aedev.flow.utils.videoIdFromUrl
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -282,12 +283,6 @@ fun SearchScreen(
         }
     }
 
-    val sortByTypes =
-        listOf(
-            SortType.RELEVANCE,
-            SortType.RATING,
-            SortType.VIEWS,
-        )
     val storedContentType = uiState.filters?.contentType ?: ContentType.ALL
     val selectedContentType =
         if (storedContentType == ContentType.SHORTS && !shortsContentEnabled) ContentType.ALL else storedContentType
@@ -317,7 +312,7 @@ fun SearchScreen(
                     dismissKeyboard()
                     liveSuggestions = emptyList()
 
-                    val videoId = extractVideoId(queryText)
+                    val videoId = videoIdFromUrl(queryText)
                     if (videoId != null) {
                         navigateToVideo(
                             Video(
@@ -369,7 +364,7 @@ fun SearchScreen(
                     setSearchQueryToEnd(s)
                     liveSuggestions = emptyList()
 
-                    val videoId = extractVideoId(s)
+                    val videoId = videoIdFromUrl(s)
                     if (videoId != null) {
                         navigateToVideo(
                             Video(
@@ -498,33 +493,6 @@ fun SearchScreen(
             }
         }
     }
-}
-
-private fun extractVideoId(url: String): String? {
-    if (!isSupportedVideoUrl(url)) return null
-    val patterns =
-        listOf(
-            Regex("v=([^&]+)"),
-            Regex("shorts/([^/?]+)"),
-            Regex("youtu.be/([^/?]+)"),
-            Regex("embed/([^/?]+)"),
-            Regex("v/([^/?]+)"),
-        )
-    for (pattern in patterns) {
-        val match = pattern.find(url)
-        if (match != null) return match.groupValues[1]
-    }
-    return url.substringAfterLast("/").substringBefore("?").ifEmpty { null }
-}
-
-private fun isSupportedVideoUrl(url: String): Boolean {
-    val lower = url.lowercase()
-    return lower.contains("youtube.com") ||
-        lower.contains("youtu.be") ||
-        lower.contains("youtube-nocookie.com") ||
-        lower.contains("piped") ||
-        lower.contains("invidious") ||
-        lower.contains("yewtu.be")
 }
 
 @Composable
@@ -713,18 +681,20 @@ private fun SearchFiltersBar(
             ContentType.SHORTS to R.string.tab_shorts,
             ContentType.CHANNELS to R.string.channels_header,
             ContentType.PLAYLISTS to R.string.tab_playlists,
+            ContentType.MOVIES to R.string.search_filter_movies,
             ContentType.LIVE to R.string.tab_live,
         ).filterNot { (type, _) -> type == ContentType.SHORTS && !shortsEnabled }
     val durationLabels =
         listOf(
             Duration.ANY to R.string.duration_any,
-            Duration.UNDER_4_MINUTES to R.string.duration_under_4,
-            Duration.FROM_4_TO_20_MINUTES to R.string.duration_4_20,
+            Duration.UNDER_3_MINUTES to R.string.duration_under_3,
+            Duration.THREE_TO_20_MINUTES to R.string.duration_3_20,
             Duration.OVER_20_MINUTES to R.string.duration_over_20,
         )
     val uploadDateLabels =
         listOf(
             UploadDate.ANY to R.string.date_any,
+            UploadDate.LAST_HOUR to R.string.date_last_hour,
             UploadDate.TODAY to R.string.date_today,
             UploadDate.THIS_WEEK to R.string.date_this_week,
             UploadDate.THIS_MONTH to R.string.date_this_month,
@@ -733,8 +703,7 @@ private fun SearchFiltersBar(
     val sortTypeLabels =
         listOf(
             SortType.RELEVANCE to R.string.sort_relevance,
-            SortType.RATING to R.string.sort_rating,
-            SortType.VIEWS to R.string.views,
+            SortType.VIEW_COUNT to R.string.sort_view_count,
         )
 
     Row(
@@ -937,7 +906,7 @@ private fun searchItemKey(
         is SearchResultItem.VideoResult -> "v_${item.video.id}"
         is SearchResultItem.ChannelResult -> "c_${item.channel.id}"
         is SearchResultItem.PlaylistResult -> "p_${item.playlist.id}"
-        is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
+        is SearchResultItem.ShelfResult -> "shelf_${item.id}"
         null -> "placeholder_$index"
     }
 
@@ -947,11 +916,11 @@ private fun searchItemContentType(item: SearchResultItem?): Any =
         is SearchResultItem.VideoResult -> "video"
         is SearchResultItem.ChannelResult -> "channel"
         is SearchResultItem.PlaylistResult -> "playlist"
-        is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
+        is SearchResultItem.ShelfResult -> SHELF_CONTENT_TYPE
         null -> "placeholder"
     }
 
-private const val SHORTS_SHELF_KEY = "shortsShelf"
+private const val SHELF_CONTENT_TYPE = "shelf"
 
 @Composable
 private fun SearchResultList(
@@ -1004,7 +973,7 @@ private fun SearchResultList(
             key = { i -> searchItemKey(pagingItems.peek(i), i) },
             contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
             span = { i ->
-                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult) {
+                if (pagingItems.peek(i) is SearchResultItem.ShelfResult) {
                     GridItemSpan(maxLineSpan)
                 } else {
                     GridItemSpan(1)
@@ -1051,8 +1020,8 @@ private fun SearchResultList(
                     )
                 }
 
-                is SearchResultItem.ShortsShelfResult -> {
-                    ShortsShelf(shorts = item.shorts, onShortClick = onShortsShelfClick)
+                is SearchResultItem.ShelfResult -> {
+                    ShortsShelf(shorts = item.videos, onShortClick = onShortsShelfClick)
                 }
 
                 null -> {
@@ -1110,7 +1079,7 @@ private fun SearchResultGrid(
             key = { i -> searchItemKey(pagingItems.peek(i), i) },
             contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
             span = { i ->
-                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult) {
+                if (pagingItems.peek(i) is SearchResultItem.ShelfResult) {
                     GridItemSpan(maxLineSpan)
                 } else {
                     GridItemSpan(1)
@@ -1159,8 +1128,8 @@ private fun SearchResultGrid(
                     )
                 }
 
-                is SearchResultItem.ShortsShelfResult -> {
-                    ShortsShelf(shorts = item.shorts, onShortClick = onShortsShelfClick)
+                is SearchResultItem.ShelfResult -> {
+                    ShortsShelf(shorts = item.videos, onShortClick = onShortsShelfClick)
                 }
             }
         }
