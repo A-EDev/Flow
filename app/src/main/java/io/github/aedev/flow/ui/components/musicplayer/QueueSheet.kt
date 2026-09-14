@@ -98,6 +98,7 @@ fun QueueSheet(
     queue: List<MusicTrack>,
     radioTracks: List<MusicTrack>,
     currentIndex: Int,
+    isPlaying: Boolean,
     isRadioLoading: Boolean,
     endlessRadioEnabled: Boolean,
     shuffleEnabled: Boolean,
@@ -113,7 +114,6 @@ fun QueueSheet(
     onToggleEndlessRadio: (Boolean) -> Unit,
     onShuffleQueue: () -> Unit,
     onCycleRepeat: () -> Unit,
-    isPlaying: Boolean = true,
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier,
 ) {
@@ -383,6 +383,7 @@ fun QueueSheet(
                             QueueTrackRow(
                                 track = track,
                                 isCurrent = false,
+                                isPlaying = isPlaying,
                                 isRadioItem = true,
                                 isDragging = false,
                                 swipeEnabled = true,
@@ -436,7 +437,7 @@ private fun RadioLoadingRow() {
 private fun QueueTrackRow(
     track: MusicTrack,
     isCurrent: Boolean,
-    isPlaying: Boolean = true,
+    isPlaying: Boolean,
     isRadioItem: Boolean,
     isDragging: Boolean,
     swipeEnabled: Boolean,
