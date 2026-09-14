@@ -17,6 +17,8 @@ data class FeedShelf(
     val subtitle: String? = null,
     val style: FeedShelfStyle = FeedShelfStyle.Carousel,
     val items: List<FeedItem> = emptyList(),
+    /** How many items the shelf shows before its "show more" affordance; null when it shows them all. */
+    val collapsedItemCount: Int? = null,
     val moreParams: String? = null,
     val morePlaylistId: String? = null,
 )

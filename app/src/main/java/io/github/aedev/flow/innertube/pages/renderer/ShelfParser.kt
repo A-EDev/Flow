@@ -29,13 +29,19 @@ internal fun JsonElement.toFeedShelves(owner: FeedItemOwner): List<FeedShelf> {
                     .arrayOrNull()
                     ?: listOfNotNull(entry)
             holders.forEach { holder ->
-                holder.objectOrNull()?.toSection(owner, sections.size)?.let(sections::add)
+                holder.objectOrNull()?.toFeedShelf(owner, sections.size)?.let(sections::add)
             }
         }
     return sections
 }
 
-private fun JsonObject.toSection(
+/**
+ * One shelf, whatever container it arrived in. Search and the channel Home tab both call this.
+ *
+ * [index] position-qualifies the id: one search response carries three shelves all titled "Shorts",
+ * and a duplicate key crashes the lazy list that renders them.
+ */
+internal fun JsonObject.toFeedShelf(
     owner: FeedItemOwner,
     index: Int,
 ): FeedShelf? {
@@ -49,22 +55,23 @@ private fun JsonObject.toSection(
         )
     }
 
+    this["gridShelfViewModel"].objectOrNull()?.let { return it.toGridShelf(owner, index) }
+
     val shelf =
         this["shelfRenderer"].objectOrNull()
             ?: this["reelShelfRenderer"].objectOrNull()
             ?: return null
-    val items =
-        shelf.shelfItems().mapNotNull { it.toFeedItem(owner) }.distinctBy { it.distinctKey() }
+    val (style, entries) = shelf.shelfItems()
+    val items = entries.mapNotNull { it.toFeedItem(owner) }.distinctBy { it.distinctKey() }
     if (items.isEmpty()) return null
 
     val title = shelf["title"].youtubeText()?.takeIf(String::isNotBlank)
     return FeedShelf(
-        // Position-qualified: a channel may publish two shelves under one title, and a duplicate key
-        // crashes the lazy list that renders them.
         id = "shelf:$index:${title.orEmpty()}",
         title = title,
-        style = FeedShelfStyle.Carousel,
+        style = style,
         items = items,
+        collapsedItemCount = shelf.collapsedItemCount(),
         moreParams = shelf["endpoint"].objectOrNull()?.browseParams(),
         morePlaylistId =
             shelf["endpoint"]
@@ -78,13 +85,56 @@ private fun JsonObject.toSection(
     )
 }
 
-private fun JsonObject.shelfItems(): List<JsonElement> =
-    this["items"].arrayOrNull()
-        ?: this["content"]
+private fun JsonObject.toGridShelf(
+    owner: FeedItemOwner,
+    index: Int,
+): FeedShelf? {
+    val items =
+        this["contents"]
+            .arrayOrNull()
+            .orEmpty()
+            .mapNotNull { it.toFeedItem(owner) }
+            .distinctBy { it.distinctKey() }
+    if (items.isEmpty()) return null
+    val title =
+        this["header"]
             .objectOrNull()
-            ?.let { content ->
-                content["horizontalListRenderer"].objectOrNull()?.get("items").arrayOrNull()
-                    ?: content["expandedShelfContentsRenderer"].objectOrNull()?.get("items").arrayOrNull()
-                    ?: content["gridRenderer"].objectOrNull()?.get("items").arrayOrNull()
-            }
-        ?: emptyList()
+            ?.get("sectionHeaderViewModel")
+            .objectOrNull()
+            ?.get("headline")
+            .youtubeText()
+            ?.takeIf(String::isNotBlank)
+    return FeedShelf(
+        id = "grid:$index:${title.orEmpty()}",
+        title = title,
+        style = FeedShelfStyle.Grid,
+        items = items,
+        collapsedItemCount = this["minCollapsedItemCount"].stringOrNull()?.toIntOrNull(),
+    )
+}
+
+/**
+ * Only the two containers the channel never produced carry a style of their own; everything the
+ * channel already rendered stays a carousel.
+ */
+private fun JsonObject.shelfItems(): Pair<FeedShelfStyle, List<JsonElement>> {
+    this["items"].arrayOrNull()?.let { return FeedShelfStyle.Carousel to it }
+    val content = this["content"].objectOrNull() ?: return FeedShelfStyle.Carousel to emptyList()
+    content["verticalListRenderer"].objectOrNull()?.get("items").arrayOrNull()?.let {
+        return FeedShelfStyle.List to it
+    }
+    val carousel =
+        content["horizontalListRenderer"].objectOrNull()?.get("items").arrayOrNull()
+            ?: content["expandedShelfContentsRenderer"].objectOrNull()?.get("items").arrayOrNull()
+            ?: content["gridRenderer"].objectOrNull()?.get("items").arrayOrNull()
+    return FeedShelfStyle.Carousel to carousel.orEmpty()
+}
+
+private fun JsonObject.collapsedItemCount(): Int? =
+    this["content"]
+        .objectOrNull()
+        ?.get("verticalListRenderer")
+        .objectOrNull()
+        ?.get("collapsedItemCount")
+        .stringOrNull()
+        ?.toIntOrNull()
