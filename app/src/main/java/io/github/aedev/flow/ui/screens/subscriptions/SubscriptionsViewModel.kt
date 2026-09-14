@@ -480,6 +480,7 @@ class SubscriptionsViewModel
                                             viewCount = maxOf(video.viewCount, enriched.viewCount),
                                             isLive = enriched.isLive || (!enriched.isUpcoming && video.isLive),
                                             isUpcoming = enriched.isUpcoming,
+                                            isScheduledLive = enriched.isScheduledLive,
                                             timestamp = if (enriched.isUpcoming) enriched.timestamp else video.timestamp,
                                             uploadDate = if (enriched.isUpcoming) enriched.uploadDate else video.uploadDate,
                                         )
@@ -546,6 +547,7 @@ class SubscriptionsViewModel
                     viewCount = maxOf(video.viewCount, details.viewCount?.toLongOrNull() ?: 0L),
                     isLive = isLive || (!isUpcoming && video.isLive),
                     isUpcoming = isUpcoming,
+                    isScheduledLive = isUpcoming && details.isLiveContent == true,
                     timestamp = scheduledStartMs ?: video.timestamp,
                     uploadDate = scheduledStartMs?.let(::premiereDateText) ?: video.uploadDate,
                 )

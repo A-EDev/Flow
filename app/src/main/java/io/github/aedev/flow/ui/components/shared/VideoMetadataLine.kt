@@ -6,6 +6,7 @@ import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.utils.DateContext
+import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.formatPremiereDate
 import io.github.aedev.flow.utils.formatScheduledStart
 import io.github.aedev.flow.utils.formatViewCount
@@ -20,14 +21,21 @@ fun videoMetadataLine(
 ): String {
     val dateSettings = rememberDateDisplaySettings()
     if (isUpcoming) {
+        val mode = dateSettings.resolve(DateContext.LISTS)
+        val releaseMs = remember(video.timestamp, video.uploadDate) { upcomingReleaseMs(video.timestamp, video.uploadDate) }
         val scheduled =
-            remember(video.timestamp, video.uploadDate, dateSettings) {
-                upcomingReleaseMs(video.timestamp, video.uploadDate)
-                    ?.let { formatScheduledStart(it, dateSettings.resolve(DateContext.LISTS)) }
-                    ?: formatPremiereDate(video.uploadDate)
+            remember(releaseMs, video.uploadDate, mode) {
+                releaseMs?.let { formatScheduledStart(it, mode) } ?: formatPremiereDate(video.uploadDate)
+            }
+        // "Scheduled for in 2 days" does not read, so a relative span for a stream says "Live in".
+        val prefix =
+            when {
+                !video.isScheduledLive -> R.string.premiere_date_prefix
+                releaseMs == null || mode == DateDisplayMode.EXACT -> R.string.scheduled_for_prefix
+                else -> R.string.live_in_prefix
             }
         return scheduled
-            ?.let { stringResource(R.string.premiere_date_prefix, it) }
+            ?.let { stringResource(prefix, it) }
             ?: video.uploadDate.takeIf(String::isNotBlank)
             ?: stringResource(R.string.premiere_soon)
     }
