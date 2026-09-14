@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.state
 
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.player.stream.UpcomingDetails
 import io.github.aedev.flow.player.stream.UpcomingPremiere
 import io.github.aedev.flow.utils.parsePremiereTimestamp
 
@@ -43,7 +44,11 @@ internal object UpcomingPremierePolicy {
         probe: UpcomingPremiere,
     ): UpcomingPremiere {
         if (!flagged && !probe.isUpcoming) return UpcomingPremiere.NOT_UPCOMING
-        return UpcomingPremiere(isUpcoming = true, scheduledStartMs = listReleaseMs ?: probe.scheduledStartMs)
+        return UpcomingPremiere(
+            isUpcoming = true,
+            scheduledStartMs = listReleaseMs ?: probe.scheduledStartMs,
+            details = probe.details,
+        )
     }
 
     /** The countdown state for a video the caller already knows is upcoming, before any load starts. */
@@ -60,11 +65,16 @@ internal object UpcomingPremierePolicy {
             upcomingReleaseTimeMs = releaseTimeMs,
         )
 
-    /** The video the countdown is shown for once a load has resolved it as upcoming. */
+    /**
+     * The video the countdown is shown for once a load has resolved it as upcoming. A list row knows
+     * the title but never the description, and a deep link knows nothing; [details] fills whatever
+     * is still blank.
+     */
     fun upcomingVideo(
         videoId: String,
         cached: Video?,
         releaseMs: Long?,
+        details: UpcomingDetails? = null,
     ): Video {
         val base =
             cached ?: Video(
@@ -78,6 +88,11 @@ internal object UpcomingPremierePolicy {
                 uploadDate = "",
             )
         return base.copy(
+            title = base.title.ifBlank { details?.title.orEmpty() },
+            channelName = base.channelName.ifBlank { details?.channelName.orEmpty() },
+            channelId = base.channelId.ifBlank { details?.channelId.orEmpty() },
+            thumbnailUrl = base.thumbnailUrl.ifBlank { details?.thumbnailUrl.orEmpty() },
+            description = base.description.ifBlank { details?.description.orEmpty() },
             isUpcoming = true,
             timestamp = releaseMs ?: base.timestamp,
         )

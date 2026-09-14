@@ -116,6 +116,7 @@ sealed interface ResolvedPlayback {
     data class Upcoming(
         val relatedVideos: List<Video>,
         val releaseTimeMs: Long?,
+        val details: UpcomingDetails? = null,
     ) : ResolvedPlayback
 
     /** Nothing playable, and not a premiere. A null [relatedVideos] leaves the current list alone. */

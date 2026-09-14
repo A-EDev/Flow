@@ -138,6 +138,7 @@ internal class PlayerSecondaryMetadataLoader(
         channelId: String?,
         embeddedAvatarUrls: List<String>,
         loadToken: Long,
+        awaitPlayback: Boolean = true,
     ) {
         val embeddedAvatar =
             embeddedAvatarUrls
@@ -164,7 +165,7 @@ internal class PlayerSecondaryMetadataLoader(
             scope.launch(networkDispatcher) {
                 // Embedded avatars can update immediately, but the extra channel request waits until
                 // playback has actually started so it cannot compete with the first media buffer.
-                awaitPlaybackStarted(videoId)
+                if (awaitPlayback) awaitPlaybackStarted(videoId)
                 if (!isPlaybackCurrent(loadToken)) return@launch
 
                 var channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo? = null
@@ -201,6 +202,7 @@ internal class PlayerSecondaryMetadataLoader(
         videoId: String,
         primaryCandidates: List<Video>,
         loadToken: Long,
+        awaitPlayback: Boolean = true,
     ) {
         val selected =
             PlayerRelatedVideosPolicy.select(
@@ -222,7 +224,7 @@ internal class PlayerSecondaryMetadataLoader(
             scope.launch(networkDispatcher) {
                 // Keep this request off the critical startup path. It is only needed when the
                 // playback resolver did not provide related items with its initial metadata.
-                awaitPlaybackStarted(videoId)
+                if (awaitPlayback) awaitPlaybackStarted(videoId)
                 if (!isPlaybackCurrent(loadToken) || !relatedLoad.holds(videoId, loadToken)) return@launch
 
                 val managerCandidates = playerManager.relatedCandidatesFor(videoId)

@@ -103,6 +103,7 @@ class VideoPlayerViewModel
                 networkDispatcher = networkDispatcher,
                 ioDispatcher = ioDispatcher,
                 isLoadCurrent = ::isPlaybackLoadCurrent,
+                currentLoadToken = { playbackLoadToken },
                 shortsEnabled = { shortsContentEnabled },
             )
 

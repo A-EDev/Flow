@@ -255,6 +255,9 @@ class SubscriptionFeedRepository
                             duration = video.duration,
                             viewCount = video.viewCount,
                             isLive = video.isLive,
+                            isUpcoming = video.isUpcoming,
+                            uploadDate = video.uploadDate,
+                            timestamp = video.timestamp,
                         )
                     }
                 }
@@ -288,7 +291,8 @@ private fun SubscriptionFeedEntity.toVideo() =
         channelThumbnailUrl = channelThumbnailUrl,
         isShort = isShort,
         isLive = isLive && uploadDate.containsLiveMarker(),
-        isUpcoming = isUpcoming,
+        // A cached "upcoming" outlives its start time only until the next look at the row.
+        isUpcoming = isUpcoming && timestamp > System.currentTimeMillis(),
     )
 
 private fun Video.toEntity(cachedAtMillis: Long) =

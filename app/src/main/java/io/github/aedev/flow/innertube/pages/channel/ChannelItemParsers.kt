@@ -11,6 +11,7 @@ import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.youtubeText
 import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.premiereDateText
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -126,19 +127,25 @@ private fun JsonObject.lockupVideo(
     owner: ChannelOwner,
 ): Video {
     val viewsText = parts.firstOrNull { it.mentionsViewers() }
-    val uploadText = parts.firstOrNull { !it.mentionsViewers() }.orEmpty()
+    val uploadText = parts.firstOrNull { !it.mentionsViewers() && !it.mentionsWaiting() }.orEmpty()
+    val duration = badges.firstNotNullOfOrNull(::parseDurationText) ?: 0
+    val isLive = viewsText?.contains("watching", ignoreCase = true) == true || badges.any { it.marksLive() }
+    // A stream that has not started carries a badge that is neither a duration nor LIVE ("Upcoming"),
+    // and its date row is the scheduled start, already rendered by the server.
+    val isUpcoming = !isLive && duration == 0 && badges.any { it.marksUpcoming() }
     return Video(
         id = videoId,
         title = title,
         channelName = owner.name,
         channelId = owner.id,
         thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, lockupThumbnailUrl()),
-        duration = badges.firstNotNullOfOrNull(::parseDurationText) ?: 0,
+        duration = duration,
         viewCount = parseYouTubeViewCount(viewsText),
         uploadDate = uploadText,
-        timestamp = RelativeUploadDateParser.parse(uploadText) ?: 0L,
+        timestamp = if (isUpcoming) 0L else RelativeUploadDateParser.parse(uploadText) ?: 0L,
         channelThumbnailUrl = owner.avatarUrl,
-        isLive = viewsText?.contains("watching", ignoreCase = true) == true || badges.any { it.marksLive() },
+        isLive = isLive,
+        isUpcoming = isUpcoming,
     )
 }
 
@@ -147,6 +154,13 @@ private fun JsonObject.toVideoRendererItem(owner: ChannelOwner): ChannelItem? {
     val title = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null
     val viewsText = this["viewCountText"].youtubeText()
     val uploadText = this["publishedTimeText"].youtubeText().orEmpty()
+    val upcomingStartMs =
+        this["upcomingEventData"]
+            .objectOrNull()
+            ?.get("startTime")
+            .stringOrNull()
+            ?.toLongOrNull()
+            ?.times(1000L)
     return ChannelItem.VideoItem(
         Video(
             id = videoId,
@@ -156,10 +170,11 @@ private fun JsonObject.toVideoRendererItem(owner: ChannelOwner): ChannelItem? {
             thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, this["thumbnail"].largestImageUrl()),
             duration = parseDurationText(this["lengthText"].youtubeText()) ?: 0,
             viewCount = parseYouTubeViewCount(viewsText),
-            uploadDate = uploadText,
-            timestamp = RelativeUploadDateParser.parse(uploadText) ?: 0L,
+            uploadDate = upcomingStartMs?.let(::premiereDateText) ?: uploadText,
+            timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText) ?: 0L,
             channelThumbnailUrl = owner.avatarUrl,
             isLive = viewsText?.contains("watching", ignoreCase = true) == true,
+            isUpcoming = upcomingStartMs != null,
         ),
     )
 }
@@ -388,6 +403,10 @@ private fun String.leadingCount(): Int? =
 
 private fun String.mentionsViewers(): Boolean = contains("view", ignoreCase = true) || contains("watching", ignoreCase = true)
 
+private fun String.mentionsWaiting(): Boolean = contains("waiting", ignoreCase = true)
+
 private fun String.mentionsSubscribers(): Boolean = contains("subscriber", ignoreCase = true)
 
 private fun String.marksLive(): Boolean = equals("LIVE", ignoreCase = true) || contains("LIVE_NOW", ignoreCase = true)
+
+private fun String.marksUpcoming(): Boolean = parseDurationText(this) == null && !marksLive()

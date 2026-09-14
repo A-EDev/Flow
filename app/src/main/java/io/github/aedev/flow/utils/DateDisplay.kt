@@ -80,6 +80,29 @@ data class DateDisplaySettings(
     ): String = formatUploadDateConfigured(date, resolve(context), formatStyle, timestampFallbackMs, locale)
 }
 
+/**
+ * When a stream still ahead starts: the moment the feed already knew, or the one its premiere label
+ * carries, and only while it is still in the future.
+ */
+fun upcomingReleaseMs(
+    timestampMs: Long,
+    uploadDate: String,
+    nowMs: Long = System.currentTimeMillis(),
+): Long? = timestampMs.takeIf { it > nowMs } ?: parsePremiereTimestamp(uploadDate)?.takeIf { it > nowMs }
+
+/** The start of a stream still ahead, in the mode the user chose for list dates. */
+fun formatScheduledStart(
+    releaseMs: Long,
+    mode: DateDisplayMode,
+    nowMs: Long = System.currentTimeMillis(),
+    locale: Locale = Locale.getDefault(),
+): String =
+    when (mode) {
+        DateDisplayMode.RELATIVE -> formatTimeUntil(releaseMs, nowMs, locale)
+        DateDisplayMode.EXACT -> formatPremiereDate(releaseMs)
+        DateDisplayMode.BOTH -> "${formatTimeUntil(releaseMs, nowMs, locale)} • ${formatPremiereDate(releaseMs)}"
+    }
+
 fun formatExactDate(
     timestampMs: Long,
     style: DateFormatStyle,

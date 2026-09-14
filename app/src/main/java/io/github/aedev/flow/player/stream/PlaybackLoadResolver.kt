@@ -283,7 +283,7 @@ class PlaybackLoadResolver
                 // has since the premiere state was introduced.
                 val upcoming = resolveUpcoming(videoId, true)
                 if (upcoming.isUpcoming) {
-                    onStep(ResolvedPlayback.Upcoming(relatedVideos, upcoming.scheduledStartMs))
+                    onStep(ResolvedPlayback.Upcoming(relatedVideos, upcoming.scheduledStartMs, upcoming.details))
                 }
                 return
             }
@@ -407,7 +407,7 @@ class PlaybackLoadResolver
         ): ResolvedPlayback {
             val upcoming = resolveUpcoming(videoId, false)
             return if (upcoming.isUpcoming) {
-                ResolvedPlayback.Upcoming(relatedVideos.orEmpty(), upcoming.scheduledStartMs)
+                ResolvedPlayback.Upcoming(relatedVideos.orEmpty(), upcoming.scheduledStartMs, upcoming.details)
             } else {
                 ResolvedPlayback.Failed(failure, cause, relatedVideos)
             }

@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.player.state
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.player.stream.UpcomingDetails
 import io.github.aedev.flow.player.stream.UpcomingPremiere
 import org.junit.Test
 
@@ -26,6 +27,30 @@ class UpcomingPremierePolicyTest {
             isUpcoming = isUpcoming,
             timestamp = timestamp,
         )
+
+    @Test
+    fun `the probe fills what the list row and a deep link never carry`() {
+        val details =
+            UpcomingDetails(
+                title = "Probed title",
+                channelName = "Probed channel",
+                channelId = "UCprobed",
+                thumbnailUrl = "https://i.ytimg.test/probed.jpg",
+                description = "Probed description",
+            )
+
+        val fromRow = UpcomingPremierePolicy.upcomingVideo("vid", video(), releaseMs = now, details = details)
+        assertThat(fromRow.title).isEqualTo("Title")
+        assertThat(fromRow.channelName).isEqualTo("Channel")
+        assertThat(fromRow.description).isEqualTo("Probed description")
+        assertThat(fromRow.thumbnailUrl).isEqualTo("https://i.ytimg.test/probed.jpg")
+
+        val fromLink = UpcomingPremierePolicy.upcomingVideo("vid", cached = null, releaseMs = now, details = details)
+        assertThat(fromLink.title).isEqualTo("Probed title")
+        assertThat(fromLink.channelId).isEqualTo("UCprobed")
+        assertThat(fromLink.isUpcoming).isTrue()
+        assertThat(fromLink.timestamp).isEqualTo(now)
+    }
 
     @Test
     fun `a video that is not upcoming has no release time`() {

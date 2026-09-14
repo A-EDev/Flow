@@ -2,6 +2,7 @@ package io.github.aedev.flow.innertube.pages.channel
 
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,6 +43,77 @@ class ChannelItemParsersTest {
 
     private fun row(vararg parts: String) =
         """[ { "metadataParts": [ ${parts.joinToString(",") { """{ "text": { "content": "$it" } }""" }} ] } ]"""
+
+    /** The shape the streams tab returns live: a bottom overlay whose badge is styled, not only worded. */
+    private fun bottomBadgeOverlay(
+        text: String,
+        style: String,
+    ) =
+        """[ { "thumbnailBottomOverlayViewModel": { "badges": [ { "thumbnailBadgeViewModel": { "text": "$text", "badgeStyle": "$style" } } ] } } ]"""
+
+    @Test
+    fun `a finished stream keeps its duration and is neither live nor upcoming`() {
+        val video =
+            (
+                item(
+                    lockup(
+                        "wan1",
+                        "LOCKUP_CONTENT_TYPE_VIDEO",
+                        "The WAN Show",
+                        rows = row("603K views", "Streamed 2 months ago"),
+                        overlays = bottomBadgeOverlay("3:53:45", "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT"),
+                    ),
+                ) as ChannelItem.VideoItem
+            ).video
+
+        assertEquals(3 * 3600 + 53 * 60 + 45, video.duration)
+        assertFalse(video.isLive)
+        assertFalse(video.isUpcoming)
+        assertEquals("Streamed 2 months ago", video.uploadDate)
+    }
+
+    @Test
+    fun `a stream that is on now is live`() {
+        val video =
+            (
+                item(
+                    lockup(
+                        "iss",
+                        "LOCKUP_CONTENT_TYPE_VIDEO",
+                        "Live Video from the International Space Station",
+                        rows = row("83 watching"),
+                        overlays = bottomBadgeOverlay("LIVE", "THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE"),
+                    ),
+                ) as ChannelItem.VideoItem
+            ).video
+
+        assertTrue(video.isLive)
+        assertFalse(video.isUpcoming)
+        assertEquals(0, video.duration)
+    }
+
+    @Test
+    fun `a scheduled stream is upcoming and keeps its scheduled start as the date`() {
+        val video =
+            (
+                item(
+                    lockup(
+                        "crew12",
+                        "LOCKUP_CONTENT_TYPE_VIDEO",
+                        "Crew-12 Pre-Departure News Conference",
+                        rows = row("2 waiting", "Scheduled for 9/16/26, 6:45 PM"),
+                        overlays = bottomBadgeOverlay("Upcoming", "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT"),
+                    ),
+                ) as ChannelItem.VideoItem
+            ).video
+
+        assertTrue(video.isUpcoming)
+        assertFalse(video.isLive)
+        assertEquals(0, video.duration)
+        assertEquals(0L, video.viewCount)
+        assertEquals("Scheduled for 9/16/26, 6:45 PM", video.uploadDate)
+        assertEquals(0L, video.timestamp)
+    }
 
     @Test
     fun `a video lockup becomes a video with duration views and attribution`() {
