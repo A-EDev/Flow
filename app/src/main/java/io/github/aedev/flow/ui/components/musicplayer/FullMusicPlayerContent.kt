@@ -732,6 +732,7 @@ internal fun FullMusicPlayerContent(
                     queue = uiState.queue,
                     radioTracks = uiState.autoplaySuggestions,
                     currentIndex = uiState.currentQueueIndex,
+                    isPlaying = uiState.isPlaying,
                     isRadioLoading = uiState.isRelatedLoading,
                     endlessRadioEnabled = uiState.endlessRadioEnabled,
                     shuffleEnabled = uiState.shuffleEnabled,

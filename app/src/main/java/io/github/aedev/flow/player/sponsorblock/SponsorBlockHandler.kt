@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -127,6 +128,8 @@ class SponsorBlockHandler(
                     segments.forEach {
                         Log.d(TAG, "Segment: ${it.category} [${it.startTime} - ${it.endTime}]")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to load segments for video $videoId", e)
                 }

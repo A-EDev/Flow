@@ -98,6 +98,7 @@ fun QueueSheet(
     queue: List<MusicTrack>,
     radioTracks: List<MusicTrack>,
     currentIndex: Int,
+    isPlaying: Boolean,
     isRadioLoading: Boolean,
     endlessRadioEnabled: Boolean,
     shuffleEnabled: Boolean,
@@ -316,6 +317,7 @@ fun QueueSheet(
                         QueueTrackRow(
                             track = track,
                             isCurrent = isCurrent,
+                            isPlaying = isPlaying,
                             isRadioItem = false,
                             isDragging = isDragging,
                             swipeEnabled = !isCurrent && !isDragging,
@@ -381,6 +383,7 @@ fun QueueSheet(
                             QueueTrackRow(
                                 track = track,
                                 isCurrent = false,
+                                isPlaying = isPlaying,
                                 isRadioItem = true,
                                 isDragging = false,
                                 swipeEnabled = true,
@@ -434,6 +437,7 @@ private fun RadioLoadingRow() {
 private fun QueueTrackRow(
     track: MusicTrack,
     isCurrent: Boolean,
+    isPlaying: Boolean,
     isRadioItem: Boolean,
     isDragging: Boolean,
     swipeEnabled: Boolean,
@@ -557,6 +561,7 @@ private fun QueueTrackRow(
                         ) {
                             PlayingWaveform(
                                 color = Color.White.copy(alpha = 0.9f),
+                                animate = isPlaying,
                                 barCount = 3,
                                 barWidth = 2.5.dp,
                                 barSpacing = 1.5.dp,
