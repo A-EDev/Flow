@@ -2552,4 +2552,87 @@
         <item quantity="many">%1$d de dias</item>
         <item quantity="other">%1$d dias</item>
     </plurals>
+    <string name="audio_bitrate_kbps_template">%1$d kbps</string>
+    <string name="filter_timed">Temporizados</string>
+    <string name="no_timed_comments">Ainda sem comentários com marcação de tempo</string>
+    <string name="comment_hearted_by_creator">Curtido pelo criador</string>
+    <string name="verified">Verificado</string>
+    <string name="comments_with_count_template">Comentários · %1$s</string>
+    <string name="desc_see_more">Ver mais</string>
+    <string name="desc_see_less">Ver menos</string>
+    <string name="transcript">Transcrição</string>
+    <string name="transcript_show">Mostrar transcrição</string>
+    <string name="transcript_subtitle">Acompanhar usando a transcrição.</string>
+    <string name="transcript_unavailable">Não há transcrição disponível para este vídeo</string>
+    <string name="transcript_search_hint">Pesquisar transcrição</string>
+    <string name="transcript_no_matches">Nenhuma linha corresponde à sua pesquisa</string>
+    <string name="channel_links">Links</string>
+    <string name="list_separator_dot">" · "</string>
+    <string name="quality_badge_2k">2K</string>
+    <string name="quality_badge_qhd">QHD</string>
+    <string name="quality_badge_fhd">FHD</string>
+    <string name="quality_badge_sd">SD</string>
+    <string name="quality_badge_height_template">%1$dp</string>
+    <string name="player_background_style_immersive">Arte imersiva</string>
+    <plurals name="import_yt_playlist_success_template">
+        <item quantity="one">Playlist “%1$s” importada com %2$d vídeo</item>
+        <item quantity="many">Playlist “%1$s” importada com %2$d vídeos</item>
+        <item quantity="other">Playlist “%1$s” importada com %2$d vídeos</item>
+    </plurals>
+    <plurals name="threads_per_download_template">
+        <item quantity="one">%1$d thread por download</item>
+        <item quantity="many">%1$d threads por download</item>
+        <item quantity="other">%1$d threads por download</item>
+    </plurals>
+    <plurals name="threads_count_label">
+        <item quantity="one">%1$d thread</item>
+        <item quantity="many">%1$d threads</item>
+        <item quantity="other">%1$d threads</item>
+    </plurals>
+    <string name="playlist_downloads_queued">%1$d/%2$d downloads adicionados à fila</string>
+    <string name="playlist_download_queue_empty">Não foi possível adicionar downloads desta playlist à fila</string>
+    <plurals name="remove_selected_videos_title">
+        <item quantity="one">Remover %1$d vídeo?</item>
+        <item quantity="many">Remover %1$d vídeos?</item>
+        <item quantity="other">Remover %1$d vídeos?</item>
+    </plurals>
+    <plurals name="onboarding_channels_added_count">
+        <item quantity="one">%1$d canal adicionado</item>
+        <item quantity="many">%1$d canais adicionados</item>
+        <item quantity="other">%1$d canais adicionados</item>
+    </plurals>
+    <string name="chart_position_template">#%1$d</string>
+    <string name="section_on_repeat">Em repetição</string>
+    <string name="section_daily_mix_title">%1$s Mix</string>
+    <string name="section_daily_mix_label">Mix Diário</string>
+    <string name="daily_mix_page_description">Criada com base nos artistas que vocês ouvem juntos. Salve para guardar a seleção de hoje.</string>
+    <string name="section_rediscover">Redescobrir</string>
+    <string name="section_deep_cuts">Cortes sombrios</string>
+    <string name="section_artists_for_you">Artistas para você</string>
+    <string name="section_from_artists_you_love">De artistas que você curte</string>
+    <string name="section_your_history">Seu histórico</string>
+    <string name="artist_insights_played_times">Tocou %1$d vez(es)</string>
+    <string name="artist_insights_liked">Curtidos</string>
+    <string name="artist_known_related_badge">Na sua rotina</string>
+    <string name="section_rotation_morning">Sua rotina matinal</string>
+    <string name="section_rotation_afternoon">Sua rotina da tarde</string>
+    <string name="section_rotation_evening">Sua rotina noturna</string>
+    <string name="section_rotation_night">Sua rotina da madrugada</string>
+    <string name="source_your_rotation">Sua rotina</string>
+    <string name="music_genre_affinity_title">Gêneros e estados de espírito</string>
+    <string name="music_genre_affinity_subtitle">Aprendido das características de gênero e estado de espírito das músicas que você realmente toca</string>
+    <string name="recommendations_header">Recomendações</string>
+    <string name="not_interested_desc">Mostrar menos deste artista por um tempo</string>
+    <string name="dont_recommend_artist">Não recomendar %1$s</string>
+    <string name="dont_recommend_artist_desc">Nunca mais sugira este artista</string>
+    <string name="feedback_not_interested_applied">Você verá menos de %1$s</string>
+    <string name="feedback_artist_blocked">%1$s não será mais recomendado(a)</string>
+    <string name="music_prefs_section_title">Recomendações de músicas</string>
+    <string name="music_endless_radio_title">Rádio infinita</string>
+    <string name="music_endless_radio_desc">Mantenha a fila com músicas semelhantes quando ela acabar</string>
+    <string name="music_content_language_title">Idioma do conteúdo</string>
+    <string name="music_content_language_follow_app">Seguir o idioma do aplicativo</string>
+    <string name="music_content_language_dialog_title">Selecione o idioma do conteúdo</string>
+    <string name="music_content_country_title">País do conteúdo</string>
+    <string name="music_normalize_volume_title">Normalizar volume</string>
 </resources>
