@@ -27,6 +27,10 @@ data class Video(
     val isLive: Boolean = false,
     val isShort: Boolean = false,
     val isUpcoming: Boolean = false,
+    // An upcoming row that is a scheduled live stream rather than a premiere.
+    val isScheduledLive: Boolean = false,
+    // YouTube's own label, so it arrives translated; null on an ordinary video.
+    val membersOnlyText: String? = null,
     val commentCountText: String = "",
     val channelThumbnailUrls: List<String> = emptyList(),
     val collaborators: List<VideoCollaborator> = emptyList(),

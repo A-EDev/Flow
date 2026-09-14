@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.notification.UpcomingVideoReminderWorker
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.player.stream.UpcomingDetails
 import io.github.aedev.flow.player.stream.UpcomingPremiere
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.ui.screens.player.state.UpcomingPremierePolicy
@@ -38,6 +39,7 @@ internal class UpcomingPremiereController(
     private val probe: UpcomingPremiereProbe,
     private val scope: CoroutineScope,
     private val isLoadCurrent: (Long) -> Boolean,
+    private val armMetadata: (videoId: String, channelId: String?) -> Unit,
 ) {
     /** Mirrors the stored reminder ids onto the video the screen currently holds. */
     fun collectReminderState() {
@@ -58,6 +60,7 @@ internal class UpcomingPremiereController(
     ): Boolean {
         val releaseTimeMs = UpcomingPremierePolicy.releaseTimeFor(video) ?: return false
         uiState.update { UpcomingPremierePolicy.applyTo(it, video, releaseTimeMs, preserveQueueTitle) }
+        armMetadata(video.id, video.channelId)
         return true
     }
 
@@ -68,6 +71,7 @@ internal class UpcomingPremiereController(
                 ?.takeIf { it.id == videoId && it.isUpcoming }
                 ?.let(UpcomingPremierePolicy::releaseTimeFor) ?: return false
         uiState.update { it.applyCachedUpcoming(releaseTimeMs) }
+        armMetadata(videoId, uiState.value.cachedVideo?.channelId)
         return true
     }
 
@@ -77,10 +81,11 @@ internal class UpcomingPremiereController(
         releaseMs: Long?,
         relatedVideos: List<Video>,
         loadToken: Long,
+        details: UpcomingDetails? = null,
     ): Boolean {
         if (!isLoadCurrent(loadToken)) return true
         val cached = uiState.value.cachedVideo?.takeIf { it.id == videoId }
-        val upcomingVideo = UpcomingPremierePolicy.upcomingVideo(videoId, cached, releaseMs)
+        val upcomingVideo = UpcomingPremierePolicy.upcomingVideo(videoId, cached, releaseMs, details)
         uiState.update { UpcomingPremierePolicy.enterFrom(it, upcomingVideo, relatedVideos, releaseMs) }
         GlobalPlayerState.setCurrentVideo(upcomingVideo)
         return true
@@ -92,9 +97,9 @@ internal class UpcomingPremiereController(
         relatedVideos: List<Video>,
         loadToken: Long,
     ): Boolean {
-        val (isUpcoming, releaseMs) = resolve(videoId, knownUpcoming = false)
-        if (!isUpcoming) return false
-        return enterCountdown(videoId, releaseMs, relatedVideos, loadToken)
+        val resolved = resolve(videoId, knownUpcoming = false)
+        if (!resolved.isUpcoming) return false
+        return enterCountdown(videoId, resolved.scheduledStartMs, relatedVideos, loadToken, resolved.details)
     }
 
     suspend fun resolve(

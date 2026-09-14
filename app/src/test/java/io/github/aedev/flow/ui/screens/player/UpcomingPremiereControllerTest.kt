@@ -67,6 +67,8 @@ class UpcomingPremiereControllerTest {
         unmockkAll()
     }
 
+    private val armedMetadata = mutableListOf<Pair<String, String?>>()
+
     private fun controller(): UpcomingPremiereController =
         UpcomingPremiereController(
             context = context,
@@ -75,6 +77,7 @@ class UpcomingPremiereControllerTest {
             probe = probe,
             scope = controllerScope,
             isLoadCurrent = { token -> token == CURRENT_TOKEN },
+            armMetadata = { videoId, channelId -> armedMetadata += videoId to channelId },
         )
 
     @Test
@@ -89,6 +92,16 @@ class UpcomingPremiereControllerTest {
             assertThat(uiState.value.upcomingReleaseTimeMs).isEqualTo(RELEASE_MS)
             assertThat(uiState.value.isLoading).isFalse()
             assertThat(uiState.value.queueTitle).isEqualTo("Queue")
+        }
+
+    @Test
+    fun `a countdown entered without a load still arms the channel row and related lane`() =
+        runTest(testDispatcher) {
+            val video = upcomingVideo()
+
+            controller().applyCountdown(video)
+
+            assertThat(armedMetadata).containsExactly(video.id to video.channelId)
         }
 
     @Test

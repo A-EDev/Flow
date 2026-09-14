@@ -10,13 +10,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.AddToPlaylistDialog
+import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
@@ -70,6 +73,9 @@ internal fun VideoInfoContent(
     }
 
     val downloadedVideoIds by viewModel.downloadedVideoIds.collectAsStateWithLifecycle()
+    val videoNote by viewModel.videoNote.collectAsStateWithLifecycle()
+    val videoNotesEnabled by viewModel.videoNotesEnabled.collectAsStateWithLifecycle()
+    var showNoteEditor by rememberSaveable(video.id) { mutableStateOf(false) }
     val isVideoDownloaded = remember(downloadedVideoIds, video.id) { downloadedVideoIds.contains(video.id) }
     val isVideoSaved by remember(video.id) { viewModel.isVideoSavedToAnyPlaylist(video.id) }
         .collectAsStateWithLifecycle(initialValue = false)
@@ -188,6 +194,8 @@ internal fun VideoInfoContent(
         onDownloadClick = { screenState.open(PlayerSheet.Download) },
         isSaved = isVideoSaved,
         isDownloaded = isVideoDownloaded,
+        onNoteClick = { showNoteEditor = true }.takeIf { videoNotesEnabled },
+        hasNote = !videoNote.isNullOrBlank(),
         onBackgroundPlayClick = { viewModel.startBackgroundPlayback() },
         onCopyLinkClick = {
             val url = youtubeWatchUrl(video.id)
@@ -218,6 +226,15 @@ internal fun VideoInfoContent(
             totalText = commentsUiState.totalText,
             showPreviewText = showCommentsPreview,
             onClick = { screenState.open(PlayerSheet.Comments()) },
+        )
+    }
+
+    if (showNoteEditor && videoNotesEnabled) {
+        FlowNoteEditorDialog(
+            initialText = videoNote.orEmpty(),
+            title = stringResource(R.string.note_video_title),
+            onSave = { text -> viewModel.saveVideoNote(video.id, text) },
+            onDismiss = { showNoteEditor = false },
         )
     }
 }

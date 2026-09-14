@@ -13,6 +13,7 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.stream.JsonReader
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.entity.NoteEntity
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
@@ -71,6 +72,7 @@ data class BackupData(
     val playlistVideos: List<PlaylistVideoCrossRef>? = emptyList(),
     val videos: List<VideoEntity>? = emptyList(),
     val subscriptionGroups: List<SubscriptionGroupEntity>? = emptyList(),
+    val notes: List<NoteEntity>? = emptyList(),
     val likedVideos: List<LikedVideoInfo>? = emptyList(),
     val contentPreferences: ContentPreferencesBackup? = null,
     val settings: SettingsBackup? = null,
@@ -260,6 +262,7 @@ class BackupRepository(
                         playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
                         videos = database.videoDao().getAllVideos(),
                         subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
+                        notes = database.noteDao().getAll(),
                         likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                         contentPreferences = getContentPreferencesBackup(),
                         settings = getMergedSettingsBackup(),
@@ -1998,6 +2001,7 @@ class BackupRepository(
                         playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
                         videos = database.videoDao().getAllVideos(),
                         subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
+                        notes = database.noteDao().getAll(),
                         likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                         contentPreferences = getContentPreferencesBackup(),
                         settings = getMergedSettingsBackup(),
@@ -2102,6 +2106,11 @@ class BackupRepository(
             backupData.subscriptionGroups?.let { groups ->
                 if (groups.isNotEmpty()) {
                     database.subscriptionGroupDao().insertAll(groups)
+                }
+            }
+            backupData.notes?.let { notes ->
+                if (notes.isNotEmpty()) {
+                    database.noteDao().upsertAll(notes)
                 }
             }
         }
@@ -2222,6 +2231,7 @@ class BackupRepository(
                         playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
                         videos = database.videoDao().getAllVideos(),
                         subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
+                        notes = database.noteDao().getAll(),
                         likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                         contentPreferences = getContentPreferencesBackup(),
                         settings = getMergedSettingsBackup(),
@@ -2259,6 +2269,7 @@ class BackupRepository(
                         playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
                         videos = database.videoDao().getAllVideos(),
                         subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
+                        notes = database.noteDao().getAll(),
                         likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                         contentPreferences = getContentPreferencesBackup(),
                         settings = getMergedSettingsBackup(),

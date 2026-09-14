@@ -257,6 +257,8 @@
     <string name="playlist_video_added_template">Added %1$s</string>
     <string name="premiere_soon">Premieres soon</string>
     <string name="premiere_date_prefix">Premieres %1$s</string>
+    <string name="scheduled_for_prefix">Scheduled for %1$s</string>
+    <string name="live_in_prefix">Live %1$s</string>
     <string name="upcoming_label">Upcoming</string>
     <string name="upcoming_waiting_count">%1$s waiting</string>
     <string name="upcoming_video_overlay_title">This video is scheduled. Playback will unlock when it goes live.</string>
@@ -462,6 +464,27 @@
     <!-- Channel Screen -->
     <string name="channel_default_title">Channel</string>
     <string name="channel_banner">Channel banner</string>
+    <string name="channel_about_handle">Handle</string>
+    <string name="channel_about_joined">Joined</string>
+    <string name="channel_about_country">Country</string>
+    <string name="channel_about_videos">Videos</string>
+    <string name="channel_about_links">Links</string>
+    <string name="note_title">Note</string>
+    <string name="sync_collection_notes">Notes</string>
+    <string name="note_edit">Edit note</string>
+    <string name="note_add">Add note</string>
+    <string name="note_placeholder">Write a note for yourself…</string>
+    <string name="note_channel_title">Note about this channel</string>
+    <string name="note_video_title">Note about this video</string>
+    <string name="content_settings_notes_title">Personal notes</string>
+    <string name="content_settings_notes_subtitle">Keep private notes on channels and videos</string>
+    <string name="content_settings_channel_notes_title">Channel notes</string>
+    <string name="content_settings_channel_notes_subtitle">Show a note on the channel page</string>
+    <string name="content_settings_video_notes_title">Video notes</string>
+    <string name="content_settings_video_notes_subtitle">Show a note in the video description</string>
+    <string name="channel_about_more_info">More info</string>
+    <string name="channel_post_image_count">%1$d / %2$d</string>
+    <string name="channel_post_poll_votes">%1$s</string>
     <string name="channel_avatar">Channel avatar</string>
     <string name="subscribe">Subscribe</string>
     <string name="unlike">Unlike</string>

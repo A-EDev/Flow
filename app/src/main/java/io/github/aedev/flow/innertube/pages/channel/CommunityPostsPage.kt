@@ -1,6 +1,19 @@
-package io.github.aedev.flow.innertube.pages
+package io.github.aedev.flow.innertube.pages.channel
 
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.innertube.pages.accessibilityLabel
+import io.github.aedev.flow.innertube.pages.arrayOrNull
+import io.github.aedev.flow.innertube.pages.bestThumbnailUrl
+import io.github.aedev.flow.innertube.pages.commentMutations
+import io.github.aedev.flow.innertube.pages.continuationToken
+import io.github.aedev.flow.innertube.pages.countTextFromAccessibilityLabel
+import io.github.aedev.flow.innertube.pages.findReplyContinuation
+import io.github.aedev.flow.innertube.pages.normalizeImageUrl
+import io.github.aedev.flow.innertube.pages.objectOrNull
+import io.github.aedev.flow.innertube.pages.stringOrNull
+import io.github.aedev.flow.innertube.pages.toLegacyComment
+import io.github.aedev.flow.innertube.pages.toModernComment
+import io.github.aedev.flow.innertube.pages.youtubeText
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -10,7 +23,7 @@ data class CommunityPost(
     val authorName: String,
     val authorAvatarUrl: String,
     val text: String,
-    val imageUrl: String?,
+    val attachment: PostAttachment?,
     val likeCountText: String,
     val commentCountText: String,
     val commentEndpointParams: String?,
@@ -31,6 +44,7 @@ data class CommunityCommentsPage(
 internal fun JsonElement.toCommunityPostsPage(
     fallbackAuthorName: String,
     fallbackAuthorAvatarUrl: String,
+    owner: ChannelOwner = ChannelOwner(name = fallbackAuthorName, avatarUrl = fallbackAuthorAvatarUrl),
 ): CommunityPostsPage {
     val posts = mutableListOf<CommunityPost>()
     var continuation: String? = null
@@ -53,7 +67,7 @@ internal fun JsonElement.toCommunityPostsPage(
 
                 if (renderer != null) {
                     renderer
-                        .toCommunityPost(fallbackAuthorName, fallbackAuthorAvatarUrl)
+                        .toCommunityPost(fallbackAuthorName, fallbackAuthorAvatarUrl, owner)
                         ?.let(posts::add)
                     return
                 }
@@ -157,9 +171,10 @@ internal fun JsonElement.toCommunityCommentsPage(): CommunityCommentsPage {
     )
 }
 
-private fun JsonObject.toCommunityPost(
+internal fun JsonObject.toCommunityPost(
     fallbackAuthorName: String,
     fallbackAuthorAvatarUrl: String,
+    owner: ChannelOwner,
 ): CommunityPost? {
     val id = this["postId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val replyButton =
@@ -184,7 +199,7 @@ private fun JsonObject.toCommunityPost(
                 ?: fallbackAuthorName,
         authorAvatarUrl = normalizeImageUrl(authorAvatar),
         text = this["contentText"].youtubeText().orEmpty(),
-        imageUrl = this["backstageAttachment"].findFirstBackstageImageUrl(),
+        attachment = this["backstageAttachment"].toPostAttachment(owner),
         likeCountText = this["voteCount"].youtubeText().orEmpty(),
         commentCountText =
             replyButton?.get("text").youtubeText()
@@ -207,28 +222,6 @@ private fun JsonObject.toCommunityPost(
                     .stringOrNull(),
         publishedTimeText = this["publishedTimeText"].youtubeText().orEmpty(),
     )
-}
-
-private fun JsonElement?.findFirstBackstageImageUrl(): String? {
-    when (this) {
-        is JsonArray -> {
-            forEach { child -> child.findFirstBackstageImageUrl()?.let { return it } }
-        }
-
-        is JsonObject -> {
-            this["backstageImageRenderer"]
-                .objectOrNull()
-                ?.get("image")
-                .bestThumbnailUrl()
-                ?.let { return normalizeImageUrl(it) }
-            values.forEach { child -> child.findFirstBackstageImageUrl()?.let { return it } }
-        }
-
-        else -> {
-            Unit
-        }
-    }
-    return null
 }
 
 private fun findCommentCountText(root: JsonObject?): String? {

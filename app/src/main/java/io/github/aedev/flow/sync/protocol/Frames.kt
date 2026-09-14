@@ -47,6 +47,9 @@ object SyncCollection {
     const val FLOW_NEURO_BRAIN = "flow_neuro_brain"
     const val MUSIC_BRAIN = "music_brain"
 
+    /** The user's own notes on channels and videos. */
+    const val NOTES = "notes"
+
     /** Subscription **groups** (the folders), not the channels themselves. */
     const val SUBSCRIPTIONS = "subscriptions"
 

@@ -18,6 +18,7 @@ import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.ResolvedPlayback
+import io.github.aedev.flow.player.stream.UpcomingDetails
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
 import io.github.aedev.flow.utils.distinctBestImageUrls
@@ -73,7 +74,13 @@ internal class PlaybackSessionApplier(
     private val scope: CoroutineScope,
     private val networkDispatcher: CoroutineDispatcher,
     private val ioDispatcher: CoroutineDispatcher,
-    private val enterUpcoming: (videoId: String, releaseMs: Long?, relatedVideos: List<Video>, loadToken: Long) -> Boolean,
+    private val enterUpcoming: (
+        videoId: String,
+        releaseMs: Long?,
+        relatedVideos: List<Video>,
+        loadToken: Long,
+        details: UpcomingDetails?,
+    ) -> Boolean,
     private val tryEnterUpcoming: suspend (videoId: String, relatedVideos: List<Video>, loadToken: Long) -> Boolean,
 ) {
     suspend fun apply(
@@ -115,7 +122,8 @@ internal class PlaybackSessionApplier(
             }
 
             is ResolvedPlayback.Upcoming -> {
-                enterUpcoming(load.videoId, step.releaseTimeMs, step.relatedVideos, load.token)
+                enterUpcoming(load.videoId, step.releaseTimeMs, step.relatedVideos, load.token, step.details)
+                armCountdownMetadata(load, step.relatedVideos, step.details?.channelId)
             }
 
             is ResolvedPlayback.Failed -> {
@@ -310,7 +318,9 @@ internal class PlaybackSessionApplier(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "InnerTube VOD fallback failed for ${load.videoId}", e)
-            if (!tryEnterUpcoming(load.videoId, step.relatedVideos, load.token)) {
+            if (tryEnterUpcoming(load.videoId, step.relatedVideos, load.token)) {
+                armCountdownMetadata(load, step.relatedVideos, channelId = null)
+            } else {
                 val videoError = VideoErrorMapper.from(context, step.streamError ?: e, load.videoId)
                 if (isLoadCurrent(load.token)) {
                     uiState.update { it.applyVodFailure(step.relatedVideos, videoError) }
@@ -457,6 +467,27 @@ internal class PlaybackSessionApplier(
             savedPositionMs = savedPositionMs,
             isCurrent = { isLoadCurrent(load.token) },
         )
+    }
+
+    /**
+     * A countdown never starts playback, so the channel row and the related lane cannot wait for
+     * the first frame the way a playing video's do.
+     */
+    fun armCountdownMetadata(
+        load: LoadContext,
+        relatedVideos: List<Video>,
+        channelId: String?,
+    ) {
+        if (!isLoadCurrent(load.token)) return
+        secondaryMetadata.loadChannelMetadata(
+            videoId = load.videoId,
+            uploaderUrl = null,
+            channelId = channelId?.takeIf { it.isNotBlank() } ?: uiState.value.cachedVideo?.channelId,
+            embeddedAvatarUrls = emptyList(),
+            loadToken = load.token,
+            awaitPlayback = false,
+        )
+        secondaryMetadata.loadRelatedVideos(load.videoId, relatedVideos, load.token, awaitPlayback = false)
     }
 
     private fun applyChannelMetadata(result: SecondaryMetadata.Channel) {

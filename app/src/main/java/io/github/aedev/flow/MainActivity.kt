@@ -52,6 +52,7 @@ import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.tv.FlowTvApp
 import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
+import io.github.aedev.flow.ui.youtubeChannelDeepLinkRoute
 import io.github.aedev.flow.updater.ApkUpdateHelper
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
@@ -83,8 +84,8 @@ class MainActivity : ComponentActivity() {
     private val _openMusicPlayerRequest = mutableIntStateOf(0)
     val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
 
-    private val _pendingWidgetRoute = mutableStateOf<String?>(null)
-    val pendingWidgetRoute: State<String?> = _pendingWidgetRoute
+    private val _pendingRoute = mutableStateOf<String?>(null)
+    val pendingRoute: State<String?> = _pendingRoute
 
     @Inject
     lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
@@ -365,7 +366,7 @@ class MainActivity : ComponentActivity() {
                                 val deeplinkVideoId by this@MainActivity.deeplinkVideoId
                                 val isDeeplinkShort by this@MainActivity.isDeeplinkShort
                                 val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
-                                val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
+                                val pendingRoute by this@MainActivity.pendingRoute
 
                                 if (appUiRoot == AppUiRoot.TV) {
                                     FlowTvApp(
@@ -424,9 +425,9 @@ class MainActivity : ComponentActivity() {
                                             onDeeplinkConsumed = {
                                                 consumeDeeplink()
                                             },
-                                            pendingWidgetRoute = pendingWidgetRoute,
-                                            onWidgetRouteConsumed = {
-                                                _pendingWidgetRoute.value = null
+                                            pendingRoute = pendingRoute,
+                                            onPendingRouteConsumed = {
+                                                _pendingRoute.value = null
                                             },
                                         )
                                     }
@@ -494,7 +495,19 @@ class MainActivity : ComponentActivity() {
             )
         if (widgetRoute != null) {
             intent.removeExtra(io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
-            _pendingWidgetRoute.value = widgetRoute
+            _pendingRoute.value = widgetRoute
+            return
+        }
+
+        val linkedText =
+            when {
+                data != null && intent.action == Intent.ACTION_VIEW -> data.toString()
+                intent.action == Intent.ACTION_SEND && intent.type == "text/plain" -> intent.getStringExtra(Intent.EXTRA_TEXT)
+                else -> null
+            }
+        val channelRoute = linkedText?.let(::youtubeChannelDeepLinkRoute)
+        if (channelRoute != null) {
+            _pendingRoute.value = channelRoute
             return
         }
 

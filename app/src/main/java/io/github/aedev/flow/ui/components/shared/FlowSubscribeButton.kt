@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.NotificationsActive
@@ -74,6 +75,7 @@ fun FlowSubscribeButton(
     areShortsExcluded: Boolean? = null,
     onShortsExcludeChange: (Boolean) -> Unit = {},
     onManageGroups: (() -> Unit)? = null,
+    onAddNote: (() -> Unit)? = null,
     size: FlowSubscribeButtonSize = FlowSubscribeButtonSize.Default,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -212,6 +214,17 @@ fun FlowSubscribeButton(
                     },
                 )
                 HorizontalDivider()
+            }
+
+            if (onAddNote != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.note_add)) },
+                    leadingIcon = { Icon(Icons.Outlined.StickyNote2, contentDescription = null) },
+                    onClick = {
+                        onAddNote()
+                        menuExpanded = false
+                    },
+                )
             }
 
             if (onManageGroups != null) {

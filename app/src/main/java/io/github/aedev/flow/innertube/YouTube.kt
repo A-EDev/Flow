@@ -45,11 +45,7 @@ import io.github.aedev.flow.innertube.pages.ArtistItemsContinuationPage
 import io.github.aedev.flow.innertube.pages.ArtistItemsPage
 import io.github.aedev.flow.innertube.pages.ArtistPage
 import io.github.aedev.flow.innertube.pages.BrowseResult
-import io.github.aedev.flow.innertube.pages.ChannelShortsPage
-import io.github.aedev.flow.innertube.pages.ChannelSortOption
 import io.github.aedev.flow.innertube.pages.ChartsPage
-import io.github.aedev.flow.innertube.pages.CommunityCommentsPage
-import io.github.aedev.flow.innertube.pages.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.ExplorePage
 import io.github.aedev.flow.innertube.pages.HistoryPage
 import io.github.aedev.flow.innertube.pages.HomePage
@@ -72,11 +68,26 @@ import io.github.aedev.flow.innertube.pages.SearchVideosPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
-import io.github.aedev.flow.innertube.pages.channelSortOptions
-import io.github.aedev.flow.innertube.pages.toChannelShortsPage
+import io.github.aedev.flow.innertube.pages.channel.ChannelAbout
+import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
+import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
+import io.github.aedev.flow.innertube.pages.channel.ChannelPage
+import io.github.aedev.flow.innertube.pages.channel.ChannelShortsPage
+import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabContent
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.innertube.pages.channel.CommunityCommentsPage
+import io.github.aedev.flow.innertube.pages.channel.CommunityPostsPage
+import io.github.aedev.flow.innertube.pages.channel.channelAboutContinuation
+import io.github.aedev.flow.innertube.pages.channel.channelSortOptions
+import io.github.aedev.flow.innertube.pages.channel.toChannelAbout
+import io.github.aedev.flow.innertube.pages.channel.toChannelHeader
+import io.github.aedev.flow.innertube.pages.channel.toChannelShortsPage
+import io.github.aedev.flow.innertube.pages.channel.toChannelTabContent
+import io.github.aedev.flow.innertube.pages.channel.toChannelTabs
+import io.github.aedev.flow.innertube.pages.channel.toCommunityCommentsPage
+import io.github.aedev.flow.innertube.pages.channel.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
-import io.github.aedev.flow.innertube.pages.toCommunityCommentsPage
-import io.github.aedev.flow.innertube.pages.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.toSearchVideosPage
 import io.github.aedev.flow.innertube.pages.toShortsPage
@@ -101,6 +112,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import java.net.Proxy
+import java.time.Instant
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.random.Random
 
@@ -664,6 +677,99 @@ object YouTube {
                 "subscribed",
                 "subscribe",
             )
+
+    // ── Channel (native InnerTube) ─────────────────────
+
+    /**
+     * A channel's landing page: header, the tabs it actually has, and the tab YouTube returned with
+     * it. [idOrHandle] must be a channel id in practice: browse answers 400 to an @handle, which
+     * would need a resolve request first.
+     */
+    suspend fun channel(idOrHandle: String): Result<ChannelPage> =
+        runCatching {
+            val response = channelBrowseJson(browseId = idOrHandle)
+            val about =
+                response
+                    .channelAboutContinuation()
+                    ?.let { token -> runCatching { channelBrowseJson(continuation = token).toChannelAbout() }.getOrNull() }
+            val header = response.toChannelHeader(idOrHandle).mergedWith(about)
+            val tabs = response.toChannelTabs()
+            ChannelPage(
+                header = header,
+                tabs = tabs,
+                initialTab =
+                    tabs
+                        .firstOrNull { it.selected }
+                        ?.let { tab -> response.toChannelTabContent(tab.kind, header.toOwner()) },
+            )
+        }
+
+    suspend fun channelTab(
+        browseId: String,
+        params: String,
+        owner: ChannelOwner = ChannelOwner(id = browseId),
+        kind: ChannelTabKind = ChannelTabKind.Unknown,
+    ): Result<ChannelTabContent> =
+        runCatching {
+            channelBrowseJson(browseId = browseId, params = params).toChannelTabContent(kind, owner)
+        }
+
+    /** Serves paging and sort switching alike — a sort chip's token is just another continuation. */
+    suspend fun channelTabContinuation(
+        continuation: String,
+        owner: ChannelOwner,
+        kind: ChannelTabKind = ChannelTabKind.Unknown,
+    ): Result<ChannelTabContent> =
+        runCatching {
+            channelBrowseJson(continuation = continuation).toChannelTabContent(kind, owner)
+        }
+
+    private suspend fun channelBrowseJson(
+        browseId: String? = null,
+        params: String? = null,
+        continuation: String? = null,
+    ): JsonElement {
+        // Channel rows carry server-rendered times ("Scheduled for 9/16/26, 6:45 PM"); the WEB
+        // client's zero offset would print them in UTC.
+        val response =
+            innerTube.channelBrowse(
+                client = currentWebClient().copy(utcOffsetMinutes = localUtcOffsetMinutes()),
+                channelId = browseId,
+                params = params,
+                continuation = continuation,
+            )
+        return Json.parseToJsonElement(response.bodyAsText())
+    }
+
+    private fun localUtcOffsetMinutes(): Int =
+        ZoneId
+            .systemDefault()
+            .rules
+            .getOffset(Instant.now())
+            .totalSeconds / 60
+
+    /**
+     * The landing response carries a one-line description and nothing else about the channel; the
+     * About panel is a separate continuation and is where the links, country, join date and totals
+     * live.
+     */
+    private fun ChannelHeader.mergedWith(about: ChannelAbout?): ChannelHeader =
+        if (about == null) {
+            this
+        } else {
+            copy(
+                description = about.description ?: description,
+                subscriberCountText = about.subscriberCountText ?: subscriberCountText,
+                videoCountText = about.videoCountText ?: videoCountText,
+                joinedDateText = about.joinedDateText,
+                viewCountText = about.viewCountText,
+                countryText = about.countryText,
+                canonicalUrl = about.canonicalUrl ?: canonicalUrl,
+                links = about.links,
+            )
+        }
+
+    private fun ChannelHeader.toOwner() = ChannelOwner(id = id, name = title, avatarUrl = avatarUrl)
 
     // ── Channel-scoped video search (YouTube.com WEB API) ─────────────────────
 

@@ -126,6 +126,9 @@ class PlayerPreferences(
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
         val SHORTS_CONTENT_ENABLED = booleanPreferencesKey("shorts_content_enabled")
+        val NOTES_ENABLED = booleanPreferencesKey("notes_enabled")
+        val CHANNEL_NOTES_ENABLED = booleanPreferencesKey("channel_notes_enabled")
+        val VIDEO_NOTES_ENABLED = booleanPreferencesKey("video_notes_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val HOME_NAVIGATION_ENABLED = booleanPreferencesKey("home_navigation_enabled")
@@ -745,6 +748,38 @@ class PlayerPreferences(
             preferences[Keys.GROUPED_QUALITY_SELECTOR_ENABLED] = enabled
         }
     }
+
+    // The notes master switch. The two surface switches below are ANDed with it, so turning this off
+    // hides both without clearing either of their own settings.
+    val notesEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.NOTES_ENABLED] ?: true }
+
+    suspend fun setNotesEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences -> preferences[Keys.NOTES_ENABLED] = enabled }
+    }
+
+    val channelNotesEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.CHANNEL_NOTES_ENABLED] ?: true }
+
+    suspend fun setChannelNotesEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences -> preferences[Keys.CHANNEL_NOTES_ENABLED] = enabled }
+    }
+
+    val videoNotesEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.VIDEO_NOTES_ENABLED] ?: true }
+
+    suspend fun setVideoNotesEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences -> preferences[Keys.VIDEO_NOTES_ENABLED] = enabled }
+    }
+
+    val effectiveChannelNotesEnabled: Flow<Boolean> =
+        combine(notesEnabled, channelNotesEnabled) { master, own -> master && own }
+
+    val effectiveVideoNotesEnabled: Flow<Boolean> =
+        combine(notesEnabled, videoNotesEnabled) { master, own -> master && own }
 
     /**
      * Master switch for Shorts (reels) as content. When OFF the app hides every reel surface and the

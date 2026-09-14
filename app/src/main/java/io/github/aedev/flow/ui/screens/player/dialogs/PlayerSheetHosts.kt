@@ -18,7 +18,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -33,6 +36,7 @@ import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
@@ -101,6 +105,9 @@ internal fun PlayerDescriptionSheetHost(
     onSheetProgressChange: (Float) -> Unit = {},
 ) {
     val descriptionPage by viewModel.descriptionState.collectAsStateWithLifecycle()
+    val videoNote by viewModel.videoNote.collectAsStateWithLifecycle()
+    val videoNotesEnabled by viewModel.videoNotesEnabled.collectAsStateWithLifecycle()
+    var showNoteEditor by rememberSaveable(video.id) { mutableStateOf(false) }
     LaunchedEffect(video.id) {
         viewModel.loadDescription(video.id)
     }
@@ -127,6 +134,8 @@ internal fun PlayerDescriptionSheetHost(
         chapterCount = uiState.chapters.size,
         onChaptersClick = onChaptersClick,
         onTranscriptClick = onTranscriptClick?.takeIf { hasTranscriptTrack },
+        note = videoNote.takeIf { videoNotesEnabled },
+        onEditNote = { showNoteEditor = true }.takeIf { videoNotesEnabled },
         onChannelClick = onChannelClick,
         artworkUrl = currentVideo.thumbnailUrl,
         onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
@@ -137,6 +146,15 @@ internal fun PlayerDescriptionSheetHost(
         onDismiss = onDismiss,
         modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
     )
+
+    if (showNoteEditor && videoNotesEnabled) {
+        FlowNoteEditorDialog(
+            initialText = videoNote.orEmpty(),
+            title = stringResource(R.string.note_video_title),
+            onSave = { text -> viewModel.saveVideoNote(currentVideo.id, text) },
+            onDismiss = { showNoteEditor = false },
+        )
+    }
 }
 
 @Composable

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.channel
 
 import android.util.Log
 import androidx.compose.foundation.background

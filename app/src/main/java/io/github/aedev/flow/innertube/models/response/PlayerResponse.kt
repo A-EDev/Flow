@@ -206,6 +206,7 @@ data class PlayerResponse(
         val title: String?,
         val author: String?,
         val channelId: String,
+        val shortDescription: String? = null,
         val lengthSeconds: String = "0",
         val musicVideoType: String? = null,
         val viewCount: String? = null,

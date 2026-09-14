@@ -2,8 +2,8 @@ package io.github.aedev.flow.data.shorts
 
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.pages.ChannelShortsPage
-import io.github.aedev.flow.innertube.pages.ChannelSortOption
+import io.github.aedev.flow.innertube.pages.channel.ChannelShortsPage
+import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 /**

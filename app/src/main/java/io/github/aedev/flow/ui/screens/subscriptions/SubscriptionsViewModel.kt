@@ -25,6 +25,7 @@ import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
+import io.github.aedev.flow.utils.premiereDateText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -477,7 +478,11 @@ class SubscriptionsViewModel
                                             thumbnailUrl = enriched.thumbnailUrl.takeIf { it.isNotBlank() } ?: video.thumbnailUrl,
                                             duration = enriched.duration.takeIf { it > 0 } ?: video.duration,
                                             viewCount = maxOf(video.viewCount, enriched.viewCount),
-                                            isLive = video.isLive || enriched.isLive,
+                                            isLive = enriched.isLive || (!enriched.isUpcoming && video.isLive),
+                                            isUpcoming = enriched.isUpcoming,
+                                            isScheduledLive = enriched.isScheduledLive,
+                                            timestamp = if (enriched.isUpcoming) enriched.timestamp else video.timestamp,
+                                            uploadDate = if (enriched.isUpcoming) enriched.uploadDate else video.uploadDate,
                                         )
                                     } ?: video
                                 }.withHighQualityThumbnails()
@@ -507,9 +512,23 @@ class SubscriptionsViewModel
                         ?: YouTube.player(video.id, client = YouTubeClient.MOBILE).getOrNull()
                         ?: return@withTimeoutOrNull null
                 val details = response.videoDetails ?: return@withTimeoutOrNull null
-                val isLive = details.isLive == true || details.isLiveContent == true
+                // The feed only knows the day the stream was announced; the player endpoint knows
+                // the day it starts, and until then "live content" is a scheduled stream, not a live one.
+                val scheduledStartMs =
+                    response.playabilityStatus.liveStreamability
+                        ?.liveStreamabilityRenderer
+                        ?.offlineSlate
+                        ?.liveStreamOfflineSlateRenderer
+                        ?.scheduledStartTime
+                        ?.toLongOrNull()
+                        ?.times(1000L)
+                        ?.takeIf { it > System.currentTimeMillis() }
+                val isUpcoming =
+                    scheduledStartMs != null ||
+                        response.playabilityStatus.status.equals("LIVE_STREAM_OFFLINE", ignoreCase = true)
+                val isLive = !isUpcoming && (details.isLive == true || details.isLiveContent == true)
                 val duration = details.lengthSeconds.toIntOrNull()?.takeIf { it > 0 } ?: 0
-                if (!isLive && duration <= 0) return@withTimeoutOrNull null
+                if (!isUpcoming && !isLive && duration <= 0) return@withTimeoutOrNull null
 
                 val bestThumbnail =
                     details.thumbnail
@@ -524,9 +543,13 @@ class SubscriptionsViewModel
                     channelName = details.author?.takeIf { it.isNotBlank() } ?: video.channelName,
                     channelId = details.channelId.takeIf { it.isNotBlank() } ?: video.channelId,
                     thumbnailUrl = bestThumbnail,
-                    duration = if (isLive) 0 else duration,
+                    duration = if (isLive || isUpcoming) 0 else duration,
                     viewCount = maxOf(video.viewCount, details.viewCount?.toLongOrNull() ?: 0L),
-                    isLive = video.isLive || isLive,
+                    isLive = isLive || (!isUpcoming && video.isLive),
+                    isUpcoming = isUpcoming,
+                    isScheduledLive = isUpcoming && details.isLiveContent == true,
+                    timestamp = scheduledStartMs ?: video.timestamp,
+                    uploadDate = scheduledStartMs?.let(::premiereDateText) ?: video.uploadDate,
                 )
             }
 

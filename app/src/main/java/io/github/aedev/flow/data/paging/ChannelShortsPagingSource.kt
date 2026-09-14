@@ -6,16 +6,13 @@ import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.ChannelShortsFeed
 import io.github.aedev.flow.data.shorts.ChannelShortsOwner
-import io.github.aedev.flow.innertube.pages.ChannelSortOption
+import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
  * The channel Shorts tab grid, in the user's chosen sort order.
  *
- * Separate from [ChannelVideosPagingSource] because sorting is not something NewPipe's
- * `ChannelTabInfo` can express — the Latest/Popular/Oldest chips only exist in the native browse
- * response (#547).
  *
  * @param sortToken the chosen chip's continuation token, or null for the channel's own default.
  * @param onPageLoaded reports the sort bar and channel identity back, so the screen can render the

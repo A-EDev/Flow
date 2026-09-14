@@ -162,6 +162,8 @@ fun FlowDescriptionBottomSheet(
     chapterCount: Int = 0,
     onChaptersClick: (() -> Unit)? = null,
     onTranscriptClick: (() -> Unit)? = null,
+    note: String? = null,
+    onEditNote: (() -> Unit)? = null,
     onChannelClick: ((String) -> Unit)? = null,
     artworkUrl: String? = null,
     expandedHeight: Dp? = null,
@@ -350,6 +352,24 @@ fun FlowDescriptionBottomSheet(
                     tint = tint,
                     onClick = onTranscriptClick,
                 )
+            }
+
+            if (onEditNote != null) {
+                if (note.isNullOrBlank()) {
+                    DescriptionSectionRow(
+                        title = stringResource(R.string.note_title),
+                        subtitle = stringResource(R.string.note_add),
+                        tint = tint,
+                        onClick = onEditNote,
+                    )
+                } else {
+                    FlowNoteCard(
+                        text = note,
+                        onEdit = onEditNote,
+                        containerColor = tint.container,
+                        contentColor = tint.onContainer,
+                    )
+                }
             }
 
             descriptionPage?.channel?.let { channel ->

@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Timer
@@ -68,6 +70,8 @@ internal fun VideoActionRow(
     onCopyLinkAtTimeClick: () -> Unit = {},
     isSaved: Boolean = false,
     isDownloaded: Boolean = false,
+    onNoteClick: (() -> Unit)? = null,
+    hasNote: Boolean = false,
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(ActionSpacing),
@@ -99,6 +103,17 @@ internal fun VideoActionRow(
                 checked = isDownloaded,
                 onCheckedChange = onDownloadClick,
             )
+        }
+
+        if (onNoteClick != null) {
+            item {
+                ActionToggle(
+                    icon = if (hasNote) Icons.Filled.StickyNote2 else Icons.Outlined.StickyNote2,
+                    label = stringResource(if (hasNote) R.string.note_title else R.string.note_add),
+                    checked = hasNote,
+                    onCheckedChange = onNoteClick,
+                )
+            }
         }
 
         item {

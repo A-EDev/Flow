@@ -26,6 +26,7 @@ internal val COLLECTION_KEYS =
         SyncCollection.SETTINGS,
         SyncCollection.FLOW_NEURO_BRAIN,
         SyncCollection.MUSIC_BRAIN,
+        SyncCollection.NOTES,
     )
 
 @Composable
@@ -36,6 +37,7 @@ internal fun collectionLabel(key: String): String =
         SyncCollection.LIKES -> stringResource(R.string.sync_collection_likes)
         SyncCollection.SUBSCRIBED_CHANNELS -> stringResource(R.string.sync_collection_subscriptions)
         SyncCollection.SUBSCRIPTIONS -> stringResource(R.string.sync_collection_subscription_groups)
+        SyncCollection.NOTES -> stringResource(R.string.sync_collection_notes)
         SyncCollection.SETTINGS -> stringResource(R.string.sync_collection_settings)
         SyncCollection.FLOW_NEURO_BRAIN -> stringResource(R.string.sync_collection_recommendation_profile)
         SyncCollection.MUSIC_BRAIN -> stringResource(R.string.sync_collection_music_profile)

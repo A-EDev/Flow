@@ -2,9 +2,6 @@ package io.github.aedev.flow.ui.screens.channel
 
 import android.content.Intent
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,17 +12,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -34,26 +27,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ViewList
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.NotificationsOff
-import androidx.compose.material.icons.rounded.PersonRemove
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,6 +53,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,7 +66,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -92,6 +74,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -101,38 +84,35 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.innertube.pages.CommunityPost
-import io.github.aedev.flow.ui.components.ChannelBanner
-import io.github.aedev.flow.ui.components.CompactVideoCard
-import io.github.aedev.flow.ui.components.PlaylistCard
-import io.github.aedev.flow.ui.components.SortChipRow
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.innertube.pages.channel.CommunityPost
+import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.channel.ChannelBanner
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
 import io.github.aedev.flow.ui.components.shared.CollectionSheetEntry
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FullSizeImageDialog
 import io.github.aedev.flow.ui.components.shared.SaveToCollectionSheet
-import io.github.aedev.flow.ui.components.shared.ShortWatchedIndicator
 import io.github.aedev.flow.ui.components.shared.sortCommentsByFilter
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.ui.youtubeChannelUrl
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
-import io.github.aedev.flow.utils.formatSubscriberCount
-import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-
-private typealias SortedVideos = List<Video>?
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -147,30 +127,33 @@ fun ChannelScreen(
     viewModel: ChannelViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val preferences =
+        remember(context) {
+            io.github.aedev.flow.data.local
+                .PlayerPreferences(context)
+        }
+    val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
     val uiState by viewModel.uiState.collectAsState()
     val communityUiState by viewModel.communityUiState.collectAsState()
-    val shortsPagingFlow by viewModel.shortsPagingFlow.collectAsState()
-    val playlistsPagingFlow by viewModel.playlistsPagingFlow.collectAsState()
-    val allVideos by viewModel.videosAll.collectAsState()
-    val allLiveVideos by viewModel.liveAll.collectAsState()
-    val isLoadingAllVideos by viewModel.isLoadingAllVideos.collectAsState()
+    val tabStates by viewModel.tabStates.collectAsStateWithLifecycle()
+    val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsStateWithLifecycle()
+    val channelNote by viewModel.channelNote.collectAsStateWithLifecycle()
+    val notesEnabled by viewModel.notesEnabled.collectAsStateWithLifecycle()
+    var showNoteEditor by rememberSaveable { mutableStateOf(false) }
     val subscriptionGroups by viewModel.subscriptionGroups.collectAsStateWithLifecycle()
     var showGroupSheet by rememberSaveable { mutableStateOf(false) }
     var showCreateGroupDialog by rememberSaveable { mutableStateOf(false) }
 
-    val shortsLazyPagingItems = shortsPagingFlow?.collectAsLazyPagingItems()
-    val shortsSorts by viewModel.shortsSorts.collectAsState()
-    val selectedShortsSort by viewModel.selectedShortsSort.collectAsState()
-    val videosSorts by viewModel.videosSorts.collectAsState()
-    val selectedVideosSort by viewModel.selectedVideosSort.collectAsState()
-    val liveSorts by viewModel.liveSorts.collectAsState()
-    val selectedLiveSort by viewModel.selectedLiveSort.collectAsState()
-    val playlistsLazyPagingItems = playlistsPagingFlow?.collectAsLazyPagingItems()
+    // Shelves and posts have their own layout; only the item grids can switch.
+    val showLayoutToggle =
+        uiState.selectedTab != null &&
+            uiState.selectedTab !in setOf(ChannelTabKind.Home, ChannelTabKind.Posts)
 
     LaunchedEffect(channelUrl) { viewModel.loadChannel(channelUrl) }
 
     var showCollapsedChannelTitle by remember(channelUrl) { mutableStateOf(false) }
-    val collapsedChannelTitle = uiState.channelInfo?.name.orEmpty()
+    val collapsedChannelTitle = uiState.header?.title.orEmpty()
     var communityCommentSort by rememberSaveable { mutableStateOf(CommentSortFilter.TOP) }
     val sortedCommunityComments =
         remember(communityUiState.comments, communityCommentSort) {
@@ -188,29 +171,10 @@ fun ChannelScreen(
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background),
         ) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.background)
-                        .height(48.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.close),
-                    )
-                }
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
-                ) {
+            FlowTopBar(
+                title = {
                     androidx.compose.animation.AnimatedVisibility(
                         visible = showCollapsedChannelTitle && collapsedChannelTitle.isNotBlank(),
-                        modifier = Modifier.align(Alignment.CenterStart),
                     ) {
                         Text(
                             text = collapsedChannelTitle,
@@ -220,60 +184,70 @@ fun ChannelScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                }
-                IconButton(onClick = {
-                    // channelUrl may already be a full URL, so it must be normalized rather than
-                    // pasted behind /channel/ — that produced a nested, unopenable share link.
-                    val shareUrl = youtubeChannelUrl(uiState.channelInfo?.id ?: channelUrl) ?: channelUrl
-                    val shareIntent =
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareUrl)
+                },
+                onBack = onBackClick,
+                actions = {
+                    if (showLayoutToggle) {
+                        IconButton(onClick = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } }) {
+                            Icon(
+                                imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
+                                contentDescription =
+                                    if (isGridView) {
+                                        stringResource(R.string.ui_list_view)
+                                    } else {
+                                        stringResource(R.string.ui_grid_view)
+                                    },
+                            )
                         }
-                    context.startActivity(Intent.createChooser(shareIntent, null))
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = stringResource(R.string.share),
-                    )
-                }
-            }
+                    }
+                    IconButton(onClick = {
+                        // channelUrl may already be a full URL, so it must be normalized rather than
+                        // pasted behind /channel/ — that produced a nested, unopenable share link.
+                        val shareUrl = youtubeChannelUrl(uiState.header?.id ?: channelUrl) ?: channelUrl
+                        val shareIntent =
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, shareUrl)
+                            }
+                        context.startActivity(Intent.createChooser(shareIntent, null))
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = stringResource(R.string.share),
+                        )
+                    }
+                },
+            )
 
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
                     uiState.isLoading -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        FlowLoadingIndicator()
                     }
 
                     uiState.error != null -> {
-                        ErrorState(
-                            message = uiState.error ?: stringResource(R.string.failed_to_load_channel),
+                        FlowErrorState(
+                            error = uiState.error ?: stringResource(R.string.failed_to_load_channel),
                             onRetry = { viewModel.loadChannel(channelUrl) },
                             modifier = Modifier.align(Alignment.Center),
                         )
                     }
 
-                    uiState.channelInfo != null -> {
+                    uiState.header != null -> {
                         ChannelContent(
                             uiState = uiState,
                             communityUiState = communityUiState,
-                            allVideos = allVideos,
-                            isLoadingAllVideos = isLoadingAllVideos,
-                            shortsLazyPagingItems = shortsLazyPagingItems,
-                            shortsSorts = shortsSorts,
-                            selectedShortsSort = selectedShortsSort,
-                            onShortsSortSelected = viewModel::selectShortsSort,
-                            videosSorts = videosSorts,
-                            selectedVideosSort = selectedVideosSort,
-                            onVideosSortSelected = viewModel::selectVideosSort,
-                            liveSorts = liveSorts,
-                            selectedLiveSort = selectedLiveSort,
-                            onLiveSortSelected = viewModel::selectLiveSort,
-                            allLiveVideos = allLiveVideos,
-                            playlistsLazyPagingItems = playlistsLazyPagingItems,
+                            tabStates = tabStates,
+                            onFilterSelected = viewModel::selectTabFilter,
+                            subscribedChannelIds = subscribedChannelIds,
+                            channelNote = channelNote.takeIf { notesEnabled },
+                            onEditNote = { showNoteEditor = true }.takeIf { notesEnabled },
+                            onSubscribeChannel = viewModel::setChannelSubscription,
                             onVideoClick = onVideoClick,
                             onChannelClick = onChannelClick,
-                            onShortClick = { videoId -> onShortClick(videoId, selectedShortsSort) },
+                            onShortClick = { videoId ->
+                                onShortClick(videoId, tabStates[ChannelTabKind.Shorts]?.selected?.firstOrNull() ?: 0)
+                            },
                             onPlaylistClick = onPlaylistClick,
                             onSubscribeClick = { viewModel.toggleSubscription() },
                             onUnsubscribeClick = { viewModel.unsubscribe() },
@@ -327,7 +301,7 @@ fun ChannelScreen(
         }
     }
 
-    val channelId = uiState.channelInfo?.id.orEmpty()
+    val channelId = uiState.header?.id.orEmpty()
     if (showGroupSheet && channelId.isNotBlank()) {
         ChannelGroupSheet(
             groups = subscriptionGroups,
@@ -338,6 +312,15 @@ fun ChannelScreen(
                 showCreateGroupDialog = true
             },
             onDismiss = { showGroupSheet = false },
+        )
+    }
+
+    if (showNoteEditor && notesEnabled) {
+        FlowNoteEditorDialog(
+            initialText = channelNote.orEmpty(),
+            title = stringResource(R.string.note_channel_title),
+            onSave = viewModel::saveChannelNote,
+            onDismiss = { showNoteEditor = false },
         )
     }
 
@@ -352,1053 +335,6 @@ fun ChannelScreen(
             },
             icon = Icons.Rounded.Folder,
             showDescription = false,
-        )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
-@Composable
-private fun ChannelContent(
-    uiState: ChannelUiState,
-    onManageGroups: (() -> Unit)?,
-    communityUiState: ChannelCommunityUiState,
-    allVideos: List<Video>,
-    isLoadingAllVideos: Boolean,
-    shortsLazyPagingItems: LazyPagingItems<Video>?,
-    shortsSorts: List<String>,
-    selectedShortsSort: Int,
-    onShortsSortSelected: (Int) -> Unit,
-    videosSorts: List<String>,
-    selectedVideosSort: Int,
-    onVideosSortSelected: (Int) -> Unit,
-    liveSorts: List<String>,
-    selectedLiveSort: Int,
-    onLiveSortSelected: (Int) -> Unit,
-    allLiveVideos: List<Video>,
-    playlistsLazyPagingItems: LazyPagingItems<io.github.aedev.flow.data.model.Playlist>?,
-    onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
-    onShortClick: (String) -> Unit,
-    onPlaylistClick: (String) -> Unit,
-    onSubscribeClick: () -> Unit,
-    onUnsubscribeClick: () -> Unit,
-    onNotificationChange: (Boolean) -> Unit,
-    onTabSelected: (Int) -> Unit,
-    onSearchToggle: () -> Unit = {},
-    onSearchQueryChange: (String) -> Unit = {},
-    onCommunityPostComments: (CommunityPost) -> Unit,
-    onCommunityPostShare: (CommunityPost) -> Unit,
-    onLoadMoreCommunityPosts: () -> Unit,
-    onRetryCommunityPosts: () -> Unit,
-    initialScrollIndex: Int = 0,
-    initialScrollOffset: Int = 0,
-    onScrollChanged: (index: Int, offset: Int) -> Unit = { _, _ -> },
-    onCollapsedTitleVisibilityChange: (Boolean) -> Unit = {},
-) {
-    val channelInfo = uiState.channelInfo ?: return
-
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val preferences =
-        remember {
-            io.github.aedev.flow.data.local
-                .PlayerPreferences(context)
-        }
-    val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
-    val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
-    val coroutineScope = rememberCoroutineScope()
-
-    val sortedVideos: List<Video> = allVideos
-    val sortedLive: List<Video> = allLiveVideos
-
-    val visibleTabs = ChannelTab.visible(shortsEnabled = shortsContentEnabled)
-    val tabTitles = visibleTabs.map { stringResource(it.titleRes) }
-
-    val pagerState =
-        rememberPagerState(
-            initialPage = visibleTabs.indexOf(ChannelTab.from(uiState.selectedTab)).coerceAtLeast(0),
-            pageCount = { visibleTabs.size },
-        )
-
-    val settledTab = visibleTabs.getOrElse(pagerState.settledPage) { ChannelTab.Videos }
-
-    // Persist only fully settled pages so an in-progress swipe cannot trigger a competing animation.
-    LaunchedEffect(channelInfo.id, settledTab) {
-        onTabSelected(settledTab.ordinal)
-    }
-
-    val showFilterBar =
-        settledTab == ChannelTab.Videos || settledTab == ChannelTab.Live || settledTab == ChannelTab.Shorts
-
-    val activeSorts =
-        when (settledTab) {
-            ChannelTab.Shorts -> shortsSorts
-            ChannelTab.Live -> liveSorts
-            else -> videosSorts
-        }
-    val activeSortIndex =
-        when (settledTab) {
-            ChannelTab.Shorts -> selectedShortsSort
-            ChannelTab.Live -> selectedLiveSort
-            else -> selectedVideosSort
-        }
-    val onActiveSortSelected: (Int) -> Unit =
-        when (settledTab) {
-            ChannelTab.Shorts -> onShortsSortSelected
-            ChannelTab.Live -> onLiveSortSelected
-            else -> onVideosSortSelected
-        }
-
-    var collapsingHeaderHeightPx by remember { mutableFloatStateOf(0f) }
-    var stickySectionHeightPx by remember { mutableFloatStateOf(0f) }
-    var headerOffsetPx by remember { mutableFloatStateOf(0f) }
-
-    val density = LocalDensity.current
-    val collapseTitleThresholdPx = with(density) { 2.dp.toPx() }
-    val visibleHeaderHeightDp =
-        with(density) {
-            (collapsingHeaderHeightPx + stickySectionHeightPx + headerOffsetPx)
-                .coerceAtLeast(stickySectionHeightPx)
-                .toDp()
-        }
-    val headerMeasured by remember { derivedStateOf { collapsingHeaderHeightPx > 0f } }
-    val showCollapsedTopBarTitle by remember(collapseTitleThresholdPx) {
-        derivedStateOf {
-            headerMeasured &&
-                headerOffsetPx <= -collapsingHeaderHeightPx + collapseTitleThresholdPx
-        }
-    }
-
-    LaunchedEffect(showCollapsedTopBarTitle) {
-        onCollapsedTitleVisibilityChange(showCollapsedTopBarTitle)
-    }
-
-    DisposableEffect(Unit) {
-        onDispose { onCollapsedTitleVisibilityChange(false) }
-    }
-
-    LaunchedEffect(collapsingHeaderHeightPx) {
-        headerOffsetPx = headerOffsetPx.coerceIn(-collapsingHeaderHeightPx, 0f)
-    }
-
-    val nestedScrollConnection =
-        remember(collapsingHeaderHeightPx) {
-            object : NestedScrollConnection {
-                override fun onPreScroll(
-                    available: Offset,
-                    source: NestedScrollSource,
-                ): Offset {
-                    if (available.y >= 0f) return Offset.Zero
-                    val previous = headerOffsetPx
-                    val next = (previous + available.y).coerceIn(-collapsingHeaderHeightPx, 0f)
-                    headerOffsetPx = next
-                    return Offset(x = 0f, y = next - previous)
-                }
-
-                override fun onPostScroll(
-                    consumed: Offset,
-                    available: Offset,
-                    source: NestedScrollSource,
-                ): Offset {
-                    if (available.y <= 0f) return Offset.Zero
-                    val previous = headerOffsetPx
-                    val next = (previous + available.y).coerceIn(-collapsingHeaderHeightPx, 0f)
-                    headerOffsetPx = next
-                    return Offset(x = 0f, y = next - previous)
-                }
-            }
-        }
-
-    // Persist Videos-tab scroll position across navigation
-    val videosListState =
-        rememberLazyListState(
-            initialFirstVisibleItemIndex = initialScrollIndex,
-            initialFirstVisibleItemScrollOffset = initialScrollOffset,
-        )
-    val shortsListState = rememberLazyListState()
-    val liveListState = rememberLazyListState()
-    val playlistsListState = rememberLazyListState()
-    val postsListState = rememberLazyListState()
-    val aboutListState = rememberLazyListState()
-
-    LaunchedEffect(videosListState) {
-        snapshotFlow { videosListState.firstVisibleItemIndex to videosListState.firstVisibleItemScrollOffset }
-            .collect { (index, offset) -> onScrollChanged(index, offset) }
-    }
-
-    LaunchedEffect(selectedVideosSort) { videosListState.scrollToItem(0) }
-    LaunchedEffect(selectedLiveSort) { liveListState.scrollToItem(0) }
-    LaunchedEffect(selectedShortsSort) { shortsListState.scrollToItem(0) }
-
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .clipToBounds()
-                .nestedScroll(nestedScrollConnection),
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = if (headerMeasured) 1f else 0f },
-            verticalAlignment = Alignment.Top,
-            userScrollEnabled = true,
-        ) { page ->
-            val listPadding = PaddingValues(top = visibleHeaderHeightDp)
-
-            when (visibleTabs.getOrElse(page) { ChannelTab.Videos }) {
-                ChannelTab.Videos -> {
-                    when {
-                        uiState.searchActive && uiState.searchQuery.isNotBlank() -> {
-                            when {
-                                uiState.isSearching -> {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center,
-                                    ) { CircularProgressIndicator() }
-                                }
-
-                                uiState.searchErrorLog != null -> {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        ChannelRequestErrorState(
-                                            message = stringResource(R.string.channel_search_failed),
-                                            errorLog = uiState.searchErrorLog,
-                                            onRetry = {
-                                                onSearchQueryChange(uiState.searchQuery)
-                                            },
-                                        )
-                                    }
-                                }
-
-                                uiState.searchResults.isEmpty() -> {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(top = visibleHeaderHeightDp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.channel_search_no_results, uiState.searchQuery),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-
-                                else -> {
-                                    LazyColumn(
-                                        state = videosListState,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = listPadding,
-                                    ) {
-                                        videosContent(
-                                            pagingItems = null,
-                                            sortedItems = uiState.searchResults,
-                                            isGridView = isGridView,
-                                            listKeyPrefix = "Search_${uiState.searchQuery}",
-                                            onVideoClick = onVideoClick,
-                                        )
-                                        item { Spacer(Modifier.height(16.dp)) }
-                                    }
-                                }
-                            }
-                        }
-
-                        isLoadingAllVideos && sortedVideos.isEmpty() -> {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(top = visibleHeaderHeightDp),
-                                contentAlignment = Alignment.Center,
-                            ) { CircularProgressIndicator() }
-                        }
-
-                        else -> {
-                            LazyColumn(
-                                state = videosListState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = listPadding,
-                            ) {
-                                videosContent(
-                                    pagingItems = null,
-                                    sortedItems = sortedVideos,
-                                    isGridView = isGridView,
-                                    listKeyPrefix = selectedVideosSort.toString(),
-                                    onVideoClick = onVideoClick,
-                                )
-                                item { Spacer(Modifier.height(16.dp)) }
-                            }
-                        }
-                    }
-                }
-
-                ChannelTab.Shorts -> {
-                    LazyColumn(
-                        state = shortsListState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = listPadding,
-                    ) {
-                        shortsContent(shortsLazyPagingItems, onShortClick)
-                        item { Spacer(Modifier.height(16.dp)) }
-                    }
-                }
-
-                ChannelTab.Live -> {
-                    if (isLoadingAllVideos && sortedLive.isEmpty()) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(top = visibleHeaderHeightDp),
-                            contentAlignment = Alignment.Center,
-                        ) { CircularProgressIndicator() }
-                    } else {
-                        LazyColumn(
-                            state = liveListState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = listPadding,
-                        ) {
-                            liveContent(
-                                pagingItems = null,
-                                sortedItems = sortedLive,
-                                isGridView = isGridView,
-                                listKeyPrefix = selectedLiveSort.toString(),
-                                onVideoClick = onVideoClick,
-                            )
-                            item { Spacer(Modifier.height(16.dp)) }
-                        }
-                    }
-                }
-
-                ChannelTab.Playlists -> {
-                    LazyColumn(
-                        state = playlistsListState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = listPadding,
-                    ) {
-                        playlistsContent(playlistsLazyPagingItems, onPlaylistClick)
-                        item { Spacer(Modifier.height(16.dp)) }
-                    }
-                }
-
-                ChannelTab.Posts -> {
-                    ChannelCommunityPosts(
-                        posts = communityUiState.posts,
-                        isLoading = communityUiState.isLoadingPosts,
-                        isLoadingMore = communityUiState.isLoadingMorePosts,
-                        hasMore = communityUiState.postsContinuation != null,
-                        errorLog = communityUiState.postsErrorLog,
-                        listState = postsListState,
-                        contentPadding = listPadding,
-                        onAuthorClick = { onChannelClick(channelInfo.id) },
-                        onCommentsClick = onCommunityPostComments,
-                        onShareClick = onCommunityPostShare,
-                        onLoadMore = onLoadMoreCommunityPosts,
-                        onRetry = onRetryCommunityPosts,
-                    )
-                }
-
-                ChannelTab.About -> {
-                    LazyColumn(
-                        state = aboutListState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = listPadding,
-                    ) {
-                        item { AboutSection(channelInfo = channelInfo) }
-                        item { Spacer(Modifier.height(16.dp)) }
-                    }
-                }
-            }
-        }
-
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .offset { IntOffset(x = 0, y = headerOffsetPx.roundToInt()) },
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.background)
-                        .onSizeChanged { collapsingHeaderHeightPx = it.height.toFloat() },
-            ) {
-                ChannelHeader(
-                    channelInfo = channelInfo,
-                    channelVideoCountText = uiState.channelVideoCountText,
-                    isSubscribed = uiState.isSubscribed,
-                    isNotificationsEnabled = uiState.isNotificationsEnabled,
-                    onSubscribeClick = onSubscribeClick,
-                    onUnsubscribeClick = onUnsubscribeClick,
-                    onNotificationChange = onNotificationChange,
-                    onManageGroups = onManageGroups.takeIf { uiState.isSubscribed },
-                )
-            }
-
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.background)
-                        .onSizeChanged { stickySectionHeightPx = it.height.toFloat() },
-            ) {
-                ChannelTabRow(
-                    selectedIndex = pagerState.currentPage,
-                    tabs = tabTitles,
-                    onTabSelected = { idx ->
-                        coroutineScope.launch { pagerState.animateScrollToPage(idx) }
-                    },
-                )
-                if (showFilterBar) {
-                    FilterAndToggleBar(
-                        sortOptions = activeSorts,
-                        selectedSort = activeSortIndex,
-                        isGridView = isGridView,
-                        searchActive = uiState.searchActive,
-                        searchQuery = uiState.searchQuery,
-                        // The Shorts tab is a fixed portrait grid and has no in-channel search.
-                        showListControls = settledTab != ChannelTab.Shorts,
-                        onSortSelected = onActiveSortSelected,
-                        onToggleGridView = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } },
-                        onSearchToggle = onSearchToggle,
-                        onSearchQueryChange = onSearchQueryChange,
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Filter + grid toggle bar
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FilterAndToggleBar(
-    sortOptions: List<String>,
-    selectedSort: Int,
-    isGridView: Boolean,
-    searchActive: Boolean = false,
-    searchQuery: String = "",
-    showListControls: Boolean = true,
-    onSortSelected: (Int) -> Unit,
-    onToggleGridView: () -> Unit,
-    onSearchToggle: () -> Unit = {},
-    onSearchQueryChange: (String) -> Unit = {},
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (searchActive && showListControls) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(horizontal = 8.dp),
-                placeholder = { Text(stringResource(R.string.channel_search_hint), style = MaterialTheme.typography.bodySmall) },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall,
-                keyboardOptions =
-                    KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Search,
-                    ),
-                keyboardActions =
-                    KeyboardActions(
-                        onSearch = { onSearchQueryChange(searchQuery) },
-                    ),
-                shape = RoundedCornerShape(20.dp),
-                colors =
-                    OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    ),
-            )
-            IconButton(onClick = onSearchToggle) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.channel_search_close),
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        } else {
-            Box(modifier = Modifier.weight(1f)) {
-                SortChipRow(
-                    options = sortOptions,
-                    selectedIndex = selectedSort,
-                    onSelected = onSortSelected,
-                )
-            }
-            if (!showListControls) return@Row
-            IconButton(onClick = onSearchToggle) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(R.string.channel_search_open),
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            IconButton(onClick = onToggleGridView) {
-                Icon(
-                    imageVector = if (isGridView) Icons.Default.ViewList else Icons.Default.GridView,
-                    contentDescription = if (isGridView) stringResource(R.string.ui_list_view) else stringResource(R.string.ui_grid_view),
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        }
-    }
-}
-
-// Channel header — banner + avatar + info + subscribe
-@Composable
-private fun ChannelGroupSheet(
-    groups: List<SubscriptionGroup>,
-    channelId: String,
-    onToggle: (String, Boolean) -> Unit,
-    onCreateNew: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val entries =
-        remember(groups, channelId) {
-            groups.map { group ->
-                CollectionSheetEntry(
-                    id = group.name,
-                    name = group.name,
-                    supporting = "",
-                    thumbnailUrl = "",
-                    isSaved = channelId in group.channelIds,
-                )
-            }
-        }
-
-    SaveToCollectionSheet(
-        title = stringResource(R.string.channel_groups_sheet_title),
-        entries = entries,
-        placeholderIcon = Icons.Rounded.Folder,
-        createLabel = stringResource(R.string.new_group),
-        emptyLabel = stringResource(R.string.channel_groups_empty),
-        onToggle = { entry -> onToggle(entry.id, !entry.isSaved) },
-        onCreateNew = onCreateNew,
-        onDismiss = onDismiss,
-    )
-}
-
-@Composable
-private fun ChannelHeader(
-    channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo,
-    channelVideoCountText: String?,
-    isSubscribed: Boolean,
-    isNotificationsEnabled: Boolean,
-    onSubscribeClick: () -> Unit,
-    onUnsubscribeClick: () -> Unit,
-    onNotificationChange: (Boolean) -> Unit,
-    onManageGroups: (() -> Unit)?,
-) {
-    val bannerUrl =
-        try {
-            val rawBanner =
-                channelInfo.banners.maxByOrNull { it.width }?.url
-                    ?: channelInfo.banners.firstOrNull()?.url
-            ThumbnailUrlResolver.resolveChannelBanner(rawBanner, targetWidth = 2048)
-        } catch (e: Exception) {
-            null
-        }
-    // Use highest-res avatar available
-    val avatarUrl =
-        try {
-            channelInfo.avatars.maxByOrNull { it.height }?.url
-                ?: channelInfo.avatars.firstOrNull()?.url
-        } catch (e: Exception) {
-            null
-        }
-    var showFullSizeAvatar by remember { mutableStateOf(false) }
-
-    if (showFullSizeAvatar && !avatarUrl.isNullOrEmpty()) {
-        FullSizeImageDialog(
-            imageUrl = avatarUrl,
-            onDismiss = { showFullSizeAvatar = false },
-        )
-    }
-
-    Log.d("ChannelHeader", "channel=${channelInfo.name} avatarUrl=$avatarUrl bannerUrl=$bannerUrl")
-    val context = LocalContext.current
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background),
-    ) {
-        ChannelBanner(imageUrl = bannerUrl)
-
-        // ── Avatar row + subscribe button ────────────────────────────────────
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 14.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            // Avatar: shows image with icon fallback on error or null URL
-            Box(
-                modifier =
-                    Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = CircleShape,
-                        ).clickable(enabled = !avatarUrl.isNullOrEmpty()) {
-                            showFullSizeAvatar = true
-                        },
-                contentAlignment = Alignment.Center,
-            ) {
-                if (!avatarUrl.isNullOrEmpty()) {
-                    var avatarFailed by remember(avatarUrl) { mutableStateOf(false) }
-                    var retryUrl by remember(avatarUrl) { mutableStateOf(avatarUrl) }
-                    var didRetry by remember(avatarUrl) { mutableStateOf(false) }
-                    if (avatarFailed) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize().padding(4.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        AsyncImage(
-                            model = retryUrl,
-                            contentDescription = stringResource(R.string.channel_avatar),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            onError = { err ->
-                                val msg = err.result.throwable?.message ?: "unknown"
-                                if (!didRetry) {
-                                    didRetry = true
-                                    val lowRes = retryUrl.replace(Regex("=s\\d+"), "=s88")
-                                    if (lowRes != retryUrl) {
-                                        Log.w("ChannelHeader", "Avatar failed '$retryUrl' ($msg) → retrying '$lowRes'")
-                                        retryUrl = lowRes
-                                    } else {
-                                        Log.e("ChannelHeader", "Avatar failed '$retryUrl' ($msg), no size param → icon")
-                                        avatarFailed = true
-                                    }
-                                } else {
-                                    Log.e("ChannelHeader", "Avatar retry failed '$retryUrl' ($msg) → icon")
-                                    avatarFailed = true
-                                }
-                            },
-                        )
-                    }
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize().padding(4.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            FlowSubscribeButton(
-                isSubscribed = isSubscribed,
-                isNotificationsEnabled = isNotificationsEnabled,
-                onSubscribeClick = onSubscribeClick,
-                onUnsubscribeClick = onUnsubscribeClick,
-                onNotificationChange = onNotificationChange,
-                onManageGroups = onManageGroups,
-            )
-        }
-
-        // ── Channel name + stats ─────────────────────────────────────────────
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Text(
-                text = channelInfo.name,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            val subText =
-                context.getString(
-                    R.string.subscribers_count_template,
-                    formatSubscriberCount(channelInfo.subscriberCount),
-                )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = subText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.extendedColors.textSecondary,
-                )
-                channelVideoCountText?.let { videoCountText ->
-                    Text(
-                        text = videoCountText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.extendedColors.textSecondary,
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Subscribe button
-@Composable
-private fun ChannelTabRow(
-    selectedIndex: Int,
-    tabs: List<String>,
-    onTabSelected: (Int) -> Unit,
-) {
-    ScrollableTabRow(
-        selectedTabIndex = selectedIndex,
-        edgePadding = 0.dp,
-        containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        indicator = { tabPositions ->
-            TabRowDefaults.Indicator(
-                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                height = 2.dp,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        },
-        divider = {
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                thickness = 0.5.dp,
-            )
-        },
-    ) {
-        tabs.forEachIndexed { index, title ->
-            Tab(
-                selected = selectedIndex == index,
-                onClick = { onTabSelected(index) },
-                modifier = Modifier.height(44.dp),
-                selectedContentColor = MaterialTheme.colorScheme.onSurface,
-                unselectedContentColor = MaterialTheme.extendedColors.textSecondary,
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selectedIndex == index) FontWeight.SemiBold else FontWeight.Normal,
-                )
-            }
-        }
-    }
-}
-
-// Tab content helpers (LazyListScope)
-private fun LazyListScope.videosContent(
-    pagingItems: LazyPagingItems<Video>?,
-    sortedItems: SortedVideos,
-    isGridView: Boolean,
-    listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit,
-) {
-    if (sortedItems != null) {
-        if (sortedItems.isEmpty()) {
-            item { EmptyState(message = stringResource(R.string.error_no_videos_found)) }
-            return
-        }
-        items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
-            val video = sortedItems[idx]
-            if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
-            } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
-            }
-        }
-        return
-    }
-
-    if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
-    ) {
-        item { EmptyState(message = stringResource(R.string.error_no_videos_found)) }
-        return
-    }
-    items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
-        pagingItems[index]?.let { video ->
-            if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
-            } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
-            }
-        }
-    }
-}
-
-private fun LazyListScope.shortsContent(
-    pagingItems: LazyPagingItems<Video>?,
-    onShortClick: (String) -> Unit,
-) {
-    if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
-    ) {
-        item { EmptyState(message = stringResource(R.string.error_no_shorts_found)) }
-        return
-    }
-    val count = pagingItems.itemCount
-    val rowCount = (count + 1) / 2
-    items(count = rowCount, key = { rowIdx -> "shorts_row_$rowIdx" }) { rowIdx ->
-        val firstIdx = rowIdx * 2
-        val secondIdx = rowIdx * 2 + 1
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(1.dp),
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                pagingItems[firstIdx]?.let { video ->
-                    ShortsGridCard(video = video, onClick = { onShortClick(video.id) })
-                }
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                if (secondIdx < count) {
-                    pagingItems[secondIdx]?.let { video ->
-                        ShortsGridCard(video = video, onClick = { onShortClick(video.id) })
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun LazyListScope.liveContent(
-    pagingItems: LazyPagingItems<Video>?,
-    sortedItems: SortedVideos,
-    isGridView: Boolean,
-    listKeyPrefix: String = "",
-    onVideoClick: (Video) -> Unit,
-) {
-    if (sortedItems != null) {
-        if (sortedItems.isEmpty()) {
-            item { EmptyState(message = stringResource(R.string.error_no_live_videos_found)) }
-            return
-        }
-        items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
-            val video = sortedItems[idx]
-            if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
-            } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
-            }
-        }
-        return
-    }
-
-    if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
-    ) {
-        item { EmptyState(message = stringResource(R.string.error_no_live_videos_found)) }
-        return
-    }
-    items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
-        pagingItems[index]?.let { video ->
-            if (isGridView) {
-                VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
-            } else {
-                CompactVideoCard(video = video, onClick = { onVideoClick(video) })
-            }
-        }
-    }
-}
-
-private fun LazyListScope.playlistsContent(
-    pagingItems: LazyPagingItems<io.github.aedev.flow.data.model.Playlist>?,
-    onPlaylistClick: (String) -> Unit,
-) {
-    if (pagingItems == null ||
-        (pagingItems.loadState.refresh is LoadState.NotLoading && pagingItems.itemCount == 0)
-    ) {
-        item { EmptyState(message = stringResource(R.string.error_no_playlists_found)) }
-        return
-    }
-    items(count = pagingItems.itemCount, key = pagingItems.itemKey { it.id }) { index ->
-        pagingItems[index]?.let { playlist ->
-            PlaylistCard(playlist = playlist, onClick = { onPlaylistClick(playlist.id) })
-        }
-    }
-}
-
-// Shorts grid card (2-column)
-@Composable
-private fun ShortsGridCard(
-    video: Video,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(9f / 16f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-            Text(
-                text = formatViewCount(video.viewCount),
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(6.dp)
-                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
-                color = Color.White,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium,
-            )
-            ShortWatchedIndicator(videoId = video.id)
-        }
-        Text(
-            text = video.title,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-// About section
-@Composable
-private fun AboutSection(channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo) {
-    val context = LocalContext.current
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        if (!channelInfo.description.isNullOrBlank()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = stringResource(R.string.about),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.extendedColors.textSecondary,
-                )
-                Text(
-                    text = channelInfo.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            thickness = 0.5.dp,
-        )
-
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                text = stringResource(R.string.stats),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.extendedColors.textSecondary,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(R.string.subscribers),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.extendedColors.textSecondary,
-                )
-                Text(
-                    text =
-                        context.getString(
-                            R.string.subscribers_count_template,
-                            formatSubscriberCount(channelInfo.subscriberCount),
-                        ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-        }
-    }
-}
-
-// Error state
-@Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-        )
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.retry))
-        }
-    }
-}
-
-// Empty state
-@Composable
-private fun EmptyState(message: String) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 64.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.extendedColors.textSecondary,
         )
     }
 }

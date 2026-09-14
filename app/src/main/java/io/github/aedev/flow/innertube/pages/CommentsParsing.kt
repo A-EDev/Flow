@@ -306,6 +306,7 @@ internal fun JsonObject.findReplyContinuation(): String? =
 internal fun JsonElement?.bestThumbnailUrl(): String? {
     val thumbnails =
         objectOrNull()?.get("thumbnails").arrayOrNull()
+            ?: objectOrNull()?.get("sources").arrayOrNull()
             ?: arrayOrNull()
             ?: return null
     return thumbnails

@@ -1,5 +1,9 @@
-package io.github.aedev.flow.innertube.pages
+package io.github.aedev.flow.innertube.pages.channel
 
+import io.github.aedev.flow.innertube.pages.arrayOrNull
+import io.github.aedev.flow.innertube.pages.objectOrNull
+import io.github.aedev.flow.innertube.pages.stringOrNull
+import io.github.aedev.flow.innertube.pages.youtubeText
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -77,7 +81,7 @@ internal fun JsonElement.channelItemContinuation(): String? =
  * Every array that holds grid items, across the four shapes a channel tab arrives in: an initial
  * browse, a sort switch, a page append, and the older `richGridContinuation`.
  */
-private fun JsonElement.gridItemLists(): List<JsonArray> {
+internal fun JsonElement.gridItemLists(): List<JsonArray> {
     val lists = mutableListOf<JsonArray>()
 
     fun collect(node: JsonElement) {
@@ -113,6 +117,12 @@ private val ITEM_LIST_HOLDERS =
         "appendContinuationItemsAction" to "continuationItems",
         "richGridContinuation" to "contents",
         "richGridRenderer" to "contents",
+        // Playlists and Shows nest their grid inside a section list rather than a rich grid.
+        "gridRenderer" to "items",
+        "gridContinuation" to "items",
+        "horizontalListRenderer" to "items",
+        "expandedShelfContentsRenderer" to "items",
+        "reelShelfRenderer" to "items",
     )
 
 /**

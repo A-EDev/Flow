@@ -70,6 +70,8 @@ internal fun VideoInfoSection(
     onDescriptionClick: () -> Unit,
     isSaved: Boolean = false,
     isDownloaded: Boolean = false,
+    onNoteClick: (() -> Unit)? = null,
+    hasNote: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var showCollaborators by remember { mutableStateOf(false) }
@@ -258,6 +260,8 @@ internal fun VideoInfoSection(
             onCopyLinkAtTimeClick = onCopyLinkAtTimeClick,
             isSaved = isSaved,
             isDownloaded = isDownloaded,
+            onNoteClick = onNoteClick,
+            hasNote = hasNote,
         )
     }
 

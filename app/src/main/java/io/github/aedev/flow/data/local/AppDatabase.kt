@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.dao.CacheDao
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.dao.HomeFeedCacheDao
 import io.github.aedev.flow.data.local.dao.MusicGraphDao
+import io.github.aedev.flow.data.local.dao.NoteDao
 import io.github.aedev.flow.data.local.dao.NotificationDao
 import io.github.aedev.flow.data.local.dao.PlaylistDao
 import io.github.aedev.flow.data.local.dao.RecognitionHistoryDao
@@ -26,6 +27,7 @@ import io.github.aedev.flow.data.local.entity.MusicGraphPlaylistEntity
 import io.github.aedev.flow.data.local.entity.MusicGraphTrackEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeCacheEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeChipEntity
+import io.github.aedev.flow.data.local.entity.NoteEntity
 import io.github.aedev.flow.data.local.entity.NotificationEntity
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
@@ -61,12 +63,14 @@ import io.github.aedev.flow.data.local.migrations.Migration24To25
         MusicGraphAlbumEntity::class,
         MusicGraphPlaylistEntity::class,
         MusicGraphEdgeEntity::class,
+        NoteEntity::class,
     ],
     autoMigrations = [
         AutoMigration(from = 24, to = 25, spec = Migration24To25::class),
         AutoMigration(from = 25, to = 26),
+        AutoMigration(from = 26, to = 27),
     ],
-    version = 26,
+    version = 27,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -75,6 +79,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun playlistDao(): PlaylistDao
 
     abstract fun notificationDao(): NotificationDao
+
+    abstract fun noteDao(): NoteDao
 
     abstract fun cacheDao(): CacheDao
 

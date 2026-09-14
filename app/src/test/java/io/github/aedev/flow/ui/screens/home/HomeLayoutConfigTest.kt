@@ -19,7 +19,7 @@ class HomeLayoutConfigTest {
     private fun resolve(
         width: Dp,
         preference: HomeFeedColumns = HomeFeedColumns.AUTO,
-    ) = resolveHomeLayoutConfig(feedGridLayoutFor(width), preference)
+    ) = resolveHomeLayoutConfig(feedGridLayoutFor(width, preference))
 
     @Test
     fun `a phone still gets one card per row on auto`() {

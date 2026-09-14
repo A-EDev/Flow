@@ -46,7 +46,10 @@ interface CacheDao {
             thumbnailUrl = :thumbnailUrl,
             duration = :duration,
             viewCount = :viewCount,
-            isLive = :isLive
+            isLive = :isLive,
+            isUpcoming = :isUpcoming,
+            uploadDate = :uploadDate,
+            timestamp = :timestamp
         WHERE videoId = :videoId
         """,
     )
@@ -59,6 +62,9 @@ interface CacheDao {
         duration: Int,
         viewCount: Long,
         isLive: Boolean,
+        isUpcoming: Boolean,
+        uploadDate: String,
+        timestamp: Long,
     )
 
     @Query("DELETE FROM subscription_feed_cache WHERE channelId = :channelId")

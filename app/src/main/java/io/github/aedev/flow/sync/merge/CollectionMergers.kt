@@ -2,6 +2,7 @@ package io.github.aedev.flow.sync.merge
 
 import io.github.aedev.flow.sync.canonical.CanonicalLike
 import io.github.aedev.flow.sync.canonical.CanonicalLikeMeta
+import io.github.aedev.flow.sync.canonical.CanonicalNote
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
 import io.github.aedev.flow.sync.canonical.CanonicalSubscriptionGroup
@@ -147,6 +148,38 @@ object SubscribedChannelsMerger {
     }
 
     private fun contentKey(c: CanonicalSubscribedChannel) = "${c.subscribedAtMs}|${c.deleted}|${c.name}"
+}
+
+/**
+ * A note is one field the user typed, so the later edit wins outright. Deletion is a tombstone
+ * carrying its own time — dropping the row instead would let a peer resurrect a note the user cleared.
+ */
+object NotesMerger {
+    fun merge(
+        local: List<CanonicalNote>,
+        remote: List<CanonicalNote>,
+    ): List<CanonicalNote> {
+        val byId = LinkedHashMap<String, CanonicalNote>(local.size + remote.size)
+        for (note in local) byId[note.id] = note
+        for (note in remote) {
+            val existing = byId[note.id]
+            byId[note.id] = if (existing == null) note else mergeOne(existing, note)
+        }
+        return byId.values.sortedBy { it.id }
+    }
+
+    fun mergeOne(
+        x: CanonicalNote,
+        y: CanonicalNote,
+    ): CanonicalNote =
+        when {
+            x.updatedAt != y.updatedAt -> if (x.updatedAt > y.updatedAt) x else y
+
+            // Same instant on two devices: deletion wins, so a clear is never undone by a stale edit.
+            x.deleted != y.deleted -> if (x.deleted) x else y
+
+            else -> if (x.text >= y.text) x else y
+        }
 }
 
 object SubscriptionsMerger {

@@ -10,11 +10,21 @@ import javax.inject.Inject
 data class UpcomingPremiere(
     val isUpcoming: Boolean,
     val scheduledStartMs: Long?,
+    val details: UpcomingDetails? = null,
 ) {
     companion object {
         val NOT_UPCOMING = UpcomingPremiere(isUpcoming = false, scheduledStartMs = null)
     }
 }
+
+/** The metadata the player endpoint returns even while a stream is offline. */
+data class UpcomingDetails(
+    val title: String,
+    val channelName: String,
+    val channelId: String,
+    val thumbnailUrl: String,
+    val description: String,
+)
 
 /**
  * Asks the player endpoint whether a video is a premiere or a scheduled live stream that has not
@@ -56,7 +66,22 @@ class UpcomingPremiereProbe
                         ?.times(1000L)
                         // A start time in the past is a stream that already began: no countdown to show.
                         ?.takeIf { it > System.currentTimeMillis() }
-                UpcomingPremiere(isUpcoming = true, scheduledStartMs = scheduledMs)
+                val details =
+                    response.videoDetails?.let { video ->
+                        UpcomingDetails(
+                            title = video.title.orEmpty(),
+                            channelName = video.author.orEmpty(),
+                            channelId = video.channelId,
+                            thumbnailUrl =
+                                video.thumbnail
+                                    ?.thumbnails
+                                    ?.maxByOrNull { it.width ?: 0 }
+                                    ?.url
+                                    .orEmpty(),
+                            description = video.shortDescription.orEmpty(),
+                        )
+                    }
+                UpcomingPremiere(isUpcoming = true, scheduledStartMs = scheduledMs, details = details)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

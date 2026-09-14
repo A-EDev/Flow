@@ -4,6 +4,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.local.HomeFeedColumns
 import org.junit.Test
 
 /**
@@ -63,6 +64,33 @@ class FeedGridLayoutTest {
     fun `a very wide window keeps filling with cards instead of stretching four of them`() {
         assertThat(columnsAt(1600.dp)).isEqualTo(5)
         assertThat(columnsAt(2000.dp)).isEqualTo(7)
+    }
+
+    @Test
+    fun `a pinned preference overrides the width in both directions`() {
+        assertThat(feedGridLayoutFor(360.dp, HomeFeedColumns.THREE).columns).isEqualTo(3)
+        assertThat(feedGridLayoutFor(360.dp, HomeFeedColumns.THREE).cells).isEqualTo(GridCells.Fixed(3))
+        assertThat(feedGridLayoutFor(1400.dp, HomeFeedColumns.ONE).cells).isEqualTo(GridCells.Fixed(1))
+    }
+
+    @Test
+    fun `an auto cap stops the derivation without touching narrower windows`() {
+        assertThat(feedGridLayoutFor(900.dp, maxAutoColumns = 3).columns).isEqualTo(3)
+        assertThat(feedGridLayoutFor(900.dp, maxAutoColumns = 3).cells).isInstanceOf(GridCells.Adaptive::class.java)
+        assertThat(feedGridLayoutFor(1200.dp, maxAutoColumns = 3).columns).isEqualTo(3)
+        assertThat(feedGridLayoutFor(1200.dp, maxAutoColumns = 3).cells).isEqualTo(GridCells.Fixed(3))
+        assertThat(feedGridLayoutFor(2000.dp, maxAutoColumns = 3).columns).isEqualTo(3)
+    }
+
+    @Test
+    fun `a pinned preference wins over an auto cap`() {
+        assertThat(feedGridLayoutFor(360.dp, HomeFeedColumns.THREE, maxAutoColumns = 2).columns).isEqualTo(3)
+    }
+
+    @Test
+    fun `only the compact band reports itself compact`() {
+        assertThat(feedGridLayoutFor(599.dp).isCompact).isTrue()
+        assertThat(feedGridLayoutFor(600.dp).isCompact).isFalse()
     }
 
     @Test
