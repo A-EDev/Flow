@@ -217,10 +217,10 @@ internal fun MusicLyricsSheet(
                     title = trackTitle,
                     artist = trackArtist,
                     artworkUrl = artworkUrl,
-                    // The sheet stays composed at alpha 0 while retained — the pill's
-                    // waveform must not keep animating behind an invisible layer.
+                    // The sheet stays composed at alpha 0 while retained — neither the pill's
+                    // waveform nor its loading indicator may animate behind an invisible layer.
                     isPlaying = isPlaying && visible,
-                    isLoading = isLoading,
+                    isLoading = isLoading && visible,
                 )
             }
 
