@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flow</string>
-    <string name="subscriptions_search_placeholder">Cerca iscrizioni…</string>
+    <string name="subscriptions_search_placeholder">Cerca iscrizioni …</string>
     <string name="top_bar_subscriptions_title">Iscrizioni</string>
     <string name="subscribed">Iscritto</string>
     <string name="no_subscriptions_yet">Ancora nessuna iscrizione</string>
-    <string name="empty_subscriptions_body">Iscriviti ai canali per vedere qui\ni loro video più recenti</string>
+    <string name="empty_subscriptions_body">Iscriviti ai canali per vedere qui i loro\nvideo più recenti</string>
     <string name="home_refresh_feed">Aggiorna feed</string>
     <string name="retry">Riprova</string>
     <string name="shorts">Shorts</string>
@@ -2508,4 +2508,33 @@
     <string name="music_metric_tracks">Tracce monitorate</string>
     <string name="music_metric_on_repeat">In ripetizione</string>
     <string name="music_top_artists_title">Migliori artisti</string>
+    <string name="audio_bitrate_kbps_template">%1$d kbps</string>
+    <string name="comment_hearted_by_creator">Apprezzato dal creatore</string>
+    <string name="verified">Verificato</string>
+    <string name="comments_with_count_template">Commenti · %1$s</string>
+    <string name="desc_see_more">Vedi altro</string>
+    <string name="desc_see_less">Vedi meno</string>
+    <string name="transcript">Trascrizione</string>
+    <string name="transcript_show">Mostra trascrizione</string>
+    <string name="transcript_subtitle">Segui usando la trascrizione.</string>
+    <string name="transcript_unavailable">Non è disponibile nessuna trascrizione per questo video</string>
+    <string name="transcript_search_hint">Cerca trascrizione</string>
+    <string name="transcript_no_matches">Nessuna riga corrisponde alla tua ricerca</string>
+    <string name="channel_links">Collegamenti</string>
+    <string name="list_separator_dot">" · "</string>
+    <string name="quality_badge_2k">2K</string>
+    <string name="quality_badge_qhd">QHD</string>
+    <string name="quality_badge_fhd">FHD</string>
+    <string name="quality_badge_sd">SD</string>
+    <string name="quality_badge_height_template">%1$dp</string>
+    <string name="content_settings_home_columns_title">Schede per riga</string>
+    <string name="content_settings_home_columns_subtitle">Segue automaticamente la dimensione dello schermo. Scegli un numero per mantenerlo costante.</string>
+    <string name="content_settings_home_columns_auto">Auto</string>
+    <string name="section_deep_cuts">Perle rare</string>
+    <string name="music_metric_on_repeat_detail">di tendenza ora</string>
+    <string name="music_discovery_appetite_detail">Quanta nuova musica mixa il motore musicale</string>
+    <string name="music_top_artists_subtitle">Le tue affinità più forti in questo momento</string>
+    <string name="music_top_artist_plays">%1$d riproduzioni</string>
+    <string name="music_listening_patterns_title">Ritmo di ascolto</string>
+    <string name="music_bucket_weekday_morning">Mattine lavorative</string>
 </resources>
