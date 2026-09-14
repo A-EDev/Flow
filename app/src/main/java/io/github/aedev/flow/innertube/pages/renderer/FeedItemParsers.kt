@@ -161,20 +161,29 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
             .stringOrNull()
             ?.toLongOrNull()
             ?.times(1000L)
+    val badges = this["badges"].metadataBadges()
+    val (snippet, highlights) = this["detailedMetadataSnippets"].matchedSnippet()
     return FeedItem.VideoItem(
         Video(
             id = videoId,
             title = title,
             channelName = this["ownerText"].youtubeText()?.takeIf(String::isNotBlank) ?: owner.name,
-            channelId = owner.id,
+            channelId =
+                this["ownerText"].bylineChannelId()
+                    ?: this["longBylineText"].bylineChannelId()
+                    ?: owner.id,
             thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, this["thumbnail"].largestImageUrl()),
             duration = parseDurationText(this["lengthText"].youtubeText()) ?: 0,
             viewCount = parseYouTubeViewCount(viewsText),
             uploadDate = upcomingStartMs?.let(::premiereDateText) ?: uploadText,
             timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText) ?: 0L,
-            channelThumbnailUrl = owner.avatarUrl,
-            isLive = viewsText?.contains("watching", ignoreCase = true) == true,
+            channelThumbnailUrl = bylineAvatarUrl() ?: owner.avatarUrl,
+            isLive = this["badges"].hasLiveBadge() || viewsText?.contains("watching", ignoreCase = true) == true,
             isUpcoming = upcomingStartMs != null,
+            isVerifiedChannel = this["ownerBadges"].hasVerifiedBadge(),
+            badges = badges,
+            snippet = snippet,
+            snippetHighlights = highlights,
         ),
     )
 }
@@ -200,15 +209,116 @@ private fun JsonObject.toPlaylistRendererItem(): FeedItem? {
 private fun JsonObject.toChannelRendererItem(): FeedItem? {
     val channelId = this["channelId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val title = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null
+    val labels = listOfNotNull(this["subscriberCountText"].youtubeText(), this["videoCountText"].youtubeText())
+    val canonicalUrl = this["navigationEndpoint"].objectOrNull()?.canonicalBaseUrl()
     return FeedItem.RelatedChannelItem(
         Channel(
             id = channelId,
             name = title,
             thumbnailUrl = this["thumbnail"].largestImageUrl().orEmpty(),
-            subscriberCount = parseYouTubeViewCount(this["subscriberCountText"].youtubeText()),
+            subscriberCount = parseYouTubeViewCount(labels.firstOrNull { it.isSubscriberLabel() }),
             description = this["descriptionSnippet"].youtubeText().orEmpty(),
+            url = canonicalUrl?.let { "https://www.youtube.com$it" } ?: "https://www.youtube.com/channel/$channelId",
+            handle = labels.firstOrNull { it.startsWith("@") } ?: canonicalUrl?.takeIf { it.startsWith("/@") }?.drop(1).orEmpty(),
+            videoCount = labels.firstOrNull { it.isVideoCountLabel() }?.leadingCount() ?: 0,
+            isVerified = this["ownerBadges"].hasVerifiedBadge(),
         ),
     )
+}
+
+/**
+ * The two count labels are not reliably in the field their name implies — a live channelRenderer
+ * puts "@handle" under subscriberCountText and "16.9M subscribers" under videoCountText — so each
+ * label is classified by what it says.
+ */
+private fun String.isSubscriberLabel(): Boolean = !startsWith("@") && !isVideoCountLabel()
+
+private fun String.isVideoCountLabel(): Boolean = contains("video", ignoreCase = true)
+
+private fun JsonObject.canonicalBaseUrl(): String? =
+    this["browseEndpoint"]
+        .objectOrNull()
+        ?.get("canonicalBaseUrl")
+        .stringOrNull()
+        ?.takeIf(String::isNotBlank)
+
+private fun JsonElement?.bylineChannelId(): String? =
+    arrayOrNull()
+        ?.firstNotNullOfOrNull { it.objectOrNull()?.bylineChannelId() }
+        ?: objectOrNull()?.let { node ->
+            node["navigationEndpoint"]
+                .objectOrNull()
+                ?.get("browseEndpoint")
+                .objectOrNull()
+                ?.get("browseId")
+                .stringOrNull()
+                ?: node["runs"].bylineChannelId()
+        }
+
+/**
+ * The avatar a search result already carries. Reading it here is what removes the per-video
+ * `next` request the old search path issued to fetch the same image.
+ */
+private fun JsonObject.bylineAvatarUrl(): String? =
+    this["channelThumbnailSupportedRenderers"]
+        .objectOrNull()
+        ?.get("channelThumbnailWithLinkRenderer")
+        .objectOrNull()
+        ?.get("thumbnail")
+        .largestImageUrl()
+        ?: this["avatar"]
+            .objectOrNull()
+            ?.get("decoratedAvatarViewModel")
+            .objectOrNull()
+            ?.get("avatar")
+            .objectOrNull()
+            ?.get("avatarViewModel")
+            .objectOrNull()
+            ?.get("image")
+            .largestImageUrl()
+
+private fun JsonElement?.metadataBadges(): List<String> =
+    arrayOrNull()
+        .orEmpty()
+        .mapNotNull { it.objectOrNull()?.get("metadataBadgeRenderer").objectOrNull() }
+        .mapNotNull { it["label"].stringOrNull()?.takeIf(String::isNotBlank) }
+
+private fun JsonElement?.hasVerifiedBadge(): Boolean =
+    arrayOrNull()
+        .orEmpty()
+        .mapNotNull { it.objectOrNull()?.get("metadataBadgeRenderer").objectOrNull() }
+        .any { it["style"].stringOrNull()?.contains("VERIFIED") == true }
+
+private fun JsonElement?.hasLiveBadge(): Boolean =
+    arrayOrNull()
+        .orEmpty()
+        .mapNotNull { it.objectOrNull()?.get("metadataBadgeRenderer").objectOrNull() }
+        .any { it["style"].stringOrNull() == "BADGE_STYLE_TYPE_LIVE_NOW" }
+
+/** The runs YouTube marked `bold` are the query terms it matched; the UI emphasises those ranges. */
+private fun JsonElement?.matchedSnippet(): Pair<String, List<IntRange>> {
+    val runs =
+        arrayOrNull()
+            ?.firstNotNullOfOrNull {
+                it
+                    .objectOrNull()
+                    ?.get("snippetText")
+                    .objectOrNull()
+                    ?.get("runs")
+                    .arrayOrNull()
+            }
+            ?: return "" to emptyList()
+    val text = StringBuilder()
+    val highlights = mutableListOf<IntRange>()
+    runs.forEach { run ->
+        val node = run.objectOrNull() ?: return@forEach
+        val part = node["text"].stringOrNull().orEmpty()
+        if (part.isEmpty()) return@forEach
+        val start = text.length
+        text.append(part)
+        if (node["bold"].stringOrNull() == "true") highlights += start until text.length
+    }
+    return text.toString() to highlights
 }
 
 private fun JsonObject.toTrailerItem(owner: FeedItemOwner): FeedItem? {
