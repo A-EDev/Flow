@@ -1,4 +1,4 @@
-package io.github.aedev.flow.innertube.pages.channel
+package io.github.aedev.flow.innertube.pages.renderer
 
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -12,10 +12,10 @@ import org.junit.Test
  * playlists, podcasts and sister channels, and the parser it was replacing assumed every one of them
  * was a video.
  */
-class ChannelItemParsersTest {
-    private val owner = ChannelOwner(id = "UCowner", name = "Linus Tech Tips", avatarUrl = "https://yt3.test/avatar.jpg")
+class FeedItemParsersTest {
+    private val owner = FeedItemOwner(id = "UCowner", name = "Linus Tech Tips", avatarUrl = "https://yt3.test/avatar.jpg")
 
-    private fun item(raw: String) = Json.parseToJsonElement(raw).toChannelItem(owner)
+    private fun item(raw: String) = Json.parseToJsonElement(raw).toFeedItem(owner)
 
     private fun lockup(
         contentId: String,
@@ -63,7 +63,7 @@ class ChannelItemParsersTest {
                         rows = row("603K views", "Streamed 2 months ago"),
                         overlays = bottomBadgeOverlay("3:53:45", "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT"),
                     ),
-                ) as ChannelItem.VideoItem
+                ) as FeedItem.VideoItem
             ).video
 
         assertEquals(3 * 3600 + 53 * 60 + 45, video.duration)
@@ -84,7 +84,7 @@ class ChannelItemParsersTest {
                         rows = row("83 watching"),
                         overlays = bottomBadgeOverlay("LIVE", "THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE"),
                     ),
-                ) as ChannelItem.VideoItem
+                ) as FeedItem.VideoItem
             ).video
 
         assertTrue(video.isLive)
@@ -104,7 +104,7 @@ class ChannelItemParsersTest {
                         rows = row("2 waiting", "Scheduled for 9/16/26, 6:45 PM"),
                         overlays = bottomBadgeOverlay("Upcoming", "THUMBNAIL_OVERLAY_BADGE_STYLE_DEFAULT"),
                     ),
-                ) as ChannelItem.VideoItem
+                ) as FeedItem.VideoItem
             ).video
 
         assertTrue(video.isUpcoming)
@@ -128,7 +128,7 @@ class ChannelItemParsersTest {
                 ),
             )
 
-        val video = (parsed as ChannelItem.VideoItem).video
+        val video = (parsed as FeedItem.VideoItem).video
         assertEquals("1_y9qCIPhQ4", video.id)
         assertEquals("I Rescued Abandoned UI Designs", video.title)
         assertEquals(504, video.duration)
@@ -144,12 +144,12 @@ class ChannelItemParsersTest {
         val fourDays =
             (
                 item(lockup("v1", "LOCKUP_CONTENT_TYPE_VIDEO", "T", rows = row("64K views", "4 days ago")))
-                    as ChannelItem.VideoItem
+                    as FeedItem.VideoItem
             ).video.timestamp
         val fourSeconds =
             (
                 item(lockup("v2", "LOCKUP_CONTENT_TYPE_VIDEO", "T", rows = row("64K views", "4 seconds ago")))
-                    as ChannelItem.VideoItem
+                    as FeedItem.VideoItem
             ).video.timestamp
 
         assertTrue("4 days ago must be older than 4 seconds ago", fourDays < fourSeconds - 3L * 86_400_000L)
@@ -167,7 +167,7 @@ class ChannelItemParsersTest {
                 ),
             )
 
-        val playlist = (parsed as ChannelItem.PlaylistItem).playlist
+        val playlist = (parsed as FeedItem.PlaylistItem).playlist
         assertEquals("PLxxxx", playlist.id)
         assertEquals("Scrapyard Wars", playlist.name)
         assertEquals(12, playlist.videoCount)
@@ -178,7 +178,7 @@ class ChannelItemParsersTest {
     fun `a podcast lockup is a playlist rather than a video`() {
         val parsed = item(lockup("PLpodcast", "LOCKUP_CONTENT_TYPE_PODCAST", "The WAN Show"))
 
-        assertTrue(parsed is ChannelItem.PlaylistItem)
+        assertTrue(parsed is FeedItem.PlaylistItem)
     }
 
     @Test
@@ -193,7 +193,7 @@ class ChannelItemParsersTest {
                 ),
             )
 
-        val channel = (parsed as ChannelItem.RelatedChannelItem).channel
+        val channel = (parsed as FeedItem.RelatedChannelItem).channel
         assertEquals("UCsister", channel.id)
         assertEquals("Techquickie", channel.name)
         assertEquals(4_500_000L, channel.subscriberCount)
@@ -204,7 +204,7 @@ class ChannelItemParsersTest {
         val parsed =
             item(lockup("live1", "LOCKUP_CONTENT_TYPE_VIDEO", "The WAN Show", rows = row("32K watching")))
 
-        assertTrue((parsed as ChannelItem.VideoItem).video.isLive)
+        assertTrue((parsed as FeedItem.VideoItem).video.isLive)
     }
 
     @Test
@@ -227,7 +227,7 @@ class ChannelItemParsersTest {
                 """.trimIndent(),
             )
 
-        val short = (parsed as ChannelItem.ShortItem).video
+        val short = (parsed as FeedItem.ShortItem).video
         assertEquals("iRZSOtjOlH8", short.id)
         assertEquals("Best comment out of 25K viewers", short.title)
         assertEquals(1_200_000L, short.viewCount)
@@ -251,7 +251,7 @@ class ChannelItemParsersTest {
                 """.trimIndent(),
             )
 
-        val video = (parsed as ChannelItem.VideoItem).video
+        val video = (parsed as FeedItem.VideoItem).video
         assertEquals(3723, video.duration)
         assertEquals(1_234_567L, video.viewCount)
     }
@@ -261,7 +261,7 @@ class ChannelItemParsersTest {
         val parsed =
             item("""{ "richItemRenderer": { "content": ${lockup("wrapped", "LOCKUP_CONTENT_TYPE_VIDEO", "Wrapped")} } }""")
 
-        assertEquals("wrapped", (parsed as ChannelItem.VideoItem).video.id)
+        assertEquals("wrapped", (parsed as FeedItem.VideoItem).video.id)
     }
 
     @Test
@@ -282,9 +282,9 @@ class ChannelItemParsersTest {
                       ${lockup("b", "LOCKUP_CONTENT_TYPE_VIDEO", "Second")}
                     ]
                     """.trimIndent(),
-                ).toChannelItems(owner)
+                ).toFeedItems(owner)
 
-        assertEquals(listOf("a", "b"), items.map { (it as ChannelItem.VideoItem).video.id })
+        assertEquals(listOf("a", "b"), items.map { (it as FeedItem.VideoItem).video.id })
     }
 
     @Test

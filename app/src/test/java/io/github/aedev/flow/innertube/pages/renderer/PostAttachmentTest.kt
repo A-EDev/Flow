@@ -1,4 +1,4 @@
-package io.github.aedev.flow.innertube.pages.channel
+package io.github.aedev.flow.innertube.pages.renderer
 
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -12,7 +12,7 @@ import org.junit.Test
  * other photo in the gallery.
  */
 class PostAttachmentTest {
-    private val owner = ChannelOwner(id = "UCowner", name = "Linus Tech Tips", avatarUrl = "https://yt3.test/a.jpg")
+    private val owner = FeedItemOwner(id = "UCowner", name = "Linus Tech Tips", avatarUrl = "https://yt3.test/a.jpg")
 
     private fun attachment(raw: String) = Json.parseToJsonElement(raw).toPostAttachment(owner)
 

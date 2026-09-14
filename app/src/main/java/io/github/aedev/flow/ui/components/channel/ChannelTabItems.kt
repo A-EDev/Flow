@@ -25,8 +25,8 @@ import androidx.paging.compose.LazyPagingItems
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.innertube.pages.channel.ChannelItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
@@ -45,7 +45,7 @@ import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
  */
 @Composable
 internal fun ChannelTabItems(
-    pagingItems: LazyPagingItems<ChannelItem>?,
+    pagingItems: LazyPagingItems<FeedItem>?,
     kind: ChannelTabKind,
     isGridView: Boolean,
     columnPreference: HomeFeedColumns,
@@ -112,7 +112,7 @@ internal fun ChannelTabItems(
                 },
             ) { index ->
                 when (val item = pagingItems[index]) {
-                    is ChannelItem.VideoItem -> {
+                    is FeedItem.VideoItem -> {
                         if (gridCards) {
                             VideoCardFullWidth(
                                 video = item.video,
@@ -129,19 +129,19 @@ internal fun ChannelTabItems(
                         }
                     }
 
-                    is ChannelItem.ShortItem -> {
+                    is FeedItem.ShortItem -> {
                         ChannelShortCard(video = item.video, onClick = { onShortClick(item.video.id) })
                     }
 
-                    is ChannelItem.PlaylistItem -> {
+                    is FeedItem.PlaylistItem -> {
                         PlaylistCard(playlist = item.playlist, onClick = { onPlaylistClick(item.playlist.id) })
                     }
 
-                    is ChannelItem.RelatedChannelItem -> {
+                    is FeedItem.RelatedChannelItem -> {
                         ChannelRow(channel = item.channel, onClick = { onChannelClick(item.channel.id) })
                     }
 
-                    is ChannelItem.PostItem, null -> {
+                    is FeedItem.PostItem, null -> {
                         Unit
                     }
                 }
@@ -159,19 +159,19 @@ private fun LazyGridScope.fullSpanItem(
     content: @Composable () -> Unit,
 ) = item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }
 
-private fun ChannelItem?.spansRow(): Boolean =
+private fun FeedItem?.spansRow(): Boolean =
     when (this) {
-        is ChannelItem.PlaylistItem, is ChannelItem.RelatedChannelItem, is ChannelItem.PostItem -> true
-        is ChannelItem.VideoItem, is ChannelItem.ShortItem, null -> false
+        is FeedItem.PlaylistItem, is FeedItem.RelatedChannelItem, is FeedItem.PostItem -> true
+        is FeedItem.VideoItem, is FeedItem.ShortItem, null -> false
     }
 
-private fun ChannelItem.itemKey(): String =
+private fun FeedItem.itemKey(): String =
     when (this) {
-        is ChannelItem.VideoItem -> "v_${video.id}"
-        is ChannelItem.ShortItem -> "s_${video.id}"
-        is ChannelItem.PlaylistItem -> "p_${playlist.id}"
-        is ChannelItem.RelatedChannelItem -> "c_${channel.id}"
-        is ChannelItem.PostItem -> "b_${post.id}"
+        is FeedItem.VideoItem -> "v_${video.id}"
+        is FeedItem.ShortItem -> "s_${video.id}"
+        is FeedItem.PlaylistItem -> "p_${playlist.id}"
+        is FeedItem.RelatedChannelItem -> "c_${channel.id}"
+        is FeedItem.PostItem -> "b_${post.id}"
     }
 
 private fun ChannelTabKind.emptyLabel(): Int =

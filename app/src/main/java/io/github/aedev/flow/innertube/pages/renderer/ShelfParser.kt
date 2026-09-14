@@ -1,4 +1,4 @@
-package io.github.aedev.flow.innertube.pages.channel
+package io.github.aedev.flow.innertube.pages.renderer
 
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
@@ -13,8 +13,8 @@ import kotlinx.serialization.json.JsonObject
  * A shelf that parses to nothing is dropped here rather than rendered empty — the screen only ever
  * receives sections that have something in them.
  */
-internal fun JsonElement.toChannelSections(owner: ChannelOwner): List<ChannelSection> {
-    val sections = mutableListOf<ChannelSection>()
+internal fun JsonElement.toFeedShelves(owner: FeedItemOwner): List<FeedShelf> {
+    val sections = mutableListOf<FeedShelf>()
     objectOrNull()
         ?.get("contents")
         .arrayOrNull()
@@ -36,15 +36,15 @@ internal fun JsonElement.toChannelSections(owner: ChannelOwner): List<ChannelSec
 }
 
 private fun JsonObject.toSection(
-    owner: ChannelOwner,
+    owner: FeedItemOwner,
     index: Int,
-): ChannelSection? {
+): FeedShelf? {
     this["channelVideoPlayerRenderer"].objectOrNull()?.let { trailer ->
-        val item = CHANNEL_ITEM_PARSERS.getValue("channelVideoPlayerRenderer").parse(trailer, owner) ?: return null
-        return ChannelSection(
+        val item = FEED_ITEM_PARSERS.getValue("channelVideoPlayerRenderer").parse(trailer, owner) ?: return null
+        return FeedShelf(
             id = "trailer",
             title = null,
-            style = ChannelSectionStyle.Trailer,
+            style = FeedShelfStyle.Trailer,
             items = listOf(item),
         )
     }
@@ -54,16 +54,16 @@ private fun JsonObject.toSection(
             ?: this["reelShelfRenderer"].objectOrNull()
             ?: return null
     val items =
-        shelf.shelfItems().mapNotNull { it.toChannelItem(owner) }.distinctBy { it.distinctKey() }
+        shelf.shelfItems().mapNotNull { it.toFeedItem(owner) }.distinctBy { it.distinctKey() }
     if (items.isEmpty()) return null
 
     val title = shelf["title"].youtubeText()?.takeIf(String::isNotBlank)
-    return ChannelSection(
+    return FeedShelf(
         // Position-qualified: a channel may publish two shelves under one title, and a duplicate key
         // crashes the lazy list that renders them.
         id = "shelf:$index:${title.orEmpty()}",
         title = title,
-        style = ChannelSectionStyle.Carousel,
+        style = FeedShelfStyle.Carousel,
         items = items,
         moreParams = shelf["endpoint"].objectOrNull()?.browseParams(),
         morePlaylistId =

@@ -48,9 +48,9 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.innertube.pages.channel.ChannelSection
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
-import io.github.aedev.flow.innertube.pages.channel.CommunityPost
+import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.ui.components.channel.ChannelAboutSection
 import io.github.aedev.flow.ui.components.channel.ChannelCommunityPosts
 import io.github.aedev.flow.ui.components.channel.ChannelFilterBar
@@ -422,7 +422,7 @@ private sealed interface SectionTarget {
 }
 
 private fun sectionTarget(
-    section: ChannelSection,
+    section: FeedShelf,
     tabs: List<ChannelScreenTab>,
 ): SectionTarget? {
     section.morePlaylistId?.let { return SectionTarget.Playlist(it) }

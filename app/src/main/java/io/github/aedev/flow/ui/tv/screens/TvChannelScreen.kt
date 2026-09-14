@@ -35,8 +35,8 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.innertube.pages.channel.ChannelItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.ui.screens.channel.ChannelViewModel
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvFilterChip
@@ -219,7 +219,7 @@ fun TvChannelScreen(
                         ) {
                             items(count = items.itemCount) { index ->
                                 when (val item = items[index]) {
-                                    is ChannelItem.VideoItem -> {
+                                    is FeedItem.VideoItem -> {
                                         TvVideoCard(
                                             video = item.video,
                                             onClick = { onVideoClick(item.video) },
@@ -227,7 +227,7 @@ fun TvChannelScreen(
                                         )
                                     }
 
-                                    is ChannelItem.PlaylistItem -> {
+                                    is FeedItem.PlaylistItem -> {
                                         TvPlaylistCard(
                                             playlist = item.playlist,
                                             onClick = { onOpenPlaylist(item.playlist.id) },

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.innertube.pages.channel
+package io.github.aedev.flow.innertube.pages.renderer
 
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
@@ -15,11 +15,11 @@ import io.github.aedev.flow.utils.premiereDateText
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
-internal fun interface ChannelItemParser {
+internal fun interface FeedItemParser {
     fun parse(
         node: JsonObject,
-        owner: ChannelOwner,
-    ): ChannelItem?
+        owner: FeedItemOwner,
+    ): FeedItem?
 }
 
 /**
@@ -29,29 +29,29 @@ internal fun interface ChannelItemParser {
  * with no entry yields null, so an unrecognised item is skipped rather than aborting the tab it sits
  * in.
  */
-internal val CHANNEL_ITEM_PARSERS: Map<String, ChannelItemParser> =
+internal val FEED_ITEM_PARSERS: Map<String, FeedItemParser> =
     mapOf(
-        "lockupViewModel" to ChannelItemParser { node, owner -> node.toLockupItem(owner) },
-        "shortsLockupViewModel" to ChannelItemParser { node, owner -> node.toShortItem("shortsLockupViewModel", owner) },
-        "reelItemRenderer" to ChannelItemParser { node, owner -> node.toShortItem("reelItemRenderer", owner) },
-        "videoRenderer" to ChannelItemParser { node, owner -> node.toVideoRendererItem(owner) },
-        "gridVideoRenderer" to ChannelItemParser { node, owner -> node.toVideoRendererItem(owner) },
-        "playlistRenderer" to ChannelItemParser { node, _ -> node.toPlaylistRendererItem() },
-        "gridPlaylistRenderer" to ChannelItemParser { node, _ -> node.toPlaylistRendererItem() },
-        "gridChannelRenderer" to ChannelItemParser { node, _ -> node.toChannelRendererItem() },
-        "channelRenderer" to ChannelItemParser { node, _ -> node.toChannelRendererItem() },
-        "channelVideoPlayerRenderer" to ChannelItemParser { node, owner -> node.toTrailerItem(owner) },
-        "gridShowRenderer" to ChannelItemParser { node, _ -> node.toShowItem() },
-        "postRenderer" to ChannelItemParser { node, owner -> node.toPostItem(owner) },
-        "backstagePostThreadRenderer" to ChannelItemParser { node, owner -> node.toPostThreadItem(owner) },
-        "showRenderer" to ChannelItemParser { node, _ -> node.toShowItem() },
+        "lockupViewModel" to FeedItemParser { node, owner -> node.toLockupItem(owner) },
+        "shortsLockupViewModel" to FeedItemParser { node, owner -> node.toShortItem("shortsLockupViewModel", owner) },
+        "reelItemRenderer" to FeedItemParser { node, owner -> node.toShortItem("reelItemRenderer", owner) },
+        "videoRenderer" to FeedItemParser { node, owner -> node.toVideoRendererItem(owner) },
+        "gridVideoRenderer" to FeedItemParser { node, owner -> node.toVideoRendererItem(owner) },
+        "playlistRenderer" to FeedItemParser { node, _ -> node.toPlaylistRendererItem() },
+        "gridPlaylistRenderer" to FeedItemParser { node, _ -> node.toPlaylistRendererItem() },
+        "gridChannelRenderer" to FeedItemParser { node, _ -> node.toChannelRendererItem() },
+        "channelRenderer" to FeedItemParser { node, _ -> node.toChannelRendererItem() },
+        "channelVideoPlayerRenderer" to FeedItemParser { node, owner -> node.toTrailerItem(owner) },
+        "gridShowRenderer" to FeedItemParser { node, _ -> node.toShowItem() },
+        "postRenderer" to FeedItemParser { node, owner -> node.toPostItem(owner) },
+        "backstagePostThreadRenderer" to FeedItemParser { node, owner -> node.toPostThreadItem(owner) },
+        "showRenderer" to FeedItemParser { node, _ -> node.toShowItem() },
     )
 
 /**
  * A list entry is either the renderer itself or a `richItemRenderer` wrapping it, and either shape
  * can carry the continuation instead of an item.
  */
-internal fun JsonElement?.toChannelItem(owner: ChannelOwner): ChannelItem? {
+internal fun JsonElement?.toFeedItem(owner: FeedItemOwner): FeedItem? {
     val node = objectOrNull() ?: return null
     val content =
         node["richItemRenderer"]
@@ -59,18 +59,18 @@ internal fun JsonElement?.toChannelItem(owner: ChannelOwner): ChannelItem? {
             ?.get("content")
             .objectOrNull()
             ?: node
-    return CHANNEL_ITEM_PARSERS.firstNotNullOfOrNull { (key, parser) ->
+    return FEED_ITEM_PARSERS.firstNotNullOfOrNull { (key, parser) ->
         content[key].objectOrNull()?.let { parser.parse(it, owner) }
     }
 }
 
-internal fun JsonElement?.toChannelItems(owner: ChannelOwner): List<ChannelItem> =
+internal fun JsonElement?.toFeedItems(owner: FeedItemOwner): List<FeedItem> =
     arrayOrNull()
         .orEmpty()
-        .mapNotNull { it.toChannelItem(owner) }
+        .mapNotNull { it.toFeedItem(owner) }
         .distinctBy { it.distinctKey() }
 
-private fun JsonObject.toLockupItem(owner: ChannelOwner): ChannelItem? {
+private fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
     val contentId = this["contentId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val metadata = this["metadata"].objectOrNull()?.get("lockupMetadataViewModel").objectOrNull()
     val title = metadata?.get("title").youtubeText()?.takeIf(String::isNotBlank) ?: return null
@@ -83,7 +83,7 @@ private fun JsonObject.toLockupItem(owner: ChannelOwner): ChannelItem? {
         "LOCKUP_CONTENT_TYPE_PODCAST",
         "LOCKUP_CONTENT_TYPE_ALBUM",
         -> {
-            ChannelItem.PlaylistItem(
+            FeedItem.PlaylistItem(
                 Playlist(
                     id = contentId,
                     name = title,
@@ -95,7 +95,7 @@ private fun JsonObject.toLockupItem(owner: ChannelOwner): ChannelItem? {
         }
 
         "LOCKUP_CONTENT_TYPE_CHANNEL" -> {
-            ChannelItem.RelatedChannelItem(
+            FeedItem.RelatedChannelItem(
                 Channel(
                     id = contentId,
                     name = title,
@@ -106,13 +106,13 @@ private fun JsonObject.toLockupItem(owner: ChannelOwner): ChannelItem? {
         }
 
         "LOCKUP_CONTENT_TYPE_SHORTS" -> {
-            ChannelItem.ShortItem(
+            FeedItem.ShortItem(
                 lockupVideo(contentId, title, parts, badges, owner).copy(isShort = true, duration = 0),
             )
         }
 
         else -> {
-            ChannelItem.VideoItem(
+            FeedItem.VideoItem(
                 lockupVideo(contentId, title, parts, badges, owner).copy(membersOnlyText = membersOnly),
             )
         }
@@ -124,7 +124,7 @@ private fun JsonObject.lockupVideo(
     title: String,
     parts: List<String>,
     badges: List<String>,
-    owner: ChannelOwner,
+    owner: FeedItemOwner,
 ): Video {
     val viewsText = parts.firstOrNull { it.mentionsViewers() }
     val uploadText = parts.firstOrNull { !it.mentionsViewers() && !it.mentionsWaiting() }.orEmpty()
@@ -149,7 +149,7 @@ private fun JsonObject.lockupVideo(
     )
 }
 
-private fun JsonObject.toVideoRendererItem(owner: ChannelOwner): ChannelItem? {
+private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
     val videoId = this["videoId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val title = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null
     val viewsText = this["viewCountText"].youtubeText()
@@ -161,7 +161,7 @@ private fun JsonObject.toVideoRendererItem(owner: ChannelOwner): ChannelItem? {
             .stringOrNull()
             ?.toLongOrNull()
             ?.times(1000L)
-    return ChannelItem.VideoItem(
+    return FeedItem.VideoItem(
         Video(
             id = videoId,
             title = title,
@@ -179,10 +179,10 @@ private fun JsonObject.toVideoRendererItem(owner: ChannelOwner): ChannelItem? {
     )
 }
 
-private fun JsonObject.toPlaylistRendererItem(): ChannelItem? {
+private fun JsonObject.toPlaylistRendererItem(): FeedItem? {
     val playlistId = this["playlistId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val title = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null
-    return ChannelItem.PlaylistItem(
+    return FeedItem.PlaylistItem(
         Playlist(
             id = playlistId,
             name = title,
@@ -197,10 +197,10 @@ private fun JsonObject.toPlaylistRendererItem(): ChannelItem? {
     )
 }
 
-private fun JsonObject.toChannelRendererItem(): ChannelItem? {
+private fun JsonObject.toChannelRendererItem(): FeedItem? {
     val channelId = this["channelId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val title = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null
-    return ChannelItem.RelatedChannelItem(
+    return FeedItem.RelatedChannelItem(
         Channel(
             id = channelId,
             name = title,
@@ -211,10 +211,10 @@ private fun JsonObject.toChannelRendererItem(): ChannelItem? {
     )
 }
 
-private fun JsonObject.toTrailerItem(owner: ChannelOwner): ChannelItem? {
+private fun JsonObject.toTrailerItem(owner: FeedItemOwner): FeedItem? {
     val videoId = this["videoId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val title = this["title"].youtubeText()?.takeIf(String::isNotBlank) ?: return null
-    return ChannelItem.VideoItem(
+    return FeedItem.VideoItem(
         Video(
             id = videoId,
             title = title,
@@ -233,10 +233,10 @@ private fun JsonObject.toTrailerItem(owner: ChannelOwner): ChannelItem? {
 /** Delegated so the channel Shorts tab and search Shorts stay on one parser. */
 private fun JsonObject.toShortItem(
     key: String,
-    owner: ChannelOwner,
-): ChannelItem? {
+    owner: FeedItemOwner,
+): FeedItem? {
     val item = JsonObject(mapOf(key to this)).toSearchShorts().firstOrNull() ?: return null
-    return ChannelItem.ShortItem(
+    return FeedItem.ShortItem(
         Video(
             id = item.id,
             title = item.title,
@@ -256,7 +256,7 @@ private fun JsonObject.toShortItem(
  * A show is a playlist wearing a different renderer. Its browseId is the playlist id behind a "VL"
  * prefix, and its thumbnail hides one level deeper than every other grid item's.
  */
-private fun JsonObject.toShowItem(): ChannelItem? {
+private fun JsonObject.toShowItem(): FeedItem? {
     val browseId =
         this["navigationEndpoint"]
             .objectOrNull()
@@ -274,7 +274,7 @@ private fun JsonObject.toShowItem(): ChannelItem? {
             .objectOrNull()
             ?.get("thumbnail")
             .largestImageUrl()
-    return ChannelItem.PlaylistItem(
+    return FeedItem.PlaylistItem(
         Playlist(
             id = browseId.removePrefix("VL"),
             name = title,
@@ -295,10 +295,10 @@ private fun JsonElement?.episodeCount(): Int? {
 }
 
 /** Members-only videos carry the badge instead of a view count, which is why their views row is bare. */
-private fun JsonObject.toPostItem(owner: ChannelOwner): ChannelItem? =
-    toCommunityPost(owner.name, owner.avatarUrl, owner)?.let(ChannelItem::PostItem)
+private fun JsonObject.toPostItem(owner: FeedItemOwner): FeedItem? =
+    toCommunityPost(owner.name, owner.avatarUrl, owner)?.let(FeedItem::PostItem)
 
-private fun JsonObject.toPostThreadItem(owner: ChannelOwner): ChannelItem? =
+private fun JsonObject.toPostThreadItem(owner: FeedItemOwner): FeedItem? =
     this["post"]
         .objectOrNull()
         ?.get("backstagePostRenderer")

@@ -44,10 +44,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.innertube.pages.channel.ChannelItem
-import io.github.aedev.flow.innertube.pages.channel.ChannelSection
-import io.github.aedev.flow.innertube.pages.channel.ChannelSectionStyle
-import io.github.aedev.flow.innertube.pages.channel.CommunityPost
+import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelfStyle
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
@@ -66,7 +66,7 @@ import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
  */
 @Composable
 internal fun ChannelHomeSections(
-    sections: List<ChannelSection>,
+    sections: List<FeedShelf>,
     isLoading: Boolean,
     listState: LazyGridState,
     columnPreference: HomeFeedColumns,
@@ -76,8 +76,8 @@ internal fun ChannelHomeSections(
     onShortClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onChannelClick: (String) -> Unit,
-    onSectionMore: (ChannelSection) -> Unit,
-    canOpenSection: (ChannelSection) -> Boolean,
+    onSectionMore: (FeedShelf) -> Unit,
+    canOpenSection: (FeedShelf) -> Boolean,
     subscribedChannelIds: Set<String>,
     onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
     onAuthorClick: () -> Unit,
@@ -129,7 +129,7 @@ internal fun ChannelHomeSections(
 }
 
 private fun LazyGridScope.homeSection(
-    section: ChannelSection,
+    section: FeedShelf,
     columns: Int,
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
@@ -137,16 +137,16 @@ private fun LazyGridScope.homeSection(
     onShortClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onChannelClick: (String) -> Unit,
-    onSectionMore: (ChannelSection) -> Unit,
-    canOpenSection: (ChannelSection) -> Boolean,
+    onSectionMore: (FeedShelf) -> Unit,
+    canOpenSection: (FeedShelf) -> Boolean,
     subscribedChannelIds: Set<String>,
     onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
     onAuthorClick: () -> Unit,
     onPostComments: (CommunityPost) -> Unit,
     onPostShare: (CommunityPost) -> Unit,
 ) {
-    if (section.style == ChannelSectionStyle.Trailer) {
-        val trailer = section.items.filterIsInstance<ChannelItem.VideoItem>().firstOrNull() ?: return
+    if (section.style == FeedShelfStyle.Trailer) {
+        val trailer = section.items.filterIsInstance<FeedItem.VideoItem>().firstOrNull() ?: return
         fullSpanItem(key = section.id) {
             if (columns > 1) {
                 CompactVideoCard(
@@ -167,8 +167,8 @@ private fun LazyGridScope.homeSection(
     }
 
     // Shorts already have a shelf of their own, header and all.
-    if (section.items.isNotEmpty() && section.items.all { it is ChannelItem.ShortItem }) {
-        val shorts = section.items.map { (it as ChannelItem.ShortItem).video }
+    if (section.items.isNotEmpty() && section.items.all { it is FeedItem.ShortItem }) {
+        val shorts = section.items.map { (it as FeedItem.ShortItem).video }
         fullSpanItem(key = section.id) {
             ShortsShelf(shorts = shorts, onShortClick = { _, tapped -> onShortClick(tapped.id) })
         }
@@ -183,10 +183,10 @@ private fun LazyGridScope.homeSection(
         )
     }
 
-    if (columns > 1 && section.items.isNotEmpty() && section.items.all { it is ChannelItem.PostItem }) {
+    if (columns > 1 && section.items.isNotEmpty() && section.items.all { it is FeedItem.PostItem }) {
         fullSpanItem(key = "${section.id}:posts") {
             ChannelPostsShelf(
-                posts = section.items.map { (it as ChannelItem.PostItem).post },
+                posts = section.items.map { (it as FeedItem.PostItem).post },
                 onAuthorClick = onAuthorClick,
                 onPostComments = onPostComments,
                 onPostShare = onPostShare,
@@ -202,7 +202,7 @@ private fun LazyGridScope.homeSection(
         items = visible,
         key = { "${section.id}:${it.shelfKey()}" },
         span = { item ->
-            if (gridCards && item !is ChannelItem.PostItem) GridItemSpan(1) else GridItemSpan(maxLineSpan)
+            if (gridCards && item !is FeedItem.PostItem) GridItemSpan(1) else GridItemSpan(maxLineSpan)
         },
     ) { item ->
         Box(modifier = shelfItemMotion()) {
@@ -236,7 +236,7 @@ private fun LazyGridScope.homeSection(
 
 @Composable
 private fun ShelfItem(
-    item: ChannelItem,
+    item: FeedItem,
     gridCards: Boolean,
     onVideoClick: (Video) -> Unit,
     onShortClick: (String) -> Unit,
@@ -249,15 +249,15 @@ private fun ShelfItem(
     onPostShare: (CommunityPost) -> Unit,
 ) {
     when (item) {
-        is ChannelItem.VideoItem -> {
+        is FeedItem.VideoItem -> {
             ShelfVideoCard(video = item.video, gridCard = gridCards, onClick = { onVideoClick(item.video) })
         }
 
-        is ChannelItem.ShortItem -> {
+        is FeedItem.ShortItem -> {
             ShelfVideoCard(video = item.video, gridCard = gridCards, onClick = { onShortClick(item.video.id) })
         }
 
-        is ChannelItem.PlaylistItem -> {
+        is FeedItem.PlaylistItem -> {
             if (gridCards) {
                 PlaylistCard(
                     playlist = item.playlist,
@@ -270,7 +270,7 @@ private fun ShelfItem(
             }
         }
 
-        is ChannelItem.RelatedChannelItem -> {
+        is FeedItem.RelatedChannelItem -> {
             ChannelRow(
                 channel = item.channel,
                 onClick = { onChannelClick(item.channel.id) },
@@ -280,7 +280,7 @@ private fun ShelfItem(
             )
         }
 
-        is ChannelItem.PostItem -> {
+        is FeedItem.PostItem -> {
             CommunityPostCard(
                 post = item.post,
                 onAuthorClick = onAuthorClick,
@@ -425,13 +425,13 @@ private fun LazyGridScope.fullSpanItem(
     content: @Composable () -> Unit,
 ) = item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }
 
-private fun ChannelItem.shelfKey(): String =
+private fun FeedItem.shelfKey(): String =
     when (this) {
-        is ChannelItem.VideoItem -> "v_${video.id}"
-        is ChannelItem.ShortItem -> "s_${video.id}"
-        is ChannelItem.PlaylistItem -> "p_${playlist.id}"
-        is ChannelItem.RelatedChannelItem -> "c_${channel.id}"
-        is ChannelItem.PostItem -> "b_${post.id}"
+        is FeedItem.VideoItem -> "v_${video.id}"
+        is FeedItem.ShortItem -> "s_${video.id}"
+        is FeedItem.PlaylistItem -> "p_${playlist.id}"
+        is FeedItem.RelatedChannelItem -> "c_${channel.id}"
+        is FeedItem.PostItem -> "b_${post.id}"
     }
 
 private val PostShelfCardWidth = 380.dp

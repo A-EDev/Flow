@@ -1,4 +1,4 @@
-package io.github.aedev.flow.innertube.pages.channel
+package io.github.aedev.flow.innertube.pages.renderer
 
 import io.github.aedev.flow.innertube.pages.bestThumbnailUrl
 import io.github.aedev.flow.innertube.pages.normalizeImageUrl

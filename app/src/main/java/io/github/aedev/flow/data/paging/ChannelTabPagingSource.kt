@@ -4,10 +4,10 @@ import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.pages.channel.ChannelItem
-import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabContent
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
+import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -25,14 +25,14 @@ class ChannelTabPagingSource(
     private val params: String,
     private val kind: ChannelTabKind,
     private val sortToken: String? = null,
-    private var owner: ChannelOwner = ChannelOwner(id = browseId),
+    private var owner: FeedItemOwner = FeedItemOwner(id = browseId),
     private val onPageLoaded: (ChannelTabContent) -> Unit = {},
-) : PagingSource<String, ChannelItem>() {
+) : PagingSource<String, FeedItem>() {
     private val seen = DistinctKeyTracker()
 
-    override fun getRefreshKey(state: PagingState<String, ChannelItem>): String? = null
+    override fun getRefreshKey(state: PagingState<String, FeedItem>): String? = null
 
-    override suspend fun load(params: LoadParams<String>): LoadResult<String, ChannelItem> =
+    override suspend fun load(params: LoadParams<String>): LoadResult<String, FeedItem> =
         withContext(Dispatchers.IO) {
             val cursor = params.key
             val page =
@@ -53,11 +53,11 @@ class ChannelTabPagingSource(
         }
 }
 
-private fun ChannelItem.pagingKey(): String =
+private fun FeedItem.pagingKey(): String =
     when (this) {
-        is ChannelItem.VideoItem -> video.id
-        is ChannelItem.ShortItem -> video.id
-        is ChannelItem.PlaylistItem -> playlist.id
-        is ChannelItem.RelatedChannelItem -> channel.id
-        is ChannelItem.PostItem -> post.id
+        is FeedItem.VideoItem -> video.id
+        is FeedItem.ShortItem -> video.id
+        is FeedItem.PlaylistItem -> playlist.id
+        is FeedItem.RelatedChannelItem -> channel.id
+        is FeedItem.PostItem -> post.id
     }

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.innertube.pages.channel
+package io.github.aedev.flow.innertube.pages.renderer
 
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.arrayOrNull
@@ -36,7 +36,7 @@ data class PollChoice(
  * `backstageImageRenderer` per photo, so a search that stops at the first image it finds returns
  * picture one of N and silently drops the rest — which is what the app did.
  */
-internal fun JsonElement?.toPostAttachment(owner: ChannelOwner): PostAttachment? {
+internal fun JsonElement?.toPostAttachment(owner: FeedItemOwner): PostAttachment? {
     val node = objectOrNull() ?: return null
     node.multiImage()?.let { return it }
     node.singleImage()?.let { return it }
@@ -93,8 +93,8 @@ private fun JsonObject.poll(): PostAttachment.Poll? {
     }
 }
 
-private fun JsonObject.sharedVideo(owner: ChannelOwner): PostAttachment.SharedVideo? {
+private fun JsonObject.sharedVideo(owner: FeedItemOwner): PostAttachment.SharedVideo? {
     val renderer = this["videoRenderer"].objectOrNull() ?: return null
-    val item = CHANNEL_ITEM_PARSERS.getValue("videoRenderer").parse(renderer, owner)
-    return (item as? ChannelItem.VideoItem)?.let { PostAttachment.SharedVideo(it.video) }
+    val item = FEED_ITEM_PARSERS.getValue("videoRenderer").parse(renderer, owner)
+    return (item as? FeedItem.VideoItem)?.let { PostAttachment.SharedVideo(it.video) }
 }

@@ -1,5 +1,8 @@
 package io.github.aedev.flow.innertube.pages.channel
 
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
+import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelfStyle
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import org.junit.Assert.assertEquals
@@ -22,7 +25,7 @@ class ChannelLivePayloadTest {
         return Json.parseToJsonElement(stream.bufferedReader().use { it.readText() })
     }
 
-    private val owner = ChannelOwner(id = "UCXuqSBlHAE6Xw-yeJA0Tunw", name = "Linus Tech Tips")
+    private val owner = FeedItemOwner(id = "UCXuqSBlHAE6Xw-yeJA0Tunw", name = "Linus Tech Tips")
 
     private fun content(
         name: String,
@@ -61,8 +64,8 @@ class ChannelLivePayloadTest {
         val items = content("videos", ChannelTabKind.Videos).items
 
         assertTrue(items.isNotEmpty())
-        assertTrue(items.all { it is ChannelItem.VideoItem })
-        val first = (items.first() as ChannelItem.VideoItem).video
+        assertTrue(items.all { it is FeedItem.VideoItem })
+        val first = (items.first() as FeedItem.VideoItem).video
         assertTrue(first.id.isNotBlank())
         assertTrue(first.title.isNotBlank())
         assertTrue("duration should come off the badge", first.duration > 0)
@@ -74,8 +77,8 @@ class ChannelLivePayloadTest {
         val items = content("shorts", ChannelTabKind.Shorts).items
 
         assertTrue(items.isNotEmpty())
-        assertTrue(items.all { it is ChannelItem.ShortItem })
-        assertTrue((items.first() as ChannelItem.ShortItem).video.isShort)
+        assertTrue(items.all { it is FeedItem.ShortItem })
+        assertTrue((items.first() as FeedItem.ShortItem).video.isShort)
     }
 
     @Test
@@ -88,8 +91,8 @@ class ChannelLivePayloadTest {
         val items = content("playlists", ChannelTabKind.Playlists).items
 
         assertTrue("playlists nest a gridRenderer inside a section list", items.isNotEmpty())
-        assertTrue(items.all { it is ChannelItem.PlaylistItem })
-        val first = (items.first() as ChannelItem.PlaylistItem).playlist
+        assertTrue(items.all { it is FeedItem.PlaylistItem })
+        val first = (items.first() as FeedItem.PlaylistItem).playlist
         assertTrue(first.id.isNotBlank())
         assertTrue(first.name.isNotBlank())
     }
@@ -99,7 +102,7 @@ class ChannelLivePayloadTest {
         val items = content("shows", ChannelTabKind.Shows).items
 
         assertTrue("shows arrive as gridShowRenderer", items.isNotEmpty())
-        val show = items.first() as ChannelItem.PlaylistItem
+        val show = items.first() as FeedItem.PlaylistItem
         assertTrue(show.playlist.name.isNotBlank())
         assertTrue("the VL prefix is not part of the playlist id", !show.playlist.id.startsWith("VL"))
         assertTrue(show.playlist.thumbnailUrl.isNotBlank())
@@ -110,7 +113,7 @@ class ChannelLivePayloadTest {
         val items = content("podcasts", ChannelTabKind.Podcasts).items
 
         assertTrue(items.isNotEmpty())
-        assertTrue(items.all { it is ChannelItem.PlaylistItem })
+        assertTrue(items.all { it is FeedItem.PlaylistItem })
     }
 
     @Test
@@ -238,8 +241,8 @@ class ChannelLivePayloadTest {
     fun `the home trailer is its own section`() {
         val trailer = content("landing", ChannelTabKind.Home).sections.first()
 
-        assertEquals(ChannelSectionStyle.Trailer, trailer.style)
-        assertTrue((trailer.items.single() as ChannelItem.VideoItem).video.id.isNotBlank())
+        assertEquals(FeedShelfStyle.Trailer, trailer.style)
+        assertTrue((trailer.items.single() as FeedItem.VideoItem).video.id.isNotBlank())
     }
 
     @Test
@@ -247,14 +250,14 @@ class ChannelLivePayloadTest {
         val featured =
             content("landing", ChannelTabKind.Home).sections.first { it.title == "Featured Channels" }
 
-        assertTrue(featured.items.all { it is ChannelItem.RelatedChannelItem })
+        assertTrue(featured.items.all { it is FeedItem.RelatedChannelItem })
     }
 
     @Test
     fun `the home shorts shelf parses as shorts`() {
         val shorts = content("landing", ChannelTabKind.Home).sections.first { it.title == "Shorts" }
 
-        assertTrue(shorts.items.all { it is ChannelItem.ShortItem })
+        assertTrue(shorts.items.all { it is FeedItem.ShortItem })
     }
 
     // ── members-only ──────────────────────────────────────────────────────────
@@ -264,7 +267,7 @@ class ChannelLivePayloadTest {
         val videos =
             content("videos", ChannelTabKind.Videos)
                 .items
-                .map { (it as ChannelItem.VideoItem).video }
+                .map { (it as FeedItem.VideoItem).video }
 
         val members = videos.filter { it.membersOnlyText != null }
         assertTrue("the fixture should contain at least one members-only upload", members.isNotEmpty())
@@ -277,7 +280,7 @@ class ChannelLivePayloadTest {
         val members =
             content("videos", ChannelTabKind.Videos)
                 .items
-                .map { (it as ChannelItem.VideoItem).video }
+                .map { (it as FeedItem.VideoItem).video }
                 .first { it.membersOnlyText != null }
 
         assertEquals(0L, members.viewCount)
@@ -296,10 +299,10 @@ class ChannelLivePayloadTest {
         val posts =
             content("landing", ChannelTabKind.Home)
                 .sections
-                .firstOrNull { section -> section.items.any { it is ChannelItem.PostItem } }
+                .firstOrNull { section -> section.items.any { it is FeedItem.PostItem } }
 
         assertNotNull("the Home posts shelf ships bare postRenderers, not thread wrappers", posts)
-        val post = (posts!!.items.first { it is ChannelItem.PostItem } as ChannelItem.PostItem).post
+        val post = (posts!!.items.first { it is FeedItem.PostItem } as FeedItem.PostItem).post
         assertTrue(post.id.isNotBlank())
         assertTrue(post.authorName.isNotBlank())
     }

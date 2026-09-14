@@ -1,5 +1,7 @@
 package io.github.aedev.flow.innertube.pages.channel
 
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
+import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -14,7 +16,7 @@ class ChannelGridParserTest {
     private fun parse(
         raw: String,
         kind: ChannelTabKind = ChannelTabKind.Videos,
-        fallbackOwner: ChannelOwner = ChannelOwner(),
+        fallbackOwner: FeedItemOwner = FeedItemOwner(),
     ) = Json.parseToJsonElement(raw).toChannelTabContent(kind, fallbackOwner)
 
     private fun lockup(id: String) =
@@ -61,7 +63,7 @@ class ChannelGridParserTest {
                 """.trimIndent(),
             )
 
-        assertEquals(listOf("a", "b"), content.items.map { (it as ChannelItem.VideoItem).video.id })
+        assertEquals(listOf("a", "b"), content.items.map { (it as FeedItem.VideoItem).video.id })
         assertEquals(listOf("Latest", "Popular"), content.filters.flatMap { group -> group.options.map { it.label } })
         assertEquals("TOK_PAGE_2", content.continuation)
         assertEquals("UCXuqSBlHAE6Xw-yeJA0Tunw", content.owner.id)
@@ -80,7 +82,7 @@ class ChannelGridParserTest {
                 """.trimIndent(),
             )
 
-        assertEquals(listOf("c"), content.items.map { (it as ChannelItem.VideoItem).video.id })
+        assertEquals(listOf("c"), content.items.map { (it as FeedItem.VideoItem).video.id })
         assertEquals("TOK_PAGE_3", content.continuation)
     }
 
@@ -101,7 +103,7 @@ class ChannelGridParserTest {
                 """.trimIndent(),
             )
 
-        assertEquals(listOf("d"), content.items.map { (it as ChannelItem.VideoItem).video.id })
+        assertEquals(listOf("d"), content.items.map { (it as FeedItem.VideoItem).video.id })
         assertEquals("TOK_POPULAR_2", content.continuation)
         assertEquals(listOf("Popular"), content.filters.flatMap { group -> group.options.map { it.label } })
     }
@@ -117,7 +119,7 @@ class ChannelGridParserTest {
                 """.trimIndent(),
             )
 
-        assertEquals(listOf("e"), content.items.map { (it as ChannelItem.VideoItem).video.id })
+        assertEquals(listOf("e"), content.items.map { (it as FeedItem.VideoItem).video.id })
         assertEquals("TOK_OLD", content.continuation)
     }
 
@@ -139,13 +141,13 @@ class ChannelGridParserTest {
                 """.trimIndent(),
             )
 
-        assertEquals(listOf("f"), content.items.map { (it as ChannelItem.VideoItem).video.id })
+        assertEquals(listOf("f"), content.items.map { (it as FeedItem.VideoItem).video.id })
         assertEquals(null, content.continuation)
     }
 
     @Test
     fun `a continuation keeps the owner the caller threaded in`() {
-        val fallback = ChannelOwner(id = "UCcarried", name = "Carried", avatarUrl = "https://yt3.test/carried.jpg")
+        val fallback = FeedItemOwner(id = "UCcarried", name = "Carried", avatarUrl = "https://yt3.test/carried.jpg")
         val content =
             parse(
                 """
@@ -157,7 +159,7 @@ class ChannelGridParserTest {
             )
 
         assertEquals(fallback, content.owner)
-        assertEquals("Carried", (content.items.single() as ChannelItem.VideoItem).video.channelName)
+        assertEquals("Carried", (content.items.single() as FeedItem.VideoItem).video.channelName)
     }
 
     @Test

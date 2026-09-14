@@ -2,6 +2,12 @@ package io.github.aedev.flow.innertube.pages.channel
 
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
+import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
+import io.github.aedev.flow.innertube.pages.renderer.distinctKey
+import io.github.aedev.flow.innertube.pages.renderer.findRenderers
+import io.github.aedev.flow.innertube.pages.renderer.largestImageUrl
+import io.github.aedev.flow.innertube.pages.renderer.toFeedItem
+import io.github.aedev.flow.innertube.pages.renderer.toFeedShelves
 import io.github.aedev.flow.innertube.pages.stringOrNull
 import io.github.aedev.flow.innertube.pages.youtubeText
 import kotlinx.serialization.json.JsonElement
@@ -15,10 +21,10 @@ import kotlinx.serialization.json.JsonElement
  */
 internal fun JsonElement.toChannelTabContent(
     kind: ChannelTabKind,
-    fallbackOwner: ChannelOwner = ChannelOwner(),
+    fallbackOwner: FeedItemOwner = FeedItemOwner(),
 ): ChannelTabContent {
     val owner = resolveOwner(fallbackOwner)
-    val sections = if (kind == ChannelTabKind.Home) selectedTabContent().toChannelSections(owner) else emptyList()
+    val sections = if (kind == ChannelTabKind.Home) selectedTabContent().toFeedShelves(owner) else emptyList()
     return ChannelTabContent(
         kind = kind,
         items =
@@ -26,7 +32,7 @@ internal fun JsonElement.toChannelTabContent(
                 emptyList()
             } else {
                 gridItemLists()
-                    .flatMap { list -> list.mapNotNull { it.toChannelItem(owner) } }
+                    .flatMap { list -> list.mapNotNull { it.toFeedItem(owner) } }
                     .distinctBy { it.distinctKey() }
             },
         sections = sections,
@@ -37,9 +43,9 @@ internal fun JsonElement.toChannelTabContent(
 }
 
 /** Only the first browse carries the header; a continuation is anonymous, so the caller's owner wins. */
-internal fun JsonElement.resolveOwner(fallback: ChannelOwner): ChannelOwner {
+internal fun JsonElement.resolveOwner(fallback: FeedItemOwner): FeedItemOwner {
     val metadata = findRenderers("channelMetadataRenderer")["channelMetadataRenderer"]
-    return ChannelOwner(
+    return FeedItemOwner(
         id =
             metadata?.get("externalChannelId").stringOrNull()
                 ?: metadata?.get("externalId").stringOrNull()

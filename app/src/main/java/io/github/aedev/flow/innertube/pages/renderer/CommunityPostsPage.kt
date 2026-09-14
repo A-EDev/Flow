@@ -1,4 +1,4 @@
-package io.github.aedev.flow.innertube.pages.channel
+package io.github.aedev.flow.innertube.pages.renderer
 
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.innertube.pages.accessibilityLabel
@@ -44,7 +44,7 @@ data class CommunityCommentsPage(
 internal fun JsonElement.toCommunityPostsPage(
     fallbackAuthorName: String,
     fallbackAuthorAvatarUrl: String,
-    owner: ChannelOwner = ChannelOwner(name = fallbackAuthorName, avatarUrl = fallbackAuthorAvatarUrl),
+    owner: FeedItemOwner = FeedItemOwner(name = fallbackAuthorName, avatarUrl = fallbackAuthorAvatarUrl),
 ): CommunityPostsPage {
     val posts = mutableListOf<CommunityPost>()
     var continuation: String? = null
@@ -174,7 +174,7 @@ internal fun JsonElement.toCommunityCommentsPage(): CommunityCommentsPage {
 internal fun JsonObject.toCommunityPost(
     fallbackAuthorName: String,
     fallbackAuthorAvatarUrl: String,
-    owner: ChannelOwner,
+    owner: FeedItemOwner,
 ): CommunityPost? {
     val id = this["postId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val replyButton =
