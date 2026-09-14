@@ -49,10 +49,13 @@ import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelfStyle
 import io.github.aedev.flow.ui.components.CompactVideoCard
+import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.ShortsShelf
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.feedCardsFormGrid
+import io.github.aedev.flow.ui.components.feedShelfPreviewCount
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 
@@ -94,7 +97,7 @@ internal fun ChannelHomeSections(
     val expanded = remember(sections) { mutableStateMapOf<String, Boolean>() }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, CHANNEL_MAX_AUTO_COLUMNS)
+        val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, FEED_MAX_AUTO_COLUMNS)
         val columns = feedLayout.columns
         LazyVerticalGrid(
             columns = feedLayout.cells,
@@ -195,8 +198,8 @@ private fun LazyGridScope.homeSection(
         return
     }
 
-    val gridCards = channelCardsFormGrid(columns, section.items.size)
-    val previewCount = channelShelfPreviewCount(columns, section.items.size)
+    val gridCards = feedCardsFormGrid(columns, section.items.size)
+    val previewCount = feedShelfPreviewCount(columns, section.items.size)
     val visible = if (isExpanded) section.items else section.items.take(previewCount)
     items(
         items = visible,

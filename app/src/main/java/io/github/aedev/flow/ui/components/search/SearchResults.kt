@@ -17,12 +17,11 @@ import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
-import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.ShortsCard
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.feedCardsFormGrid
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 
 /** Every callback the result surfaces need, threaded through one object rather than nine parameters. */
@@ -45,14 +44,11 @@ fun SearchResults(
     actions: SearchResultActions,
     modifier: Modifier = Modifier,
 ) {
-    val gutter =
-        if (isGridMode) {
-            feedLayout.cardSpacing
-        } else if (feedLayout.isCompact) {
-            0.dp
-        } else {
-            feedLayout.cardSpacing
-        }
+    // One 16:9 card stretched across a tablet is a thumbnail the size of the window; the same policy
+    // the channel tabs use puts it back in a thumbnail-left row instead.
+    val gridCards = feedCardsFormGrid(feedLayout.columns, pagingItems.itemCount)
+    val thumbnailRows = isGridMode || (!gridCards && !feedLayout.isCompact)
+    val gutter = if (feedLayout.isCompact && !isGridMode) 0.dp else feedLayout.cardSpacing
     LazyVerticalGrid(
         columns = feedLayout.cells,
         state = gridState,
@@ -76,28 +72,17 @@ fun SearchResults(
             key = { index -> pagingItems.peek(index).itemKey(index) },
             contentType = { index -> pagingItems.peek(index).contentType() },
             span = { index ->
-                if (pagingItems.peek(index) is SearchResultItem.ShelfResult) {
-                    GridItemSpan(maxLineSpan)
-                } else {
-                    GridItemSpan(1)
-                }
+                if (pagingItems.peek(index).spansRow()) GridItemSpan(maxLineSpan) else GridItemSpan(1)
             },
         ) { index ->
             when (val item = pagingItems[index]) {
                 is SearchResultItem.VideoResult -> {
-                    if (isGridMode) {
-                        CompactVideoCard(
-                            video = item.video,
-                            onClick = { actions.onVideoClick(item.video) },
-                            onChannelClick = { actions.onChannelClick(item.video.asChannel(it)) },
-                        )
-                    } else {
-                        VideoCardFullWidth(
-                            video = item.video,
-                            onClick = { actions.onVideoClick(item.video) },
-                            onChannelClick = { actions.onChannelClick(item.video.asChannel(it)) },
-                        )
-                    }
+                    SearchVideoCard(
+                        video = item.video,
+                        asThumbnailRow = thumbnailRows,
+                        onClick = { actions.onVideoClick(item.video) },
+                        onChannelClick = { actions.onChannelClick(item.video.asChannel(it)) },
+                    )
                 }
 
                 is SearchResultItem.ChannelResult -> {
@@ -120,6 +105,7 @@ fun SearchResults(
                 is SearchResultItem.ShelfResult -> {
                     SearchShelf(
                         shelf = item,
+                        asThumbnailRows = !feedLayout.isCompact,
                         onVideoClick = actions.onVideoClick,
                         onShortsClick = actions.onShortsClick,
                         onChannelClick = { actions.onChannelClick(Channel(it, "", "", 0)) },
@@ -203,6 +189,13 @@ private fun Video.asChannel(channelId: String) =
         subscriberCount = 0,
         url = "https://www.youtube.com/channel/$channelId",
     )
+
+/** The hero card and every strip own their row; only results share one. */
+private fun SearchResultItem?.spansRow(): Boolean =
+    when (this) {
+        is SearchResultItem.ShelfResult, is SearchResultItem.ChannelResult -> true
+        is SearchResultItem.VideoResult, is SearchResultItem.PlaylistResult, null -> false
+    }
 
 private fun SearchResultItem?.itemKey(index: Int): Any =
     when (this) {

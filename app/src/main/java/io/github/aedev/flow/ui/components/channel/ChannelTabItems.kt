@@ -28,8 +28,10 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.ui.components.CompactVideoCard
+import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.feedCardsFormGrid
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
@@ -75,10 +77,10 @@ internal fun ChannelTabItems(
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, CHANNEL_MAX_AUTO_COLUMNS)
+        val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, FEED_MAX_AUTO_COLUMNS)
         // Shorts are portrait, so many more fit per row than a 16:9 card ever would.
         val isShorts = kind == ChannelTabKind.Shorts
-        val loneItem = feedLayout.columns > 1 && !channelCardsFormGrid(feedLayout.columns, pagingItems.itemCount)
+        val loneItem = feedLayout.columns > 1 && !feedCardsFormGrid(feedLayout.columns, pagingItems.itemCount)
         val cells =
             when {
                 isShorts -> GridCells.Adaptive(ShortCellMinWidth)

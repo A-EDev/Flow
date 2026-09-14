@@ -33,7 +33,6 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
 import io.github.aedev.flow.ui.components.ShortsShelf
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
 
 /**
  * One of the strips YouTube interleaves between search results: a creator's latest uploads, an
@@ -41,10 +40,14 @@ import io.github.aedev.flow.ui.components.VideoCardFullWidth
  *
  * Each is fenced by dividers, the way YouTube separates a strip from the results around it, and a
  * videos strip opens at the count YouTube itself collapses it to rather than all ten.
+ *
+ * A strip is always one card per row, so on a wide window its cards take the thumbnail-left shape —
+ * a full-width card there is a thumbnail the size of the screen.
  */
 @Composable
 fun SearchShelf(
     shelf: SearchResultItem.ShelfResult,
+    asThumbnailRows: Boolean,
     onVideoClick: (Video) -> Unit,
     onShortsClick: (shelf: List<Video>, tapped: Video) -> Unit,
     onChannelClick: (String) -> Unit,
@@ -56,7 +59,7 @@ fun SearchShelf(
         if (shelf.kind != SearchShelfKind.SHORTS) shelf.title?.let { ShelfTitle(it) }
         when (shelf.kind) {
             SearchShelfKind.SHORTS -> ShortsShelf(shelf.videos, onShortsClick)
-            SearchShelfKind.VIDEOS -> VideoStrip(shelf, onVideoClick, onChannelClick)
+            SearchShelfKind.VIDEOS -> VideoStrip(shelf, asThumbnailRows, onVideoClick, onChannelClick)
             SearchShelfKind.POSTS -> PostStrip(shelf)
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -77,6 +80,7 @@ private fun ShelfTitle(title: String) {
 @Composable
 private fun VideoStrip(
     shelf: SearchResultItem.ShelfResult,
+    asThumbnailRows: Boolean,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
 ) {
@@ -88,8 +92,9 @@ private fun VideoStrip(
         }
 
     shown.forEach { video ->
-        VideoCardFullWidth(
+        SearchVideoCard(
             video = video,
+            asThumbnailRow = asThumbnailRows,
             onClick = { onVideoClick(video) },
             onChannelClick = onChannelClick,
         )
