@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.components.shared
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -9,13 +11,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+
+private val EntityImageSize = 28.dp
 
 /**
  * One row of a typeahead list: search history, live suggestions, in-place filtering.
@@ -31,6 +39,7 @@ fun FlowSuggestionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     query: String = "",
+    leadingImageUrl: String? = null,
     supportingText: String? = null,
     trailingIcon: ImageVector? = null,
     trailingContentDescription: String? = null,
@@ -41,7 +50,16 @@ fun FlowSuggestionRow(
         onClick = onClick,
         modifier = modifier,
         leadingContent = {
-            Icon(imageVector = leadingIcon, contentDescription = null)
+            if (leadingImageUrl.isNullOrBlank()) {
+                Icon(imageVector = leadingIcon, contentDescription = null)
+            } else {
+                AsyncImage(
+                    model = leadingImageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(EntityImageSize).clip(CircleShape),
+                )
+            }
         },
         supportingContent =
             supportingText?.takeIf { it.isNotBlank() }?.let {

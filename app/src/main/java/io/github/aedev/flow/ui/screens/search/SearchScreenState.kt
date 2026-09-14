@@ -4,7 +4,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,12 +21,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
  * Everything the search route needs that is not a result: the field, the history it matches
- * against, the live suggestions, and the two display preferences.
+ * against, the live suggestions, and the display preferences.
+ *
+ * The preferences arrive as [State] rather than being written into this holder, so reading one
+ * never schedules a recomposition of its own.
  */
 @Stable
 class SearchScreenState(
@@ -34,20 +36,25 @@ class SearchScreenState(
     private val scope: CoroutineScope,
     private val history: SearchHistoryRepository,
     private val preferences: PlayerPreferences,
+    private val allHistoryState: State<List<SearchHistoryItem>>,
+    private val suggestionsEnabledState: State<Boolean>,
+    private val gridModeState: State<Boolean>,
+    private val shortsEnabledState: State<Boolean>,
+    private val feedColumnsState: State<HomeFeedColumns>,
     private val fetchSuggestions: suspend (String) -> List<SearchSuggestion>,
 ) {
     var suggestions by mutableStateOf<List<SearchSuggestion>>(emptyList())
         private set
-    var allHistory by mutableStateOf<List<SearchHistoryItem>>(emptyList())
-        internal set
-    var isGridMode by mutableStateOf(false)
-        internal set
-    var shortsContentEnabled by mutableStateOf(true)
-        internal set
-    var feedColumns by mutableStateOf(HomeFeedColumns.AUTO)
-        internal set
-    var suggestionsEnabled by mutableStateOf(true)
-        internal set
+
+    /** True while the field owns the screen; submitting or going back hands it to the results. */
+    var isTyping by mutableStateOf(true)
+        private set
+
+    private var submittedQuery: String? = null
+
+    val isGridMode: Boolean get() = gridModeState.value
+    val shortsContentEnabled: Boolean get() = shortsEnabledState.value
+    val feedColumns: HomeFeedColumns get() = feedColumnsState.value
 
     val query: String
         get() = textFieldState.text.toString()
@@ -55,10 +62,11 @@ class SearchScreenState(
     /** History rows that match what has been typed, prefix matches first, as YouTube orders them. */
     val matchingHistory: List<SearchHistoryItem>
         get() {
+            val all = allHistoryState.value
             val typed = query.trim()
-            if (typed.isEmpty()) return allHistory.take(HISTORY_LIMIT)
+            if (typed.isEmpty()) return all.take(HISTORY_LIMIT)
             val lowered = typed.lowercase()
-            val matches = allHistory.filter { it.query.contains(typed, ignoreCase = true) }
+            val matches = all.filter { it.query.contains(typed, ignoreCase = true) }
             val (prefix, rest) = matches.partition { it.query.lowercase().startsWith(lowered) }
             return (prefix + rest).take(HISTORY_LIMIT)
         }
@@ -66,6 +74,17 @@ class SearchScreenState(
     fun onSubmit(text: String) {
         scope.launch { history.saveSearchQuery(text) }
         suggestions = emptyList()
+        submittedQuery = text
+        isTyping = false
+    }
+
+    /** Editing reopens the suggestions; re-arriving at the submitted text does not. */
+    internal fun onTextChanged(text: String) {
+        if (text.trim() != submittedQuery?.trim()) isTyping = true
+    }
+
+    fun stopTyping() {
+        isTyping = false
     }
 
     fun deleteHistoryItem(item: SearchHistoryItem) {
@@ -76,17 +95,13 @@ class SearchScreenState(
         scope.launch { history.clearSearchHistory() }
     }
 
-    fun clearSuggestions() {
-        suggestions = emptyList()
-    }
-
     fun toggleGridMode() {
         scope.launch { preferences.setSearchIsGridMode(!isGridMode) }
     }
 
     internal suspend fun refreshSuggestions(typed: String) {
         suggestions =
-            if (suggestionsEnabled && typed.trim().length >= MIN_SUGGESTION_LENGTH) {
+            if (suggestionsEnabledState.value && typed.trim().length >= MIN_SUGGESTION_LENGTH) {
                 fetchSuggestions(typed.trim())
             } else {
                 emptyList()
@@ -108,6 +123,12 @@ fun rememberSearchState(viewModel: SearchViewModel): SearchScreenState {
     val preferences = remember(context) { PlayerPreferences(context) }
     val textFieldState = remember { TextFieldState() }
 
+    val allHistory = historyRepository.getSearchHistoryFlow().collectAsStateWithLifecycle(emptyList())
+    val suggestionsEnabled = historyRepository.isSearchSuggestionsEnabledFlow().collectAsStateWithLifecycle(true)
+    val gridMode = preferences.searchIsGridMode.collectAsStateWithLifecycle(false)
+    val shortsEnabled = preferences.shortsContentEnabled.collectAsStateWithLifecycle(true)
+    val feedColumns = preferences.homeFeedColumns.collectAsStateWithLifecycle(HomeFeedColumns.AUTO)
+
     val state =
         remember(historyRepository, preferences) {
             SearchScreenState(
@@ -115,15 +136,20 @@ fun rememberSearchState(viewModel: SearchViewModel): SearchScreenState {
                 scope = scope,
                 history = historyRepository,
                 preferences = preferences,
+                allHistoryState = allHistory,
+                suggestionsEnabledState = suggestionsEnabled,
+                gridModeState = gridMode,
+                shortsEnabledState = shortsEnabled,
+                feedColumnsState = feedColumns,
                 fetchSuggestions = viewModel::getSearchSuggestions,
             )
         }
 
-    state.allHistory = historyRepository.getSearchHistoryFlow().collectAsStateWithLifecycle(emptyList()).value
-    state.suggestionsEnabled = historyRepository.isSearchSuggestionsEnabledFlow().collectAsStateWithLifecycle(true).value
-    state.isGridMode = preferences.searchIsGridMode.collectAsStateWithLifecycle(false).value
-    state.shortsContentEnabled = preferences.shortsContentEnabled.collectAsStateWithLifecycle(true).value
-    state.feedColumns = preferences.homeFeedColumns.collectAsStateWithLifecycle(HomeFeedColumns.AUTO).value
+    LaunchedEffect(state) {
+        snapshotFlow { state.textFieldState.text.toString() }
+            .distinctUntilChanged()
+            .collect(state::onTextChanged)
+    }
 
     LaunchedEffect(state) {
         snapshotFlow { state.textFieldState.text.toString() }

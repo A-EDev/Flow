@@ -319,6 +319,9 @@ fun NavGraphBuilder.flowAppGraph(
             onPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
             },
+            onBack = {
+                if (!navController.popBackStack()) navController.navigate("home")
+            },
         )
     }
 

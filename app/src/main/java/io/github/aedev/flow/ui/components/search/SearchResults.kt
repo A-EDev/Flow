@@ -32,6 +32,8 @@ data class SearchResultActions(
     val onChannelClick: (Channel) -> Unit,
     val onPlaylistClick: (Playlist) -> Unit,
     val dismissKeyboard: () -> Unit,
+    val isSubscribed: (String) -> Boolean = { false },
+    val onSubscribeToggle: (Channel) -> Unit = {},
 )
 
 @Composable
@@ -101,8 +103,9 @@ fun SearchResults(
                 is SearchResultItem.ChannelResult -> {
                     SearchChannelHeroCard(
                         channel = item.channel,
+                        isSubscribed = actions.isSubscribed(item.channel.id),
+                        onSubscribeToggle = { actions.onSubscribeToggle(item.channel) },
                         onClick = { actions.onChannelClick(item.channel) },
-                        modifier = Modifier.padding(horizontal = HeroHorizontalPadding),
                     )
                 }
 
@@ -222,7 +225,6 @@ private fun SearchResultItem?.contentType(): Any =
 
 private val TopPadding = 8.dp
 private val BottomPadding = 90.dp
-private val HeroHorizontalPadding = 12.dp
 private val ShortCellMinWidth = 160.dp
 private val ShortCellSpacing = 12.dp
 private val ShortGridPadding = 12.dp

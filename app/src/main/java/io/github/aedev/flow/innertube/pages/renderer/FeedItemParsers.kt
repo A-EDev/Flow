@@ -218,7 +218,9 @@ private fun JsonObject.toChannelRendererItem(): FeedItem? {
             thumbnailUrl = this["thumbnail"].largestImageUrl().orEmpty(),
             subscriberCount = parseYouTubeViewCount(labels.firstOrNull { it.isSubscriberLabel() }),
             description = this["descriptionSnippet"].youtubeText().orEmpty(),
-            url = canonicalUrl?.let { "https://www.youtube.com$it" } ?: "https://www.youtube.com/channel/$channelId",
+            // Always the /channel/<id> form: an @handle is not a valid browseId, and the channel
+            // screen browses whatever this url resolves to.
+            url = "https://www.youtube.com/channel/$channelId",
             handle = labels.firstOrNull { it.startsWith("@") } ?: canonicalUrl?.takeIf { it.startsWith("/@") }?.drop(1).orEmpty(),
             videoCount = labels.firstOrNull { it.isVideoCountLabel() }?.leadingCount() ?: 0,
             isVerified = this["ownerBadges"].hasVerifiedBadge(),

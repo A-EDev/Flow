@@ -57,7 +57,9 @@ class SearchPageParserTest {
         assertThat(channel.name).isEqualTo("Sam Sulek")
         assertThat(channel.handle).isEqualTo("@sam_sulek")
         assertThat(channel.subscriberCount).isEqualTo(4_540_000L)
-        assertThat(channel.url).isEqualTo("https://www.youtube.com/@sam_sulek")
+        // The /channel/<id> form, never the @handle one: a handle is not a valid browseId, and the
+        // channel screen browses whatever this url resolves to (400 INVALID_ARGUMENT otherwise).
+        assertThat(channel.url).isEqualTo("https://www.youtube.com/channel/UCAuk798iHprjTtwlClkFxMA")
         assertThat(channel.description).isNotEmpty()
     }
 

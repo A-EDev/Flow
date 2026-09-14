@@ -2,8 +2,10 @@ package io.github.aedev.flow.ui.screens.search
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.speech.RecognizerIntent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -14,24 +16,22 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SearchBarValue
-import androidx.compose.material3.rememberSearchBarState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.aedev.flow.R
@@ -39,48 +39,52 @@ import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.QuickActionsViewModel
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.search.SearchFilterBar
-import io.github.aedev.flow.ui.components.search.SearchFilterSheet
+import io.github.aedev.flow.ui.components.search.SearchFilterDialog
 import io.github.aedev.flow.ui.components.search.SearchResultActions
 import io.github.aedev.flow.ui.components.search.SearchResults
 import io.github.aedev.flow.ui.components.search.SearchResultsShimmer
 import io.github.aedev.flow.ui.components.search.SearchShortsGrid
 import io.github.aedev.flow.ui.components.search.SearchSuggestionsPanel
 import io.github.aedev.flow.ui.components.search.SearchTopBar
+import io.github.aedev.flow.ui.components.search.SearchTopBarActions
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.utils.videoIdFromUrl
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 
-@OptIn(FlowPreview::class, ExperimentalMaterial3Api::class)
+/**
+ * The route: a bar, then either what the user might be looking for or what they found.
+ *
+ * Typing is a mode of this screen rather than a surface stacked on it, so back always leaves —
+ * it never has a collapse step to fall into first.
+ */
 @Composable
 fun SearchScreen(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onShortsQueue: (ShortsQueueSource) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     val state = rememberSearchState(viewModel)
 
+    val quickActions: QuickActionsViewModel = hiltViewModel()
+    val subscribedIds by quickActions.subscribedChannelIds.collectAsStateWithLifecycle()
     val pagingItems = viewModel.searchResults.collectAsLazyPagingItems()
     val gridState = rememberLazyGridState()
-    val searchBarState = rememberSearchBarState()
     var showFilters by rememberSaveable { mutableStateOf(false) }
 
-    val collapseBar: () -> Unit = { scope.launch { searchBarState.animateToCollapsed() } }
     val submit: (String) -> Unit = { raw ->
         val text = raw.trim()
         if (text.isNotEmpty()) {
-            collapseBar()
             val videoId = videoIdFromUrl(text)
             if (videoId != null) {
                 onVideoClick(sharedVideo(videoId, context.getString(R.string.shared_video)))
@@ -104,101 +108,119 @@ fun SearchScreen(
                 }
         }
 
+    val showResults = uiState.query.isNotBlank() && !state.isTyping
+
     LaunchedEffect(uiState.query) {
         if (uiState.query.isNotBlank()) gridState.scrollToItem(0)
     }
 
-    // Opening the tab with nothing searched puts the caret in the field, as it always has; coming
-    // back from a result must not, which is why this keys on the query rather than on first
-    // composition.
-    LaunchedEffect(Unit) {
-        if (uiState.query.isBlank()) searchBarState.animateToExpanded()
+    LaunchedEffect(pagingItems.itemSnapshotList.items) {
+        pagingItems.itemSnapshotList.items
+            .filterIsInstance<SearchResultItem.ChannelResult>()
+            .forEach { quickActions.loadSubscriptionState(it.channel.id) }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        SearchTopBar(
-            state = searchBarState,
-            textFieldState = state.textFieldState,
-            onSearch = submit,
-            onBack = collapseBar,
-            onVoiceSearch = { launchVoiceSearch(context, voiceSearchLauncher::launch) },
-        ) {
-            SearchSuggestionsPanel(
-                query = state.query,
-                history = state.matchingHistory,
-                suggestions = state.suggestions,
-                onSubmit = { text ->
-                    state.textFieldState.setTextAndPlaceCursorAtEnd(text)
-                    submit(text)
-                },
-                onFill = state.textFieldState::setTextAndPlaceCursorAtEnd,
-                onDeleteHistoryItem = state::deleteHistoryItem,
-                onClearHistory = state::clearHistory,
+    // Back leaves the screen, but a query typed over a finished search returns to that search first.
+    BackHandler(enabled = state.isTyping && uiState.query.isNotBlank()) { state.stopTyping() }
+
+    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            SearchTopBar(
+                textFieldState = state.textFieldState,
+                onSearch = submit,
+                onBack = onBack,
+                onVoiceSearch = { launchVoiceSearch(context, voiceSearchLauncher::launch) },
+                actions =
+                    if (showResults) {
+                        {
+                            SearchTopBarActions(
+                                activeFilterCount = uiState.filters.activeCount,
+                                isGridMode = state.isGridMode,
+                                onOpenFilters = { showFilters = true },
+                                onToggleGridMode = state::toggleGridMode,
+                            )
+                        }
+                    } else {
+                        null
+                    },
             )
-        }
 
-        if (uiState.query.isBlank()) {
-            FlowEmptyState(
-                title = stringResource(R.string.search_empty_prompt),
-                icon = Icons.Rounded.Search,
-            )
-            return@Column
-        }
-
-        SearchFilterBar(
-            filter = uiState.filters,
-            shortsEnabled = state.shortsContentEnabled,
-            isGridMode = state.isGridMode,
-            onContentTypeSelected = { viewModel.updateFilters(uiState.filters.copy(contentType = it)) },
-            onToggleGridMode = state::toggleGridMode,
-            onOpenFilters = { showFilters = true },
-            modifier = Modifier.padding(vertical = FilterBarVerticalPadding),
-        )
-
-        val refreshState = pagingItems.loadState.refresh
-        BoxWithConstraints(modifier = Modifier.weight(1f)) {
-            val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns)
-            val actions =
-                SearchResultActions(
-                    onVideoClick = onVideoClick,
-                    onShortsClick = { shelf, tapped -> onShortsQueue(viewModel.shortsShelfSource(shelf, tapped)) },
-                    onChannelClick = onChannelClick,
-                    onPlaylistClick = onPlaylistClick,
-                    dismissKeyboard = collapseBar,
+            if (!showResults) {
+                SearchSuggestionsPanel(
+                    query = state.query,
+                    history = state.matchingHistory,
+                    suggestions = state.suggestions,
+                    onSubmit = { text ->
+                        state.textFieldState.setTextAndPlaceCursorAtEnd(text)
+                        submit(text)
+                    },
+                    onFill = state.textFieldState::setTextAndPlaceCursorAtEnd,
+                    onDeleteHistoryItem = state::deleteHistoryItem,
+                    onClearHistory = state::clearHistory,
                 )
+                return@Column
+            }
 
-            when {
-                refreshState is LoadState.Loading -> {
-                    SearchResultsShimmer(state.isGridMode, feedLayout)
-                }
+            SearchFilterBar(
+                selected = uiState.filters.contentType,
+                shortsEnabled = state.shortsContentEnabled,
+                onContentTypeSelected = { viewModel.updateFilters(uiState.filters.copy(contentType = it)) },
+                modifier = Modifier.padding(vertical = FilterBarVerticalPadding),
+            )
 
-                refreshState is LoadState.Error && pagingItems.itemCount == 0 -> {
-                    FlowErrorState(
-                        error = refreshState.error.localizedMessage ?: stringResource(R.string.search_failed),
-                        onRetry = pagingItems::retry,
-                    )
-                }
+            val refreshState = pagingItems.loadState.refresh
+            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns)
+                val actions =
+                    remember(feedLayout, subscribedIds) {
+                        SearchResultActions(
+                            onVideoClick = onVideoClick,
+                            onShortsClick = { shelf, tapped ->
+                                onShortsQueue(viewModel.shortsShelfSource(shelf, tapped))
+                            },
+                            onChannelClick = onChannelClick,
+                            onPlaylistClick = onPlaylistClick,
+                            dismissKeyboard = state::stopTyping,
+                            isSubscribed = { it in subscribedIds },
+                            onSubscribeToggle = { channel ->
+                                quickActions.toggleSubscription(channel.id, channel.name, channel.thumbnailUrl)
+                            },
+                        )
+                    }
 
-                pagingItems.itemCount == 0 -> {
-                    FlowEmptyState(
-                        title = stringResource(R.string.no_results_found),
-                        icon = Icons.Rounded.Search,
-                    )
-                }
+                when {
+                    refreshState is LoadState.Loading -> {
+                        SearchResultsShimmer(state.isGridMode, feedLayout)
+                    }
 
-                uiState.filters.contentType == ContentType.SHORTS -> {
-                    SearchShortsGrid(pagingItems, gridState, actions)
-                }
+                    refreshState is LoadState.Error && pagingItems.itemCount == 0 -> {
+                        FlowErrorState(
+                            error = refreshState.error.localizedMessage ?: stringResource(R.string.search_failed),
+                            onRetry = pagingItems::retry,
+                        )
+                    }
 
-                else -> {
-                    SearchResults(pagingItems, gridState, feedLayout, state.isGridMode, actions)
+                    pagingItems.itemCount == 0 -> {
+                        FlowEmptyState(
+                            title = stringResource(R.string.no_results_found),
+                            icon = Icons.Rounded.Search,
+                        )
+                    }
+
+                    uiState.filters.contentType == ContentType.SHORTS -> {
+                        SearchShortsGrid(pagingItems, gridState, actions)
+                    }
+
+                    else -> {
+                        SearchResults(pagingItems, gridState, feedLayout, state.isGridMode, actions)
+                    }
                 }
             }
         }
     }
 
     if (showFilters) {
-        SearchFilterSheet(
+        SearchFilterDialog(
             filter = uiState.filters,
             shortsEnabled = state.shortsContentEnabled,
             onApply = {
@@ -208,16 +230,10 @@ fun SearchScreen(
             onDismiss = { showFilters = false },
         )
     }
-
-    LaunchedEffect(searchBarState) {
-        snapshotFlow { searchBarState.targetValue }
-            .distinctUntilChanged()
-            .collect { if (it == SearchBarValue.Collapsed) state.clearSuggestions() }
-    }
 }
 
 private fun launchVoiceSearch(
-    context: android.content.Context,
+    context: Context,
     launch: (Intent) -> Unit,
 ) {
     val intent =

@@ -63,7 +63,7 @@ class SearchComponentsTest {
 
     @Test
     fun `the creator card shows the handle and the subscriber count together`() {
-        show { SearchChannelHeroCard(channel = samSulek, onClick = {}) }
+        show { SearchChannelHeroCard(samSulek, isSubscribed = false, onSubscribeToggle = {}, onClick = {}) }
 
         rule.onNodeWithText("Sam Sulek").assertIsDisplayed()
         rule.onNodeWithText("@sam_sulek", substring = true).assertIsDisplayed()
@@ -74,7 +74,9 @@ class SearchComponentsTest {
     @Test
     fun `the creator card leads into the channel`() {
         var opened = false
-        show { SearchChannelHeroCard(channel = samSulek, onClick = { opened = true }) }
+        show {
+            SearchChannelHeroCard(samSulek, isSubscribed = false, onSubscribeToggle = {}, onClick = { opened = true })
+        }
 
         rule.onNodeWithText(string(R.string.search_channel_go_to)).performClick()
 
@@ -86,6 +88,8 @@ class SearchComponentsTest {
         show {
             SearchChannelHeroCard(
                 channel = samSulek.copy(subscriberCount = 0, videoCount = 0, isVerified = false),
+                isSubscribed = false,
+                onSubscribeToggle = {},
                 onClick = {},
             )
         }
@@ -95,37 +99,60 @@ class SearchComponentsTest {
     }
 
     @Test
-    fun `the filter row badges how many choices are active`() {
+    fun `the creator card offers a subscribe action`() {
+        var toggled = false
         show {
-            SearchFilterBar(
-                filter =
-                    SearchFilter(
-                        contentType = ContentType.VIDEOS,
-                        duration = Duration.OVER_20_MINUTES,
-                        sortType = SortType.VIEW_COUNT,
-                        features = setOf(SearchFeature.FOUR_K),
-                    ),
-                shortsEnabled = true,
-                isGridMode = false,
-                onContentTypeSelected = {},
-                onToggleGridMode = {},
-                onOpenFilters = {},
+            SearchChannelHeroCard(samSulek, isSubscribed = false, onSubscribeToggle = { toggled = true }, onClick = {})
+        }
+
+        rule.onNodeWithText(string(R.string.subscribe)).performClick()
+
+        assertThat(toggled).isTrue()
+    }
+
+    @Test
+    fun `the top bar badges how many narrowing choices are active`() {
+        val filter =
+            SearchFilter(
+                contentType = ContentType.VIDEOS,
+                duration = Duration.OVER_20_MINUTES,
+                sortType = SortType.VIEW_COUNT,
+                features = setOf(SearchFeature.FOUR_K),
             )
+        show {
+            androidx.compose.foundation.layout.Row {
+                SearchTopBarActions(
+                    activeFilterCount = filter.activeCount,
+                    isGridMode = false,
+                    onOpenFilters = {},
+                    onToggleGridMode = {},
+                )
+            }
         }
 
         rule.onNodeWithText("4").assertIsDisplayed()
     }
 
     @Test
-    fun `the filter row hides shorts when the user turned shorts off`() {
+    fun `the chip row offers shorts second, where youtube puts it`() {
         show {
             SearchFilterBar(
-                filter = SearchFilter.DEFAULT,
-                shortsEnabled = false,
-                isGridMode = false,
+                selected = ContentType.ALL,
+                shortsEnabled = true,
                 onContentTypeSelected = {},
-                onToggleGridMode = {},
-                onOpenFilters = {},
+            )
+        }
+
+        rule.onNodeWithText(string(R.string.tab_shorts)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `the chip row hides shorts when the user turned shorts off`() {
+        show {
+            SearchFilterBar(
+                selected = ContentType.ALL,
+                shortsEnabled = false,
+                onContentTypeSelected = {},
             )
         }
 
@@ -137,12 +164,9 @@ class SearchComponentsTest {
         val picked = mutableListOf<ContentType>()
         show {
             SearchFilterBar(
-                filter = SearchFilter.DEFAULT,
+                selected = ContentType.ALL,
                 shortsEnabled = true,
-                isGridMode = false,
                 onContentTypeSelected = picked::add,
-                onToggleGridMode = {},
-                onOpenFilters = {},
             )
         }
 
