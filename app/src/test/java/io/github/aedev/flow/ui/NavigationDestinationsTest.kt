@@ -35,6 +35,27 @@ class NavigationDestinationsTest {
     }
 
     @Test
+    fun channelLinksOpenTheChannelRoute() {
+        assertEquals(
+            "channel?url=https%3A%2F%2Fwww.youtube.com%2Fchannel%2FUCXuqSBlHAE6Xw-yeJA0Tunw",
+            youtubeChannelDeepLinkRoute("https://www.youtube.com/channel/UCXuqSBlHAE6Xw-yeJA0Tunw"),
+        )
+        assertEquals(
+            "channel?url=https%3A%2F%2Fwww.youtube.com%2Fchannel%2FUCXuqSBlHAE6Xw-yeJA0Tunw",
+            youtubeChannelDeepLinkRoute("https://m.youtube.com/channel/UCXuqSBlHAE6Xw-yeJA0Tunw?si=abc"),
+        )
+    }
+
+    @Test
+    fun linksBrowseCannotOpenAreNotChannelRoutes() {
+        assertEquals(null, youtubeChannelDeepLinkRoute("https://www.youtube.com/@LinusTechTips"))
+        assertEquals(null, youtubeChannelDeepLinkRoute("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+        assertEquals(null, youtubeChannelDeepLinkRoute("https://youtu.be/dQw4w9WgXcQ"))
+        assertEquals(null, youtubeChannelDeepLinkRoute("https://www.youtube.com/shorts/dQw4w9WgXcQ"))
+        assertEquals(null, youtubeChannelDeepLinkRoute("https://www.youtube.com/c/LinusTechTips"))
+    }
+
+    @Test
     fun channelHandlesUseHandleUrls() {
         assertEquals("https://www.youtube.com/@flow", youtubeChannelUrl("@flow"))
         assertEquals("https://www.youtube.com/@flow", youtubeChannelUrl("flow"))

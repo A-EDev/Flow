@@ -89,6 +89,16 @@ internal fun youtubeChannelRoute(channelIdOrHandle: String): String? =
         "channel?url=${URLEncoder.encode(channelUrl, Charsets.UTF_8.name())}"
     }
 
+/**
+ * The channel route an external link opens, or null when the link is not a `/channel/UC…` link.
+ * InnerTube's browse rejects an @handle as a browseId (400), and `/c/` and `/user/` need a resolve
+ * request the app does not make, so those fall through like any other unknown link.
+ */
+internal fun youtubeChannelDeepLinkRoute(url: String): String? =
+    youtubeChannelBrowseId(url)
+        ?.takeIf { it.startsWith("UC") }
+        ?.let(::youtubeChannelRoute)
+
 private fun normalizeYoutubeChannelUrl(url: String): String {
     val uri = runCatching { URI(url) }.getOrNull() ?: return url
     val host = uri.host?.lowercase().orEmpty()
