@@ -87,6 +87,8 @@ import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.search.SearchResultsPage
+import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
+import io.github.aedev.flow.innertube.pages.search.parseSearchSuggestions
 import io.github.aedev.flow.innertube.pages.search.toSearchResultsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
@@ -311,6 +313,12 @@ object YouTube {
             innerTube.webSearch(currentWebClient(), query).body<JsonObject>().toSearchShorts()
         }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
             .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
+
+    /** Typeahead suggestions for the video search bar, in the app's content language. */
+    suspend fun videoSearchSuggestions(query: String): Result<List<SearchSuggestion>> =
+        runCatching {
+            parseSearchSuggestions(innerTube.searchSuggestions(query).bodyAsText())
+        }
 
     /** One page of video search. Filters and sorting ride in [params]; paging rides in [continuation]. */
     suspend fun videoSearch(

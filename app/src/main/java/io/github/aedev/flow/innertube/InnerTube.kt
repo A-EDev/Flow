@@ -329,6 +329,22 @@ class InnerTube {
         }
     }
 
+    /**
+     * Typeahead suggestions. Not an InnerTube endpoint — a JSONP array from the suggest host — but
+     * it rides the same client so it honours the app's locale, proxy and connection pool.
+     */
+    suspend fun searchSuggestions(query: String) =
+        withRetry {
+            httpClient.get("https://suggestqueries-clients6.youtube.com/complete/search") {
+                parameter("client", "youtube")
+                parameter("ds", "yt")
+                parameter("hl", locale.hl)
+                parameter("gl", locale.gl)
+                parameter("q", query)
+                userAgent(YouTubeClient.WEB.userAgent)
+            }
+        }
+
     private suspend fun webBrowse(
         client: YouTubeClient,
         body: (String?) -> BrowseBody,

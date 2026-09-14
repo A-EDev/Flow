@@ -180,7 +180,7 @@ fun TvSearchScreen(
 
             else -> {
                 videoSuggestions =
-                    runCatching { viewModel.getSearchSuggestions(trimmed) }
+                    runCatching { viewModel.getSearchSuggestions(trimmed).map { it.text } }
                         .getOrDefault(emptyList())
                 val contentType =
                     when (topFilter) {

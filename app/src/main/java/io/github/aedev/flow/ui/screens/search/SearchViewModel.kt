@@ -16,11 +16,12 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchPagingSource
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
-import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.search.SearchSuggestionsRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.innertube.pages.search.SearchHeader
+import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +46,7 @@ class SearchViewModel
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
-        private val repository: YouTubeRepository,
+        private val suggestionsRepository: SearchSuggestionsRepository,
         private val shortsContentFilter: ShortsContentFilter,
         private val shortsQueueHandoff: ShortsQueueHandoff,
     ) : ViewModel() {
@@ -125,14 +126,8 @@ class SearchViewModel
             _searchKey.value = null
         }
 
-        suspend fun getSearchSuggestions(query: String): List<String> {
-            if (query.length < 2) return emptyList()
-            return try {
-                repository.getSearchSuggestions(query)
-            } catch (_: Exception) {
-                emptyList()
-            }
-        }
+        suspend fun getSearchSuggestions(query: String): List<SearchSuggestion> =
+            runCatching { suggestionsRepository.suggestions(query) }.getOrDefault(emptyList())
 
         private fun onHeader(header: SearchHeader) {
             _uiState.value = _uiState.value.copy(header = header)

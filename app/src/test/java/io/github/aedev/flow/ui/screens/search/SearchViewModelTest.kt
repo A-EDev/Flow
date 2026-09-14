@@ -5,9 +5,10 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SortType
-import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.search.SearchSuggestionsRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
+import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -26,10 +27,10 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
-    private val repository: YouTubeRepository = mockk(relaxed = true)
+    private val suggestions: SearchSuggestionsRepository = mockk(relaxed = true)
     private val context: Context = mockk(relaxed = true)
 
-    private fun viewModel() = SearchViewModel(context, repository, ShortsContentFilter(flowOf(true)), ShortsQueueHandoff())
+    private fun viewModel() = SearchViewModel(context, suggestions, ShortsContentFilter(flowOf(true)), ShortsQueueHandoff())
 
     @Before
     fun setUp() {
@@ -116,24 +117,22 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `getSearchSuggestions calls YouTubeRepository for valid query`() =
+    fun `suggestions come from the one suggestions repository`() =
         runTest {
-            val suggestions = listOf("kotlin tutorial", "kotlin android")
-            coEvery { repository.getSearchSuggestions("kotlin") } returns suggestions
+            val expected = listOf(SearchSuggestion("kotlin tutorial"), SearchSuggestion("kotlin android"))
+            coEvery { suggestions.suggestions("kotlin") } returns expected
 
-            val viewModel = viewModel()
-            val result = viewModel.getSearchSuggestions("kotlin")
+            val result = viewModel().getSearchSuggestions("kotlin")
 
-            assertThat(result).isEqualTo(suggestions)
-            coVerify(exactly = 1) { repository.getSearchSuggestions("kotlin") }
+            assertThat(result).isEqualTo(expected)
+            coVerify(exactly = 1) { suggestions.suggestions("kotlin") }
         }
 
     @Test
-    fun `a one character query never reaches the network`() =
+    fun `a suggestions failure leaves the field usable`() =
         runTest {
-            val viewModel = viewModel()
+            coEvery { suggestions.suggestions(any()) } throws IllegalStateException("offline")
 
-            assertThat(viewModel.getSearchSuggestions("k")).isEmpty()
-            coVerify(exactly = 0) { repository.getSearchSuggestions(any()) }
+            assertThat(viewModel().getSearchSuggestions("kotlin")).isEmpty()
         }
 }
