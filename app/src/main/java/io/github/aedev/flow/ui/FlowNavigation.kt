@@ -322,6 +322,7 @@ fun NavGraphBuilder.flowAppGraph(
             onBack = {
                 if (!navController.popBackStack()) navController.navigate("home")
             },
+            onTypingChange = { typing -> showBottomNav.value = !typing },
         )
     }
 

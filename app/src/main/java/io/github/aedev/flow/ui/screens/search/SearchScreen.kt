@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,6 +71,7 @@ fun SearchScreen(
     onShortsQueue: (ShortsQueueSource) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onTypingChange: (Boolean) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -122,6 +124,10 @@ fun SearchScreen(
 
     // Back leaves the screen, but a query typed over a finished search returns to that search first.
     BackHandler(enabled = state.isTyping && uiState.query.isNotBlank()) { state.stopTyping() }
+
+    // While the field owns the screen, nothing else should: the shell drops its navigation bar.
+    LaunchedEffect(showResults) { onTypingChange(!showResults) }
+    DisposableEffect(Unit) { onDispose { onTypingChange(false) } }
 
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize()) {
