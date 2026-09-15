@@ -35,6 +35,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
 import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerCommentsUiState
+import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import kotlin.math.roundToInt
 
@@ -62,6 +63,7 @@ internal fun EnhancedVideoPlayerScreen(
 ) {
     val context = LocalContext.current
     val windowSizeClass = LocalWindowSizeClass.current
+    val isLandscapeWindow = LocalWindowIsLandscape.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -82,7 +84,13 @@ internal fun EnhancedVideoPlayerScreen(
                 .graphicsLayer { this.alpha = alpha() }
                 .background(MaterialTheme.colorScheme.background),
     ) {
-        val layoutMode = playerLayoutModeFor(windowSizeClass, screenState.isFullscreen, isInPipMode)
+        val layoutMode =
+            playerLayoutModeFor(
+                windowSizeClass = windowSizeClass,
+                isLandscapeWindow = isLandscapeWindow,
+                isFullscreen = screenState.isFullscreen,
+                isInPipMode = isInPipMode,
+            )
         val isWideLayout = layoutMode == PlayerLayoutMode.WIDE
         val isMediumLayout = layoutMode == PlayerLayoutMode.MEDIUM
 

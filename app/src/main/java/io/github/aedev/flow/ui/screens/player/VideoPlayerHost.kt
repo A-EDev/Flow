@@ -31,6 +31,7 @@ import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.stage.*
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.ui.screens.player.state.supportingPaneReserve
+import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
@@ -111,12 +112,19 @@ fun VideoPlayerHost(
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val windowSizeClass = LocalWindowSizeClass.current
-    val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass)
+    val isLandscapeWindow = LocalWindowIsLandscape.current
+    val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass, isLandscapeWindow)
     val isLargeWindow = windowLayoutMode != PlayerLayoutMode.COMPACT
     val isTwoPaneWindow = windowLayoutMode == PlayerLayoutMode.WIDE
     val paneScaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())
     val detailPaneWidth = if (isTwoPaneWindow) paneScaffoldDirective.supportingPaneReserve() else 0.dp
-    val playerLayoutMode = playerLayoutModeFor(windowSizeClass, screenState.isFullscreen, localIsInPipMode)
+    val playerLayoutMode =
+        playerLayoutModeFor(
+            windowSizeClass = windowSizeClass,
+            isLandscapeWindow = isLandscapeWindow,
+            isFullscreen = screenState.isFullscreen,
+            isInPipMode = localIsInPipMode,
+        )
     val mediaSheetGeometry =
         rememberPlayerMediaSheetGeometry(
             screenState = screenState,
