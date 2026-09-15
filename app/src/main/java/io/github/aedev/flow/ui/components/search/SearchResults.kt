@@ -18,6 +18,7 @@ import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
+import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
@@ -64,6 +65,11 @@ fun SearchResults(
     // could not fill, or a wide window the user pinned to one column.
     fun isListCard(index: Int) = listMode || index in partialRows || (columns == 1 && !feedLayout.isCompact)
 
+    // Its thumbnail is one grid column wide, so it lines up with the cards it sits between rather
+    // than reading as a different kind of row.
+    val listThumbnailWidth =
+        if (feedLayout.isCompact) CompactVideoCardThumbnailWidth else feedLayout.cardWidth
+
     val gutter = if (columns == 1) 0.dp else feedLayout.cardSpacing
     LazyVerticalGrid(
         columns = cells,
@@ -102,6 +108,7 @@ fun SearchResults(
                         asThumbnailRow = isListCard(index),
                         onClick = { actions.onVideoClick(item.video) },
                         onChannelClick = { actions.onChannelClick(item.video.asChannel(it)) },
+                        thumbnailWidth = listThumbnailWidth,
                     )
                 }
 
@@ -129,6 +136,7 @@ fun SearchResults(
                     SearchShelf(
                         shelf = item,
                         asThumbnailRows = listMode || !feedLayout.isCompact,
+                        thumbnailWidth = listThumbnailWidth,
                         onVideoClick = actions.onVideoClick,
                         onShortsClick = actions.onShortsClick,
                         onChannelClick = { actions.onChannelClick(Channel(it, "", "", 0)) },

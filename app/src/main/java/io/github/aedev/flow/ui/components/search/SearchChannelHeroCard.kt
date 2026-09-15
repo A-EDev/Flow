@@ -277,11 +277,11 @@ private fun Channel.metadataLine(): String? {
 }
 
 private const val SEPARATOR = " • "
-private const val COMPACT_STRIP_DIVISOR = 1.8f
-private const val WIDE_STRIP_DIVISOR = 3.2f
+private const val COMPACT_STRIP_DIVISOR = 1.3f
+private const val WIDE_STRIP_DIVISOR = 2.6f
 private val CompactStripWidth = 600.dp
-private val StripCardMinWidth = 200.dp
-private val StripCardMaxWidth = 320.dp
+private val StripCardMinWidth = 260.dp
+private val StripCardMaxWidth = 380.dp
 private val InlineActionsWidth = 640.dp
 private val InlineActionsColumn = 360.dp
 private val CardMargin = 8.dp

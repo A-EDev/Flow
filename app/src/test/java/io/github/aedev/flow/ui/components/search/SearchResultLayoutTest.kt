@@ -75,12 +75,32 @@ class SearchResultLayoutTest {
         val tablet = stripCardWidth(1128.dp)
 
         assertThat(phone.value).isLessThan(tablet.value)
-        assertThat(phone.value).isAtLeast(200f)
-        assertThat(tablet.value).isAtMost(320f)
+        assertThat(phone.value).isAtLeast(260f)
+        assertThat(tablet.value).isAtMost(380f)
+    }
+
+    @Test
+    fun `a thumbnail-left row on a tablet is as wide as one grid column`() {
+        val layout = feedGridLayoutFor(1200.dp, HomeFeedColumns.AUTO, FEED_MAX_AUTO_COLUMNS)
+        val spanned = layout.cardWidth * layout.columns + layout.cardSpacing * (layout.columns - 1)
+
+        assertThat(spanned.value).isWithin(TOLERANCE).of((1200.dp - layout.contentPadding * 2).value)
+    }
+
+    @Test
+    fun `a phone card is the whole content width`() {
+        val layout = feedGridLayoutFor(411.dp)
+
+        assertThat(layout.columns).isEqualTo(1)
+        assertThat(layout.cardWidth.value).isWithin(TOLERANCE).of((411.dp - layout.contentPadding * 2).value)
     }
 
     @Test
     fun `the creator strip never shows a card the window cannot hold`() {
         assertThat(stripCardWidth(320.dp).value).isAtMost(320f)
+    }
+
+    private companion object {
+        const val TOLERANCE = 0.01f
     }
 }

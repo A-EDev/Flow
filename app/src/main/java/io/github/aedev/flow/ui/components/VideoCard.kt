@@ -680,6 +680,9 @@ fun VideoCardFullWidth(
     )
 }
 
+/** The width every existing caller renders, so [thumbnailWidth] only ever widens it deliberately. */
+val CompactVideoCardThumbnailWidth = 168.dp
+
 /**
  * A horizontal Video Card optimized for side panes (tablets/foldables) or lists.
  * Image on Left, Info on Right.
@@ -692,6 +695,7 @@ fun CompactVideoCard(
     onMoreClick: () -> Unit = {},
     onChannelClick: ((String) -> Unit)? = null,
     showChannelName: Boolean = true,
+    thumbnailWidth: Dp = CompactVideoCardThumbnailWidth,
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     var showCollaborators by remember { mutableStateOf(false) }
@@ -734,7 +738,7 @@ fun CompactVideoCard(
         Box(
             modifier =
                 Modifier
-                    .width(168.dp)
+                    .width(thumbnailWidth)
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),

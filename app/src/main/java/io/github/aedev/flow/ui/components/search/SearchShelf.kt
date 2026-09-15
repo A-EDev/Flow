@@ -27,11 +27,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
+import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.ShortsShelf
 
 /**
@@ -52,15 +54,24 @@ fun SearchShelf(
     onShortsClick: (shelf: List<Video>, tapped: Video) -> Unit,
     onChannelClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    thumbnailWidth: Dp = CompactVideoCardThumbnailWidth,
 ) {
     Column(modifier = modifier.fillMaxWidth().padding(vertical = SectionSpacing)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         // The Shorts strip draws its own branded heading; the other two take the response's title.
         if (shelf.kind != SearchShelfKind.SHORTS) shelf.title?.let { ShelfTitle(it) }
         when (shelf.kind) {
-            SearchShelfKind.SHORTS -> ShortsShelf(shelf.videos, onShortsClick)
-            SearchShelfKind.VIDEOS -> VideoStrip(shelf, asThumbnailRows, onVideoClick, onChannelClick)
-            SearchShelfKind.POSTS -> PostStrip(shelf)
+            SearchShelfKind.SHORTS -> {
+                ShortsShelf(shelf.videos, onShortsClick)
+            }
+
+            SearchShelfKind.VIDEOS -> {
+                VideoStrip(shelf, asThumbnailRows, thumbnailWidth, onVideoClick, onChannelClick)
+            }
+
+            SearchShelfKind.POSTS -> {
+                PostStrip(shelf)
+            }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
@@ -81,6 +92,7 @@ private fun ShelfTitle(title: String) {
 private fun VideoStrip(
     shelf: SearchResultItem.ShelfResult,
     asThumbnailRows: Boolean,
+    thumbnailWidth: Dp,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
 ) {
@@ -97,6 +109,7 @@ private fun VideoStrip(
             asThumbnailRow = asThumbnailRows,
             onClick = { onVideoClick(video) },
             onChannelClick = onChannelClick,
+            thumbnailWidth = thumbnailWidth,
         )
     }
     if (shelf.videos.size > collapsedCount) {
