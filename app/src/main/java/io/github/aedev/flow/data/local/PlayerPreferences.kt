@@ -214,7 +214,6 @@ class PlayerPreferences(
         val OVERLAY_COMMENTS_ENABLED = booleanPreferencesKey("overlay_comments_enabled")
 
         // Fullscreen Player
-        val SHOW_FULLSCREEN_TITLE = booleanPreferencesKey("show_fullscreen_title")
         val ADAPTIVE_PLAYER_SIZE_ENABLED = booleanPreferencesKey("adaptive_player_size_enabled")
         val PORTRAIT_SEEKBAR_PADDING_MODE = stringPreferencesKey("portrait_seekbar_padding_mode")
         val PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("portrait_seekbar_custom_padding_dp")
@@ -605,7 +604,6 @@ class PlayerPreferences(
             speedIndicatorEnabled =
                 this[Keys.OVERLAY_SPEED_INDICATOR_ENABLED] ?: overlayDefaults.speedIndicatorEnabled,
             commentsEnabled = this[Keys.OVERLAY_COMMENTS_ENABLED] ?: overlayDefaults.commentsEnabled,
-            fullscreenTitleEnabled = this[Keys.SHOW_FULLSCREEN_TITLE] ?: overlayDefaults.fullscreenTitleEnabled,
             showControlsWhileLoading =
                 this[Keys.SHOW_CONTROLS_WHILE_LOADING] ?: overlayDefaults.showControlsWhileLoading,
             fullscreenSeekbarHorizontalPaddingDp =
@@ -1506,16 +1504,6 @@ class PlayerPreferences(
     suspend fun setOverlaySpeedIndicatorEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.OVERLAY_SPEED_INDICATOR_ENABLED] = enabled
-        }
-    }
-
-    //  FULLSCREEN PLAYER PREFERENCES
-    val showFullscreenTitle: Flow<Boolean> =
-        overlayPreferences.map { it.fullscreenTitleEnabled }.distinctUntilChanged()
-
-    suspend fun setShowFullscreenTitle(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SHOW_FULLSCREEN_TITLE] = enabled
         }
     }
 

@@ -125,12 +125,7 @@ internal fun VideoPlayerTopBar(
                     containerColor = Color.Transparent,
                 )
 
-                if (
-                    isFullscreen &&
-                    !isPortraitFullscreen &&
-                    preferences.fullscreenTitleEnabled &&
-                    !videoTitle.isNullOrBlank()
-                ) {
+                if (isFullscreen && !isPortraitFullscreen && !videoTitle.isNullOrBlank()) {
                     Column(
                         modifier =
                             Modifier
@@ -284,9 +279,6 @@ internal fun VideoPlayerTopBar(
             }
         }
 
-        // Not gated on fullscreenTitleEnabled: that preference exists because the landscape bar has
-        // no room for a title beside the buttons. Portrait fullscreen has a line of its own, and the
-        // title is the thing that tells you which video you are in.
         if (isPortraitFullscreen) {
             PortraitFullscreenTitle(
                 videoTitle = videoTitle,

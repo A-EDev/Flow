@@ -101,8 +101,6 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
     val showControlsWhileLoading by
         playerPreferences.showControlsWhileLoading.collectAsState(overlayDefaults.showControlsWhileLoading)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
-    val showFullscreenTitle by
-        playerPreferences.showFullscreenTitle.collectAsState(overlayDefaults.fullscreenTitleEnabled)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val portraitSeekbarPaddingMode by playerPreferences.portraitSeekbarPaddingMode.collectAsState(
@@ -603,23 +601,6 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 playerPreferences.setVideoAmbientModeEnabled(enabled)
-                            }
-                        },
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    )
-
-                    SettingsToggleItem(
-                        icon = painterResource(R.drawable.ic_progress_bar_style),
-                        title = stringResource(R.string.player_show_title_title),
-                        subtitle = stringResource(R.string.player_show_title_subtitle),
-                        checked = showFullscreenTitle,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                playerPreferences.setShowFullscreenTitle(enabled)
                             }
                         },
                     )
