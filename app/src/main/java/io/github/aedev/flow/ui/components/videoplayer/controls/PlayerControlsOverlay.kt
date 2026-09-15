@@ -109,27 +109,24 @@ internal fun PlayerControlsOverlay(
     // window only turns a few hundred milliseconds later, so a hard switch repainted the controls
     // with portrait insets while the window was still landscape — the seek bar visibly snapping out
     // to the edges before anything rotated. Easing carries them across that gap instead.
-    val geometrySpec = MaterialTheme.motionScheme.defaultSpatialSpec<Dp>()
-    val fullscreenSeekbarBottomPadding by
-        animateDpAsState(
-            targetValue =
+    val fullscreenSeekbarBottomPadding =
+        animatedInset(
+            target =
                 when {
                     isPortraitFullscreen -> 12.dp
                     isFullscreen -> 30.dp
                     else -> 0.dp
                 },
-            animationSpec = geometrySpec,
             label = "seekbarBottomPadding",
         )
-    val bottomControlHorizontalPadding by
-        animateDpAsState(
-            targetValue =
+    val bottomControlHorizontalPadding =
+        animatedInset(
+            target =
                 when {
                     isPortraitFullscreen -> 16.dp
                     isFullscreen -> 56.dp
                     else -> 12.dp
                 },
-            animationSpec = geometrySpec,
             label = "bottomControlPadding",
         )
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
@@ -143,15 +140,14 @@ internal fun PlayerControlsOverlay(
         } else {
             0.dp
         }
-    val seekbarHorizontalPadding by
-        animateDpAsState(
-            targetValue =
+    val seekbarHorizontalPadding =
+        animatedInset(
+            target =
                 if (isFullscreen && !isPortraitFullscreen) {
                     fullscreenSeekbarHorizontalPaddingDp.dp
                 } else {
                     portraitSeekbarHorizontalPaddingDp.dp
                 },
-            animationSpec = geometrySpec,
             label = "seekbarHorizontalPadding",
         )
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
@@ -345,4 +341,24 @@ internal fun PlayerControlsOverlay(
             }
         }
     }
+}
+
+/**
+ * Eases one of the control insets between its fullscreen and windowed values (#1065).
+ *
+ * On an effects spec, not a spatial one: the Expressive spatial springs overshoot their target,
+ * and an inset that undershoots zero on the way down is a negative padding, which Modifier.padding
+ * rejects outright. The clamp keeps that true even if the theme's spec is changed later.
+ */
+@Composable
+private fun animatedInset(
+    target: Dp,
+    label: String,
+): Dp {
+    val value by animateDpAsState(
+        targetValue = target,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = label,
+    )
+    return value.coerceAtLeast(0.dp)
 }
