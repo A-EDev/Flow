@@ -52,6 +52,7 @@ internal class PlayerCollaborators(
     isLoadCurrent: (Long) -> Boolean,
     currentLoadToken: () -> Long,
     shortsEnabled: () -> Boolean,
+    blockedChannelIds: () -> Set<String>,
 ) {
     val comments =
         CommentsPager(
@@ -99,6 +100,7 @@ internal class PlayerCollaborators(
             currentState = { uiState.value },
             relatedVideosFor = ::relatedVideosFor,
             shortsEnabled = shortsEnabled,
+            blockedChannelIds = blockedChannelIds,
             isPlaybackCurrent = isLoadCurrent,
             onResult = { result -> sessionApplier.applySecondary(result) },
         )

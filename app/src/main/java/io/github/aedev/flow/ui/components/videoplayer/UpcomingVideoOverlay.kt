@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsActive
@@ -27,13 +26,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
+import io.github.aedev.flow.ui.theme.PlayerScrimPanel
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -47,11 +48,14 @@ internal fun UpcomingVideoOverlay(
 ) {
     var nowMs by remember(releaseTimeMs) { mutableStateOf(System.currentTimeMillis()) }
 
+    // Stops once the premiere is due rather than ticking for the life of the composition: the
+    // overlay is mounted by a warm player tree and would otherwise keep waking the frame clock
+    // with the screen off, long after the countdown had run out.
     LaunchedEffect(releaseTimeMs) {
         if (releaseTimeMs == null) return@LaunchedEffect
-        while (true) {
-            nowMs = System.currentTimeMillis()
+        while (nowMs < releaseTimeMs) {
             delay(1000)
+            nowMs = System.currentTimeMillis()
         }
     }
 
@@ -60,8 +64,8 @@ internal fun UpcomingVideoOverlay(
             modifier
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .widthIn(max = 360.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Black.copy(alpha = 0.8f),
+        shape = MaterialTheme.shapes.largeIncreased,
+        color = PlayerScrimPanel,
         tonalElevation = 0.dp,
     ) {
         Column(
@@ -76,7 +80,7 @@ internal fun UpcomingVideoOverlay(
                 Icon(
                     imageVector = Icons.Rounded.Schedule,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.9f),
+                    tint = PlayerScrimContent,
                     modifier = Modifier.size(18.dp),
                 )
                 Text(
@@ -89,7 +93,7 @@ internal fun UpcomingVideoOverlay(
                             },
                         ),
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color.White.copy(alpha = 0.9f),
+                    color = PlayerScrimContent,
                     fontWeight = FontWeight.Medium,
                 )
             }
@@ -107,7 +111,7 @@ internal fun UpcomingVideoOverlay(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.75f),
+                color = PlayerScrimContentSecondary,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

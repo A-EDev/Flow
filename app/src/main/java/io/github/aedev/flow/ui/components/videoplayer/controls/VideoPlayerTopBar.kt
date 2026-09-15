@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cast
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -30,8 +31,9 @@ import androidx.compose.material.icons.rounded.SlowMotionVideo
 import androidx.compose.material.icons.rounded.ZoomIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -54,6 +56,8 @@ import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimContentDisabled
+import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
 
 /**
  * The row of actions along the top of the player: minimise, title, and the configurable action
@@ -66,8 +70,9 @@ import io.github.aedev.flow.ui.theme.PlayerScrimContent
 internal fun VideoPlayerTopBar(
     preferences: PlayerOverlayPreferences,
     isFullscreen: Boolean,
+    isPortraitFullscreen: Boolean,
     videoTitle: String?,
-    speedIndicatorLabel: String,
+    channelName: String?,
     resizeMode: Int,
     resizeModeLabels: List<String>,
     isPipSupported: Boolean,
@@ -90,8 +95,6 @@ internal fun VideoPlayerTopBar(
     actions: PlayerControlActions,
     modifier: Modifier = Modifier,
 ) {
-    val accentColor = MaterialTheme.colorScheme.primary
-
     Column(
         modifier =
             modifier
@@ -122,19 +125,33 @@ internal fun VideoPlayerTopBar(
                     containerColor = Color.Transparent,
                 )
 
-                if (isFullscreen && preferences.fullscreenTitleEnabled && !videoTitle.isNullOrBlank()) {
-                    Text(
-                        text = videoTitle,
-                        color = PlayerScrimContent,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                if (isFullscreen && !isPortraitFullscreen && !videoTitle.isNullOrBlank()) {
+                    Column(
                         modifier =
                             Modifier
                                 .weight(1f)
+                                .clip(MaterialTheme.shapes.small)
+                                .clickable(onClick = actions.onDescriptionClick)
                                 .padding(end = 8.dp),
-                    )
+                    ) {
+                        Text(
+                            text = videoTitle,
+                            color = PlayerScrimContent,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (!channelName.isNullOrBlank()) {
+                            Text(
+                                text = channelName,
+                                color = PlayerScrimContentSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
 
                 if (isPipSupported && preferences.pipEnabled) {
@@ -166,28 +183,6 @@ internal fun VideoPlayerTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(actionSpacing),
             ) {
-                if (preferences.speedIndicatorEnabled) {
-                    Surface(
-                        onClick = actions.onSpeedClick,
-                        color = PlayerScrimAffordance,
-                        shape = SpeedPillShape,
-                        modifier = Modifier.height(pillHeight),
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(horizontal = 10.dp),
-                        ) {
-                            Text(
-                                text = speedIndicatorLabel,
-                                color = PlayerScrimContent,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
-
                 if (isFullscreen) {
                     TopBarIconButton(
                         onClick = actions.onResizeClick,
@@ -204,19 +199,20 @@ internal fun VideoPlayerTopBar(
                 }
 
                 if (preferences.castEnabled) {
-                    TopBarIconButton(
-                        onClick = actions.onCastClick,
+                    TopBarToggleIconButton(
+                        checked = isCasting,
+                        onCheckedChange = { actions.onCastClick() },
                         buttonSize = actionButtonSize,
                         iconSize = actionIconSize,
                         icon = if (isCasting) Icons.Rounded.Cast else Icons.Outlined.Cast,
                         contentDescription = stringResource(R.string.cast_to_tv),
-                        tint = if (isCasting) accentColor else PlayerScrimContent,
                     )
                 }
 
                 if (preferences.captionsEnabled) {
-                    TopBarIconButton(
-                        onClick = actions.onSubtitleClick,
+                    TopBarToggleIconButton(
+                        checked = isSubtitlesEnabled,
+                        onCheckedChange = { actions.onSubtitleClick() },
                         buttonSize = actionButtonSize,
                         iconSize = actionIconSize,
                         icon =
@@ -226,39 +222,30 @@ internal fun VideoPlayerTopBar(
                                 Icons.Outlined.ClosedCaption
                             },
                         contentDescription = stringResource(R.string.captions),
-                        tint = if (isSubtitlesEnabled) accentColor else PlayerScrimContent,
                         onLongClick = actions.onSubtitleLongClick,
                     )
                 }
 
                 if (preferences.autoplayEnabled) {
-                    IconButton(
-                        onClick = { if (!isLooping) actions.onAutoplayToggle(!isAutoplayOn) },
+                    TopBarToggleIconButton(
+                        checked = isAutoplayOn && !isLooping,
+                        onCheckedChange = { next -> if (!isLooping) actions.onAutoplayToggle(next) },
                         enabled = !isLooping,
-                        modifier = Modifier.size(actionButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SlowMotionVideo,
-                            contentDescription = stringResource(R.string.autoplay),
-                            tint =
-                                when {
-                                    isLooping -> PlayerScrimContent.copy(alpha = 0.35f)
-                                    isAutoplayOn -> accentColor
-                                    else -> PlayerScrimContent.copy(alpha = 0.7f)
-                                },
-                            modifier = Modifier.size(actionIconSize),
-                        )
-                    }
+                        buttonSize = actionButtonSize,
+                        iconSize = actionIconSize,
+                        icon = Icons.Rounded.SlowMotionVideo,
+                        contentDescription = stringResource(R.string.autoplay),
+                    )
                 }
 
                 if (preferences.sleepTimerEnabled) {
-                    TopBarIconButton(
-                        onClick = actions.onSleepTimerClick,
+                    TopBarToggleIconButton(
+                        checked = isSleepTimerActive,
+                        onCheckedChange = { actions.onSleepTimerClick() },
                         buttonSize = actionButtonSize,
                         iconSize = actionIconSize,
                         icon = Icons.Rounded.Bedtime,
                         contentDescription = stringResource(R.string.sleep_timer),
-                        tint = if (isSleepTimerActive) accentColor else PlayerScrimContent,
                     )
                 }
 
@@ -291,14 +278,102 @@ internal fun VideoPlayerTopBar(
                 )
             }
         }
+
+        if (isPortraitFullscreen) {
+            PortraitFullscreenTitle(
+                videoTitle = videoTitle,
+                channelName = channelName,
+                horizontalPadding = horizontalPadding + TitleInsetCorrection,
+                onClick = actions.onDescriptionClick,
+                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+            )
+        }
     }
 }
 
 /**
- * The speed pill's radius is half [OverlayPillHeight], which is a stadium rather than any shape
- * token: `MaterialTheme.shapes` has no 14dp step.
+ * The action row's horizontal padding is pulled in by half an icon button's inset so the glyphs
+ * line up with the content edge; text carries no such inset, so the title adds it back.
  */
-private val SpeedPillShape = RoundedCornerShape(14.dp)
+private val TitleInsetCorrection = 4.dp
+
+/**
+ * A top-bar action that is on or off.
+ *
+ * Over arbitrary video a tint shift is close to invisible against a bright frame, so checked state
+ * takes a container and the Expressive checked shape instead of a colour alone.
+ */
+@Composable
+private fun TopBarToggleIconButton(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    buttonSize: Dp,
+    iconSize: Dp,
+    icon: ImageVector,
+    contentDescription: String,
+    enabled: Boolean = true,
+    onLongClick: (() -> Unit)? = null,
+) {
+    val haptics = LocalHapticFeedback.current
+    val toggle: (Boolean) -> Unit = { next ->
+        haptics.performHapticFeedback(
+            if (next) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff,
+        )
+        onCheckedChange(next)
+    }
+
+    if (onLongClick != null) {
+        Box(
+            modifier =
+                Modifier
+                    .size(buttonSize)
+                    .clip(CircleShape)
+                    .background(
+                        color = if (checked) PlayerScrimAffordance else Color.Transparent,
+                        shape = CircleShape,
+                    ).combinedClickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = buttonSize / 2),
+                        onClick = { toggle(!checked) },
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongClick()
+                        },
+                        onClickLabel = contentDescription,
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (checked) MaterialTheme.colorScheme.primary else PlayerScrimContent,
+                modifier = Modifier.size(iconSize),
+            )
+        }
+        return
+    }
+
+    IconToggleButton(
+        checked = checked,
+        onCheckedChange = toggle,
+        enabled = enabled,
+        shapes = IconButtonDefaults.toggleableShapes(),
+        colors =
+            IconButtonDefaults.iconToggleButtonColors(
+                contentColor = PlayerScrimContent,
+                disabledContentColor = PlayerScrimContentDisabled,
+                checkedContainerColor = PlayerScrimAffordance,
+                checkedContentColor = MaterialTheme.colorScheme.primary,
+            ),
+        modifier = Modifier.size(buttonSize),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
 
 @Composable
 private fun TopBarIconButton(
@@ -310,9 +385,14 @@ private fun TopBarIconButton(
     tint: Color = PlayerScrimContent,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val haptics = LocalHapticFeedback.current
     if (onLongClick == null) {
         IconButton(
-            onClick = onClick,
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                onClick()
+            },
+            shapes = IconButtonDefaults.shapes(),
             modifier = Modifier.size(buttonSize),
         ) {
             Icon(
@@ -325,7 +405,6 @@ private fun TopBarIconButton(
         return
     }
 
-    val haptics = LocalHapticFeedback.current
     Box(
         modifier =
             Modifier

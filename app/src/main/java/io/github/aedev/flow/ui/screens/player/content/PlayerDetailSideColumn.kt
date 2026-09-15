@@ -156,6 +156,37 @@ internal fun PlayerDetailSideColumn(
                 )
             }
 
+            // With related videos switched off the resting pane had nothing in it, leaving a
+            // column of empty space beside the video (#1022). It keeps its place and shows the next
+            // most useful thing instead: the comments, or the description when those are off too.
+            !showRelatedVideos && commentsEnabled -> {
+                PlayerCommentsPanelHost(
+                    videoId = video.id,
+                    screenState = screenState,
+                    viewModel = viewModel,
+                    commentsUiState = commentsUiState,
+                    artworkUrl = video.thumbnailUrl,
+                    onNavigateToChannel = onChannelClick,
+                    onClose = closeSheet,
+                    modifier = paneModifier,
+                )
+            }
+
+            !showRelatedVideos -> {
+                PlayerDescriptionSheetHost(
+                    video = video,
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    asSidePanel = true,
+                    expandedHeight = paneHeight,
+                    onDismiss = closeSheet,
+                    hasTranscriptTrack = transcriptTrackUrl(playerState, screenState) != null,
+                    onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
+                    onTranscriptClick = { screenState.open(PlayerSheet.Transcript) },
+                    onChannelClick = onChannelClick,
+                )
+            }
+
             else -> {
                 LazyColumn(
                     modifier = paneModifier,
@@ -166,14 +197,12 @@ internal fun PlayerDetailSideColumn(
                             LiveChatPreview(onClick = { screenState.showLiveChatPanel = true })
                         }
                     }
-                    if (showRelatedVideos) {
-                        relatedVideosContent(
-                            relatedVideos = uiState.relatedVideos,
-                            onVideoClick = onVideoClick,
-                            onChannelClick = onChannelClick,
-                            cardStyle = relatedCardStyle,
-                        )
-                    }
+                    relatedVideosContent(
+                        relatedVideos = uiState.relatedVideos,
+                        onVideoClick = onVideoClick,
+                        onChannelClick = onChannelClick,
+                        cardStyle = relatedCardStyle,
+                    )
                 }
             }
         }

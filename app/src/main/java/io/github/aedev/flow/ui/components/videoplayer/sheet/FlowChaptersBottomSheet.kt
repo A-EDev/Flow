@@ -9,7 +9,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
@@ -22,7 +25,11 @@ import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
+import kotlinx.coroutines.delay
 import org.schabi.newpipe.extractor.stream.StreamSegment
+
+/** How long a tapped chapter keeps the highlight if the playhead never reports arriving. */
+private const val CHAPTER_SELECTION_GRACE_MS = 1_500L
 
 @Composable
 fun FlowChaptersBottomSheet(
@@ -39,12 +46,29 @@ fun FlowChaptersBottomSheet(
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberFlowBottomSheetState()
-    val initialActiveChapterIndex =
-        remember(chapters) {
-            chapters
-                .indexOfLast { currentPosition >= it.startTimeSeconds.toLong() * 1000L }
-                .coerceAtLeast(0)
+    val positionChapterIndex =
+        chapters
+            .indexOfLast { currentPosition >= it.startTimeSeconds.toLong() * 1000L }
+            .coerceAtLeast(0)
+
+    // A tapped chapter is highlighted straight away instead of waiting for the playhead to report
+    // it (#978). The seek resolves to the nearest sync point, which can sit a few hundred
+    // milliseconds short of the boundary, so the position briefly still reads as the chapter before
+    // the one just tapped — and showed it as current, filled to the end.
+    var pendingChapterIndex by remember(chapters) { mutableStateOf<Int?>(null) }
+    LaunchedEffect(pendingChapterIndex, positionChapterIndex) {
+        val pending = pendingChapterIndex ?: return@LaunchedEffect
+        if (positionChapterIndex == pending) {
+            pendingChapterIndex = null
+        } else {
+            // The playhead never arrived — a scrub elsewhere, or a seek that failed. Let the real
+            // position take the highlight back rather than leaving it pinned.
+            delay(CHAPTER_SELECTION_GRACE_MS)
+            pendingChapterIndex = null
         }
+    }
+    val activeChapterIndex = pendingChapterIndex ?: positionChapterIndex
+    val initialActiveChapterIndex = remember(chapters) { positionChapterIndex }
     val chaptersListState =
         rememberLazyListState(
             initialFirstVisibleItemIndex = initialActiveChapterIndex,
@@ -103,9 +127,10 @@ fun FlowChaptersBottomSheet(
                 val endTimeMs =
                     nextChapter?.startTimeSeconds?.let { it.toLong() * 1000L }
                         ?: durationMs.takeIf { it > startTimeMs }
-                val isCurrent = currentPosition >= startTimeMs && (endTimeMs == null || currentPosition < endTimeMs)
+                val isCurrent = index == activeChapterIndex
+                val hasPlayhead = currentPosition >= startTimeMs && (endTimeMs == null || currentPosition < endTimeMs)
                 val progress =
-                    if (isCurrent && endTimeMs != null && endTimeMs > startTimeMs) {
+                    if (isCurrent && hasPlayhead && endTimeMs != null && endTimeMs > startTimeMs) {
                         ((currentPosition - startTimeMs).toFloat() / (endTimeMs - startTimeMs).toFloat()).coerceIn(0f, 1f)
                     } else {
                         0f
@@ -122,6 +147,7 @@ fun FlowChaptersBottomSheet(
                     durationLabel = durationLabel,
                     thumbnailUrl = chapter.previewUrl?.takeIf { it.isNotBlank() } ?: thumbnailUrl,
                     onClick = {
+                        pendingChapterIndex = index
                         onChapterClick(startTimeMs)
                     },
                 )

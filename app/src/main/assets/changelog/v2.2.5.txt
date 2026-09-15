@@ -11,6 +11,7 @@ NEW FEATURES
 - Private notes on any channel or video, included in backup and device sync
 - The video player is now adaptive: a supporting pane and navigation rail on wide screens, with the description, chapters, comments and settings served in the pane or a fullscreen drawer
 - Player comments and descriptions now come from InnerTube, and every player surface moves to Material 3 Expressive
+- Portrait fullscreen is rebuilt around the video with the title and channel above it, reached the same way by swipe or by the fullscreen button, and the volume and brightness read-outs can now be circular, vertical, a bar, or just the number
 - One grid layout across Home, Channels and Search: your cards-per-row setting applies everywhere, and rows the grid cannot fill switch to full-width list cards on tablets and foldables
 - A local music taste engine ranks every music shelf and composes Quick Picks, learning the artists you love from how much of each song you actually play — entirely on-device
 - New shelves built from your taste and rendered with no network calls: On Repeat, Rediscover for loved artists you have not played in weeks, a time-of-day rotation, and "From artists you love" for their latest releases
@@ -62,6 +63,7 @@ FIXES AND STABILITY
 - Fix the lyrics sync offset having no effect: it now shifts line highlighting, scrolling and word-by-word fills live, and the control got an expressive redesign
 - Fix a playback-statistics crash on some devices by replacing Media3's tracker with a wall-clock session tracker
 - Fix the ambient player glow and cap session artwork at the platform limit, ending a crash on some ROMs
+- Fix a tablet held upright splitting the player into two narrow columns, and the volume gesture starting from a stale level or dropping a boost above 100%
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

@@ -16,6 +16,15 @@ import androidx.window.core.layout.WindowSizeClass
  */
 val LocalWindowSizeClass = staticCompositionLocalOf { WindowSizeClass(0, 0) }
 
+/**
+ * Whether that same container is wider than it is tall.
+ *
+ * A size class cannot answer this: its width and height are bucket floors, so a 900x1400 portrait
+ * tablet and a 1400x900 landscape one both report expanded by expanded. Layouts that put two
+ * columns side by side need the real proportion, not the bucket.
+ */
+val LocalWindowIsLandscape = staticCompositionLocalOf { false }
+
 @Composable
 fun ProvideWindowSizeClass(content: @Composable () -> Unit) {
     val containerSize = LocalWindowInfo.current.containerSize
@@ -26,7 +35,12 @@ fun ProvideWindowSizeClass(content: @Composable () -> Unit) {
                 WindowSizeClass.compute(containerSize.width.toDp().value, containerSize.height.toDp().value)
             }
         }
-    CompositionLocalProvider(LocalWindowSizeClass provides windowSizeClass, content = content)
+    val isLandscape = remember(containerSize) { containerSize.width > containerSize.height }
+    CompositionLocalProvider(
+        LocalWindowSizeClass provides windowSizeClass,
+        LocalWindowIsLandscape provides isLandscape,
+        content = content,
+    )
 }
 
 val WindowSizeClass.isMediumWidth: Boolean

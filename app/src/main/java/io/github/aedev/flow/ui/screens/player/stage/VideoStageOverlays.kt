@@ -8,13 +8,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,6 +37,7 @@ import io.github.aedev.flow.ui.components.videoplayer.gesture.PlayerSpeedBoost
 import io.github.aedev.flow.ui.components.videoplayer.overlay.PlayerGestureOverlays
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimPanel
 import java.util.Locale
 
 /**
@@ -49,6 +55,7 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
     PlayerGestureOverlays(
         screenState = screenState,
         allowVolumeBoost = prefs.allowVolumeBoost,
+        style = prefs.gestureOverlayStyle,
         speedBoostSpeed =
             PlayerSpeedBoost.boostedPlaybackSpeed(
                 currentSpeed = screenState.normalSpeed,
@@ -66,15 +73,13 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
                 .padding(top = if (screenState.isFullscreen) 28.dp else 16.dp),
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-            shape = RoundedCornerShape(999.dp),
-            tonalElevation = 3.dp,
-            shadowElevation = 2.dp,
+            color = PlayerScrimPanel,
+            shape = CircleShape,
         ) {
             Text(
                 text = String.format(Locale.US, "%.1fx", screenState.zoomScale),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = PlayerScrimContent,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }
@@ -89,7 +94,10 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
         )
     }
 
-    // ── Error overlay — icon + title only; details/actions in body panel ──
+    // ── Error overlay — icon + title, plus a retry in fullscreen ──
+    // The body panel below the video carries the full recovery actions, but fullscreen does not
+    // mount it, so without this a fullscreen failure is a dead end: a message and no way to act on
+    // it short of guessing that leaving fullscreen reveals one.
     val errorMsg = playerUiState.error
     if (errorMsg != null && !playerUiState.isUpcoming) {
         Box(
@@ -120,6 +128,17 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                 )
+                if (screenState.isFullscreen) {
+                    Button(onClick = playerViewModel::retryLoadVideo) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(text = stringResource(R.string.retry))
+                    }
+                }
             }
         }
     }

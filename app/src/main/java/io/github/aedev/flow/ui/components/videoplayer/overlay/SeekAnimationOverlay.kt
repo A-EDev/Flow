@@ -4,6 +4,10 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardDoubleArrowLeft
+import androidx.compose.material.icons.rounded.KeyboardDoubleArrowRight
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -15,7 +19,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 
@@ -24,6 +27,7 @@ private const val SEEK_ZONE_WIDTH_FRACTION = 1f / 3f
 private const val SEEK_RIPPLE_ALPHA = 0.15f
 private const val SEEK_RIPPLE_PULSE_ALPHA = 0.28f
 private val ChevronTravel = 24.dp
+private val ChevronSize = 26.dp
 
 @Composable
 internal fun SeekAnimationOverlay(
@@ -169,16 +173,10 @@ private fun SeekChevronLabel(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (!forward) {
-            Text(
-                text = stringResource(R.string.player_seek_chevron_back),
-                color = PlayerScrimContent,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = chevronModifier,
-            )
+            SeekChevron(forward = false, modifier = chevronModifier)
         }
         Text(
             text =
@@ -187,17 +185,29 @@ private fun SeekChevronLabel(
                     seconds,
                 ),
             color = PlayerScrimContent,
-            fontSize = 20.sp,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
         if (forward) {
-            Text(
-                text = stringResource(R.string.player_seek_chevron_forward),
-                color = PlayerScrimContent,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = chevronModifier,
-            )
+            SeekChevron(forward = true, modifier = chevronModifier)
         }
     }
+}
+
+@Composable
+private fun SeekChevron(
+    forward: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Icon(
+        imageVector =
+            if (forward) {
+                Icons.Rounded.KeyboardDoubleArrowRight
+            } else {
+                Icons.Rounded.KeyboardDoubleArrowLeft
+            },
+        contentDescription = null,
+        tint = PlayerScrimContent,
+        modifier = modifier.size(ChevronSize),
+    )
 }

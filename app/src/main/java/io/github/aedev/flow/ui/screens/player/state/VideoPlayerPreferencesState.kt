@@ -7,6 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import io.github.aedev.flow.data.local.DownloadDialogStyle
+import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
@@ -26,6 +27,8 @@ internal class VideoPlayerPreferencesState(
     val volumeSwipeGesturesEnabled: Boolean,
     val seekSwipeGesturesEnabled: Boolean,
     val allowVolumeBoost: Boolean,
+    val gestureOverlayStyle: GestureOverlayStyle,
+    val hapticsEnabled: Boolean,
     val sbSubmitEnabled: Boolean,
     val doubleTapSeekSeconds: Int,
     val longPressPlaybackSpeed: Float,
@@ -56,6 +59,9 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val seekSwipeGesturesEnabled by playerPreferences.seekSwipeGesturesEnabled.collectAsState(initial = true)
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
+    val gestureOverlayStyle by
+        playerPreferences.gestureOverlayStyle.collectAsState(initial = GestureOverlayStyle.CIRCULAR)
+    val hapticsEnabled by playerPreferences.playerHapticsEnabled.collectAsState(initial = true)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
@@ -85,6 +91,8 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         volumeSwipeGesturesEnabled = volumeSwipeGesturesEnabled,
         seekSwipeGesturesEnabled = seekSwipeGesturesEnabled,
         allowVolumeBoost = allowVolumeBoost,
+        gestureOverlayStyle = gestureOverlayStyle,
+        hapticsEnabled = hapticsEnabled,
         sbSubmitEnabled = sbSubmitEnabled,
         doubleTapSeekSeconds = doubleTapSeekSeconds,
         longPressPlaybackSpeed = longPressPlaybackSpeed,

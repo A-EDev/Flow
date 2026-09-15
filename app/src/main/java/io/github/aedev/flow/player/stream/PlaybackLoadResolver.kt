@@ -269,11 +269,15 @@ class PlaybackLoadResolver
                     (!innerTubeResult.liveHlsUrl.isNullOrEmpty() || !innerTubeResult.liveDashUrl.isNullOrEmpty())
 
             // Extract related videos directly from the stream info (avoids extra network call)
+            // Filtering here rather than at the surfaces that draw it: this one list becomes the
+            // related cards, the autoplay candidates and the queue, so a blocked creator dropped
+            // here is dropped from all three.
             val relatedVideos =
                 if (streamInfo != null) {
                     repository
                         .getRelatedVideosFromStreamInfo(streamInfo)
                         .filter { request.allowShorts || !it.isShort }
+                        .filter { it.channelId.isBlank() || it.channelId !in request.blockedChannelIds }
                 } else {
                     emptyList()
                 }

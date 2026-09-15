@@ -42,6 +42,13 @@ private const val EXIT_FULLSCREEN_OVERSHOOT_PX = 140f
 
 private const val VERTICAL_DRAG_SENSITIVITY = 1.5f
 
+/** Where a drag leaving auto brightness resumes from, and how far below zero one may bank. */
+private const val AUTO_BRIGHTNESS_SEED = -0.06f
+private const val AUTO_BRIGHTNESS_FLOOR = -0.12f
+
+/** Float slack when comparing the stream against its maximum. */
+private const val STREAM_MAX_EPSILON = 0.001f
+
 private fun resistedTravel(
     distance: Float,
     limit: Float,
@@ -104,6 +111,14 @@ internal fun Modifier.playerDragGestures(
         var lastVolumeStep = -1
         var lastBrightnessEdge = 0
 
+        // Each vertical drag accumulates its own level rather than re-reading the one it just
+        // published. screenState is snapshot state and a pointer handler can run several times
+        // between two frames, so the read-back lags the write: every event after the first in a
+        // frame started from a stale base, which is what made brightness jitter and made volume
+        // appear to slide back down when a second swipe continued from a boosted level.
+        var volumeGestureLevel = Float.NaN
+        var brightnessGestureLevel = Float.NaN
+
         var seekDragStarted = false
         var seekDragBaseMs = 0L
         var seekDragTargetMs = 0L
@@ -114,17 +129,24 @@ internal fun Modifier.playerDragGestures(
             val screenHeight = size.height.toFloat()
             if (screenHeight <= 0f) return
 
+            if (brightnessGestureLevel.isNaN()) {
+                val level = currentBrightnessLevel()
+                // Auto reads as -1; seed just under the auto threshold so the first upward nudge
+                // leaves auto instead of jumping to whatever brightness it had before.
+                brightnessGestureLevel = if (level < 0f) AUTO_BRIGHTNESS_SEED else level
+            }
+
             val delta = -dy / screenHeight * VERTICAL_DRAG_SENSITIVITY
-            val level = currentBrightnessLevel()
-            val startLevel = if (level < 0) 0f else level
-            val rawNewLevel = startLevel + delta
+            // Tracked slightly below zero so the auto threshold stays reachable, and clamped so a
+            // long downward drag cannot bank travel the user then has to undo.
+            brightnessGestureLevel = (brightnessGestureLevel + delta).coerceIn(AUTO_BRIGHTNESS_FLOOR, 1f)
 
             // Auto brightness logic: if dragging down past -5%
             val newBrightness =
-                if (rawNewLevel < -0.05f) {
+                if (brightnessGestureLevel < -0.05f) {
                     -1.0f // Auto mode
                 } else {
-                    rawNewLevel.coerceIn(0f, 1f)
+                    brightnessGestureLevel.coerceIn(0f, 1f)
                 }
 
             currentOnBrightnessChange(newBrightness)
@@ -136,7 +158,7 @@ internal fun Modifier.playerDragGestures(
                     else -> 0
                 }
             if (edge != lastBrightnessEdge) {
-                if (edge != 0) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                if (edge != 0) haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                 lastBrightnessEdge = edge
             }
 
@@ -161,22 +183,59 @@ internal fun Modifier.playerDragGestures(
             currentOnShowBrightnessChange(true)
         }
 
+        fun systemVolumeFraction(): Float? {
+            val max = currentMaxVolume
+            if (max <= 0) return null
+            val system = currentAudioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: return null
+            return (system.toFloat() / max).coerceIn(0f, 1f)
+        }
+
         fun applyVolumeDrag(dy: Float) {
             val screenHeight = size.height.toFloat()
             if (screenHeight <= 0f) return
 
-            val delta = -dy / screenHeight * VERTICAL_DRAG_SENSITIVITY
             val ceiling = if (currentAllowVolumeBoost) 2.0f else 1.0f
-            val newVolumeLevel = (currentVolumeLevel() + delta).coerceIn(0f, ceiling)
+
+            if (volumeGestureLevel.isNaN()) {
+                // The system stream is the source of truth (#1062). Our own level goes stale
+                // whenever the volume moves outside the player — quick settings, another app, a
+                // paused session — so each gesture starts from what the stream actually holds
+                // rather than a remembered value the user has since overridden. A boost above the
+                // system ceiling is app-only state, so it survives only while the stream is maxed.
+                val remembered = currentVolumeLevel().coerceIn(0f, ceiling)
+                val systemFraction = systemVolumeFraction()
+                // "Still maxed" allows one step of slack: a drag crossing 100% lands on a fraction
+                // like 0.98, whose integer step is one below maximum, and reading that as "the user
+                // turned it down elsewhere" is what used to knock a boosted level back to 100%.
+                val step = if (currentMaxVolume > 0) 1f / currentMaxVolume else 0f
+                val streamLoweredElsewhere =
+                    systemFraction != null && systemFraction < 1f - step - STREAM_MAX_EPSILON
+                volumeGestureLevel =
+                    if (systemFraction != null && (remembered <= 1f || streamLoweredElsewhere)) {
+                        systemFraction
+                    } else {
+                        remembered
+                    }
+            }
+
+            val delta = -dy / screenHeight * VERTICAL_DRAG_SENSITIVITY
+            volumeGestureLevel = (volumeGestureLevel + delta).coerceIn(0f, ceiling)
+            val newVolumeLevel = volumeGestureLevel
             currentOnVolumeChange(newVolumeLevel)
 
-            if (newVolumeLevel <= 1.0f) {
-                val newVolume = (newVolumeLevel * currentMaxVolume).toInt()
-                currentAudioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
-                if (newVolume != lastVolumeStep) {
-                    if (lastVolumeStep >= 0) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    lastVolumeStep = newVolume
+            // Above the ceiling the app supplies the extra gain, but the stream still has to sit
+            // at maximum — both so the boost is applied on top of full volume, and so the next
+            // gesture can tell a live boost from a volume the user lowered somewhere else.
+            val newVolume =
+                if (newVolumeLevel <= 1.0f) {
+                    (newVolumeLevel * currentMaxVolume).toInt()
+                } else {
+                    currentMaxVolume
                 }
+            if (newVolume != lastVolumeStep) {
+                currentAudioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                if (lastVolumeStep >= 0) haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                lastVolumeStep = newVolume
             }
             currentOnShowVolumeChange(true)
         }
@@ -205,7 +264,7 @@ internal fun Modifier.playerDragGestures(
             val pastCommit = exitDragTravel >= EXIT_FULLSCREEN_DRAG_PX
             if (pastCommit != exitDragPastCommit) {
                 exitDragPastCommit = pastCommit
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
             }
             publishExitDrag()
         }
@@ -268,7 +327,7 @@ internal fun Modifier.playerDragGestures(
 
             if (abs(clamped - lastSeekHapticMs) >= SEEK_DRAG_HAPTIC_STEP_MS) {
                 lastSeekHapticMs = clamped
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
             }
         }
 
@@ -291,6 +350,8 @@ internal fun Modifier.playerDragGestures(
             detectPlayerDrags(
                 onDragStart = { offset ->
                     lastVolumeStep = -1
+                    volumeGestureLevel = Float.NaN
+                    brightnessGestureLevel = Float.NaN
                     lastBrightnessEdge = 0
                     seekDragStarted = false
 

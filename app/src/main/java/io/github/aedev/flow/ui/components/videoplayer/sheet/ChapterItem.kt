@@ -16,6 +16,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -39,7 +41,10 @@ internal fun ChapterItem(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .clickable(onClick = onClick),
+                .clickable(onClick = onClick)
+                // Being the chapter in play is carried by a fill and a border, which a screen
+                // reader cannot see and a test cannot assert.
+                .semantics { selected = isCurrent },
         shape = RoundedCornerShape(20.dp),
         color =
             if (isCurrent) {
