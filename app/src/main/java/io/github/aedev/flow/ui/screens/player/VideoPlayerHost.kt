@@ -116,7 +116,8 @@ fun VideoPlayerHost(
     val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val windowSizeClass = LocalWindowSizeClass.current
     val isLandscapeWindow = LocalWindowIsLandscape.current
-    val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass, isLandscapeWindow)
+    val windowLayoutMode =
+        playerWindowLayoutModeFor(windowSizeClass, isLandscapeWindow, prefs.showRelatedVideos)
     val isLargeWindow = windowLayoutMode != PlayerLayoutMode.COMPACT
     val isTwoPaneWindow = windowLayoutMode == PlayerLayoutMode.WIDE
     val paneScaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())
@@ -127,6 +128,7 @@ fun VideoPlayerHost(
             isLandscapeWindow = isLandscapeWindow,
             isFullscreen = screenState.isFullscreen,
             isInPipMode = localIsInPipMode,
+            hasSidePaneContent = prefs.showRelatedVideos,
         )
     val mediaSheetGeometry =
         rememberPlayerMediaSheetGeometry(

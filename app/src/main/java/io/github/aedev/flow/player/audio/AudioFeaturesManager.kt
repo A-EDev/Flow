@@ -64,6 +64,13 @@ class AudioFeaturesManager(
         this.playerRef = player
         if (desiredPlaybackSpeed != 1.0f) {
             player.setPlaybackParameters(PlaybackParameters(desiredPlaybackSpeed))
+            // Published as well as applied. Releasing the player resets the state flow to its
+            // defaults while this manager keeps the speed the viewer chose, so re-applying it to the
+            // new player without saying so left everything reading the state at 1x while the audio
+            // genuinely ran faster: the speed pill showed the wrong figure, and the long-press boost
+            // compared against 1x and stepped to a speed the player was already at, so holding did
+            // nothing until the speed was picked from the menu again (#867).
+            stateFlow.value = stateFlow.value.copy(playbackSpeed = desiredPlaybackSpeed)
             Log.d(TAG, "Re-applied playback speed on new player: ${desiredPlaybackSpeed}x")
         }
         pendingSkipSilence?.let { pending ->
