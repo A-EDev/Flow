@@ -46,6 +46,9 @@ private const val VERTICAL_DRAG_SENSITIVITY = 1.5f
 private const val AUTO_BRIGHTNESS_SEED = -0.06f
 private const val AUTO_BRIGHTNESS_FLOOR = -0.12f
 
+/** Float slack when comparing the stream against its maximum. */
+private const val STREAM_MAX_EPSILON = 0.001f
+
 private fun resistedTravel(
     distance: Float,
     limit: Float,
@@ -201,8 +204,14 @@ internal fun Modifier.playerDragGestures(
                 // system ceiling is app-only state, so it survives only while the stream is maxed.
                 val remembered = currentVolumeLevel().coerceIn(0f, ceiling)
                 val systemFraction = systemVolumeFraction()
+                // "Still maxed" allows one step of slack: a drag crossing 100% lands on a fraction
+                // like 0.98, whose integer step is one below maximum, and reading that as "the user
+                // turned it down elsewhere" is what used to knock a boosted level back to 100%.
+                val step = if (currentMaxVolume > 0) 1f / currentMaxVolume else 0f
+                val streamLoweredElsewhere =
+                    systemFraction != null && systemFraction < 1f - step - STREAM_MAX_EPSILON
                 volumeGestureLevel =
-                    if (systemFraction != null && (remembered <= 1f || systemFraction < 1f)) {
+                    if (systemFraction != null && (remembered <= 1f || streamLoweredElsewhere)) {
                         systemFraction
                     } else {
                         remembered
@@ -214,13 +223,19 @@ internal fun Modifier.playerDragGestures(
             val newVolumeLevel = volumeGestureLevel
             currentOnVolumeChange(newVolumeLevel)
 
-            if (newVolumeLevel <= 1.0f) {
-                val newVolume = (newVolumeLevel * currentMaxVolume).toInt()
-                currentAudioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
-                if (newVolume != lastVolumeStep) {
-                    if (lastVolumeStep >= 0) haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-                    lastVolumeStep = newVolume
+            // Above the ceiling the app supplies the extra gain, but the stream still has to sit
+            // at maximum — both so the boost is applied on top of full volume, and so the next
+            // gesture can tell a live boost from a volume the user lowered somewhere else.
+            val newVolume =
+                if (newVolumeLevel <= 1.0f) {
+                    (newVolumeLevel * currentMaxVolume).toInt()
+                } else {
+                    currentMaxVolume
                 }
+            if (newVolume != lastVolumeStep) {
+                currentAudioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                if (lastVolumeStep >= 0) haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                lastVolumeStep = newVolume
             }
             currentOnShowVolumeChange(true)
         }
