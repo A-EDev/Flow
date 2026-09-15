@@ -4,9 +4,11 @@ import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.ContentType
 import io.github.aedev.flow.data.local.SearchFilter
-import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.local.SortType
+import io.github.aedev.flow.data.search.SearchSuggestionsRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff
+import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -25,10 +27,10 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
-    private val repository: YouTubeRepository = mockk(relaxed = true)
+    private val suggestions: SearchSuggestionsRepository = mockk(relaxed = true)
     private val context: Context = mockk(relaxed = true)
 
-    private fun viewModel() = SearchViewModel(context, repository, ShortsContentFilter(flowOf(true)), ShortsQueueHandoff())
+    private fun viewModel() = SearchViewModel(context, suggestions, ShortsContentFilter(flowOf(true)), ShortsQueueHandoff())
 
     @Before
     fun setUp() {
@@ -42,10 +44,12 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `initial ui state has empty query and null filters`() {
+    fun `initial ui state has an empty query and no narrowing`() {
         val viewModel = viewModel()
+
         assertThat(viewModel.uiState.value.query).isEmpty()
-        assertThat(viewModel.uiState.value.filters).isNull()
+        assertThat(viewModel.uiState.value.filters).isEqualTo(SearchFilter.DEFAULT)
+        assertThat(viewModel.uiState.value.filters.isDefault).isTrue()
     }
 
     @Test
@@ -53,8 +57,7 @@ class SearchViewModelTest {
         val viewModel = viewModel()
         viewModel.search("Kotlin Compose")
 
-        val uiState = viewModel.uiState.value
-        assertThat(uiState.query).isEqualTo("Kotlin Compose")
+        assertThat(viewModel.uiState.value.query).isEqualTo("Kotlin Compose")
     }
 
     @Test
@@ -63,9 +66,8 @@ class SearchViewModelTest {
         viewModel.search("Kotlin")
         viewModel.search("")
 
-        val uiState = viewModel.uiState.value
-        assertThat(uiState.query).isEmpty()
-        assertThat(uiState.filters).isNull()
+        assertThat(viewModel.uiState.value.query).isEmpty()
+        assertThat(viewModel.uiState.value.filters).isEqualTo(SearchFilter.DEFAULT)
     }
 
     @Test
@@ -87,19 +89,50 @@ class SearchViewModelTest {
         viewModel.clearSearch()
 
         assertThat(viewModel.uiState.value.query).isEmpty()
-        assertThat(viewModel.uiState.value.filters).isNull()
+        assertThat(viewModel.uiState.value.filters).isEqualTo(SearchFilter.DEFAULT)
     }
 
     @Test
-    fun `getSearchSuggestions calls YouTubeRepository for valid query`() =
+    fun `a filter change keeps the query it was applied to`() {
+        val viewModel = viewModel()
+        viewModel.search("bodybuilding")
+
+        viewModel.updateFilters(SearchFilter(sortType = SortType.VIEW_COUNT))
+
+        assertThat(viewModel.uiState.value.query).isEqualTo("bodybuilding")
+        assertThat(viewModel.uiState.value.filters.sortType).isEqualTo(SortType.VIEW_COUNT)
+    }
+
+    @Test
+    fun `counts the active narrowing choices for the filter button`() {
+        val filter =
+            SearchFilter(
+                contentType = ContentType.VIDEOS,
+                sortType = SortType.VIEW_COUNT,
+                features = setOf(io.github.aedev.flow.data.local.SearchFeature.FOUR_K),
+            )
+
+        assertThat(filter.activeCount).isEqualTo(3)
+        assertThat(filter.isDefault).isFalse()
+    }
+
+    @Test
+    fun `suggestions come from the one suggestions repository`() =
         runTest {
-            val suggestions = listOf("kotlin tutorial", "kotlin android")
-            coEvery { repository.getSearchSuggestions("kotlin") } returns suggestions
+            val expected = listOf(SearchSuggestion("kotlin tutorial"), SearchSuggestion("kotlin android"))
+            coEvery { suggestions.suggestions("kotlin") } returns expected
 
-            val viewModel = viewModel()
-            val result = viewModel.getSearchSuggestions("kotlin")
+            val result = viewModel().getSearchSuggestions("kotlin")
 
-            assertThat(result).isEqualTo(suggestions)
-            coVerify(exactly = 1) { repository.getSearchSuggestions("kotlin") }
+            assertThat(result).isEqualTo(expected)
+            coVerify(exactly = 1) { suggestions.suggestions("kotlin") }
+        }
+
+    @Test
+    fun `a suggestions failure leaves the field usable`() =
+        runTest {
+            coEvery { suggestions.suggestions(any()) } throws IllegalStateException("offline")
+
+            assertThat(viewModel().getSearchSuggestions("kotlin")).isEmpty()
         }
 }

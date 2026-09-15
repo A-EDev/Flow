@@ -538,22 +538,6 @@ class YouTubeRepository
             }
 
         /**
-         * Get search suggestions from YouTube
-         */
-        suspend fun getSearchSuggestions(query: String): List<String> =
-            withContext(Dispatchers.IO) {
-                try {
-                    if (query.length < 2) return@withContext emptyList()
-
-                    val suggestionExtractor = service.suggestionExtractor
-                    suggestionExtractor.suggestionList(query)
-                } catch (e: Exception) {
-                    Log.w(TAG, "${e::class.simpleName}: ${e.message}")
-                    emptyList()
-                }
-            }
-
-        /**
          * Get video stream info for playback.
          *
          * Throws the original exception on failure so callers can display specific, accurate

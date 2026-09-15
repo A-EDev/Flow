@@ -12,6 +12,8 @@ import io.github.aedev.flow.ui.theme.withTone
 
 private const val CONTAINER_TONE_DARK = 16.0
 private const val CONTAINER_TONE_LIGHT = 92.0
+private const val RAISED_TONE_DARK = 26.0
+private const val RAISED_TONE_LIGHT = 84.0
 private const val CONTENT_TONE_DARK = 92.0
 private const val CONTENT_TONE_LIGHT = 20.0
 private const val ACCENT_TONE_DARK = 80.0
@@ -25,6 +27,8 @@ data class MediaArtworkTint(
     val container: Color,
     val onContainer: Color,
     val accent: Color,
+    /** One tone step off [container], for a control that has to read as sitting on top of it. */
+    val raised: Color,
 )
 
 /**
@@ -46,6 +50,7 @@ fun rememberMediaArtworkTint(thumbnailUrl: String?): MediaArtworkTint {
                 container = scheme.surfaceContainerHigh,
                 onContainer = scheme.onSurface,
                 accent = scheme.primary,
+                raised = scheme.surfaceContainerHighest,
             )
         }
         val dark = scheme.surface.tone() < MID_TONE
@@ -63,6 +68,11 @@ fun rememberMediaArtworkTint(thumbnailUrl: String?): MediaArtworkTint {
                 surface = container,
                 minRatio = BODY_CONTRAST,
             )
-        MediaArtworkTint(container = container, onContainer = onContainer, accent = accent)
+        MediaArtworkTint(
+            container = container,
+            onContainer = onContainer,
+            accent = accent,
+            raised = seed.withTone(if (dark) RAISED_TONE_DARK else RAISED_TONE_LIGHT),
+        )
     }
 }

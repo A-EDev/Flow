@@ -21,9 +21,9 @@ import io.github.aedev.flow.data.notes.NoteKind
 import io.github.aedev.flow.data.notes.NotesRepository
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
-import io.github.aedev.flow.innertube.pages.channel.CommunityPost
+import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
+import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import io.github.aedev.flow.ui.youtubeChannelBrowseId
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.Job
@@ -143,9 +143,9 @@ class ChannelViewModel
         private val tabController = ChannelTabController(viewModelScope)
         internal val tabStates: StateFlow<Map<ChannelTabKind, ChannelTabState>> = tabController.states
 
-        private fun channelOwner(): ChannelOwner {
+        private fun channelOwner(): FeedItemOwner {
             val state = _uiState.value
-            return ChannelOwner(
+            return FeedItemOwner(
                 id = state.channelId.orEmpty(),
                 name = state.header?.title.orEmpty(),
                 avatarUrl = state.header?.avatarUrl.orEmpty(),

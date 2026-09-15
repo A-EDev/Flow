@@ -7,10 +7,10 @@ import androidx.paging.cachedIn
 import io.github.aedev.flow.data.paging.ChannelTabPagingSource
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelFilterGroup
-import io.github.aedev.flow.innertube.pages.channel.ChannelItem
-import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
-import io.github.aedev.flow.innertube.pages.channel.ChannelSection
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
+import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -21,8 +21,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 internal data class ChannelTabState(
-    val items: Flow<PagingData<ChannelItem>>? = null,
-    val sections: List<ChannelSection> = emptyList(),
+    val items: Flow<PagingData<FeedItem>>? = null,
+    val sections: List<FeedShelf> = emptyList(),
     val filters: List<ChannelFilterGroup> = emptyList(),
     /** Index of the chosen option per filter group; -1 where the group is at the tab's default. */
     val selected: List<Int> = emptyList(),
@@ -45,11 +45,11 @@ internal class ChannelTabController(
     val states: StateFlow<Map<ChannelTabKind, ChannelTabState>> = _states.asStateFlow()
 
     private var browseId: String = ""
-    private var owner: ChannelOwner = ChannelOwner()
+    private var owner: FeedItemOwner = FeedItemOwner()
 
     fun reset(
         browseId: String,
-        owner: ChannelOwner,
+        owner: FeedItemOwner,
     ) {
         this.browseId = browseId
         this.owner = owner
@@ -159,7 +159,7 @@ internal class ChannelTabController(
     private fun publish(
         kind: ChannelTabKind,
         filters: List<ChannelFilterGroup>,
-        sections: List<ChannelSection>,
+        sections: List<FeedShelf>,
     ) {
         _states.update { states ->
             val current = states[kind] ?: ChannelTabState()

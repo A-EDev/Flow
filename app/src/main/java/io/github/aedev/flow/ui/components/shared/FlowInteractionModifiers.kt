@@ -19,6 +19,8 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import io.github.aedev.flow.ui.theme.ArtworkScrim
 
 /**
@@ -97,6 +99,21 @@ fun rememberFlowSheetState(skipPartiallyExpanded: Boolean = true): SheetState =
     rememberModalBottomSheetState(
         skipPartiallyExpanded = skipPartiallyExpanded,
     )
+
+/**
+ * Drops the keyboard the moment a finger lands on a scrollable surface behind a text field.
+ *
+ * Runs on the initial pass so the list still receives the gesture — the field never steals it.
+ */
+fun Modifier.dismissKeyboardOnPress(onPress: () -> Unit): Modifier =
+    pointerInput(onPress) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                if (event.changes.any { it.pressed }) onPress()
+            }
+        }
+    }
 
 fun LazyItemScope.animateMediaListItem(): Modifier =
     Modifier.animateItem(

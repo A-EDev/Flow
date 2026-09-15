@@ -180,7 +180,7 @@ fun TvSearchScreen(
 
             else -> {
                 videoSuggestions =
-                    runCatching { viewModel.getSearchSuggestions(trimmed) }
+                    runCatching { viewModel.getSearchSuggestions(trimmed).map { it.text } }
                         .getOrDefault(emptyList())
                 val contentType =
                     when (topFilter) {
@@ -387,8 +387,8 @@ fun TvSearchScreen(
                                                 "playlist:${item.playlist.id}"
                                             }
 
-                                            is SearchResultItem.ShortsShelfResult -> {
-                                                "shorts:${item.shorts.firstOrNull()?.id.orEmpty()}"
+                                            is SearchResultItem.ShelfResult -> {
+                                                "shelf:${item.id}"
                                             }
                                         }
                                     },
@@ -418,11 +418,11 @@ fun TvSearchScreen(
                                         )
                                     }
 
-                                    is SearchResultItem.ShortsShelfResult -> {
-                                        item.shorts.firstOrNull()?.let { short ->
+                                    is SearchResultItem.ShelfResult -> {
+                                        item.videos.firstOrNull()?.let { video ->
                                             TvVideoCard(
-                                                video = short,
-                                                onClick = { onVideoClick(short) },
+                                                video = video,
+                                                onClick = { onVideoClick(video) },
                                                 modifier = Modifier.fillMaxWidth(),
                                             )
                                         }

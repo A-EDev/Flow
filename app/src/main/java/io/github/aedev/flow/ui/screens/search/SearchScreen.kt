@@ -1,1790 +1,283 @@
-@file:Suppress("ktlint:standard:no-wildcard-imports")
-
 package io.github.aedev.flow.ui.screens.search
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
-import androidx.compose.foundation.lazy.grid.*
-import androidx.compose.foundation.shape.*
-import androidx.compose.foundation.text.*
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.*
-import androidx.compose.ui.draw.*
-import androidx.compose.ui.focus.*
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.*
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.*
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.*
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
-import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.*
 import io.github.aedev.flow.data.local.ContentType
-import io.github.aedev.flow.data.local.SearchFilter
-import io.github.aedev.flow.data.local.SearchHistoryItem
-import io.github.aedev.flow.data.model.*
+import io.github.aedev.flow.data.model.Channel
+import io.github.aedev.flow.data.model.Playlist
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
-import io.github.aedev.flow.data.search.SearchSuggestionsService
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
-import io.github.aedev.flow.ui.components.*
-import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
-import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
-import io.github.aedev.flow.utils.formatDuration
-import io.github.aedev.flow.utils.formatSubscriberCount
-import io.github.aedev.flow.utils.formatViewCount
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
+import io.github.aedev.flow.ui.components.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.rememberFeedGridLayout
+import io.github.aedev.flow.ui.components.search.SearchFilterBar
+import io.github.aedev.flow.ui.components.search.SearchFilterDialog
+import io.github.aedev.flow.ui.components.search.SearchResultActions
+import io.github.aedev.flow.ui.components.search.SearchResults
+import io.github.aedev.flow.ui.components.search.SearchResultsShimmer
+import io.github.aedev.flow.ui.components.search.SearchShortsGrid
+import io.github.aedev.flow.ui.components.search.SearchSuggestionsPanel
+import io.github.aedev.flow.ui.components.search.SearchTopBar
+import io.github.aedev.flow.ui.components.search.SearchTopBarActions
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.utils.videoIdFromUrl
 
-@OptIn(FlowPreview::class, ExperimentalMaterial3Api::class)
+/**
+ * The route: a bar, then either what the user might be looking for or what they found.
+ *
+ * Typing is a mode of this screen rather than a surface stacked on it, so back always leaves —
+ * it never has a collapse step to fall into first.
+ */
 @Composable
 fun SearchScreen(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onShortsQueue: (ShortsQueueSource) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val searchHistoryRepo = remember { SearchHistoryRepository(context) }
-    val preferences =
-        remember {
-            io.github.aedev.flow.data.local
-                .PlayerPreferences(context)
-        }
     val uiState by viewModel.uiState.collectAsState()
+    val state = rememberSearchState(viewModel)
 
-    var searchQuery by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(
-            TextFieldValue(
-                text = viewModel.uiState.value.query,
-                selection = TextRange(viewModel.uiState.value.query.length),
-            ),
-        )
-    }
-    var isSearchFocused by remember { mutableStateOf(false) }
-    val isGridMode by preferences.searchIsGridMode.collectAsState(initial = false)
-    val shortsContentEnabled by preferences.shortsContentEnabled.collectAsState(initial = true)
-
-    var hasPerformedSearch by rememberSaveable { mutableStateOf(false) }
-    var isNavigatingAway by remember { mutableStateOf(false) }
-
-    val searchHistory by searchHistoryRepo
-        .getSearchHistoryFlow()
-        .collectAsState(initial = emptyList())
-    val suggestionsEnabled by searchHistoryRepo
-        .isSearchSuggestionsEnabledFlow()
-        .collectAsState(initial = true)
+    val quickActions: QuickActionsViewModel = hiltViewModel()
+    val subscribedIds by quickActions.subscribedChannelIds.collectAsStateWithLifecycle()
     val pagingItems = viewModel.searchResults.collectAsLazyPagingItems()
-
-    val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
-    val scope = rememberCoroutineScope()
-    val focusRequester = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
+    var showFilters by rememberSaveable { mutableStateOf(false) }
 
-    var liveSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
-    var isLoadingSuggestions by remember { mutableStateOf(false) }
-    val matchingHistorySuggestions =
-        remember(searchHistory, searchQuery.text) {
-            val queryText = searchQuery.text.trim()
-            if (queryText.isBlank()) {
-                emptyList()
+    val submit: (String) -> Unit = { raw ->
+        val text = raw.trim()
+        if (text.isNotEmpty()) {
+            val videoId = videoIdFromUrl(text)
+            if (videoId != null) {
+                onVideoClick(sharedVideo(videoId, context.getString(R.string.shared_video)))
             } else {
-                val normalizedQuery = queryText.lowercase()
-                val matchingQueries =
-                    searchHistory
-                        .asSequence()
-                        .map { it.query.trim() }
-                        .filter { it.isNotBlank() && it.contains(queryText, ignoreCase = true) }
-                        .distinctBy { it.lowercase() }
-                        .toList()
-                val prefixMatches = matchingQueries.filter { it.lowercase().startsWith(normalizedQuery) }
-                val containsMatches = matchingQueries.filterNot { it.lowercase().startsWith(normalizedQuery) }
-                (prefixMatches + containsMatches).take(5)
+                state.onSubmit(text)
+                viewModel.search(text, uiState.filters)
             }
         }
-    val orderedSuggestions =
-        remember(matchingHistorySuggestions, liveSuggestions) {
-            (matchingHistorySuggestions + liveSuggestions)
-                .distinctBy { it.trim().lowercase() }
-                .take(10)
-        }
-
-    val dismissKeyboard: () -> Unit =
-        remember(focusManager, keyboardController) {
-            {
-                focusManager.clearFocus(force = true)
-                keyboardController?.hide()
-                isSearchFocused = false
-            }
-        }
-
-    val setSearchQueryToEnd: (String) -> Unit =
-        remember {
-            { value ->
-                searchQuery = TextFieldValue(value, selection = TextRange(value.length))
-            }
-        }
+    }
 
     val voiceSearchLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.StartActivityForResult(),
-        ) { result ->
-            if (result.resultCode == android.app.Activity.RESULT_OK) {
-                val spokenText =
-                    result.data
-                        ?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
-                        ?.firstOrNull()
-                if (!spokenText.isNullOrBlank()) {
-                    setSearchQueryToEnd(spokenText)
-                    dismissKeyboard()
-                    viewModel.search(spokenText)
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+            result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+                ?.takeIf(String::isNotBlank)
+                ?.let { spoken ->
+                    state.textFieldState.setTextAndPlaceCursorAtEnd(spoken)
+                    submit(spoken)
                 }
-            }
-        }
-    val launchVoiceSearch: () -> Unit = {
-        val intent =
-            android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(
-                    android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                    android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
-                )
-                putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.search_voice_prompt))
-            }
-        try {
-            voiceSearchLauncher.launch(intent)
-        } catch (_: android.content.ActivityNotFoundException) {
-        }
-    }
-
-    val navigateToVideo: (Video) -> Unit =
-        remember(dismissKeyboard, onVideoClick) {
-            { video ->
-                isNavigatingAway = true
-                hasPerformedSearch = true
-                dismissKeyboard()
-                onVideoClick(video)
-            }
         }
 
-    val navigateToShortsQueue: (List<Video>, Video) -> Unit =
-        remember(dismissKeyboard, onShortsQueue, viewModel) {
-            { shelf, tapped ->
-                isNavigatingAway = true
-                hasPerformedSearch = true
-                dismissKeyboard()
-                onShortsQueue(viewModel.shortsShelfSource(shelf, tapped))
-            }
-        }
+    val showResults = uiState.query.isNotBlank() && !state.isTyping
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
 
-    val navigateToChannel: (Channel) -> Unit =
-        remember(dismissKeyboard, onChannelClick) {
-            { channel ->
-                isNavigatingAway = true
-                hasPerformedSearch = true
-                dismissKeyboard()
-                onChannelClick(channel)
-            }
-        }
-
-    val navigateToPlaylist: (Playlist) -> Unit =
-        remember(dismissKeyboard, onPlaylistClick) {
-            { playlist ->
-                isNavigatingAway = true
-                hasPerformedSearch = true
-                dismissKeyboard()
-                onPlaylistClick(playlist)
-            }
-        }
-
-    LaunchedEffect(Unit) {
-        if (!hasPerformedSearch) {
-            delay(200)
-            try {
-                focusRequester.requestFocus()
-                keyboardController?.show()
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    LaunchedEffect(isNavigatingAway) {
-        if (isNavigatingAway) {
-            repeat(5) {
-                delay(80)
-                keyboardController?.hide()
-                focusManager.clearFocus(force = true)
-            }
-            isNavigatingAway = false
-        }
-    }
-
-    LaunchedEffect(searchQuery, isSearchFocused) {
-        val queryText = searchQuery.text
-        if (queryText.length >= 2 && isSearchFocused && suggestionsEnabled) {
-            isLoadingSuggestions = true
-            delay(280)
-            try {
-                liveSuggestions = SearchSuggestionsService.getSuggestions(queryText)
-            } catch (_: Exception) {
-                liveSuggestions = emptyList()
-            }
-            isLoadingSuggestions = false
+    LaunchedEffect(showResults) {
+        if (showResults) {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
         } else {
-            liveSuggestions = emptyList()
-            isLoadingSuggestions = false
+            runCatching { focusRequester.requestFocus() }
+            keyboard?.show()
         }
     }
 
     LaunchedEffect(uiState.query) {
-        if (uiState.query.isNotBlank()) {
-            searchHistoryRepo.saveSearchQuery(uiState.query)
-            gridState.scrollToItem(0)
-        }
-        if (!isSearchFocused && searchQuery.text != uiState.query) {
-            setSearchQueryToEnd(uiState.query)
-        }
+        if (uiState.query.isNotBlank()) gridState.scrollToItem(0)
     }
 
-    LaunchedEffect(isSearchFocused) {
-        if (isSearchFocused) {
-            keyboardController?.show()
-        }
+    LaunchedEffect(pagingItems.itemSnapshotList.items) {
+        pagingItems.itemSnapshotList.items
+            .filterIsInstance<SearchResultItem.ChannelResult>()
+            .forEach { quickActions.loadSubscriptionState(it.channel.id) }
     }
 
-    val sortByTypes =
-        listOf(
-            SortType.RELEVANCE,
-            SortType.RATING,
-            SortType.VIEWS,
-        )
-    val storedContentType = uiState.filters?.contentType ?: ContentType.ALL
-    val selectedContentType =
-        if (storedContentType == ContentType.SHORTS && !shortsContentEnabled) ContentType.ALL else storedContentType
+    // Back leaves the screen, but a query typed over a finished search returns to that search first.
+    BackHandler(enabled = state.isTyping && uiState.query.isNotBlank()) { state.stopTyping() }
 
-    LaunchedEffect(shortsContentEnabled, storedContentType) {
-        if (storedContentType == ContentType.SHORTS && !shortsContentEnabled) {
-            viewModel.updateFilters((uiState.filters ?: SearchFilter()).copy(contentType = ContentType.ALL))
-        }
-    }
-
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-    ) {
-        SearchBarRow(
-            query = searchQuery,
-            onQueryChange = {
-                if (!isNavigatingAway) {
-                    searchQuery = it
-                }
-            },
-            onSearch = {
-                val queryText = searchQuery.text
-                if (queryText.isNotBlank()) {
-                    dismissKeyboard()
-                    liveSuggestions = emptyList()
-
-                    val videoId = extractVideoId(queryText)
-                    if (videoId != null) {
-                        navigateToVideo(
-                            Video(
-                                id = videoId,
-                                title = context.getString(R.string.shared_video),
-                                channelName = context.getString(R.string.shared_video),
-                                channelId = "",
-                                thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg",
-                                duration = 0,
-                                viewCount = 0L,
-                                uploadDate = "",
-                                channelThumbnailUrl = "",
-                            ),
-                        )
-                        return@SearchBarRow
-                    }
-
-                    viewModel.search(queryText)
-                }
-            },
-            onClear = {
-                setSearchQueryToEnd("")
-                liveSuggestions = emptyList()
-                viewModel.clearSearch()
-            },
-            onVoiceSearch = launchVoiceSearch,
-            isSearchFocused = isSearchFocused,
-            onFocusChange = { focused ->
-                if (isNavigatingAway) return@SearchBarRow
-                isSearchFocused = focused
-            },
-            focusRequester = focusRequester,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
-
-        AnimatedVisibility(
-            visible =
-                isSearchFocused && searchQuery.text.isNotEmpty() &&
-                    (orderedSuggestions.isNotEmpty() || isLoadingSuggestions),
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            SuggestionsCard(
-                query = searchQuery.text,
-                suggestions = orderedSuggestions,
-                isLoading = isLoadingSuggestions,
-                onSuggestionClick = { s ->
-                    dismissKeyboard()
-                    setSearchQueryToEnd(s)
-                    liveSuggestions = emptyList()
-
-                    val videoId = extractVideoId(s)
-                    if (videoId != null) {
-                        navigateToVideo(
-                            Video(
-                                id = videoId,
-                                title = context.getString(R.string.shared_video),
-                                channelName = context.getString(R.string.shared_video),
-                                channelId = "",
-                                thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg",
-                                duration = 0,
-                                viewCount = 0L,
-                                uploadDate = "",
-                                channelThumbnailUrl = "",
-                            ),
-                        )
+    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            SearchTopBar(
+                textFieldState = state.textFieldState,
+                onSearch = submit,
+                onBack = onBack,
+                onVoiceSearch = { launchVoiceSearch(context, voiceSearchLauncher::launch) },
+                focusRequester = focusRequester,
+                onFieldFocused = state::startTyping,
+                actions =
+                    if (showResults) {
+                        {
+                            SearchTopBarActions(
+                                activeFilterCount = uiState.filters.activeCount,
+                                isGridMode = state.isGridMode,
+                                onOpenFilters = { showFilters = true },
+                                onToggleGridMode = state::toggleGridMode,
+                            )
+                        }
                     } else {
-                        viewModel.search(s)
-                    }
-                },
-                onFillClick = { setSearchQueryToEnd(it) },
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        }
-
-        val hasQuery = uiState.query.isNotBlank()
-
-        if (!hasQuery) {
-            DiscoverScreen(
-                searchHistory = searchHistory,
-                onHistoryClick = { q ->
-                    dismissKeyboard()
-                    setSearchQueryToEnd(q)
-                    viewModel.search(q)
-                },
-                onHistoryDelete = { item ->
-                    scope.launch { searchHistoryRepo.deleteSearchItem(item.id) }
-                },
-                onClearHistory = {
-                    scope.launch { searchHistoryRepo.clearSearchHistory() }
-                },
-            )
-        } else {
-            SearchFiltersBar(
-                shortsEnabled = shortsContentEnabled,
-                selectedContentType = selectedContentType,
-                onContentTypeSelected = { type ->
-                    val base = uiState.filters ?: SearchFilter()
-                    viewModel.updateFilters(base.copy(contentType = type))
-                },
-                selectedDuration = uiState.filters?.duration ?: Duration.ANY,
-                onDurationSelected = { dur ->
-                    val base = uiState.filters ?: SearchFilter()
-                    viewModel.updateFilters(base.copy(duration = dur))
-                },
-                selectedUploadDate = uiState.filters?.uploadDate ?: UploadDate.ANY,
-                onUploadDateSelected = { date ->
-                    val base = uiState.filters ?: SearchFilter()
-                    viewModel.updateFilters(base.copy(uploadDate = date))
-                },
-                isGridMode = isGridMode,
-                onToggleGridMode = { scope.launch { preferences.setSearchIsGridMode(!isGridMode) } },
-                selectedSortType = uiState.filters?.sortType ?: SortType.RELEVANCE,
-                onSelectedSortType = {
-                    val base = uiState.filters ?: SearchFilter()
-                    viewModel.updateFilters(base.copy(sortType = it))
-                },
+                        null
+                    },
             )
 
-            val isInitialLoading =
-                pagingItems.loadState.refresh is LoadState.Loading
-            val isInitialError =
-                pagingItems.loadState.refresh is LoadState.Error && pagingItems.itemCount == 0
+            if (!showResults) {
+                SearchSuggestionsPanel(
+                    query = state.query,
+                    history = state.matchingHistory,
+                    suggestions = state.suggestions,
+                    onSubmit = { text ->
+                        state.textFieldState.setTextAndPlaceCursorAtEnd(text)
+                        submit(text)
+                    },
+                    onFill = state.textFieldState::setTextAndPlaceCursorAtEnd,
+                    onDeleteHistoryItem = state::deleteHistoryItem,
+                    onClearHistory = state::clearHistory,
+                )
+                return@Column
+            }
 
+            SearchFilterBar(
+                selected = uiState.filters.contentType,
+                shortsEnabled = state.shortsContentEnabled,
+                onContentTypeSelected = { viewModel.updateFilters(uiState.filters.copy(contentType = it)) },
+                modifier = Modifier.padding(vertical = FilterBarVerticalPadding),
+            )
+
+            val refreshState = pagingItems.loadState.refresh
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                val feedLayout = rememberFeedGridLayout(maxWidth)
+                val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns, FEED_MAX_AUTO_COLUMNS)
+                val actions =
+                    remember(feedLayout, subscribedIds) {
+                        SearchResultActions(
+                            onVideoClick = onVideoClick,
+                            onShortsClick = { shelf, tapped ->
+                                onShortsQueue(viewModel.shortsShelfSource(shelf, tapped))
+                            },
+                            onChannelClick = onChannelClick,
+                            onPlaylistClick = onPlaylistClick,
+                            dismissKeyboard = state::stopTyping,
+                            isSubscribed = { it in subscribedIds },
+                            onSubscribeToggle = { channel ->
+                                quickActions.toggleSubscription(channel.id, channel.name, channel.thumbnailUrl)
+                            },
+                        )
+                    }
 
                 when {
-                    isInitialLoading -> {
-                        ShimmerResultsScreen(isGridMode, feedLayout)
+                    refreshState is LoadState.Loading -> {
+                        SearchResultsShimmer(state.isGridMode, feedLayout)
                     }
 
-                    isInitialError -> {
-                        val err =
-                            (pagingItems.loadState.refresh as LoadState.Error).error
-                        SearchErrorState(
-                            message = err.localizedMessage ?: stringResource(R.string.search_failed),
+                    refreshState is LoadState.Error && pagingItems.itemCount == 0 -> {
+                        FlowErrorState(
+                            error = refreshState.error.localizedMessage ?: stringResource(R.string.search_failed),
                             onRetry = pagingItems::retry,
                         )
                     }
 
-                    selectedContentType == ContentType.SHORTS -> {
-                        SearchShortsGrid(
-                            pagingItems,
-                            gridState,
-                            maxOf(feedLayout.columns, 2),
-                            navigateToShortsQueue,
-                            dismissKeyboard,
+                    pagingItems.itemCount == 0 -> {
+                        FlowEmptyState(
+                            title = stringResource(R.string.no_results_found),
+                            icon = Icons.Rounded.Search,
                         )
+                    }
+
+                    uiState.filters.contentType == ContentType.SHORTS -> {
+                        SearchShortsGrid(pagingItems, gridState, actions)
                     }
 
                     else -> {
-                        if (isGridMode) {
-                            SearchResultGrid(
-                                pagingItems,
-                                gridState,
-                                feedLayout,
-                                navigateToVideo,
-                                navigateToShortsQueue,
-                                navigateToChannel,
-                                navigateToPlaylist,
-                                dismissKeyboard,
-                            )
-                        } else {
-                            SearchResultList(
-                                pagingItems,
-                                gridState,
-                                feedLayout,
-                                navigateToVideo,
-                                navigateToShortsQueue,
-                                navigateToChannel,
-                                navigateToPlaylist,
-                                dismissKeyboard,
-                            )
-                        }
+                        SearchResults(pagingItems, gridState, feedLayout, state.isGridMode, actions)
                     }
                 }
             }
         }
     }
-}
 
-private fun extractVideoId(url: String): String? {
-    if (!isSupportedVideoUrl(url)) return null
-    val patterns =
-        listOf(
-            Regex("v=([^&]+)"),
-            Regex("shorts/([^/?]+)"),
-            Regex("youtu.be/([^/?]+)"),
-            Regex("embed/([^/?]+)"),
-            Regex("v/([^/?]+)"),
-        )
-    for (pattern in patterns) {
-        val match = pattern.find(url)
-        if (match != null) return match.groupValues[1]
-    }
-    return url.substringAfterLast("/").substringBefore("?").ifEmpty { null }
-}
-
-private fun isSupportedVideoUrl(url: String): Boolean {
-    val lower = url.lowercase()
-    return lower.contains("youtube.com") ||
-        lower.contains("youtu.be") ||
-        lower.contains("youtube-nocookie.com") ||
-        lower.contains("piped") ||
-        lower.contains("invidious") ||
-        lower.contains("yewtu.be")
-}
-
-@Composable
-private fun SearchBarRow(
-    query: TextFieldValue,
-    onQueryChange: (TextFieldValue) -> Unit,
-    onSearch: () -> Unit,
-    onClear: () -> Unit,
-    onVoiceSearch: () -> Unit,
-    isSearchFocused: Boolean,
-    onFocusChange: (Boolean) -> Unit,
-    focusRequester: FocusRequester,
-    modifier: Modifier = Modifier,
-) {
-    val focusAnim by animateFloatAsState(
-        targetValue = if (isSearchFocused) 1f else 0f,
-        animationSpec = tween(300),
-        label = "focus",
-    )
-    val primary = MaterialTheme.colorScheme.primary
-    val keyboardController = LocalSoftwareKeyboardController.current
-
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(23.dp))
-                .drawBehind {
-                    if (focusAnim > 0f) {
-                        drawRoundRect(
-                            brush =
-                                Brush.sweepGradient(
-                                    listOf(
-                                        primary.copy(alpha = focusAnim * 0.9f),
-                                        primary.copy(alpha = focusAnim * 0.3f),
-                                        primary.copy(alpha = focusAnim * 0.9f),
-                                    ),
-                                ),
-                            cornerRadius =
-                                androidx.compose.ui.geometry.CornerRadius(
-                                    23.dp.toPx(),
-                                ),
-                            style = Stroke(width = (2.5f * focusAnim).dp.toPx()),
-                        )
-                    }
-                }.background(
-                    color =
-                        if (isSearchFocused) {
-                            MaterialTheme.colorScheme.surface
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                        },
-                    shape = RoundedCornerShape(23.dp),
-                ).clickable(
-                    indication = null,
-                    interactionSource =
-                        remember {
-                            androidx.compose.foundation.interaction
-                                .MutableInteractionSource()
-                        },
-                ) {
-                    focusRequester.requestFocus()
-                    keyboardController?.show()
-                },
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(start = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Outlined.Search,
-                contentDescription = null,
-                tint =
-                    if (isSearchFocused) {
-                        primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester)
-                        .onFocusChanged { state ->
-                            onFocusChange(state.isFocused)
-                        },
-                textStyle =
-                    MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp,
-                    ),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions =
-                    KeyboardActions(
-                        onSearch = { if (query.text.isNotBlank()) onSearch() },
-                    ),
-                cursorBrush = SolidColor(primary),
-                decorationBox = { innerTextField ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        if (query.text.isEmpty()) {
-                            Text(
-                                stringResource(R.string.search_videos_channels_placeholder),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color =
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                        alpha = 0.55f,
-                                    ),
-                                fontSize = 16.sp,
-                            )
-                        }
-                        innerTextField()
-                    }
-                },
-            )
-
-            if (query.text.isEmpty()) {
-                Box(
-                    modifier =
-                        Modifier
-                            .padding(end = 2.dp)
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onVoiceSearch),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.Mic,
-                        contentDescription = stringResource(R.string.voice_search_cd),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            } else {
-                IconButton(onClick = onClear, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.clear),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchFiltersBar(
-    shortsEnabled: Boolean,
-    selectedContentType: ContentType,
-    onContentTypeSelected: (ContentType) -> Unit,
-    selectedDuration: Duration,
-    onDurationSelected: (Duration) -> Unit,
-    selectedUploadDate: UploadDate,
-    onUploadDateSelected: (UploadDate) -> Unit,
-    selectedSortType: SortType,
-    onSelectedSortType: (SortType) -> Unit,
-    isGridMode: Boolean,
-    onToggleGridMode: () -> Unit,
-) {
-    val showVideoFilters =
-        selectedContentType in
-            listOf(
-                ContentType.ALL,
-                ContentType.VIDEOS,
-                ContentType.LIVE,
-            )
-    val typeLabels =
-        listOf(
-            ContentType.ALL to R.string.search_filter_all,
-            ContentType.VIDEOS to R.string.videos_header,
-            ContentType.SHORTS to R.string.tab_shorts,
-            ContentType.CHANNELS to R.string.channels_header,
-            ContentType.PLAYLISTS to R.string.tab_playlists,
-            ContentType.LIVE to R.string.tab_live,
-        ).filterNot { (type, _) -> type == ContentType.SHORTS && !shortsEnabled }
-    val durationLabels =
-        listOf(
-            Duration.ANY to R.string.duration_any,
-            Duration.UNDER_4_MINUTES to R.string.duration_under_4,
-            Duration.FROM_4_TO_20_MINUTES to R.string.duration_4_20,
-            Duration.OVER_20_MINUTES to R.string.duration_over_20,
-        )
-    val uploadDateLabels =
-        listOf(
-            UploadDate.ANY to R.string.date_any,
-            UploadDate.TODAY to R.string.date_today,
-            UploadDate.THIS_WEEK to R.string.date_this_week,
-            UploadDate.THIS_MONTH to R.string.date_this_month,
-            UploadDate.THIS_YEAR to R.string.date_this_year,
-        )
-    val sortTypeLabels =
-        listOf(
-            SortType.RELEVANCE to R.string.sort_relevance,
-            SortType.RATING to R.string.sort_rating,
-            SortType.VIEWS to R.string.views,
-        )
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        LazyRow(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            item {
-                var typeExpanded by remember { mutableStateOf(false) }
-                Box {
-                    FilterChip(
-                        selected = selectedContentType != ContentType.ALL,
-                        onClick = { typeExpanded = true },
-                        label = {
-                            Text(stringResource(typeLabels.first { it.first == selectedContentType }.second))
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.FilterList, null, Modifier.size(16.dp))
-                        },
-                        trailingIcon = {
-                            Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                        },
-                    )
-                    DropdownMenu(
-                        expanded = typeExpanded,
-                        onDismissRequest = { typeExpanded = false },
-                    ) {
-                        typeLabels.forEach { (type, labelRes) ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(labelRes)) },
-                                leadingIcon =
-                                    if (type == selectedContentType) {
-                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                                    } else {
-                                        null
-                                    },
-                                onClick = {
-                                    onContentTypeSelected(type)
-                                    typeExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (showVideoFilters) {
-                item {
-                    var durationExpanded by remember { mutableStateOf(false) }
-                    Box {
-                        FilterChip(
-                            selected = selectedDuration != Duration.ANY,
-                            onClick = { durationExpanded = true },
-                            label = {
-                                Text(stringResource(durationLabels.first { it.first == selectedDuration }.second))
-                            },
-                            trailingIcon = {
-                                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                            },
-                        )
-                        DropdownMenu(
-                            expanded = durationExpanded,
-                            onDismissRequest = { durationExpanded = false },
-                        ) {
-                            durationLabels.forEach { (dur, labelRes) ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(labelRes)) },
-                                    leadingIcon =
-                                        if (dur == selectedDuration) {
-                                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                                        } else {
-                                            null
-                                        },
-                                    onClick = {
-                                        onDurationSelected(dur)
-                                        durationExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    var dateExpanded by remember { mutableStateOf(false) }
-                    Box {
-                        FilterChip(
-                            selected = selectedUploadDate != UploadDate.ANY,
-                            onClick = { dateExpanded = true },
-                            label = {
-                                Text(stringResource(uploadDateLabels.first { it.first == selectedUploadDate }.second))
-                            },
-                            trailingIcon = {
-                                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                            },
-                        )
-                        DropdownMenu(
-                            expanded = dateExpanded,
-                            onDismissRequest = { dateExpanded = false },
-                        ) {
-                            uploadDateLabels.forEach { (date, labelRes) ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(labelRes)) },
-                                    leadingIcon =
-                                        if (date == selectedUploadDate) {
-                                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                                        } else {
-                                            null
-                                        },
-                                    onClick = {
-                                        onUploadDateSelected(date)
-                                        dateExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-                item {
-                    var sortExpanded by remember { mutableStateOf(false) }
-                    Box {
-                        FilterChip(
-                            selected = selectedSortType != SortType.RELEVANCE,
-                            onClick = { sortExpanded = true },
-                            label = {
-                                Text(stringResource(sortTypeLabels.first { it.first == selectedSortType }.second))
-                            },
-                            trailingIcon = {
-                                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                            },
-                        )
-                        DropdownMenu(
-                            expanded = sortExpanded,
-                            onDismissRequest = { sortExpanded = false },
-                        ) {
-                            sortTypeLabels.forEach { (sort, labelRes) ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(labelRes)) },
-                                    leadingIcon =
-                                        if (sort == selectedSortType) {
-                                            { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
-                                        } else {
-                                            null
-                                        },
-                                    onClick = {
-                                        onSelectedSortType(sort)
-                                        sortExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Box(
-            modifier =
-                Modifier
-                    .padding(start = 2.dp, end = 6.dp)
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (isGridMode) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            Color.Transparent
-                        },
-                    ).clickable(onClick = onToggleGridMode),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
-                contentDescription = stringResource(R.string.search_toggle_view_mode),
-                tint =
-                    if (isGridMode) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-}
-
-private fun searchItemKey(
-    item: SearchResultItem?,
-    index: Int,
-): Any =
-    when (item) {
-        is SearchResultItem.VideoResult -> "v_${item.video.id}"
-        is SearchResultItem.ChannelResult -> "c_${item.channel.id}"
-        is SearchResultItem.PlaylistResult -> "p_${item.playlist.id}"
-        is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
-        null -> "placeholder_$index"
-    }
-
-/** Lets the grid reuse an item's composition when a slot is filled by another item of the same kind. */
-private fun searchItemContentType(item: SearchResultItem?): Any =
-    when (item) {
-        is SearchResultItem.VideoResult -> "video"
-        is SearchResultItem.ChannelResult -> "channel"
-        is SearchResultItem.PlaylistResult -> "playlist"
-        is SearchResultItem.ShortsShelfResult -> SHORTS_SHELF_KEY
-        null -> "placeholder"
-    }
-
-private const val SHORTS_SHELF_KEY = "shortsShelf"
-
-@Composable
-private fun SearchResultList(
-    pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
-    gridState: LazyGridState,
-    feedLayout: FeedGridLayout,
-    onVideoClick: (Video) -> Unit,
-    onShortsShelfClick: (shelf: List<Video>, tapped: Video) -> Unit,
-    onChannelClick: (Channel) -> Unit,
-    onPlaylistClick: (Playlist) -> Unit,
-    dismissKeyboard: () -> Unit,
-) {
-    LazyVerticalGrid(
-        state = gridState,
-        columns = feedLayout.cells,
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event =
-                                awaitPointerEvent(
-                                    pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
-                                )
-                            if (event.changes.any { it.pressed }) {
-                                dismissKeyboard()
-                            }
-                        }
-                    }
-                },
-        contentPadding =
-            PaddingValues(
-                start = if (feedLayout.columns == 1) 0.dp else 16.dp,
-                end = if (feedLayout.columns == 1) 0.dp else 16.dp,
-                top = 8.dp,
-                bottom = 90.dp,
-            ),
-        horizontalArrangement =
-            Arrangement.spacedBy(
-                if (feedLayout.columns == 1) 0.dp else 12.dp,
-            ),
-        verticalArrangement =
-            Arrangement.spacedBy(
-                if (feedLayout.columns == 1) 0.dp else 12.dp,
-            ),
-    ) {
-        items(
-            count = pagingItems.itemCount,
-            key = { i -> searchItemKey(pagingItems.peek(i), i) },
-            contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
-            span = { i ->
-                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult) {
-                    GridItemSpan(maxLineSpan)
-                } else {
-                    GridItemSpan(1)
-                }
+    if (showFilters) {
+        SearchFilterDialog(
+            filter = uiState.filters,
+            shortsEnabled = state.shortsContentEnabled,
+            onApply = {
+                showFilters = false
+                viewModel.updateFilters(it)
             },
-        ) { i ->
-            when (val item = pagingItems[i]) {
-                is SearchResultItem.VideoResult -> {
-                    VideoCardFullWidth(
-                        video = item.video,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        onClick = { onVideoClick(item.video) },
-                        onChannelClick = { channelId ->
-                            onChannelClick(
-                                Channel(
-                                    id = channelId,
-                                    name = item.video.channelName,
-                                    thumbnailUrl =
-                                        item.video.channelThumbnailUrl
-                                            ?: "",
-                                    subscriberCount = 0,
-                                    url = "https://www.youtube.com/channel/$channelId",
-                                ),
-                            )
-                        },
-                    )
-                }
-
-                is SearchResultItem.ChannelResult -> {
-                    SearchChannelCard(
-                        item.channel,
-                        onClick = {
-                            onChannelClick(item.channel)
-                        },
-                    )
-                }
-
-                is SearchResultItem.PlaylistResult -> {
-                    PlaylistCard(
-                        item.playlist,
-                        onClick = {
-                            onPlaylistClick(item.playlist)
-                        },
-                    )
-                }
-
-                is SearchResultItem.ShortsShelfResult -> {
-                    ShortsShelf(shorts = item.shorts, onShortClick = onShortsShelfClick)
-                }
-
-                null -> {
-                    Unit
-                }
-            }
-        }
-
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            PagingFooter(
-                pagingItems.loadState.append,
-                pagingItems::retry,
-                pagingItems.itemCount,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SearchResultGrid(
-    pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
-    gridState: LazyGridState,
-    feedLayout: FeedGridLayout,
-    onVideoClick: (Video) -> Unit,
-    onShortsShelfClick: (shelf: List<Video>, tapped: Video) -> Unit,
-    onChannelClick: (Channel) -> Unit,
-    onPlaylistClick: (Playlist) -> Unit,
-    dismissKeyboard: () -> Unit,
-) {
-    LazyVerticalGrid(
-        columns = feedLayout.cells,
-        state = gridState,
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event =
-                                awaitPointerEvent(
-                                    pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
-                                )
-                            if (event.changes.any { it.pressed }) {
-                                dismissKeyboard()
-                            }
-                        }
-                    }
-                },
-        contentPadding = PaddingValues(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        items(
-            count = pagingItems.itemCount,
-            key = { i -> searchItemKey(pagingItems.peek(i), i) },
-            contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
-            span = { i ->
-                if (pagingItems.peek(i) is SearchResultItem.ShortsShelfResult) {
-                    GridItemSpan(maxLineSpan)
-                } else {
-                    GridItemSpan(1)
-                }
-            },
-        ) { i ->
-            val item = pagingItems[i] ?: return@items
-            when (item) {
-                is SearchResultItem.VideoResult -> {
-                    CompactVideoCard(
-                        video = item.video,
-                        onClick = {
-                            onVideoClick(item.video)
-                        },
-                        onChannelClick = { channelId ->
-                            onChannelClick(
-                                Channel(
-                                    id = channelId,
-                                    name = item.video.channelName,
-                                    thumbnailUrl =
-                                        item.video.channelThumbnailUrl
-                                            ?: "",
-                                    subscriberCount = 0,
-                                    url = "https://www.youtube.com/channel/$channelId",
-                                ),
-                            )
-                        },
-                    )
-                }
-
-                is SearchResultItem.ChannelResult -> {
-                    SearchChannelCardCompact(
-                        item.channel,
-                        onClick = {
-                            onChannelClick(item.channel)
-                        },
-                    )
-                }
-
-                is SearchResultItem.PlaylistResult -> {
-                    SearchPlaylistCardCompact(
-                        item.playlist,
-                        onClick = {
-                            onPlaylistClick(item.playlist)
-                        },
-                    )
-                }
-
-                is SearchResultItem.ShortsShelfResult -> {
-                    ShortsShelf(shorts = item.shorts, onShortClick = onShortsShelfClick)
-                }
-            }
-        }
-
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            PagingFooter(
-                pagingItems.loadState.append,
-                pagingItems::retry,
-                pagingItems.itemCount,
-            )
-        }
-    }
-}
-
-private fun loadedShorts(pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>): List<Video> =
-    (0 until pagingItems.itemCount).mapNotNull {
-        (pagingItems.peek(it) as? SearchResultItem.VideoResult)?.video
-    }
-
-/** Shorts tab: a portrait grid of [ShortsCard]s. */
-@Composable
-private fun SearchShortsGrid(
-    pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
-    gridState: LazyGridState,
-    columns: Int,
-    onShortClick: (shelf: List<Video>, tapped: Video) -> Unit,
-    dismissKeyboard: () -> Unit,
-) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
-        state = gridState,
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event =
-                                awaitPointerEvent(
-                                    pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial,
-                                )
-                            if (event.changes.any { it.pressed }) {
-                                dismissKeyboard()
-                            }
-                        }
-                    }
-                },
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 90.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        items(
-            count = pagingItems.itemCount,
-            key = { i -> searchItemKey(pagingItems.peek(i), i) },
-            contentType = { i -> searchItemContentType(pagingItems.peek(i)) },
-        ) { i ->
-            (pagingItems[i] as? SearchResultItem.VideoResult)?.let {
-                ShortsCard(
-                    video = it.video,
-                    onClick = { onShortClick(loadedShorts(pagingItems), it.video) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            PagingFooter(
-                pagingItems.loadState.append,
-                pagingItems::retry,
-                pagingItems.itemCount,
-            )
-        }
-    }
-}
-
-@Composable
-private fun PagingFooter(
-    appendState: LoadState,
-    onRetry: () -> Unit,
-    itemCount: Int,
-) {
-    when {
-        appendState is LoadState.Loading -> {
-            Box(Modifier.fillMaxWidth().padding(20.dp), Alignment.Center) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        stringResource(R.string.loading_more),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-
-        appendState is LoadState.Error -> {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    appendState.error.localizedMessage ?: stringResource(R.string.load_failed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    maxLines = 2,
-                )
-                OutlinedButton(onClick = onRetry) {
-                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.retry), style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
-
-        appendState.endOfPaginationReached && itemCount > 0 -> {
-            Box(Modifier.fillMaxWidth().padding(20.dp), Alignment.Center) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    HorizontalDivider(Modifier.weight(1f))
-                    Text(
-                        stringResource(R.string.end_of_results),
-                        style = MaterialTheme.typography.bodySmall,
-                        color =
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                alpha = 0.5f,
-                            ),
-                    )
-                    HorizontalDivider(Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ShimmerResultsScreen(
-    isGrid: Boolean,
-    feedLayout: FeedGridLayout,
-) {
-    if (isGrid) {
-        LazyVerticalGrid(
-            columns = feedLayout.cells,
-            contentPadding = PaddingValues(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            items(8, key = { "shimmer_$it" }, contentType = { "shimmer" }) { ShimmerGridVideoCard() }
-        }
-    } else {
-        LazyVerticalGrid(
-            columns = feedLayout.cells,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding =
-                PaddingValues(
-                    start = if (feedLayout.columns == 1) 0.dp else 16.dp,
-                    end = if (feedLayout.columns == 1) 0.dp else 16.dp,
-                    top = 8.dp,
-                    bottom = 80.dp,
-                ),
-            horizontalArrangement =
-                Arrangement.spacedBy(
-                    if (feedLayout.columns == 1) 0.dp else 12.dp,
-                ),
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    if (feedLayout.columns == 1) 0.dp else 12.dp,
-                ),
-        ) {
-            items(8, key = { "shimmer_$it" }, contentType = { "shimmer" }) {
-                if (feedLayout.columns == 1) {
-                    ShimmerVideoCardFullWidth()
-                } else {
-                    ShimmerGridVideoCard()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DiscoverScreen(
-    searchHistory: List<SearchHistoryItem>,
-    onHistoryClick: (String) -> Unit,
-    onHistoryDelete: (SearchHistoryItem) -> Unit,
-    onClearHistory: () -> Unit,
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 90.dp),
-    ) {
-        if (searchHistory.isNotEmpty()) {
-            item {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.recent_searches),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    TextButton(onClick = onClearHistory) {
-                        Text(
-                            stringResource(R.string.clear_search_history),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                }
-            }
-            items(searchHistory.take(8), key = { it.id }) { item ->
-                HistoryRow(
-                    item = item,
-                    onClick = { onHistoryClick(item.query) },
-                    onDelete = { onHistoryDelete(item) },
-                )
-            }
-            item {
-                HorizontalDivider(
-                    Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-            }
-        }
-
-        if (searchHistory.isEmpty()) {
-            item {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillParentMaxSize()
-                            .padding(bottom = 100.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Outlined.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint =
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                    alpha = 0.2f,
-                                ),
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            stringResource(R.string.search_empty_prompt),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color =
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                    alpha = 0.6f,
-                                ),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HistoryRow(
-    item: SearchHistoryItem,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            if (item.type == SearchType.VOICE) {
-                Icons.Filled.Mic
-            } else {
-                Icons.Filled.History
-            },
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            item.query,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Filled.Close,
-                stringResource(R.string.remove),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SuggestionsCard(
-    query: String,
-    suggestions: List<String>,
-    isLoading: Boolean,
-    onSuggestionClick: (String) -> Unit,
-    onFillClick: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(10.dp),
-        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(18.dp),
-    ) {
-        LazyColumn(Modifier.heightIn(max = 300.dp)) {
-            if (isLoading && suggestions.isEmpty()) {
-                item {
-                    Box(
-                        Modifier.fillMaxWidth().padding(16.dp),
-                        Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(
-                            Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                }
-            }
-            items(suggestions, key = { it }) { s ->
-                SuggestionRow(
-                    s,
-                    query,
-                    { onSuggestionClick(s) },
-                    { onFillClick(s) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SuggestionRow(
-    suggestion: String,
-    query: String,
-    onClick: () -> Unit,
-    onFill: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 13.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Icons.Outlined.Search,
-            null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            buildAnnotatedString {
-                val idx = suggestion.indexOf(query, ignoreCase = true)
-                if (idx >= 0) {
-                    append(suggestion.substring(0, idx))
-                    withStyle(
-                        SpanStyle(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        ),
-                    ) {
-                        append(
-                            suggestion.substring(idx, idx + query.length),
-                        )
-                    }
-                    append(suggestion.substring(idx + query.length))
-                } else {
-                    append(suggestion)
-                }
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        IconButton(onClick = onFill, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Outlined.NorthWest,
-                stringResource(R.string.resize_fill),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SearchChannelCard(
-    channel: Channel,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val primary = MaterialTheme.colorScheme.primary
-    Surface(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 5.dp)
-                .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        tonalElevation = 1.dp,
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            Arrangement.spacedBy(14.dp),
-            Alignment.CenterVertically,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier
-                        .size(72.dp)
-                        .background(
-                            Brush.sweepGradient(
-                                listOf(
-                                    primary,
-                                    primary.copy(0.3f),
-                                    primary,
-                                ),
-                            ),
-                            CircleShape,
-                        ),
-                )
-                AsyncImage(
-                    channel.thumbnailUrl,
-                    channel.name,
-                    Modifier
-                        .size(66.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-            Column(Modifier.weight(1f)) {
-                Text(
-                    channel.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (channel.subscriberCount > 0) {
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        stringResource(
-                            R.string.subscribers_count_template,
-                            formatSubscriberCount(channel.subscriberCount),
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (channel.description.isNotBlank()) {
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        channel.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Icon(
-                Icons.Default.ChevronRight,
-                null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SearchChannelCardCompact(
-    channel: Channel,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant.copy(0.35f),
-                ).clickable(onClick = onClick)
-                .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        AsyncImage(
-            channel.thumbnailUrl,
-            channel.name,
-            Modifier
-                .size(60.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentScale = ContentScale.Crop,
-        )
-        Text(
-            channel.name,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            onDismiss = { showFilters = false },
         )
     }
 }
 
-@Composable
-private fun SearchPlaylistCardCompact(
-    playlist: Playlist,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun launchVoiceSearch(
+    context: Context,
+    launch: (Intent) -> Unit,
 ) {
-    Column(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(onClick = onClick),
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            AsyncImage(
-                playlist.thumbnailUrl,
-                playlist.name,
-                Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
+    val intent =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.search_voice_prompt))
         }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            playlist.name,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            pluralStringResource(R.plurals.videos_count_template, playlist.videoCount, playlist.videoCount),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    try {
+        launch(intent)
+    } catch (_: ActivityNotFoundException) {
     }
 }
 
-@Composable
-private fun SearchErrorState(
-    message: String,
-    onRetry: () -> Unit,
-) {
-    Box(Modifier.fillMaxSize(), Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                Icons.Outlined.WifiOff,
-                null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(48.dp),
-            )
-            Text(
-                stringResource(R.string.search_failed),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Button(onClick = onRetry) {
-                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.retry))
-            }
-        }
-    }
-}
+private fun sharedVideo(
+    videoId: String,
+    title: String,
+) = Video(
+    id = videoId,
+    title = title,
+    channelName = title,
+    channelId = "",
+    thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg",
+    duration = 0,
+    viewCount = 0L,
+    uploadDate = "",
+)
+
+private val FilterBarVerticalPadding = 4.dp

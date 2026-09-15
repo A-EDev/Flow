@@ -64,20 +64,16 @@ import io.github.aedev.flow.innertube.pages.SearchShortItem
 import io.github.aedev.flow.innertube.pages.SearchSuggestionPage
 import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
-import io.github.aedev.flow.innertube.pages.SearchVideosPage
 import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.innertube.pages.channel.ChannelAbout
 import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
-import io.github.aedev.flow.innertube.pages.channel.ChannelOwner
 import io.github.aedev.flow.innertube.pages.channel.ChannelPage
 import io.github.aedev.flow.innertube.pages.channel.ChannelShortsPage
 import io.github.aedev.flow.innertube.pages.channel.ChannelSortOption
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabContent
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
-import io.github.aedev.flow.innertube.pages.channel.CommunityCommentsPage
-import io.github.aedev.flow.innertube.pages.channel.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.channel.channelAboutContinuation
 import io.github.aedev.flow.innertube.pages.channel.channelSortOptions
 import io.github.aedev.flow.innertube.pages.channel.toChannelAbout
@@ -85,11 +81,17 @@ import io.github.aedev.flow.innertube.pages.channel.toChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.toChannelShortsPage
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabContent
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabs
-import io.github.aedev.flow.innertube.pages.channel.toCommunityCommentsPage
-import io.github.aedev.flow.innertube.pages.channel.toCommunityPostsPage
+import io.github.aedev.flow.innertube.pages.renderer.CommunityCommentsPage
+import io.github.aedev.flow.innertube.pages.renderer.CommunityPostsPage
+import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
+import io.github.aedev.flow.innertube.pages.renderer.toCommunityCommentsPage
+import io.github.aedev.flow.innertube.pages.renderer.toCommunityPostsPage
+import io.github.aedev.flow.innertube.pages.search.SearchResultsPage
+import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
+import io.github.aedev.flow.innertube.pages.search.parseSearchSuggestions
+import io.github.aedev.flow.innertube.pages.search.toSearchResultsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
 import io.github.aedev.flow.innertube.pages.toSearchShorts
-import io.github.aedev.flow.innertube.pages.toSearchVideosPage
 import io.github.aedev.flow.innertube.pages.toShortsPage
 import io.github.aedev.flow.innertube.pages.toVideoCommentsPage
 import io.github.aedev.flow.innertube.pages.toVideoDescriptionPage
@@ -312,24 +314,30 @@ object YouTube {
         }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
             .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
 
-    suspend fun searchByViews(
+    /** Typeahead suggestions for the video search bar, in the app's content language. */
+    suspend fun videoSearchSuggestions(query: String): Result<List<SearchSuggestion>> =
+        runCatching {
+            parseSearchSuggestions(innerTube.searchSuggestions(query).bodyAsText())
+        }
+
+    /** One page of video search. Filters and sorting ride in [params]; paging rides in [continuation]. */
+    suspend fun videoSearch(
         query: String,
-        searchParams: String,
+        params: String? = null,
         continuation: String? = null,
-    ): Result<SearchVideosPage> =
+    ): Result<SearchResultsPage> =
         runCatching {
             ensureVisitorData()
-            val searchClient = currentWebClient()
             innerTube
                 .webSearch(
-                    client = searchClient,
+                    client = currentWebClient(),
                     query = query.takeIf { continuation == null },
-                    params = searchParams.takeIf { continuation == null },
+                    params = params?.takeIf { continuation == null },
                     continuation = continuation,
                     anonymous = true,
                     includeVisitorData = true,
                 ).body<JsonObject>()
-                .toSearchVideosPage()
+                .toSearchResultsPage()
         }
 
     private suspend fun ensureVisitorData() {
@@ -707,7 +715,7 @@ object YouTube {
     suspend fun channelTab(
         browseId: String,
         params: String,
-        owner: ChannelOwner = ChannelOwner(id = browseId),
+        owner: FeedItemOwner = FeedItemOwner(id = browseId),
         kind: ChannelTabKind = ChannelTabKind.Unknown,
     ): Result<ChannelTabContent> =
         runCatching {
@@ -717,7 +725,7 @@ object YouTube {
     /** Serves paging and sort switching alike — a sort chip's token is just another continuation. */
     suspend fun channelTabContinuation(
         continuation: String,
-        owner: ChannelOwner,
+        owner: FeedItemOwner,
         kind: ChannelTabKind = ChannelTabKind.Unknown,
     ): Result<ChannelTabContent> =
         runCatching {
@@ -769,7 +777,7 @@ object YouTube {
             )
         }
 
-    private fun ChannelHeader.toOwner() = ChannelOwner(id = id, name = title, avatarUrl = avatarUrl)
+    private fun ChannelHeader.toOwner() = FeedItemOwner(id = id, name = title, avatarUrl = avatarUrl)
 
     // ── Channel-scoped video search (YouTube.com WEB API) ─────────────────────
 

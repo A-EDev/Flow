@@ -3,7 +3,7 @@ package io.github.aedev.flow.ui.screens.channel
 import android.util.Log
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.pages.channel.CommunityPost
+import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow

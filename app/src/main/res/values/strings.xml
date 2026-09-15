@@ -433,6 +433,29 @@
     <string name="clear_search_history">Clear search history</string>
     <!-- Search Filters -->
     <string name="search_filter_all">All</string>
+    <string name="search_filter_movies">Movies</string>
+    <string name="search_filters_title">Filters</string>
+    <string name="search_filters_apply">Apply</string>
+    <string name="search_filters_reset">Reset</string>
+    <string name="search_filter_group_type">Type</string>
+    <string name="search_filter_group_duration">Duration</string>
+    <string name="search_filter_group_upload_date">Upload date</string>
+    <string name="search_filter_group_features">Features</string>
+    <string name="search_filter_group_sort">Sort by</string>
+    <string name="search_feature_hd">HD</string>
+    <string name="search_feature_4k">4K</string>
+    <string name="search_feature_hdr">HDR</string>
+    <string name="search_feature_subtitles">Subtitles/CC</string>
+    <string name="search_feature_creative_commons">Creative Commons</string>
+    <string name="search_feature_360">360°</string>
+    <string name="search_feature_vr180">VR180</string>
+    <string name="search_feature_3d">3D</string>
+    <string name="search_feature_location">Location</string>
+    <string name="search_feature_purchased">Purchased</string>
+    <string name="search_results_estimated">About %1$s results</string>
+    <string name="search_shelf_show_more">Show more</string>
+    <string name="search_shelf_show_less">Show less</string>
+    <string name="search_channel_go_to">Go to channel</string>
     <string name="search_toggle_view_mode">Toggle search result view</string>
     <string name="filter_upload_date">Upload date</string>
     <string name="filter_duration">Duration</string>
@@ -454,13 +477,11 @@
     <string name="date_this_month">This month</string>
     <string name="date_this_year">This year</string>
     <string name="duration_any">Any duration</string>
-    <string name="duration_under_4">Under 4 min</string>
-    <string name="duration_4_20">4-20 min</string>
+    <string name="duration_under_3">Under 3 min</string>
+    <string name="duration_3_20">3-20 min</string>
     <string name="duration_over_20">Over 20 min</string>
     <string name="sort_relevance">Relevance</string>
-    <string name="sort_upload_date">Upload date</string>
     <string name="sort_view_count">View count</string>
-    <string name="sort_rating">Rating</string>
     <!-- Channel Screen -->
     <string name="channel_default_title">Channel</string>
     <string name="channel_banner">Channel banner</string>

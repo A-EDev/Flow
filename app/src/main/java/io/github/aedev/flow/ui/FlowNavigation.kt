@@ -295,7 +295,8 @@ fun NavGraphBuilder.flowAppGraph(
 
     composable("search") {
         currentRoute.value = "search"
-        showBottomNav.value = true
+        // Search owns the whole screen, the way YouTube's does.
+        showBottomNav.value = false
         selectedBottomNavIndex.intValue = 5
         SearchScreen(
             onVideoClick = { video ->
@@ -318,6 +319,9 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
+            },
+            onBack = {
+                if (!navController.popBackStack()) navController.navigate("home")
             },
         )
     }

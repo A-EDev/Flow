@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,6 +55,14 @@ private val MenuLabelVerticalPadding = 8.dp
 enum class FlowSubscribeButtonSize {
     Default,
     Compact,
+
+    /**
+     * Stretches the unsubscribed control to the width it is given, for a row that shares its space
+     * with another action — it otherwise sizes to its short label and sits small beside a stretched
+     * neighbour. The subscribed control always sizes to its own content, which is the only width
+     * that fits "Subscribed" beside the menu on one line.
+     */
+    Wide,
 }
 
 /**
@@ -77,6 +86,7 @@ fun FlowSubscribeButton(
     onManageGroups: (() -> Unit)? = null,
     onAddNote: (() -> Unit)? = null,
     size: FlowSubscribeButtonSize = FlowSubscribeButtonSize.Default,
+    tint: MediaArtworkTint? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     var menuExpanded by remember { mutableStateOf(false) }
@@ -88,12 +98,33 @@ fun FlowSubscribeButton(
     val trailingIconSize =
         if (compact) SplitButtonDefaults.ExtraSmallTrailingButtonIconSize else SplitButtonDefaults.TrailingIconSize
 
+    val fill = if (size == FlowSubscribeButtonSize.Wide) Modifier.fillMaxWidth() else Modifier
+
+    // On an artwork-tinted card the theme's own primary lands as an unrelated colour, and its
+    // contrast is against the theme surface rather than against the tint the card actually drew.
+    // Filling with the ink the tint already clamped to 4.5:1 stays readable whatever the avatar is.
+    val tonalColors =
+        if (tint != null) {
+            ButtonDefaults.filledTonalButtonColors(
+                containerColor = tint.raised,
+                contentColor = tint.onContainer,
+            )
+        } else {
+            ButtonDefaults.filledTonalButtonColors()
+        }
+    val subscribeColors =
+        ToggleButtonDefaults.toggleButtonColors(
+            containerColor = tint?.onContainer ?: MaterialTheme.colorScheme.primary,
+            contentColor = tint?.container ?: MaterialTheme.colorScheme.onPrimary,
+        )
+
     Box(modifier = modifier) {
         if (isSubscribed) {
             SplitButtonLayout(
                 leadingButton = {
                     SplitButtonDefaults.TonalLeadingButton(
                         onClick = { onNotificationChange?.invoke(!isNotificationsEnabled) },
+                        colors = tonalColors,
                         contentPadding =
                             if (compact) {
                                 SplitButtonDefaults.ExtraSmallLeadingButtonContentPadding
@@ -113,13 +144,14 @@ fun FlowSubscribeButton(
                             modifier = Modifier.size(leadingIconSize),
                         )
                         Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(text = stringResource(R.string.subscribed))
+                        Text(text = stringResource(R.string.subscribed), maxLines = 1)
                     }
                 },
                 trailingButton = {
                     SplitButtonDefaults.TonalTrailingButton(
                         checked = menuExpanded,
                         onCheckedChange = { menuExpanded = it },
+                        colors = tonalColors,
                         contentPadding =
                             if (compact) {
                                 SplitButtonDefaults.ExtraSmallTrailingButtonContentPadding
@@ -144,16 +176,12 @@ fun FlowSubscribeButton(
                     onSubscribeClick()
                 },
                 shapes = ToggleButtonShapes(CircleShape, CircleShape, CircleShape),
-                colors =
-                    ToggleButtonDefaults.toggleButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
+                colors = subscribeColors,
                 contentPadding =
                     if (compact) ButtonDefaults.ExtraSmallContentPadding else ToggleButtonDefaults.ContentPadding,
-                modifier = Modifier.heightIn(min = containerHeight),
+                modifier = fill.heightIn(min = containerHeight),
             ) {
-                Text(text = stringResource(R.string.subscribe))
+                Text(text = stringResource(R.string.subscribe), maxLines = 1)
             }
         }
 

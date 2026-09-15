@@ -40,6 +40,8 @@ data class FeedGridLayout(
     val contentPadding: Dp,
     val cardSpacing: Dp,
     val isCompact: Boolean,
+    /** How wide one card in this grid is, for the rows that have to line up with it without being in it. */
+    val cardWidth: Dp,
 )
 
 /**
@@ -73,6 +75,7 @@ fun feedGridLayoutFor(
         contentPadding = spacing.contentPadding,
         cardSpacing = spacing.cardSpacing,
         isCompact = isCompact,
+        cardWidth = (availableWidth - spacing.cardSpacing * (columns - 1)) / columns,
     )
 }
 
