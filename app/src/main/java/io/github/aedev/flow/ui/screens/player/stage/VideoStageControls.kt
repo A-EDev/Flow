@@ -153,6 +153,7 @@ internal fun VideoStageControls(
                 )
             },
             onChapterClick = { screenState.open(PlayerSheet.Chapters) },
+            onDescriptionClick = { screenState.open(PlayerSheet.Description) },
             onSubtitleClick = {
                 if (screenState.subtitlesEnabled) {
                     SubtitleSelection.disable(screenState)

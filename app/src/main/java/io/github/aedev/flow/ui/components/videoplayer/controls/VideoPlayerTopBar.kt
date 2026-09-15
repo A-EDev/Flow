@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -134,6 +135,8 @@ internal fun VideoPlayerTopBar(
                         modifier =
                             Modifier
                                 .weight(1f)
+                                .clip(MaterialTheme.shapes.small)
+                                .clickable(onClick = actions.onDescriptionClick)
                                 .padding(end = 8.dp),
                     ) {
                         Text(
@@ -289,6 +292,7 @@ internal fun VideoPlayerTopBar(
                 videoTitle = videoTitle,
                 channelName = channelName,
                 horizontalPadding = horizontalPadding + TitleInsetCorrection,
+                onClick = actions.onDescriptionClick,
                 modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
             )
         }

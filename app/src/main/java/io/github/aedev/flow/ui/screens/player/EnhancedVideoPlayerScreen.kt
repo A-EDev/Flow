@@ -90,7 +90,6 @@ internal fun EnhancedVideoPlayerScreen(
                 isLandscapeWindow = isLandscapeWindow,
                 isFullscreen = screenState.isFullscreen,
                 isInPipMode = isInPipMode,
-                hasSidePaneContent = showRelatedVideos,
             )
         val isWideLayout = layoutMode == PlayerLayoutMode.WIDE
         val isMediumLayout = layoutMode == PlayerLayoutMode.MEDIUM

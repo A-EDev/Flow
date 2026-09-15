@@ -27,20 +27,14 @@ internal enum class PlayerLayoutMode {
  * down one edge; upright it wants the full width and a grid, which is [PlayerLayoutMode.MEDIUM] and
  * is what YouTube does on the same device. The pane is for windows that are actually wider than
  * they are tall.
- *
- * [hasSidePaneContent] is the other half of earning it. At rest the pane holds the related videos
- * and nothing else, so with those switched off it reserved a column of empty space beside a video
- * that could have used the width (#1022). The sheets it also hosts fall back to the bottom sheets
- * every narrower window already uses.
  */
 internal fun playerWindowLayoutModeFor(
     windowSizeClass: WindowSizeClass,
     isLandscapeWindow: Boolean,
-    hasSidePaneContent: Boolean = true,
 ): PlayerLayoutMode =
     when {
         !windowSizeClass.isMediumHeight -> PlayerLayoutMode.COMPACT
-        windowSizeClass.isExpandedWidth && isLandscapeWindow && hasSidePaneContent -> PlayerLayoutMode.WIDE
+        windowSizeClass.isExpandedWidth && isLandscapeWindow -> PlayerLayoutMode.WIDE
         windowSizeClass.isMediumWidth -> PlayerLayoutMode.MEDIUM
         else -> PlayerLayoutMode.COMPACT
     }
@@ -54,10 +48,9 @@ internal fun playerLayoutModeFor(
     isLandscapeWindow: Boolean,
     isFullscreen: Boolean,
     isInPipMode: Boolean,
-    hasSidePaneContent: Boolean = true,
 ): PlayerLayoutMode =
     if (isFullscreen || isInPipMode) {
         PlayerLayoutMode.COMPACT
     } else {
-        playerWindowLayoutModeFor(windowSizeClass, isLandscapeWindow, hasSidePaneContent)
+        playerWindowLayoutModeFor(windowSizeClass, isLandscapeWindow)
     }

@@ -54,20 +54,6 @@ class PlayerLayoutModeTest {
     }
 
     @Test
-    fun `a landscape tablet keeps the full width when the side pane would be empty`() {
-        // At rest the pane holds the related videos and nothing else (#1022).
-        assertThat(
-            playerLayoutModeFor(
-                windowSizeClass = window(1440, 900),
-                isLandscapeWindow = true,
-                isFullscreen = false,
-                isInPipMode = false,
-                hasSidePaneContent = false,
-            ),
-        ).isEqualTo(PlayerLayoutMode.MEDIUM)
-    }
-
-    @Test
     fun `a medium window uses the grid layout in either orientation`() {
         assertThat(modeFor(600, 960)).isEqualTo(PlayerLayoutMode.MEDIUM)
         assertThat(modeFor(800, 600)).isEqualTo(PlayerLayoutMode.MEDIUM)
