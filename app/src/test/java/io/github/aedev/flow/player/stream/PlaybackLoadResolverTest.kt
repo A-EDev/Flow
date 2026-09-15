@@ -101,6 +101,25 @@ class PlaybackLoadResolverTest {
     }
 
     @Test
+    fun `a blocked creator never reaches the related list`() =
+        runTest(testDispatcher) {
+            coEvery { repository.getVideoStreamInfo(VIDEO_ID) } returns playableStreamInfo()
+            coEvery { InnerTubeVideoStreamExtractor.extract(any(), any()) } coAnswers { awaitCancellation() }
+            every { repository.getRelatedVideosFromStreamInfo(any()) } returns
+                listOf(
+                    relatedVideo(id = "keep", channelId = "wanted"),
+                    relatedVideo(id = "drop", channelId = "blocked"),
+                )
+
+            val steps = resolveSteps(blockedChannelIds = setOf("blocked")).second
+            advanceUntilIdle()
+
+            // This one list becomes the related cards, the autoplay candidates and the queue.
+            val merged = steps.last() as ResolvedPlayback.Merged
+            assertThat(merged.relatedVideos.map { it.id }).containsExactly("keep")
+        }
+
+    @Test
     fun `the direct ladder hands over NewPipe metadata before the merged result`() =
         runTest(testDispatcher) {
             coEvery { repository.getVideoStreamInfo(VIDEO_ID) } returns playableStreamInfo()
@@ -194,6 +213,7 @@ class PlaybackLoadResolverTest {
         escalateToSabr: Boolean = false,
         isCurrent: () -> Boolean = { true },
         upcoming: UpcomingPremiere = UpcomingPremiere.NOT_UPCOMING,
+        blockedChannelIds: Set<String> = emptySet(),
     ): Pair<Job, List<ResolvedPlayback>> {
         val steps = mutableListOf<ResolvedPlayback>()
         val job =
@@ -207,6 +227,7 @@ class PlaybackLoadResolverTest {
                             escalateToSabr = escalateToSabr,
                             resumePositionOverrideMs = null,
                             allowShorts = true,
+                            blockedChannelIds = blockedChannelIds,
                         ),
                     isCurrent = isCurrent,
                     resolveUpcoming = { _, _ -> upcoming },
@@ -215,6 +236,20 @@ class PlaybackLoadResolverTest {
             }
         return job to steps
     }
+
+    private fun relatedVideo(
+        id: String,
+        channelId: String,
+    ) = Video(
+        id = id,
+        title = id,
+        channelName = channelId,
+        channelId = channelId,
+        thumbnailUrl = "",
+        duration = 60,
+        viewCount = 0L,
+        uploadDate = "",
+    )
 
     private fun playableStreamInfo(): StreamInfo {
         val info = mockk<StreamInfo>(relaxed = true)
