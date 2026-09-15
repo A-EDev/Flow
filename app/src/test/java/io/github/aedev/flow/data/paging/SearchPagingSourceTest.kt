@@ -98,7 +98,21 @@ class SearchPagingSourceTest {
 
             assertThat(shelves.map { it.id }).containsNoDuplicates()
             assertThat(shelves.count { it.kind == SearchShelfKind.SHORTS }).isEqualTo(2)
-            assertThat(shelves.count { it.kind == SearchShelfKind.VIDEOS }).isEqualTo(1)
+        }
+
+    @Test
+    fun `folds the latest-from strip into the creator card it belongs to`() =
+        runTest {
+            val page = source(RecordingLoader(listOf(SearchFixture.ALL_SAM_SULEK))).loadPage()
+            val creator = page.data.filterIsInstance<SearchResultItem.ChannelResult>().single()
+
+            assertThat(creator.latestVideos).isNotEmpty()
+            assertThat(creator.latestTitle).isNotNull()
+            assertThat(
+                page.data.filterIsInstance<SearchResultItem.ShelfResult>().none {
+                    it.kind == SearchShelfKind.VIDEOS
+                },
+            ).isTrue()
         }
 
     @Test

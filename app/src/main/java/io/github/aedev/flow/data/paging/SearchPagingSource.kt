@@ -60,13 +60,43 @@ private val DefaultSearchPageLoader =
         YouTube.videoSearch(query, params, continuation).getOrThrow()
     }
 
-internal fun SearchResultsPage.toResultItems(shortsEnabled: Boolean): List<SearchResultItem> =
-    sections.mapNotNull { section ->
-        when (section) {
-            is SearchSection.Result -> section.item.toResultItem(shortsEnabled)
-            is SearchSection.Strip -> section.shelf.toShelfItem(shortsEnabled)
+/**
+ * YouTube returns the creator's "Latest from" strip as its own shelf directly after the channel
+ * card and renders the two as one block, so they are folded together here rather than reaching the
+ * grid as two rows that have to find each other again.
+ */
+internal fun SearchResultsPage.toResultItems(shortsEnabled: Boolean): List<SearchResultItem> {
+    val items = mutableListOf<SearchResultItem>()
+    var index = 0
+    while (index < sections.size) {
+        val item =
+            when (val section = sections[index]) {
+                is SearchSection.Result -> section.item.toResultItem(shortsEnabled)
+                is SearchSection.Strip -> section.shelf.toShelfItem(shortsEnabled)
+            }
+        val latest = (item as? SearchResultItem.ChannelResult)?.let { sections.latestStripAfter(index) }
+        if (latest != null) {
+            items +=
+                (item as SearchResultItem.ChannelResult).copy(
+                    latestTitle = latest.title,
+                    latestVideos = latest.videos,
+                )
+            index += 2
+            continue
         }
+        item?.let(items::add)
+        index++
     }
+    return items
+}
+
+/** The videos strip that immediately follows [index], if that is what the next section holds. */
+private fun List<SearchSection>.latestStripAfter(index: Int): SearchResultItem.ShelfResult? =
+    (getOrNull(index + 1) as? SearchSection.Strip)
+        ?.shelf
+        ?.toShelfItem(shortsEnabled = true)
+        ?.let { it as? SearchResultItem.ShelfResult }
+        ?.takeIf { it.kind == SearchShelfKind.VIDEOS }
 
 private fun FeedItem.toResultItem(shortsEnabled: Boolean): SearchResultItem? =
     when (this) {

@@ -68,4 +68,19 @@ class SearchResultLayoutTest {
     fun `a lone result on a tablet takes its own row`() {
         assertThat(listCards(widthDp = 1200, itemCount = 1)).containsExactly(0)
     }
+
+    @Test
+    fun `the creator strip sizes its cards from the window`() {
+        val phone = stripCardWidth(387.dp)
+        val tablet = stripCardWidth(1128.dp)
+
+        assertThat(phone.value).isLessThan(tablet.value)
+        assertThat(phone.value).isAtLeast(150f)
+        assertThat(tablet.value).isAtMost(260f)
+    }
+
+    @Test
+    fun `the creator strip never shows a card the window cannot hold`() {
+        assertThat(stripCardWidth(320.dp).value).isAtMost(320f)
+    }
 }

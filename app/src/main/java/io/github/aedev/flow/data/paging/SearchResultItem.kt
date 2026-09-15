@@ -11,8 +11,14 @@ sealed interface SearchResultItem {
         val video: Video,
     ) : SearchResultItem
 
+    /**
+     * [latestVideos] is the creator's "Latest from" strip, which YouTube returns as its own shelf
+     * directly after the card and renders attached to it.
+     */
     data class ChannelResult(
         val channel: Channel,
+        val latestTitle: String? = null,
+        val latestVideos: List<Video> = emptyList(),
     ) : SearchResultItem
 
     data class PlaylistResult(

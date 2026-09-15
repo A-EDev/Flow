@@ -111,6 +111,9 @@ fun SearchResults(
                         isSubscribed = actions.isSubscribed(item.channel.id),
                         onSubscribeToggle = { actions.onSubscribeToggle(item.channel) },
                         onClick = { actions.onChannelClick(item.channel) },
+                        latestTitle = item.latestTitle,
+                        latestVideos = item.latestVideos,
+                        onVideoClick = actions.onVideoClick,
                     )
                 }
 

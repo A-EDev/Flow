@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,6 +55,12 @@ private val MenuLabelVerticalPadding = 8.dp
 enum class FlowSubscribeButtonSize {
     Default,
     Compact,
+
+    /**
+     * Fills the width it is given, for a row that shares its space evenly with another action —
+     * the control otherwise sizes to its label and sits small beside a stretched neighbour.
+     */
+    Wide,
 }
 
 /**
@@ -88,9 +95,12 @@ fun FlowSubscribeButton(
     val trailingIconSize =
         if (compact) SplitButtonDefaults.ExtraSmallTrailingButtonIconSize else SplitButtonDefaults.TrailingIconSize
 
+    val wide = size == FlowSubscribeButtonSize.Wide
+    val fill = if (wide) Modifier.fillMaxWidth() else Modifier
     Box(modifier = modifier) {
         if (isSubscribed) {
             SplitButtonLayout(
+                modifier = fill,
                 leadingButton = {
                     SplitButtonDefaults.TonalLeadingButton(
                         onClick = { onNotificationChange?.invoke(!isNotificationsEnabled) },
@@ -151,7 +161,7 @@ fun FlowSubscribeButton(
                     ),
                 contentPadding =
                     if (compact) ButtonDefaults.ExtraSmallContentPadding else ToggleButtonDefaults.ContentPadding,
-                modifier = Modifier.heightIn(min = containerHeight),
+                modifier = fill.heightIn(min = containerHeight),
             ) {
                 Text(text = stringResource(R.string.subscribe))
             }

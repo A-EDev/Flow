@@ -111,6 +111,13 @@ class SearchComponentsTest {
     }
 
     @Test
+    fun `the creator card leaves the strip out when the response carried none`() {
+        show { SearchChannelHeroCard(samSulek, isSubscribed = false, onSubscribeToggle = {}, onClick = {}) }
+
+        assertThat(nodesContaining("Latest from")).isEmpty()
+    }
+
+    @Test
     fun `the top bar badges how many narrowing choices are active`() {
         val filter =
             SearchFilter(
