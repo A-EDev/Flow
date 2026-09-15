@@ -23,6 +23,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -62,6 +64,7 @@ internal fun PlayerTransportControls(
     val showIndicator by remember(showBufferingSpinner, isLayerVisible) {
         derivedStateOf { showBufferingSpinner && isLayerVisible() }
     }
+    val haptics = LocalHapticFeedback.current
 
     Box(
         modifier = modifier,
@@ -82,7 +85,12 @@ internal fun PlayerTransportControls(
 
             val playPauseInteractionSource = remember { MutableInteractionSource() }
             FilledIconButton(
-                onClick = actions.onPlayPause,
+                onClick = {
+                    haptics.performHapticFeedback(
+                        if (isPlaying) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn,
+                    )
+                    actions.onPlayPause()
+                },
                 shape = CircleShape,
                 colors =
                     IconButtonDefaults.filledIconButtonColors(
@@ -136,8 +144,12 @@ private fun SkipButton(
     contentDescription: String,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val haptics = LocalHapticFeedback.current
     IconButton(
-        onClick = onClick,
+        onClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+            onClick()
+        },
         enabled = enabled,
         modifier =
             Modifier

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimGestureHud
 
@@ -51,7 +52,7 @@ internal fun BrightnessOverlay(
         val animatedBrightness =
             animateFloatAsState(
                 targetValue = if (isAuto) 0f else level.coerceIn(0f, 1f),
-                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                 label = "brightness",
             )
         val iconVector =
@@ -92,7 +93,7 @@ internal fun VolumeOverlay(
         val animatedVolume =
             animateFloatAsState(
                 targetValue = level.coerceIn(0f, ceiling),
-                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                 label = "volume",
             )
         val iconVector =
@@ -170,7 +171,7 @@ private fun GestureLevelHudContent(
                 modifier = Modifier.fillMaxSize(),
                 color = indicatorColor,
                 strokeWidth = 8.dp,
-                trackColor = PlayerScrim.copy(alpha = 0.42f),
+                trackColor = PlayerScrimAffordance,
                 strokeCap = StrokeCap.Round,
             )
             Box(

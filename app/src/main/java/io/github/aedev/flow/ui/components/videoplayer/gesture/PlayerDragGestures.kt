@@ -136,7 +136,7 @@ internal fun Modifier.playerDragGestures(
                     else -> 0
                 }
             if (edge != lastBrightnessEdge) {
-                if (edge != 0) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                if (edge != 0) haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                 lastBrightnessEdge = edge
             }
 
@@ -174,7 +174,7 @@ internal fun Modifier.playerDragGestures(
                 val newVolume = (newVolumeLevel * currentMaxVolume).toInt()
                 currentAudioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
                 if (newVolume != lastVolumeStep) {
-                    if (lastVolumeStep >= 0) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (lastVolumeStep >= 0) haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                     lastVolumeStep = newVolume
                 }
             }
@@ -205,7 +205,7 @@ internal fun Modifier.playerDragGestures(
             val pastCommit = exitDragTravel >= EXIT_FULLSCREEN_DRAG_PX
             if (pastCommit != exitDragPastCommit) {
                 exitDragPastCommit = pastCommit
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
             }
             publishExitDrag()
         }
@@ -268,7 +268,7 @@ internal fun Modifier.playerDragGestures(
 
             if (abs(clamped - lastSeekHapticMs) >= SEEK_DRAG_HAPTIC_STEP_MS) {
                 lastSeekHapticMs = clamped
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
             }
         }
 

@@ -54,6 +54,8 @@ import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimContentDisabled
+import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
 
 /**
  * The row of actions along the top of the player: minimise, title, and the configurable action
@@ -249,9 +251,9 @@ internal fun VideoPlayerTopBar(
                             contentDescription = stringResource(R.string.autoplay),
                             tint =
                                 when {
-                                    isLooping -> PlayerScrimContent.copy(alpha = 0.35f)
+                                    isLooping -> PlayerScrimContentDisabled
                                     isAutoplayOn -> accentColor
-                                    else -> PlayerScrimContent.copy(alpha = 0.7f)
+                                    else -> PlayerScrimContentSecondary
                                 },
                             modifier = Modifier.size(actionIconSize),
                         )

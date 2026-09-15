@@ -3,7 +3,7 @@ package io.github.aedev.flow.ui.components.videoplayer.overlay
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Icon
@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimPanel
 import kotlinx.coroutines.delay
 
 private const val SB_SKIP_DIM_DELAY_MS = 5_000L
@@ -119,9 +120,9 @@ fun SponsorBlockSkipButton(
                 skippedUuids = skippedUuids + seg.uuid
                 onSkipClick((seg.endTime * 1000L).toLong())
             },
-            color = PlayerScrim.copy(alpha = 0.5f),
+            color = PlayerScrimPanel,
             contentColor = PlayerScrimContent,
-            shape = RoundedCornerShape(50),
+            shape = CircleShape,
             tonalElevation = 0.dp,
             modifier = Modifier.graphicsLayer { alpha = buttonAlpha.value },
         ) {
