@@ -168,6 +168,7 @@ class EnhancedPlayerManager private constructor() {
     private var currentLocalFilePath: String? = null
     private val clearedMediaRecoveryState = ClearedMediaRecoveryState()
     private var pendingSurfaceFirstFrameStartedAtMs = 0L
+    private var surfaceFirstFrameWatchdog: Job? = null
 
     // Queue management
     private val queue = PlaybackQueueController()
@@ -818,6 +819,8 @@ class EnhancedPlayerManager private constructor() {
                 override fun onRenderedFirstFrame() {
                     Log.d(TAG, "First frame rendered - video renderer working")
                     surfaceManager?.setSurfaceReady(true)
+                    surfaceFirstFrameWatchdog?.cancel()
+                    surfaceFirstFrameWatchdog = null
                     pendingSurfaceFirstFrameStartedAtMs.takeIf { it > 0L }?.let { startedAtMs ->
                         pendingSurfaceFirstFrameStartedAtMs = 0L
                         Log.w(
@@ -2699,21 +2702,73 @@ class EnhancedPlayerManager private constructor() {
                 }
             }
             if (resyncPausedVideo && p != null) {
-                val position = p.currentPosition
-                Log.w(
-                    "FlowVideoLifecycle",
-                    "surfaceReattachResync video=$currentVideoId pos=$position",
-                )
-                p.seekTo(position)
+                resyncAfterSurfaceReattach(p)
+            } else if (p != null && !wasSurfaceValid && !audioOnlyMode.isActive && !currentIsLiveStream) {
+                armSurfaceFirstFrameWatchdog(p)
             }
         }
         return attached
+    }
+
+    /**
+     * Catches a surface that came back but never drew.
+     *
+     * While playing, a stale read-ahead corrects itself as the clock advances, so the re-attach
+     * above deliberately leaves playback alone. What does not correct itself is a codec whose
+     * output surface was swapped and which then renders nothing at all — the picture stays black
+     * while the audio keeps going, and only another surface change brings it back (#1064). A first
+     * frame normally lands in about a tenth of a second, so silence well past that is evidence of
+     * that state rather than a slow device, and the same flush the paused path uses recovers it.
+     */
+    private fun armSurfaceFirstFrameWatchdog(p: ExoPlayer) {
+        surfaceFirstFrameWatchdog?.cancel()
+        surfaceFirstFrameWatchdog =
+            scope.launch {
+                delay(SURFACE_FIRST_FRAME_TIMEOUT_MS)
+                if (pendingSurfaceFirstFrameStartedAtMs == 0L) return@launch
+                if (surfaceManager?.isSurfaceValid() != true) return@launch
+                if (p.playbackState != Player.STATE_READY || !p.playWhenReady) return@launch
+                Log.w(
+                    "FlowVideoLifecycle",
+                    "surfaceFirstFrameTimeout video=$currentVideoId pos=${p.currentPosition} — forcing a flush",
+                )
+                resyncAfterSurfaceReattach(p)
+            }
+    }
+
+    /**
+     * Realigns the video codec with the playhead after its surface came back.
+     *
+     * The seek is one millisecond short of the current position on purpose: a seek that resolves to
+     * the position the player already reports never reaches the code that disables the renderers,
+     * so the codec keeps decoding from wherever its read-ahead had got to. While paused that can be
+     * ten seconds past the playhead, and playback then shows a frozen frame until the clock catches
+     * up. Exact seek parameters keep the one-millisecond step from snapping to a sync frame.
+     */
+    private fun resyncAfterSurfaceReattach(p: ExoPlayer) {
+        val position = p.currentPosition
+        if (mediaLoader?.getActiveSabrOrchestrator() != null) {
+            // A SABR seek tears the session down and rebuilds it, which is far more than a surface
+            // swap should cost.
+            Log.w("FlowVideoLifecycle", "surfaceReattachResync skipped sabr video=$currentVideoId pos=$position")
+            return
+        }
+        val target = VideoSurfacePolicy.resyncSeekTargetMs(position)
+        Log.w(
+            "FlowVideoLifecycle",
+            "surfaceReattachResync video=$currentVideoId pos=$position target=$target",
+        )
+        p.setSeekParameters(SeekParameters.EXACT)
+        p.seekTo(target)
+        p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
     }
 
     fun detachVideoSurface(holder: SurfaceHolder? = null) {
         val hadManagedSurface = surfaceManager?.getSurfaceHolder() != null
         surfaceManager?.detachVideoSurface(holder, player, appContext)
         if (hadManagedSurface) {
+            surfaceFirstFrameWatchdog?.cancel()
+            surfaceFirstFrameWatchdog = null
             pendingSurfaceFirstFrameStartedAtMs = 0L
             Log.w(
                 "FlowVideoLifecycle",
@@ -3081,3 +3136,9 @@ typealias EnhancedPlayerState = io.github.aedev.flow.player.state.EnhancedPlayer
 typealias QualityOption = io.github.aedev.flow.player.state.QualityOption
 typealias AudioTrackOption = io.github.aedev.flow.player.state.AudioTrackOption
 typealias SubtitleOption = io.github.aedev.flow.player.state.SubtitleOption
+
+/**
+ * How long a re-attached surface may stay blank before it is treated as stuck rather than slow. A
+ * first frame measured on a real device lands around 120 ms.
+ */
+private const val SURFACE_FIRST_FRAME_TIMEOUT_MS = 1_200L
