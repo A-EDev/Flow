@@ -2901,4 +2901,6 @@
         <item quantity="many">%1$d فصل</item>
         <item quantity="other">%1$d فصل</item>
     </plurals>
+    <string name="download_threads_decrease">تقسيمات تنزيل أقل</string>
+    <string name="download_threads_increase">تقسيمات تنزيل أكثر</string>
 </resources>
