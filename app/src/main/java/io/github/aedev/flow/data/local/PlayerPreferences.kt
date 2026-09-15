@@ -218,6 +218,8 @@ class PlayerPreferences(
         val MINI_PLAYER_SHOW_SKIP_CONTROLS = booleanPreferencesKey("mini_player_show_skip_controls")
         val MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS = booleanPreferencesKey("mini_player_show_next_prev_controls")
         val MINI_PLAYER_CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("mini_player_continue_watching_enabled")
+        val DISMISSED_CONTINUE_WATCHING_VIDEO_ID = stringPreferencesKey("dismissed_continue_watching_video_id")
+        val DISMISSED_CONTINUE_WATCHING_TIMESTAMP = longPreferencesKey("dismissed_continue_watching_timestamp")
         val SHOW_RESTORED_MUSIC_MINI_PLAYER = booleanPreferencesKey("show_restored_music_mini_player")
 
         // Audio focus during calls
@@ -2660,6 +2662,35 @@ class PlayerPreferences(
     suspend fun setMiniPlayerContinueWatchingEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MINI_PLAYER_CONTINUE_WATCHING_ENABLED] = enabled
+        }
+    }
+
+    val dismissedContinueWatchingVideoId: Flow<String?> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.DISMISSED_CONTINUE_WATCHING_VIDEO_ID]
+            }
+
+    val dismissedContinueWatchingTimestamp: Flow<Long> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.DISMISSED_CONTINUE_WATCHING_TIMESTAMP] ?: 0L
+            }
+
+    suspend fun setDismissedContinueWatching(
+        videoId: String,
+        timestamp: Long,
+    ) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DISMISSED_CONTINUE_WATCHING_VIDEO_ID] = videoId
+            preferences[Keys.DISMISSED_CONTINUE_WATCHING_TIMESTAMP] = timestamp
+        }
+    }
+
+    suspend fun clearDismissedContinueWatching() {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences.remove(Keys.DISMISSED_CONTINUE_WATCHING_VIDEO_ID)
+            preferences.remove(Keys.DISMISSED_CONTINUE_WATCHING_TIMESTAMP)
         }
     }
 

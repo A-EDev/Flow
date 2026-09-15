@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WatchHistoryDao {
-
     // ── Writes ──────────────────────────────────────────────────────────────
 
     /** Save / update a single entry (e.g. real-time playback position). */
@@ -43,7 +42,10 @@ interface WatchHistoryDao {
 
     /** Paged version for very large histories (UI only needs recent items). */
     @Query("SELECT * FROM watch_history ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
-    suspend fun getHistoryPage(limit: Int, offset: Int): List<WatchHistoryEntity>
+    suspend fun getHistoryPage(
+        limit: Int,
+        offset: Int,
+    ): List<WatchHistoryEntity>
 
     @Query("SELECT * FROM watch_history WHERE isMusic = 0 AND isLocal = 0 ORDER BY timestamp DESC")
     fun getVideoHistory(): Flow<List<WatchHistoryEntity>>
@@ -71,17 +73,23 @@ interface WatchHistoryDao {
     @Query("SELECT videoId FROM watch_history WHERE isMusic = 0 AND isLocal = 0")
     suspend fun getAllWatchedVideoIds(): List<String>
 
-    @Query("""
+    @Query(
+        """
         SELECT videoId FROM watch_history
         WHERE isMusic = 0
         AND isLocal = 0
         AND duration > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
         AND (duration - position) <= :maxRemainingMs
-    """)
-    suspend fun getWatchedVideoIdsAboveThreshold(minPercent: Float = 99f, maxRemainingMs: Long = Long.MAX_VALUE): List<String>
+    """,
+    )
+    suspend fun getWatchedVideoIdsAboveThreshold(
+        minPercent: Float = 99f,
+        maxRemainingMs: Long = Long.MAX_VALUE,
+    ): List<String>
 
-    @Query("""
+    @Query(
+        """
         SELECT videoId FROM watch_history
         WHERE isMusic = 0
         AND isLocal = 0
@@ -89,8 +97,12 @@ interface WatchHistoryDao {
         AND duration > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
         AND (duration - position) <= :maxRemainingMs
-    """)
-    suspend fun getWatchedShortIdsAboveThreshold(minPercent: Float = 99f, maxRemainingMs: Long = Long.MAX_VALUE): List<String>
+    """,
+    )
+    suspend fun getWatchedShortIdsAboveThreshold(
+        minPercent: Float = 99f,
+        maxRemainingMs: Long = Long.MAX_VALUE,
+    ): List<String>
 
     /**
      * Returns the most recently watched non-music, non-Short video **only if that specific video
@@ -104,7 +116,8 @@ interface WatchHistoryDao {
      *  - less than 95% watched
      *  - more than 30 seconds of content remaining
      */
-    @Query("""
+    @Query(
+        """
         SELECT * FROM watch_history
         WHERE isMusic = 0
         AND isShort = 0
@@ -115,13 +128,14 @@ interface WatchHistoryDao {
         AND (duration - position) > 30000
         AND timestamp = (SELECT MAX(timestamp) FROM watch_history WHERE isMusic = 0 AND isShort = 0 AND isLocal = 0)
         LIMIT 1
-    """)
+    """,
+    )
     suspend fun getLatestUnfinishedVideo(): WatchHistoryEntity?
 
     /**
      * Marks a video as fully watched by setting position = duration.
-     * This excludes it from the continue-watching popup on the next launch.
-     * Called when the user explicitly dismisses the restored-session mini-player.
+     * Use only for explicit manual user actions (e.g. context menu "Mark as Watched").
+     * Do NOT use for continue-watching dismissals, as that corrupts actual user playback progress.
      */
     @Query("UPDATE watch_history SET position = duration WHERE videoId = :videoId")
     suspend fun markAsWatched(videoId: String)

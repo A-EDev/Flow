@@ -495,10 +495,13 @@ class VideoPlayerViewModel
                     // Don't restore video session if music is already playing
                     if (EnhancedMusicPlayerManager.currentTrack.value != null) return@launch
                     val lastVideo = withContext(Dispatchers.IO) { viewHistory.getLatestUnfinishedVideo() }
-                    if (lastVideo != null && _uiState.value.cachedVideo == null) {
+                    val dismissedId = playerPreferences.dismissedContinueWatchingVideoId.first()
+                    val dismissedTimestamp = playerPreferences.dismissedContinueWatchingTimestamp.first()
+
+                    if (shouldRestoreContinueWatching(lastVideo, dismissedId, dismissedTimestamp) && _uiState.value.cachedVideo == null) {
                         _uiState.update {
                             it.copy(
-                                cachedVideo = lastVideo.toVideo(),
+                                cachedVideo = lastVideo!!.toVideo(),
                                 isRestoredSession = true,
                             )
                         }
@@ -581,7 +584,7 @@ class VideoPlayerViewModel
         fun dismissContinueWatching() {
             val videoId = _uiState.value.cachedVideo?.id ?: return
             viewModelScope.launch {
-                viewHistory.markAsWatched(videoId)
+                playerPreferences.setDismissedContinueWatching(videoId, System.currentTimeMillis())
             }
         }
 
