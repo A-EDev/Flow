@@ -2903,4 +2903,27 @@
     </plurals>
     <string name="download_threads_decrease">تقسيمات تنزيل أقل</string>
     <string name="download_threads_increase">تقسيمات تنزيل أكثر</string>
+    <string name="scheduled_for_prefix">مجدول في %1$s</string>
+    <string name="live_in_prefix">مباشر %1$s</string>
+    <string name="channel_about_handle">المعرّف</string>
+    <string name="channel_about_joined">‎انضم في</string>
+    <string name="channel_about_country">البلد</string>
+    <string name="channel_about_videos">الفيديوهات</string>
+    <string name="channel_about_links">الروابط</string>
+    <string name="note_title">ملاحظة</string>
+    <string name="sync_collection_notes">ملاحظات</string>
+    <string name="note_edit">تعديل الملاحظة</string>
+    <string name="note_add">إضافة ملاحظة</string>
+    <string name="note_placeholder">اكتب ملاحظة لنفسك…</string>
+    <string name="note_channel_title">ملاحظة عن هذه القناة</string>
+    <string name="note_video_title">ملاحظة عن هذا الفيديو</string>
+    <string name="content_settings_notes_title">ملاحظات شخصية</string>
+    <string name="content_settings_notes_subtitle">‎احتفظ بملاحظات خاصة على القنوات والفيديوهات</string>
+    <string name="content_settings_channel_notes_title">ملاحظات القناة</string>
+    <string name="content_settings_channel_notes_subtitle">إظهار ملاحظة في صفحة القناة</string>
+    <string name="content_settings_video_notes_title">ملاحظات الفيديو</string>
+    <string name="content_settings_video_notes_subtitle">إظهار ملاحظة في وصف الفيديو</string>
+    <string name="channel_about_more_info">مزيد من المعلومات</string>
+    <string name="channel_post_image_count">%1$d / %2$d</string>
+    <string name="channel_post_poll_votes">%1$s</string>
 </resources>
