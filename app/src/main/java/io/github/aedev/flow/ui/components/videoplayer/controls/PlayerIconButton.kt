@@ -40,7 +40,7 @@ internal fun PlayerPillIconButton(
             haptic?.let(haptics::performHapticFeedback)
             onClick()
         },
-        shape = CircleShape,
+        shapes = IconButtonDefaults.shapes(),
         colors =
             IconButtonDefaults.filledIconButtonColors(
                 containerColor = containerColor,
