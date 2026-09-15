@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,6 +37,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 /** Sizing shared by the pill row and the seek bar beneath it. */
@@ -59,6 +61,7 @@ internal fun PlayerBottomBar(
     duration: Long,
     isLive: Boolean,
     isFullscreen: Boolean,
+    isPortraitFullscreen: Boolean,
     showRemainingTime: Boolean,
     showCommentsButton: Boolean,
     isCommentsPanelOpen: Boolean,
@@ -119,6 +122,8 @@ internal fun PlayerBottomBar(
                     showRemainingTime = showRemainingTime,
                     onClick = { if (isLive) actions.onLiveClick() else actions.onToggleRemainingTime() },
                     modifier = Modifier.height(metrics.pillHeight),
+                    containerColor =
+                        if (isPortraitFullscreen) Color.Transparent else PlayerScrimAffordance,
                     isLayerVisible = isLayerVisible,
                 )
 
@@ -146,7 +151,7 @@ internal fun PlayerBottomBar(
                             Icon(
                                 imageVector = Icons.Rounded.ChevronRight,
                                 contentDescription = null,
-                                tint = PlayerScrimContent.copy(alpha = 0.6f),
+                                tint = PlayerScrimContentSecondary,
                                 modifier = Modifier.size(14.dp),
                             )
                         }

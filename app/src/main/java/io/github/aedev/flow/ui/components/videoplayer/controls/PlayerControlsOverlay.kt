@@ -100,12 +100,26 @@ internal fun PlayerControlsOverlay(
     val fullscreenSeekbarHorizontalPaddingDp = overlayPreferences.fullscreenSeekbarHorizontalPaddingDp
     val portraitSeekbarHorizontalPaddingDp = overlayPreferences.portraitSeekbarHorizontalPaddingDp
     val isFullscreen = state.isFullscreen
-    val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
-    val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 12.dp
+    val isPortraitFullscreen = isFullscreen && state.isPortraitFullscreen
+    // Landscape fullscreen insets the controls well clear of the rounded corners and the gesture
+    // bar. Portrait fullscreen is the same width as the portrait player, so it keeps the portrait
+    // insets and only the vertical breathing room changes.
+    val fullscreenSeekbarBottomPadding =
+        when {
+            isPortraitFullscreen -> 12.dp
+            isFullscreen -> 30.dp
+            else -> 0.dp
+        }
+    val bottomControlHorizontalPadding =
+        when {
+            isPortraitFullscreen -> 16.dp
+            isFullscreen -> 56.dp
+            else -> 12.dp
+        }
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 4.dp
     val portraitFullscreenTopPadding =
-        if (isFullscreen && state.isPortraitFullscreen) {
+        if (isPortraitFullscreen) {
             WindowInsets.displayCutout
                 .asPaddingValues()
                 .calculateTopPadding()
@@ -114,13 +128,13 @@ internal fun PlayerControlsOverlay(
             0.dp
         }
     val seekbarHorizontalPadding =
-        if (isFullscreen) {
+        if (isFullscreen && !isPortraitFullscreen) {
             fullscreenSeekbarHorizontalPaddingDp.dp
         } else {
             portraitSeekbarHorizontalPaddingDp.dp
         }
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
-    val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
+    val chapterMaxWidth = if (isFullscreen && !isPortraitFullscreen) 200.dp else 96.dp
     val qualityBadge = remember(state.qualityLabel) { state.qualityLabel?.let(::compactPlayerQualityBadge) }
     val compactQualityLabel = qualityBadge?.let { playerQualityBadgeLabel(it) }
     val speedIndicatorLabel = remember(state.playbackSpeed) { formatMultiplierLabel(state.playbackSpeed) }
@@ -162,7 +176,7 @@ internal fun PlayerControlsOverlay(
                 .fillMaxSize()
                 .windowInsetsPadding(windowInsets),
     ) {
-        if (isFullscreen && state.isPortraitFullscreen) {
+        if (isPortraitFullscreen) {
             PortraitFullscreenEdgeScrims(modifier = Modifier.matchParentSize())
         }
 
@@ -222,7 +236,9 @@ internal fun PlayerControlsOverlay(
                     VideoPlayerTopBar(
                         preferences = overlayPreferences,
                         isFullscreen = isFullscreen,
+                        isPortraitFullscreen = isPortraitFullscreen,
                         videoTitle = state.videoTitle,
+                        channelName = state.channelName,
                         speedIndicatorLabel = speedIndicatorLabel,
                         resizeMode = state.resizeMode,
                         resizeModeLabels = resizeModes,
@@ -266,8 +282,13 @@ internal fun PlayerControlsOverlay(
                         duration = state.duration,
                         isLive = state.isLive,
                         isFullscreen = isFullscreen,
+                        isPortraitFullscreen = isPortraitFullscreen,
                         showRemainingTime = state.showRemainingTime,
-                        showCommentsButton = overlayCommentsEnabled && state.isCommentsAvailable && isFullscreen,
+                        showCommentsButton =
+                            overlayCommentsEnabled &&
+                                state.isCommentsAvailable &&
+                                isFullscreen &&
+                                !isPortraitFullscreen,
                         isCommentsPanelOpen = state.isCommentsPanelOpen,
                         currentChapter = currentChapter,
                         compactQualityLabel = compactQualityLabel,

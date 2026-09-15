@@ -18,6 +18,7 @@ internal data class PlayerControlsUiState(
     val duration: Long = 0L,
     val qualityLabel: String? = null,
     val videoTitle: String? = null,
+    val channelName: String? = null,
     val playbackSpeed: Float = 1.0f,
     val resizeMode: Int = 0,
     val isFullscreen: Boolean = false,

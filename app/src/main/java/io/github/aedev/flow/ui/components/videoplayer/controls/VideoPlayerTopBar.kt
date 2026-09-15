@@ -66,7 +66,9 @@ import io.github.aedev.flow.ui.theme.PlayerScrimContent
 internal fun VideoPlayerTopBar(
     preferences: PlayerOverlayPreferences,
     isFullscreen: Boolean,
+    isPortraitFullscreen: Boolean,
     videoTitle: String?,
+    channelName: String?,
     speedIndicatorLabel: String,
     resizeMode: Int,
     resizeModeLabels: List<String>,
@@ -122,7 +124,12 @@ internal fun VideoPlayerTopBar(
                     containerColor = Color.Transparent,
                 )
 
-                if (isFullscreen && preferences.fullscreenTitleEnabled && !videoTitle.isNullOrBlank()) {
+                if (
+                    isFullscreen &&
+                    !isPortraitFullscreen &&
+                    preferences.fullscreenTitleEnabled &&
+                    !videoTitle.isNullOrBlank()
+                ) {
                     Text(
                         text = videoTitle,
                         color = PlayerScrimContent,
@@ -291,8 +298,26 @@ internal fun VideoPlayerTopBar(
                 )
             }
         }
+
+        // Not gated on fullscreenTitleEnabled: that preference exists because the landscape bar has
+        // no room for a title beside the buttons. Portrait fullscreen has a line of its own, and the
+        // title is the thing that tells you which video you are in.
+        if (isPortraitFullscreen) {
+            PortraitFullscreenTitle(
+                videoTitle = videoTitle,
+                channelName = channelName,
+                horizontalPadding = horizontalPadding + TitleInsetCorrection,
+                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+            )
+        }
     }
 }
+
+/**
+ * The action row's horizontal padding is pulled in by half an icon button's inset so the glyphs
+ * line up with the content edge; text carries no such inset, so the title adds it back.
+ */
+private val TitleInsetCorrection = 4.dp
 
 /**
  * The speed pill's radius is half [OverlayPillHeight], which is a stadium rather than any shape
