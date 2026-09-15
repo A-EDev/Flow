@@ -2781,4 +2781,26 @@
         <item quantity="many">%1$d capítulos</item>
         <item quantity="other">%1$d capítulos</item>
     </plurals>
+    <string name="scheduled_for_prefix">Programado para %1$s</string>
+    <string name="live_in_prefix">Ao vivo %1$s</string>
+    <string name="channel_about_joined">Inscreveu-se em</string>
+    <string name="channel_about_country">País</string>
+    <string name="channel_about_videos">Vídeos</string>
+    <string name="channel_about_links">Links</string>
+    <string name="note_title">Nota</string>
+    <string name="sync_collection_notes">Notas</string>
+    <string name="note_edit">Editar nota</string>
+    <string name="note_add">Adicionar nota</string>
+    <string name="note_placeholder">Escrever uma nota para si…</string>
+    <string name="note_channel_title">Nota sobre este canal</string>
+    <string name="note_video_title">Nota sobre este vídeo</string>
+    <string name="content_settings_notes_title">Notas pessoais</string>
+    <string name="content_settings_notes_subtitle">Manter notas privadas em canais e vídeos</string>
+    <string name="content_settings_channel_notes_title">Notas de canais</string>
+    <string name="content_settings_channel_notes_subtitle">Mostrar nota na página do canal</string>
+    <string name="content_settings_video_notes_title">Notas de vídeos</string>
+    <string name="content_settings_video_notes_subtitle">Mostrar nota na descrição do vídeo</string>
+    <string name="channel_about_more_info">Mais informações</string>
+    <string name="channel_post_image_count">%1$d / %2$d</string>
+    <string name="channel_post_poll_votes">%1$s</string>
 </resources>
