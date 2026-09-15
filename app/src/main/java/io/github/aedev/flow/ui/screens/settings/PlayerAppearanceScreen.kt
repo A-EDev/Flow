@@ -38,6 +38,7 @@ import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
+import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.MAX_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MAX_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
@@ -52,6 +53,8 @@ import io.github.aedev.flow.ui.components.musicplayer.ExpressivePlayerSlider
 import io.github.aedev.flow.ui.components.musicplayer.ExpressiveWavySlider
 import io.github.aedev.flow.ui.components.musicplayer.SquigglySlider
 import io.github.aedev.flow.ui.components.musicplayer.expressiveSliderSpec
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -91,6 +94,8 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val seekSwipeGesturesEnabled by playerPreferences.seekSwipeGesturesEnabled.collectAsState(initial = true)
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
+    val gestureOverlayStyle by
+        playerPreferences.gestureOverlayStyle.collectAsState(initial = GestureOverlayStyle.CIRCULAR)
     val overlayDefaults = remember { PlayerOverlayPreferences() }
     val showControlsWhileLoading by
         playerPreferences.showControlsWhileLoading.collectAsState(overlayDefaults.showControlsWhileLoading)
@@ -520,6 +525,20 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
 
+                    GestureOverlayStyleItem(
+                        selected = gestureOverlayStyle,
+                        onSelected = { style ->
+                            coroutineScope.launch {
+                                playerPreferences.setGestureOverlayStyle(style)
+                            }
+                        },
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+
                     SettingsItem(
                         icon = painterResource(R.drawable.ic_swipe_gesture),
                         title = stringResource(R.string.player_appearance_long_press_speed_title),
@@ -832,6 +851,62 @@ fun SettingsItem(
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/**
+ * Picks how the volume and brightness read-outs are drawn (#1029): the one big centred ring covers
+ * the part of the frame the user is adjusting, so the bar and text forms are offered alongside it.
+ */
+@Composable
+private fun GestureOverlayStyleItem(
+    selected: GestureOverlayStyle,
+    onSelected: (GestureOverlayStyle) -> Unit,
+) {
+    val options =
+        listOf(
+            FlowToggleOption(GestureOverlayStyle.CIRCULAR, stringResource(R.string.gesture_overlay_style_circular)),
+            FlowToggleOption(GestureOverlayStyle.VERTICAL, stringResource(R.string.gesture_overlay_style_vertical)),
+            FlowToggleOption(GestureOverlayStyle.HORIZONTAL, stringResource(R.string.gesture_overlay_style_horizontal)),
+            FlowToggleOption(GestureOverlayStyle.MINIMAL, stringResource(R.string.gesture_overlay_style_minimal)),
+        )
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_swipe_gesture),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier =
+                Modifier
+                    .padding(top = 2.dp)
+                    .size(24.dp),
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.player_appearance_gesture_overlay_title),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = stringResource(R.string.player_appearance_gesture_overlay_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            FlowConnectedToggleGroup(
+                options = options,
+                selected = selected,
+                onSelected = onSelected,
+            )
+        }
     }
 }
 

@@ -752,6 +752,12 @@
     <string name="player_background_style_default">Default Surface</string>
     <string name="player_appearance_hide_music_artwork_title">Hide music player artwork</string>
     <string name="player_appearance_hide_music_artwork_subtitle">Show the app icon on the extracted artwork color instead</string>
+    <string name="player_appearance_gesture_overlay_title">Gesture overlay style</string>
+    <string name="player_appearance_gesture_overlay_subtitle">How the volume and brightness read-outs are drawn while you swipe</string>
+    <string name="gesture_overlay_style_circular">Circular</string>
+    <string name="gesture_overlay_style_vertical">Vertical</string>
+    <string name="gesture_overlay_style_horizontal">Bar</string>
+    <string name="gesture_overlay_style_minimal">Minimal</string>
     <string name="player_appearance_shorts_ui_title">Shorts player UI</string>
     <string name="player_appearance_shorts_ui_subtitle">Choose how much of the Shorts overlay stays visible</string>
     <string name="shorts_player_ui_default">Default</string>

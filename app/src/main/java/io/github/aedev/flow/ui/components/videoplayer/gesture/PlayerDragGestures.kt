@@ -102,6 +102,7 @@ internal fun Modifier.playerDragGestures(
         var exitDragPastCommit = false
         var exitSettleJob: Job? = null
         var lastVolumeStep = -1
+        var volumeSyncedThisGesture = false
         var lastBrightnessEdge = 0
 
         var seekDragStarted = false
@@ -161,13 +162,35 @@ internal fun Modifier.playerDragGestures(
             currentOnShowBrightnessChange(true)
         }
 
+        fun systemVolumeFraction(): Float? {
+            val max = currentMaxVolume
+            if (max <= 0) return null
+            val system = currentAudioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: return null
+            return (system.toFloat() / max).coerceIn(0f, 1f)
+        }
+
         fun applyVolumeDrag(dy: Float) {
             val screenHeight = size.height.toFloat()
             if (screenHeight <= 0f) return
 
+            // The system stream is the source of truth (#1062). Our own level goes stale whenever
+            // the volume moves outside the player — quick settings, another app, a paused session —
+            // so the first drag of each gesture adopts what the stream actually holds instead of
+            // resuming from a remembered value the user has since overridden. A boost above the
+            // system ceiling is app-only state, so it survives only while the stream is still maxed.
+            var level = currentVolumeLevel()
+            if (!volumeSyncedThisGesture) {
+                volumeSyncedThisGesture = true
+                val systemFraction = systemVolumeFraction()
+                if (systemFraction != null && (level <= 1f || systemFraction < 1f)) {
+                    level = systemFraction
+                    currentOnVolumeChange(level)
+                }
+            }
+
             val delta = -dy / screenHeight * VERTICAL_DRAG_SENSITIVITY
             val ceiling = if (currentAllowVolumeBoost) 2.0f else 1.0f
-            val newVolumeLevel = (currentVolumeLevel() + delta).coerceIn(0f, ceiling)
+            val newVolumeLevel = (level + delta).coerceIn(0f, ceiling)
             currentOnVolumeChange(newVolumeLevel)
 
             if (newVolumeLevel <= 1.0f) {
@@ -291,6 +314,7 @@ internal fun Modifier.playerDragGestures(
             detectPlayerDrags(
                 onDragStart = { offset ->
                     lastVolumeStep = -1
+                    volumeSyncedThisGesture = false
                     lastBrightnessEdge = 0
                     seekDragStarted = false
 

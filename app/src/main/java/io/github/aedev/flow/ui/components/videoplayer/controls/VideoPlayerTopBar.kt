@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cast
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -34,7 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -74,7 +72,6 @@ internal fun VideoPlayerTopBar(
     isPortraitFullscreen: Boolean,
     videoTitle: String?,
     channelName: String?,
-    speedIndicatorLabel: String,
     resizeMode: Int,
     resizeModeLabels: List<String>,
     isPipSupported: Boolean,
@@ -133,18 +130,30 @@ internal fun VideoPlayerTopBar(
                     preferences.fullscreenTitleEnabled &&
                     !videoTitle.isNullOrBlank()
                 ) {
-                    Text(
-                        text = videoTitle,
-                        color = PlayerScrimContent,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Column(
                         modifier =
                             Modifier
                                 .weight(1f)
                                 .padding(end = 8.dp),
-                    )
+                    ) {
+                        Text(
+                            text = videoTitle,
+                            color = PlayerScrimContent,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (!channelName.isNullOrBlank()) {
+                            Text(
+                                text = channelName,
+                                color = PlayerScrimContentSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
 
                 if (isPipSupported && preferences.pipEnabled) {
@@ -176,28 +185,6 @@ internal fun VideoPlayerTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(actionSpacing),
             ) {
-                if (preferences.speedIndicatorEnabled) {
-                    Surface(
-                        onClick = actions.onSpeedClick,
-                        color = PlayerScrimAffordance,
-                        shape = SpeedPillShape,
-                        modifier = Modifier.height(pillHeight),
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(horizontal = 10.dp),
-                        ) {
-                            Text(
-                                text = speedIndicatorLabel,
-                                color = PlayerScrimContent,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
-
                 if (isFullscreen) {
                     TopBarIconButton(
                         onClick = actions.onResizeClick,
@@ -313,12 +300,6 @@ internal fun VideoPlayerTopBar(
  * line up with the content edge; text carries no such inset, so the title adds it back.
  */
 private val TitleInsetCorrection = 4.dp
-
-/**
- * The speed pill's radius is half [OverlayPillHeight], which is a stadium rather than any shape
- * token: `MaterialTheme.shapes` has no 14dp step.
- */
-private val SpeedPillShape = RoundedCornerShape(14.dp)
 
 /**
  * A top-bar action that is on or off.
