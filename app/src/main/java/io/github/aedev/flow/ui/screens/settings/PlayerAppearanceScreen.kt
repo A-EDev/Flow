@@ -96,6 +96,7 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
     val gestureOverlayStyle by
         playerPreferences.gestureOverlayStyle.collectAsState(initial = GestureOverlayStyle.CIRCULAR)
+    val playerHapticsEnabled by playerPreferences.playerHapticsEnabled.collectAsState(initial = true)
     val overlayDefaults = remember { PlayerOverlayPreferences() }
     val showControlsWhileLoading by
         playerPreferences.showControlsWhileLoading.collectAsState(overlayDefaults.showControlsWhileLoading)
@@ -516,6 +517,23 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 playerPreferences.setAllowVolumeBoost(enabled)
+                            }
+                        },
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_haptics_title),
+                        subtitle = stringResource(R.string.player_appearance_haptics_subtitle),
+                        checked = playerHapticsEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setPlayerHapticsEnabled(enabled)
                             }
                         },
                     )

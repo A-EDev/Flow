@@ -125,6 +125,7 @@ class PlayerPreferences(
         val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val GESTURE_OVERLAY_STYLE = stringPreferencesKey("gesture_overlay_style")
+        val PLAYER_HAPTICS_ENABLED = booleanPreferencesKey("player_haptics_enabled")
         val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
         val SHORTS_CONTENT_ENABLED = booleanPreferencesKey("shorts_content_enabled")
         val NOTES_ENABLED = booleanPreferencesKey("notes_enabled")
@@ -745,6 +746,16 @@ class PlayerPreferences(
                     ?.let { stored -> runCatching { GestureOverlayStyle.valueOf(stored) }.getOrNull() }
                     ?: GestureOverlayStyle.CIRCULAR
             }
+
+    val playerHapticsEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.PLAYER_HAPTICS_ENABLED] ?: true }
+
+    suspend fun setPlayerHapticsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYER_HAPTICS_ENABLED] = enabled
+        }
+    }
 
     suspend fun setGestureOverlayStyle(style: GestureOverlayStyle) {
         context.playerPreferencesDataStore.edit { preferences ->

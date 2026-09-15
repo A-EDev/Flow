@@ -28,6 +28,7 @@ internal class VideoPlayerPreferencesState(
     val seekSwipeGesturesEnabled: Boolean,
     val allowVolumeBoost: Boolean,
     val gestureOverlayStyle: GestureOverlayStyle,
+    val hapticsEnabled: Boolean,
     val sbSubmitEnabled: Boolean,
     val doubleTapSeekSeconds: Int,
     val longPressPlaybackSpeed: Float,
@@ -60,6 +61,7 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
     val gestureOverlayStyle by
         playerPreferences.gestureOverlayStyle.collectAsState(initial = GestureOverlayStyle.CIRCULAR)
+    val hapticsEnabled by playerPreferences.playerHapticsEnabled.collectAsState(initial = true)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
@@ -90,6 +92,7 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         seekSwipeGesturesEnabled = seekSwipeGesturesEnabled,
         allowVolumeBoost = allowVolumeBoost,
         gestureOverlayStyle = gestureOverlayStyle,
+        hapticsEnabled = hapticsEnabled,
         sbSubmitEnabled = sbSubmitEnabled,
         doubleTapSeekSeconds = doubleTapSeekSeconds,
         longPressPlaybackSpeed = longPressPlaybackSpeed,

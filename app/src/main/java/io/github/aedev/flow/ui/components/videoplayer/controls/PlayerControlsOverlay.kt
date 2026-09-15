@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
@@ -104,18 +105,33 @@ internal fun PlayerControlsOverlay(
     // Landscape fullscreen insets the controls well clear of the rounded corners and the gesture
     // bar. Portrait fullscreen is the same width as the portrait player, so it keeps the portrait
     // insets and only the vertical breathing room changes.
-    val fullscreenSeekbarBottomPadding =
-        when {
-            isPortraitFullscreen -> 12.dp
-            isFullscreen -> 30.dp
-            else -> 0.dp
-        }
-    val bottomControlHorizontalPadding =
-        when {
-            isPortraitFullscreen -> 16.dp
-            isFullscreen -> 56.dp
-            else -> 12.dp
-        }
+    // Eased rather than switched (#1065). Leaving fullscreen flips this flag immediately, but the
+    // window only turns a few hundred milliseconds later, so a hard switch repainted the controls
+    // with portrait insets while the window was still landscape — the seek bar visibly snapping out
+    // to the edges before anything rotated. Easing carries them across that gap instead.
+    val geometrySpec = MaterialTheme.motionScheme.defaultSpatialSpec<Dp>()
+    val fullscreenSeekbarBottomPadding by
+        animateDpAsState(
+            targetValue =
+                when {
+                    isPortraitFullscreen -> 12.dp
+                    isFullscreen -> 30.dp
+                    else -> 0.dp
+                },
+            animationSpec = geometrySpec,
+            label = "seekbarBottomPadding",
+        )
+    val bottomControlHorizontalPadding by
+        animateDpAsState(
+            targetValue =
+                when {
+                    isPortraitFullscreen -> 16.dp
+                    isFullscreen -> 56.dp
+                    else -> 12.dp
+                },
+            animationSpec = geometrySpec,
+            label = "bottomControlPadding",
+        )
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 4.dp
     val portraitFullscreenTopPadding =
@@ -127,12 +143,17 @@ internal fun PlayerControlsOverlay(
         } else {
             0.dp
         }
-    val seekbarHorizontalPadding =
-        if (isFullscreen && !isPortraitFullscreen) {
-            fullscreenSeekbarHorizontalPaddingDp.dp
-        } else {
-            portraitSeekbarHorizontalPaddingDp.dp
-        }
+    val seekbarHorizontalPadding by
+        animateDpAsState(
+            targetValue =
+                if (isFullscreen && !isPortraitFullscreen) {
+                    fullscreenSeekbarHorizontalPaddingDp.dp
+                } else {
+                    portraitSeekbarHorizontalPaddingDp.dp
+                },
+            animationSpec = geometrySpec,
+            label = "seekbarHorizontalPadding",
+        )
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
     val chapterMaxWidth = if (isFullscreen && !isPortraitFullscreen) 200.dp else 96.dp
     val qualityBadge = remember(state.qualityLabel) { state.qualityLabel?.let(::compactPlayerQualityBadge) }
