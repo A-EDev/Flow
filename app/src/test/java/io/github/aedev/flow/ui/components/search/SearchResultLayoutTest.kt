@@ -3,57 +3,69 @@ package io.github.aedev.flow.ui.components.search
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.HomeFeedColumns
-import io.github.aedev.flow.ui.components.feedCardsFormGrid
+import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.feedGridLayoutFor
+import io.github.aedev.flow.ui.components.partialRowIndices
 import org.junit.Test
 
 /**
- * A search result is a full-width 16:9 card only when the row it sits in is the phone's own width.
- * Anywhere else — a tablet, a foldable, a one-column preference on a wide window — a lone card that
- * wide is a thumbnail the size of the screen, so it takes the thumbnail-left row instead.
+ * Mirrors the two decisions `SearchResults` makes per item: how many columns the grid carries, and
+ * which cards take the thumbnail-left row because their own row is theirs alone.
  */
 class SearchResultLayoutTest {
-    private fun thumbnailRows(
+    private fun columns(
+        widthDp: Int,
+        listMode: Boolean = false,
+        preference: HomeFeedColumns = HomeFeedColumns.AUTO,
+    ): Int = if (listMode) 1 else feedGridLayoutFor(widthDp.dp, preference, FEED_MAX_AUTO_COLUMNS).columns
+
+    private fun listCards(
         widthDp: Int,
         itemCount: Int,
-        isGridMode: Boolean = false,
-        columns: HomeFeedColumns = HomeFeedColumns.AUTO,
-    ): Boolean {
-        val layout = feedGridLayoutFor(widthDp.dp, columns)
-        val gridCards = feedCardsFormGrid(layout.columns, itemCount)
-        return isGridMode || (!gridCards && !layout.isCompact)
+        listMode: Boolean = false,
+        preference: HomeFeedColumns = HomeFeedColumns.AUTO,
+    ): Set<Int> {
+        val layout = feedGridLayoutFor(widthDp.dp, preference, FEED_MAX_AUTO_COLUMNS)
+        val columns = columns(widthDp, listMode, preference)
+        val partial = partialRowIndices(List(itemCount) { false }, columns)
+        return (0 until itemCount)
+            .filter { listMode || it in partial || (columns == 1 && !layout.isCompact) }
+            .toSet()
     }
 
     @Test
-    fun `a phone keeps the full-width card`() {
-        assertThat(thumbnailRows(widthDp = 411, itemCount = 20)).isFalse()
+    fun `a wide window carries at most three cards a row`() {
+        assertThat(columns(widthDp = 1600)).isAtMost(FEED_MAX_AUTO_COLUMNS)
+        assertThat(columns(widthDp = 1200)).isEqualTo(FEED_MAX_AUTO_COLUMNS)
     }
 
     @Test
-    fun `a tablet row of several cards keeps the full-width card in each cell`() {
-        assertThat(thumbnailRows(widthDp = 1200, itemCount = 20)).isFalse()
+    fun `list mode is one full-width column at every size`() {
+        assertThat(columns(widthDp = 411, listMode = true)).isEqualTo(1)
+        assertThat(columns(widthDp = 1200, listMode = true)).isEqualTo(1)
+        assertThat(listCards(widthDp = 1200, itemCount = 7, listMode = true)).hasSize(7)
     }
 
     @Test
-    fun `a lone card on a tablet takes the thumbnail row`() {
-        assertThat(thumbnailRows(widthDp = 1200, itemCount = 1)).isTrue()
+    fun `a phone keeps the full-width card in grid mode`() {
+        assertThat(columns(widthDp = 411)).isEqualTo(1)
+        assertThat(listCards(widthDp = 411, itemCount = 7)).isEmpty()
     }
 
     @Test
-    fun `one pinned column on a tablet takes the thumbnail row`() {
-        assertThat(thumbnailRows(widthDp = 1200, itemCount = 20, columns = HomeFeedColumns.ONE)).isTrue()
+    fun `a row a tablet cannot fill takes the thumbnail-left card`() {
+        assertThat(listCards(widthDp = 1200, itemCount = 6)).isEmpty()
+        assertThat(listCards(widthDp = 1200, itemCount = 7)).containsExactly(6)
+        assertThat(listCards(widthDp = 1200, itemCount = 8)).containsExactly(6, 7)
     }
 
     @Test
-    fun `the grid toggle always takes the thumbnail row`() {
-        assertThat(thumbnailRows(widthDp = 411, itemCount = 20, isGridMode = true)).isTrue()
-        assertThat(thumbnailRows(widthDp = 1200, itemCount = 20, isGridMode = true)).isTrue()
+    fun `one pinned column on a tablet takes the thumbnail-left card`() {
+        assertThat(listCards(widthDp = 1200, itemCount = 5, preference = HomeFeedColumns.ONE)).hasSize(5)
     }
 
     @Test
-    fun `a strip is one card per row, so it follows the window rather than the item count`() {
-        assertThat(feedGridLayoutFor(411.dp).isCompact).isTrue()
-        assertThat(feedGridLayoutFor(700.dp).isCompact).isFalse()
-        assertThat(feedGridLayoutFor(1200.dp).isCompact).isFalse()
+    fun `a lone result on a tablet takes its own row`() {
+        assertThat(listCards(widthDp = 1200, itemCount = 1)).containsExactly(0)
     }
 }

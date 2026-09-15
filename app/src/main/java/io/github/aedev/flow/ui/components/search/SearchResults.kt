@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
@@ -21,7 +22,7 @@ import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.ShortsCard
-import io.github.aedev.flow.ui.components.feedCardsFormGrid
+import io.github.aedev.flow.ui.components.partialRowIndices
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 
 /** Every callback the result surfaces need, threaded through one object rather than nine parameters. */
@@ -44,13 +45,28 @@ fun SearchResults(
     actions: SearchResultActions,
     modifier: Modifier = Modifier,
 ) {
-    // One 16:9 card stretched across a tablet is a thumbnail the size of the window; the same policy
-    // the channel tabs use puts it back in a thumbnail-left row instead.
-    val gridCards = feedCardsFormGrid(feedLayout.columns, pagingItems.itemCount)
-    val thumbnailRows = isGridMode || (!gridCards && !feedLayout.isCompact)
-    val gutter = if (feedLayout.isCompact && !isGridMode) 0.dp else feedLayout.cardSpacing
+    // The toggle's stored flag is named for its icon: set means the thumbnail-left rows, which are a
+    // single full-width column at every size.
+    val listMode = isGridMode
+    val columns = if (listMode) 1 else feedLayout.columns
+    val cells = if (listMode) GridCells.Fixed(1) else feedLayout.cells
+
+    val partialRows =
+        remember(pagingItems.itemSnapshotList, columns, pagingItems.loadState.append.endOfPaginationReached) {
+            partialRowIndices(
+                spansOwnRow = (0 until pagingItems.itemCount).map { pagingItems.peek(it).spansRow() },
+                columns = columns,
+                includeLastRun = pagingItems.loadState.append.endOfPaginationReached,
+            )
+        }
+
+    // A card takes the thumbnail-left shape whenever its row is its own: the toggle, a row the grid
+    // could not fill, or a wide window the user pinned to one column.
+    fun isListCard(index: Int) = listMode || index in partialRows || (columns == 1 && !feedLayout.isCompact)
+
+    val gutter = if (columns == 1) 0.dp else feedLayout.cardSpacing
     LazyVerticalGrid(
-        columns = feedLayout.cells,
+        columns = cells,
         state = gridState,
         modifier = modifier.fillMaxSize().dismissKeyboardOnPress(actions.dismissKeyboard),
         contentPadding =
@@ -72,14 +88,18 @@ fun SearchResults(
             key = { index -> pagingItems.peek(index).itemKey(index) },
             contentType = { index -> pagingItems.peek(index).contentType() },
             span = { index ->
-                if (pagingItems.peek(index).spansRow()) GridItemSpan(maxLineSpan) else GridItemSpan(1)
+                if (pagingItems.peek(index).spansRow() || index in partialRows) {
+                    GridItemSpan(maxLineSpan)
+                } else {
+                    GridItemSpan(1)
+                }
             },
         ) { index ->
             when (val item = pagingItems[index]) {
                 is SearchResultItem.VideoResult -> {
                     SearchVideoCard(
                         video = item.video,
-                        asThumbnailRow = thumbnailRows,
+                        asThumbnailRow = isListCard(index),
                         onClick = { actions.onVideoClick(item.video) },
                         onChannelClick = { actions.onChannelClick(item.video.asChannel(it)) },
                     )
@@ -98,14 +118,14 @@ fun SearchResults(
                     PlaylistCard(
                         playlist = item.playlist,
                         onClick = { actions.onPlaylistClick(item.playlist) },
-                        layout = if (isGridMode) PlaylistCardLayout.SHELF else PlaylistCardLayout.LIST,
+                        layout = if (isListCard(index)) PlaylistCardLayout.LIST else PlaylistCardLayout.SHELF,
                     )
                 }
 
                 is SearchResultItem.ShelfResult -> {
                     SearchShelf(
                         shelf = item,
-                        asThumbnailRows = !feedLayout.isCompact,
+                        asThumbnailRows = listMode || !feedLayout.isCompact,
                         onVideoClick = actions.onVideoClick,
                         onShortsClick = actions.onShortsClick,
                         onChannelClick = { actions.onChannelClick(Channel(it, "", "", 0)) },

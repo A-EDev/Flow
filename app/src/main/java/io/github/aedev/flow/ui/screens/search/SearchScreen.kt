@@ -44,6 +44,7 @@ import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.QuickActionsViewModel
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.search.SearchFilterBar
@@ -188,7 +189,7 @@ fun SearchScreen(
 
             val refreshState = pagingItems.loadState.refresh
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns)
+                val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns, FEED_MAX_AUTO_COLUMNS)
                 val actions =
                     remember(feedLayout, subscribedIds) {
                         SearchResultActions(

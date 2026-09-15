@@ -18,6 +18,43 @@ internal fun feedCardsFormGrid(
     itemCount: Int,
 ): Boolean = columns > 1 && itemCount > 1
 
+/**
+ * The items whose grid row cannot be filled.
+ *
+ * A row only ever holds items from one contiguous run between the full-width rows a hero card or a
+ * strip occupies, so a run whose length is not a multiple of [columns] leaves its last row short.
+ * One card beside two gaps reads as a mistake, so those trailing items take a full-width row each
+ * instead.
+ *
+ * [includeLastRun] is false while more pages may still arrive: the tail of the list would otherwise
+ * reflow every time a page lands.
+ */
+fun partialRowIndices(
+    spansOwnRow: List<Boolean>,
+    columns: Int,
+    includeLastRun: Boolean = true,
+): Set<Int> {
+    if (columns <= 1) return emptySet()
+    val partial = mutableSetOf<Int>()
+    var runStart = -1
+
+    fun closeRun(endExclusive: Int) {
+        if (runStart < 0) return
+        val remainder = (endExclusive - runStart) % columns
+        (endExclusive - remainder until endExclusive).forEach(partial::add)
+        runStart = -1
+    }
+
+    spansOwnRow.forEachIndexed { index, spansRow ->
+        when {
+            spansRow -> closeRun(index)
+            runStart < 0 -> runStart = index
+        }
+    }
+    if (includeLastRun) closeRun(spansOwnRow.size)
+    return partial
+}
+
 /** A phone shelf previews four rows; a grid previews two full rows so the expander sits on a seam. */
 internal fun feedShelfPreviewCount(
     columns: Int,

@@ -30,4 +30,42 @@ class FeedGridPolicyTest {
     fun `a lone item on a wide window keeps the list preview`() {
         assertThat(feedShelfPreviewCount(columns = 3, itemCount = 1)).isEqualTo(4)
     }
+
+    @Test
+    fun `a full run fills every row`() {
+        assertThat(partialRowIndices(spansOwnRow = List(6) { false }, columns = 3)).isEmpty()
+    }
+
+    @Test
+    fun `the tail a grid cannot fill takes its own rows`() {
+        assertThat(partialRowIndices(spansOwnRow = List(7) { false }, columns = 3)).containsExactly(6)
+        assertThat(partialRowIndices(spansOwnRow = List(8) { false }, columns = 3)).containsExactly(6, 7)
+    }
+
+    @Test
+    fun `a full-width item ends the run it interrupts`() {
+        // hero, two videos, a strip, four videos
+        val spans = listOf(true, false, false, true, false, false, false, false)
+
+        assertThat(partialRowIndices(spans, columns = 3)).containsExactly(1, 2, 7)
+    }
+
+    @Test
+    fun `a single column never leaves a row short`() {
+        assertThat(partialRowIndices(spansOwnRow = List(7) { false }, columns = 1)).isEmpty()
+    }
+
+    @Test
+    fun `the trailing run is left alone while more pages may land`() {
+        val spans = listOf(false, false, true, false, false)
+
+        assertThat(partialRowIndices(spans, columns = 3, includeLastRun = false)).containsExactly(0, 1)
+        assertThat(partialRowIndices(spans, columns = 3, includeLastRun = true)).containsExactly(0, 1, 3, 4)
+    }
+
+    @Test
+    fun `a run of exactly one card takes its own row`() {
+        assertThat(partialRowIndices(spansOwnRow = listOf(false, true, false), columns = 3))
+            .containsExactly(0, 2)
+    }
 }
