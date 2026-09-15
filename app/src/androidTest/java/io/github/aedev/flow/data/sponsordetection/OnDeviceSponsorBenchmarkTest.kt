@@ -6,12 +6,18 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.system.measureTimeMillis
 
 @RunWith(AndroidJUnit4::class)
 class OnDeviceSponsorBenchmarkTest {
+    @Before
+    fun installModel() {
+        installSponsorModelFromTestAssets(ApplicationProvider.getApplicationContext())
+    }
+
     @Test
     fun sweepRuntimeConfigurations() {
         runBlocking {

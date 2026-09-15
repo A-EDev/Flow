@@ -15,7 +15,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
-import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.LongBuffer
@@ -33,6 +32,7 @@ internal class OnDeviceSponsorDetector(
     context: Context,
     private val playbackPositionMs: () -> Long = { 0L },
     private val runtimeConfig: SponsorInferenceRuntimeConfig = SponsorInferenceRuntimeConfig.forAvailableHardware(),
+    private val modelStore: SponsorModelStore = SponsorModelStore(context),
 ) {
     private val applicationContext = context.applicationContext
     private val captionLoader = SponsorCaptionLoader(applicationContext)
@@ -130,8 +130,10 @@ internal class OnDeviceSponsorDetector(
 
     private fun runtime(): Runtime =
         runtime ?: synchronized(this) {
-            runtime ?: Runtime.load(applicationContext, runtimeConfig).also { runtime = it }
+            runtime ?: Runtime.load(modelStore, runtimeConfig).also { runtime = it }
         }
+
+    fun isModelInstalled(): Boolean = modelStore.installedFiles() != null
 
     suspend fun close() {
         inferenceMutex.withLock {
@@ -401,31 +403,25 @@ internal class OnDeviceSponsorDetector(
 
         companion object {
             fun load(
-                context: Context,
+                modelStore: SponsorModelStore,
                 config: SponsorInferenceRuntimeConfig,
             ): Runtime {
-                val tokenizer =
-                    SponsorTokenizer.fromJson(
-                        context.assets
-                            .open(TOKENIZER_ASSET)
-                            .bufferedReader()
-                            .use { it.readText() },
-                    )
-                val modelFile = File(context.codeCacheDir, MODEL_ASSET)
-                if (!modelFile.isFile || modelFile.length() != MODEL_BYTES) {
-                    val temporary = File(modelFile.parentFile, "${modelFile.name}.tmp")
-                    context.assets.open(MODEL_ASSET).use { input -> temporary.outputStream().use(input::copyTo) }
-                    if (!temporary.renameTo(modelFile)) {
-                        temporary.copyTo(modelFile, overwrite = true)
-                        temporary.delete()
-                    }
+                val files =
+                    modelStore.installedFiles()
+                        ?: throw SponsorModelUnavailableException()
+                val tokenizer = SponsorTokenizer.fromJson(files.tokenizerFile.readText())
+                val tokenizerSha = sha256File(files.tokenizerFile)
+                check(tokenizerSha == SPONSOR_TOKENIZER_SHA256) {
+                    "Sponsor tokenizer SHA-256 mismatch: journal and cache entries would be misattributed"
                 }
-                check(modelFile.length() == MODEL_BYTES) {
-                    "Sponsor model asset size ${modelFile.length()} does not match $MODEL_ASSET ($MODEL_BYTES bytes)"
+                val modelFile = files.modelFile
+                check(modelFile.length() == SponsorModelConfig.MODEL_BYTES) {
+                    "Sponsor model size ${modelFile.length()} does not match " +
+                        "${SponsorModelConfig.MODEL_FILE_NAME} (${SponsorModelConfig.MODEL_BYTES} bytes)"
                 }
                 val actualSha = sha256File(modelFile)
                 check(actualSha == SPONSOR_MODEL_SHA256) {
-                    "Sponsor model asset SHA-256 mismatch: journal and cache entries would be misattributed"
+                    "Sponsor model SHA-256 mismatch: journal and cache entries would be misattributed"
                 }
                 val environment = OrtEnvironment.getEnvironment()
                 val options = OrtSession.SessionOptions()
@@ -462,9 +458,6 @@ internal class OnDeviceSponsorDetector(
 
     private companion object {
         const val TAG = "SponsorDetection"
-        const val MODEL_ASSET = "sponsor_detector_v1.int8.ort"
-        const val TOKENIZER_ASSET = "tokenizer.json"
-        const val MODEL_BYTES = 28_973_008L
         const val PAD_ID = 50_283L
         const val LABEL_COUNT = 5
     }

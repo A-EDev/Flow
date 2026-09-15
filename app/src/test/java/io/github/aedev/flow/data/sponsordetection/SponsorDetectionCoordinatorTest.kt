@@ -362,6 +362,50 @@ class SponsorDetectionCoordinatorTest {
             assertThat(coordinator.state.value.isProvisional).isFalse()
         }
 
+    @Test
+    fun `on-device disabled skips inference but keeps api segments`() =
+        runTest {
+            var predicted = false
+            val api = listOf(segment("api", 10f, 20f))
+            val coordinator =
+                coordinator(
+                    fetchSegments = { SponsorBlockFetchResult.Success(api) },
+                    predictStream = { _, transcript, _ ->
+                        predicted = true
+                        inference(transcript)
+                    },
+                    onDeviceEnabled = { false },
+                )
+
+            val result = coordinator.evaluate("video", emptyList())
+
+            assertThat(predicted).isFalse()
+            assertThat(result.playbackSegments).containsExactlyElementsIn(api)
+            assertThat(coordinator.state.value.status).isEqualTo(SponsorDetectionStatus.SKIPPED)
+        }
+
+    @Test
+    fun `missing on-device model skips inference but keeps api segments`() =
+        runTest {
+            var predicted = false
+            val api = listOf(segment("api", 10f, 20f))
+            val coordinator =
+                coordinator(
+                    fetchSegments = { SponsorBlockFetchResult.Success(api) },
+                    predictStream = { _, transcript, _ ->
+                        predicted = true
+                        inference(transcript)
+                    },
+                    onDeviceModelInstalled = { false },
+                )
+
+            val result = coordinator.evaluate("video", emptyList())
+
+            assertThat(predicted).isFalse()
+            assertThat(result.playbackSegments).containsExactlyElementsIn(api)
+            assertThat(coordinator.state.value.status).isEqualTo(SponsorDetectionStatus.SKIPPED)
+        }
+
     private fun coordinator(
         fetchSegments: suspend (String) -> SponsorBlockFetchResult = { SponsorBlockFetchResult.Empty },
         loadCaptions: suspend (List<SubtitlesStream>) -> SponsorTranscriptPayload? = {
@@ -376,6 +420,8 @@ class SponsorDetectionCoordinatorTest {
         trainingSink: SponsorTrainingSink = RecordingSink(),
         consentEnabled: suspend () -> Boolean = { true },
         onProvisionalPlayback: suspend (String, List<SponsorBlockSegment>) -> Unit = { _, _ -> },
+        onDeviceEnabled: suspend () -> Boolean = { true },
+        onDeviceModelInstalled: () -> Boolean = { true },
         journalDispatcher: CoroutineDispatcher = UnconfinedTestDispatcher(),
     ) = SponsorDetectionCoordinator(
         fetchSegments = fetchSegments,
@@ -385,6 +431,8 @@ class SponsorDetectionCoordinatorTest {
         trainingSink = trainingSink,
         consentEnabled = consentEnabled,
         onProvisionalPlayback = onProvisionalPlayback,
+        onDeviceEnabled = onDeviceEnabled,
+        onDeviceModelInstalled = onDeviceModelInstalled,
         journalDispatcher = journalDispatcher,
     )
 }

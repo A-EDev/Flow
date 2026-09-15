@@ -39,6 +39,8 @@ internal class SponsorDetectionCoordinator(
     private val consentEnabled: suspend () -> Boolean,
     private val onProvisionalPlayback: suspend (String, List<SponsorBlockSegment>) -> Unit = { _, _ -> },
     private val closeDetector: suspend () -> Unit = {},
+    private val onDeviceEnabled: suspend () -> Boolean = { true },
+    private val onDeviceModelInstalled: () -> Boolean = { true },
     journalDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     constructor(
@@ -73,6 +75,8 @@ internal class SponsorDetectionCoordinator(
         consentEnabled = { preferences.sponsorTrainingConsentEnabled.first() },
         onProvisionalPlayback = onProvisionalPlayback,
         closeDetector = detector::close,
+        onDeviceEnabled = { preferences.sponsorOnDeviceEnabled.first() },
+        onDeviceModelInstalled = detector::isModelInstalled,
         journalDispatcher = journalDispatcher,
     )
 
@@ -103,6 +107,34 @@ internal class SponsorDetectionCoordinator(
                         authoritativeSegments?.let { SponsorBlockFetchResult.Success(it) }
                             ?: fetchSegments(videoId)
                     }
+                val onDeviceActive =
+                    try {
+                        onDeviceModelInstalled() && onDeviceEnabled()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        false
+                    }
+                if (!onDeviceActive) {
+                    val apiResult = apiDeferred.await()
+                    val apiSegments = (apiResult as? SponsorBlockFetchResult.Success)?.segments.orEmpty()
+                    Log.i(
+                        TAG,
+                        "Sponsor on-device detection skipped for $videoId: " +
+                            "disabled or model not downloaded",
+                    )
+                    publishIfCurrent(
+                        requestGeneration,
+                        SponsorDetectionUiState(
+                            videoId = videoId,
+                            status = SponsorDetectionStatus.SKIPPED,
+                            apiOutcome = apiOutcome(apiResult, authoritativeSegments != null),
+                            apiSegments = apiSegments,
+                            errorMessage = "On-device detection disabled or model not downloaded",
+                        ),
+                    )
+                    return@coroutineScope SponsorDetectionLoadResult(apiSegments, apiSegments)
+                }
                 val transcriptDeferred = async { loadCaptions(subtitles) }
                 val transcript = transcriptDeferred.await()
 

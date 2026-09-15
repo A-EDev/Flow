@@ -141,13 +141,16 @@ android {
     }
 
     sourceSets {
-        getByName("main").assets.directories.add(
+        // The sponsor model is downloaded from Hugging Face at runtime, so it is
+        // not bundled in the app APK. Instrumented tests still ship the export as
+        // test assets so they can install it locally before running inference.
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
+        getByName("androidTest").assets.directories.add(
             rootProject.layout.projectDirectory
                 .dir(
                     "ml/sponsor_detection/artifacts/android/ettin_17m_sponsor_v1/android",
                 ).asFile.absolutePath,
         )
-        getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
 
     compileOptions {

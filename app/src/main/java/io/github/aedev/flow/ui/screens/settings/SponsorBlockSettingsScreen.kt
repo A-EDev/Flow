@@ -30,6 +30,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -71,6 +73,10 @@ fun SponsorBlockSettingsScreen(onNavigateBack: () -> Unit) {
     val trainingConsent by playerPreferences.sponsorTrainingConsentEnabled.collectAsState(initial = false)
     val playerManager = remember { EnhancedPlayerManager.getInstance() }
     val trainingStats by playerManager.sponsorJournalStats.collectAsState()
+
+    val sponsorModelViewModel: SponsorModelViewModel = hiltViewModel()
+    val sponsorModelEnabled by sponsorModelViewModel.enabled.collectAsStateWithLifecycle()
+    val sponsorModelState by sponsorModelViewModel.modelState.collectAsStateWithLifecycle()
 
     var showUserIdDialog by remember { mutableStateOf(false) }
     var showTrainingConsentDialog by remember { mutableStateOf(false) }
@@ -171,6 +177,17 @@ fun SponsorBlockSettingsScreen(onNavigateBack: () -> Unit) {
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setRytdEnabled(it) } },
                     )
                 }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SponsorModelSettingsSection(
+                    enabled = sponsorModelEnabled,
+                    modelState = sponsorModelState,
+                    onEnabledChange = sponsorModelViewModel::setEnabled,
+                    onDownload = sponsorModelViewModel::download,
+                    onDelete = sponsorModelViewModel::delete,
+                )
             }
 
             item {
