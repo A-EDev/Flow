@@ -39,7 +39,8 @@ class SearchPagingSourceTest {
         filter: SearchFilter = SearchFilter.DEFAULT,
         shortsEnabled: Boolean = true,
         onHeader: (SearchHeader) -> Unit = {},
-    ) = SearchPagingSource("sam sulek", filter, shortsEnabled, onHeader, loader)
+        blocked: Set<String> = emptySet(),
+    ) = SearchPagingSource("sam sulek", filter, shortsEnabled, onHeader, loader) { blocked }
 
     private suspend fun SearchPagingSource.loadPage(key: String? = null) =
         load(PagingSource.LoadParams.Refresh(key, 20, false)) as PagingSource.LoadResult.Page
@@ -178,6 +179,71 @@ class SearchPagingSourceTest {
 
             assertThat(page.data).hasSize(response.toResultItems(shortsEnabled = true).size)
         }
+
+    @Test
+    fun `hides a blocked creator, their card and their videos`() =
+        runTest {
+            val loader = RecordingLoader(listOf(SearchFixture.ALL_SAM_SULEK))
+            val visible = source(loader).loadPage()
+            val creator = visible.data.filterIsInstance<SearchResultItem.ChannelResult>().single()
+
+            val page =
+                source(RecordingLoader(listOf(SearchFixture.ALL_SAM_SULEK)), blocked = setOf(creator.channel.id))
+                    .loadPage()
+
+            assertThat(page.data.filterIsInstance<SearchResultItem.ChannelResult>()).isEmpty()
+            assertThat(
+                page.data.filterIsInstance<SearchResultItem.VideoResult>().none {
+                    it.video.channelId == creator.channel.id
+                },
+            ).isTrue()
+            assertThat(
+                page.data.filterIsInstance<SearchResultItem.ShelfResult>().none { shelf ->
+                    shelf.videos.any { it.channelId == creator.channel.id }
+                },
+            ).isTrue()
+        }
+
+    @Test
+    fun `blocking nobody leaves the page untouched`() =
+        runTest {
+            val open = source(RecordingLoader(listOf(SearchFixture.ALL_SAM_SULEK))).loadPage()
+            val empty = source(RecordingLoader(listOf(SearchFixture.ALL_SAM_SULEK)), blocked = emptySet()).loadPage()
+
+            assertThat(empty.data).hasSize(open.data.size)
+        }
+
+    @Test
+    fun `a strip emptied by blocking is dropped rather than left as a heading`() {
+        val shelf =
+            SearchResultItem.ShelfResult(
+                id = "s1",
+                title = "Latest",
+                kind = SearchShelfKind.VIDEOS,
+                videos = listOf(video(channelId = "UCblocked")),
+            )
+
+        assertThat(listOf(shelf).withoutBlockedChannels(setOf("UCblocked"))).isEmpty()
+    }
+
+    @Test
+    fun `a video with no channel id survives blocking`() {
+        val item = SearchResultItem.VideoResult(video(channelId = ""))
+
+        assertThat(listOf(item).withoutBlockedChannels(setOf("UCblocked"))).containsExactly(item)
+    }
+
+    private fun video(channelId: String) =
+        io.github.aedev.flow.data.model.Video(
+            id = "v1",
+            title = "t",
+            channelName = "c",
+            channelId = channelId,
+            thumbnailUrl = "",
+            duration = 60,
+            viewCount = 1,
+            uploadDate = "",
+        )
 
     @Test
     fun `surfaces a loader failure as an error result`() =

@@ -82,6 +82,7 @@ class SearchViewModel
                                 filter = key.filter,
                                 shortsEnabled = shortsEnabled,
                                 onHeader = ::onHeader,
+                                blockedChannelIds = { FlowNeuroEngine.getInstance(context).getBlockedChannels() },
                             )
                         },
                     ).flow

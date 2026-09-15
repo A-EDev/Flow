@@ -26,6 +26,7 @@ class SearchPagingSource(
     private val shortsEnabled: Boolean = true,
     private val onHeader: (SearchHeader) -> Unit = {},
     private val loadPage: SearchPageLoader = DefaultSearchPageLoader,
+    private val blockedChannelIds: suspend () -> Set<String> = { emptySet() },
 ) : PagingSource<String, SearchResultItem>() {
     override fun getRefreshKey(state: PagingState<String, SearchResultItem>): String? = null
 
@@ -36,8 +37,9 @@ class SearchPagingSource(
         return try {
             val page = loadPage(query, filter.toSearchParams(), continuation)
             if (continuation == null) onHeader(page.header)
+            val results = page.toResultItems(shortsEnabled).withoutBlockedChannels(blockedChannelIds())
             LoadResult.Page(
-                data = loadedItemKeys.filter(page.toResultItems(shortsEnabled)) { it.identityKey() },
+                data = loadedItemKeys.filter(results) { it.identityKey() },
                 prevKey = null,
                 nextKey = page.continuation,
             )
@@ -88,6 +90,43 @@ internal fun SearchResultsPage.toResultItems(shortsEnabled: Boolean): List<Searc
         index++
     }
     return items
+}
+
+/**
+ * Drops everything a blocked creator put in the results, the way the home feed already drops them
+ * before ranking: their own card, their videos, and their videos inside a strip. A strip left with
+ * nothing goes too, rather than staying as a heading over a gap.
+ *
+ * Community posts carry no channel id in the response, so a blocked creator's post survives here.
+ */
+internal fun List<SearchResultItem>.withoutBlockedChannels(blockedChannelIds: Set<String>): List<SearchResultItem> {
+    if (blockedChannelIds.isEmpty()) return this
+
+    fun blocked(channelId: String) = channelId.isNotBlank() && channelId in blockedChannelIds
+    return mapNotNull { item ->
+        when (item) {
+            is SearchResultItem.VideoResult -> {
+                item.takeUnless { blocked(it.video.channelId) }
+            }
+
+            is SearchResultItem.ChannelResult -> {
+                item.takeUnless { blocked(it.channel.id) }
+            }
+
+            is SearchResultItem.PlaylistResult -> {
+                item
+            }
+
+            is SearchResultItem.ShelfResult -> {
+                val videos = item.videos.filterNot { blocked(it.channelId) }
+                when {
+                    videos.isNotEmpty() -> item.copy(videos = videos)
+                    item.posts.isNotEmpty() -> item
+                    else -> null
+                }
+            }
+        }
+    }
 }
 
 /** The videos strip that immediately follows [index], if that is what the next section holds. */
