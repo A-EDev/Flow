@@ -86,6 +86,7 @@ fun FlowSubscribeButton(
     onManageGroups: (() -> Unit)? = null,
     onAddNote: (() -> Unit)? = null,
     size: FlowSubscribeButtonSize = FlowSubscribeButtonSize.Default,
+    tint: MediaArtworkTint? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     var menuExpanded by remember { mutableStateOf(false) }
@@ -98,12 +99,32 @@ fun FlowSubscribeButton(
         if (compact) SplitButtonDefaults.ExtraSmallTrailingButtonIconSize else SplitButtonDefaults.TrailingIconSize
 
     val fill = if (size == FlowSubscribeButtonSize.Wide) Modifier.fillMaxWidth() else Modifier
+
+    // On an artwork-tinted card the theme's own primary lands as an unrelated colour, and its
+    // contrast is against the theme surface rather than against the tint the card actually drew.
+    // Filling with the ink the tint already clamped to 4.5:1 stays readable whatever the avatar is.
+    val tonalColors =
+        if (tint != null) {
+            ButtonDefaults.filledTonalButtonColors(
+                containerColor = tint.raised,
+                contentColor = tint.onContainer,
+            )
+        } else {
+            ButtonDefaults.filledTonalButtonColors()
+        }
+    val subscribeColors =
+        ToggleButtonDefaults.toggleButtonColors(
+            containerColor = tint?.onContainer ?: MaterialTheme.colorScheme.primary,
+            contentColor = tint?.container ?: MaterialTheme.colorScheme.onPrimary,
+        )
+
     Box(modifier = modifier) {
         if (isSubscribed) {
             SplitButtonLayout(
                 leadingButton = {
                     SplitButtonDefaults.TonalLeadingButton(
                         onClick = { onNotificationChange?.invoke(!isNotificationsEnabled) },
+                        colors = tonalColors,
                         contentPadding =
                             if (compact) {
                                 SplitButtonDefaults.ExtraSmallLeadingButtonContentPadding
@@ -130,6 +151,7 @@ fun FlowSubscribeButton(
                     SplitButtonDefaults.TonalTrailingButton(
                         checked = menuExpanded,
                         onCheckedChange = { menuExpanded = it },
+                        colors = tonalColors,
                         contentPadding =
                             if (compact) {
                                 SplitButtonDefaults.ExtraSmallTrailingButtonContentPadding
@@ -154,11 +176,7 @@ fun FlowSubscribeButton(
                     onSubscribeClick()
                 },
                 shapes = ToggleButtonShapes(CircleShape, CircleShape, CircleShape),
-                colors =
-                    ToggleButtonDefaults.toggleButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
+                colors = subscribeColors,
                 contentPadding =
                     if (compact) ButtonDefaults.ExtraSmallContentPadding else ToggleButtonDefaults.ContentPadding,
                 modifier = fill.heightIn(min = containerHeight),

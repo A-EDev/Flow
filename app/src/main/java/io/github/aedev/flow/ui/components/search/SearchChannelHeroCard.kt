@@ -184,6 +184,7 @@ private fun ChannelActions(
             onSubscribeClick = onSubscribeToggle,
             onUnsubscribeClick = onSubscribeToggle,
             size = FlowSubscribeButtonSize.Wide,
+            tint = tint,
             modifier = if (isSubscribed) Modifier else Modifier.weight(1f),
         )
         OutlinedButton(
