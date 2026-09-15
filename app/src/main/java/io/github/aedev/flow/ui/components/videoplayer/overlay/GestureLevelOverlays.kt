@@ -2,11 +2,9 @@ package io.github.aedev.flow.ui.components.videoplayer.overlay
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeMute
@@ -20,11 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,13 +31,10 @@ import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimGestureHud
 
-private val LevelPillShape = RoundedCornerShape(14.dp)
-private val BarTrackShape = RoundedCornerShape(10.dp)
-
-private val VerticalBarWidth = 46.dp
-private val VerticalBarHeight = 176.dp
-private val HorizontalBarWidth = 208.dp
-private val HorizontalBarHeight = 44.dp
+private val VerticalTrackLength = 168.dp
+private val VerticalHudWidth = 56.dp
+private val HorizontalTrackLength = 132.dp
+private val HudIconSize = 22.dp
 
 /**
  * The brightness read-out shown mid-swipe.
@@ -128,7 +121,10 @@ internal fun VolumeOverlay(
             style = style,
             icon = iconVector,
             valueLabel = stringResource(R.string.player_gesture_level_percent, (level * 100).toInt()),
-            progress = { (animatedVolume.value / ceiling).coerceIn(0f, 1f) },
+            // The track runs to system maximum, not to the boost ceiling: scaled to the ceiling a
+            // full-volume bar sits at half while the label reads 100%, which reads as a bug. Past
+            // the ceiling the bar stays full and turns to the error colour while the number climbs.
+            progress = { animatedVolume.value.coerceIn(0f, 1f) },
             indicatorColor = indicatorColor,
         )
     }
@@ -159,8 +155,10 @@ private fun GestureLevelHud(
 /**
  * The read-out itself, in whichever shape the user picked (#1029).
  *
- * Every style takes the same four inputs and the fraction always arrives as a provider, so the
- * spring driving it repaints the bar or the ring without recomposing the HUD around it.
+ * Every style takes the same four inputs, and the icon always sits outside the track rather than on
+ * top of it — an icon over the filled part of a bar loses its contrast the moment the level passes
+ * it. The fraction arrives as a provider throughout, so the spring driving it repaints the
+ * indicator without recomposing the HUD around it.
  */
 @Composable
 private fun GestureLevelHudContent(
@@ -237,14 +235,19 @@ private fun CircularLevelHud(
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        LevelPill(valueLabel)
+        LevelValue(valueLabel)
     }
 }
 
 /**
- * A column that fills from the bottom, sitting against the edge the gesture came from. The point of
- * this style is that it leaves the middle of the frame — the part being adjusted — uncovered.
+ * A standing column: value, track, icon.
+ *
+ * The Expressive wavy indicator has no vertical form, so the horizontal one is laid out at its own
+ * length and turned a quarter turn in the draw layer — the component still owns the wave, the
+ * stroke and the stop indicator. It is placed against the edge opposite the swiping thumb, so the
+ * hand adjusting the level is never on top of the read-out.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun VerticalLevelHud(
     icon: ImageVector,
@@ -252,42 +255,41 @@ private fun VerticalLevelHud(
     progress: () -> Float,
     indicatorColor: Color,
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    HudSurface(
+        modifier = Modifier.width(VerticalHudWidth),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp),
     ) {
-        LevelPill(valueLabel)
-        Box(
-            modifier =
-                Modifier
-                    .size(width = VerticalBarWidth, height = VerticalBarHeight)
-                    .clip(BarTrackShape)
-                    .background(PlayerScrimGestureHud),
-            contentAlignment = Alignment.BottomCenter,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val filled = size.height * progress().coerceIn(0f, 1f)
-                if (filled <= 0f) return@Canvas
-                drawRect(
+            LevelValue(valueLabel)
+            Box(
+                modifier = Modifier.size(width = VerticalHudWidth / 2, height = VerticalTrackLength),
+                contentAlignment = Alignment.Center,
+            ) {
+                LinearWavyProgressIndicator(
+                    progress = progress,
                     color = indicatorColor,
-                    topLeft = Offset(0f, size.height - filled),
-                    size = Size(size.width, filled),
+                    trackColor = PlayerScrimAffordance,
+                    modifier =
+                        Modifier
+                            .requiredWidth(VerticalTrackLength)
+                            .graphicsLayer { rotationZ = -90f },
                 )
             }
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = PlayerScrimContent,
-                modifier =
-                    Modifier
-                        .padding(bottom = 10.dp)
-                        .size(24.dp),
+                modifier = Modifier.size(HudIconSize),
             )
         }
     }
 }
 
-/** A single bar with the icon inside it and the value at the end. */
+/** Icon, track and value in a row, sitting under the top bar like the speed badge. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun HorizontalLevelHud(
     icon: ImageVector,
@@ -295,42 +297,24 @@ private fun HorizontalLevelHud(
     progress: () -> Float,
     indicatorColor: Color,
 ) {
-    Box(
-        modifier =
-            Modifier
-                .size(width = HorizontalBarWidth, height = HorizontalBarHeight)
-                .clip(BarTrackShape)
-                .background(PlayerScrimGestureHud),
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val filled = size.width * progress().coerceIn(0f, 1f)
-            if (filled <= 0f) return@Canvas
-            drawRect(
-                color = indicatorColor.copy(alpha = 0.55f),
-                size = Size(filled, size.height),
-            )
-        }
+    HudSurface(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) {
         Row(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = PlayerScrimContent,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(HudIconSize),
             )
-            Text(
-                text = valueLabel,
-                color = PlayerScrimContent,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
+            LinearWavyProgressIndicator(
+                progress = progress,
+                color = indicatorColor,
+                trackColor = PlayerScrimAffordance,
+                modifier = Modifier.width(HorizontalTrackLength),
             )
+            LevelValue(valueLabel)
         }
     }
 }
@@ -341,47 +325,51 @@ private fun MinimalLevelHud(
     icon: ImageVector,
     valueLabel: String,
 ) {
-    Row(
-        modifier =
-            Modifier
-                .clip(LevelPillShape)
-                .background(PlayerScrimGestureHud)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = PlayerScrimContent,
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            text = valueLabel,
-            color = PlayerScrimContent,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-        )
+    HudSurface(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = PlayerScrimContent,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = valueLabel,
+                color = PlayerScrimContent,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 
 @Composable
-private fun LevelPill(valueLabel: String) {
-    Box(
-        modifier =
-            Modifier
-                .height(28.dp)
-                .clip(LevelPillShape)
-                .background(PlayerScrimGestureHud)
-                .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center,
+private fun HudSurface(
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        color = PlayerScrimGestureHud,
+        shape = MaterialTheme.shapes.largeIncreased,
+        modifier = modifier,
     ) {
-        Text(
-            text = valueLabel,
-            color = PlayerScrimContent,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-        )
+        Box(modifier = Modifier.padding(contentPadding)) {
+            content()
+        }
     }
+}
+
+@Composable
+private fun LevelValue(valueLabel: String) {
+    Text(
+        text = valueLabel,
+        color = PlayerScrimContent,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        maxLines = 1,
+    )
 }

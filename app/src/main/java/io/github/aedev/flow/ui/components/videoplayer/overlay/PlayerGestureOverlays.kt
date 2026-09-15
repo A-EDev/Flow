@@ -10,7 +10,8 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 
-private val VerticalHudSideInset = 20.dp
+private val HudSideInset = 16.dp
+private val HudTopInset = 12.dp
 
 @Composable
 fun PlayerGestureOverlays(
@@ -24,6 +25,9 @@ fun PlayerGestureOverlays(
     // regardless of the device's system language direction.
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(modifier = modifier.fillMaxSize()) {
+            val isFullscreen = screenState.isFullscreen
+            val isVertical = style == GestureOverlayStyle.VERTICAL
+
             SeekAnimationOverlay(
                 showSeekBack = screenState.showSeekBackAnimation,
                 showSeekForward = screenState.showSeekForwardAnimation,
@@ -31,10 +35,9 @@ fun PlayerGestureOverlays(
                 modifier = Modifier.align(Alignment.Center),
             )
 
-            // The vertical style exists to keep the middle of the frame clear, so it sits against
-            // the edge its own gesture came from; every other style stays centred.
-            val isVertical = style == GestureOverlayStyle.VERTICAL
-
+            // The standing bar goes to the side OPPOSITE the swipe: brightness is a left-edge
+            // gesture, so it reads out on the right, and volume the other way round. Put it under
+            // the thumb and the hand adjusting the level covers the number it is aiming for.
             BrightnessOverlay(
                 isVisible = screenState.showBrightnessOverlay,
                 brightnessLevel = { screenState.brightnessLevel },
@@ -42,10 +45,14 @@ fun PlayerGestureOverlays(
                 modifier =
                     if (isVertical) {
                         Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = VerticalHudSideInset)
+                            .align(Alignment.CenterEnd)
+                            .hudInsets(isFullscreen)
+                            .padding(horizontal = HudSideInset)
                     } else {
-                        Modifier.align(Alignment.Center)
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .hudInsets(isFullscreen)
+                            .padding(top = HudTopInset)
                     },
             )
 
@@ -57,10 +64,14 @@ fun PlayerGestureOverlays(
                 modifier =
                     if (isVertical) {
                         Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = VerticalHudSideInset)
+                            .align(Alignment.CenterStart)
+                            .hudInsets(isFullscreen)
+                            .padding(horizontal = HudSideInset)
                     } else {
-                        Modifier.align(Alignment.Center)
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .hudInsets(isFullscreen)
+                            .padding(top = HudTopInset)
                     },
             )
 
@@ -77,16 +88,17 @@ fun PlayerGestureOverlays(
                 modifier =
                     Modifier
                         .align(Alignment.TopCenter)
-                        .then(
-                            if (screenState.isFullscreen) {
-                                Modifier
-                                    .windowInsetsPadding(WindowInsets.displayCutout)
-                                    .padding(top = 12.dp)
-                            } else {
-                                Modifier.padding(top = 12.dp)
-                            },
-                        ),
+                        .hudInsets(isFullscreen)
+                        .padding(top = HudTopInset),
             )
         }
     }
 }
+
+/**
+ * Keeps a read-out clear of the display cutout. In landscape fullscreen the punch-hole sits on one
+ * of the long edges, which is exactly where the standing bar wants to be.
+ */
+@Composable
+private fun Modifier.hudInsets(isFullscreen: Boolean): Modifier =
+    if (isFullscreen) this.windowInsetsPadding(WindowInsets.displayCutout) else this

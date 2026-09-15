@@ -42,6 +42,10 @@ private const val EXIT_FULLSCREEN_OVERSHOOT_PX = 140f
 
 private const val VERTICAL_DRAG_SENSITIVITY = 1.5f
 
+/** Where a drag leaving auto brightness resumes from, and how far below zero one may bank. */
+private const val AUTO_BRIGHTNESS_SEED = -0.06f
+private const val AUTO_BRIGHTNESS_FLOOR = -0.12f
+
 private fun resistedTravel(
     distance: Float,
     limit: Float,
@@ -102,8 +106,15 @@ internal fun Modifier.playerDragGestures(
         var exitDragPastCommit = false
         var exitSettleJob: Job? = null
         var lastVolumeStep = -1
-        var volumeSyncedThisGesture = false
         var lastBrightnessEdge = 0
+
+        // Each vertical drag accumulates its own level rather than re-reading the one it just
+        // published. screenState is snapshot state and a pointer handler can run several times
+        // between two frames, so the read-back lags the write: every event after the first in a
+        // frame started from a stale base, which is what made brightness jitter and made volume
+        // appear to slide back down when a second swipe continued from a boosted level.
+        var volumeGestureLevel = Float.NaN
+        var brightnessGestureLevel = Float.NaN
 
         var seekDragStarted = false
         var seekDragBaseMs = 0L
@@ -115,17 +126,24 @@ internal fun Modifier.playerDragGestures(
             val screenHeight = size.height.toFloat()
             if (screenHeight <= 0f) return
 
+            if (brightnessGestureLevel.isNaN()) {
+                val level = currentBrightnessLevel()
+                // Auto reads as -1; seed just under the auto threshold so the first upward nudge
+                // leaves auto instead of jumping to whatever brightness it had before.
+                brightnessGestureLevel = if (level < 0f) AUTO_BRIGHTNESS_SEED else level
+            }
+
             val delta = -dy / screenHeight * VERTICAL_DRAG_SENSITIVITY
-            val level = currentBrightnessLevel()
-            val startLevel = if (level < 0) 0f else level
-            val rawNewLevel = startLevel + delta
+            // Tracked slightly below zero so the auto threshold stays reachable, and clamped so a
+            // long downward drag cannot bank travel the user then has to undo.
+            brightnessGestureLevel = (brightnessGestureLevel + delta).coerceIn(AUTO_BRIGHTNESS_FLOOR, 1f)
 
             // Auto brightness logic: if dragging down past -5%
             val newBrightness =
-                if (rawNewLevel < -0.05f) {
+                if (brightnessGestureLevel < -0.05f) {
                     -1.0f // Auto mode
                 } else {
-                    rawNewLevel.coerceIn(0f, 1f)
+                    brightnessGestureLevel.coerceIn(0f, 1f)
                 }
 
             currentOnBrightnessChange(newBrightness)
@@ -173,24 +191,27 @@ internal fun Modifier.playerDragGestures(
             val screenHeight = size.height.toFloat()
             if (screenHeight <= 0f) return
 
-            // The system stream is the source of truth (#1062). Our own level goes stale whenever
-            // the volume moves outside the player — quick settings, another app, a paused session —
-            // so the first drag of each gesture adopts what the stream actually holds instead of
-            // resuming from a remembered value the user has since overridden. A boost above the
-            // system ceiling is app-only state, so it survives only while the stream is still maxed.
-            var level = currentVolumeLevel()
-            if (!volumeSyncedThisGesture) {
-                volumeSyncedThisGesture = true
+            val ceiling = if (currentAllowVolumeBoost) 2.0f else 1.0f
+
+            if (volumeGestureLevel.isNaN()) {
+                // The system stream is the source of truth (#1062). Our own level goes stale
+                // whenever the volume moves outside the player — quick settings, another app, a
+                // paused session — so each gesture starts from what the stream actually holds
+                // rather than a remembered value the user has since overridden. A boost above the
+                // system ceiling is app-only state, so it survives only while the stream is maxed.
+                val remembered = currentVolumeLevel().coerceIn(0f, ceiling)
                 val systemFraction = systemVolumeFraction()
-                if (systemFraction != null && (level <= 1f || systemFraction < 1f)) {
-                    level = systemFraction
-                    currentOnVolumeChange(level)
-                }
+                volumeGestureLevel =
+                    if (systemFraction != null && (remembered <= 1f || systemFraction < 1f)) {
+                        systemFraction
+                    } else {
+                        remembered
+                    }
             }
 
             val delta = -dy / screenHeight * VERTICAL_DRAG_SENSITIVITY
-            val ceiling = if (currentAllowVolumeBoost) 2.0f else 1.0f
-            val newVolumeLevel = (level + delta).coerceIn(0f, ceiling)
+            volumeGestureLevel = (volumeGestureLevel + delta).coerceIn(0f, ceiling)
+            val newVolumeLevel = volumeGestureLevel
             currentOnVolumeChange(newVolumeLevel)
 
             if (newVolumeLevel <= 1.0f) {
@@ -314,7 +335,8 @@ internal fun Modifier.playerDragGestures(
             detectPlayerDrags(
                 onDragStart = { offset ->
                     lastVolumeStep = -1
-                    volumeSyncedThisGesture = false
+                    volumeGestureLevel = Float.NaN
+                    brightnessGestureLevel = Float.NaN
                     lastBrightnessEdge = 0
                     seekDragStarted = false
 
