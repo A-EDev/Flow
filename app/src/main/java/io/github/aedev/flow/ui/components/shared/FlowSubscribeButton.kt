@@ -57,8 +57,10 @@ enum class FlowSubscribeButtonSize {
     Compact,
 
     /**
-     * Fills the width it is given, for a row that shares its space evenly with another action —
-     * the control otherwise sizes to its label and sits small beside a stretched neighbour.
+     * Stretches the unsubscribed control to the width it is given, for a row that shares its space
+     * with another action — it otherwise sizes to its short label and sits small beside a stretched
+     * neighbour. The subscribed control always sizes to its own content, which is the only width
+     * that fits "Subscribed" beside the menu on one line.
      */
     Wide,
 }
@@ -95,12 +97,10 @@ fun FlowSubscribeButton(
     val trailingIconSize =
         if (compact) SplitButtonDefaults.ExtraSmallTrailingButtonIconSize else SplitButtonDefaults.TrailingIconSize
 
-    val wide = size == FlowSubscribeButtonSize.Wide
-    val fill = if (wide) Modifier.fillMaxWidth() else Modifier
+    val fill = if (size == FlowSubscribeButtonSize.Wide) Modifier.fillMaxWidth() else Modifier
     Box(modifier = modifier) {
         if (isSubscribed) {
             SplitButtonLayout(
-                modifier = fill,
                 leadingButton = {
                     SplitButtonDefaults.TonalLeadingButton(
                         onClick = { onNotificationChange?.invoke(!isNotificationsEnabled) },
@@ -123,7 +123,7 @@ fun FlowSubscribeButton(
                             modifier = Modifier.size(leadingIconSize),
                         )
                         Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(text = stringResource(R.string.subscribed))
+                        Text(text = stringResource(R.string.subscribed), maxLines = 1)
                     }
                 },
                 trailingButton = {
@@ -163,7 +163,7 @@ fun FlowSubscribeButton(
                     if (compact) ButtonDefaults.ExtraSmallContentPadding else ToggleButtonDefaults.ContentPadding,
                 modifier = fill.heightIn(min = containerHeight),
             ) {
-                Text(text = stringResource(R.string.subscribe))
+                Text(text = stringResource(R.string.subscribe), maxLines = 1)
             }
         }
 

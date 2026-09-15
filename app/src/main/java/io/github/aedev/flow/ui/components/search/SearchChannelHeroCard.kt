@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -25,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,7 +62,7 @@ fun SearchChannelHeroCard(
     val tint = rememberMediaArtworkTint(channel.thumbnailUrl)
 
     Surface(
-        modifier = modifier.fillMaxWidth().padding(horizontal = CardMargin),
+        modifier = modifier.fillMaxWidth().padding(horizontal = CardMargin, vertical = CardGap),
         shape = MaterialTheme.shapes.large,
         color = tint.container,
         contentColor = tint.onContainer,
@@ -84,7 +86,7 @@ fun SearchChannelHeroCard(
                     ChannelAvatarImage(
                         url = channel.thumbnailUrl,
                         contentDescription = channel.name,
-                        modifier = Modifier.size(AvatarSize),
+                        modifier = Modifier.size(AvatarSize).clip(CircleShape),
                     )
                     ChannelIdentity(channel = channel, tint = tint, modifier = Modifier.weight(1f))
                     if (actionsInline) {
@@ -182,7 +184,7 @@ private fun ChannelActions(
             onSubscribeClick = onSubscribeToggle,
             onUnsubscribeClick = onSubscribeToggle,
             size = FlowSubscribeButtonSize.Wide,
-            modifier = Modifier.weight(1f),
+            modifier = if (isSubscribed) Modifier else Modifier.weight(1f),
         )
         OutlinedButton(
             onClick = onOpen,
@@ -275,14 +277,15 @@ private fun Channel.metadataLine(): String? {
 }
 
 private const val SEPARATOR = " • "
-private const val COMPACT_STRIP_DIVISOR = 2.3f
-private const val WIDE_STRIP_DIVISOR = 4.2f
+private const val COMPACT_STRIP_DIVISOR = 1.8f
+private const val WIDE_STRIP_DIVISOR = 3.2f
 private val CompactStripWidth = 600.dp
-private val StripCardMinWidth = 150.dp
-private val StripCardMaxWidth = 260.dp
-private val InlineActionsWidth = 560.dp
-private val InlineActionsColumn = 320.dp
-private val CardMargin = 12.dp
+private val StripCardMinWidth = 200.dp
+private val StripCardMaxWidth = 320.dp
+private val InlineActionsWidth = 640.dp
+private val InlineActionsColumn = 360.dp
+private val CardMargin = 8.dp
+private val CardGap = 8.dp
 private val CardHorizontalPadding = 14.dp
 private val CardVerticalPadding = 14.dp
 private val AvatarSize = 56.dp

@@ -75,8 +75,8 @@ class SearchResultLayoutTest {
         val tablet = stripCardWidth(1128.dp)
 
         assertThat(phone.value).isLessThan(tablet.value)
-        assertThat(phone.value).isAtLeast(150f)
-        assertThat(tablet.value).isAtMost(260f)
+        assertThat(phone.value).isAtLeast(200f)
+        assertThat(tablet.value).isAtMost(320f)
     }
 
     @Test
