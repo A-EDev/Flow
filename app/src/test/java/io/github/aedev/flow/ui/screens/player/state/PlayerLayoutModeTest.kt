@@ -40,6 +40,14 @@ class PlayerLayoutModeTest {
     }
 
     @Test
+    fun `a three by two tablet is not split upright either`() {
+        // A Xiaomi Pad 7 is 2136x3200, which lands around 1068x1600dp — expanded width upright, and
+        // the two-pane layout it used to get is what left a narrow column of empty space (#967).
+        assertThat(modeFor(1068, 1600)).isEqualTo(PlayerLayoutMode.MEDIUM)
+        assertThat(modeFor(1600, 1068)).isEqualTo(PlayerLayoutMode.WIDE)
+    }
+
+    @Test
     fun `a near square window keeps the full width rather than splitting it`() {
         assertThat(modeFor(1000, 1010)).isEqualTo(PlayerLayoutMode.MEDIUM)
         assertThat(modeFor(1010, 1000)).isEqualTo(PlayerLayoutMode.WIDE)
