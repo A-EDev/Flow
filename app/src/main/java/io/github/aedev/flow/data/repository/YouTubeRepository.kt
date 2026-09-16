@@ -36,7 +36,9 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.ServiceList
@@ -1025,6 +1027,10 @@ class YouTubeRepository
             }
         }
 
+        // Read-only by design: the cache is three deep and holds what the player is working with,
+        // so the feed-side callers below reuse an entry but never evict one by populating it.
+        private fun cachedWatchMetadata(videoId: String): WatchMetadataResponse? = watchNextCache.get(videoId)?.let(::decodeWatchMetadata)
+
         /** The watch page description for [videoId], or null when the response could not be read. */
         suspend fun getVideoDescription(videoId: String): VideoDescriptionPage? =
             withContext(Dispatchers.IO) {
@@ -1303,7 +1309,10 @@ class YouTubeRepository
 
         suspend fun getLiveWatchMetadata(videoId: String): LiveWatchMetadata? =
             withContext(Dispatchers.IO) {
-                val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext null
+                val resp =
+                    cachedWatchMetadata(videoId)
+                        ?: YouTube.watchMetadata(videoId).getOrNull()
+                        ?: return@withContext null
                 val related = WatchMetadataVideoMapper.relatedVideos(resp)
                 Log.i(
                     TAG,
@@ -1325,7 +1334,10 @@ class YouTubeRepository
         /** Light related-video harvest for the feed (InnerTube /next, no stream resolution). */
         suspend fun getRelatedCandidates(videoId: String): List<Video> =
             withContext(Dispatchers.IO) {
-                val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext emptyList()
+                val resp =
+                    cachedWatchMetadata(videoId)
+                        ?: YouTube.watchMetadata(videoId).getOrNull()
+                        ?: return@withContext emptyList()
                 enrichLikelyCollabAvatarStacks(WatchMetadataVideoMapper.relatedVideos(resp))
                     .filter { it.id.isNotBlank() && it.id != videoId }
                     .distinctBy { it.id }
@@ -1754,6 +1766,12 @@ internal fun String?.isLiveViewCountText(): Boolean {
     val lower = lowercase(Locale.US)
     return lower.contains("watching") || lower.contains("viewer")
 }
+
+private val watchMetadataJson = Json { ignoreUnknownKeys = true }
+
+/** The watch response as the typed model, or null when the payload no longer matches it. */
+internal fun decodeWatchMetadata(raw: JsonElement): WatchMetadataResponse? =
+    runCatching { watchMetadataJson.decodeFromJsonElement<WatchMetadataResponse>(raw) }.getOrNull()
 
 internal object WatchMetadataVideoMapper {
     fun relatedVideos(resp: WatchMetadataResponse): List<Video> =
