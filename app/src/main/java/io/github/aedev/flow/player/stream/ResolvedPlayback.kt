@@ -109,6 +109,7 @@ sealed interface ResolvedPlayback {
         val preferredQuality: VideoQuality,
         val preferredAudioLanguage: String,
         val preferredCodecKey: String,
+        val preferredSubtitleLanguage: String,
         val resumePositionOverrideMs: Long?,
         val lateStreamInfo: Deferred<NewPipeOutcome>?,
         val streamError: Throwable?,

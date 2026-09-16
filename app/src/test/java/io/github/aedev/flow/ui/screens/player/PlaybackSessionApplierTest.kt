@@ -11,6 +11,7 @@ import io.github.aedev.flow.innertube.models.Thumbnails
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.MergedPlayback
 import io.github.aedev.flow.player.stream.PlaybackFailure
@@ -378,6 +379,7 @@ class PlaybackSessionApplierTest {
             preferredQuality = VideoQuality.Q_1080P,
             preferredAudioLanguage = "original",
             preferredCodecKey = "auto",
+            preferredSubtitleLanguage = CaptionTrackResolver.NO_PREFERRED_LANGUAGE,
             resumePositionOverrideMs = null,
             lateStreamInfo = null,
             streamError = null,

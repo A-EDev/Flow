@@ -54,6 +54,7 @@ object MergedPlaybackAssembly {
         preferredQuality: VideoQuality,
         preferredAudioLanguage: String,
         preferredCodecKey: String,
+        preferredSubtitleLanguage: String,
         escalateToSabr: Boolean,
         localFilePath: String?,
     ): MergedPlayback {
@@ -109,7 +110,7 @@ object MergedPlaybackAssembly {
         val captionStreams =
             innerTubeResult
                 ?.playerResponse
-                ?.let { CaptionTrackResolver.resolve(it) }
+                ?.let { CaptionTrackResolver.resolve(it, translateTo = preferredSubtitleLanguage) }
                 .orEmpty()
         val mergedSubtitleStreams =
             StreamProcessor.processSubtitleStreams(streamInfo.subtitles.orEmpty() + captionStreams)

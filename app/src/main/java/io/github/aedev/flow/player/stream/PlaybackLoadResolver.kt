@@ -43,6 +43,7 @@ internal data class StreamPreferences(
     val quality: VideoQuality,
     val audioLanguage: String,
     val codecKey: String,
+    val subtitleLanguage: String,
 )
 
 /**
@@ -329,6 +330,7 @@ class PlaybackLoadResolver
                         preferredQuality = preferences.quality,
                         preferredAudioLanguage = preferences.audioLanguage,
                         preferredCodecKey = preferences.codecKey,
+                        preferredSubtitleLanguage = preferences.subtitleLanguage,
                         resumePositionOverrideMs = request.resumePositionOverrideMs,
                         lateStreamInfo = lateStreamInfoDeferred,
                         streamError = streamError,
@@ -362,6 +364,7 @@ class PlaybackLoadResolver
                     preferredQuality = preferences.quality,
                     preferredAudioLanguage = preferences.audioLanguage,
                     preferredCodecKey = preferences.codecKey,
+                    preferredSubtitleLanguage = preferences.subtitleLanguage,
                     escalateToSabr = request.escalateToSabr,
                     localFilePath = localFilePath,
                 )
@@ -474,6 +477,7 @@ class PlaybackLoadResolver
                     },
                 audioLanguage = playerPreferences.preferredAudioLanguage.first(),
                 codecKey = playerPreferences.videoCodecPriority.first(),
+                subtitleLanguage = playerPreferences.preferredSubtitleLanguage.first(),
             )
 
         private suspend fun findDownloadedVideo(videoId: String) =

@@ -8,6 +8,7 @@ import io.github.aedev.flow.innertube.models.Thumbnail
 import io.github.aedev.flow.innertube.models.Thumbnails
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import org.junit.Test
@@ -164,6 +165,7 @@ class PlaybackStreamPreparerTest {
             preferredQuality = preferredQuality,
             preferredAudioLanguage = "original",
             preferredCodecKey = "auto",
+            preferredSubtitleLanguage = CaptionTrackResolver.NO_PREFERRED_LANGUAGE,
             resumePositionOverrideMs = null,
             lateStreamInfo = null,
             streamError = null,

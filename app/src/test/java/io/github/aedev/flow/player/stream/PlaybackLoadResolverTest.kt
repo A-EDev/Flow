@@ -76,6 +76,7 @@ class PlaybackLoadResolverTest {
         every { playerPreferences.defaultQualityWifi } returns flowOf(VideoQuality.AUTO)
         every { playerPreferences.defaultQualityCellular } returns flowOf(VideoQuality.AUTO)
         every { playerPreferences.preferredAudioLanguage } returns flowOf("original")
+        every { playerPreferences.preferredSubtitleLanguage } returns flowOf(CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
         every { playerPreferences.videoCodecPriority } returns flowOf("auto")
         every { playerPreferences.autoplayEnabled } returns flowOf(true)
         every { viewHistory.getPlaybackPosition(any()) } returns flowOf(0L)
