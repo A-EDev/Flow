@@ -316,21 +316,7 @@ data class PlayerResponse(
         val videostatsWatchtimeUrl: VideostatsWatchtimeUrl?,
         @SerialName("atrUrl")
         val atrUrl: AtrUrl?,
-        val qoeUrl: QoeUrl? = null,
-        val ptrackingUrl: PtrackingUrl? = null,
-        val videostatsScheduledFlushWalltimeSeconds: List<Int>? = null,
-        val videostatsDefaultFlushIntervalSeconds: Int? = null,
     ) {
-        @Serializable
-        data class QoeUrl(
-            val baseUrl: String? = null,
-        )
-
-        @Serializable
-        data class PtrackingUrl(
-            val baseUrl: String? = null,
-        )
-
         @Serializable
         data class VideostatsPlaybackUrl(
             @SerialName("baseUrl")

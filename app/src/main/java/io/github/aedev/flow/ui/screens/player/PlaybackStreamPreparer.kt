@@ -134,6 +134,11 @@ internal class PlaybackStreamPreparer {
                     channelId = channelId,
                     thumbnailUrl = thumbnail,
                     duration = durationSeconds.toInt(),
+                    // Creator-declared keywords, plus the category when the winning client happened
+                    // to return a microformat (WEB/MWEB do, VISIONOS does not). The engine already
+                    // ingests Video.tags; until now nothing on the player path filled them, so a
+                    // watched video taught it nothing beyond its title.
+                    tags = topicTags(result, cached),
                 ),
             title = title,
             channel = channel,
@@ -141,6 +146,23 @@ internal class PlaybackStreamPreparer {
             channelId = channelId,
             embeddedAvatarUrls = listOfNotNull(cached?.channelThumbnailUrl) + cached?.channelThumbnailUrls.orEmpty(),
         )
+    }
+
+    private fun topicTags(
+        result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
+        cached: Video?,
+    ): List<String> {
+        val keywords =
+            result.playerResponse.videoDetails
+                ?.keywords
+                .orEmpty()
+        val category =
+            result.playerResponse.microformat
+                ?.playerMicroformatRenderer
+                ?.category
+                ?.takeIf { it.isNotBlank() }
+        val tags = (keywords + listOfNotNull(category)).distinct()
+        return tags.ifEmpty { cached?.tags.orEmpty() }
     }
 
     private fun captionStreams(

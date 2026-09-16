@@ -64,14 +64,6 @@ class PlayerResponseFieldsTest {
     }
 
     @Test
-    fun `qoe and ptracking urls are read`() {
-        val tracking = vod().playbackTracking
-
-        assertThat(tracking?.qoeUrl?.baseUrl).isNotNull()
-        assertThat(tracking?.ptrackingUrl?.baseUrl).isNotNull()
-    }
-
-    @Test
     fun `projection type and colour info are read per format`() {
         val formats = vod().streamingData?.adaptiveFormats.orEmpty()
 
