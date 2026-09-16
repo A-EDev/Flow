@@ -140,8 +140,6 @@ object PoTokenGenerator {
 
             if (shouldRecreate) {
                 Log.d(TAG, "Re-attesting BotGuard session (forceRecreate=$forceRecreate)")
-                webPoTokenStreamingPot = null
-                webPoTokenSessionId = null
 
                 var newStreamingPot: String? = null
                 var lowTrust = true
@@ -169,6 +167,8 @@ object PoTokenGenerator {
                 if (lowTrust) {
                     Log.w(TAG, "Accepting low-trust streaming poToken provisionally; will re-attest on next use")
                 }
+                // Published only once a token exists: clearing first meant a mint cancelled
+                // mid-challenge emptied the session and forced a re-attestation on the next open.
                 webPoTokenStreamingPot = newStreamingPot
                 webPoTokenSessionId = sessionId
                 webPoTokenStreamingPotLowTrust = lowTrust

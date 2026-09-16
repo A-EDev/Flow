@@ -60,30 +60,24 @@ object InnerTubeVideoStreamExtractor {
             YouTubeClient.VISIONOS,
         )
 
-    private val BOT_RESISTANT_CLIENTS: List<YouTubeClient> =
-        listOf(
-            YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-        )
-
     /**
-     * Direct clients GVS now cuts off after ~60s of media without a PO Token Flow cannot mint
-     * (DroidGuard). Kept below the attested SABR path rather than deleted: they still answer, still
-     * carry a full ladder, and are the difference between degraded playback and none when both
-     * VISIONOS and SABR are unavailable. Never promote these above [SABR_CLIENTS].
+     * Direct clients GVS cuts off without a PO Token Flow cannot mint (DroidGuard). The gate is
+     * bound to the byte offset, not wall-clock time, and measured between media position 60s and
+     * 67s. Never promote these above [SABR_CLIENTS]. 1.65.10 leads as the only build still
+     * answering; the others are kept because a bot wall is reputation-bound, not structural.
      */
     private val GATED_FALLBACK_CLIENTS: List<YouTubeClient> =
         listOf(
+            YouTubeClient.ANDROID_VR_1_65_10,
             YouTubeClient.ANDROID_VR_1_61_48,
             YouTubeClient.ANDROID_VR_NO_AUTH,
-            YouTubeClient.ANDROID_VR_1_65_10,
             YouTubeClient.ANDROID_VR_1_43_32,
         )
 
-    // Last-resort token-free clients, tried after everything else
+    // Last-resort token-free client, tried after everything else.
     private val LAST_RESORT_CLIENTS: List<YouTubeClient> =
         listOf(
             YouTubeClient.MOBILE,
-            YouTubeClient.ANDROID_CREATOR,
         )
 
     // MWEB first: it carries every dubbed audio track and is web-family, so its GVS token is one
@@ -94,11 +88,12 @@ object InnerTubeVideoStreamExtractor {
             YouTubeClient.WEB,
         )
 
+    // ANDROID_VR leads: on a live broadcast it is the only client that returns a DASH manifest
+    // alongside the HLS one, and VISIONOS returns HLS only.
     private val LIVE_MANIFEST_CLIENTS: List<YouTubeClient> =
         listOf(
+            YouTubeClient.ANDROID_VR_1_65_10,
             YouTubeClient.VISIONOS,
-            YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-            YouTubeClient.ANDROID_VR_1_61_48,
         )
 
     data class VideoExtractionResult(
@@ -166,12 +161,6 @@ object InnerTubeVideoStreamExtractor {
                 Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=SABR)")
                 PlayerDiagnostics.logWarning(TAG, "extract OK $videoId mode=SABR (durable) via ${it.usedClient.clientName}")
                 return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
-            }
-
-            tryDirectClients(videoId, BOT_RESISTANT_CLIENTS, failureReasons, liveDetected = liveDetected)?.let { direct ->
-                val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
-                Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
-                return@withContext result
             }
 
             // 3) Gated direct clients. Playable, but GVS stops serving them ~60s in, so they rank
@@ -287,11 +276,14 @@ object InnerTubeVideoStreamExtractor {
 
             // Attested player requests yield direct URLs that survive GVS enforcement; unattested
             // ones get cut off roughly a minute in (served briefly, then 403 once the buffer drains).
-            val mint = async { WebPoTokenSession.mintBounded(videoId) }
+            // Skipped when no client here can carry the token: minting only to cancel it left the
+            // shared BotGuard session needing a fresh attestation on the next open.
+            val mintable = clients.any { it.attestation == AttestationPlatform.WEB }
+            val mint = if (mintable) async { WebPoTokenSession.mintBounded(videoId) } else null
             var mintLogged = false
 
             suspend fun awaitMint(): PoTokenResult? {
-                val result = mint.await()
+                val result = mint?.await()
                 if (!mintLogged) {
                     mintLogged = true
                     if (result == null) {
@@ -366,7 +358,7 @@ object InnerTubeVideoStreamExtractor {
                         // A genuine live manifest wins outright. Live playback never consumes the
                         // mint, so cancel it rather than letting coroutineScope wait it out.
                         playerResponse.toLiveResultOrNull(client)?.let {
-                            mint.cancel()
+                            mint?.cancel()
                             return@coroutineScope it
                         }
 
@@ -445,7 +437,7 @@ object InnerTubeVideoStreamExtractor {
                         )
                     }
 
-                    mint.cancel()
+                    mint?.cancel()
 
                     return@coroutineScope VideoExtractionResult(
                         videoFormats = if (urlPot != null) videoFormats.map { it.withUrlPoToken(urlPot) } else videoFormats,
@@ -465,7 +457,7 @@ object InnerTubeVideoStreamExtractor {
                     )
                 }
             }
-            mint.cancel()
+            mint?.cancel()
             null
         }
 
