@@ -1894,7 +1894,7 @@
     <string name="tv_settings_sync">Synchronizacja urządzeń</string>
     <string name="tv_sync_qr_session_active">Ten kod jest aktywny, dopóki ten ekran jest otwarty.</string>
     <string name="sync_send_scan_hint">Użyj tej opcji, aby przesłać dane na urządzenie bez aparatu (np. komputer), na którym wyświetla się kod odbioru.</string>
-    <string name="sync_error_qr_expired">Ten kod QR wygasł. Wygeneruj nowy kod na drugim urządzeniu.</string>
+    <string name="sync_error_qr_expired">Sesja parowania wygasła. Poproś drugie urządzenie o utworzenie nowej.</string>
     <string name="tv_about_version">Wersja %1$s</string>
     <string name="tv_home_recommended">Rekomendacje</string>
     <string name="tv_home_title">Główna</string>
