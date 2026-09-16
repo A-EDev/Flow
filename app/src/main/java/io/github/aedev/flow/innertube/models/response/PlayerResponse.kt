@@ -66,9 +66,14 @@ data class PlayerResponse(
         )
 
         /**
-         * Which caption tracks belong with one audio track. The indices point into
-         * [PlayerCaptionsTracklistRenderer.captionTracks], and [audioTrackId] matches
-         * [StreamingData.Format.AudioTrack.id], which is how a dub is paired with its captions.
+         * Which caption tracks belong with one audio track, keyed by [audioTrackId], which matches
+         * [StreamingData.Format.AudioTrack.id].
+         *
+         * Informational only. Probed across four dubbed videos carrying 2-24 dubs: every audio
+         * track returned the identical [captionTrackIndices] and the identical
+         * [defaultCaptionTrackIndex], always the original language. There is no per-dub pairing
+         * here to act on, so matching captions to a chosen dub is done from the language codes
+         * instead — see SubtitleSelection.subtitleFollowingAudio.
          */
         @Serializable
         data class AudioCaptionTrack(
