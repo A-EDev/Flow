@@ -138,6 +138,7 @@ internal class PlaybackSessionApplier(
             is SecondaryMetadata.Related -> publishRelatedVideos(result.videoId, result.videos, result.loadToken)
             is SecondaryMetadata.Enriched -> applyEnrichedMetadata(result)
             is SecondaryMetadata.LiveWatch -> applyLiveWatchMetadata(result)
+            is SecondaryMetadata.Category -> applyCategory(result)
         }
     }
 
@@ -294,6 +295,7 @@ internal class PlaybackSessionApplier(
             )
             if (!streams.isLiveType) {
                 secondaryMetadata.loadRelatedVideos(videoId, step.relatedVideos, load.token)
+                secondaryMetadata.loadCategory(videoId, load.token)
             }
         }
 
@@ -452,6 +454,12 @@ internal class PlaybackSessionApplier(
         // Queue and preloaded playback may already own this media item. Arm secondary metadata
         // before the prepared-player return so those transitions still populate the screen.
         secondaryMetadata.loadRelatedVideos(videoId, relatedVideos, load.token)
+        // A SABR/web client already returned the category, so spend nothing fetching it again.
+        result.playerResponse.microformat
+            ?.playerMicroformatRenderer
+            ?.category
+            ?.let { repository.rememberVideoCategory(videoId, it) }
+        secondaryMetadata.loadCategory(videoId, load.token)
         secondaryMetadata.loadChannelMetadata(
             videoId = videoId,
             uploaderUrl = null,
@@ -488,6 +496,21 @@ internal class PlaybackSessionApplier(
             awaitPlayback = false,
         )
         secondaryMetadata.loadRelatedVideos(load.videoId, relatedVideos, load.token, awaitPlayback = false)
+    }
+
+    /** Folded into the tags the engine ingests, so the watch signal carries it. */
+    private fun applyCategory(result: SecondaryMetadata.Category) {
+        if (!isLoadCurrent(result.loadToken)) return
+
+        uiState.update { state ->
+            val cached = state.cachedVideo?.takeIf { it.id == result.videoId } ?: return@update state
+            if (result.category in cached.tags) return@update state
+            state.copy(cachedVideo = cached.copy(tags = cached.tags + result.category))
+        }
+
+        uiState.value.cachedVideo
+            ?.takeIf { it.id == result.videoId }
+            ?.let(GlobalPlayerState::setCurrentVideo)
     }
 
     private fun applyChannelMetadata(result: SecondaryMetadata.Channel) {

@@ -49,6 +49,12 @@ internal sealed interface SecondaryMetadata {
         val relatedVideos: List<Video>,
     ) : SecondaryMetadata
 
+    class Category(
+        override val videoId: String,
+        override val loadToken: Long,
+        val category: String,
+    ) : SecondaryMetadata
+
     class LiveWatch(
         override val videoId: String,
         override val loadToken: Long,
@@ -126,11 +132,36 @@ internal class PlayerSecondaryMetadataLoader(
     private val relatedLoad = ConcurrentLoad()
     private val enrichLoad = ConcurrentLoad()
     private val liveWatchLoad = ConcurrentLoad()
+    private val categoryLoad = ConcurrentLoad()
 
     /** Drops every fetch in flight; the next load re-arms the ones it needs. */
     fun cancel() {
         channelLoad.cancel()
         relatedLoad.cancel()
+        categoryLoad.cancel()
+    }
+
+    /**
+     * The creator-declared category, which costs its own small request because no client that
+     * serves playable streams returns one. Kept behind [awaitPlaybackStarted] like the other
+     * secondary fetches, and still lands well before the watch signal the engine learns from.
+     */
+    fun loadCategory(
+        videoId: String,
+        loadToken: Long,
+    ) {
+        if (!categoryLoad.claim(videoId, loadToken)) return
+
+        categoryLoad.job =
+            scope.launch(networkDispatcher) {
+                awaitPlaybackStarted(videoId)
+                if (!isPlaybackCurrent(loadToken)) return@launch
+                val category =
+                    withTimeoutOrNull(CATEGORY_TIMEOUT_MS) { repository.videoCategory(videoId) }
+                        ?.takeIf { it.isNotBlank() } ?: return@launch
+                if (!isPlaybackCurrent(loadToken) || !categoryLoad.holds(videoId, loadToken)) return@launch
+                onResult(SecondaryMetadata.Category(videoId, loadToken, category))
+            }
     }
 
     fun loadChannelMetadata(
@@ -436,5 +467,6 @@ internal class PlayerSecondaryMetadataLoader(
         const val LIVE_INNERTUBE_METADATA_TIMEOUT_MS = 8_000L
         const val LIVE_RELATED_SEARCH_TIMEOUT_MS = 8_000L
         const val RYD_TIMEOUT_MS = 5_000L
+        const val CATEGORY_TIMEOUT_MS = 8_000L
     }
 }

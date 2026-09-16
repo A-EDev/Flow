@@ -73,6 +73,15 @@ class YouTubeRepository
                 CoroutineScope(SupervisorJob() + Dispatchers.IO),
             )
 
+        private val videoCategoryCoalescer =
+            InFlightRequestCoalescer<String, String?>(
+                CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            )
+
+        // A category never changes, so this is a plain memo rather than a short player-side cache:
+        // the value is worth keeping for every video the engine has already learned from.
+        private val videoCategoryCache = VideoCategoryMemo(VIDEO_CATEGORY_CACHE_SIZE)
+
         // The comment section, the attributed description and the related lane all read one watch
         // response, so it is fetched once per video and held for the few videos in play.
         private val watchNextCache = LruCache<String, JsonElement>(WATCH_NEXT_CACHE_SIZE)
@@ -1031,6 +1040,32 @@ class YouTubeRepository
         // so the feed-side callers below reuse an entry but never evict one by populating it.
         private fun cachedWatchMetadata(videoId: String): WatchMetadataResponse? = watchNextCache.get(videoId)?.let(::decodeWatchMetadata)
 
+        /** Seeds [videoCategory] when a player response happened to carry the category already. */
+        fun rememberVideoCategory(
+            videoId: String,
+            category: String,
+        ) {
+            videoCategoryCache.remember(videoId, category)
+        }
+
+        /**
+         * The creator-declared category for [videoId], e.g. "Science & Technology".
+         *
+         * Costs one small MWEB request, because no client that serves playable URLs returns a
+         * microformat and /next carries no category at all. Cached for the process: it is a strong,
+         * stable clustering signal for the recommendation engine and never changes.
+         */
+        suspend fun videoCategory(videoId: String): String? {
+            if (videoId.isBlank()) return null
+            videoCategoryCache.cached(videoId)?.let { return it }
+            return videoCategoryCoalescer.run(videoId) {
+                YouTube
+                    .videoCategory(videoId)
+                    .getOrNull()
+                    ?.also { videoCategoryCache.remember(videoId, it) }
+            }
+        }
+
         /** The watch page description for [videoId], or null when the response could not be read. */
         suspend fun getVideoDescription(videoId: String): VideoDescriptionPage? =
             withContext(Dispatchers.IO) {
@@ -1686,6 +1721,7 @@ class YouTubeRepository
             private const val COMMENT_AVATAR_FETCH_TIMEOUT_MS = 6_000L
             private const val REEL_INDEX_TIMEOUT_MS = 3_000L
             private const val WATCH_NEXT_CACHE_SIZE = 3
+            private const val VIDEO_CATEGORY_CACHE_SIZE = 500
 
             @Volatile
             private var instance: YouTubeRepository? = null
@@ -1765,6 +1801,33 @@ internal fun String?.isLiveViewCountText(): Boolean {
     if (isNullOrBlank()) return false
     val lower = lowercase(Locale.US)
     return lower.contains("watching") || lower.contains("viewer")
+}
+
+/**
+ * Process-lifetime memo for video categories. Separate from the repository so the keep/skip rules
+ * can be exercised without standing one up; a category never changes, so there is no TTL.
+ */
+internal class VideoCategoryMemo(
+    private val maxEntries: Int = 500,
+) {
+    // A plain access-ordered map rather than android.util.LruCache: that one is an Android stub in
+    // a JVM test and silently returns null, which would make these rules untestable.
+    private val entries =
+        object : LinkedHashMap<String, String>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean = size > maxEntries
+        }
+
+    @Synchronized
+    fun cached(videoId: String): String? = videoId.takeIf { it.isNotBlank() }?.let(entries::get)
+
+    @Synchronized
+    fun remember(
+        videoId: String,
+        category: String,
+    ) {
+        if (videoId.isBlank() || category.isBlank()) return
+        entries[videoId] = category
+    }
 }
 
 private val watchMetadataJson = Json { ignoreUnknownKeys = true }
