@@ -2,9 +2,14 @@ package io.github.aedev.flow.ui.components.videoplayer.controls
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -18,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
 import io.github.aedev.flow.player.stream.StoryboardTile
 import io.github.aedev.flow.ui.theme.PlayerScrim
+import io.github.aedev.flow.ui.theme.PlayerScrimContent
 
 /** Width the preview is drawn at, and the size the storyboard level is chosen to match. */
 internal val SeekPreviewWidth: Dp = 160.dp
@@ -36,24 +42,44 @@ internal fun SeekPreviewThumbnail(
     tile: StoryboardTile,
     modifier: Modifier = Modifier,
     width: Dp = SeekPreviewWidth,
+    badge: String? = null,
 ) {
     val painter = rememberAsyncImagePainter(model = tile.sheetUrl)
     val height = width * (tile.height.toFloat() / tile.width.toFloat())
 
-    Canvas(
-        modifier =
-            modifier
-                .size(width, height)
-                .clip(RoundedCornerShape(SeekPreviewCorner))
-                .background(PlayerScrim),
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Drawn unconditionally: AsyncImagePainter resolves its size and starts loading from the
-        // draw pass, so skipping the draw until it reports success is a deadlock. It paints nothing
-        // while loading, which leaves the scrim behind it showing.
-        val scale = size.width / tile.width.toFloat()
-        scale(scaleX = scale, scaleY = scale, pivot = Offset.Zero) {
-            translate(left = -tile.left.toFloat(), top = -tile.top.toFloat()) {
-                drawSheet(painter, tile)
+        if (badge != null) {
+            Text(
+                text = badge,
+                style = MaterialTheme.typography.labelSmall,
+                color = PlayerScrimContent,
+                maxLines = 1,
+                modifier =
+                    Modifier
+                        .padding(bottom = 4.dp)
+                        .clip(RoundedCornerShape(SeekPreviewCorner))
+                        .background(PlayerScrim)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        Canvas(
+            modifier =
+                Modifier
+                    .size(width, height)
+                    .clip(RoundedCornerShape(SeekPreviewCorner))
+                    .background(PlayerScrim),
+        ) {
+            // Drawn unconditionally: AsyncImagePainter resolves its size and starts loading from
+            // the draw pass, so skipping the draw until it reports success is a deadlock. It paints
+            // nothing while loading, which leaves the scrim behind it showing.
+            val scale = size.width / tile.width.toFloat()
+            scale(scaleX = scale, scaleY = scale, pivot = Offset.Zero) {
+                translate(left = -tile.left.toFloat(), top = -tile.top.toFloat()) {
+                    drawSheet(painter, tile)
+                }
             }
         }
     }

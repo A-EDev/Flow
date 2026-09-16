@@ -12,6 +12,8 @@ import io.github.aedev.flow.data.shorts.ChannelReelIndex
 import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
+import io.github.aedev.flow.innertube.models.response.VideoHeatmap
+import io.github.aedev.flow.innertube.models.response.VideoHeatmapParser
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
@@ -1065,6 +1067,17 @@ class YouTubeRepository
                     ?.also { videoCategoryCache.remember(videoId, it) }
             }
         }
+
+        /**
+         * The rewatch curve for [videoId], or null when the video has none.
+         *
+         * Free: it rides the watch response the description and comments already fetch. Plenty of
+         * videos have no heatmap — too new, too few views, or live — so null is ordinary.
+         */
+        suspend fun videoHeatmap(videoId: String): VideoHeatmap? =
+            withContext(Dispatchers.IO) {
+                VideoHeatmapParser.parse(watchNextResponse(videoId))
+            }
 
         /** The watch page description for [videoId], or null when the response could not be read. */
         suspend fun getVideoDescription(videoId: String): VideoDescriptionPage? =

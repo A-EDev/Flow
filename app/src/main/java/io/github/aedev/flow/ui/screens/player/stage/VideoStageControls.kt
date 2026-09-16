@@ -102,6 +102,7 @@ internal fun VideoStageControls(
                     pipPreferences.manualPipButtonEnabled,
             chapters = playerUiState.chapters,
             storyboard = playerUiState.storyboard,
+            heatmap = playerUiState.heatmap,
             isSubtitlesEnabled = screenState.subtitlesEnabled,
             autoplayEnabled = playerUiState.autoplayEnabled,
             isLooping = playerState.isLooping,

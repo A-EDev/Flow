@@ -165,13 +165,21 @@ internal fun PlayerControlsOverlay(
     val hideControlsForLoading = isInitialLoading && !showControlsWhileLoading
 
     val seekbarContent =
-        remember(state.chapters, sponsorSegments, sponsorSegmentColors, bufferedPercentage, state.storyboard) {
+        remember(
+            state.chapters,
+            sponsorSegments,
+            sponsorSegmentColors,
+            bufferedPercentage,
+            state.storyboard,
+            state.heatmap,
+        ) {
             PlayerSeekbarContent(
                 chapters = state.chapters,
                 sponsorSegments = sponsorSegments,
                 sponsorColors = sponsorSegmentColors,
                 bufferedPercentage = bufferedPercentage,
                 storyboard = state.storyboard,
+                heatmap = state.heatmap,
             )
         }
     val bottomBarMetrics =

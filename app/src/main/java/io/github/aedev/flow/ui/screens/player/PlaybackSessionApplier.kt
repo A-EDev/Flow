@@ -140,6 +140,7 @@ internal class PlaybackSessionApplier(
             is SecondaryMetadata.Enriched -> applyEnrichedMetadata(result)
             is SecondaryMetadata.LiveWatch -> applyLiveWatchMetadata(result)
             is SecondaryMetadata.Category -> applyCategory(result)
+            is SecondaryMetadata.Heatmap -> applyHeatmap(result)
         }
     }
 
@@ -297,6 +298,7 @@ internal class PlaybackSessionApplier(
             if (!streams.isLiveType) {
                 secondaryMetadata.loadRelatedVideos(videoId, step.relatedVideos, load.token)
                 secondaryMetadata.loadCategory(videoId, load.token)
+                secondaryMetadata.loadHeatmap(videoId, load.token)
             }
         }
 
@@ -469,6 +471,7 @@ internal class PlaybackSessionApplier(
             ?.category
             ?.let { repository.rememberVideoCategory(videoId, it) }
         secondaryMetadata.loadCategory(videoId, load.token)
+        secondaryMetadata.loadHeatmap(videoId, load.token)
         secondaryMetadata.loadChannelMetadata(
             videoId = videoId,
             uploaderUrl = null,
@@ -505,6 +508,11 @@ internal class PlaybackSessionApplier(
             awaitPlayback = false,
         )
         secondaryMetadata.loadRelatedVideos(load.videoId, relatedVideos, load.token, awaitPlayback = false)
+    }
+
+    private fun applyHeatmap(result: SecondaryMetadata.Heatmap) {
+        if (!isLoadCurrent(result.loadToken)) return
+        uiState.update { it.copy(heatmap = result.heatmap) }
     }
 
     /** Folded into the tags the engine ingests, so the watch signal carries it. */

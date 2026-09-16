@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
@@ -53,6 +54,12 @@ internal sealed interface SecondaryMetadata {
         override val videoId: String,
         override val loadToken: Long,
         val category: String,
+    ) : SecondaryMetadata
+
+    class Heatmap(
+        override val videoId: String,
+        override val loadToken: Long,
+        val heatmap: VideoHeatmap,
     ) : SecondaryMetadata
 
     class LiveWatch(
@@ -133,12 +140,33 @@ internal class PlayerSecondaryMetadataLoader(
     private val enrichLoad = ConcurrentLoad()
     private val liveWatchLoad = ConcurrentLoad()
     private val categoryLoad = ConcurrentLoad()
+    private val heatmapLoad = ConcurrentLoad()
 
     /** Drops every fetch in flight; the next load re-arms the ones it needs. */
     fun cancel() {
         channelLoad.cancel()
         relatedLoad.cancel()
         categoryLoad.cancel()
+        heatmapLoad.cancel()
+    }
+
+    /** The rewatch curve, off the watch response the description and comments already fetch. */
+    fun loadHeatmap(
+        videoId: String,
+        loadToken: Long,
+    ) {
+        if (!heatmapLoad.claim(videoId, loadToken)) return
+
+        heatmapLoad.job =
+            scope.launch(networkDispatcher) {
+                awaitPlaybackStarted(videoId)
+                if (!isPlaybackCurrent(loadToken)) return@launch
+                val heatmap =
+                    withTimeoutOrNull(HEATMAP_TIMEOUT_MS) { repository.videoHeatmap(videoId) }
+                        ?.takeIf { !it.isEmpty } ?: return@launch
+                if (!isPlaybackCurrent(loadToken) || !heatmapLoad.holds(videoId, loadToken)) return@launch
+                onResult(SecondaryMetadata.Heatmap(videoId, loadToken, heatmap))
+            }
     }
 
     /**
@@ -468,5 +496,6 @@ internal class PlayerSecondaryMetadataLoader(
         const val LIVE_RELATED_SEARCH_TIMEOUT_MS = 8_000L
         const val RYD_TIMEOUT_MS = 5_000L
         const val CATEGORY_TIMEOUT_MS = 8_000L
+        const val HEATMAP_TIMEOUT_MS = 8_000L
     }
 }
