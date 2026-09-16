@@ -18,7 +18,41 @@ data class PlayerResponse(
     val captions: Captions? = null,
     @SerialName("playbackTracking")
     val playbackTracking: PlaybackTracking?,
+    val storyboards: Storyboards? = null,
+    val microformat: Microformat? = null,
 ) {
+    @Serializable
+    data class Storyboards(
+        val playerStoryboardSpecRenderer: PlayerStoryboardSpecRenderer? = null,
+    ) {
+        @Serializable
+        data class PlayerStoryboardSpecRenderer(
+            val spec: String? = null,
+            val recommendedLevel: Int? = null,
+        )
+    }
+
+    @Serializable
+    data class Microformat(
+        val playerMicroformatRenderer: PlayerMicroformatRenderer? = null,
+    ) {
+        @Serializable
+        data class PlayerMicroformatRenderer(
+            val category: String? = null,
+            val likeCount: String? = null,
+            val viewCount: String? = null,
+            val publishDate: String? = null,
+            val uploadDate: String? = null,
+            val ownerChannelName: String? = null,
+            val externalChannelId: String? = null,
+            val isFamilySafe: Boolean? = null,
+            val isUnlisted: Boolean? = null,
+            val isShortsEligible: Boolean? = null,
+            val availableCountries: List<String>? = null,
+            val canonicalUrl: String? = null,
+        )
+    }
+
     @Serializable
     data class Captions(
         val playerCaptionsTracklistRenderer: PlayerCaptionsTracklistRenderer? = null,
@@ -27,6 +61,22 @@ data class PlayerResponse(
         data class PlayerCaptionsTracklistRenderer(
             val captionTracks: List<CaptionTrack>? = null,
             val translationLanguages: List<TranslationLanguage>? = null,
+            val audioTracks: List<AudioCaptionTrack>? = null,
+            val defaultAudioTrackIndex: Int? = null,
+        )
+
+        /**
+         * Which caption tracks belong with one audio track. The indices point into
+         * [PlayerCaptionsTracklistRenderer.captionTracks], and [audioTrackId] matches
+         * [StreamingData.Format.AudioTrack.id], which is how a dub is paired with its captions.
+         */
+        @Serializable
+        data class AudioCaptionTrack(
+            val captionTrackIndices: List<Int>? = null,
+            val defaultCaptionTrackIndex: Int? = null,
+            val hasDefaultTrack: Boolean? = null,
+            val audioTrackId: String? = null,
+            val captionsInitialState: String? = null,
         )
 
         @Serializable
@@ -90,12 +140,33 @@ data class PlayerResponse(
     data class PlayerConfig(
         val audioConfig: AudioConfig? = null,
         val mediaCommonConfig: MediaCommonConfig? = null,
+        val hlsProxyConfig: HlsProxyConfig? = null,
     ) {
         @Serializable
         data class AudioConfig(
             val loudnessDb: Double?,
             val perceptualLoudnessDb: Double?,
             val loudnessTargetLkfs: Double? = null,
+            val enablePerFormatLoudness: Boolean? = null,
+            val trackAbsoluteLoudnessLkfs: Double? = null,
+            val loudnessNormalizationConfig: LoudnessNormalizationConfig? = null,
+        ) {
+            @Serializable
+            data class LoudnessNormalizationConfig(
+                val applyStatefulNormalization: Boolean? = null,
+                val preserveStatefulLoudnessTarget: Boolean? = null,
+                val maxStatefulTimeThresholdSec: Int? = null,
+                val minimumLoudnessTargetLkfs: Double? = null,
+            )
+        }
+
+        /** YouTube's own starting point for adaptive selection on a manifest-driven stream. */
+        @Serializable
+        data class HlsProxyConfig(
+            val defaultInitialBitrate: Long? = null,
+            val maxInitialBitrate: Long? = null,
+            val initialStreamSelectionStrategy: String? = null,
+            val bitrateEstimateScale: Double? = null,
         )
 
         @Serializable
@@ -117,6 +188,7 @@ data class PlayerResponse(
         val serverAbrStreamingUrl: String? = null,
         val hlsManifestUrl: String? = null,
         val dashManifestUrl: String? = null,
+        val aspectRatio: Float? = null,
     ) {
         @Serializable
         data class Format(
@@ -145,6 +217,9 @@ data class PlayerResponse(
             val trackAbsoluteLoudnessLkfs: Double? = null,
             val initRange: Range? = null,
             val indexRange: Range? = null,
+            val projectionType: String? = null,
+            val qualityOrdinal: String? = null,
+            val colorInfo: ColorInfo? = null,
         ) {
             val isAudio: Boolean
                 get() = width == null
@@ -193,6 +268,19 @@ data class PlayerResponse(
             )
 
             @Serializable
+            data class ColorInfo(
+                val primaries: String? = null,
+                val transferCharacteristics: String? = null,
+                val matrixCoefficients: String? = null,
+            ) {
+                /** HDR is carried by the transfer curve: PQ (HDR10) or HLG. */
+                val isHdr: Boolean
+                    get() =
+                        transferCharacteristics == "COLOR_TRANSFER_CHARACTERISTICS_SMPTEST2084" ||
+                            transferCharacteristics == "COLOR_TRANSFER_CHARACTERISTICS_ARIB_STD_B67"
+            }
+
+            @Serializable
             data class Range(
                 val start: String? = null,
                 val end: String? = null,
@@ -215,6 +303,9 @@ data class PlayerResponse(
         val isLiveContent: Boolean? = null,
         val isLiveDvrEnabled: Boolean? = null,
         val isPostLiveDvr: Boolean? = null,
+        val keywords: List<String>? = null,
+        val liveChunkReadahead: Int? = null,
+        val latencyClass: String? = null,
     )
 
     @Serializable
@@ -225,7 +316,21 @@ data class PlayerResponse(
         val videostatsWatchtimeUrl: VideostatsWatchtimeUrl?,
         @SerialName("atrUrl")
         val atrUrl: AtrUrl?,
+        val qoeUrl: QoeUrl? = null,
+        val ptrackingUrl: PtrackingUrl? = null,
+        val videostatsScheduledFlushWalltimeSeconds: List<Int>? = null,
+        val videostatsDefaultFlushIntervalSeconds: Int? = null,
     ) {
+        @Serializable
+        data class QoeUrl(
+            val baseUrl: String? = null,
+        )
+
+        @Serializable
+        data class PtrackingUrl(
+            val baseUrl: String? = null,
+        )
+
         @Serializable
         data class VideostatsPlaybackUrl(
             @SerialName("baseUrl")
