@@ -378,7 +378,7 @@
     <string name="settings_subs_shorts_shelf_title">رف الفيديوهات القصيرة في تبويب الإشتراكات</string>
     <string name="settings_subs_shorts_shelf_subtitle">اعرض رفّ الفيديوهات القصيرة الأفقية في شبكة تغذية الاشتراكات.</string>
     <string name="settings_shorts_nav_tab_title">علامة تبويب \"الفيديوهات القصيرة\" في شريط التنقل</string>
-    <string name="settings_shorts_nav_tab_subtitle">اعرض تبويب \"الفيديوهات القصيرة\" في شريط التنقل السفلي.</string>
+    <string name="settings_shorts_nav_tab_subtitle">اعرض تبويب \"المقاطع القصيرة\" في شريط التنقل السفلي.</string>
     <string name="settings_music_nav_tab_title">علامة تبويب الموسيقى في شريط التنقل</string>
     <string name="settings_music_nav_tab_subtitle">اعرض علامة تبويب الموسيقى في شريط التنقل السفلي.</string>
     <string name="settings_search_nav_tab_title">علامة تبويب البحث في شريط التنقل</string>
