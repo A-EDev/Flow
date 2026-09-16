@@ -21,6 +21,7 @@ data class MergedPlayback(
     val selectedAudioStream: AudioStream?,
     val subtitles: List<SubtitlesStream>,
     val chapters: List<StreamSegment>,
+    val storyboard: List<StoryboardLevel>,
     val streamSizes: Map<String, Long>,
     val innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format>,
     val innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format>,
@@ -157,6 +158,16 @@ object MergedPlaybackAssembly {
             selectedAudioStream = selectedStreams.second,
             subtitles = mergedSubtitleStreams,
             chapters = streamInfo.streamSegments ?: emptyList(),
+            storyboard =
+                StoryboardSpec.parse(
+                    spec =
+                        innerTubeResult
+                            ?.playerResponse
+                            ?.storyboards
+                            ?.playerStoryboardSpecRenderer
+                            ?.spec,
+                    durationMs = streamInfo.duration * 1000L,
+                ),
             streamSizes = downloadStreamSizes,
             innerTubeVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
             innerTubeAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),

@@ -177,6 +177,7 @@ class PlayerPlaybackReducersTest {
                 innerTubeVideoFormats = emptyList(),
                 innerTubeAudioFormats = emptyList(),
                 streamSizes = mapOf("136" to 7L),
+                storyboard = emptyList(),
             )
 
         assertThat(next.streamInfo).isNull()
@@ -493,6 +494,7 @@ class PlayerPlaybackReducersTest {
             preferSabr = false,
             preferredQuality = preferredQuality,
             preferredCodecKey = "auto",
+            storyboard = emptyList(),
         )
 
     private fun merged(

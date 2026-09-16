@@ -165,12 +165,13 @@ internal fun PlayerControlsOverlay(
     val hideControlsForLoading = isInitialLoading && !showControlsWhileLoading
 
     val seekbarContent =
-        remember(state.chapters, sponsorSegments, sponsorSegmentColors, bufferedPercentage) {
+        remember(state.chapters, sponsorSegments, sponsorSegmentColors, bufferedPercentage, state.storyboard) {
             PlayerSeekbarContent(
                 chapters = state.chapters,
                 sponsorSegments = sponsorSegments,
                 sponsorColors = sponsorSegmentColors,
                 bufferedPercentage = bufferedPercentage,
+                storyboard = state.storyboard,
             )
         }
     val bottomBarMetrics =
@@ -314,6 +315,7 @@ internal fun PlayerControlsOverlay(
                         actions = actions,
                         onScrubProgress = onScrubProgress,
                         onScrubFinished = onScrubFinished,
+                        isScrubbing = scrubController.isScrubbing,
                         isLayerVisible = isLayerOnScreen,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
@@ -337,6 +339,7 @@ internal fun PlayerControlsOverlay(
                     horizontalPadding = seekbarHorizontalPadding,
                     onScrubProgress = onScrubProgress,
                     onScrubFinished = onScrubFinished,
+                    isScrubbing = scrubController.isScrubbing,
                 )
             }
         }

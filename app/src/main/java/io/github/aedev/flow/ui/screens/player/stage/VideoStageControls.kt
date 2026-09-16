@@ -101,6 +101,7 @@ internal fun VideoStageControls(
                 PictureInPictureHelper.isPlayerPopupSupported(context) &&
                     pipPreferences.manualPipButtonEnabled,
             chapters = playerUiState.chapters,
+            storyboard = playerUiState.storyboard,
             isSubtitlesEnabled = screenState.subtitlesEnabled,
             autoplayEnabled = playerUiState.autoplayEnabled,
             isLooping = playerState.isLooping,

@@ -370,6 +370,7 @@ class PlaybackSessionApplierTest {
             preferSabr = false,
             preferredQuality = VideoQuality.AUTO,
             preferredCodecKey = "auto",
+            storyboard = emptyList(),
         )
 
     private fun vodStep(relatedVideos: List<Video> = emptyList()): ResolvedPlayback.VodFromInnerTube =

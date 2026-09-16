@@ -5,6 +5,7 @@ import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.stream.StoryboardLevel
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamSegment
@@ -31,6 +32,7 @@ data class VideoPlayerUiState(
     val channelSubscriberCount: Long? = null,
     val channelAvatarUrl: String? = null,
     val chapters: List<StreamSegment> = emptyList(),
+    val storyboard: List<StoryboardLevel> = emptyList(),
     val autoplayEnabled: Boolean = true,
     val streamSizes: Map<String, Long> = emptyMap(),
     val localFilePath: String? = null,

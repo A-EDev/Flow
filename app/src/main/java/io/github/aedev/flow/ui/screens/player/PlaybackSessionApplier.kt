@@ -18,6 +18,7 @@ import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.ResolvedPlayback
+import io.github.aedev.flow.player.stream.StoryboardSpec
 import io.github.aedev.flow.player.stream.UpcomingDetails
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
@@ -448,6 +449,14 @@ internal class PlaybackSessionApplier(
                 innerTubeVideoFormats = result.videoFormats,
                 innerTubeAudioFormats = result.audioFormats,
                 streamSizes = streams.streamSizes,
+                storyboard =
+                    StoryboardSpec.parse(
+                        spec =
+                            result.playerResponse.storyboards
+                                ?.playerStoryboardSpecRenderer
+                                ?.spec,
+                        durationMs = streams.durationSeconds * 1000L,
+                    ),
             )
         }
 

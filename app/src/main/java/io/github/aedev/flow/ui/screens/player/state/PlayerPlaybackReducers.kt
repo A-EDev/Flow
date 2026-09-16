@@ -6,6 +6,7 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.ResolvedPlayback
+import io.github.aedev.flow.player.stream.StoryboardLevel
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.screens.player.SecondaryMetadata
@@ -71,6 +72,7 @@ internal fun VideoPlayerUiState.applyMergedPlayback(
         availableQualities = streams.availableQualities,
         selectedQuality = VideoQualityOptions.qualityOf(streams.selectedVideoStream),
         chapters = streams.chapters,
+        storyboard = streams.storyboard,
         isLoading = false,
         savedPosition = step.savedPositionMs,
         isAdaptiveMode = streams.isAdaptiveMode,
@@ -107,6 +109,7 @@ internal fun VideoPlayerUiState.applyVodStreams(
     innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format>,
     innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format>,
     streamSizes: Map<String, Long>,
+    storyboard: List<StoryboardLevel>,
 ): VideoPlayerUiState =
     copy(
         streamInfo = null,
@@ -127,6 +130,7 @@ internal fun VideoPlayerUiState.applyVodStreams(
         innerTubeVideoFormats = innerTubeVideoFormats,
         innerTubeAudioFormats = innerTubeAudioFormats,
         streamSizes = streamSizes,
+        storyboard = storyboard,
     )
 
 /** A live stream whose manifest only InnerTube produced. */

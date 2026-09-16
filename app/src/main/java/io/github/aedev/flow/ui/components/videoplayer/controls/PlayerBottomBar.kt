@@ -110,6 +110,7 @@ internal fun PlayerBottomBar(
     actions: PlayerControlActions,
     onScrubProgress: (progress: Float, duration: Long) -> Unit,
     onScrubFinished: () -> Unit,
+    isScrubbing: Boolean,
     modifier: Modifier = Modifier,
     isLayerVisible: () -> Boolean = { true },
 ) {
@@ -236,6 +237,7 @@ internal fun PlayerBottomBar(
             horizontalPadding = metrics.seekbarHorizontalPadding,
             onScrubProgress = onScrubProgress,
             onScrubFinished = onScrubFinished,
+            isScrubbing = isScrubbing,
             seekbarZIndex = 2f,
         )
     }
