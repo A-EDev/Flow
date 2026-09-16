@@ -1770,6 +1770,8 @@ internal object WatchMetadataVideoMapper {
                 thumbnailUrl =
                     cv.thumbnail?.bestUrl()?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(id, it) }
                         ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
+                channelThumbnailUrl =
+                    cv.channelAvatarUrl?.let(ThumbnailUrlResolver::resolveChannelAvatar).orEmpty(),
                 duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
                 viewCount = parseAbbreviatedCount(viewText) ?: 0L,
                 uploadDate = uploadDateText,
