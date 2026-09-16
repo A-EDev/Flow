@@ -21,11 +21,20 @@ internal enum class PlayerLayoutMode {
  * The layout the window itself can host, before fullscreen or PiP take it away. The video keeps the
  * top of the window whatever the width, so a window below the medium height breakpoint has no room
  * left for a detail pane and stays single-column however wide it is.
+ *
+ * Width alone does not earn the side pane. A tablet held upright is an expanded-width window, but
+ * splitting it leaves a narrow video above a half-width page and a single column of related videos
+ * down one edge; upright it wants the full width and a grid, which is [PlayerLayoutMode.MEDIUM] and
+ * is what YouTube does on the same device. The pane is for windows that are actually wider than
+ * they are tall.
  */
-internal fun playerWindowLayoutModeFor(windowSizeClass: WindowSizeClass): PlayerLayoutMode =
+internal fun playerWindowLayoutModeFor(
+    windowSizeClass: WindowSizeClass,
+    isLandscapeWindow: Boolean,
+): PlayerLayoutMode =
     when {
         !windowSizeClass.isMediumHeight -> PlayerLayoutMode.COMPACT
-        windowSizeClass.isExpandedWidth -> PlayerLayoutMode.WIDE
+        windowSizeClass.isExpandedWidth && isLandscapeWindow -> PlayerLayoutMode.WIDE
         windowSizeClass.isMediumWidth -> PlayerLayoutMode.MEDIUM
         else -> PlayerLayoutMode.COMPACT
     }
@@ -36,11 +45,12 @@ internal fun playerWindowLayoutModeFor(windowSizeClass: WindowSizeClass): Player
  */
 internal fun playerLayoutModeFor(
     windowSizeClass: WindowSizeClass,
+    isLandscapeWindow: Boolean,
     isFullscreen: Boolean,
     isInPipMode: Boolean,
 ): PlayerLayoutMode =
     if (isFullscreen || isInPipMode) {
         PlayerLayoutMode.COMPACT
     } else {
-        playerWindowLayoutModeFor(windowSizeClass)
+        playerWindowLayoutModeFor(windowSizeClass, isLandscapeWindow)
     }

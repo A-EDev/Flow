@@ -8,7 +8,6 @@ data class PlayerOverlayPreferences(
     val sleepTimerEnabled: Boolean = true,
     val speedIndicatorEnabled: Boolean = false,
     val commentsEnabled: Boolean = true,
-    val fullscreenTitleEnabled: Boolean = false,
     val showControlsWhileLoading: Boolean = false,
     val fullscreenSeekbarHorizontalPaddingDp: Int =
         resolveSeekbarHorizontalPaddingDp(

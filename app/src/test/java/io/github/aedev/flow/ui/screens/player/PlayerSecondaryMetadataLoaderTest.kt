@@ -46,6 +46,7 @@ class PlayerSecondaryMetadataLoaderTest {
     private var uiState = VideoPlayerUiState()
     private var currentToken = TOKEN_A
     private var shortsEnabled = true
+    private var blockedChannelIds: Set<String> = emptySet()
     private val results = mutableListOf<SecondaryMetadata>()
 
     @Before
@@ -78,6 +79,7 @@ class PlayerSecondaryMetadataLoaderTest {
                     .orEmpty()
             },
             shortsEnabled = { shortsEnabled },
+            blockedChannelIds = { blockedChannelIds },
             isPlaybackCurrent = { it == currentToken },
             onResult = { results += it },
         )

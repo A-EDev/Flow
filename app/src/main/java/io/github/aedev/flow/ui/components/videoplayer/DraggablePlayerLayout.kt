@@ -61,6 +61,13 @@ import kotlin.math.roundToInt
 const val MINI_PLAYER_CORNER_RADIUS_DP = 12f
 
 private val MiniPlayerMargin = 8.dp
+
+/**
+ * What the mini player is worth on a window too wide to size it by fraction: the width the default
+ * size setting gets, which the smaller and larger settings scale around.
+ */
+private val MiniPlayerLargeWindowWidth = 260.dp
+private const val DEFAULT_MINI_PLAYER_SCALE = 0.45f
 private val PortraitFullscreenActivation = 28.dp
 private val MiniPlayerShadowElevation = 8.dp
 
@@ -148,6 +155,14 @@ fun DraggablePlayerLayout(
                     isTwoPaneWindow = isTwoPaneWindow,
                     detailPaneWidth = with(density) { detailPaneWidth.toPx() },
                     miniPlayerScale = miniPlayerScale,
+                    maxMiniWidthPx =
+                        if (isLargeWindow || isTwoPaneWindow) {
+                            with(density) {
+                                (MiniPlayerLargeWindowWidth * (miniPlayerScale / DEFAULT_MINI_PLAYER_SCALE)).toPx()
+                            }
+                        } else {
+                            Float.MAX_VALUE
+                        },
                     videoAspectRatio = videoAspectRatio,
                     currentSizeScale = state.miniSizeScale.targetValue,
                     corner = state.corner,

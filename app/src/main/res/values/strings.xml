@@ -752,6 +752,14 @@
     <string name="player_background_style_default">Default Surface</string>
     <string name="player_appearance_hide_music_artwork_title">Hide music player artwork</string>
     <string name="player_appearance_hide_music_artwork_subtitle">Show the app icon on the extracted artwork color instead</string>
+    <string name="player_appearance_haptics_title">Vibration</string>
+    <string name="player_appearance_haptics_subtitle">Small taps when you use the player controls and gestures</string>
+    <string name="player_appearance_gesture_overlay_title">Gesture overlay style</string>
+    <string name="player_appearance_gesture_overlay_subtitle">How the volume and brightness read-outs are drawn while you swipe</string>
+    <string name="gesture_overlay_style_circular">Circular</string>
+    <string name="gesture_overlay_style_vertical">Vertical</string>
+    <string name="gesture_overlay_style_horizontal">Bar</string>
+    <string name="gesture_overlay_style_minimal">Minimal</string>
     <string name="player_appearance_shorts_ui_title">Shorts player UI</string>
     <string name="player_appearance_shorts_ui_subtitle">Choose how much of the Shorts overlay stays visible</string>
     <string name="shorts_player_ui_default">Default</string>
@@ -799,8 +807,6 @@
     <string name="player_appearance_fullscreen_header">Fullscreen</string>
     <string name="player_adaptive_size_title">Adaptive Player Size</string>
     <string name="player_adaptive_size_subtitle">Use the video format for player height. Turn off for fixed 16:9.</string>
-    <string name="player_show_title_title">Show Video Title</string>
-    <string name="player_show_title_subtitle">Display the video title below the top bar while in fullscreen mode</string>
     <string name="player_fullscreen_seekbar_width_title">Fullscreen Seekbar Width</string>
     <string name="player_portrait_seekbar_width_title">Portrait Seekbar Width</string>
     <string name="player_portrait_seekbar_width_spaced">Spaced</string>
@@ -2238,8 +2244,6 @@
     <!-- Double-tap seek indicator: the chasing chevrons and the seconds the tap adds or removes -->
     <string name="player_seek_seconds_forward">+%1$d</string>
     <string name="player_seek_seconds_back">-%1$d</string>
-    <string name="player_seek_chevron_forward">&gt;</string>
-    <string name="player_seek_chevron_back">&lt;</string>
     <!-- New Video Player Strings -->
     <string name="player_settings_overlay_controls">Overlay Controls</string>
     <string name="player_settings_overlay_cast">Cast Button</string>

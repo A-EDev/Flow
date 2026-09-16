@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +35,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.PlayerLiveIndicator
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
 import io.github.aedev.flow.utils.formatDuration
 
 private val LiveDotSize = 8.dp
@@ -53,6 +55,11 @@ fun PlayerTimePill(
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     /**
+     * Transparent in portrait fullscreen, where the read-out sits on the bottom edge gradient and a
+     * second container over it reads as a stray chip.
+     */
+    containerColor: Color = PlayerScrimAffordance,
+    /**
      * Whether the layer holding this pill is on screen. The live badge pulses forever, and the
      * controls overlay is kept composed behind the video while hidden, so the pulse has to stop
      * with its layer rather than with its composition.
@@ -62,7 +69,7 @@ fun PlayerTimePill(
     if (onClick != null) {
         Surface(
             onClick = onClick,
-            color = PlayerScrimAffordance,
+            color = containerColor,
             shape = CircleShape,
             modifier = modifier,
         ) {
@@ -70,7 +77,7 @@ fun PlayerTimePill(
         }
     } else {
         Surface(
-            color = PlayerScrimAffordance,
+            color = containerColor,
             shape = CircleShape,
             modifier = modifier,
         ) {
@@ -128,7 +135,7 @@ private fun PillRow(
             Text(
                 text = remember(duration) { formatDuration((duration / 1000L).toInt(), padMinutes = true) },
                 style = MaterialTheme.typography.labelMedium,
-                color = PlayerScrimContent.copy(alpha = 0.7f),
+                color = PlayerScrimContentSecondary,
             )
         }
     }
@@ -190,7 +197,7 @@ private fun TimeSeparator() {
     Text(
         text = stringResource(R.string.player_time_separator),
         style = MaterialTheme.typography.labelMedium,
-        color = PlayerScrimContent.copy(alpha = 0.5f),
+        color = PlayerScrimContentSecondary,
         modifier = Modifier.padding(horizontal = 2.dp),
     )
 }

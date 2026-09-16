@@ -27,6 +27,7 @@ import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerChaptersSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerCommentsPanelHost
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDescriptionSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerLiveChatColumn
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSettingsSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSleepTimerSheetHost
@@ -34,6 +35,7 @@ import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.transcriptTrackUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -46,6 +48,7 @@ internal class FullscreenSidePanelState(
     val visible: Boolean,
     val showSettings: Boolean,
     val showChapters: Boolean,
+    val showDescription: Boolean,
     val showLiveChat: Boolean,
     val showComments: Boolean,
     val showSleepTimer: Boolean,
@@ -70,6 +73,9 @@ internal fun rememberFullscreenSidePanelState(
     val density = LocalDensity.current
     val showSettingsSurface = screenState.isSettingsOpen
     val showChaptersSidePanel = screenState.activeSheet == PlayerSheet.Chapters
+    // The drawer hosted every other sheet but this one, and the bottom sheet is suppressed wherever
+    // a drawer exists — so opening the description in fullscreen drew nothing at all.
+    val showDescriptionSidePanel = screenState.activeSheet == PlayerSheet.Description
     val showLiveChatSidePanel =
         screenState.activeSheet == PlayerSheet.LiveChat(fullscreen = true) && playerUiState.isLiveChatAvailable
     val showCommentsSidePanel =
@@ -78,8 +84,8 @@ internal fun rememberFullscreenSidePanelState(
     val fullscreenSidePanelVisible =
         canUseFullscreenSidePanel &&
             (
-                showSettingsSurface || showChaptersSidePanel || showLiveChatSidePanel || showCommentsSidePanel ||
-                    showSleepTimerSidePanel
+                showSettingsSurface || showChaptersSidePanel || showDescriptionSidePanel ||
+                    showLiveChatSidePanel || showCommentsSidePanel || showSleepTimerSidePanel
             )
     val fullscreenDrawerWidth = minOf(maxWidth * 0.42f, 420.dp)
     val fullscreenDrawerWidthPx = with(density) { fullscreenDrawerWidth.toPx() }
@@ -172,6 +178,7 @@ internal fun rememberFullscreenSidePanelState(
         visible = fullscreenSidePanelVisible,
         showSettings = showSettingsSurface,
         showChapters = showChaptersSidePanel,
+        showDescription = showDescriptionSidePanel,
         showLiveChat = showLiveChatSidePanel,
         showComments = showCommentsSidePanel,
         showSleepTimer = showSleepTimerSidePanel,
@@ -240,6 +247,19 @@ internal fun BoxScope.FullscreenSidePanel(
                 asSidePanel = true,
                 expandedHeight = panelState.panelHeight,
                 onDismiss = closeFullscreenSidePanel,
+            )
+        } else if (panelState.showDescription) {
+            PlayerDescriptionSheetHost(
+                video = video,
+                uiState = playerUiState,
+                viewModel = playerViewModel,
+                asSidePanel = true,
+                expandedHeight = panelState.panelHeight,
+                onDismiss = closeFullscreenSidePanel,
+                hasTranscriptTrack = transcriptTrackUrl(playerState, screenState) != null,
+                onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
+                onTranscriptClick = { screenState.open(PlayerSheet.Transcript) },
+                onChannelClick = onNavigateToChannel,
             )
         } else if (panelState.showSleepTimer) {
             PlayerSleepTimerSheetHost(

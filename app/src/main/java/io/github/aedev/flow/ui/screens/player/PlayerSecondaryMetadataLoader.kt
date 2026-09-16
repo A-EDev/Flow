@@ -77,6 +77,7 @@ internal class PlayerSecondaryMetadataLoader(
     private val currentState: () -> VideoPlayerUiState,
     private val relatedVideosFor: (String) -> List<Video>,
     private val shortsEnabled: () -> Boolean,
+    private val blockedChannelIds: () -> Set<String>,
     private val isPlaybackCurrent: (Long) -> Boolean,
     private val onResult: (SecondaryMetadata) -> Unit,
 ) {
@@ -211,6 +212,7 @@ internal class PlayerSecondaryMetadataLoader(
                 fallback = playerManager.relatedCandidatesFor(videoId),
                 current = relatedVideosFor(videoId),
                 shortsEnabled = shortsEnabled(),
+                blockedChannelIds = blockedChannelIds(),
             )
         if (selected.isNotEmpty()) {
             relatedLoad.takeOver(videoId, loadToken)
@@ -246,6 +248,7 @@ internal class PlayerSecondaryMetadataLoader(
                         fallback = fallbackCandidates,
                         current = currentState().relatedVideos,
                         shortsEnabled = shortsEnabled(),
+                        blockedChannelIds = blockedChannelIds(),
                     )
                 if (resolved.isNotEmpty()) {
                     publish(videoId, resolved, loadToken)
@@ -287,6 +290,7 @@ internal class PlayerSecondaryMetadataLoader(
                         fallback = emptyList(),
                         current = emptyList(),
                         shortsEnabled = shortsEnabled(),
+                        blockedChannelIds = blockedChannelIds(),
                     )
                 val cached = currentState().cachedVideo ?: return@launch
                 if (cached.id != videoId) return@launch
@@ -381,6 +385,7 @@ internal class PlayerSecondaryMetadataLoader(
                                 ?: innerTubeMeta?.relatedVideos
                                 ?: meta.relatedVideos,
                         shortsEnabled = shortsEnabled(),
+                        blockedChannelIds = blockedChannelIds(),
                     )
                 val related =
                     metadataRelated.ifEmpty {

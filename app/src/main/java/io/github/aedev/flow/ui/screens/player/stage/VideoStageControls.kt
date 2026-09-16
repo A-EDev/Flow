@@ -49,6 +49,16 @@ internal fun VideoStageControls(
     val prefs = session.prefs
     val pipPreferences = session.pipPreferences
 
+    // Mirrors the orientation FullscreenEffect is about to request, rather than the orientation the
+    // window currently has: entering fullscreen on a landscape video rotates the activity, and
+    // reading the live configuration would render one portrait frame before it turned. The drag
+    // gesture sets isFullscreenPortrait and pins PORTRAIT; a vertical video gets SENSOR_PORTRAIT and
+    // stays upright either way, which is why the fullscreen button used to land a short in the
+    // landscape layout.
+    val isPortraitFullscreenLayout =
+        screenState.isFullscreen &&
+            (screenState.isFullscreenPortrait || videoAspectRatio < 1f)
+
     // Buffered position advances on every position poll; quantised to 1% so
     // this scope recomposes on visible steps only.
     val bufferedFraction by remember(screenState) {
@@ -82,10 +92,11 @@ internal fun VideoStageControls(
                         ),
                 ),
             videoTitle = playerUiState.streamInfo?.name ?: video.title,
+            channelName = playerUiState.streamInfo?.uploaderName ?: video.channelName,
             playbackSpeed = playerState.playbackSpeed,
             resizeMode = screenState.resizeMode,
             isFullscreen = screenState.isFullscreen,
-            isPortraitFullscreen = screenState.isFullscreenPortrait,
+            isPortraitFullscreen = isPortraitFullscreenLayout,
             isPipSupported =
                 PictureInPictureHelper.isPlayerPopupSupported(context) &&
                     pipPreferences.manualPipButtonEnabled,
@@ -142,6 +153,7 @@ internal fun VideoStageControls(
                 )
             },
             onChapterClick = { screenState.open(PlayerSheet.Chapters) },
+            onDescriptionClick = { screenState.open(PlayerSheet.Description) },
             onSubtitleClick = {
                 if (screenState.subtitlesEnabled) {
                     SubtitleSelection.disable(screenState)

@@ -26,6 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,7 +39,43 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimContentSecondary
 import org.schabi.newpipe.extractor.stream.StreamSegment
+
+/** A tappable text pill on video: the playback speed and the current quality. */
+@Composable
+private fun PlayerLabelPill(
+    label: String,
+    onClick: () -> Unit,
+    height: Dp,
+) {
+    val haptics = LocalHapticFeedback.current
+    Surface(
+        onClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+            onClick()
+        },
+        color = PlayerScrimAffordance,
+        shape = CircleShape,
+        modifier =
+            Modifier
+                .height(height)
+                .widthIn(min = height),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        ) {
+            Text(
+                text = label,
+                color = PlayerScrimContent,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+        }
+    }
+}
 
 /** Sizing shared by the pill row and the seek bar beneath it. */
 data class PlayerBottomBarMetrics(
@@ -59,11 +98,13 @@ internal fun PlayerBottomBar(
     duration: Long,
     isLive: Boolean,
     isFullscreen: Boolean,
+    isPortraitFullscreen: Boolean,
     showRemainingTime: Boolean,
     showCommentsButton: Boolean,
     isCommentsPanelOpen: Boolean,
     currentChapter: StreamSegment?,
     compactQualityLabel: String?,
+    speedIndicatorLabel: String?,
     seekbarContent: PlayerSeekbarContent,
     metrics: PlayerBottomBarMetrics,
     actions: PlayerControlActions,
@@ -119,6 +160,8 @@ internal fun PlayerBottomBar(
                     showRemainingTime = showRemainingTime,
                     onClick = { if (isLive) actions.onLiveClick() else actions.onToggleRemainingTime() },
                     modifier = Modifier.height(metrics.pillHeight),
+                    containerColor =
+                        if (isPortraitFullscreen) Color.Transparent else PlayerScrimAffordance,
                     isLayerVisible = isLayerVisible,
                 )
 
@@ -146,7 +189,7 @@ internal fun PlayerBottomBar(
                             Icon(
                                 imageVector = Icons.Rounded.ChevronRight,
                                 contentDescription = null,
-                                tint = PlayerScrimContent.copy(alpha = 0.6f),
+                                tint = PlayerScrimContentSecondary,
                                 modifier = Modifier.size(14.dp),
                             )
                         }
@@ -158,29 +201,20 @@ internal fun PlayerBottomBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(metrics.actionSpacing),
             ) {
+                if (speedIndicatorLabel != null) {
+                    PlayerLabelPill(
+                        label = speedIndicatorLabel,
+                        onClick = actions.onSpeedClick,
+                        height = metrics.pillHeight,
+                    )
+                }
+
                 if (compactQualityLabel != null) {
-                    Surface(
+                    PlayerLabelPill(
+                        label = compactQualityLabel,
                         onClick = actions.onQualityClick,
-                        color = PlayerScrimAffordance,
-                        shape = CircleShape,
-                        modifier =
-                            Modifier
-                                .height(metrics.pillHeight)
-                                .widthIn(min = metrics.pillHeight),
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                        ) {
-                            Text(
-                                text = compactQualityLabel,
-                                color = PlayerScrimContent,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                            )
-                        }
-                    }
+                        height = metrics.pillHeight,
+                    )
                 }
 
                 PlayerPillIconButton(

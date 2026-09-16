@@ -124,6 +124,8 @@ class PlayerPreferences(
         val MUSIC_PLAYER_BACKGROUND_STYLE = stringPreferencesKey("music_player_background_style")
         val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
+        val GESTURE_OVERLAY_STYLE = stringPreferencesKey("gesture_overlay_style")
+        val PLAYER_HAPTICS_ENABLED = booleanPreferencesKey("player_haptics_enabled")
         val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
         val SHORTS_CONTENT_ENABLED = booleanPreferencesKey("shorts_content_enabled")
         val NOTES_ENABLED = booleanPreferencesKey("notes_enabled")
@@ -212,7 +214,6 @@ class PlayerPreferences(
         val OVERLAY_COMMENTS_ENABLED = booleanPreferencesKey("overlay_comments_enabled")
 
         // Fullscreen Player
-        val SHOW_FULLSCREEN_TITLE = booleanPreferencesKey("show_fullscreen_title")
         val ADAPTIVE_PLAYER_SIZE_ENABLED = booleanPreferencesKey("adaptive_player_size_enabled")
         val PORTRAIT_SEEKBAR_PADDING_MODE = stringPreferencesKey("portrait_seekbar_padding_mode")
         val PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("portrait_seekbar_custom_padding_dp")
@@ -603,7 +604,6 @@ class PlayerPreferences(
             speedIndicatorEnabled =
                 this[Keys.OVERLAY_SPEED_INDICATOR_ENABLED] ?: overlayDefaults.speedIndicatorEnabled,
             commentsEnabled = this[Keys.OVERLAY_COMMENTS_ENABLED] ?: overlayDefaults.commentsEnabled,
-            fullscreenTitleEnabled = this[Keys.SHOW_FULLSCREEN_TITLE] ?: overlayDefaults.fullscreenTitleEnabled,
             showControlsWhileLoading =
                 this[Keys.SHOW_CONTROLS_WHILE_LOADING] ?: overlayDefaults.showControlsWhileLoading,
             fullscreenSeekbarHorizontalPaddingDp =
@@ -734,6 +734,30 @@ class PlayerPreferences(
     suspend fun setShortsPlayerUiMode(mode: ShortsPlayerUiMode) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_PLAYER_UI_MODE] = mode.name
+        }
+    }
+
+    val gestureOverlayStyle: Flow<GestureOverlayStyle> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.GESTURE_OVERLAY_STYLE]
+                    ?.let { stored -> runCatching { GestureOverlayStyle.valueOf(stored) }.getOrNull() }
+                    ?: GestureOverlayStyle.CIRCULAR
+            }
+
+    val playerHapticsEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.PLAYER_HAPTICS_ENABLED] ?: true }
+
+    suspend fun setPlayerHapticsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYER_HAPTICS_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setGestureOverlayStyle(style: GestureOverlayStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.GESTURE_OVERLAY_STYLE] = style.name
         }
     }
 
@@ -1480,16 +1504,6 @@ class PlayerPreferences(
     suspend fun setOverlaySpeedIndicatorEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.OVERLAY_SPEED_INDICATOR_ENABLED] = enabled
-        }
-    }
-
-    //  FULLSCREEN PLAYER PREFERENCES
-    val showFullscreenTitle: Flow<Boolean> =
-        overlayPreferences.map { it.fullscreenTitleEnabled }.distinctUntilChanged()
-
-    suspend fun setShowFullscreenTitle(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SHOW_FULLSCREEN_TITLE] = enabled
         }
     }
 
@@ -3058,6 +3072,14 @@ enum class MusicPlayerBackgroundStyle {
     GRADIENT,
     IMMERSIVE,
     DEFAULT,
+}
+
+/** How the volume and brightness read-outs are drawn mid-gesture. */
+enum class GestureOverlayStyle {
+    CIRCULAR,
+    VERTICAL,
+    HORIZONTAL,
+    MINIMAL,
 }
 
 enum class ShortsPlayerUiMode {

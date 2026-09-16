@@ -10,9 +10,12 @@ import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -31,6 +34,7 @@ import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.stage.*
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.ui.screens.player.state.supportingPaneReserve
+import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.launch
@@ -111,12 +115,19 @@ fun VideoPlayerHost(
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val windowSizeClass = LocalWindowSizeClass.current
-    val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass)
+    val isLandscapeWindow = LocalWindowIsLandscape.current
+    val windowLayoutMode = playerWindowLayoutModeFor(windowSizeClass, isLandscapeWindow)
     val isLargeWindow = windowLayoutMode != PlayerLayoutMode.COMPACT
     val isTwoPaneWindow = windowLayoutMode == PlayerLayoutMode.WIDE
     val paneScaffoldDirective = calculatePaneScaffoldDirective(currentWindowAdaptiveInfo())
     val detailPaneWidth = if (isTwoPaneWindow) paneScaffoldDirective.supportingPaneReserve() else 0.dp
-    val playerLayoutMode = playerLayoutModeFor(windowSizeClass, screenState.isFullscreen, localIsInPipMode)
+    val playerLayoutMode =
+        playerLayoutModeFor(
+            windowSizeClass = windowSizeClass,
+            isLandscapeWindow = isLandscapeWindow,
+            isFullscreen = screenState.isFullscreen,
+            isInPipMode = localIsInPipMode,
+        )
     val mediaSheetGeometry =
         rememberPlayerMediaSheetGeometry(
             screenState = screenState,
@@ -430,154 +441,172 @@ fun VideoPlayerHost(
             pipPreferences = pipPreferences,
         )
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val mediaSheetHeights =
-            rememberMediaSheetHeights(
-                geometry = mediaSheetGeometry,
-                isFullscreen = screenState.isFullscreen,
-                fullScreenHeightPx = constraints.maxHeight.toFloat(),
-                playerWidthPx = constraints.maxWidth.toFloat(),
-                expandedPlayerBottom = expandedPlayerBottom,
-                fallbackScreenHeight = config.screenHeightDp.dp,
-                maxWidth = maxWidth,
-                maxHeight = maxHeight,
-            )
-        val canUseFullscreenSidePanel = screenState.isFullscreen && maxWidth > maxHeight
-        val sidePanelState =
-            rememberFullscreenSidePanelState(
-                screenState = screenState,
-                playerUiState = playerUiState,
-                commentsEnabled = prefs.commentsEnabled,
-                canUseFullscreenSidePanel = canUseFullscreenSidePanel,
-                maxWidth = maxWidth,
-                maxHeight = maxHeight,
-                scope = scope,
-            )
-
-        DraggablePlayerLayout(
-            state = playerSheetState,
-            progress = progressProvider,
-            isFullscreen = screenState.isFullscreen,
-            thumbnailUrl =
-                video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id),
-            videoAspectRatio = effectiveVideoAspectRatio,
-            expandedPlayerHeightFractionOverride = mediaSheetGeometry.playerHeightFractionOverride,
-            bottomPadding = bottomPadding,
-            miniPlayerScale = miniPlayerScale,
-            isLargeWindow = isLargeWindow,
-            isTwoPaneWindow = isTwoPaneWindow,
-            detailPaneWidth = detailPaneWidth,
-            startInset = startInset,
-            tapToExpand = true,
-            onDismiss = onClose,
-            onCollapseGesture = {
-                screenState.isFullscreen = false
-                screenState.isFullscreenPortrait = false
-                screenState.dismissMediaSheets()
-                GlobalPlayerState.showMiniPlayer()
-            },
-            onFullscreenGesture = {
-                screenState.dismissMediaSheets()
-                screenState.isFullscreenPortrait = false
-                screenState.isFullscreen = true
-            },
-            onEnterPortraitFullscreen = {
-                screenState.dismissMediaSheets()
-                screenState.isFullscreenPortrait = true
-                screenState.isFullscreen = true
-            },
-            onExpandedPlayerBottomChanged = { bottom ->
-                expandedPlayerBottom = bottom
-            },
-            modifier =
-                Modifier
-                    .align(Alignment.CenterStart)
-                    .width(sidePanelState.playerWidth)
-                    .fillMaxHeight(),
-            videoContent = { modifier ->
-                VideoStage(
-                    modifier = modifier,
-                    session = stageSession,
-                    isMinimized = isMinimized,
-                    localIsInPipMode = localIsInPipMode,
-                    expandedSurfacesMounted = expandedSurfacesMounted,
-                    expandedSurfacesPlaced = expandedSurfacesPlaced,
-                    videoAspectRatio = videoAspectRatio,
-                    canGoPrevious = canGoPrevious,
-                    isCommentsAvailable = isCommentsAvailable,
+    // Turning the preference off swaps Compose's own no-op implementation in over the whole
+    // player, so every control, gesture and sheet below stops vibrating without a single call
+    // site having to ask whether it should (#1066).
+    val hostHaptics = LocalHapticFeedback.current
+    CompositionLocalProvider(
+        LocalHapticFeedback provides if (prefs.hapticsEnabled) hostHaptics else SilentHapticFeedback,
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val mediaSheetHeights =
+                rememberMediaSheetHeights(
+                    geometry = mediaSheetGeometry,
+                    isFullscreen = screenState.isFullscreen,
+                    fullScreenHeightPx = constraints.maxHeight.toFloat(),
+                    playerWidthPx = constraints.maxWidth.toFloat(),
+                    expandedPlayerBottom = expandedPlayerBottom,
+                    fallbackScreenHeight = config.screenHeightDp.dp,
+                    maxWidth = maxWidth,
+                    maxHeight = maxHeight,
+                )
+            val canUseFullscreenSidePanel = screenState.isFullscreen && maxWidth > maxHeight
+            val sidePanelState =
+                rememberFullscreenSidePanelState(
+                    screenState = screenState,
+                    playerUiState = playerUiState,
+                    commentsEnabled = prefs.commentsEnabled,
                     canUseFullscreenSidePanel = canUseFullscreenSidePanel,
-                    updateBrightnessLevel = updateBrightnessLevel,
+                    maxWidth = maxWidth,
+                    maxHeight = maxHeight,
+                    scope = scope,
+                )
+
+            DraggablePlayerLayout(
+                state = playerSheetState,
+                progress = progressProvider,
+                isFullscreen = screenState.isFullscreen,
+                thumbnailUrl =
+                    video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                        ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id),
+                videoAspectRatio = effectiveVideoAspectRatio,
+                expandedPlayerHeightFractionOverride = mediaSheetGeometry.playerHeightFractionOverride,
+                bottomPadding = bottomPadding,
+                miniPlayerScale = miniPlayerScale,
+                isLargeWindow = isLargeWindow,
+                isTwoPaneWindow = isTwoPaneWindow,
+                detailPaneWidth = detailPaneWidth,
+                startInset = startInset,
+                tapToExpand = true,
+                onDismiss = onClose,
+                onCollapseGesture = {
+                    screenState.isFullscreen = false
+                    screenState.isFullscreenPortrait = false
+                    screenState.dismissMediaSheets()
+                    GlobalPlayerState.showMiniPlayer()
+                },
+                onFullscreenGesture = {
+                    screenState.dismissMediaSheets()
+                    screenState.isFullscreenPortrait = false
+                    screenState.isFullscreen = true
+                },
+                onEnterPortraitFullscreen = {
+                    screenState.dismissMediaSheets()
+                    screenState.isFullscreenPortrait = true
+                    screenState.isFullscreen = true
+                },
+                onExpandedPlayerBottomChanged = { bottom ->
+                    expandedPlayerBottom = bottom
+                },
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .width(sidePanelState.playerWidth)
+                        .fillMaxHeight(),
+                videoContent = { modifier ->
+                    VideoStage(
+                        modifier = modifier,
+                        session = stageSession,
+                        isMinimized = isMinimized,
+                        localIsInPipMode = localIsInPipMode,
+                        expandedSurfacesMounted = expandedSurfacesMounted,
+                        expandedSurfacesPlaced = expandedSurfacesPlaced,
+                        videoAspectRatio = videoAspectRatio,
+                        canGoPrevious = canGoPrevious,
+                        isCommentsAvailable = isCommentsAvailable,
+                        canUseFullscreenSidePanel = canUseFullscreenSidePanel,
+                        updateBrightnessLevel = updateBrightnessLevel,
+                        rememberSubtitleLanguage = rememberSubtitleLanguage,
+                        onDecodedVideoAspectRatioChanged = { decodedVideoAspectRatio = it },
+                        onSbSubmitClick = {
+                            screenState.showControls = false
+                            screenState.open(PlayerSheet.SbSubmit)
+                        },
+                        onCastClick = {
+                            DlnaCastManager.startDiscovery(context)
+                            screenState.open(PlayerSheet.Dlna)
+                        },
+                    )
+                },
+                bodyContent = { alpha, videoHeightPx ->
+                    PlayerBodySlot(
+                        session = stageSession,
+                        alpha = alpha,
+                        videoHeightPx = videoHeightPx,
+                        isLandscape = isLandscape,
+                        localIsInPipMode = localIsInPipMode,
+                        onClose = onClose,
+                        onNavigateToChannel = onNavigateToChannel,
+                        onNavigateToShorts = onNavigateToShorts,
+                    )
+                },
+                miniControls = { _ ->
+                    MiniPlayerSlot(
+                        session = stageSession,
+                        miniPlayerShowSkipControls = miniPlayerShowSkipControls,
+                        miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
+                        onClose = onClose,
+                    )
+                },
+            )
+
+            if (!playerUiState.isUpcoming && expandedSurfacesMounted && !localIsInPipMode && sponsorSegments.isNotEmpty()) {
+                SponsorSkipLayer(
+                    session = stageSession,
+                    sponsorSegments = sponsorSegments,
+                    expandedPlayerBottom = expandedPlayerBottom,
+                    playerWidth = sidePanelState.playerWidth,
+                    expandedSurfacesPlaced = expandedSurfacesPlaced,
+                    endPadding = sponsorSkipEndPadding,
+                    bottomPadding = floatingSponsorSkipBottomPadding,
+                )
+            }
+
+            BackHandler(enabled = sidePanelState.visible, onBack = sidePanelState.close)
+
+            if (sidePanelState.visible) {
+                FullscreenSidePanel(
+                    session = stageSession,
+                    panelState = sidePanelState,
+                    commentsUiState = commentsUiState,
+                    videoAspectRatio = videoAspectRatio,
                     rememberSubtitleLanguage = rememberSubtitleLanguage,
-                    onDecodedVideoAspectRatioChanged = { decodedVideoAspectRatio = it },
-                    onSbSubmitClick = {
-                        screenState.showControls = false
-                        screenState.open(PlayerSheet.SbSubmit)
-                    },
-                    onCastClick = {
-                        DlnaCastManager.startDiscovery(context)
-                        screenState.open(PlayerSheet.Dlna)
-                    },
-                )
-            },
-            bodyContent = { alpha, videoHeightPx ->
-                PlayerBodySlot(
-                    session = stageSession,
-                    alpha = alpha,
-                    videoHeightPx = videoHeightPx,
-                    isLandscape = isLandscape,
-                    localIsInPipMode = localIsInPipMode,
-                    onClose = onClose,
                     onNavigateToChannel = onNavigateToChannel,
-                    onNavigateToShorts = onNavigateToShorts,
                 )
-            },
-            miniControls = { _ ->
-                MiniPlayerSlot(
-                    session = stageSession,
-                    miniPlayerShowSkipControls = miniPlayerShowSkipControls,
-                    miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
-                    onClose = onClose,
-                )
-            },
-        )
+            }
 
-        if (!playerUiState.isUpcoming && expandedSurfacesMounted && !localIsInPipMode && sponsorSegments.isNotEmpty()) {
-            SponsorSkipLayer(
+            VideoPlayerDialogs(
                 session = stageSession,
-                sponsorSegments = sponsorSegments,
-                expandedPlayerBottom = expandedPlayerBottom,
-                playerWidth = sidePanelState.playerWidth,
-                expandedSurfacesPlaced = expandedSurfacesPlaced,
-                endPadding = sponsorSkipEndPadding,
-                bottomPadding = floatingSponsorSkipBottomPadding,
-            )
-        }
-
-        BackHandler(enabled = sidePanelState.visible, onBack = sidePanelState.close)
-
-        if (sidePanelState.visible) {
-            FullscreenSidePanel(
-                session = stageSession,
-                panelState = sidePanelState,
+                completeVideo = completeVideo,
+                mediaSheetHeights = mediaSheetHeights,
+                onMediaSheetProgressChange = mediaSheetGeometry.onProgressChange,
+                canUseFullscreenSidePanel = canUseFullscreenSidePanel,
+                playerLayoutMode = playerLayoutMode,
                 commentsUiState = commentsUiState,
-                videoAspectRatio = videoAspectRatio,
-                rememberSubtitleLanguage = rememberSubtitleLanguage,
                 onNavigateToChannel = onNavigateToChannel,
+                onNavigateToShorts = onNavigateToShorts,
+                onClose = onClose,
             )
         }
-
-        VideoPlayerDialogs(
-            session = stageSession,
-            completeVideo = completeVideo,
-            mediaSheetHeights = mediaSheetHeights,
-            onMediaSheetProgressChange = mediaSheetGeometry.onProgressChange,
-            canUseFullscreenSidePanel = canUseFullscreenSidePanel,
-            playerLayoutMode = playerLayoutMode,
-            commentsUiState = commentsUiState,
-            onNavigateToChannel = onNavigateToChannel,
-            onNavigateToShorts = onNavigateToShorts,
-            onClose = onClose,
-        )
     }
+}
+
+/**
+ * Stands in for the platform's haptics while the player's vibration preference is off.
+ *
+ * Compose ships exactly this as NoHapticFeedback but keeps it internal, and the interface is a
+ * single method, so there is nothing to reuse and nothing to get wrong.
+ */
+private object SilentHapticFeedback : HapticFeedback {
+    override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
 }

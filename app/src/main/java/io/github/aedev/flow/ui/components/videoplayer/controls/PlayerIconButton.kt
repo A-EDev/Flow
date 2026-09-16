@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import io.github.aedev.flow.ui.theme.PlayerScrimAffordance
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
@@ -30,10 +32,15 @@ internal fun PlayerPillIconButton(
     modifier: Modifier = Modifier,
     containerColor: Color = PlayerScrimAffordance,
     contentColor: Color = PlayerScrimContent,
+    haptic: HapticFeedbackType? = HapticFeedbackType.ContextClick,
 ) {
+    val haptics = LocalHapticFeedback.current
     FilledIconButton(
-        onClick = onClick,
-        shape = CircleShape,
+        onClick = {
+            haptic?.let(haptics::performHapticFeedback)
+            onClick()
+        },
+        shapes = IconButtonDefaults.shapes(),
         colors =
             IconButtonDefaults.filledIconButtonColors(
                 containerColor = containerColor,
