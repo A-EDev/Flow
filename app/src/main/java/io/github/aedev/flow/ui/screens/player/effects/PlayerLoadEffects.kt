@@ -3,9 +3,13 @@ package io.github.aedev.flow.ui.screens.player.effects
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.state.SubtitleLoadFailure
+import io.github.aedev.flow.player.state.SubtitleOption
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
@@ -155,11 +159,28 @@ internal fun SponsorSkipEffect(context: Context) {
 internal fun SubtitleLoadErrorEffect(
     context: Context,
     screenState: PlayerScreenState,
+    subtitles: List<SubtitleOption>,
+    rememberLanguage: (String) -> Unit,
 ) {
+    val currentSubtitles by rememberUpdatedState(subtitles)
     LaunchedEffect(Unit) {
-        EnhancedPlayerManager.getInstance().subtitleLoadFailedEvent.collect { label ->
-            SubtitleSelection.disable(screenState)
-            Toast.makeText(context, context.getString(R.string.subtitle_load_failed, label), Toast.LENGTH_SHORT).show()
+        EnhancedPlayerManager.getInstance().subtitleLoadFailedEvent.collect { failure ->
+            val options = currentSubtitles
+            val fallback =
+                SubtitleSelection.fallbackIndexFor(
+                    subtitles = options,
+                    failedIndex = failure.index,
+                    failedLanguage = failure.language,
+                    wasTranslated = failure.isTranslated,
+                )
+            val message =
+                if (fallback != null && SubtitleSelection.applyAt(screenState, options, fallback, rememberLanguage)) {
+                    context.getString(R.string.subtitle_translation_unavailable, options[fallback].label)
+                } else {
+                    SubtitleSelection.disable(screenState)
+                    context.getString(R.string.subtitle_load_failed, failure.label)
+                }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 }

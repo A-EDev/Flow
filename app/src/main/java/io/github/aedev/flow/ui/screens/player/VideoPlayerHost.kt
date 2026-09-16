@@ -367,7 +367,12 @@ fun VideoPlayerHost(
 
     SponsorSkipEffect(context)
 
-    SubtitleLoadErrorEffect(context, screenState)
+    SubtitleLoadErrorEffect(
+        context = context,
+        screenState = screenState,
+        subtitles = playerState.availableSubtitles,
+        rememberLanguage = rememberSubtitleLanguage,
+    )
 
     OrientationListenerEffect(
         context = context,

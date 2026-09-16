@@ -2702,6 +2702,7 @@
     <string name="audio_track_original">Original</string>
     <string name="audio_track_dubbed">Dubbed</string>
     <string name="subtitle_load_failed">Couldn’t load %1$s subtitles — try again</string>
+    <string name="subtitle_translation_unavailable">Translation unavailable — showing %1$s</string>
     <string name="ui_skipped_segment">Skipped %1$s</string>
     <string name="ui_started_download">Started download: %1$s</string>
     <string name="ui_download_start_failed">Download failed to start: %1$s</string>

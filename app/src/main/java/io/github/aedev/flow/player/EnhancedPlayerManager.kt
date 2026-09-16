@@ -53,6 +53,7 @@ import io.github.aedev.flow.player.service.BackgroundServiceManager
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
+import io.github.aedev.flow.player.state.SubtitleLoadFailure
 import io.github.aedev.flow.player.state.queuePresence
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
@@ -130,7 +131,7 @@ class EnhancedPlayerManager private constructor() {
     private var availableVideoStreams: List<VideoStream> = emptyList()
     private var availableAudioStreams: List<AudioStream> = emptyList()
     private var availableSubtitles: List<SubtitlesStream> = emptyList()
-    private val _subtitleLoadFailedEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val _subtitleLoadFailedEvent = MutableSharedFlow<SubtitleLoadFailure>(extraBufferCapacity = 1)
     private var currentVideoStream: VideoStream? = null
     private var currentAudioStream: AudioStream? = null
     private var selectedSubtitleIndex: Int? = null
@@ -513,8 +514,18 @@ class EnhancedPlayerManager private constructor() {
                         _streamExpiredEvent.emit(Unit)
                     }
                 }
-                loader.onSubtitleLoadFailed = { label ->
-                    scope.launch { _subtitleLoadFailedEvent.emit(label) }
+                loader.onSubtitleLoadFailed = { index, label ->
+                    val failed = availableSubtitles.getOrNull(index)
+                    scope.launch {
+                        _subtitleLoadFailedEvent.emit(
+                            SubtitleLoadFailure(
+                                index = index,
+                                label = label,
+                                language = failed?.languageTag ?: failed?.locale?.toLanguageTag(),
+                                isTranslated = failed?.let(CaptionTrackResolver::isTranslated) == true,
+                            ),
+                        )
+                    }
                 }
             }
 
@@ -2647,7 +2658,7 @@ class EnhancedPlayerManager private constructor() {
         get() = sponsorBlockHandler?.sponsorSegments ?: MutableStateFlow(emptyList())
 
     /** Emits the display label of a subtitle track whose fetch failed and will not be retried. */
-    val subtitleLoadFailedEvent: SharedFlow<String>
+    val subtitleLoadFailedEvent: SharedFlow<SubtitleLoadFailure>
         get() = _subtitleLoadFailedEvent
 
     val skipEvent: SharedFlow<SponsorBlockSegment>
