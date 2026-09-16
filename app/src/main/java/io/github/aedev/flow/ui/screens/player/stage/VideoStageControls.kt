@@ -138,6 +138,7 @@ internal fun VideoStageControls(
             },
             onPrevious = { playerViewModel.playPrevious() },
             onNext = { playerViewModel.playNext() },
+            onStepFrame = { forward -> EnhancedPlayerManager.getInstance().stepFrame(forward) },
             onBack = { playerSheetState.collapse() },
             onSettingsClick = { screenState.open(PlayerSheet.Settings()) },
             onQualityClick = { screenState.open(PlayerSheet.Settings(PlayerSettingsPage.Quality)) },

@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.innertube.models.response.HeatmapMarker
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
+import io.github.aedev.flow.ui.theme.PlayerHeatmapCurve
+import io.github.aedev.flow.ui.theme.PlayerHeatmapCurvePeak
 
 /** Height of the rewatch curve above the bar. YouTube's own spec tops out at 40dp; 28 suits a phone. */
 internal val SeekHeatmapHeight: Dp = 28.dp
@@ -32,7 +34,8 @@ internal fun SeekHeatmapGraph(
     heatmap: VideoHeatmap,
     durationMs: Long,
     modifier: Modifier = Modifier,
-    color: Color = Color.White,
+    curveColor: Color = PlayerHeatmapCurve,
+    peakColor: Color = PlayerHeatmapCurvePeak,
 ) {
     if (heatmap.isEmpty || durationMs <= 0L) return
     val markers = heatmap.markers
@@ -45,44 +48,56 @@ internal fun SeekHeatmapGraph(
                 .height(SeekHeatmapHeight),
     ) {
         val curve = buildCurve(markers, durationMs, size)
-        drawPath(path = curve, color = color.copy(alpha = BASE_ALPHA))
+        drawPath(path = curve, color = curveColor)
         if (highlight == null) return@Canvas
         val left = (highlight.startMs.toFloat() / durationMs).coerceIn(0f, 1f) * size.width
         val right = (highlight.endMs.toFloat() / durationMs).coerceIn(0f, 1f) * size.width
         if (right <= left) return@Canvas
         clipRect(left = left, right = right) {
-            drawPath(path = curve, color = color.copy(alpha = HIGHLIGHT_ALPHA))
+            drawPath(path = curve, color = peakColor)
         }
     }
 }
 
 /**
- * A closed area under the curve.
+ * A closed area under the curve, smoothed.
  *
- * Each marker contributes the point at its own start, and the last one is carried to the far edge
- * so the fill reaches the end of the bar rather than stopping a slice short.
+ * Joined with quadratic segments through the midpoints between samples rather than straight lines:
+ * a hundred points across a phone-width bar puts several per pixel column, and drawing those
+ * literally gives a jagged comb instead of a curve.
+ *
+ * Every sample is floored at [MIN_INTENSITY] — YouTube's own spec keeps a 4dp sliver against a 40dp
+ * peak — so a quiet stretch still reads as part of the graph rather than a gap in it.
  */
 private fun buildCurve(
     markers: List<HeatmapMarker>,
     durationMs: Long,
     size: Size,
 ): Path {
+    fun xOf(marker: HeatmapMarker) = (marker.startMs.toFloat() / durationMs).coerceIn(0f, 1f) * size.width
+
+    fun yOf(marker: HeatmapMarker) = size.height - marker.intensity.coerceIn(MIN_INTENSITY, 1f) * size.height
+
     val path = Path()
     path.moveTo(0f, size.height)
-    markers.forEach { marker ->
-        val x = (marker.startMs.toFloat() / durationMs).coerceIn(0f, 1f) * size.width
-        val y = size.height - marker.intensity.coerceIn(0f, 1f) * size.height
-        path.lineTo(x, y)
+    path.lineTo(0f, yOf(markers.first()))
+    for (index in 1 until markers.size) {
+        val previous = markers[index - 1]
+        val current = markers[index]
+        path.quadraticTo(
+            x1 = xOf(previous),
+            y1 = yOf(previous),
+            x2 = (xOf(previous) + xOf(current)) / 2f,
+            y2 = (yOf(previous) + yOf(current)) / 2f,
+        )
     }
-    val last = markers.last()
-    path.lineTo(size.width, size.height - last.intensity.coerceIn(0f, 1f) * size.height)
+    path.lineTo(size.width, yOf(markers.last()))
     path.lineTo(size.width, size.height)
     path.close()
     return path
 }
 
-private const val BASE_ALPHA = 0.30f
-private const val HIGHLIGHT_ALPHA = 0.85f
+private const val MIN_INTENSITY = 0.10f
 
 /** The label for the stretch [positionMs] falls in, or null when it is not in a labelled one. */
 internal fun VideoHeatmap.highlightLabelAt(positionMs: Long): String? = highlights.firstOrNull { positionMs in it.startMs..it.endMs }?.label

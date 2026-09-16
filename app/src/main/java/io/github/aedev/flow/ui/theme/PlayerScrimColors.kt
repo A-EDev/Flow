@@ -41,3 +41,7 @@ val PlayerLiveIndicator = Color.Red
 
 /** The thin progress bar along the bottom of the floating mini player. */
 val PlayerMiniProgress = Color.Red
+
+/** The rewatch curve behind the seek bar, and the brighter fill over its most-replayed stretch. */
+val PlayerHeatmapCurve = PlayerScrimContent.copy(alpha = 0.28f)
+val PlayerHeatmapCurvePeak = PlayerScrimContent.copy(alpha = 0.82f)

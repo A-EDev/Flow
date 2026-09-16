@@ -296,6 +296,9 @@ internal fun PlayerControlsOverlay(
                     hasPrevious = state.hasPrevious,
                     hasNext = state.hasNext,
                     showSkipButtons = !hideControlsForLoading,
+                    // Stepping a running player just fights playback, and a live edge has nothing
+                    // to step through.
+                    showFrameStep = !state.isPlaying && !state.isLive && !state.hasEnded && state.duration > 0L,
                     actions = actions,
                     isLayerVisible = isLayerOnScreen,
                     modifier = Modifier.align(Alignment.Center),

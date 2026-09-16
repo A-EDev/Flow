@@ -2116,6 +2116,29 @@ class EnhancedPlayerManager private constructor() {
 
     fun pause() = player?.pause()
 
+    /**
+     * Nudges the playhead one frame.
+     *
+     * Only while paused: stepping a running player just fights playback. VOD seeks are
+     * CLOSEST_SYNC, which would snap back to the same keyframe every time, so the step is made
+     * EXACT and the parameter restored afterwards. Stepping backwards is slower than forwards
+     * because it decodes forward from the preceding keyframe, which on YouTube can be seconds back.
+     */
+    fun stepFrame(forward: Boolean) {
+        val p = player ?: return
+        if (p.isPlaying || currentIsLiveStream || p.isCurrentMediaItemLive) return
+        val target =
+            FrameStepPolicy.stepTarget(
+                positionMs = p.currentPosition,
+                durationMs = p.duration,
+                frameRate = p.videoFormat?.frameRate,
+                forward = forward,
+            ) ?: return
+        p.setSeekParameters(SeekParameters.EXACT)
+        p.seekTo(target)
+        p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+    }
+
     fun seekTo(position: Long) {
         val p = player ?: return
         val isLive = currentIsLiveStream || p.isCurrentMediaItemLive

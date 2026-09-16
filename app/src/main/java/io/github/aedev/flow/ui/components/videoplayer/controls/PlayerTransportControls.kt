@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay
@@ -66,6 +68,7 @@ internal fun PlayerTransportControls(
     hasPrevious: Boolean,
     hasNext: Boolean,
     showSkipButtons: Boolean,
+    showFrameStep: Boolean,
     actions: PlayerControlActions,
     modifier: Modifier = Modifier,
     isLayerVisible: () -> Boolean = { true },
@@ -90,6 +93,15 @@ internal fun PlayerTransportControls(
                     enabled = hasPrevious,
                     icon = Icons.Rounded.SkipPrevious,
                     contentDescription = stringResource(R.string.previous_video),
+                )
+            }
+
+            if (showFrameStep) {
+                SkipButton(
+                    onClick = { actions.onStepFrame(false) },
+                    enabled = true,
+                    icon = Icons.Rounded.KeyboardArrowLeft,
+                    contentDescription = stringResource(R.string.previous_frame),
                 )
             }
 
@@ -148,6 +160,15 @@ internal fun PlayerTransportControls(
                         )
                     }
                 }
+            }
+
+            if (showFrameStep) {
+                SkipButton(
+                    onClick = { actions.onStepFrame(true) },
+                    enabled = true,
+                    icon = Icons.Rounded.KeyboardArrowRight,
+                    contentDescription = stringResource(R.string.next_frame),
+                )
             }
 
             if (showSkipButtons) {
