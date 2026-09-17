@@ -2882,4 +2882,12 @@
     <string name="channel_about_more_info">Більше інформації</string>
     <string name="channel_post_image_count">%1$d / %2$d</string>
     <string name="channel_post_poll_votes">%1$s</string>
+    <string name="player_appearance_haptics_title">Вібрація</string>
+    <string name="player_appearance_haptics_subtitle">Легкі вібрації під час використання жестів та елементів керування програвачем</string>
+    <string name="player_appearance_gesture_overlay_title">Стиль накладання жестів</string>
+    <string name="player_appearance_gesture_overlay_subtitle">Як показуються індикатори гучності та яскравості під час проведення пальцем по екрану</string>
+    <string name="gesture_overlay_style_circular">Круговий</string>
+    <string name="gesture_overlay_style_vertical">Вертикальний</string>
+    <string name="gesture_overlay_style_horizontal">Смуга</string>
+    <string name="gesture_overlay_style_minimal">Мінімальний</string>
 </resources>
