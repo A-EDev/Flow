@@ -30,6 +30,7 @@ import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
@@ -56,12 +57,10 @@ import io.github.aedev.flow.player.state.QualityOption
 import io.github.aedev.flow.player.state.SubtitleLoadFailure
 import io.github.aedev.flow.player.state.queuePresence
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
+import io.github.aedev.flow.player.stream.InnerTubeVideoMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.ResolvedStreamData
 import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
-import io.github.aedev.flow.player.stream.StreamInfoFetcher
-import io.github.aedev.flow.player.stream.StreamInfoVideoMapper
-import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
@@ -1703,9 +1702,9 @@ class EnhancedPlayerManager private constructor() {
                             }
                         }
 
-                    val streamInfo =
-                        StreamInfoFetcher.fetchForPlayback(video.id) ?: run {
-                            autoNextLog("playVideoFromServiceLayer streamInfo failed video=${video.id}")
+                    val extraction =
+                        extractionDeferred.await() ?: run {
+                            autoNextLog("playVideoFromServiceLayer extraction failed video=${video.id}")
                             _playerState.value =
                                 _playerState.value.copy(
                                     isBuffering = false,
@@ -1714,13 +1713,11 @@ class EnhancedPlayerManager private constructor() {
                             releaseAdvanceWakeLock()
                             return@launch
                         }
-
-                    val extraction = extractionDeferred.await()
                     if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "streams-resolved")) {
                         return@launch
                     }
-                    val sabrInfo = extraction?.sabrInfo
-                    val enrichedVideo = StreamInfoVideoMapper.videoFromStreamInfo(video.id, streamInfo, fallback = video)
+                    val sabrInfo = extraction.sabrInfo
+                    val enrichedVideo = InnerTubeVideoMapper.videoFromResult(video.id, extraction, fallback = video)
                     GlobalPlayerState.setCurrentVideo(enrichedVideo)
                     startBackgroundService(
                         videoId = enrichedVideo.id,
@@ -1730,7 +1727,7 @@ class EnhancedPlayerManager private constructor() {
                     )
                     setAutoplayCandidates(
                         sourceVideoId = enrichedVideo.id,
-                        videos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
+                        videos = YouTubeRepository.getInstance().getRelatedCandidates(enrichedVideo.id),
                         enabled = autoplayEnabled,
                     )
 
@@ -1743,36 +1740,17 @@ class EnhancedPlayerManager private constructor() {
                         }
                     val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
                     val preferredCodecKey = prefs.videoCodecPriority.first()
-                    val innerTubeVideoStreams =
-                        extraction
-                            ?.let {
-                                io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                                    .convertVideoFormats(it.videoFormats)
-                            }.orEmpty()
-                    val innerTubeAudioStreams =
-                        extraction
-                            ?.let {
-                                io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                                    .convertAudioFormats(it.audioFormats)
-                            }.orEmpty()
-                    val extractorVideoStreams =
-                        (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
-                            .filterIsInstance<VideoStream>()
-                    val mergedVideoStreams = StreamMergeUtils.mergeVideoStreams(extractorVideoStreams, innerTubeVideoStreams)
-                    val mergedAudioStreams = StreamMergeUtils.mergeAudioStreams(streamInfo.audioStreams, innerTubeAudioStreams)
-                    if (extractorVideoStreams.isNotEmpty()) {
-                        Log.d(
-                            TAG,
-                            "Queue advance using NewPipe streams: ${extractorVideoStreams.size} video " +
-                                "(merged=${mergedVideoStreams.size}, innerTube=${innerTubeVideoStreams.size})",
-                        )
-                    } else if (innerTubeVideoStreams.isNotEmpty()) {
-                        Log.d(
-                            TAG,
-                            "Queue advance using InnerTube streams: ${innerTubeVideoStreams.size} video, " +
-                                "${innerTubeAudioStreams.size} audio (merged=${mergedVideoStreams.size})",
-                        )
-                    }
+                    val mergedVideoStreams =
+                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                            .convertVideoFormats(extraction.videoFormats)
+                    val mergedAudioStreams =
+                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                            .convertAudioFormats(extraction.audioFormats)
+                    Log.d(
+                        TAG,
+                        "Queue advance streams: ${mergedVideoStreams.size} video, " +
+                            "${mergedAudioStreams.size} audio (client=${extraction.usedClient.clientName})",
+                    )
 
                     val selected =
                         ServicePlaybackStreamSelector.selectStreams(
@@ -1791,15 +1769,15 @@ class EnhancedPlayerManager private constructor() {
                         audioStream = selected.second,
                         videoStreams = mergedVideoStreams,
                         audioStreams = mergedAudioStreams,
-                        subtitles = mergedSubtitles(streamInfo, extraction),
-                        durationSeconds = streamInfo.duration,
-                        dashManifestUrl = streamInfo.dashMpdUrl,
-                        hlsUrl = streamInfo.hlsUrl,
-                        streamType = streamInfo.streamType,
+                        subtitles = CaptionTrackResolver.resolve(extraction.playerResponse),
+                        durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
+                        dashManifestUrl = extraction.liveDashUrl,
+                        hlsUrl = extraction.liveHlsUrl,
+                        streamType = InnerTubeVideoMapper.streamType(extraction),
                         startPosition = 0L,
                         sabrInfo = sabrInfo,
-                        itVideoFormats = extraction?.videoFormats ?: emptyList(),
-                        itAudioFormats = extraction?.audioFormats ?: emptyList(),
+                        itVideoFormats = extraction.videoFormats,
+                        itAudioFormats = extraction.audioFormats,
                         preferredVideoCodec = preferredCodecKey,
                         keepAudioOnly = resumeInAudioOnly,
                     )
@@ -1877,13 +1855,8 @@ class EnhancedPlayerManager private constructor() {
                         null
                     }
                 }
-            val streamInfo =
-                StreamInfoFetcher.fetchForPlayback(video.id) ?: run {
-                    extractionDeferred.cancel()
-                    return@coroutineScope null
-                }
-            val extraction = extractionDeferred.await()
-            val enrichedVideo = StreamInfoVideoMapper.videoFromStreamInfo(video.id, streamInfo, fallback = video)
+            val extraction = extractionDeferred.await() ?: return@coroutineScope null
+            val enrichedVideo = InnerTubeVideoMapper.videoFromResult(video.id, extraction, fallback = video)
             val prefs = PlayerPreferences(context)
             val preferredQuality =
                 if (NetworkState.isOnWifi(
@@ -1896,31 +1869,12 @@ class EnhancedPlayerManager private constructor() {
                 }
             val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
             val preferredCodecKey = prefs.videoCodecPriority.first()
-            val innerTubeVideoStreams =
-                extraction
-                    ?.let {
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertVideoFormats(it.videoFormats)
-                    }.orEmpty()
-            val innerTubeAudioStreams =
-                extraction
-                    ?.let {
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertAudioFormats(it.audioFormats)
-                    }.orEmpty()
-            val extractorVideoStreams =
-                (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
-                    .filterIsInstance<VideoStream>()
             val mergedVideoStreams =
-                StreamMergeUtils.mergeVideoStreams(
-                    innerTubeVideoStreams,
-                    extractorVideoStreams,
-                )
+                io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                    .convertVideoFormats(extraction.videoFormats)
             val mergedAudioStreams =
-                StreamMergeUtils.mergeAudioStreams(
-                    innerTubeAudioStreams,
-                    streamInfo.audioStreams,
-                )
+                io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                    .convertAudioFormats(extraction.audioFormats)
             val selected =
                 ServicePlaybackStreamSelector.selectStreams(
                     videoCandidates = mergedVideoStreams,
@@ -1935,23 +1889,16 @@ class EnhancedPlayerManager private constructor() {
                 audioStream = selected.second,
                 videoStreams = mergedVideoStreams,
                 audioStreams = mergedAudioStreams,
-                subtitles = mergedSubtitles(streamInfo, extraction),
-                durationSeconds = streamInfo.duration,
-                dashManifestUrl = streamInfo.dashMpdUrl,
-                streamType = streamInfo.streamType,
-                relatedVideos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
+                subtitles = CaptionTrackResolver.resolve(extraction.playerResponse),
+                durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
+                dashManifestUrl = extraction.liveDashUrl,
+                streamType = InnerTubeVideoMapper.streamType(extraction),
+                relatedVideos = YouTubeRepository.getInstance().getRelatedCandidates(video.id),
                 preferredCodec = preferredCodecKey,
-                itVideoFormats = extraction?.videoFormats ?: emptyList(),
-                itAudioFormats = extraction?.audioFormats ?: emptyList(),
+                itVideoFormats = extraction.videoFormats,
+                itAudioFormats = extraction.audioFormats,
             )
         }
-
-    private fun mergedSubtitles(
-        streamInfo: StreamInfo,
-        extraction: InnerTubeVideoStreamExtractor.VideoExtractionResult?,
-    ): List<SubtitlesStream> =
-        streamInfo.subtitles.orEmpty() +
-            extraction?.playerResponse?.let { CaptionTrackResolver.resolve(it) }.orEmpty()
 
     private fun nextPreloadTarget(): PreloadTarget? {
         if (autoplayCountdownSeconds > 0) return null
