@@ -53,6 +53,26 @@ class WatchMetadataEnrichmentTest {
     }
 
     @Test
+    fun `the timestamp comes from the relative form, not the date-only one`() {
+        val response =
+            json.decodeFromString<WatchMetadataResponse>(
+                """
+                {"contents":{"twoColumnWatchNextResults":{"results":{"results":{"contents":[
+                {"videoPrimaryInfoRenderer":{"dateText":{"simpleText":"Sep 17, 2026"},
+                 "relativeDateText":{"simpleText":"4 hours ago"}}}]}}}}}
+                """.trimIndent(),
+            )
+
+        val merged = mergeWatchMetadata(card(), response)
+
+        assertThat(response.relativeUploadDate()).isEqualTo("4 hours ago")
+        // Midnight on that date would be hours further back than the upload actually was.
+        val fourHours = 4L * 60 * 60 * 1000
+        assertThat(System.currentTimeMillis() - merged!!.timestamp).isAtMost(fourHours + 60_000)
+        assertThat(merged.uploadDate).isEqualTo("Sep 17, 2026")
+    }
+
+    @Test
     fun `the merge keeps what the card already held when the response has nothing better`() {
         val empty = json.decodeFromString<WatchMetadataResponse>("""{"contents":{}}""")
 

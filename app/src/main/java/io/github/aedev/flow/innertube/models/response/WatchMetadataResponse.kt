@@ -38,6 +38,7 @@ data class WatchMetadataResponse(
         val title: Runs? = null,
         val viewCount: ViewCount? = null,
         val dateText: SimpleText? = null,
+        val relativeDateText: SimpleText? = null,
         val videoActions: VideoActions? = null,
     ) {
         @Serializable
@@ -501,6 +502,14 @@ data class WatchMetadataResponse(
             ?.text()
 
     fun uploadDate(): String? = primary()?.dateText?.text()
+
+    /**
+     * "4 hours ago", beside the date-only [uploadDate].
+     *
+     * The absolute form carries no time of day, so it is the only one that can place an upload
+     * within the day it happened.
+     */
+    fun relativeUploadDate(): String? = primary()?.relativeDateText?.text()?.takeIf { it.isNotBlank() }
 
     /** The exact like count, or the abbreviated one when the expanded form is absent. */
     fun likeCountText(): String? =

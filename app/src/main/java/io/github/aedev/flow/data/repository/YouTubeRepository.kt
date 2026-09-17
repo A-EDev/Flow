@@ -27,6 +27,7 @@ import io.github.aedev.flow.utils.bestImageUrl
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.newPipeContentCountry
 import io.github.aedev.flow.utils.newPipeLocalization
+import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import io.github.aedev.flow.utils.parseToTimestamp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -1806,7 +1807,12 @@ internal fun mergeWatchMetadata(
     response: WatchMetadataResponse,
 ): Video? {
     val uploadDate = response.uploadDate()?.takeIf { it.isNotBlank() } ?: return null
-    val timestamp = parseToTimestamp(uploadDate) ?: video.timestamp
+    // The relative form first: the absolute one is a date with no time, so on its own it places
+    // every upload at midnight and reads back as however long the day has been running.
+    val timestamp =
+        response.relativeUploadDate()?.let { parseRelativeToTimestamp(it) }
+            ?: parseToTimestamp(uploadDate)
+            ?: video.timestamp
     val avatarUrl = response.channelAvatarUrl().orEmpty().ifBlank { video.channelThumbnailUrl }
     return video.copy(
         title = response.title().orEmpty().ifBlank { video.title },
