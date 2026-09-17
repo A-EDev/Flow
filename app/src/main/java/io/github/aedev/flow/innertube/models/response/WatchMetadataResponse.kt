@@ -38,6 +38,7 @@ data class WatchMetadataResponse(
         val title: Runs? = null,
         val viewCount: ViewCount? = null,
         val dateText: SimpleText? = null,
+        val videoActions: VideoActions? = null,
     ) {
         @Serializable
         data class ViewCount(
@@ -46,6 +47,39 @@ data class WatchMetadataResponse(
             @Serializable
             data class Inner(
                 val viewCount: SimpleText? = null,
+            )
+        }
+
+        /**
+         * The like button, which carries the count as text rather than a number.
+         *
+         * Three forms are served for the three states the button can be in; they differ by one or
+         * two because the counter moves between requests, and the indifferent one is what a viewer
+         * who has not voted sees.
+         */
+        @Serializable
+        data class VideoActions(
+            val menuRenderer: MenuRenderer? = null,
+        ) {
+            @Serializable
+            data class MenuRenderer(
+                val topLevelButtons: List<TopLevelButton> = emptyList(),
+            )
+
+            @Serializable
+            data class TopLevelButton(
+                val segmentedLikeDislikeButtonViewModel: SegmentedLikeDislike? = null,
+            )
+
+            @Serializable
+            data class SegmentedLikeDislike(
+                val likeCountEntity: LikeCountEntity? = null,
+            )
+
+            @Serializable
+            data class LikeCountEntity(
+                val expandedLikeCountIfIndifferent: SecondaryInfo.TextContent? = null,
+                val likeCountIfIndifferent: SecondaryInfo.TextContent? = null,
             )
         }
     }
@@ -467,6 +501,16 @@ data class WatchMetadataResponse(
             ?.text()
 
     fun uploadDate(): String? = primary()?.dateText?.text()
+
+    /** The exact like count, or the abbreviated one when the expanded form is absent. */
+    fun likeCountText(): String? =
+        primary()
+            ?.videoActions
+            ?.menuRenderer
+            ?.topLevelButtons
+            ?.firstNotNullOfOrNull { it.segmentedLikeDislikeButtonViewModel?.likeCountEntity }
+            ?.let { it.expandedLikeCountIfIndifferent?.content ?: it.likeCountIfIndifferent?.content }
+            ?.takeIf { it.isNotBlank() }
 
     fun description(): String? = secondary()?.attributedDescription?.content
 

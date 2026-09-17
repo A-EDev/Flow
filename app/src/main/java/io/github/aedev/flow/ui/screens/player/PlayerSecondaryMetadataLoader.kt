@@ -58,6 +58,12 @@ internal sealed interface SecondaryMetadata {
         val chapters: List<VideoChapter>,
     ) : SecondaryMetadata
 
+    class WatchInfo(
+        override val videoId: String,
+        override val loadToken: Long,
+        val video: Video,
+    ) : SecondaryMetadata
+
     class LiveWatch(
         override val videoId: String,
         override val loadToken: Long,
@@ -137,6 +143,7 @@ internal class PlayerSecondaryMetadataLoader(
     private val categoryLoad = ConcurrentLoad()
     private val heatmapLoad = ConcurrentLoad()
     private val chaptersLoad = ConcurrentLoad()
+    private val watchInfoLoad = ConcurrentLoad()
 
     /** Drops every fetch in flight; the next load re-arms the ones it needs. */
     fun cancel() {
@@ -145,6 +152,7 @@ internal class PlayerSecondaryMetadataLoader(
         categoryLoad.cancel()
         heatmapLoad.cancel()
         chaptersLoad.cancel()
+        watchInfoLoad.cancel()
     }
 
     /** The rewatch curve, off the watch response the description and comments already fetch. */
@@ -186,6 +194,32 @@ internal class PlayerSecondaryMetadataLoader(
                         ?.takeIf { it.isNotEmpty() } ?: return@launch
                 if (!isPlaybackCurrent(loadToken) || !chaptersLoad.holds(videoId, loadToken)) return@launch
                 onResult(SecondaryMetadata.Chapters(videoId, loadToken, chapters))
+            }
+    }
+
+    /**
+     * The counts, date and description the watch page carries and the player response does not.
+     *
+     * The extractor used to supply these as late metadata over a load it had lost the race for;
+     * without it the screen showed whatever the card that opened it happened to hold, which is a
+     * title, a channel and nothing else.
+     */
+    fun loadWatchInfo(
+        videoId: String,
+        video: Video,
+        loadToken: Long,
+    ) {
+        if (!watchInfoLoad.claim(videoId, loadToken)) return
+
+        watchInfoLoad.job =
+            scope.launch(networkDispatcher) {
+                awaitPlaybackStarted(videoId)
+                if (!isPlaybackCurrent(loadToken)) return@launch
+                val enriched =
+                    withTimeoutOrNull(WATCH_INFO_TIMEOUT_MS) { repository.enrichFromWatchMetadata(video) }
+                        ?: return@launch
+                if (!isPlaybackCurrent(loadToken) || !watchInfoLoad.holds(videoId, loadToken)) return@launch
+                onResult(SecondaryMetadata.WatchInfo(videoId, loadToken, enriched))
             }
     }
 
@@ -446,5 +480,6 @@ internal class PlayerSecondaryMetadataLoader(
         const val CATEGORY_TIMEOUT_MS = 8_000L
         const val HEATMAP_TIMEOUT_MS = 8_000L
         const val CHAPTERS_TIMEOUT_MS = 8_000L
+        const val WATCH_INFO_TIMEOUT_MS = 8_000L
     }
 }

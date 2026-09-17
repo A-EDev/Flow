@@ -1081,6 +1081,22 @@ class YouTubeRepository
                 VideoHeatmapParser.parse(watchNextResponse(videoId))
             }
 
+        /**
+         * [video] filled in from the watch response: exact view and like counts, the upload date and
+         * the real description.
+         *
+         * Read from the cached response where there is one, so the enrichment that used to ride on a
+         * second extraction now costs nothing on top of the lane fetch.
+         */
+        suspend fun enrichFromWatchMetadata(video: Video): Video? =
+            withContext(Dispatchers.IO) {
+                val response =
+                    cachedWatchMetadata(video.id)
+                        ?: YouTube.watchMetadata(video.id).getOrNull()
+                        ?: return@withContext null
+                mergeWatchMetadata(video, response)
+            }
+
         /** The creator's chapters for [videoId], empty when the video has none. */
         suspend fun videoChapters(videoId: String): List<VideoChapter> =
             withContext(Dispatchers.IO) {
@@ -1780,6 +1796,7 @@ internal fun mergeWatchMetadata(
         channelName = response.channelName().orEmpty().ifBlank { video.channelName },
         channelId = response.channelId().orEmpty().ifBlank { video.channelId },
         viewCount = parseAbbreviatedCount(response.viewCountText()) ?: video.viewCount,
+        likeCount = parseAbbreviatedCount(response.likeCountText()) ?: video.likeCount,
         uploadDate = uploadDate,
         timestamp = timestamp,
         description = response.description().orEmpty().ifBlank { video.description },

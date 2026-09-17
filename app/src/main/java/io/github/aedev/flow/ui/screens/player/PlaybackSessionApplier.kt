@@ -129,6 +129,7 @@ internal class PlaybackSessionApplier(
             is SecondaryMetadata.Category -> applyCategory(result)
             is SecondaryMetadata.Heatmap -> applyHeatmap(result)
             is SecondaryMetadata.Chapters -> applyChapters(result)
+            is SecondaryMetadata.WatchInfo -> applyWatchInfo(result)
         }
     }
 
@@ -334,6 +335,7 @@ internal class PlaybackSessionApplier(
 
         uiState.update {
             it.applyVodStreams(
+                cachedVideo = identity.enrichedVideo,
                 relatedVideos = relatedVideos,
                 videoStream = streams.videoStream,
                 audioStream = streams.audioStream,
@@ -366,6 +368,7 @@ internal class PlaybackSessionApplier(
         secondaryMetadata.loadCategory(videoId, load.token)
         secondaryMetadata.loadHeatmap(videoId, load.token)
         secondaryMetadata.loadChapters(videoId, load.token)
+        secondaryMetadata.loadWatchInfo(videoId, identity.enrichedVideo, load.token)
         secondaryMetadata.loadChannelMetadata(
             videoId = videoId,
             uploaderUrl = null,
@@ -412,6 +415,12 @@ internal class PlaybackSessionApplier(
     private fun applyChapters(result: SecondaryMetadata.Chapters) {
         if (!isLoadCurrent(result.loadToken)) return
         uiState.update { it.applyChapters(result.chapters) }
+    }
+
+    private fun applyWatchInfo(result: SecondaryMetadata.WatchInfo) {
+        if (!isLoadCurrent(result.loadToken) || uiState.value.cachedVideo?.id != result.videoId) return
+        GlobalPlayerState.setCurrentVideo(result.video)
+        uiState.update { it.applyWatchInfo(result.video) }
     }
 
     /** Folded into the tags the engine ingests, so the watch signal carries it. */

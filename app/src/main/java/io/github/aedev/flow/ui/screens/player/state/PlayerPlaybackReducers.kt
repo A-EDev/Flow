@@ -66,6 +66,7 @@ internal fun VideoPlayerUiState.applyOfflineFallback(step: ResolvedPlayback.Offl
  * fields belong to the download step.
  */
 internal fun VideoPlayerUiState.applyVodStreams(
+    cachedVideo: Video,
     relatedVideos: List<Video>,
     videoStream: VideoStream?,
     audioStream: AudioStream?,
@@ -79,6 +80,7 @@ internal fun VideoPlayerUiState.applyVodStreams(
     storyboard: List<StoryboardLevel>,
 ): VideoPlayerUiState =
     copy(
+        cachedVideo = cachedVideo,
         relatedVideos = relatedVideos,
         videoStream = videoStream,
         audioStream = audioStream,
@@ -251,6 +253,9 @@ internal fun VideoPlayerUiState.applyLiveWatchMetadata(result: SecondaryMetadata
         channelAvatarUrl = result.channelAvatarUrl ?: channelAvatarUrl,
         channelSubscriberCount = result.subscriberCount ?: channelSubscriberCount,
     )
+
+/** Counts, date and description from the watch page, folded over what the load resolved. */
+internal fun VideoPlayerUiState.applyWatchInfo(video: Video): VideoPlayerUiState = copy(cachedVideo = video)
 
 /** The quality the user picked, and the streams that choice resolved to. */
 internal fun VideoPlayerUiState.applySelectedQuality(

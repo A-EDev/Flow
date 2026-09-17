@@ -94,6 +94,7 @@ class PlayerPlaybackReducersTest {
 
         val next =
             before.applyVodStreams(
+                cachedVideo = video("vid_a"),
                 relatedVideos = listOf(video("rel_1")),
                 videoStream = videoStream,
                 audioStream = null,
