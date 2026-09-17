@@ -140,6 +140,7 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
     var showStyleSheet by remember { mutableStateOf(false) }
     var showBackgroundStyleSheet by remember { mutableStateOf(false) }
     var showLongPressSpeedDialog by remember { mutableStateOf(false) }
+    var showGestureStyleSheet by remember { mutableStateOf(false) }
 
     if (showStyleSheet) {
         ModalBottomSheet(
@@ -219,6 +220,18 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (showGestureStyleSheet) {
+        GestureOverlayStyleSheet(
+            selected = gestureOverlayStyle,
+            onSelected = { style ->
+                coroutineScope.launch {
+                    playerPreferences.setGestureOverlayStyle(style)
+                }
+            },
+            onDismiss = { showGestureStyleSheet = false },
+        )
     }
 
     if (showBackgroundStyleSheet) {
@@ -575,13 +588,11 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
 
-                    GestureOverlayStyleItem(
-                        selected = gestureOverlayStyle,
-                        onSelected = { style ->
-                            coroutineScope.launch {
-                                playerPreferences.setGestureOverlayStyle(style)
-                            }
-                        },
+                    SettingsItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_gesture_overlay_title),
+                        subtitle = stringResource(gestureOverlayStyleLabelRes(gestureOverlayStyle)),
+                        onClick = { showGestureStyleSheet = true },
                     )
 
                     HorizontalDivider(
@@ -891,58 +902,6 @@ fun SettingsItem(
  * Picks how the volume and brightness read-outs are drawn (#1029): the one big centred ring covers
  * the part of the frame the user is adjusting, so the bar and text forms are offered alongside it.
  */
-@Composable
-private fun GestureOverlayStyleItem(
-    selected: GestureOverlayStyle,
-    onSelected: (GestureOverlayStyle) -> Unit,
-) {
-    val options =
-        listOf(
-            FlowToggleOption(GestureOverlayStyle.CIRCULAR, stringResource(R.string.gesture_overlay_style_circular)),
-            FlowToggleOption(GestureOverlayStyle.VERTICAL, stringResource(R.string.gesture_overlay_style_vertical)),
-            FlowToggleOption(GestureOverlayStyle.HORIZONTAL, stringResource(R.string.gesture_overlay_style_horizontal)),
-            FlowToggleOption(GestureOverlayStyle.MINIMAL, stringResource(R.string.gesture_overlay_style_minimal)),
-        )
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_swipe_gesture),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier =
-                Modifier
-                    .padding(top = 2.dp)
-                    .size(24.dp),
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.player_appearance_gesture_overlay_title),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = stringResource(R.string.player_appearance_gesture_overlay_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            FlowConnectedToggleGroup(
-                options = options,
-                selected = selected,
-                onSelected = onSelected,
-            )
-        }
-    }
-}
-
 @Composable
 private fun ScrubPreviewStyleItem(
     selectedStyle: ScrubPreviewStyle,

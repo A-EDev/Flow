@@ -187,6 +187,44 @@ private fun GestureLevelHudContent(
     }
 }
 
+/** The level every style previews at, so the picker compares shapes rather than numbers. */
+private const val PREVIEW_LEVEL = 0.62f
+private const val PREVIEW_LEVEL_PERCENT = 62
+
+/** The standing bar is half again as tall as the rest; scaled so all four preview at one height. */
+private const val VERTICAL_PREVIEW_SCALE = 0.62f
+
+/**
+ * One style's read-out on its own, for the picker that chooses between them.
+ *
+ * The real component rather than a drawing of it, so the picker keeps showing what the gesture
+ * actually draws however these are changed later.
+ */
+@Composable
+internal fun GestureLevelHudPreview(
+    style: GestureOverlayStyle,
+    modifier: Modifier = Modifier,
+) {
+    val previewScale = if (style == GestureOverlayStyle.VERTICAL) VERTICAL_PREVIEW_SCALE else 1f
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Box(
+            modifier =
+                Modifier.graphicsLayer {
+                    scaleX = previewScale
+                    scaleY = previewScale
+                },
+        ) {
+            GestureLevelHudContent(
+                style = style,
+                icon = Icons.AutoMirrored.Rounded.VolumeUp,
+                valueLabel = stringResource(R.string.player_gesture_level_percent, PREVIEW_LEVEL_PERCENT),
+                progress = { PREVIEW_LEVEL },
+                indicatorColor = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
 /**
  * The ring stays a [CircularProgressIndicator]: it reports a level, not a wait, and the M3
  * Expressive `LoadingIndicator` has no determinate ring shape to put in its place.
