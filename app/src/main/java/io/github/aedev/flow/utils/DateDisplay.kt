@@ -200,7 +200,10 @@ fun parseToTimestamp(text: String?): Long? {
 
     val cleanRaw =
         raw
-            .replace(Regex("(?i)^(streamed|premiered)\\s+"), "")
+            // "Streamed live on Jun 19, 2020" and "Premiered on Jan 1, 2020" carry the date behind
+            // words no format string matches, so without dropping them the parse fails and the
+            // caller falls back to whatever timestamp it already had.
+            .replace(Regex("(?i)^(streamed|premiered)\\s+(live\\s+)?(on\\s+)?"), "")
             .trim()
 
     val absFormats =

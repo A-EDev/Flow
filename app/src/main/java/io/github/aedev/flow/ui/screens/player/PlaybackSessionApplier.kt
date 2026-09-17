@@ -133,17 +133,25 @@ internal class PlaybackSessionApplier(
         }
     }
 
+    /**
+     * The same request answers both counts.
+     *
+     * Its like count is only adopted when the watch page withheld one, which is what a creator who
+     * hides likes leaves behind: the response carries an `unset_like_count_entity_key` and nothing
+     * else, and the screen was showing that as a flat zero.
+     */
     fun startDislikeLoad(load: LoadContext) {
         scope.launch(networkDispatcher) {
             if (playerPreferences.rytdEnabled.first()) {
-                withTimeoutOrNull(5000L) {
-                    repository.returnYouTubeDislikeCounts(load.videoId)
-                }?.dislikes?.let { dislikeCount ->
-                    if (isLoadCurrent(load.token) &&
-                        uiState.value.cachedVideo?.id == load.videoId
-                    ) {
-                        uiState.update { it.copy(dislikeCount = dislikeCount) }
-                    }
+                val counts = withTimeoutOrNull(5000L) { repository.returnYouTubeDislikeCounts(load.videoId) }
+                if (counts == null || !isLoadCurrent(load.token)) return@launch
+                uiState.update { state ->
+                    val cached = state.cachedVideo?.takeIf { it.id == load.videoId } ?: return@update state
+                    val likes = counts.likes?.takeIf { it > 0L && cached.likeCount <= 0L }
+                    state.copy(
+                        dislikeCount = counts.dislikes ?: state.dislikeCount,
+                        cachedVideo = likes?.let { cached.copy(likeCount = it) } ?: cached,
+                    )
                 }
             }
         }

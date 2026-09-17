@@ -280,7 +280,8 @@ fun FlowDescriptionBottomSheet(
                         ),
                         VideoDescriptionFactoid(
                             value =
-                                descriptionPage?.publishedDateText
+                                descriptionPage?.relativeDateText
+                                    ?: descriptionPage?.publishedDateText
                                     ?: dateSettings.format(video.uploadDate, DateContext.DESCRIPTION, video.timestamp),
                             label = stringResource(R.string.uploaded),
                         ),
