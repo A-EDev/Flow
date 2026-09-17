@@ -43,12 +43,7 @@ data class PlayerResponse(
             val viewCount: String? = null,
             val publishDate: String? = null,
             val uploadDate: String? = null,
-            val ownerChannelName: String? = null,
             val externalChannelId: String? = null,
-            val isFamilySafe: Boolean? = null,
-            val isUnlisted: Boolean? = null,
-            val isShortsEligible: Boolean? = null,
-            val availableCountries: List<String>? = null,
             val canonicalUrl: String? = null,
         )
     }
@@ -61,27 +56,6 @@ data class PlayerResponse(
         data class PlayerCaptionsTracklistRenderer(
             val captionTracks: List<CaptionTrack>? = null,
             val translationLanguages: List<TranslationLanguage>? = null,
-            val audioTracks: List<AudioCaptionTrack>? = null,
-            val defaultAudioTrackIndex: Int? = null,
-        )
-
-        /**
-         * Which caption tracks belong with one audio track, keyed by [audioTrackId], which matches
-         * [StreamingData.Format.AudioTrack.id].
-         *
-         * Informational only. Probed across four dubbed videos carrying 2-24 dubs: every audio
-         * track returned the identical [captionTrackIndices] and the identical
-         * [defaultCaptionTrackIndex], always the original language. There is no per-dub pairing
-         * here to act on, so matching captions to a chosen dub is done from the language codes
-         * instead — see SubtitleSelection.subtitleFollowingAudio.
-         */
-        @Serializable
-        data class AudioCaptionTrack(
-            val captionTrackIndices: List<Int>? = null,
-            val defaultCaptionTrackIndex: Int? = null,
-            val hasDefaultTrack: Boolean? = null,
-            val audioTrackId: String? = null,
-            val captionsInitialState: String? = null,
         )
 
         @Serializable
@@ -96,7 +70,6 @@ data class PlayerResponse(
         @Serializable
         data class TranslationLanguage(
             val languageCode: String? = null,
-            val languageName: Text? = null,
         )
 
         @Serializable
@@ -145,7 +118,6 @@ data class PlayerResponse(
     data class PlayerConfig(
         val audioConfig: AudioConfig? = null,
         val mediaCommonConfig: MediaCommonConfig? = null,
-        val hlsProxyConfig: HlsProxyConfig? = null,
     ) {
         @Serializable
         data class AudioConfig(
@@ -164,15 +136,6 @@ data class PlayerResponse(
                 val minimumLoudnessTargetLkfs: Double? = null,
             )
         }
-
-        /** YouTube's own starting point for adaptive selection on a manifest-driven stream. */
-        @Serializable
-        data class HlsProxyConfig(
-            val defaultInitialBitrate: Long? = null,
-            val maxInitialBitrate: Long? = null,
-            val initialStreamSelectionStrategy: String? = null,
-            val bitrateEstimateScale: Double? = null,
-        )
 
         @Serializable
         data class MediaCommonConfig(
@@ -193,7 +156,6 @@ data class PlayerResponse(
         val serverAbrStreamingUrl: String? = null,
         val hlsManifestUrl: String? = null,
         val dashManifestUrl: String? = null,
-        val aspectRatio: Float? = null,
     ) {
         @Serializable
         data class Format(
@@ -222,8 +184,6 @@ data class PlayerResponse(
             val trackAbsoluteLoudnessLkfs: Double? = null,
             val initRange: Range? = null,
             val indexRange: Range? = null,
-            val projectionType: String? = null,
-            val qualityOrdinal: String? = null,
             val colorInfo: ColorInfo? = null,
         ) {
             val isAudio: Boolean
@@ -274,9 +234,7 @@ data class PlayerResponse(
 
             @Serializable
             data class ColorInfo(
-                val primaries: String? = null,
                 val transferCharacteristics: String? = null,
-                val matrixCoefficients: String? = null,
             ) {
                 /** HDR is carried by the transfer curve: PQ (HDR10) or HLG. */
                 val isHdr: Boolean
@@ -309,8 +267,6 @@ data class PlayerResponse(
         val isLiveDvrEnabled: Boolean? = null,
         val isPostLiveDvr: Boolean? = null,
         val keywords: List<String>? = null,
-        val liveChunkReadahead: Int? = null,
-        val latencyClass: String? = null,
     )
 
     @Serializable
