@@ -8,7 +8,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -50,6 +51,9 @@ private val PlayPauseIconSize = 54.dp
 private val BufferingIndicatorSlot = 48.dp
 private val SkipButtonSize = 48.dp
 private val SkipIconSize = 36.dp
+
+/** Breathing room kept at each end, so the outer button never touches the player edge. */
+private val TransportEdgeInset = 8.dp
 
 /**
  * Previous / play-pause / next.
@@ -79,13 +83,26 @@ internal fun PlayerTransportControls(
     val haptics = LocalHapticFeedback.current
     val iconSwapSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
+        val buttonCount = 1 + (if (showSkipButtons) 2 else 0) + (if (showFrameStep) 2 else 0)
+        val rowLayout =
+            transportRowLayout(
+                availableWidth = maxWidth - TransportEdgeInset * 2,
+                contentWidth = PlayPauseButtonSize + SkipButtonSize * (buttonCount - 1),
+                gaps = buttonCount - 1,
+            )
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(48.dp),
+            horizontalArrangement = Arrangement.spacedBy(rowLayout.spacing),
+            modifier =
+                Modifier.graphicsLayer {
+                    scaleX = rowLayout.scale
+                    scaleY = rowLayout.scale
+                },
         ) {
             if (showSkipButtons) {
                 SkipButton(
