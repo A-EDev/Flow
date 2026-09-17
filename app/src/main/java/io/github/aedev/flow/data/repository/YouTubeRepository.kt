@@ -12,6 +12,8 @@ import io.github.aedev.flow.data.shorts.ChannelReelIndex
 import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
+import io.github.aedev.flow.innertube.models.response.VideoChapter
+import io.github.aedev.flow.innertube.models.response.VideoChaptersParser
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.innertube.models.response.VideoHeatmapParser
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
@@ -1077,6 +1079,12 @@ class YouTubeRepository
         suspend fun videoHeatmap(videoId: String): VideoHeatmap? =
             withContext(Dispatchers.IO) {
                 VideoHeatmapParser.parse(watchNextResponse(videoId))
+            }
+
+        /** The creator's chapters for [videoId], empty when the video has none. */
+        suspend fun videoChapters(videoId: String): List<VideoChapter> =
+            withContext(Dispatchers.IO) {
+                VideoChaptersParser.parse(watchNextResponse(videoId))
             }
 
         /** The watch page description for [videoId], or null when the response could not be read. */

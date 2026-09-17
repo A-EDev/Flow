@@ -1,0 +1,1541 @@
+{
+ "engagementPanels": [
+  {
+   "engagementPanelSectionListRenderer": {
+    "panelIdentifier": "engagement-panel-macro-markers-description-chapters",
+    "header": {
+     "engagementPanelTitleHeaderRenderer": {
+      "title": {
+       "runs": [
+        {
+         "text": "Chapters"
+        }
+       ]
+      },
+      "subtitle": {},
+      "visibilityButton": {
+       "buttonRenderer": {
+        "icon": {
+         "iconType": "CLOSE"
+        },
+        "accessibility": {
+         "label": "Close"
+        },
+        "trackingParams": "CFkQ8FsiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+        "accessibilityData": {
+         "accessibilityData": {
+          "label": "Close"
+         }
+        },
+        "command": {
+         "clickTrackingParams": "CFkQ8FsiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+         "changeEngagementPanelVisibilityAction": {
+          "targetId": "engagement-panel-macro-markers-description-chapters",
+          "visibility": "ENGAGEMENT_PANEL_VISIBILITY_HIDDEN"
+         }
+        }
+       }
+      },
+      "trackingParams": "CDcQ040EGAYiEwjfvcjTwvWWAxVFanoFHZFRMz8="
+     }
+    },
+    "content": {
+     "macroMarkersListRenderer": {
+      "contents": [
+       {
+        "macroMarkersListItemRenderer": {
+         "title": {
+          "simpleText": "Intro"
+         },
+         "timeDescription": {
+          "accessibility": {
+           "accessibilityData": {
+            "label": "0 seconds"
+           }
+          },
+          "simpleText": "0:00"
+         },
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ZXJ7J_jXvJAb2x8Nv1C7b4tpeA",
+            "width": 168,
+            "height": 94
+           },
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCFrK6Kp4V-cm8hRNuH86Bt-gg2cg",
+            "width": 336,
+            "height": 188
+           }
+          ]
+         },
+         "onTap": {
+          "clickTrackingParams": "CFUQ0NAGGAAiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandMetadata": {
+           "webCommandMetadata": {
+            "url": "/watch?v=3xngArcFpek",
+            "webPageType": "WEB_PAGE_TYPE_WATCH",
+            "rootVe": 3832
+           }
+          },
+          "watchEndpoint": {
+           "videoId": "3xngArcFpek",
+           "continuePlayback": true,
+           "startTimeSeconds": 0,
+           "watchEndpointSupportedOnesieConfig": {
+            "html5PlaybackOnesieConfig": {
+             "commonConfig": {
+              "url": "https://rr2---sn-vbxgv-cxtd.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&msp=1&odepv=1&id=df19e002b705a5e9&ip=185.177.211.49&initcwndbps=65000&mt=1789644522&oweuc="
+             }
+            }
+           }
+          }
+         },
+         "trackingParams": "CFUQ0NAGGAAiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+         "shareButton": {
+          "buttonRenderer": {
+           "style": "STYLE_TEXT",
+           "icon": {
+            "iconType": "SHARE"
+           },
+           "trackingParams": "CFcQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Share"
+            }
+           },
+           "command": {
+            "clickTrackingParams": "CFcQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "sendPost": true,
+              "apiUrl": "/youtubei/v1/share/get_share_panel"
+             }
+            },
+            "shareEntityServiceEndpoint": {
+             "serializedShareEntity": "CgszeG5nQXJjRnBla2IJCAASBUludHJv",
+             "commands": [
+              {
+               "clickTrackingParams": "CFcQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "openPopupAction": {
+                "popup": {
+                 "unifiedSharePanelRenderer": {
+                  "trackingParams": "CFgQjmIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+                  "showLoadingSpinner": true
+                 }
+                },
+                "popupType": "DIALOG",
+                "beReused": true
+               }
+              }
+             ]
+            }
+           }
+          }
+         },
+         "repeatButton": {
+          "toggleButtonRenderer": {
+           "style": {
+            "styleType": "STYLE_DEFAULT_ACTIVE"
+           },
+           "isToggled": false,
+           "isDisabled": false,
+           "defaultIcon": {
+            "iconType": "LOOP"
+           },
+           "defaultServiceEndpoint": {
+            "clickTrackingParams": "CFYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "repeatChapterCommand": {
+             "repeat": "REPEAT_CHAPTER_TYPE_ENABLE_REPEAT",
+             "startTimeMs": "0",
+             "endTimeMs": "37000",
+             "repeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D"
+            }
+           },
+           "toggledServiceEndpoint": {
+            "clickTrackingParams": "CFYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandExecutorCommand": {
+             "commands": [
+              {
+               "clickTrackingParams": "CFYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "entityUpdateCommand": {
+                "entityBatchUpdate": {
+                 "mutations": [
+                  {
+                   "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                   "type": "ENTITY_MUTATION_TYPE_DELETE"
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "clickTrackingParams": "CFYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "repeatChapterCommand": {
+                "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+               }
+              }
+             ]
+            }
+           },
+           "trackingParams": "CFYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "toggledStyle": {
+            "styleType": "STYLE_BLUE_TEXT"
+           },
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is off"
+            }
+           },
+           "toggledAccessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is on"
+            }
+           }
+          }
+         },
+         "macroMarkerRepeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+         "endRepeatCommand": {
+          "clickTrackingParams": "CFUQ0NAGGAAiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandExecutorCommand": {
+           "commands": [
+            {
+             "clickTrackingParams": "CFUQ0NAGGAAiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "entityUpdateCommand": {
+              "entityBatchUpdate": {
+               "mutations": [
+                {
+                 "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                 "type": "ENTITY_MUTATION_TYPE_DELETE"
+                }
+               ]
+              }
+             }
+            },
+            {
+             "clickTrackingParams": "CFUQ0NAGGAAiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "repeatChapterCommand": {
+              "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+             }
+            }
+           ]
+          }
+         },
+         "playerStateEntityKey": "Eh8veW91dHViZS9hcHAvd2F0Y2gvcGxheWVyX3N0YXRlIMMCKAE%3D",
+         "carouselType": "MACRO_MARKERS_LIST_ITEM_RENDERER_CAROUSEL_TYPE_DEFAULT",
+         "timeDescriptionA11yLabel": "0 seconds"
+        }
+       },
+       {
+        "macroMarkersListItemRenderer": {
+         "title": {
+          "simpleText": "Pro - Cost per Gig"
+         },
+         "timeDescription": {
+          "accessibility": {
+           "accessibilityData": {
+            "label": "37 seconds"
+           }
+          },
+          "simpleText": "0:37"
+         },
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ZXJ7J_jXvJAb2x8Nv1C7b4tpeA",
+            "width": 168,
+            "height": 94
+           },
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCFrK6Kp4V-cm8hRNuH86Bt-gg2cg",
+            "width": 336,
+            "height": 188
+           }
+          ]
+         },
+         "onTap": {
+          "clickTrackingParams": "CFEQ0NAGGAEiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandMetadata": {
+           "webCommandMetadata": {
+            "url": "/watch?v=3xngArcFpek&t=37s",
+            "webPageType": "WEB_PAGE_TYPE_WATCH",
+            "rootVe": 3832
+           }
+          },
+          "watchEndpoint": {
+           "videoId": "3xngArcFpek",
+           "continuePlayback": true,
+           "startTimeSeconds": 37,
+           "watchEndpointSupportedOnesieConfig": {
+            "html5PlaybackOnesieConfig": {
+             "commonConfig": {
+              "url": "https://rr2---sn-vbxgv-cxtd.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&msp=1&odepv=1&id=df19e002b705a5e9&ip=185.177.211.49&osts=37&initcwndbps=65000&mt=1789644522&oweuc="
+             }
+            }
+           }
+          }
+         },
+         "trackingParams": "CFEQ0NAGGAEiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+         "shareButton": {
+          "buttonRenderer": {
+           "style": "STYLE_TEXT",
+           "icon": {
+            "iconType": "SHARE"
+           },
+           "trackingParams": "CFMQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Share"
+            }
+           },
+           "command": {
+            "clickTrackingParams": "CFMQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "sendPost": true,
+              "apiUrl": "/youtubei/v1/share/get_share_panel"
+             }
+            },
+            "shareEntityServiceEndpoint": {
+             "serializedShareEntity": "CgszeG5nQXJjRnBla2IWCCUSElBybyAtIENvc3QgcGVyIEdpZw%3D%3D",
+             "commands": [
+              {
+               "clickTrackingParams": "CFMQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "openPopupAction": {
+                "popup": {
+                 "unifiedSharePanelRenderer": {
+                  "trackingParams": "CFQQjmIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+                  "showLoadingSpinner": true
+                 }
+                },
+                "popupType": "DIALOG",
+                "beReused": true
+               }
+              }
+             ]
+            }
+           }
+          }
+         },
+         "repeatButton": {
+          "toggleButtonRenderer": {
+           "style": {
+            "styleType": "STYLE_DEFAULT_ACTIVE"
+           },
+           "isToggled": false,
+           "isDisabled": false,
+           "defaultIcon": {
+            "iconType": "LOOP"
+           },
+           "defaultServiceEndpoint": {
+            "clickTrackingParams": "CFIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "repeatChapterCommand": {
+             "repeat": "REPEAT_CHAPTER_TYPE_ENABLE_REPEAT",
+             "startTimeMs": "37000",
+             "endTimeMs": "105000",
+             "repeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D"
+            }
+           },
+           "toggledServiceEndpoint": {
+            "clickTrackingParams": "CFIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandExecutorCommand": {
+             "commands": [
+              {
+               "clickTrackingParams": "CFIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "entityUpdateCommand": {
+                "entityBatchUpdate": {
+                 "mutations": [
+                  {
+                   "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                   "type": "ENTITY_MUTATION_TYPE_DELETE"
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "clickTrackingParams": "CFIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "repeatChapterCommand": {
+                "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+               }
+              }
+             ]
+            }
+           },
+           "trackingParams": "CFIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "toggledStyle": {
+            "styleType": "STYLE_BLUE_TEXT"
+           },
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is off"
+            }
+           },
+           "toggledAccessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is on"
+            }
+           }
+          }
+         },
+         "macroMarkerRepeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+         "endRepeatCommand": {
+          "clickTrackingParams": "CFEQ0NAGGAEiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandExecutorCommand": {
+           "commands": [
+            {
+             "clickTrackingParams": "CFEQ0NAGGAEiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "entityUpdateCommand": {
+              "entityBatchUpdate": {
+               "mutations": [
+                {
+                 "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                 "type": "ENTITY_MUTATION_TYPE_DELETE"
+                }
+               ]
+              }
+             }
+            },
+            {
+             "clickTrackingParams": "CFEQ0NAGGAEiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "repeatChapterCommand": {
+              "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+             }
+            }
+           ]
+          }
+         },
+         "playerStateEntityKey": "Eh8veW91dHViZS9hcHAvd2F0Y2gvcGxheWVyX3N0YXRlIMMCKAE%3D",
+         "carouselType": "MACRO_MARKERS_LIST_ITEM_RENDERER_CAROUSEL_TYPE_DEFAULT",
+         "timeDescriptionA11yLabel": "37 seconds"
+        }
+       },
+       {
+        "macroMarkersListItemRenderer": {
+         "title": {
+          "simpleText": "Pro - Great for Cold Storage"
+         },
+         "timeDescription": {
+          "accessibility": {
+           "accessibilityData": {
+            "label": "1 minute, 45 seconds"
+           }
+          },
+          "simpleText": "1:45"
+         },
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ZXJ7J_jXvJAb2x8Nv1C7b4tpeA",
+            "width": 168,
+            "height": 94
+           },
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCFrK6Kp4V-cm8hRNuH86Bt-gg2cg",
+            "width": 336,
+            "height": 188
+           }
+          ]
+         },
+         "onTap": {
+          "clickTrackingParams": "CE0Q0NAGGAIiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandMetadata": {
+           "webCommandMetadata": {
+            "url": "/watch?v=3xngArcFpek&t=105s",
+            "webPageType": "WEB_PAGE_TYPE_WATCH",
+            "rootVe": 3832
+           }
+          },
+          "watchEndpoint": {
+           "videoId": "3xngArcFpek",
+           "continuePlayback": true,
+           "startTimeSeconds": 105,
+           "watchEndpointSupportedOnesieConfig": {
+            "html5PlaybackOnesieConfig": {
+             "commonConfig": {
+              "url": "https://rr2---sn-vbxgv-cxtd.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&msp=1&odepv=1&id=df19e002b705a5e9&ip=185.177.211.49&osts=105&initcwndbps=65000&mt=1789644522&oweuc="
+             }
+            }
+           }
+          }
+         },
+         "trackingParams": "CE0Q0NAGGAIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+         "shareButton": {
+          "buttonRenderer": {
+           "style": "STYLE_TEXT",
+           "icon": {
+            "iconType": "SHARE"
+           },
+           "trackingParams": "CE8QjdAHIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Share"
+            }
+           },
+           "command": {
+            "clickTrackingParams": "CE8QjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "sendPost": true,
+              "apiUrl": "/youtubei/v1/share/get_share_panel"
+             }
+            },
+            "shareEntityServiceEndpoint": {
+             "serializedShareEntity": "CgszeG5nQXJjRnBla2IgCGkSHFBybyAtIEdyZWF0IGZvciBDb2xkIFN0b3JhZ2U%3D",
+             "commands": [
+              {
+               "clickTrackingParams": "CE8QjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "openPopupAction": {
+                "popup": {
+                 "unifiedSharePanelRenderer": {
+                  "trackingParams": "CFAQjmIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+                  "showLoadingSpinner": true
+                 }
+                },
+                "popupType": "DIALOG",
+                "beReused": true
+               }
+              }
+             ]
+            }
+           }
+          }
+         },
+         "repeatButton": {
+          "toggleButtonRenderer": {
+           "style": {
+            "styleType": "STYLE_DEFAULT_ACTIVE"
+           },
+           "isToggled": false,
+           "isDisabled": false,
+           "defaultIcon": {
+            "iconType": "LOOP"
+           },
+           "defaultServiceEndpoint": {
+            "clickTrackingParams": "CE4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "repeatChapterCommand": {
+             "repeat": "REPEAT_CHAPTER_TYPE_ENABLE_REPEAT",
+             "startTimeMs": "105000",
+             "endTimeMs": "210000",
+             "repeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D"
+            }
+           },
+           "toggledServiceEndpoint": {
+            "clickTrackingParams": "CE4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandExecutorCommand": {
+             "commands": [
+              {
+               "clickTrackingParams": "CE4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "entityUpdateCommand": {
+                "entityBatchUpdate": {
+                 "mutations": [
+                  {
+                   "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                   "type": "ENTITY_MUTATION_TYPE_DELETE"
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "clickTrackingParams": "CE4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "repeatChapterCommand": {
+                "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+               }
+              }
+             ]
+            }
+           },
+           "trackingParams": "CE4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "toggledStyle": {
+            "styleType": "STYLE_BLUE_TEXT"
+           },
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is off"
+            }
+           },
+           "toggledAccessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is on"
+            }
+           }
+          }
+         },
+         "macroMarkerRepeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+         "endRepeatCommand": {
+          "clickTrackingParams": "CE0Q0NAGGAIiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandExecutorCommand": {
+           "commands": [
+            {
+             "clickTrackingParams": "CE0Q0NAGGAIiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "entityUpdateCommand": {
+              "entityBatchUpdate": {
+               "mutations": [
+                {
+                 "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                 "type": "ENTITY_MUTATION_TYPE_DELETE"
+                }
+               ]
+              }
+             }
+            },
+            {
+             "clickTrackingParams": "CE0Q0NAGGAIiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "repeatChapterCommand": {
+              "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+             }
+            }
+           ]
+          }
+         },
+         "playerStateEntityKey": "Eh8veW91dHViZS9hcHAvd2F0Y2gvcGxheWVyX3N0YXRlIMMCKAE%3D",
+         "carouselType": "MACRO_MARKERS_LIST_ITEM_RENDERER_CAROUSEL_TYPE_DEFAULT",
+         "timeDescriptionA11yLabel": "1 minute, 45 seconds"
+        }
+       },
+       {
+        "macroMarkersListItemRenderer": {
+         "title": {
+          "simpleText": "Pro - Longevity"
+         },
+         "timeDescription": {
+          "accessibility": {
+           "accessibilityData": {
+            "label": "3 minutes, 30 seconds"
+           }
+          },
+          "simpleText": "3:30"
+         },
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ZXJ7J_jXvJAb2x8Nv1C7b4tpeA",
+            "width": 168,
+            "height": 94
+           },
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCFrK6Kp4V-cm8hRNuH86Bt-gg2cg",
+            "width": 336,
+            "height": 188
+           }
+          ]
+         },
+         "onTap": {
+          "clickTrackingParams": "CEkQ0NAGGAMiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandMetadata": {
+           "webCommandMetadata": {
+            "url": "/watch?v=3xngArcFpek&t=210s",
+            "webPageType": "WEB_PAGE_TYPE_WATCH",
+            "rootVe": 3832
+           }
+          },
+          "watchEndpoint": {
+           "videoId": "3xngArcFpek",
+           "continuePlayback": true,
+           "startTimeSeconds": 210,
+           "watchEndpointSupportedOnesieConfig": {
+            "html5PlaybackOnesieConfig": {
+             "commonConfig": {
+              "url": "https://rr2---sn-vbxgv-cxtd.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&msp=1&odepv=1&id=df19e002b705a5e9&ip=185.177.211.49&osts=210&initcwndbps=65000&mt=1789644522&oweuc="
+             }
+            }
+           }
+          }
+         },
+         "trackingParams": "CEkQ0NAGGAMiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+         "shareButton": {
+          "buttonRenderer": {
+           "style": "STYLE_TEXT",
+           "icon": {
+            "iconType": "SHARE"
+           },
+           "trackingParams": "CEsQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Share"
+            }
+           },
+           "command": {
+            "clickTrackingParams": "CEsQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "sendPost": true,
+              "apiUrl": "/youtubei/v1/share/get_share_panel"
+             }
+            },
+            "shareEntityServiceEndpoint": {
+             "serializedShareEntity": "CgszeG5nQXJjRnBla2IUCNIBEg9Qcm8gLSBMb25nZXZpdHk%3D",
+             "commands": [
+              {
+               "clickTrackingParams": "CEsQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "openPopupAction": {
+                "popup": {
+                 "unifiedSharePanelRenderer": {
+                  "trackingParams": "CEwQjmIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+                  "showLoadingSpinner": true
+                 }
+                },
+                "popupType": "DIALOG",
+                "beReused": true
+               }
+              }
+             ]
+            }
+           }
+          }
+         },
+         "repeatButton": {
+          "toggleButtonRenderer": {
+           "style": {
+            "styleType": "STYLE_DEFAULT_ACTIVE"
+           },
+           "isToggled": false,
+           "isDisabled": false,
+           "defaultIcon": {
+            "iconType": "LOOP"
+           },
+           "defaultServiceEndpoint": {
+            "clickTrackingParams": "CEoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "repeatChapterCommand": {
+             "repeat": "REPEAT_CHAPTER_TYPE_ENABLE_REPEAT",
+             "startTimeMs": "210000",
+             "endTimeMs": "265000",
+             "repeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D"
+            }
+           },
+           "toggledServiceEndpoint": {
+            "clickTrackingParams": "CEoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandExecutorCommand": {
+             "commands": [
+              {
+               "clickTrackingParams": "CEoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "entityUpdateCommand": {
+                "entityBatchUpdate": {
+                 "mutations": [
+                  {
+                   "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                   "type": "ENTITY_MUTATION_TYPE_DELETE"
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "clickTrackingParams": "CEoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "repeatChapterCommand": {
+                "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+               }
+              }
+             ]
+            }
+           },
+           "trackingParams": "CEoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "toggledStyle": {
+            "styleType": "STYLE_BLUE_TEXT"
+           },
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is off"
+            }
+           },
+           "toggledAccessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is on"
+            }
+           }
+          }
+         },
+         "macroMarkerRepeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+         "endRepeatCommand": {
+          "clickTrackingParams": "CEkQ0NAGGAMiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandExecutorCommand": {
+           "commands": [
+            {
+             "clickTrackingParams": "CEkQ0NAGGAMiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "entityUpdateCommand": {
+              "entityBatchUpdate": {
+               "mutations": [
+                {
+                 "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                 "type": "ENTITY_MUTATION_TYPE_DELETE"
+                }
+               ]
+              }
+             }
+            },
+            {
+             "clickTrackingParams": "CEkQ0NAGGAMiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "repeatChapterCommand": {
+              "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+             }
+            }
+           ]
+          }
+         },
+         "playerStateEntityKey": "Eh8veW91dHViZS9hcHAvd2F0Y2gvcGxheWVyX3N0YXRlIMMCKAE%3D",
+         "carouselType": "MACRO_MARKERS_LIST_ITEM_RENDERER_CAROUSEL_TYPE_DEFAULT",
+         "timeDescriptionA11yLabel": "3 minutes, 30 seconds"
+        }
+       },
+       {
+        "macroMarkersListItemRenderer": {
+         "title": {
+          "simpleText": "Pro - Organization"
+         },
+         "timeDescription": {
+          "accessibility": {
+           "accessibilityData": {
+            "label": "4 minutes, 25 seconds"
+           }
+          },
+          "simpleText": "4:25"
+         },
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ZXJ7J_jXvJAb2x8Nv1C7b4tpeA",
+            "width": 168,
+            "height": 94
+           },
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCFrK6Kp4V-cm8hRNuH86Bt-gg2cg",
+            "width": 336,
+            "height": 188
+           }
+          ]
+         },
+         "onTap": {
+          "clickTrackingParams": "CEUQ0NAGGAQiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandMetadata": {
+           "webCommandMetadata": {
+            "url": "/watch?v=3xngArcFpek&t=265s",
+            "webPageType": "WEB_PAGE_TYPE_WATCH",
+            "rootVe": 3832
+           }
+          },
+          "watchEndpoint": {
+           "videoId": "3xngArcFpek",
+           "continuePlayback": true,
+           "startTimeSeconds": 265,
+           "watchEndpointSupportedOnesieConfig": {
+            "html5PlaybackOnesieConfig": {
+             "commonConfig": {
+              "url": "https://rr2---sn-vbxgv-cxtd.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&msp=1&odepv=1&id=df19e002b705a5e9&ip=185.177.211.49&osts=265&initcwndbps=65000&mt=1789644522&oweuc="
+             }
+            }
+           }
+          }
+         },
+         "trackingParams": "CEUQ0NAGGAQiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+         "shareButton": {
+          "buttonRenderer": {
+           "style": "STYLE_TEXT",
+           "icon": {
+            "iconType": "SHARE"
+           },
+           "trackingParams": "CEcQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Share"
+            }
+           },
+           "command": {
+            "clickTrackingParams": "CEcQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "sendPost": true,
+              "apiUrl": "/youtubei/v1/share/get_share_panel"
+             }
+            },
+            "shareEntityServiceEndpoint": {
+             "serializedShareEntity": "CgszeG5nQXJjRnBla2IXCIkCEhJQcm8gLSBPcmdhbml6YXRpb24%3D",
+             "commands": [
+              {
+               "clickTrackingParams": "CEcQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "openPopupAction": {
+                "popup": {
+                 "unifiedSharePanelRenderer": {
+                  "trackingParams": "CEgQjmIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+                  "showLoadingSpinner": true
+                 }
+                },
+                "popupType": "DIALOG",
+                "beReused": true
+               }
+              }
+             ]
+            }
+           }
+          }
+         },
+         "repeatButton": {
+          "toggleButtonRenderer": {
+           "style": {
+            "styleType": "STYLE_DEFAULT_ACTIVE"
+           },
+           "isToggled": false,
+           "isDisabled": false,
+           "defaultIcon": {
+            "iconType": "LOOP"
+           },
+           "defaultServiceEndpoint": {
+            "clickTrackingParams": "CEYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "repeatChapterCommand": {
+             "repeat": "REPEAT_CHAPTER_TYPE_ENABLE_REPEAT",
+             "startTimeMs": "265000",
+             "endTimeMs": "294000",
+             "repeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D"
+            }
+           },
+           "toggledServiceEndpoint": {
+            "clickTrackingParams": "CEYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandExecutorCommand": {
+             "commands": [
+              {
+               "clickTrackingParams": "CEYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "entityUpdateCommand": {
+                "entityBatchUpdate": {
+                 "mutations": [
+                  {
+                   "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                   "type": "ENTITY_MUTATION_TYPE_DELETE"
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "clickTrackingParams": "CEYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "repeatChapterCommand": {
+                "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+               }
+              }
+             ]
+            }
+           },
+           "trackingParams": "CEYQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "toggledStyle": {
+            "styleType": "STYLE_BLUE_TEXT"
+           },
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is off"
+            }
+           },
+           "toggledAccessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is on"
+            }
+           }
+          }
+         },
+         "macroMarkerRepeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+         "endRepeatCommand": {
+          "clickTrackingParams": "CEUQ0NAGGAQiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandExecutorCommand": {
+           "commands": [
+            {
+             "clickTrackingParams": "CEUQ0NAGGAQiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "entityUpdateCommand": {
+              "entityBatchUpdate": {
+               "mutations": [
+                {
+                 "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                 "type": "ENTITY_MUTATION_TYPE_DELETE"
+                }
+               ]
+              }
+             }
+            },
+            {
+             "clickTrackingParams": "CEUQ0NAGGAQiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "repeatChapterCommand": {
+              "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+             }
+            }
+           ]
+          }
+         },
+         "playerStateEntityKey": "Eh8veW91dHViZS9hcHAvd2F0Y2gvcGxheWVyX3N0YXRlIMMCKAE%3D",
+         "carouselType": "MACRO_MARKERS_LIST_ITEM_RENDERER_CAROUSEL_TYPE_DEFAULT",
+         "timeDescriptionA11yLabel": "4 minutes, 25 seconds"
+        }
+       },
+       {
+        "macroMarkersListItemRenderer": {
+         "title": {
+          "simpleText": "Pro - Security"
+         },
+         "timeDescription": {
+          "accessibility": {
+           "accessibilityData": {
+            "label": "4 minutes, 54 seconds"
+           }
+          },
+          "simpleText": "4:54"
+         },
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ZXJ7J_jXvJAb2x8Nv1C7b4tpeA",
+            "width": 168,
+            "height": 94
+           },
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCFrK6Kp4V-cm8hRNuH86Bt-gg2cg",
+            "width": 336,
+            "height": 188
+           }
+          ]
+         },
+         "onTap": {
+          "clickTrackingParams": "CEEQ0NAGGAUiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandMetadata": {
+           "webCommandMetadata": {
+            "url": "/watch?v=3xngArcFpek&t=294s&pp=0gcJCSoDDuyUWbzu",
+            "webPageType": "WEB_PAGE_TYPE_WATCH",
+            "rootVe": 3832
+           }
+          },
+          "watchEndpoint": {
+           "videoId": "3xngArcFpek",
+           "continuePlayback": true,
+           "startTimeSeconds": 294,
+           "playerParams": "0gcJCSoDDuyUWbzu",
+           "watchEndpointSupportedOnesieConfig": {
+            "html5PlaybackOnesieConfig": {
+             "commonConfig": {
+              "url": "https://rr2---sn-vbxgv-cxtd.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&msp=1&odepv=1&id=df19e002b705a5e9&ip=185.177.211.49&osts=294&initcwndbps=65000&mt=1789644522&oweuc="
+             }
+            }
+           }
+          }
+         },
+         "trackingParams": "CEEQ0NAGGAUiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+         "shareButton": {
+          "buttonRenderer": {
+           "style": "STYLE_TEXT",
+           "icon": {
+            "iconType": "SHARE"
+           },
+           "trackingParams": "CEMQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Share"
+            }
+           },
+           "command": {
+            "clickTrackingParams": "CEMQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "sendPost": true,
+              "apiUrl": "/youtubei/v1/share/get_share_panel"
+             }
+            },
+            "shareEntityServiceEndpoint": {
+             "serializedShareEntity": "CgszeG5nQXJjRnBla2ITCKYCEg5Qcm8gLSBTZWN1cml0eQ%3D%3D",
+             "commands": [
+              {
+               "clickTrackingParams": "CEMQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "openPopupAction": {
+                "popup": {
+                 "unifiedSharePanelRenderer": {
+                  "trackingParams": "CEQQjmIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+                  "showLoadingSpinner": true
+                 }
+                },
+                "popupType": "DIALOG",
+                "beReused": true
+               }
+              }
+             ]
+            }
+           }
+          }
+         },
+         "repeatButton": {
+          "toggleButtonRenderer": {
+           "style": {
+            "styleType": "STYLE_DEFAULT_ACTIVE"
+           },
+           "isToggled": false,
+           "isDisabled": false,
+           "defaultIcon": {
+            "iconType": "LOOP"
+           },
+           "defaultServiceEndpoint": {
+            "clickTrackingParams": "CEIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "repeatChapterCommand": {
+             "repeat": "REPEAT_CHAPTER_TYPE_ENABLE_REPEAT",
+             "startTimeMs": "294000",
+             "endTimeMs": "328000",
+             "repeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D"
+            }
+           },
+           "toggledServiceEndpoint": {
+            "clickTrackingParams": "CEIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandExecutorCommand": {
+             "commands": [
+              {
+               "clickTrackingParams": "CEIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "entityUpdateCommand": {
+                "entityBatchUpdate": {
+                 "mutations": [
+                  {
+                   "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                   "type": "ENTITY_MUTATION_TYPE_DELETE"
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "clickTrackingParams": "CEIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "repeatChapterCommand": {
+                "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+               }
+              }
+             ]
+            }
+           },
+           "trackingParams": "CEIQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "toggledStyle": {
+            "styleType": "STYLE_BLUE_TEXT"
+           },
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is off"
+            }
+           },
+           "toggledAccessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is on"
+            }
+           }
+          }
+         },
+         "macroMarkerRepeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+         "endRepeatCommand": {
+          "clickTrackingParams": "CEEQ0NAGGAUiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandExecutorCommand": {
+           "commands": [
+            {
+             "clickTrackingParams": "CEEQ0NAGGAUiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "entityUpdateCommand": {
+              "entityBatchUpdate": {
+               "mutations": [
+                {
+                 "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                 "type": "ENTITY_MUTATION_TYPE_DELETE"
+                }
+               ]
+              }
+             }
+            },
+            {
+             "clickTrackingParams": "CEEQ0NAGGAUiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "repeatChapterCommand": {
+              "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+             }
+            }
+           ]
+          }
+         },
+         "playerStateEntityKey": "Eh8veW91dHViZS9hcHAvd2F0Y2gvcGxheWVyX3N0YXRlIMMCKAE%3D",
+         "carouselType": "MACRO_MARKERS_LIST_ITEM_RENDERER_CAROUSEL_TYPE_DEFAULT",
+         "timeDescriptionA11yLabel": "4 minutes, 54 seconds"
+        }
+       },
+       {
+        "macroMarkersListItemRenderer": {
+         "title": {
+          "simpleText": "Cons- Lots of em coming quickly"
+         },
+         "timeDescription": {
+          "accessibility": {
+           "accessibilityData": {
+            "label": "5 minutes, 28 seconds"
+           }
+          },
+          "simpleText": "5:28"
+         },
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ZXJ7J_jXvJAb2x8Nv1C7b4tpeA",
+            "width": 168,
+            "height": 94
+           },
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCFrK6Kp4V-cm8hRNuH86Bt-gg2cg",
+            "width": 336,
+            "height": 188
+           }
+          ]
+         },
+         "onTap": {
+          "clickTrackingParams": "CD0Q0NAGGAYiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandMetadata": {
+           "webCommandMetadata": {
+            "url": "/watch?v=3xngArcFpek&t=328s",
+            "webPageType": "WEB_PAGE_TYPE_WATCH",
+            "rootVe": 3832
+           }
+          },
+          "watchEndpoint": {
+           "videoId": "3xngArcFpek",
+           "continuePlayback": true,
+           "startTimeSeconds": 328,
+           "watchEndpointSupportedOnesieConfig": {
+            "html5PlaybackOnesieConfig": {
+             "commonConfig": {
+              "url": "https://rr2---sn-vbxgv-cxtd.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&msp=1&odepv=1&id=df19e002b705a5e9&ip=185.177.211.49&osts=328&initcwndbps=65000&mt=1789644522&oweuc="
+             }
+            }
+           }
+          }
+         },
+         "trackingParams": "CD0Q0NAGGAYiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+         "shareButton": {
+          "buttonRenderer": {
+           "style": "STYLE_TEXT",
+           "icon": {
+            "iconType": "SHARE"
+           },
+           "trackingParams": "CD8QjdAHIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Share"
+            }
+           },
+           "command": {
+            "clickTrackingParams": "CD8QjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "sendPost": true,
+              "apiUrl": "/youtubei/v1/share/get_share_panel"
+             }
+            },
+            "shareEntityServiceEndpoint": {
+             "serializedShareEntity": "CgszeG5nQXJjRnBla2IkCMgCEh9Db25zLSBMb3RzIG9mIGVtIGNvbWluZyBxdWlja2x5",
+             "commands": [
+              {
+               "clickTrackingParams": "CD8QjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "openPopupAction": {
+                "popup": {
+                 "unifiedSharePanelRenderer": {
+                  "trackingParams": "CEAQjmIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+                  "showLoadingSpinner": true
+                 }
+                },
+                "popupType": "DIALOG",
+                "beReused": true
+               }
+              }
+             ]
+            }
+           }
+          }
+         },
+         "repeatButton": {
+          "toggleButtonRenderer": {
+           "style": {
+            "styleType": "STYLE_DEFAULT_ACTIVE"
+           },
+           "isToggled": false,
+           "isDisabled": false,
+           "defaultIcon": {
+            "iconType": "LOOP"
+           },
+           "defaultServiceEndpoint": {
+            "clickTrackingParams": "CD4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "repeatChapterCommand": {
+             "repeat": "REPEAT_CHAPTER_TYPE_ENABLE_REPEAT",
+             "startTimeMs": "328000",
+             "endTimeMs": "495000",
+             "repeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D"
+            }
+           },
+           "toggledServiceEndpoint": {
+            "clickTrackingParams": "CD4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandExecutorCommand": {
+             "commands": [
+              {
+               "clickTrackingParams": "CD4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "entityUpdateCommand": {
+                "entityBatchUpdate": {
+                 "mutations": [
+                  {
+                   "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                   "type": "ENTITY_MUTATION_TYPE_DELETE"
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "clickTrackingParams": "CD4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "repeatChapterCommand": {
+                "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+               }
+              }
+             ]
+            }
+           },
+           "trackingParams": "CD4Q85EJIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "toggledStyle": {
+            "styleType": "STYLE_BLUE_TEXT"
+           },
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is off"
+            }
+           },
+           "toggledAccessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is on"
+            }
+           }
+          }
+         },
+         "macroMarkerRepeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+         "endRepeatCommand": {
+          "clickTrackingParams": "CD0Q0NAGGAYiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandExecutorCommand": {
+           "commands": [
+            {
+             "clickTrackingParams": "CD0Q0NAGGAYiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "entityUpdateCommand": {
+              "entityBatchUpdate": {
+               "mutations": [
+                {
+                 "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                 "type": "ENTITY_MUTATION_TYPE_DELETE"
+                }
+               ]
+              }
+             }
+            },
+            {
+             "clickTrackingParams": "CD0Q0NAGGAYiEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "repeatChapterCommand": {
+              "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+             }
+            }
+           ]
+          }
+         },
+         "playerStateEntityKey": "Eh8veW91dHViZS9hcHAvd2F0Y2gvcGxheWVyX3N0YXRlIMMCKAE%3D",
+         "carouselType": "MACRO_MARKERS_LIST_ITEM_RENDERER_CAROUSEL_TYPE_DEFAULT",
+         "timeDescriptionA11yLabel": "5 minutes, 28 seconds"
+        }
+       },
+       {
+        "macroMarkersListItemRenderer": {
+         "title": {
+          "simpleText": "Should you start Blu-ing it up?"
+         },
+         "timeDescription": {
+          "accessibility": {
+           "accessibilityData": {
+            "label": "8 minutes, 15 seconds"
+           }
+          },
+          "simpleText": "8:15"
+         },
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEbCKgBEF5IVfKriqkDDggBFQAAiEIYAXABwAEG&rs=AOn4CLA9ZXJ7J_jXvJAb2x8Nv1C7b4tpeA",
+            "width": 168,
+            "height": 94
+           },
+           {
+            "url": "https://i.ytimg.com/vi/3xngArcFpek/hqdefault.jpg?sqp=-oaymwEcCNACELwBSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCFrK6Kp4V-cm8hRNuH86Bt-gg2cg",
+            "width": 336,
+            "height": 188
+           }
+          ]
+         },
+         "onTap": {
+          "clickTrackingParams": "CDkQ0NAGGAciEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandMetadata": {
+           "webCommandMetadata": {
+            "url": "/watch?v=3xngArcFpek&t=495s",
+            "webPageType": "WEB_PAGE_TYPE_WATCH",
+            "rootVe": 3832
+           }
+          },
+          "watchEndpoint": {
+           "videoId": "3xngArcFpek",
+           "continuePlayback": true,
+           "startTimeSeconds": 495,
+           "watchEndpointSupportedOnesieConfig": {
+            "html5PlaybackOnesieConfig": {
+             "commonConfig": {
+              "url": "https://rr2---sn-vbxgv-cxtd.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&msp=1&odepv=1&id=df19e002b705a5e9&ip=185.177.211.49&osts=495&initcwndbps=65000&mt=1789644522&oweuc="
+             }
+            }
+           }
+          }
+         },
+         "trackingParams": "CDkQ0NAGGAciEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+         "shareButton": {
+          "buttonRenderer": {
+           "style": "STYLE_TEXT",
+           "icon": {
+            "iconType": "SHARE"
+           },
+           "trackingParams": "CDsQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Share"
+            }
+           },
+           "command": {
+            "clickTrackingParams": "CDsQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "sendPost": true,
+              "apiUrl": "/youtubei/v1/share/get_share_panel"
+             }
+            },
+            "shareEntityServiceEndpoint": {
+             "serializedShareEntity": "CgszeG5nQXJjRnBla2IkCO8DEh9TaG91bGQgeW91IHN0YXJ0IEJsdS1pbmcgaXQgdXA_",
+             "commands": [
+              {
+               "clickTrackingParams": "CDsQjdAHIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "openPopupAction": {
+                "popup": {
+                 "unifiedSharePanelRenderer": {
+                  "trackingParams": "CDwQjmIiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+                  "showLoadingSpinner": true
+                 }
+                },
+                "popupType": "DIALOG",
+                "beReused": true
+               }
+              }
+             ]
+            }
+           }
+          }
+         },
+         "repeatButton": {
+          "toggleButtonRenderer": {
+           "style": {
+            "styleType": "STYLE_DEFAULT_ACTIVE"
+           },
+           "isToggled": false,
+           "isDisabled": false,
+           "defaultIcon": {
+            "iconType": "LOOP"
+           },
+           "defaultServiceEndpoint": {
+            "clickTrackingParams": "CDoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "repeatChapterCommand": {
+             "repeat": "REPEAT_CHAPTER_TYPE_ENABLE_REPEAT",
+             "startTimeMs": "495000",
+             "endTimeMs": "584000",
+             "repeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D"
+            }
+           },
+           "toggledServiceEndpoint": {
+            "clickTrackingParams": "CDoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+            "commandExecutorCommand": {
+             "commands": [
+              {
+               "clickTrackingParams": "CDoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "entityUpdateCommand": {
+                "entityBatchUpdate": {
+                 "mutations": [
+                  {
+                   "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                   "type": "ENTITY_MUTATION_TYPE_DELETE"
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "clickTrackingParams": "CDoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_ygEEwO_KFA==",
+               "repeatChapterCommand": {
+                "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+               }
+              }
+             ]
+            }
+           },
+           "trackingParams": "CDoQ85EJIhMI373I08L1lgMVRWp6BR2RUTM_",
+           "toggledStyle": {
+            "styleType": "STYLE_BLUE_TEXT"
+           },
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is off"
+            }
+           },
+           "toggledAccessibilityData": {
+            "accessibilityData": {
+             "label": "Repeat chapter is on"
+            }
+           }
+          }
+         },
+         "macroMarkerRepeatStateEntityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+         "endRepeatCommand": {
+          "clickTrackingParams": "CDkQ0NAGGAciEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+          "commandExecutorCommand": {
+           "commands": [
+            {
+             "clickTrackingParams": "CDkQ0NAGGAciEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "entityUpdateCommand": {
+              "entityBatchUpdate": {
+               "mutations": [
+                {
+                 "entityKey": "EgxyZXBlYXRfc3RhdGUgyQIoAQ%3D%3D",
+                 "type": "ENTITY_MUTATION_TYPE_DELETE"
+                }
+               ]
+              }
+             }
+            },
+            {
+             "clickTrackingParams": "CDkQ0NAGGAciEwjfvcjTwvWWAxVFanoFHZFRMz_KAQTA78oU",
+             "repeatChapterCommand": {
+              "repeat": "REPEAT_CHAPTER_TYPE_DISABLE_REPEAT"
+             }
+            }
+           ]
+          }
+         },
+         "playerStateEntityKey": "Eh8veW91dHViZS9hcHAvd2F0Y2gvcGxheWVyX3N0YXRlIMMCKAE%3D",
+         "carouselType": "MACRO_MARKERS_LIST_ITEM_RENDERER_CAROUSEL_TYPE_DEFAULT",
+         "timeDescriptionA11yLabel": "8 minutes, 15 seconds"
+        }
+       }
+      ],
+      "syncButtonLabel": {
+       "runs": [
+        {
+         "text": "Sync to video time"
+        }
+       ]
+      },
+      "trackingParams": "CDgQ6NMGIhMI373I08L1lgMVRWp6BR2RUTM_",
+      "syncModelEntityKey": "EgpzeW5jX21vZGVsIMQBKAE%3D"
+     }
+    },
+    "targetId": "engagement-panel-macro-markers-description-chapters",
+    "visibility": "ENGAGEMENT_PANEL_VISIBILITY_HIDDEN",
+    "loggingDirectives": {
+     "trackingParams": "CDcQ040EGAYiEwjfvcjTwvWWAxVFanoFHZFRMz8=",
+     "visibility": {
+      "types": "12"
+     }
+    }
+   }
+  }
+ ]
+}

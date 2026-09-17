@@ -141,6 +141,7 @@ internal class PlaybackSessionApplier(
             is SecondaryMetadata.LiveWatch -> applyLiveWatchMetadata(result)
             is SecondaryMetadata.Category -> applyCategory(result)
             is SecondaryMetadata.Heatmap -> applyHeatmap(result)
+            is SecondaryMetadata.Chapters -> applyChapters(result)
         }
     }
 
@@ -472,6 +473,7 @@ internal class PlaybackSessionApplier(
             ?.let { repository.rememberVideoCategory(videoId, it) }
         secondaryMetadata.loadCategory(videoId, load.token)
         secondaryMetadata.loadHeatmap(videoId, load.token)
+        secondaryMetadata.loadChapters(videoId, load.token)
         secondaryMetadata.loadChannelMetadata(
             videoId = videoId,
             uploaderUrl = null,
@@ -513,6 +515,11 @@ internal class PlaybackSessionApplier(
     private fun applyHeatmap(result: SecondaryMetadata.Heatmap) {
         if (!isLoadCurrent(result.loadToken)) return
         uiState.update { it.copy(heatmap = result.heatmap) }
+    }
+
+    private fun applyChapters(result: SecondaryMetadata.Chapters) {
+        if (!isLoadCurrent(result.loadToken)) return
+        uiState.update { it.applyChapters(result.chapters) }
     }
 
     /** Folded into the tags the engine ingests, so the watch signal carries it. */

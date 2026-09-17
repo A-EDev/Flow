@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.innertube.models.response.VideoChapter
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
@@ -60,6 +61,12 @@ internal sealed interface SecondaryMetadata {
         override val videoId: String,
         override val loadToken: Long,
         val heatmap: VideoHeatmap,
+    ) : SecondaryMetadata
+
+    class Chapters(
+        override val videoId: String,
+        override val loadToken: Long,
+        val chapters: List<VideoChapter>,
     ) : SecondaryMetadata
 
     class LiveWatch(
@@ -141,6 +148,7 @@ internal class PlayerSecondaryMetadataLoader(
     private val liveWatchLoad = ConcurrentLoad()
     private val categoryLoad = ConcurrentLoad()
     private val heatmapLoad = ConcurrentLoad()
+    private val chaptersLoad = ConcurrentLoad()
 
     /** Drops every fetch in flight; the next load re-arms the ones it needs. */
     fun cancel() {
@@ -148,6 +156,7 @@ internal class PlayerSecondaryMetadataLoader(
         relatedLoad.cancel()
         categoryLoad.cancel()
         heatmapLoad.cancel()
+        chaptersLoad.cancel()
     }
 
     /** The rewatch curve, off the watch response the description and comments already fetch. */
@@ -166,6 +175,29 @@ internal class PlayerSecondaryMetadataLoader(
                         ?.takeIf { !it.isEmpty } ?: return@launch
                 if (!isPlaybackCurrent(loadToken) || !heatmapLoad.holds(videoId, loadToken)) return@launch
                 onResult(SecondaryMetadata.Heatmap(videoId, loadToken, heatmap))
+            }
+    }
+
+    /**
+     * The chapter list, off the same watch response.
+     *
+     * Not held behind [awaitPlaybackStarted] like the read-outs around it: chapters are drawn into
+     * the seek bar itself, so arriving after the first scrub means the bar changes shape under the
+     * finger already dragging it.
+     */
+    fun loadChapters(
+        videoId: String,
+        loadToken: Long,
+    ) {
+        if (!chaptersLoad.claim(videoId, loadToken)) return
+
+        chaptersLoad.job =
+            scope.launch(networkDispatcher) {
+                val chapters =
+                    withTimeoutOrNull(CHAPTERS_TIMEOUT_MS) { repository.videoChapters(videoId) }
+                        ?.takeIf { it.isNotEmpty() } ?: return@launch
+                if (!isPlaybackCurrent(loadToken) || !chaptersLoad.holds(videoId, loadToken)) return@launch
+                onResult(SecondaryMetadata.Chapters(videoId, loadToken, chapters))
             }
     }
 
@@ -497,5 +529,6 @@ internal class PlayerSecondaryMetadataLoader(
         const val RYD_TIMEOUT_MS = 5_000L
         const val CATEGORY_TIMEOUT_MS = 8_000L
         const val HEATMAP_TIMEOUT_MS = 8_000L
+        const val CHAPTERS_TIMEOUT_MS = 8_000L
     }
 }

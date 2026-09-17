@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player.state
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.innertube.models.response.VideoChapter
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.ResolvedPlayback
@@ -13,6 +14,7 @@ import io.github.aedev.flow.ui.screens.player.SecondaryMetadata
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.StreamSegment
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 /*
@@ -131,6 +133,22 @@ internal fun VideoPlayerUiState.applyVodStreams(
         innerTubeAudioFormats = innerTubeAudioFormats,
         streamSizes = streamSizes,
         storyboard = storyboard,
+    )
+
+/**
+ * Chapters read from the watch response, in the shape the seek bar and the chapter sheet take.
+ *
+ * Mapped to the extractor's segment type because that is what every chapter surface already reads;
+ * the mapping is the one place that has to change when they stop being extractor types.
+ */
+internal fun VideoPlayerUiState.applyChapters(chapters: List<VideoChapter>): VideoPlayerUiState =
+    copy(
+        chapters =
+            chapters.map { chapter ->
+                StreamSegment(chapter.title, chapter.startTimeSeconds).apply {
+                    previewUrl = chapter.thumbnailUrl
+                }
+            },
     )
 
 /** A live stream whose manifest only InnerTube produced. */
