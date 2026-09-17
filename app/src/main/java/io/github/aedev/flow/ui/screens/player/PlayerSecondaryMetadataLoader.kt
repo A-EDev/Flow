@@ -12,17 +12,14 @@ import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.stream.StreamInfo
 
 /** What a secondary metadata fetch resolved to, for the player screen to fold into its own state. */
 internal sealed interface SecondaryMetadata {
@@ -41,14 +38,6 @@ internal sealed interface SecondaryMetadata {
         override val videoId: String,
         override val loadToken: Long,
         val videos: List<Video>,
-    ) : SecondaryMetadata
-
-    class Enriched(
-        override val videoId: String,
-        override val loadToken: Long,
-        val video: Video,
-        val streamInfo: StreamInfo,
-        val relatedVideos: List<Video>,
     ) : SecondaryMetadata
 
     class Category(
@@ -144,7 +133,6 @@ internal class PlayerSecondaryMetadataLoader(
 
     private val channelLoad = ConcurrentLoad()
     private val relatedLoad = ConcurrentLoad()
-    private val enrichLoad = ConcurrentLoad()
     private val liveWatchLoad = ConcurrentLoad()
     private val categoryLoad = ConcurrentLoad()
     private val heatmapLoad = ConcurrentLoad()
@@ -353,78 +341,6 @@ internal class PlayerSecondaryMetadataLoader(
      * Folds the NewPipe metadata a fast InnerTube load raced past into the screen once it lands,
      * then re-arms the related lane and the channel request from the richer references it carries.
      */
-    fun enrichWhenReady(
-        videoId: String,
-        streamInfoDeferred: Deferred<Pair<StreamInfo?, Throwable?>>,
-        loadToken: Long,
-    ) {
-        if (!enrichLoad.claim(videoId, loadToken)) return
-
-        enrichLoad.job =
-            scope.launch(networkDispatcher) {
-                val streamInfo =
-                    try {
-                        streamInfoDeferred.await().first
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Log.d(TAG, "Late NewPipe metadata failed for $videoId: ${e.message}")
-                        null
-                    } ?: return@launch
-
-                if (!isPlaybackCurrent(loadToken)) return@launch
-
-                val relatedVideos =
-                    PlayerRelatedVideosPolicy.select(
-                        videoId = videoId,
-                        primary = repository.getRelatedVideosFromStreamInfo(streamInfo),
-                        fallback = emptyList(),
-                        current = emptyList(),
-                        shortsEnabled = shortsEnabled(),
-                        blockedChannelIds = blockedChannelIds(),
-                    )
-                val cached = currentState().cachedVideo ?: return@launch
-                if (cached.id != videoId) return@launch
-
-                val enriched =
-                    cached.copy(
-                        title = streamInfo.name?.takeIf { it.isNotBlank() } ?: cached.title,
-                        channelName = streamInfo.uploaderName?.takeIf { it.isNotBlank() } ?: cached.channelName,
-                        channelId =
-                            cached.channelId.takeIf { it.isNotBlank() }
-                                ?: streamInfo.uploaderUrl?.substringAfterLast("/").orEmpty(),
-                        thumbnailUrl =
-                            streamInfo.thumbnails.maxByOrNull { it.height }?.url
-                                ?: cached.thumbnailUrl,
-                        duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: cached.duration,
-                        viewCount = streamInfo.viewCount.takeIf { it > 0L } ?: cached.viewCount,
-                        description = streamInfo.description?.content ?: cached.description,
-                    )
-
-                withContext(Dispatchers.Main) {
-                    onResult(
-                        SecondaryMetadata.Enriched(
-                            videoId = videoId,
-                            loadToken = loadToken,
-                            video = enriched,
-                            streamInfo = streamInfo,
-                            relatedVideos = relatedVideos,
-                        ),
-                    )
-                }
-
-                loadRelatedVideos(videoId, relatedVideos, loadToken)
-
-                loadChannelMetadata(
-                    videoId = videoId,
-                    uploaderUrl = streamInfo.uploaderUrl,
-                    channelId = enriched.channelId,
-                    embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
-                    loadToken = loadToken,
-                )
-            }
-    }
-
     fun refreshLiveWatchMetadata(
         videoId: String,
         fallbackVideo: Video,

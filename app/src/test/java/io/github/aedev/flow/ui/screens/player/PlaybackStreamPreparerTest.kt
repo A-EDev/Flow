@@ -209,8 +209,6 @@ class PlaybackStreamPreparerTest {
             preferredCodecKey = "auto",
             preferredSubtitleLanguage = CaptionTrackResolver.NO_PREFERRED_LANGUAGE,
             resumePositionOverrideMs = null,
-            lateStreamInfo = null,
-            streamError = null,
         )
 
     private fun extraction(

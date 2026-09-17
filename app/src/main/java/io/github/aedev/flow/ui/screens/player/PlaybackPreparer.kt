@@ -62,40 +62,6 @@ internal class PlaybackPreparer(
             autoplay
         }
 
-    /** The merged result a load resolved, unpacked onto the full hand-off below. */
-    suspend fun prepareMergedStreams(
-        videoId: String,
-        step: ResolvedPlayback.Merged,
-        fallbackDurationSeconds: Long,
-        isCurrent: () -> Boolean,
-    ) {
-        val streams = step.streams
-        prepareMergedStreams(
-            videoId = videoId,
-            streamInfo = step.streamInfo,
-            videoStream = streams.selectedVideoStream,
-            audioStream = streams.selectedAudioStream,
-            videoStreams = streams.videoStreams,
-            audioStreams = streams.audioStreams,
-            subtitles = streams.subtitles,
-            savedPosition = step.savedPositionMs,
-            fallbackDurationSeconds = fallbackDurationSeconds,
-            localFilePath = streams.localFilePath,
-            offlineSegments = step.offlineSegments,
-            hlsUrl = streams.hlsUrl,
-            isAdaptiveMode = streams.isAdaptiveMode,
-            resumeOverrideRequested = step.resumeOverrideRequested,
-            isCurrent = isCurrent,
-            sabrInfo = streams.sabrInfo,
-            itVideoFormats = streams.innerTubeVideoFormats,
-            itAudioFormats = streams.innerTubeAudioFormats,
-            preferredVideoCodec = streams.preferredCodecKey,
-            dashManifestUrl = streams.dashManifestUrl,
-            preferSabr = streams.preferSabr,
-            preferredLiveQualityHeight = streams.preferredQuality.height,
-        )
-    }
-
     /** The InnerTube-only VOD assembly, unpacked onto the full hand-off below. */
     suspend fun prepareVodStreams(
         videoId: String,

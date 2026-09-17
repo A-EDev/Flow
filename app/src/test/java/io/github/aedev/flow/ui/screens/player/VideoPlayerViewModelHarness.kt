@@ -167,8 +167,6 @@ internal class VideoPlayerViewModelHarness(
         coEvery { videoDownloadManager.getSponsorBlockData(any()) } returns null
         coEvery { offlineSubtitleStore.load(any()) } returns emptyList()
 
-        coEvery { repository.getVideoStreamInfo(any()) } throws RuntimeException("newpipe unavailable")
-        every { repository.getRelatedVideosFromStreamInfo(any()) } returns emptyList()
         coEvery { repository.getComments(any()) } returns (emptyList<Comment>() to null as Page?)
         coEvery { repository.getVideoComments(any(), any()) } returns CommentsPageResult.EMPTY
 

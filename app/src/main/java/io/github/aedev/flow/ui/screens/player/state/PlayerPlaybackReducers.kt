@@ -8,7 +8,6 @@ import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.StoryboardLevel
-import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.player.stream.VideoQualityOptions
 import io.github.aedev.flow.ui.screens.player.SecondaryMetadata
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -60,45 +59,12 @@ internal fun VideoPlayerUiState.applyOfflineFallback(step: ResolvedPlayback.Offl
         upcomingReleaseTimeMs = null,
     )
 
-/** The merged NewPipe + InnerTube result: the screen's streams, qualities, chapters and manifests. */
-internal fun VideoPlayerUiState.applyMergedPlayback(
-    videoId: String,
-    step: ResolvedPlayback.Merged,
-): VideoPlayerUiState {
-    val streams = step.streams
-    return copy(
-        streamInfo = step.streamInfo,
-        relatedVideos = step.relatedVideos,
-        videoStream = if (step.isUpcomingContent) null else streams.selectedVideoStream,
-        audioStream = if (step.isUpcomingContent) null else streams.selectedAudioStream,
-        availableQualities = streams.availableQualities,
-        selectedQuality = VideoQualityOptions.qualityOf(streams.selectedVideoStream),
-        chapters = streams.chapters,
-        storyboard = streams.storyboard,
-        isLoading = false,
-        savedPosition = step.savedPositionMs,
-        isAdaptiveMode = streams.isAdaptiveMode,
-        autoplayEnabled = step.autoplayEnabled,
-        streamSizes = streams.streamSizes,
-        localFilePath = streams.localFilePath,
-        localFileVideoId = if (streams.localFilePath != null) videoId else null,
-        offlineSponsorBlockSegments = step.offlineSegments,
-        hlsUrl = if (step.isUpcomingContent) null else streams.hlsUrl,
-        isLive = !step.isUpcomingContent && streams.isLiveStream,
-        isUpcoming = step.isUpcomingContent,
-        upcomingReleaseTimeMs = step.upcomingReleaseTimeMs,
-        innerTubeVideoFormats = streams.innerTubeVideoFormats,
-        innerTubeAudioFormats = streams.innerTubeAudioFormats,
-    )
-}
-
 /**
- * A VOD that only InnerTube could resolve.
+ * The streams a load resolved: what plays, at what qualities, and the formats behind them.
  *
- * This is the screen's second stream writer, and it writes a different set of fields from
- * [applyMergedPlayback]: `chapters`, `offlineSponsorBlockSegments`, `localFilePath` and
- * `localFileVideoId` are deliberately left as the load left them, because the InnerTube path never
- * had them to begin with.
+ * `chapters`, `offlineSponsorBlockSegments`, `localFilePath` and `localFileVideoId` are deliberately
+ * left as the load left them — chapters arrive separately off the watch response, and the local-copy
+ * fields belong to the download step.
  */
 internal fun VideoPlayerUiState.applyVodStreams(
     relatedVideos: List<Video>,
@@ -249,31 +215,6 @@ internal fun VideoPlayerUiState.applyRelatedVideos(
         copy(relatedVideos = videos)
     }
 
-/**
- * Late NewPipe metadata folded over an InnerTube-only load.
- *
- * Its streams join the download dialog's list, so their sizes have to join the map the dialog looks
- * them up in rather than replace it.
- */
-internal fun VideoPlayerUiState.applyEnrichedMetadata(result: SecondaryMetadata.Enriched): VideoPlayerUiState {
-    val streamInfo = result.streamInfo
-    return copy(
-        cachedVideo = result.video,
-        streamInfo = streamInfo,
-        relatedVideos = result.relatedVideos.ifEmpty { relatedVideos },
-        chapters = streamInfo.streamSegments ?: chapters,
-        streamSizes =
-            StreamSizeEstimator.merge(
-                streamSizes,
-                StreamSizeEstimator.fromExtractorStreams(
-                    (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
-                    streamInfo.audioStreams,
-                    streamInfo.duration,
-                ),
-            ),
-    )
-}
-
 /** The live watch refresh: title, channel, counts and the avatar it resolved. */
 internal fun VideoPlayerUiState.applyLiveWatchMetadata(result: SecondaryMetadata.LiveWatch): VideoPlayerUiState =
     copy(
@@ -286,47 +227,6 @@ internal fun VideoPlayerUiState.applyLiveWatchMetadata(result: SecondaryMetadata
  * The video the session identity and the media notification are armed from once NewPipe's metadata
  * lands, or null when it carried no usable title and the screen keeps what it had.
  */
-internal fun VideoPlayerUiState.primaryMetadataVideo(
-    videoId: String,
-    streamInfo: StreamInfo,
-): Video? {
-    val realTitle = streamInfo.name?.takeIf { it.isNotBlank() } ?: return null
-    val currentCached = cachedVideo
-    return blankVideo(videoId, currentCached).copy(
-        title = realTitle,
-        channelName = streamInfo.uploaderName?.takeIf { it.isNotBlank() } ?: currentCached?.channelName ?: "",
-        channelId =
-            currentCached?.channelId?.takeIf { it.isNotBlank() }
-                ?: streamInfo.uploaderUrl?.split("/")?.last() ?: "",
-        thumbnailUrl =
-            streamInfo.thumbnails
-                ?.maxByOrNull { it.height }
-                ?.url
-                ?.takeIf { it.isNotBlank() }
-                ?: currentCached?.thumbnailUrl ?: "",
-        duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: (currentCached?.duration ?: 0),
-    )
-}
-
-/** The learning signal a resolved load emits: tags and description, not a title-only stub. */
-internal fun neuroSignalVideo(
-    videoId: String,
-    streamInfo: StreamInfo,
-): Video =
-    Video(
-        id = videoId,
-        title = streamInfo.name ?: "",
-        channelName = streamInfo.uploaderName ?: "",
-        channelId = streamInfo.uploaderUrl?.split("/")?.last() ?: "",
-        thumbnailUrl = streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
-        duration = streamInfo.duration.toInt(),
-        viewCount = streamInfo.viewCount,
-        uploadDate = "",
-        description = streamInfo.description?.content ?: "",
-        tags = streamInfo.tags ?: emptyList(),
-    )
-
-/** The video the live watch refresh starts from when the merged result turned out to be live. */
 internal fun VideoPlayerUiState.liveWatchFallbackVideo(
     videoId: String,
     streamInfo: StreamInfo,
