@@ -111,33 +111,17 @@ internal fun PlayerDescriptionSheetHost(
     LaunchedEffect(video.id) {
         viewModel.loadDescription(video.id)
     }
-    val dateSettings = rememberDateDisplaySettings()
-    val currentVideo =
-        remember(uiState.streamInfo, video, uiState.channelAvatarUrl, dateSettings) {
-            val streamInfo = uiState.streamInfo ?: return@remember video
-            streamInfo.toVideo(
-                base = video,
-                uploadDateText =
-                    streamInfo.textualUploadDate
-                        ?: streamInfo.uploadDateMillis
-                            ?.let { dateSettings.format(date = null, context = DateContext.DESCRIPTION, timestampFallbackMs = it) }
-                            ?.takeIf { it.isNotBlank() }
-                        ?: video.uploadDate,
-                channelAvatarUrl = uiState.channelAvatarUrl,
-                likeCount = streamInfo.likeCount,
-            )
-        }
     FlowDescriptionBottomSheet(
-        video = currentVideo,
+        video = video,
         descriptionPage = descriptionPage,
-        tags = uiState.streamInfo?.tags ?: emptyList(),
+        tags = video.tags,
         chapterCount = uiState.chapters.size,
         onChaptersClick = onChaptersClick,
         onTranscriptClick = onTranscriptClick?.takeIf { hasTranscriptTrack },
         note = videoNote.takeIf { videoNotesEnabled },
         onEditNote = { showNoteEditor = true }.takeIf { videoNotesEnabled },
         onChannelClick = onChannelClick,
-        artworkUrl = currentVideo.thumbnailUrl,
+        artworkUrl = video.thumbnailUrl,
         onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,
@@ -151,7 +135,7 @@ internal fun PlayerDescriptionSheetHost(
         FlowNoteEditorDialog(
             initialText = videoNote.orEmpty(),
             title = stringResource(R.string.note_video_title),
-            onSave = { text -> viewModel.saveVideoNote(currentVideo.id, text) },
+            onSave = { text -> viewModel.saveVideoNote(video.id, text) },
             onDismiss = { showNoteEditor = false },
         )
     }

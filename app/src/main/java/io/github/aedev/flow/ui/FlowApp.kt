@@ -289,19 +289,7 @@ fun FlowApp(
 
         val musicPlayerSheetState = rememberMusicPlayerSheetState()
 
-        val activeVideo =
-            playerUiState.cachedVideo ?: playerUiState.streamInfo?.let { streamInfo ->
-                Video(
-                    id = streamInfo.id,
-                    title = streamInfo.name ?: "",
-                    channelName = streamInfo.uploaderName ?: "",
-                    channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: "",
-                    thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: "",
-                    duration = streamInfo.duration.toInt(),
-                    viewCount = streamInfo.viewCount,
-                    uploadDate = "",
-                )
-            }
+        val activeVideo = playerUiState.cachedVideo
 
         LaunchedEffect(playerSheetState.currentValue, playerSheetState.isDragging) {
             if (!playerSheetState.isDragging) {
@@ -477,7 +465,6 @@ fun FlowApp(
                 currentMusicTrack != null &&
                     !suppressMusicMiniAfterVideo &&
                     playerUiState.cachedVideo == null &&
-                    playerUiState.streamInfo == null &&
                     !musicPlayerSheetState.isDismissed &&
                     !musicPlayerSheetState.isExpanded
             val musicMiniPlayerInset =
@@ -718,8 +705,7 @@ fun FlowApp(
         // ===== GLOBAL MUSIC PLAYER OVERLAY =====
         if (currentMusicTrack != null &&
             !suppressMusicMiniAfterVideo &&
-            playerUiState.cachedVideo == null &&
-            playerUiState.streamInfo == null
+            playerUiState.cachedVideo == null
         ) {
             UnifiedMusicPlayerSheet(
                 state = musicPlayerSheetState,

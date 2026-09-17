@@ -14,7 +14,6 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 
 data class VideoPlayerUiState(
     val cachedVideo: Video? = null,
-    val streamInfo: StreamInfo? = null,
     val relatedVideos: List<Video> = emptyList(),
     val videoStream: VideoStream? = null,
     val audioStream: AudioStream? = null,
@@ -70,7 +69,6 @@ data class VideoPlayerUiState(
             isLoading = true,
             error = null,
             errorHint = null,
-            streamInfo = null,
             videoStream = null,
             audioStream = null,
             streamSizes = emptyMap(),

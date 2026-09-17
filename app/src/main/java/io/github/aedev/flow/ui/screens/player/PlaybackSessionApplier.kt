@@ -139,7 +139,7 @@ internal class PlaybackSessionApplier(
                     repository.returnYouTubeDislikeCounts(load.videoId)
                 }?.dislikes?.let { dislikeCount ->
                     if (isLoadCurrent(load.token) &&
-                        (uiState.value.cachedVideo?.id == load.videoId || uiState.value.streamInfo?.id == load.videoId)
+                        uiState.value.cachedVideo?.id == load.videoId
                     ) {
                         uiState.update { it.copy(dislikeCount = dislikeCount) }
                     }
@@ -172,9 +172,7 @@ internal class PlaybackSessionApplier(
         val videoId = load.videoId
         when (val prepare = latest.latePrepare(videoId)) {
             null -> {
-                if (latest.streamInfo != null) {
-                    Log.w(TAG, "Late prepare skipped for $videoId: no playable streams in UI state")
-                }
+                Unit
             }
 
             is LatePrepare.LocalFile -> {
@@ -184,32 +182,6 @@ internal class PlaybackSessionApplier(
                     localFilePath = prepare.localFilePath,
                     offlineSegments = prepare.offlineSegments,
                     savedPosition = prepare.savedPosition ?: viewHistory.getPlaybackPosition(videoId).first(),
-                )
-            }
-
-            is LatePrepare.Streams -> {
-                Log.w(
-                    TAG,
-                    "Late prepare: arming stream playback for $videoId " +
-                        "(audio=${prepare.audioStream != null}, videos=${prepare.videoStreams.size})",
-                )
-                playbackPreparer.prepareMergedStreams(
-                    videoId = videoId,
-                    streamInfo = prepare.streamInfo,
-                    videoStream = prepare.videoStream,
-                    audioStream = prepare.audioStream,
-                    videoStreams = prepare.videoStreams,
-                    audioStreams = prepare.streamInfo.audioStreams,
-                    subtitles = prepare.streamInfo.subtitles ?: emptyList(),
-                    savedPosition = prepare.savedPosition ?: viewHistory.getPlaybackPosition(videoId).first(),
-                    fallbackDurationSeconds = prepare.fallbackDurationSeconds,
-                    localFilePath = prepare.localFilePath,
-                    offlineSegments = prepare.offlineSegments,
-                    hlsUrl = prepare.hlsUrl,
-                    isAdaptiveMode = prepare.isAdaptiveMode,
-                    resumeOverrideRequested = false,
-                    isCurrent = { isLoadCurrent(load.token) },
-                    preferredVideoCodec = playerPreferences.videoCodecPriority.first(),
                 )
             }
         }
@@ -475,7 +447,7 @@ internal class PlaybackSessionApplier(
     ) {
         if (!isLoadCurrent(loadToken) || videos.isEmpty()) return
         val state = uiState.value
-        if (state.cachedVideo?.id != videoId && state.streamInfo?.id != videoId) return
+        if (state.cachedVideo?.id != videoId) return
 
         scope.launch {
             if (!isLoadCurrent(loadToken)) return@launch

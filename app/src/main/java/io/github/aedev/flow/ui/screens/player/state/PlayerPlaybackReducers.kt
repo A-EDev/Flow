@@ -32,7 +32,6 @@ internal fun VideoPlayerUiState.applyLocalCopyReady(
     step: ResolvedPlayback.LocalCopyReady,
 ): VideoPlayerUiState =
     copy(
-        streamInfo = if (step.clearStreamInfo) null else streamInfo,
         localFilePath = step.localFilePath,
         localFileVideoId = videoId,
         offlineSponsorBlockSegments = step.offlineSegments,
@@ -80,7 +79,6 @@ internal fun VideoPlayerUiState.applyVodStreams(
     storyboard: List<StoryboardLevel>,
 ): VideoPlayerUiState =
     copy(
-        streamInfo = null,
         relatedVideos = relatedVideos,
         videoStream = videoStream,
         audioStream = audioStream,
@@ -123,7 +121,6 @@ internal fun VideoPlayerUiState.applyLiveStreams(
     hlsUrl: String?,
 ): VideoPlayerUiState =
     copy(
-        streamInfo = null,
         relatedVideos = relatedVideos,
         isLoading = false,
         error = null,
@@ -209,19 +206,11 @@ internal fun VideoPlayerUiState.applyRelatedVideos(
     videoId: String,
     videos: List<Video>,
 ): VideoPlayerUiState =
-    if (cachedVideo?.id != videoId && streamInfo?.id != videoId) {
+    if (cachedVideo?.id != videoId) {
         this
     } else {
         copy(relatedVideos = videos)
     }
-
-/** The live watch refresh: title, channel, counts and the avatar it resolved. */
-internal fun VideoPlayerUiState.applyLiveWatchMetadata(result: SecondaryMetadata.LiveWatch): VideoPlayerUiState =
-    copy(
-        cachedVideo = result.video,
-        channelAvatarUrl = result.channelAvatarUrl ?: channelAvatarUrl,
-        channelSubscriberCount = result.subscriberCount ?: channelSubscriberCount,
-    )
 
 /**
  * The video the session identity and the media notification are armed from once NewPipe's metadata
@@ -253,22 +242,15 @@ internal fun VideoPlayerUiState.liveWatchFallbackVideo(
  * Engine signals are fed from this rather than from the title-only stub a card hands over, so a
  * like or a watch recorded here carries the tags, description and duration the load resolved.
  */
-internal fun VideoPlayerUiState.richVideoFor(videoId: String): Video? =
-    cachedVideo?.takeIf { it.id == videoId }
-        ?: streamInfo?.takeIf { it.id == videoId }?.let { info ->
-            Video(
-                id = videoId,
-                title = info.name ?: "",
-                channelName = info.uploaderName ?: "",
-                channelId = info.uploaderUrl?.split("/")?.last() ?: "",
-                thumbnailUrl = info.thumbnails.maxByOrNull { it.height }?.url ?: "",
-                duration = info.duration.toInt(),
-                viewCount = info.viewCount,
-                uploadDate = "",
-                description = info.description?.content ?: "",
-                tags = info.tags ?: emptyList(),
-            )
-        }
+internal fun VideoPlayerUiState.richVideoFor(videoId: String): Video? = cachedVideo?.takeIf { it.id == videoId }
+
+/** The live watch refresh: title, channel, counts and the avatar it resolved. */
+internal fun VideoPlayerUiState.applyLiveWatchMetadata(result: SecondaryMetadata.LiveWatch): VideoPlayerUiState =
+    copy(
+        cachedVideo = result.video,
+        channelAvatarUrl = result.channelAvatarUrl ?: channelAvatarUrl,
+        channelSubscriberCount = result.subscriberCount ?: channelSubscriberCount,
+    )
 
 /** The quality the user picked, and the streams that choice resolved to. */
 internal fun VideoPlayerUiState.applySelectedQuality(

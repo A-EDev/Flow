@@ -178,7 +178,6 @@ class PlaybackLoadResolver
                             ResolvedPlayback.LocalCopyReady(
                                 localFilePath = localPath,
                                 offlineSegments = storedSponsorBlockSegments(videoId),
-                                clearStreamInfo = true,
                             ),
                         )
                     } else {

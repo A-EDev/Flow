@@ -54,11 +54,8 @@ object MergedPlaybackAssembly {
      * by URL, so a format both stacks produced resolves to the InnerTube stream object on a quality
      * switch and to the extractor's on the initial load.
      *
-     * [streamInfo] is optional because a load InnerTube resolved on its own never has one, and
-     * refusing to pick a quality without it is what left the quality menu inert on that path.
      */
     fun selectQualityStreams(
-        streamInfo: StreamInfo?,
         innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format>,
         innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format>,
         quality: VideoQuality,
@@ -67,16 +64,9 @@ object MergedPlaybackAssembly {
     ): Pair<VideoStream?, AudioStream?> {
         val innerTubeVideoStreams = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats)
         val innerTubeAudioStreams = InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats)
-        val extractorVideo =
-            streamInfo
-                ?.let { (it.videoStreams + it.videoOnlyStreams).filterIsInstance<VideoStream>() }
-                .orEmpty()
-        val effectiveVideo = StreamMergeUtils.mergeVideoStreams(innerTubeVideoStreams, extractorVideo)
-        val effectiveAudio: List<AudioStream> =
-            StreamMergeUtils.mergeAudioStreams(innerTubeAudioStreams, streamInfo?.audioStreams.orEmpty())
         return ServicePlaybackStreamSelector.selectStreams(
-            videoCandidates = effectiveVideo,
-            audioCandidatesAll = effectiveAudio,
+            videoCandidates = innerTubeVideoStreams,
+            audioCandidatesAll = innerTubeAudioStreams,
             preferredQuality = quality,
             preferredAudioLanguage = preferredAudioLanguage,
             preferredCodecKey = preferredCodecKey,

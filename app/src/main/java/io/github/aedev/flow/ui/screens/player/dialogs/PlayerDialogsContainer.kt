@@ -41,7 +41,7 @@ internal fun PlayerDialogsContainer(
         when (prefs.downloadDialogStyle) {
             io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT -> {
                 MediaDownloadDialogCompact(
-                    streamInfo = uiState.streamInfo,
+                    streamInfo = null,
                     streamSizes = uiState.streamSizes,
                     innerTubeVideoFormats = uiState.innerTubeVideoFormats,
                     innerTubeAudioFormats = uiState.innerTubeAudioFormats,
@@ -53,7 +53,7 @@ internal fun PlayerDialogsContainer(
 
             io.github.aedev.flow.data.local.DownloadDialogStyle.FULL -> {
                 MediaDownloadDialog(
-                    streamInfo = uiState.streamInfo,
+                    streamInfo = null,
                     streamSizes = uiState.streamSizes,
                     innerTubeVideoFormats = uiState.innerTubeVideoFormats,
                     innerTubeAudioFormats = uiState.innerTubeAudioFormats,
@@ -109,7 +109,7 @@ internal fun PlayerDialogsContainer(
                 DlnaCastManager.castStreamInfo(
                     device = device,
                     title = video.title,
-                    streamInfo = uiState.streamInfo,
+                    streamInfo = null,
                     currentPlayerUrl = currentPlayerUrl,
                 )
                 screenState.closeSheet()

@@ -35,16 +35,10 @@ enum class PlaybackFailure {
  * hand-off to the player manager; this type carries only the values those need.
  */
 sealed interface ResolvedPlayback {
-    /**
-     * A downloaded copy of the video exists and should start playing now.
-     *
-     * [clearStreamInfo] is set only on the give-up path, where a partially applied stream result
-     * may still be on screen.
-     */
+    /** A downloaded copy of the video exists and should start playing now. */
     data class LocalCopyReady(
         val localFilePath: String,
         val offlineSegments: List<SponsorBlockSegment>?,
-        val clearStreamInfo: Boolean = false,
         /** The download was saved before SponsorBlock data was, so it is worth fetching once. */
         val needsSponsorBlockBackfill: Boolean = false,
     ) : ResolvedPlayback

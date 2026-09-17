@@ -20,7 +20,6 @@ class MergedPlaybackQualityTest {
 
     private fun select(quality: VideoQuality) =
         MergedPlaybackAssembly.selectQualityStreams(
-            streamInfo = null,
             innerTubeVideoFormats = videoFormats,
             innerTubeAudioFormats = audioFormats,
             quality = quality,
@@ -47,7 +46,6 @@ class MergedPlaybackQualityTest {
     fun `no formats at all still resolves to nothing rather than throwing`() {
         val (video, audio) =
             MergedPlaybackAssembly.selectQualityStreams(
-                streamInfo = null,
                 innerTubeVideoFormats = emptyList(),
                 innerTubeAudioFormats = emptyList(),
                 quality = VideoQuality.Q_720P,

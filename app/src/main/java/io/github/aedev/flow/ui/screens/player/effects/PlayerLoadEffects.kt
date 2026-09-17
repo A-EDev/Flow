@@ -54,7 +54,6 @@ internal fun PlayerFreshSessionEffects(
         videoId,
         uiState.isLoading,
         uiState.error,
-        uiState.streamInfo,
         uiState.audioStream,
         uiState.localFilePath,
     ) {
@@ -89,10 +88,11 @@ internal fun GlobalVideoSyncEffect(
 ) {
     LaunchedEffect(currentVideoId) {
         val current = currentVideo()
+        // Unconditional: the second half of the old guard compared an extractor id that was
+        // always absent, so this always fired, and the view model is the one that decides whether
+        // a sync is a no-op.
         if (current != null && !uiState.isRestoredSession) {
-            if (current.id != uiState.cachedVideo?.id || uiState.streamInfo?.id != current.id) {
-                viewModel.syncWithCurrentPlayerVideo(current)
-            }
+            viewModel.syncWithCurrentPlayerVideo(current)
         }
     }
 
@@ -136,12 +136,13 @@ internal fun SubscriptionAndLikeEffect(
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel,
 ) {
-    LaunchedEffect(uiState.streamInfo) {
-        uiState.streamInfo?.let { streamInfo ->
-            val channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: ""
-            if (channelId.isNotEmpty()) {
-                viewModel.loadSubscriptionAndLikeState(channelId, videoId)
-            }
+    // Keyed on the cached video: the channel id arrives with it, and keying this on the extractor
+    // result is what stopped the subscribe button and the like state ever loading once the load
+    // stopped producing one.
+    LaunchedEffect(uiState.cachedVideo?.channelId) {
+        val channelId = uiState.cachedVideo?.channelId.orEmpty()
+        if (channelId.isNotEmpty()) {
+            viewModel.loadSubscriptionAndLikeState(channelId, videoId)
         }
     }
 }

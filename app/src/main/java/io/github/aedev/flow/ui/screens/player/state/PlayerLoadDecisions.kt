@@ -37,8 +37,8 @@ internal fun VideoPlayerUiState.loadSkipReason(
 ): LoadSkip? =
     when {
         forceRefresh -> null
-        streamInfo?.id == videoId && !isLoading && error == null -> LoadSkip.ALREADY_LOADED
-        isLoading && (streamInfo?.id == videoId || cachedVideo?.id == videoId) -> LoadSkip.ALREADY_LOADING
+        cachedVideo?.id == videoId && !isLoading && error == null -> LoadSkip.ALREADY_LOADED
+        isLoading && cachedVideo?.id == videoId -> LoadSkip.ALREADY_LOADING
         else -> null
     }
 
@@ -51,7 +51,6 @@ internal fun VideoPlayerUiState.beginLoadFor(videoId: String): VideoPlayerUiStat
         isLoading = true,
         error = null,
         errorHint = null,
-        streamInfo = null,
         videoStream = null,
         audioStream = null,
         streamSizes = emptyMap(),
@@ -83,7 +82,6 @@ internal fun VideoPlayerUiState.applyCachedUpcoming(releaseTimeMs: Long): VideoP
         isLoading = false,
         error = null,
         errorHint = null,
-        streamInfo = null,
         videoStream = null,
         audioStream = null,
         localFilePath = null,
@@ -148,19 +146,6 @@ internal sealed interface LatePrepare {
         val offlineSegments: List<SponsorBlockSegment>?,
         val savedPosition: Long?,
     ) : LatePrepare
-
-    data class Streams(
-        val streamInfo: StreamInfo,
-        val videoStream: VideoStream?,
-        val audioStream: AudioStream?,
-        val videoStreams: List<VideoStream>,
-        val localFilePath: String?,
-        val offlineSegments: List<SponsorBlockSegment>?,
-        val hlsUrl: String?,
-        val isAdaptiveMode: Boolean,
-        val savedPosition: Long?,
-        val fallbackDurationSeconds: Long,
-    ) : LatePrepare
 }
 
 /**
@@ -172,32 +157,15 @@ internal sealed interface LatePrepare {
  */
 internal fun VideoPlayerUiState.latePrepare(videoId: String): LatePrepare? {
     val localFilePath = localFilePath?.takeIf { localFileVideoId == null || localFileVideoId == videoId }
-    if (localFilePath != null && streamInfo == null) {
+    if (localFilePath != null) {
         return LatePrepare.LocalFile(localFilePath, offlineSponsorBlockSegments, savedPosition)
     }
 
-    val info = streamInfo ?: return null
-    val videoStreams = (info.videoStreams + (info.videoOnlyStreams ?: emptyList())).filterIsInstance<VideoStream>()
-    if (audioStream == null && videoStreams.isEmpty() && info.dashMpdUrl.isNullOrEmpty() && hlsUrl.isNullOrEmpty()) {
-        return null
-    }
-    return LatePrepare.Streams(
-        streamInfo = info,
-        videoStream = videoStream,
-        audioStream = audioStream,
-        videoStreams = videoStreams,
-        localFilePath = localFilePath,
-        offlineSegments = offlineSponsorBlockSegments,
-        hlsUrl = hlsUrl,
-        isAdaptiveMode = isAdaptiveMode,
-        savedPosition = savedPosition,
-        fallbackDurationSeconds = cachedVideo?.duration?.toLong() ?: 0L,
-    )
+    return null
 }
 
 /** A screen that is loading, showing an error, or waiting on a restored session arms nothing. */
 internal fun VideoPlayerUiState.blocksLatePrepare(): Boolean = isLoading || error != null || isRestoredSession
 
 /** Whether the screen holds [videoId] at all, under any of the three identities it can be under. */
-internal fun VideoPlayerUiState.holdsVideo(videoId: String): Boolean =
-    cachedVideo?.id == videoId || streamInfo?.id == videoId || localFileVideoId == videoId
+internal fun VideoPlayerUiState.holdsVideo(videoId: String): Boolean = cachedVideo?.id == videoId || localFileVideoId == videoId

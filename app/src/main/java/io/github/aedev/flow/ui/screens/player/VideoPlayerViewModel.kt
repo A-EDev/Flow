@@ -306,7 +306,7 @@ class VideoPlayerViewModel
             val state = _uiState.value
             val alreadySynced =
                 state.cachedVideo?.id == video.id &&
-                    (state.streamInfo?.id == video.id || state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty())
+                    (state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty())
             if (alreadySynced) return
 
             if (upcomingPremiere.applyCountdown(video)) {
@@ -495,7 +495,7 @@ class VideoPlayerViewModel
             val currentState = _uiState.value
             Log.d(
                 "VideoPlayerViewModel",
-                "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, " +
+                "loadVideoInfo: Request=$videoId. Current=${currentState.cachedVideo?.id}, " +
                     "IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh, " +
                     "escalateToSabr=$escalateToSabr",
             )
@@ -641,12 +641,12 @@ class VideoPlayerViewModel
         ) = comments.selectSort(videoId, sort)
 
         fun loadCommentReplies(comment: Comment) {
-            val videoId = _uiState.value.streamInfo?.id ?: return
+            val videoId = _uiState.value.cachedVideo?.id ?: return
             comments.loadReplies(videoId, comment)
         }
 
         fun loadMoreCommentReplies(comment: Comment) {
-            val videoId = _uiState.value.streamInfo?.id ?: return
+            val videoId = _uiState.value.cachedVideo?.id ?: return
             comments.loadMoreReplies(videoId, comment)
         }
 

@@ -52,20 +52,6 @@ class PlayerPlaybackReducersTest {
     }
 
     @Test
-    fun `a ready local copy keeps the stream info unless the step asks for it to be cleared`() {
-        val streamInfo = mockk<StreamInfo>(relaxed = true)
-        val state = VideoPlayerUiState(streamInfo = streamInfo)
-
-        val kept =
-            state.applyLocalCopyReady("vid_a", ResolvedPlayback.LocalCopyReady("/tmp/a.mp4", null, clearStreamInfo = false))
-        val cleared =
-            state.applyLocalCopyReady("vid_a", ResolvedPlayback.LocalCopyReady("/tmp/a.mp4", null, clearStreamInfo = true))
-
-        assertThat(kept.streamInfo).isSameInstanceAs(streamInfo)
-        assertThat(cleared.streamInfo).isNull()
-    }
-
-    @Test
     fun `a local copy after a failure only clears the load and the error`() {
         val video = video("vid_a")
         val state = VideoPlayerUiState(cachedVideo = video, isLoading = true, error = "boom", errorHint = "hint")
@@ -121,7 +107,6 @@ class PlayerPlaybackReducersTest {
                 storyboard = emptyList(),
             )
 
-        assertThat(next.streamInfo).isNull()
         assertThat(next.videoStream).isSameInstanceAs(videoStream)
         assertThat(next.selectedQuality).isEqualTo(VideoQuality.Q_720P)
         assertThat(next.savedPosition).isEqualTo(9_000L)
@@ -143,7 +128,6 @@ class PlayerPlaybackReducersTest {
     fun `the InnerTube live path publishes the manifest and empties the InnerTube format lists`() {
         val before =
             VideoPlayerUiState(
-                streamInfo = mockk(relaxed = true),
                 isLoading = true,
                 error = "boom",
                 errorHint = "hint",
@@ -154,7 +138,6 @@ class PlayerPlaybackReducersTest {
 
         val next = before.applyLiveStreams(listOf(video("rel_1")), "https://example.invalid/live.m3u8")
 
-        assertThat(next.streamInfo).isNull()
         assertThat(next.hlsUrl).isEqualTo("https://example.invalid/live.m3u8")
         assertThat(next.isLive).isTrue()
         assertThat(next.isLoading).isFalse()

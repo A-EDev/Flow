@@ -139,7 +139,6 @@ class PlaybackLoadResolverTest {
 
             val local = steps.single() as ResolvedPlayback.LocalCopyReady
             assertThat(local.localFilePath).isEqualTo(file.absolutePath)
-            assertThat(local.clearStreamInfo).isFalse()
             coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(VIDEO_ID, forceSabr = true) }
         }
 

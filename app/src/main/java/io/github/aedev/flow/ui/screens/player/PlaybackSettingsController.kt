@@ -72,7 +72,6 @@ internal class PlaybackSettingsController(
         scope.launch {
             val streams =
                 MergedPlaybackAssembly.selectQualityStreams(
-                    streamInfo = state.streamInfo,
                     innerTubeVideoFormats = state.innerTubeVideoFormats,
                     innerTubeAudioFormats = state.innerTubeAudioFormats,
                     quality = quality,

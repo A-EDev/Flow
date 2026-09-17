@@ -36,7 +36,7 @@ class PlayerStateMirrorTest {
 
     @Test
     fun `the video already cached and streaming needs no load`() {
-        val state = VideoPlayerUiState(cachedVideo = video("vid_a"), streamInfo = mockk(relaxed = true))
+        val state = VideoPlayerUiState(cachedVideo = video("vid_a"), audioStream = mockk(relaxed = true))
 
         val needed = state.foreignVideoIdNeedingLoad(EnhancedPlayerState(currentVideoId = "vid_a", isPrepared = true))
 
