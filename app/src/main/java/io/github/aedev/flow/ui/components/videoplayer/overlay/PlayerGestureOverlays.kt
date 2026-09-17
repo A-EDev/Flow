@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.GestureOverlayStyle
@@ -27,6 +29,7 @@ fun PlayerGestureOverlays(
         Box(modifier = modifier.fillMaxSize()) {
             val isFullscreen = screenState.isFullscreen
             val isVertical = style == GestureOverlayStyle.VERTICAL
+            val edgeInset = HudSideInset + cutoutEdgeInset(isFullscreen)
 
             SeekAnimationOverlay(
                 showSeekBack = screenState.showSeekBackAnimation,
@@ -46,12 +49,10 @@ fun PlayerGestureOverlays(
                     if (isVertical) {
                         Modifier
                             .align(Alignment.CenterEnd)
-                            .hudInsets(isFullscreen)
-                            .padding(horizontal = HudSideInset)
+                            .padding(horizontal = edgeInset)
                     } else {
                         Modifier
-                            .align(Alignment.TopCenter)
-                            .hudInsets(isFullscreen)
+                            .align(centredHudAlignment(style))
                             .padding(top = HudTopInset)
                     },
             )
@@ -65,12 +66,10 @@ fun PlayerGestureOverlays(
                     if (isVertical) {
                         Modifier
                             .align(Alignment.CenterStart)
-                            .hudInsets(isFullscreen)
-                            .padding(horizontal = HudSideInset)
+                            .padding(horizontal = edgeInset)
                     } else {
                         Modifier
-                            .align(Alignment.TopCenter)
-                            .hudInsets(isFullscreen)
+                            .align(centredHudAlignment(style))
                             .padding(top = HudTopInset)
                     },
             )
@@ -88,17 +87,32 @@ fun PlayerGestureOverlays(
                 modifier =
                     Modifier
                         .align(Alignment.TopCenter)
-                        .hudInsets(isFullscreen)
                         .padding(top = HudTopInset),
             )
         }
     }
 }
 
+/** The ring is a badge, not a bar: it belongs in the middle of the picture, where the eye is. */
+private fun centredHudAlignment(style: GestureOverlayStyle): Alignment =
+    if (style == GestureOverlayStyle.CIRCULAR) Alignment.Center else Alignment.TopCenter
+
 /**
- * Keeps a read-out clear of the display cutout. In landscape fullscreen the punch-hole sits on one
- * of the long edges, which is exactly where the standing bar wants to be.
+ * How far the standing bars sit in from the long edges in fullscreen.
+ *
+ * The widest cutout on either edge, applied to both, rather than each side taking its own inset
+ * (#1029): the punch-hole is on one edge only, so per-side insets put the two bars at visibly
+ * different distances from the picture. Only the edge-aligned bars take it at all — a centred
+ * read-out given a one-sided inset is simply pushed off centre, which is what moved every other HUD
+ * and the speed badge away from the middle.
  */
 @Composable
-private fun Modifier.hudInsets(isFullscreen: Boolean): Modifier =
-    if (isFullscreen) this.windowInsetsPadding(WindowInsets.displayCutout) else this
+private fun cutoutEdgeInset(isFullscreen: Boolean): Dp {
+    if (!isFullscreen) return 0.dp
+    val density = LocalDensity.current
+    val direction = LocalLayoutDirection.current
+    val cutout = WindowInsets.displayCutout
+    return with(density) {
+        maxOf(cutout.getLeft(this, direction), cutout.getRight(this, direction)).toDp()
+    }
+}
