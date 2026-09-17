@@ -67,6 +67,7 @@ internal fun VideoPlayerUiState.applyOfflineFallback(step: ResolvedPlayback.Offl
  */
 internal fun VideoPlayerUiState.applyVodStreams(
     cachedVideo: Video,
+    isArchivedLivestream: Boolean,
     relatedVideos: List<Video>,
     videoStream: VideoStream?,
     audioStream: AudioStream?,
@@ -81,6 +82,7 @@ internal fun VideoPlayerUiState.applyVodStreams(
 ): VideoPlayerUiState =
     copy(
         cachedVideo = cachedVideo,
+        isArchivedLivestream = isArchivedLivestream,
         relatedVideos = relatedVideos,
         videoStream = videoStream,
         audioStream = audioStream,

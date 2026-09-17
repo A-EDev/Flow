@@ -33,6 +33,8 @@ data class VideoPlayerUiState(
     val channelAvatarUrl: String? = null,
     val chapters: List<StreamSegment> = emptyList(),
     val storyboard: List<StoryboardLevel> = emptyList(),
+    /** A livestream that has ended: its date reads "Streamed …" rather than a plain date. */
+    val isArchivedLivestream: Boolean = false,
     val heatmap: VideoHeatmap? = null,
     val autoplayEnabled: Boolean = true,
     val streamSizes: Map<String, Long> = emptyMap(),

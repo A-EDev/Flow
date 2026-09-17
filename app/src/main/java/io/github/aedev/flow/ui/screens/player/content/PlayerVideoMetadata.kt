@@ -64,13 +64,22 @@ internal fun rememberPlayerVideoMetadata(
                 ?: video.channelName
         }
     val dateSettings = rememberDateDisplaySettings()
+    val streamUploadDate =
+        remember(video.uploadDate, uiState.isArchivedLivestream, dateSettings) {
+            val rawDate = video.uploadDate.takeIf { it.isNotBlank() } ?: return@remember null
+            if (uiState.isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true)) {
+                context.getString(R.string.streamed_date_template, rawDate)
+            } else {
+                rawDate
+            }
+        }
     val dialogVideo = video
 
     return PlayerVideoMetadata(
         resolvedVideoTitle = resolvedVideoTitle,
         resolvedCollaborators = resolvedCollaborators,
         resolvedChannelName = resolvedChannelName,
-        streamUploadDate = null,
+        streamUploadDate = streamUploadDate,
         dialogVideo = dialogVideo,
     )
 }
