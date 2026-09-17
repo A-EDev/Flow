@@ -2684,4 +2684,13 @@
         <item quantity="many">%1$d jours</item>
         <item quantity="other">%1$d jours</item>
     </plurals>
+    <string name="import_label_newpipe_subscriptions">Abonnements à NewPipe</string>
+    <string name="import_label_youtube_subscriptions">Abonnements YouTube</string>
+    <string name="import_label_youtube_watch_history">Historique de visionnage YouTube</string>
+    <string name="import_label_freetube_watch_history">Historique de visionnage sur FreeTube</string>
+    <plurals name="import_yt_playlist_success_template">
+        <item quantity="one">Playlist « %1$s » importée, contenant %2$d vidéos</item>
+        <item quantity="many">Playlists « %1$s » importées, contenant %2$d vidéos</item>
+        <item quantity="other">Playlists « %1$s » importées, contenant %2$d vidéos</item>
+    </plurals>
 </resources>
