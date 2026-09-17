@@ -74,6 +74,7 @@ internal fun Modifier.playerDragGestures(
     volumeSwipeGesturesEnabled: State<Boolean>,
     seekSwipeGesturesEnabled: State<Boolean>,
     allowVolumeBoost: State<Boolean>,
+    sideEdgeIgnorePx: State<Float>,
     onExitFullscreen: State<(() -> Unit)?>,
     onExitFullscreenDrag: State<(offsetPx: Float, progress: Float) -> Unit>,
     haptics: HapticFeedback,
@@ -98,6 +99,7 @@ internal fun Modifier.playerDragGestures(
     val currentVolumeSwipeGesturesEnabled by volumeSwipeGesturesEnabled
     val currentSeekSwipeGesturesEnabled by seekSwipeGesturesEnabled
     val currentAllowVolumeBoost by allowVolumeBoost
+    val currentSideEdgeIgnorePx by sideEdgeIgnorePx
     val currentOnExitFullscreen by onExitFullscreen
     val currentOnExitFullscreenDrag by onExitFullscreenDrag
 
@@ -355,9 +357,16 @@ internal fun Modifier.playerDragGestures(
                     lastBrightnessEdge = 0
                     seekDragStarted = false
 
+                    // The side dead zones belong to the system's back gesture and to nothing
+                    // else: a swipe that starts there is on its way out of the app, and claiming
+                    // it is what turned a back swipe into a seek and an edge flick into a
+                    // brightness change (#1068).
+                    val sideIgnore = currentSideEdgeIgnorePx
                     val nearEdge =
                         offset.y < DRAG_EDGE_IGNORE_PX ||
-                            size.height - offset.y < DRAG_EDGE_IGNORE_PX
+                            size.height - offset.y < DRAG_EDGE_IGNORE_PX ||
+                            offset.x < sideIgnore ||
+                            size.width - offset.x < sideIgnore
                     if (nearEdge) {
                         false
                     } else {
