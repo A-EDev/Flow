@@ -518,7 +518,13 @@ data class WatchMetadataResponse(
             ?.results
             ?.size ?: 0
 
-    private companion object {
-        const val VIEW_COUNT_ICON = "PLAY_ARROW_OUTLINED"
+    /**
+     * Not private. A private companion makes the generated `serializer()` private with it, and
+     * `decodeFromJsonElement<WatchMetadataResponse>` inlines that access at its call site: it
+     * compiles, then throws IllegalAccessError at runtime. The caller swallowed that into a null,
+     * so every cached watch response quietly went back to the network.
+     */
+    companion object {
+        private const val VIEW_COUNT_ICON = "PLAY_ARROW_OUTLINED"
     }
 }

@@ -1847,7 +1847,7 @@ private val watchMetadataJson = Json { ignoreUnknownKeys = true }
 
 /** The watch response as the typed model, or null when the payload no longer matches it. */
 internal fun decodeWatchMetadata(raw: JsonElement): WatchMetadataResponse? =
-    runCatching { watchMetadataJson.decodeFromJsonElement<WatchMetadataResponse>(raw) }.getOrNull()
+    runCatching { watchMetadataJson.decodeFromJsonElement(WatchMetadataResponse.serializer(), raw) }.getOrNull()
 
 internal object WatchMetadataVideoMapper {
     fun relatedVideos(resp: WatchMetadataResponse): List<Video> =
