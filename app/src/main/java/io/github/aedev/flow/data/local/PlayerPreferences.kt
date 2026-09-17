@@ -219,6 +219,8 @@ class PlayerPreferences(
         val PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("portrait_seekbar_custom_padding_dp")
         val FULLSCREEN_SEEKBAR_PADDING_MODE = stringPreferencesKey("fullscreen_seekbar_padding_mode")
         val FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("fullscreen_seekbar_custom_padding_dp")
+        val SCRUB_PREVIEW_STYLE = stringPreferencesKey("scrub_preview_style")
+        val FRAME_STEP_BUTTONS_ENABLED = booleanPreferencesKey("frame_step_buttons_enabled")
 
         // Mini Player Customizations
         val MINI_PLAYER_SCALE = floatPreferencesKey("mini_player_scale")
@@ -624,6 +626,9 @@ class PlayerPreferences(
                     defaultPaddingDp = DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP,
                     maxPaddingDp = MAX_PORTRAIT_SEEKBAR_PADDING_DP,
                 ),
+            scrubPreviewStyle = resolveScrubPreviewStyle(this[Keys.SCRUB_PREVIEW_STYLE]),
+            frameStepButtonsEnabled =
+                this[Keys.FRAME_STEP_BUTTONS_ENABLED] ?: overlayDefaults.frameStepButtonsEnabled,
             sponsorCategoryColors = readSponsorCategoryColors(),
         )
     }
@@ -1568,6 +1573,26 @@ class PlayerPreferences(
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP] =
                 paddingDp.coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
+        }
+    }
+
+    val scrubPreviewStyle: Flow<ScrubPreviewStyle> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> resolveScrubPreviewStyle(preferences[Keys.SCRUB_PREVIEW_STYLE]) }
+
+    suspend fun setScrubPreviewStyle(style: ScrubPreviewStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SCRUB_PREVIEW_STYLE] = style.name
+        }
+    }
+
+    val frameStepButtonsEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.FRAME_STEP_BUTTONS_ENABLED] ?: false }
+
+    suspend fun setFrameStepButtonsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.FRAME_STEP_BUTTONS_ENABLED] = enabled
         }
     }
 
@@ -3094,6 +3119,16 @@ enum class SeekbarPaddingMode {
     DEFAULT,
     CUSTOM,
 }
+
+/** What a scrub shows above the bar: a filmstrip around the target, or the single frame under it. */
+enum class ScrubPreviewStyle {
+    STRIP,
+    FRAME,
+}
+
+internal fun resolveScrubPreviewStyle(storedStyle: String?): ScrubPreviewStyle =
+    storedStyle?.let { value -> runCatching { ScrubPreviewStyle.valueOf(value) }.getOrNull() }
+        ?: ScrubPreviewStyle.STRIP
 
 internal fun resolvePortraitSeekbarPaddingMode(storedMode: String?): SeekbarPaddingMode {
     val mode =

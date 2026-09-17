@@ -45,4 +45,6 @@ internal data class PlayerControlsUiState(
     val isTouchLocked: Boolean = false,
     val lockModeEnabled: Boolean = false,
     val lockOverlayRevealSignal: Int = 0,
+    /** A gesture read-out — the speed badge, the zoom scale — currently owns the picture. */
+    val isGestureReadoutActive: Boolean = false,
 )

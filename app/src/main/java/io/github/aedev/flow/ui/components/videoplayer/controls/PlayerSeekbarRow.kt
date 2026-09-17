@@ -1,11 +1,17 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.derivedStateOf
@@ -19,10 +25,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import io.github.aedev.flow.data.local.ScrubPreviewStyle
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.player.stream.StoryboardLevel
@@ -30,9 +36,9 @@ import io.github.aedev.flow.player.stream.StoryboardSpec
 import io.github.aedev.flow.ui.components.shared.MediaSeekBar
 import io.github.aedev.flow.ui.theme.PlayerLiveIndicator
 import org.schabi.newpipe.extractor.stream.StreamSegment
-import kotlin.math.roundToInt
 
 private val SeekPreviewGap = 12.dp
+private val SeekInfoGap = 8.dp
 
 /**
  * Everything a seek bar paints besides the playhead itself. Grouped because all three seek bars in
@@ -46,6 +52,7 @@ data class PlayerSeekbarContent(
     val bufferedPercentage: Float = 0f,
     val storyboard: List<StoryboardLevel> = emptyList(),
     val heatmap: VideoHeatmap? = null,
+    val previewStyle: ScrubPreviewStyle = ScrubPreviewStyle.STRIP,
 )
 
 /**
@@ -86,28 +93,29 @@ internal fun PlayerSeekbarRow(
     val seekDuration by remember(duration, isLive, positionProvider) {
         derivedStateOf { if (isLive) duration.coerceAtLeast(positionProvider()) else duration }
     }
-    val showPreview = isScrubbing && content.storyboard.isNotEmpty() && seekDuration > 0L
     var trackWidthPx by remember { mutableIntStateOf(0) }
 
-    // Above the pills row (zIndex 1f), so the scrub preview overlays the time and chapter pills
+    // Above the pills row (zIndex 1f), so the scrub read-out overlays the time and chapter pills
     // rather than sliding behind them.
     Box(modifier = modifier.fillMaxWidth().zIndex(seekbarZIndex)) {
-        content.heatmap?.takeIf { isScrubbing && !it.isEmpty && seekDuration > 0L }?.let { heatmap ->
-            SeekHeatmap(
-                heatmap = heatmap,
-                duration = seekDuration,
-                horizontalPadding = horizontalPadding,
-            )
-        }
-        if (showPreview) {
-            SeekPreview(
-                levels = content.storyboard,
+        AnimatedVisibility(
+            visible = isScrubbing && seekDuration > 0L,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            // Reports no size of its own so the bar cannot be shoved down when a scrub starts, and
+            // stacks upward from the bar's top edge.
+            modifier =
+                Modifier.layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints)
+                    layout(0, 0) { placeable.place(x = 0, y = -placeable.height) }
+                },
+        ) {
+            ScrubOverlay(
                 positionProvider = positionProvider,
                 duration = seekDuration,
-                trackWidthPx = trackWidthPx,
+                content = content,
                 horizontalPadding = horizontalPadding,
-                hasHeatmap = content.heatmap?.isEmpty == false,
-                heatmap = content.heatmap,
+                trackWidthPx = trackWidthPx,
             )
         }
         SeekBar(
@@ -124,77 +132,95 @@ internal fun PlayerSeekbarRow(
 }
 
 /**
- * The rewatch curve, sitting directly on top of the bar.
+ * Everything a scrub puts above the bar, stacked in one column: the read-out, the frame or strip,
+ * and the rewatch curve resting on the bar.
  *
- * Reports zero size for the same reason the frame preview does: the bar's row must not grow when a
- * scrub begins.
+ * One column rather than three separately offset children so the whole thing fades as a unit and
+ * each part sits clear of the one below it whatever the others are doing.
  */
 @Composable
-private fun SeekHeatmap(
-    heatmap: VideoHeatmap,
+private fun ScrubOverlay(
+    positionProvider: () -> Long,
     duration: Long,
+    content: PlayerSeekbarContent,
     horizontalPadding: Dp,
+    trackWidthPx: Int,
 ) {
-    val density = LocalDensity.current
-    val heightPx = with(density) { SeekHeatmapHeight.roundToPx() }
-    SeekHeatmapGraph(
-        heatmap = heatmap,
-        durationMs = duration,
+    val trackPx =
+        (trackWidthPx - 2 * with(LocalDensity.current) { horizontalPadding.roundToPx() }).coerceAtLeast(0)
+
+    Column(
         modifier =
             Modifier
-                .padding(horizontal = horizontalPadding)
-                .layout { measurable, constraints ->
-                    val placeable = measurable.measure(constraints)
-                    layout(0, 0) {
-                        placeable.place(x = 0, y = -heightPx)
-                    }
-                },
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding),
+    ) {
+        SeekScrubInfoRow(
+            positionProvider = positionProvider,
+            durationMs = duration,
+            content = content,
+        )
+        if (content.storyboard.isNotEmpty() && trackPx > 0) {
+            Spacer(modifier = Modifier.height(SeekInfoGap))
+            when (content.previewStyle) {
+                ScrubPreviewStyle.STRIP -> {
+                    SeekStrip(
+                        levels = content.storyboard,
+                        positionProvider = positionProvider,
+                        duration = duration,
+                        trackWidthPx = trackPx,
+                    )
+                }
+
+                ScrubPreviewStyle.FRAME -> {
+                    SeekFrame(
+                        levels = content.storyboard,
+                        positionProvider = positionProvider,
+                        duration = duration,
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(SeekPreviewGap))
+        content.heatmap?.takeIf { !it.isEmpty }?.let { heatmap ->
+            SeekHeatmapGraph(heatmap = heatmap, durationMs = duration)
+        }
+    }
+}
+
+/** The single frame under the thumb. */
+@Composable
+private fun SeekFrame(
+    levels: List<StoryboardLevel>,
+    positionProvider: () -> Long,
+    duration: Long,
+) {
+    val widthPx = with(LocalDensity.current) { SeekPreviewWidth.roundToPx() }
+    val level = remember(levels, widthPx) { StoryboardSpec.levelFor(levels, widthPx) } ?: return
+
+    SeekPreviewThumbnail(
+        level = level,
+        positionProvider = positionProvider,
+        modifier = Modifier.anchoredToThumb(positionProvider, duration),
     )
 }
 
-/**
- * The frame under the thumb, floating above the bar.
- *
- * It reports a size of zero so the seek bar row cannot grow when a scrub starts: [Modifier.offset]
- * alone moves a child but leaves the parent measuring it at full height, which is what shoved the
- * controls upward the first time this was built.
- */
+/** The same preview widened into a filmstrip around the thumb. */
 @Composable
-private fun SeekPreview(
+private fun SeekStrip(
     levels: List<StoryboardLevel>,
     positionProvider: () -> Long,
     duration: Long,
     trackWidthPx: Int,
-    horizontalPadding: Dp,
-    hasHeatmap: Boolean,
-    heatmap: VideoHeatmap?,
 ) {
-    val density = LocalDensity.current
-    val previewWidthPx = with(density) { SeekPreviewWidth.roundToPx() }
-    val gapPx = with(density) { SeekPreviewGap.roundToPx() }
-    val paddingPx = with(density) { horizontalPadding.roundToPx() }
-    val heatmapOffsetPx = if (hasHeatmap) with(density) { SeekHeatmapHeight.roundToPx() } else 0
-    val level = remember(levels, previewWidthPx) { StoryboardSpec.levelFor(levels, previewWidthPx) } ?: return
-    val position = positionProvider()
-    val tile = remember(level, position) { level.tileAt(position) } ?: return
-    val fraction = if (duration > 0L) (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
+    val nominalWidthPx = with(LocalDensity.current) { SeekStripNominalFrameWidth.roundToPx() }
+    val level = remember(levels, nominalWidthPx) { StoryboardSpec.levelFor(levels, nominalWidthPx) } ?: return
 
-    SeekPreviewThumbnail(
-        tile = tile,
-        badge = heatmap?.highlightLabelAt(position),
-        modifier =
-            Modifier.layout { measurable, _ ->
-                val placeable = measurable.measure(Constraints())
-                val track = (trackWidthPx - 2 * paddingPx).coerceAtLeast(0)
-                val centred = paddingPx + fraction * track - placeable.width / 2f
-                val maxX = (trackWidthPx - placeable.width).coerceAtLeast(0)
-                layout(0, 0) {
-                    placeable.place(
-                        x = centred.roundToInt().coerceIn(0, maxX),
-                        y = -(placeable.height + gapPx + heatmapOffsetPx),
-                    )
-                }
-            },
+    SeekPreviewStrip(
+        level = level,
+        positionProvider = positionProvider,
+        durationMs = duration,
+        stripWidthPx = trackWidthPx,
     )
 }
 

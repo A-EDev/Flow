@@ -815,6 +815,12 @@
     <string name="player_fullscreen_seekbar_width_default">Default</string>
     <string name="player_fullscreen_seekbar_width_custom">Custom</string>
     <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
+    <string name="player_appearance_scrub_preview_title">Scrub Preview</string>
+    <string name="player_appearance_scrub_preview_subtitle">What the seekbar shows while you drag it</string>
+    <string name="player_appearance_scrub_preview_strip">Filmstrip</string>
+    <string name="player_appearance_scrub_preview_frame">Single frame</string>
+    <string name="player_appearance_frame_step_title">Frame Step Buttons</string>
+    <string name="player_appearance_frame_step_subtitle">Show step-back and step-forward arrows while paused</string>
     <!-- Lyrics Provider -->
     <string name="lyrics_provider_title">Lyrics Provider</string>
     <string name="lyrics_provider_subtitle">Choose your preferred source for song lyrics</string>
