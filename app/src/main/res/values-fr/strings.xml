@@ -2693,4 +2693,11 @@
         <item quantity="many">Playlists « %1$s » importées, contenant %2$d vidéos</item>
         <item quantity="other">Playlists « %1$s » importées, contenant %2$d vidéos</item>
     </plurals>
+    <string name="transcript_resync">Synchroniser avec la vidéo</string>
+    <string name="transcript_language">Langue</string>
+    <string name="note_title">Remarque</string>
+    <string name="sync_collection_notes">Remarques</string>
+    <string name="note_edit">Note de l\'éditeur</string>
+    <string name="content_settings_notes_subtitle">Conserver des notes privées sur les chaînes et les vidéos</string>
+    <string name="content_settings_channel_notes_title">Notes sur la chaîne</string>
 </resources>
