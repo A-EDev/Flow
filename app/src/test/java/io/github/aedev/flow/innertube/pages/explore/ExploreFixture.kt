@@ -3,12 +3,19 @@ package io.github.aedev.flow.innertube.pages.explore
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import org.junit.Assume.assumeTrue
 
 /**
  * Real trimmed captures of the explore surfaces, taken 2026-09-18 against the live endpoints.
  *
- * Never hand-write one of these. `notes/innertube-video-responses/probe_explore_endpoints.py` and
- * `trim_explore_fixtures.py` re-capture and re-trim them.
+ * These are **not** tracked: a destination response runs to megabytes and even trimmed the set came
+ * to 1.4 MB, which is not something to carry in the repository. Regenerate them with
+ * `notes/innertube-video-responses/probe_explore_endpoints.py` then `trim_explore_fixtures.py`.
+ * Without them these tests report as skipped rather than failing — so CI does not cover this parser,
+ * and a change to it has to be run locally against fresh captures.
+ *
+ * Never hand-write one. Four channel tabs once shipped empty because their fixtures agreed with the
+ * parser's assumptions instead of with YouTube.
  */
 internal object ExploreFixture {
     const val DESTINATION_LIVE = "destination_live"
@@ -28,10 +35,12 @@ internal object ExploreFixture {
     private val json = Json { ignoreUnknownKeys = true }
 
     operator fun invoke(name: String): JsonObject {
-        val stream =
-            requireNotNull(ExploreFixture::class.java.getResourceAsStream("/explore/$name.json")) {
-                "missing fixture explore/$name.json"
-            }
-        return json.parseToJsonElement(stream.bufferedReader().use { it.readText() }).jsonObject
+        val stream = ExploreFixture::class.java.getResourceAsStream("/explore/$name.json")
+        assumeTrue(
+            "missing fixture explore/$name.json — regenerate with " +
+                "notes/innertube-video-responses/trim_explore_fixtures.py",
+            stream != null,
+        )
+        return json.parseToJsonElement(stream!!.bufferedReader().use { it.readText() }).jsonObject
     }
 }
