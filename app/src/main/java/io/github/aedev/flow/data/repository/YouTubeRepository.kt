@@ -339,62 +339,6 @@ class YouTubeRepository
                 }
             }
 
-        /**
-         * Search with support for different content types (videos, channels, playlists)
-         */
-        suspend fun search(
-            query: String,
-            contentFilters: List<String> = emptyList(),
-            nextPage: Page? = null,
-        ): io.github.aedev.flow.data.model.SearchResult =
-            withContext(Dispatchers.IO) {
-                try {
-                    val searchExtractor = service.getSearchExtractor(query, contentFilters, "")
-                    searchExtractor.fetchPage()
-
-                    // FIX: Correct Pagination Logic
-                    val infoItems =
-                        if (nextPage != null) {
-                            searchExtractor.getPage(nextPage)
-                        } else {
-                            searchExtractor.initialPage
-                        }
-
-                    val videos = mutableListOf<Video>()
-                    val channels = mutableListOf<io.github.aedev.flow.data.model.Channel>()
-                    val playlists = mutableListOf<io.github.aedev.flow.data.model.Playlist>()
-
-                    infoItems.items.forEach { item ->
-                        when (item) {
-                            is StreamInfoItem -> {
-                                videos.add(item.toVideo())
-                            }
-
-                            is org.schabi.newpipe.extractor.channel.ChannelInfoItem -> {
-                                channels.add(item.toChannel())
-                            }
-
-                            is org.schabi.newpipe.extractor.playlist.PlaylistInfoItem -> {
-                                playlists.add(item.toPlaylist())
-                            }
-                        }
-                    }
-
-                    io.github.aedev.flow.data.model.SearchResult(
-                        videos =
-                            enrichLikelyCollabAvatarStacks(
-                                enrichVideosWithSearchAvatarStacks(query, videos),
-                            ),
-                        channels = channels,
-                        playlists = playlists,
-                    )
-                } catch (e: Exception) {
-                    Log.w(TAG, "${e::class.simpleName}: ${e.message}")
-                    io.github.aedev.flow.data.model
-                        .SearchResult()
-                }
-            }
-
         private suspend fun enrichVideosWithSearchAvatarStacks(
             query: String,
             videos: List<Video>,
@@ -1500,57 +1444,6 @@ class YouTubeRepository
                 isLive = isLiveStream,
                 isShort = isReel,
                 isMusic = isMusicCandidate,
-            )
-        }
-
-        /**
-         * Extension function to convert ChannelInfoItem to our Channel model
-         */
-        private fun org.schabi.newpipe.extractor.channel.ChannelInfoItem.toChannel(): io.github.aedev.flow.data.model.Channel {
-            val bestThumbnail =
-                thumbnails
-                    .sortedByDescending { it.height }
-                    .firstOrNull()
-                    ?.url ?: ""
-
-            // Extract the channel ID properly from the URL
-            val channelId =
-                when {
-                    url.contains("/channel/") -> url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
-                    url.contains("/@") -> url.substringAfter("/@").substringBefore("/").substringBefore("?")
-                    url.contains("/c/") -> url.substringAfter("/c/").substringBefore("/").substringBefore("?")
-                    url.contains("/user/") -> url.substringAfter("/user/").substringBefore("/").substringBefore("?")
-                    else -> url.substringAfterLast("/").substringBefore("?")
-                }
-
-            return io.github.aedev.flow.data.model.Channel(
-                id = channelId,
-                name = name ?: "Unknown Channel",
-                thumbnailUrl = bestThumbnail,
-                subscriberCount = subscriberCount,
-                description = description ?: "",
-                url = url,
-            )
-        }
-
-        /**
-         * Extension function to convert PlaylistInfoItem to our Playlist model
-         */
-        private fun org.schabi.newpipe.extractor.playlist.PlaylistInfoItem.toPlaylist(): io.github.aedev.flow.data.model.Playlist {
-            val playlistId = url.substringAfterLast("=")
-            val bestThumbnail =
-                thumbnails
-                    .sortedByDescending { it.height }
-                    .map { it.url }
-                    .firstOrNull()
-                    .let { ThumbnailUrlResolver.normalizeVideoThumbnail(playlistId, it) }
-
-            return io.github.aedev.flow.data.model.Playlist(
-                id = playlistId,
-                name = name ?: "Unknown Playlist",
-                thumbnailUrl = bestThumbnail,
-                videoCount = streamCount.toInt(),
-                isLocal = false,
             )
         }
 
