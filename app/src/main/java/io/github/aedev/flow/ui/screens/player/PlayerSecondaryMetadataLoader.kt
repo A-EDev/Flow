@@ -4,23 +4,22 @@ import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.innertube.models.response.VideoChapter
+import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PlayerChannelMetadataPolicy
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.distinctBestImageUrls
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.stream.StreamInfo
 
 /** What a secondary metadata fetch resolved to, for the player screen to fold into its own state. */
 internal sealed interface SecondaryMetadata {
@@ -41,12 +40,28 @@ internal sealed interface SecondaryMetadata {
         val videos: List<Video>,
     ) : SecondaryMetadata
 
-    class Enriched(
+    class Category(
+        override val videoId: String,
+        override val loadToken: Long,
+        val category: String,
+    ) : SecondaryMetadata
+
+    class Heatmap(
+        override val videoId: String,
+        override val loadToken: Long,
+        val heatmap: VideoHeatmap,
+    ) : SecondaryMetadata
+
+    class Chapters(
+        override val videoId: String,
+        override val loadToken: Long,
+        val chapters: List<VideoChapter>,
+    ) : SecondaryMetadata
+
+    class WatchInfo(
         override val videoId: String,
         override val loadToken: Long,
         val video: Video,
-        val streamInfo: StreamInfo,
-        val relatedVideos: List<Video>,
     ) : SecondaryMetadata
 
     class LiveWatch(
@@ -124,13 +139,111 @@ internal class PlayerSecondaryMetadataLoader(
 
     private val channelLoad = ConcurrentLoad()
     private val relatedLoad = ConcurrentLoad()
-    private val enrichLoad = ConcurrentLoad()
     private val liveWatchLoad = ConcurrentLoad()
+    private val categoryLoad = ConcurrentLoad()
+    private val heatmapLoad = ConcurrentLoad()
+    private val chaptersLoad = ConcurrentLoad()
+    private val watchInfoLoad = ConcurrentLoad()
 
     /** Drops every fetch in flight; the next load re-arms the ones it needs. */
     fun cancel() {
         channelLoad.cancel()
         relatedLoad.cancel()
+        categoryLoad.cancel()
+        heatmapLoad.cancel()
+        chaptersLoad.cancel()
+        watchInfoLoad.cancel()
+    }
+
+    /** The rewatch curve, off the watch response the description and comments already fetch. */
+    fun loadHeatmap(
+        videoId: String,
+        loadToken: Long,
+    ) {
+        if (!heatmapLoad.claim(videoId, loadToken)) return
+
+        heatmapLoad.job =
+            scope.launch(networkDispatcher) {
+                awaitPlaybackStarted(videoId)
+                if (!isPlaybackCurrent(loadToken)) return@launch
+                val heatmap =
+                    withTimeoutOrNull(HEATMAP_TIMEOUT_MS) { repository.videoHeatmap(videoId) }
+                        ?.takeIf { !it.isEmpty } ?: return@launch
+                if (!isPlaybackCurrent(loadToken) || !heatmapLoad.holds(videoId, loadToken)) return@launch
+                onResult(SecondaryMetadata.Heatmap(videoId, loadToken, heatmap))
+            }
+    }
+
+    /**
+     * The chapter list, off the same watch response.
+     *
+     * Not held behind [awaitPlaybackStarted] like the read-outs around it: chapters are drawn into
+     * the seek bar itself, so arriving after the first scrub means the bar changes shape under the
+     * finger already dragging it.
+     */
+    fun loadChapters(
+        videoId: String,
+        loadToken: Long,
+    ) {
+        if (!chaptersLoad.claim(videoId, loadToken)) return
+
+        chaptersLoad.job =
+            scope.launch(networkDispatcher) {
+                val chapters =
+                    withTimeoutOrNull(CHAPTERS_TIMEOUT_MS) { repository.videoChapters(videoId) }
+                        ?.takeIf { it.isNotEmpty() } ?: return@launch
+                if (!isPlaybackCurrent(loadToken) || !chaptersLoad.holds(videoId, loadToken)) return@launch
+                onResult(SecondaryMetadata.Chapters(videoId, loadToken, chapters))
+            }
+    }
+
+    /**
+     * The counts, date and description the watch page carries and the player response does not.
+     *
+     * The extractor used to supply these as late metadata over a load it had lost the race for;
+     * without it the screen showed whatever the card that opened it happened to hold, which is a
+     * title, a channel and nothing else.
+     */
+    fun loadWatchInfo(
+        videoId: String,
+        video: Video,
+        loadToken: Long,
+    ) {
+        if (!watchInfoLoad.claim(videoId, loadToken)) return
+
+        watchInfoLoad.job =
+            scope.launch(networkDispatcher) {
+                awaitPlaybackStarted(videoId)
+                if (!isPlaybackCurrent(loadToken)) return@launch
+                val enriched =
+                    withTimeoutOrNull(WATCH_INFO_TIMEOUT_MS) { repository.enrichFromWatchMetadata(video) }
+                        ?: return@launch
+                if (!isPlaybackCurrent(loadToken) || !watchInfoLoad.holds(videoId, loadToken)) return@launch
+                onResult(SecondaryMetadata.WatchInfo(videoId, loadToken, enriched))
+            }
+    }
+
+    /**
+     * The creator-declared category, which costs its own small request because no client that
+     * serves playable streams returns one. Kept behind [awaitPlaybackStarted] like the other
+     * secondary fetches, and still lands well before the watch signal the engine learns from.
+     */
+    fun loadCategory(
+        videoId: String,
+        loadToken: Long,
+    ) {
+        if (!categoryLoad.claim(videoId, loadToken)) return
+
+        categoryLoad.job =
+            scope.launch(networkDispatcher) {
+                awaitPlaybackStarted(videoId)
+                if (!isPlaybackCurrent(loadToken)) return@launch
+                val category =
+                    withTimeoutOrNull(CATEGORY_TIMEOUT_MS) { repository.videoCategory(videoId) }
+                        ?.takeIf { it.isNotBlank() } ?: return@launch
+                if (!isPlaybackCurrent(loadToken) || !categoryLoad.holds(videoId, loadToken)) return@launch
+                onResult(SecondaryMetadata.Category(videoId, loadToken, category))
+            }
     }
 
     fun loadChannelMetadata(
@@ -262,78 +375,6 @@ internal class PlayerSecondaryMetadataLoader(
      * Folds the NewPipe metadata a fast InnerTube load raced past into the screen once it lands,
      * then re-arms the related lane and the channel request from the richer references it carries.
      */
-    fun enrichWhenReady(
-        videoId: String,
-        streamInfoDeferred: Deferred<Pair<StreamInfo?, Throwable?>>,
-        loadToken: Long,
-    ) {
-        if (!enrichLoad.claim(videoId, loadToken)) return
-
-        enrichLoad.job =
-            scope.launch(networkDispatcher) {
-                val streamInfo =
-                    try {
-                        streamInfoDeferred.await().first
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Log.d(TAG, "Late NewPipe metadata failed for $videoId: ${e.message}")
-                        null
-                    } ?: return@launch
-
-                if (!isPlaybackCurrent(loadToken)) return@launch
-
-                val relatedVideos =
-                    PlayerRelatedVideosPolicy.select(
-                        videoId = videoId,
-                        primary = repository.getRelatedVideosFromStreamInfo(streamInfo),
-                        fallback = emptyList(),
-                        current = emptyList(),
-                        shortsEnabled = shortsEnabled(),
-                        blockedChannelIds = blockedChannelIds(),
-                    )
-                val cached = currentState().cachedVideo ?: return@launch
-                if (cached.id != videoId) return@launch
-
-                val enriched =
-                    cached.copy(
-                        title = streamInfo.name?.takeIf { it.isNotBlank() } ?: cached.title,
-                        channelName = streamInfo.uploaderName?.takeIf { it.isNotBlank() } ?: cached.channelName,
-                        channelId =
-                            cached.channelId.takeIf { it.isNotBlank() }
-                                ?: streamInfo.uploaderUrl?.substringAfterLast("/").orEmpty(),
-                        thumbnailUrl =
-                            streamInfo.thumbnails.maxByOrNull { it.height }?.url
-                                ?: cached.thumbnailUrl,
-                        duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: cached.duration,
-                        viewCount = streamInfo.viewCount.takeIf { it > 0L } ?: cached.viewCount,
-                        description = streamInfo.description?.content ?: cached.description,
-                    )
-
-                withContext(Dispatchers.Main) {
-                    onResult(
-                        SecondaryMetadata.Enriched(
-                            videoId = videoId,
-                            loadToken = loadToken,
-                            video = enriched,
-                            streamInfo = streamInfo,
-                            relatedVideos = relatedVideos,
-                        ),
-                    )
-                }
-
-                loadRelatedVideos(videoId, relatedVideos, loadToken)
-
-                loadChannelMetadata(
-                    videoId = videoId,
-                    uploaderUrl = streamInfo.uploaderUrl,
-                    channelId = enriched.channelId,
-                    embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
-                    loadToken = loadToken,
-                )
-            }
-    }
-
     fun refreshLiveWatchMetadata(
         videoId: String,
         fallbackVideo: Video,
@@ -436,5 +477,9 @@ internal class PlayerSecondaryMetadataLoader(
         const val LIVE_INNERTUBE_METADATA_TIMEOUT_MS = 8_000L
         const val LIVE_RELATED_SEARCH_TIMEOUT_MS = 8_000L
         const val RYD_TIMEOUT_MS = 5_000L
+        const val CATEGORY_TIMEOUT_MS = 8_000L
+        const val HEATMAP_TIMEOUT_MS = 8_000L
+        const val CHAPTERS_TIMEOUT_MS = 8_000L
+        const val WATCH_INFO_TIMEOUT_MS = 8_000L
     }
 }

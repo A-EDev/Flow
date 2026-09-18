@@ -62,7 +62,7 @@ internal class PlayerCollaborators(
                 uiState.map {
                     CommentsPlaybackState(
                         isPlaybackLoading = it.isLoading,
-                        currentVideoId = it.cachedVideo?.id ?: it.streamInfo?.id,
+                        currentVideoId = it.cachedVideo?.id,
                     )
                 },
             isCurrentVideo = { videoId -> uiState.value.cachedVideo?.id == videoId },
@@ -172,7 +172,7 @@ internal class PlayerCollaborators(
 
     private fun relatedVideosFor(videoId: String): List<Video> =
         uiState.value
-            .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
+            .takeIf { it.cachedVideo?.id == videoId }
             ?.relatedVideos
             .orEmpty()
 }

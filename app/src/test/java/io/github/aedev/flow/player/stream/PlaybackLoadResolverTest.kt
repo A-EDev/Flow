@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.utils.NetworkState
 import io.mockk.Runs
@@ -41,8 +42,8 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamType
 
 /**
- * Pins what [PlaybackLoadResolver] hands back for each way a load can end, with both extraction
- * stacks driven from the same fakes the player-screen characterisation harness uses.
+ * Pins what [PlaybackLoadResolver] hands back for each way a load can end, with the InnerTube
+ * extractor driven from the same fakes the player-screen characterisation harness uses.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaybackLoadResolverTest {
@@ -76,11 +77,10 @@ class PlaybackLoadResolverTest {
         every { playerPreferences.defaultQualityWifi } returns flowOf(VideoQuality.AUTO)
         every { playerPreferences.defaultQualityCellular } returns flowOf(VideoQuality.AUTO)
         every { playerPreferences.preferredAudioLanguage } returns flowOf("original")
+        every { playerPreferences.preferredSubtitleLanguage } returns flowOf(CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
         every { playerPreferences.videoCodecPriority } returns flowOf("auto")
         every { playerPreferences.autoplayEnabled } returns flowOf(true)
         every { viewHistory.getPlaybackPosition(any()) } returns flowOf(0L)
-        coEvery { repository.getVideoStreamInfo(any()) } throws RuntimeException("newpipe unavailable")
-        every { repository.getRelatedVideosFromStreamInfo(any()) } returns emptyList()
 
         resolver =
             PlaybackLoadResolver(
@@ -101,42 +101,16 @@ class PlaybackLoadResolverTest {
     }
 
     @Test
-    fun `a blocked creator never reaches the related list`() =
+    fun `a playable result resolves in one step, with the lane left to the watch response`() =
         runTest(testDispatcher) {
-            coEvery { repository.getVideoStreamInfo(VIDEO_ID) } returns playableStreamInfo()
-            coEvery { InnerTubeVideoStreamExtractor.extract(any(), any()) } coAnswers { awaitCancellation() }
-            every { repository.getRelatedVideosFromStreamInfo(any()) } returns
-                listOf(
-                    relatedVideo(id = "keep", channelId = "wanted"),
-                    relatedVideo(id = "drop", channelId = "blocked"),
-                )
-
-            val steps = resolveSteps(blockedChannelIds = setOf("blocked")).second
-            advanceUntilIdle()
-
-            // This one list becomes the related cards, the autoplay candidates and the queue.
-            val merged = steps.last() as ResolvedPlayback.Merged
-            assertThat(merged.relatedVideos.map { it.id }).containsExactly("keep")
-        }
-
-    @Test
-    fun `the direct ladder hands over NewPipe metadata before the merged result`() =
-        runTest(testDispatcher) {
-            coEvery { repository.getVideoStreamInfo(VIDEO_ID) } returns playableStreamInfo()
-            coEvery { InnerTubeVideoStreamExtractor.extract(any(), any()) } coAnswers { awaitCancellation() }
+            coEvery { InnerTubeVideoStreamExtractor.extract(any(), any()) } returns playableInnerTubeResult()
 
             val steps = resolveSteps().second
             advanceUntilIdle()
 
-            assertThat(steps).hasSize(2)
-            assertThat(steps.first()).isInstanceOf(ResolvedPlayback.PrimaryMetadata::class.java)
-            val merged = steps.last() as ResolvedPlayback.Merged
-            assertThat(merged.streams.hasPlayableContent).isTrue()
-            assertThat(merged.streams.isLiveType).isFalse()
-            assertThat(merged.isUpcomingContent).isFalse()
-            assertThat(merged.savedPositionMs).isEqualTo(0L)
-            assertThat(merged.autoplayEnabled).isTrue()
-            coVerify(exactly = 1) { repository.getVideoStreamInfo(VIDEO_ID) }
+            val vod = steps.single() as ResolvedPlayback.VodFromInnerTube
+            assertThat(vod.preferredQuality).isEqualTo(VideoQuality.AUTO)
+            assertThat(vod.relatedVideos).isEmpty()
         }
 
     @Test
@@ -151,8 +125,6 @@ class PlaybackLoadResolverTest {
             assertThat(failure.relatedVideos).isNull()
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract(VIDEO_ID, forceSabr = true) }
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract(VIDEO_ID, forceSabr = false) }
-            // NewPipe is started by the reload and only cancelled after its first attempt.
-            coVerify(exactly = 1) { repository.getVideoStreamInfo(VIDEO_ID) }
         }
 
     @Test
@@ -167,7 +139,6 @@ class PlaybackLoadResolverTest {
 
             val local = steps.single() as ResolvedPlayback.LocalCopyReady
             assertThat(local.localFilePath).isEqualTo(file.absolutePath)
-            assertThat(local.clearStreamInfo).isFalse()
             coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(VIDEO_ID, forceSabr = true) }
         }
 
@@ -192,21 +163,19 @@ class PlaybackLoadResolverTest {
         }
 
     @Test
-    fun `cancelling the load between attempts stops the ladder`() =
+    fun `cancelling the load mid-extraction hands back nothing`() =
         runTest(testDispatcher) {
-            val gate = CompletableDeferred<StreamInfo?>()
-            coEvery { repository.getVideoStreamInfo(VIDEO_ID) } coAnswers { gate.await() }
-            coEvery { InnerTubeVideoStreamExtractor.extract(any(), any()) } coAnswers { awaitCancellation() }
+            val gate = CompletableDeferred<InnerTubeVideoStreamExtractor.VideoExtractionResult?>()
+            coEvery { InnerTubeVideoStreamExtractor.extract(any(), any()) } coAnswers { gate.await() }
 
             val (job, steps) = resolveSteps()
             runCurrent()
-            coVerify(exactly = 1) { repository.getVideoStreamInfo(VIDEO_ID) }
+            coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract(VIDEO_ID, forceSabr = false) }
 
             job.cancel()
             advanceUntilIdle()
 
             assertThat(steps).isEmpty()
-            coVerify(exactly = 1) { repository.getVideoStreamInfo(VIDEO_ID) }
         }
 
     private fun TestScope.resolveSteps(
@@ -237,28 +206,40 @@ class PlaybackLoadResolverTest {
         return job to steps
     }
 
-    private fun relatedVideo(
-        id: String,
-        channelId: String,
-    ) = Video(
-        id = id,
-        title = id,
-        channelName = channelId,
-        channelId = channelId,
-        thumbnailUrl = "",
-        duration = 60,
-        viewCount = 0L,
-        uploadDate = "",
-    )
-
-    private fun playableStreamInfo(): StreamInfo {
-        val info = mockk<StreamInfo>(relaxed = true)
-        every { info.streamType } returns StreamType.VIDEO_STREAM
-        every { info.dashMpdUrl } returns "https://example.invalid/manifest.mpd"
-        every { info.hlsUrl } returns null
-        every { info.duration } returns 120L
-        return info
+    /** A VOD the extractor resolved with direct URLs for both tracks. */
+    private fun playableInnerTubeResult(): InnerTubeVideoStreamExtractor.VideoExtractionResult {
+        val result = mockk<InnerTubeVideoStreamExtractor.VideoExtractionResult>(relaxed = true)
+        every { result.isLive } returns false
+        every { result.sabrInfo } returns null
+        every { result.videoFormats } returns listOf(format(itag = 137, width = 1920, height = 1080))
+        every { result.audioFormats } returns listOf(format(itag = 140, width = null, height = null))
+        return result
     }
+
+    private fun format(
+        itag: Int,
+        width: Int?,
+        height: Int?,
+    ) = PlayerResponse.StreamingData.Format(
+        itag = itag,
+        url = "https://example.invalid/$itag",
+        mimeType = if (height == null) "audio/mp4" else "video/mp4",
+        bitrate = 1_000,
+        width = width,
+        height = height,
+        contentLength = 1_000L,
+        quality = "medium",
+        fps = null,
+        qualityLabel = height?.let { "${it}p" },
+        averageBitrate = 1_000,
+        audioQuality = null,
+        approxDurationMs = "120000",
+        audioSampleRate = null,
+        audioChannels = null,
+        loudnessDb = null,
+        lastModified = null,
+        signatureCipher = null,
+    )
 
     private fun downloadedVideo(): Video =
         Video(

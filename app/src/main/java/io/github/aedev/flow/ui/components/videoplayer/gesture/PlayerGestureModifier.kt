@@ -2,12 +2,19 @@ package io.github.aedev.flow.ui.components.videoplayer.gesture
 
 import android.app.Activity
 import android.media.AudioManager
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
+
+private val MinSideEdgeIgnore = 16.dp
 
 @Composable
 fun Modifier.videoPlayerControls(
@@ -78,6 +85,22 @@ fun Modifier.videoPlayerControls(
     val isSeekForwardActiveState = rememberUpdatedState(isSeekForwardActive)
     val isSeekBackActiveState = rememberUpdatedState(isSeekBackActive)
 
+    // The width the system itself reserves for the back gesture, so the player's dead zones match
+    // the ones the user is already swiping against rather than a number of our own.
+    val gestureDensity = LocalDensity.current
+    val gestureLayoutDirection = LocalLayoutDirection.current
+    val systemGestureInsets = WindowInsets.systemGestures
+    val sideEdgeIgnorePxState =
+        rememberUpdatedState(
+            maxOf(
+                systemGestureInsets.getLeft(gestureDensity, gestureLayoutDirection).toFloat(),
+                systemGestureInsets.getRight(gestureDensity, gestureLayoutDirection).toFloat(),
+                // Held open even on button navigation, where the system claims nothing: a swipe
+                // starting within a fingertip of the edge is as likely to be aimed past the app.
+                with(gestureDensity) { MinSideEdgeIgnore.toPx() },
+            ),
+        )
+
     val haptics = LocalHapticFeedback.current
 
     val lastBrightnessApplied = remember { floatArrayOf(-2f) }
@@ -121,6 +144,7 @@ fun Modifier.videoPlayerControls(
             volumeSwipeGesturesEnabled = volumeSwipeGesturesEnabledState,
             seekSwipeGesturesEnabled = seekSwipeGesturesEnabledState,
             allowVolumeBoost = allowVolumeBoostState,
+            sideEdgeIgnorePx = sideEdgeIgnorePxState,
             onExitFullscreen = onExitFullscreenState,
             onExitFullscreenDrag = onExitFullscreenDragState,
             haptics = haptics,

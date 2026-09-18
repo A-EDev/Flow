@@ -2596,6 +2596,30 @@ object YouTube {
         }
 
     /**
+     * The creator-declared category for [videoId].
+     *
+     * MWEB carries a `microformat` where the direct-URL clients the player path uses do not, and it
+     * fills it without a `signatureTimestamp` — the response is UNPLAYABLE and carries no streams,
+     * which is the point: it costs ~8 KB and no base.js fetch, against ~215 KB for WEB.
+     */
+    suspend fun videoCategory(videoId: String): Result<String?> =
+        runCatching {
+            innerTube
+                .player(
+                    YouTubeClient.MWEB,
+                    videoId,
+                    playlistId = null,
+                    signatureTimestamp = null,
+                    localeOverride = YouTubeLocale.EXTRACTION,
+                    apiUrl = YouTubeClient.API_URL_YOUTUBE,
+                ).body<PlayerResponse>()
+                .microformat
+                ?.playerMicroformatRenderer
+                ?.category
+                ?.takeIf { it.isNotBlank() }
+        }
+
+    /**
      * The raw web watch response for [videoId].
      *
      * The comment section, the attributed description and the related lane all read this one

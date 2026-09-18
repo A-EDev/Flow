@@ -35,12 +35,10 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 
 /**
  * Pins how many times each network entry point is entered per user-visible cause, with both
- * extraction stacks failing (NewPipe throws, InnerTube returns null). Nothing here is a spec:
- * every count is today's behaviour, recorded so the Phase 1-4 refactors can prove they did not
- * change it.
+ * extraction failing (InnerTube returns null). Nothing here is a spec: every count is today's
+ * behaviour, recorded so a refactor can prove it did not change it.
  *
  * Entry points counted:
- *  - NewPipe: [io.github.aedev.flow.data.repository.YouTubeRepository.getVideoStreamInfo]
  *  - InnerTube: [InnerTubeVideoStreamExtractor.extract]
  *  - Return YouTube Dislike: gated by `playerPreferences.rytdEnabled` — the HTTP call itself uses
  *    HttpURLConnection and cannot be intercepted, so the gate read is what is counted (it is
@@ -75,7 +73,7 @@ class VideoPlayerViewModelFetchCountsTest {
     }
 
     @Test
-    fun `playVideo resets state then makes 3 NewPipe attempts 1 InnerTube extraction 1 RYD gate read and 1 premiere probe`() =
+    fun `playVideo resets state then makes 1 InnerTube extraction 1 RYD gate read and 1 premiere probe`() =
         runTest {
             val viewModel = newViewModel()
             val video = video("vid_a")
@@ -88,7 +86,6 @@ class VideoPlayerViewModelFetchCountsTest {
                 val reset = expectMostRecentItem()
                 assertThat(reset.cachedVideo).isEqualTo(video)
                 assertThat(reset.isLoading).isTrue()
-                assertThat(reset.streamInfo).isNull()
                 assertThat(reset.error).isNull()
                 assertThat(reset.errorHint).isNull()
                 assertThat(reset.relatedVideos).isEmpty()
@@ -103,13 +100,11 @@ class VideoPlayerViewModelFetchCountsTest {
                 val terminal = expectMostRecentItem()
                 assertThat(terminal.cachedVideo).isEqualTo(video)
                 assertThat(terminal.isLoading).isFalse()
-                assertThat(terminal.streamInfo).isNull()
                 assertThat(terminal.error).isEqualTo("res:${R.string.error_generic}")
-                assertThat(terminal.errorHint).isEqualTo("RuntimeException: newpipe unavailable")
+                assertThat(terminal.errorHint).isEqualTo("res:${R.string.error_generic_hint}")
                 cancelAndIgnoreRemainingEvents()
             }
 
-            coVerify(exactly = 3) { harness.repository.getVideoStreamInfo("vid_a") }
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = false) }
             verify(exactly = 1) { harness.playerPreferences.rytdEnabled }
             coVerify(exactly = 1) { YouTube.player("vid_a", any(), any(), any(), any(), any(), any()) }
@@ -143,7 +138,6 @@ class VideoPlayerViewModelFetchCountsTest {
             val terminal = viewModel.uiState.value
             assertThat(terminal.isLoading).isFalse()
             assertThat(terminal.error).isEqualTo("res:${R.string.error_generic}")
-            coVerify(exactly = 3) { harness.repository.getVideoStreamInfo("vid_a") }
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = false) }
             verify(exactly = 1) { harness.playerPreferences.rytdEnabled }
             coVerify(exactly = 1) { YouTube.player("vid_a", any(), any(), any(), any(), any(), any()) }
@@ -167,7 +161,6 @@ class VideoPlayerViewModelFetchCountsTest {
             assertThat(terminal.error).isEqualTo("res:${R.string.error_generic}")
             assertThat(terminal.errorHint).isEqualTo("res:${R.string.error_generic_hint}")
             // NewPipe is still started by the reload and only cancelled after its first attempt.
-            coVerify(exactly = 1) { harness.repository.getVideoStreamInfo("vid_a") }
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = true) }
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = false) }
             verify(exactly = 1) { harness.playerPreferences.rytdEnabled }
@@ -192,7 +185,6 @@ class VideoPlayerViewModelFetchCountsTest {
 
             assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
             runCurrent()
-            coVerify(exactly = 1) { harness.repository.getVideoStreamInfo("vid_a") }
             coVerify(exactly = 1) { harness.playerManager.clearCacheForCurrentVideo() }
             forgetRecordedCalls()
 
@@ -224,7 +216,6 @@ class VideoPlayerViewModelFetchCountsTest {
             assertThat(terminal.cachedVideo).isNull()
             assertThat(terminal.isLoading).isFalse()
             assertThat(terminal.error).isEqualTo("res:${R.string.error_generic}")
-            coVerify(exactly = 3) { harness.repository.getVideoStreamInfo("ext_1") }
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("ext_1", forceSabr = false) }
             verify(exactly = 1) { harness.playerPreferences.rytdEnabled }
             coVerify(exactly = 1) { YouTube.player("ext_1", any(), any(), any(), any(), any(), any()) }
@@ -237,10 +228,10 @@ class VideoPlayerViewModelFetchCountsTest {
             val viewModel = newViewModel()
             val videoA = video("vid_a")
             val videoB = video("vid_b")
-            val gateA = CompletableDeferred<StreamInfo?>()
-            val gateB = CompletableDeferred<StreamInfo?>()
-            coEvery { harness.repository.getVideoStreamInfo("vid_a") } coAnswers { gateA.await() }
-            coEvery { harness.repository.getVideoStreamInfo("vid_b") } coAnswers { gateB.await() }
+            val gateA = CompletableDeferred<InnerTubeVideoStreamExtractor.VideoExtractionResult?>()
+            val gateB = CompletableDeferred<InnerTubeVideoStreamExtractor.VideoExtractionResult?>()
+            coEvery { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = false) } coAnswers { gateA.await() }
+            coEvery { InnerTubeVideoStreamExtractor.extract("vid_b", forceSabr = false) } coAnswers { gateB.await() }
 
             viewModel.uiState.test {
                 awaitItem()
@@ -267,12 +258,10 @@ class VideoPlayerViewModelFetchCountsTest {
                 val terminal = expectMostRecentItem()
                 assertThat(terminal.cachedVideo).isEqualTo(videoB)
                 assertThat(terminal.isLoading).isFalse()
-                assertThat(terminal.errorHint).isEqualTo("RuntimeException: B failed")
+                assertThat(terminal.errorHint).isEqualTo("res:${R.string.error_generic_hint}")
                 cancelAndIgnoreRemainingEvents()
             }
 
-            coVerify(exactly = 1) { harness.repository.getVideoStreamInfo("vid_a") }
-            coVerify(exactly = 3) { harness.repository.getVideoStreamInfo("vid_b") }
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_a", forceSabr = false) }
             coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("vid_b", forceSabr = false) }
         }

@@ -1,0 +1,232 @@
+{
+ "contents": {
+  "twoColumnWatchNextResults": {
+   "results": {
+    "results": {
+     "contents": [
+      {
+       "videoPrimaryInfoRenderer": {
+        "title": {
+         "runs": [
+          {
+           "text": "I Promise you this is NOT Stupid"
+          }
+         ]
+        },
+        "viewCount": {
+         "videoViewCountRenderer": {
+          "viewCount": {
+           "simpleText": "1,827,343 views"
+          },
+          "extraShortViewCount": {
+           "accessibility": {
+            "accessibilityData": {
+             "label": "1,827,343 views"
+            }
+           },
+           "simpleText": "1.8M"
+          },
+          "entityKey": "EgszeG5nQXJjRnBlayDCASgB",
+          "originalViewCount": "1827343"
+         }
+        },
+        "dateText": {
+         "simpleText": "Sep 15, 2026"
+        },
+        "videoActions": {
+         "menuRenderer": {
+          "topLevelButtons": [
+           {
+            "segmentedLikeDislikeButtonViewModel": {
+             "likeCountEntity": {
+              "likeCountIfIndifferent": {
+               "content": "26K"
+              },
+              "expandedLikeCountIfIndifferent": {
+               "content": "26,383"
+              }
+             }
+            }
+           }
+          ]
+         }
+        }
+       }
+      },
+      {
+       "videoSecondaryInfoRenderer": {
+        "attributedDescription": {
+         "content": "Thanks to Meter for sponsoring this video! Go to https://meter.com/ltt to book a demo now!\n\nWith SSD and hard drive prices staying stubbornly high, is it time to go back to the future with optical storage? In this video, we break down whether burning Blu-ray discs and M-DISCs makes sense for archiving your data today - comparing cost per gigabyte, lifespans, burn speeds, and the reality of managing physical discs versus HDDs and tape.\n\nDiscuss on the forum: https://linustechtips.com/topic/16427...\n\nCheck out our Channel Partners:\n\nSecretlab \nGrab a TITAN Evo ergonomic gaming chair:  https://lm"
+        },
+        "owner": {
+         "videoOwnerRenderer": {
+          "thumbnail": {
+           "thumbnails": [
+            {
+             "url": "https://yt3.ggpht.com/gnvYLhXy8FAlPXZ2RTrkrgj-5kyt0vdE2FUGVOiKGdEZIa-wN5A-7nwZBlWJLzUMmoh1NWAU=s48-c-k-c0x00ffffff-no-rj",
+             "width": 48,
+             "height": 48
+            },
+            {
+             "url": "https://yt3.ggpht.com/gnvYLhXy8FAlPXZ2RTrkrgj-5kyt0vdE2FUGVOiKGdEZIa-wN5A-7nwZBlWJLzUMmoh1NWAU=s88-c-k-c0x00ffffff-no-rj",
+             "width": 88,
+             "height": 88
+            },
+            {
+             "url": "https://yt3.ggpht.com/gnvYLhXy8FAlPXZ2RTrkrgj-5kyt0vdE2FUGVOiKGdEZIa-wN5A-7nwZBlWJLzUMmoh1NWAU=s176-c-k-c0x00ffffff-no-rj",
+             "width": 176,
+             "height": 176
+            }
+           ]
+          },
+          "title": {
+           "runs": [
+            {
+             "text": "Linus Tech Tips",
+             "navigationEndpoint": {
+              "clickTrackingParams": "CKwCEOE5IhMIjcOJ3on2lgMV7kd6BR1IQCjMygEE6sRu7g==",
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@LinusTechTips",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+               "canonicalBaseUrl": "/@LinusTechTips"
+              }
+             }
+            }
+           ]
+          },
+          "subscriptionButton": {
+           "type": "FREE"
+          },
+          "navigationEndpoint": {
+           "clickTrackingParams": "CKwCEOE5IhMIjcOJ3on2lgMV7kd6BR1IQCjMygEE6sRu7g==",
+           "commandMetadata": {
+            "webCommandMetadata": {
+             "url": "/@LinusTechTips",
+             "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+             "rootVe": 3611,
+             "apiUrl": "/youtubei/v1/browse"
+            }
+           },
+           "browseEndpoint": {
+            "browseId": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+            "canonicalBaseUrl": "/@LinusTechTips"
+           }
+          },
+          "subscriberCountText": {
+           "accessibility": {
+            "accessibilityData": {
+             "label": "16.9 million subscribers"
+            }
+           },
+           "simpleText": "16.9M subscribers"
+          },
+          "trackingParams": "CKwCEOE5IhMIjcOJ3on2lgMV7kd6BR1IQCjM",
+          "badges": [
+           {
+            "metadataBadgeRenderer": {
+             "icon": {
+              "iconType": "CHECK_CIRCLE_THICK"
+             },
+             "style": "BADGE_STYLE_TYPE_VERIFIED",
+             "tooltip": "Verified",
+             "trackingParams": "CKwCEOE5IhMIjcOJ3on2lgMV7kd6BR1IQCjM",
+             "accessibilityData": {
+              "label": "Verified"
+             }
+            }
+           }
+          ],
+          "membershipButton": {
+           "timedAnimationButtonRenderer": {
+            "buttonRenderer": {
+             "buttonRenderer": {
+              "style": "STYLE_SUGGESTIVE",
+              "size": "SIZE_DEFAULT",
+              "isDisabled": false,
+              "text": {
+               "runs": [
+                {
+                 "text": "Join"
+                }
+               ]
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "CK0CEKhgIhMIjcOJ3on2lgMV7kd6BR1IQCjMygEE6sRu7g==",
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "ignoreNavigation": true
+                }
+               },
+               "modalEndpoint": {
+                "modal": {
+                 "modalWithTitleAndButtonRenderer": {
+                  "title": {
+                   "runs": [
+                    {
+                     "text": "Want to join this channel?"
+                    }
+                   ]
+                  },
+                  "content": {
+                   "runs": [
+                    {
+                     "text": "Sign in to become a member."
+                    }
+                   ]
+                  },
+                  "button": {
+                   "buttonRenderer": {
+                    "style": "STYLE_BRAND",
+                    "size": "SIZE_DEFAULT",
+                    "isDisabled": false,
+                    "text": {
+                     "simpleText": "Sign in"
+                    },
+                    "navigationEndpoint": {
+                     "clickTrackingParams": "CK4CEPBbIhMIjcOJ3on2lgMV7kd6BR1IQCjMygEE6sRu7g==",
+                     "commandMetadata": {
+                      "webCommandMetadata": {
+                       "url": "https://accounts.google.com/ServiceLogin?service=youtube&uilel=3&passive=true&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26app%3Ddesktop%26hl%3Den%26next%3Dhttps%253A%252F%252Fwww.youtube.com%252Fyoutubei%252Fv1%252Fnext%253FprettyPrint%253Dfalse&hl=en",
+                       "webPageType": "WEB_PAGE_TYPE_UNKNOWN",
+                       "rootVe": 83769
+                      }
+                     },
+                     "signInEndpoint": {
+                      "hack": true
+                     }
+                    },
+                    "trackingParams": "CK4CEPBbIhMIjcOJ3on2lgMV7kd6BR1IQCjM"
+                   }
+                  }
+                 }
+                }
+               }
+              },
+              "trackingParams": "CK0CEKhgIhMIjcOJ3on2lgMV7kd6BR1IQCjM",
+              "accessibilityData": {
+               "accessibilityData": {
+                "label": "Join this channel"
+               }
+              },
+              "targetId": "sponsorships-button"
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

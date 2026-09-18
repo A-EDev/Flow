@@ -91,8 +91,8 @@ internal fun VideoStageControls(
                             playerState.effectiveQuality,
                         ),
                 ),
-            videoTitle = playerUiState.streamInfo?.name ?: video.title,
-            channelName = playerUiState.streamInfo?.uploaderName ?: video.channelName,
+            videoTitle = video.title,
+            channelName = video.channelName,
             playbackSpeed = playerState.playbackSpeed,
             resizeMode = screenState.resizeMode,
             isFullscreen = screenState.isFullscreen,
@@ -101,6 +101,8 @@ internal fun VideoStageControls(
                 PictureInPictureHelper.isPlayerPopupSupported(context) &&
                     pipPreferences.manualPipButtonEnabled,
             chapters = playerUiState.chapters,
+            storyboard = playerUiState.storyboard,
+            heatmap = playerUiState.heatmap,
             isSubtitlesEnabled = screenState.subtitlesEnabled,
             autoplayEnabled = playerUiState.autoplayEnabled,
             isLooping = playerState.isLooping,
@@ -117,6 +119,7 @@ internal fun VideoStageControls(
             isTouchLocked = screenState.isTouchLocked,
             lockModeEnabled = prefs.lockModeEnabled,
             lockOverlayRevealSignal = screenState.lockOverlayRevealSignal,
+            isGestureReadoutActive = screenState.isSpeedBoostActive || screenState.showZoomIndicator,
         )
     // The session is rebuilt every composition, so these lambdas are too; they read the values the
     // host observed this frame exactly as the parameter list they replace did.
@@ -136,6 +139,7 @@ internal fun VideoStageControls(
             },
             onPrevious = { playerViewModel.playPrevious() },
             onNext = { playerViewModel.playNext() },
+            onStepFrame = { forward -> EnhancedPlayerManager.getInstance().stepFrame(forward) },
             onBack = { playerSheetState.collapse() },
             onSettingsClick = { screenState.open(PlayerSheet.Settings()) },
             onQualityClick = { screenState.open(PlayerSheet.Settings(PlayerSettingsPage.Quality)) },

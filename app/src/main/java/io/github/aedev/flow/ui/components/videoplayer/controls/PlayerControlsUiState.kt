@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui.components.videoplayer.controls
 
 import androidx.compose.runtime.Immutable
+import io.github.aedev.flow.innertube.models.response.VideoHeatmap
+import io.github.aedev.flow.player.stream.StoryboardLevel
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 /**
@@ -25,6 +27,8 @@ internal data class PlayerControlsUiState(
     val isPortraitFullscreen: Boolean = false,
     val isPipSupported: Boolean = false,
     val chapters: List<StreamSegment> = emptyList(),
+    val storyboard: List<StoryboardLevel> = emptyList(),
+    val heatmap: VideoHeatmap? = null,
     val isSubtitlesEnabled: Boolean = false,
     val autoplayEnabled: Boolean = true,
     val isLooping: Boolean = false,
@@ -41,4 +45,6 @@ internal data class PlayerControlsUiState(
     val isTouchLocked: Boolean = false,
     val lockModeEnabled: Boolean = false,
     val lockOverlayRevealSignal: Int = 0,
+    /** A gesture read-out — the speed badge, the zoom scale — currently owns the picture. */
+    val isGestureReadoutActive: Boolean = false,
 )

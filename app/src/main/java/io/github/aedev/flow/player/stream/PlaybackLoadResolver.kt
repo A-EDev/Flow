@@ -12,10 +12,6 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
-import io.github.aedev.flow.player.PlaybackResolverReadiness
-import io.github.aedev.flow.player.PlaybackResolverWinner
-import io.github.aedev.flow.player.PlaybackStartupPolicy
-import io.github.aedev.flow.player.awaitFirstPlaybackResolver
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CancellationException
@@ -32,9 +28,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
-import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.StreamType
 import java.io.File
 import javax.inject.Inject
 
@@ -43,6 +36,7 @@ internal data class StreamPreferences(
     val quality: VideoQuality,
     val audioLanguage: String,
     val codecKey: String,
+    val subtitleLanguage: String,
 )
 
 /**
@@ -89,7 +83,6 @@ class PlaybackLoadResolver
             var offlineLocalPath: String? = null
 
             try {
-                val streamInfoDeferred = scope.async(networkDispatcher) { fetchStreamInfo(videoId) }
                 val innerTubeDeferred =
                     scope.async(networkDispatcher) { extractInnerTube(videoId, forceSabr = request.escalateToSabr) }
 
@@ -116,14 +109,22 @@ class PlaybackLoadResolver
 
                 if (isOfflineAvailable) {
                     Log.d(TAG, "Found offline video at ${localFile?.absolutePath}")
-                    val offlineSegments = storedSponsorBlockSegments(videoId)
+                    val storedSponsorBlockJson = videoDownloadManager.getSponsorBlockData(videoId)
+                    val offlineSegments = sponsorBlockRepository.parseSegments(storedSponsorBlockJson)
                     currentCoroutineContext().ensureActive()
                     if (!isCurrent()) return
-                    offlineLocalPath?.let { onStep(ResolvedPlayback.LocalCopyReady(it, offlineSegments)) }
+                    offlineLocalPath?.let {
+                        onStep(
+                            ResolvedPlayback.LocalCopyReady(
+                                localFilePath = it,
+                                offlineSegments = offlineSegments,
+                                needsSponsorBlockBackfill = storedSponsorBlockJson == null,
+                            ),
+                        )
+                    }
 
                     if (!NetworkState.isOnline(context)) {
                         Log.d(TAG, "Offline with a local copy of $videoId — skipping stream resolution")
-                        streamInfoDeferred.cancel()
                         innerTubeDeferred.cancel()
                         return
                     }
@@ -137,7 +138,6 @@ class PlaybackLoadResolver
                         downloadedFilePath = downloadedVideo?.filePath,
                         offlineAbsolutePath = localFile?.absolutePath,
                         isOfflineAvailable = isOfflineAvailable,
-                        streamInfoDeferred = streamInfoDeferred,
                         innerTubeDeferred = innerTubeDeferred,
                         savedPositionDeferred = savedPositionDeferred,
                         autoplayDeferred = autoplayDeferred,
@@ -178,7 +178,6 @@ class PlaybackLoadResolver
                             ResolvedPlayback.LocalCopyReady(
                                 localFilePath = localPath,
                                 offlineSegments = storedSponsorBlockSegments(videoId),
-                                clearStreamInfo = true,
                             ),
                         )
                     } else {
@@ -194,7 +193,6 @@ class PlaybackLoadResolver
             downloadedFilePath: String?,
             offlineAbsolutePath: String?,
             isOfflineAvailable: Boolean,
-            streamInfoDeferred: Deferred<NewPipeOutcome>,
             innerTubeDeferred: Deferred<InnerTubeVideoStreamExtractor.VideoExtractionResult?>,
             savedPositionDeferred: Deferred<Long>,
             autoplayDeferred: Deferred<Boolean>,
@@ -205,38 +203,7 @@ class PlaybackLoadResolver
             val videoId = request.videoId
             Log.d(TAG, "Loading video $videoId with preferred quality: ${preferences.quality.label} (isWifi=${request.isWifi})")
 
-            var streamResolution: NewPipeOutcome = null to null
-            var innerTubeResult: InnerTubeVideoStreamExtractor.VideoExtractionResult? = null
-            var lateStreamInfoDeferred: Deferred<NewPipeOutcome>? = null
-
-            if (request.escalateToSabr) {
-                streamInfoDeferred.cancel()
-                innerTubeResult = innerTubeDeferred.await()
-            } else {
-                when (val winner = awaitFirstPlaybackResolver(streamInfoDeferred, innerTubeDeferred)) {
-                    is PlaybackResolverWinner.Primary -> {
-                        streamResolution = winner.value
-                        if (classifyNewPipeResult(winner.value.first) == PlaybackResolverReadiness.NEEDS_FALLBACK) {
-                            innerTubeResult = innerTubeDeferred.await()
-                        } else {
-                            Log.d(TAG, "NewPipe resolved playback first for $videoId; skipping redundant InnerTube wait")
-                            innerTubeDeferred.cancel()
-                        }
-                    }
-
-                    is PlaybackResolverWinner.Fallback -> {
-                        innerTubeResult = winner.value
-                        if (winner.value != null && innerTubeCanStartPlayback(winner.value)) {
-                            Log.d(TAG, "InnerTube resolved playback first for $videoId; preparing before NewPipe metadata")
-                            lateStreamInfoDeferred = streamInfoDeferred
-                        } else {
-                            streamResolution = streamInfoDeferred.await()
-                        }
-                    }
-                }
-            }
-
-            val (streamInfo, streamError) = streamResolution
+            var innerTubeResult = innerTubeDeferred.await()
             currentCoroutineContext().ensureActive()
             if (!isCurrent()) return
 
@@ -268,49 +235,13 @@ class PlaybackLoadResolver
                 innerTubeResult?.isLive == true &&
                     (!innerTubeResult.liveHlsUrl.isNullOrEmpty() || !innerTubeResult.liveDashUrl.isNullOrEmpty())
 
-            // Extract related videos directly from the stream info (avoids extra network call)
-            // Filtering here rather than at the surfaces that draw it: this one list becomes the
-            // related cards, the autoplay candidates and the queue, so a blocked creator dropped
-            // here is dropped from all three.
-            val relatedVideos =
-                if (streamInfo != null) {
-                    repository
-                        .getRelatedVideosFromStreamInfo(streamInfo)
-                        .filter { request.allowShorts || !it.isShort }
-                        .filter { it.channelId.isBlank() || it.channelId !in request.blockedChannelIds }
-                } else {
-                    emptyList()
-                }
+            // The related lane, the autoplay candidates and the queue all read this one list, and
+            // it is filled from the watch response once playback is under way rather than held for
+            // here: a load that waited on it would be waiting on a second request.
+            val relatedVideos = emptyList<Video>()
 
-            if (streamInfo != null && streamInfo.streamType == StreamType.NONE && !isOfflineAvailable) {
-                // A stream type of NONE with no countdown to show leaves the load unresolved, as it
-                // has since the premiere state was introduced.
-                val upcoming = resolveUpcoming(videoId, true)
-                if (upcoming.isUpcoming) {
-                    onStep(ResolvedPlayback.Upcoming(relatedVideos, upcoming.scheduledStartMs, upcoming.details))
-                }
-                return
-            }
-
-            if (streamInfo != null) {
-                onStep(ResolvedPlayback.PrimaryMetadata(streamInfo))
-                onStep(
-                    assembleMerged(
-                        request = request,
-                        streamInfo = streamInfo,
-                        innerTubeResult = innerTubeResult,
-                        preferences = preferences,
-                        downloadedFilePath = downloadedFilePath,
-                        isOfflineAvailable = isOfflineAvailable,
-                        relatedVideos = relatedVideos,
-                        savedPositionDeferred = savedPositionDeferred,
-                        autoplayDeferred = autoplayDeferred,
-                        resolveUpcoming = resolveUpcoming,
-                    ),
-                )
-            } else if (liveFromInnerTube && innerTubeResult != null) {
-                Log.w(TAG, "Live fallback for $videoId via InnerTube manifest (NewPipe StreamInfo null)")
-                onStep(ResolvedPlayback.Live(innerTubeResult, relatedVideos, lateStreamInfoDeferred))
+            if (liveFromInnerTube && innerTubeResult != null) {
+                onStep(ResolvedPlayback.Live(innerTubeResult, relatedVideos))
             } else if (isOfflineAvailable) {
                 Log.d(TAG, "Using offline video for $videoId (Network fetch failed)")
                 onStep(
@@ -321,7 +252,6 @@ class PlaybackLoadResolver
                     ),
                 )
             } else if (innerTubeResult != null && innerTubeHasPlayableVod(innerTubeResult)) {
-                Log.w(TAG, "VOD fallback for $videoId via InnerTube (NewPipe StreamInfo null)")
                 onStep(
                     ResolvedPlayback.VodFromInnerTube(
                         result = innerTubeResult,
@@ -329,77 +259,14 @@ class PlaybackLoadResolver
                         preferredQuality = preferences.quality,
                         preferredAudioLanguage = preferences.audioLanguage,
                         preferredCodecKey = preferences.codecKey,
+                        preferredSubtitleLanguage = preferences.subtitleLanguage,
                         resumePositionOverrideMs = request.resumePositionOverrideMs,
-                        lateStreamInfo = lateStreamInfoDeferred,
-                        streamError = streamError,
                     ),
                 )
             } else {
-                Log.e(TAG, "Stream info is null for $videoId and no offline copy found.")
-                onStep(upcomingOrFailure(videoId, PlaybackFailure.EXTRACTION, streamError, relatedVideos, resolveUpcoming))
+                Log.e(TAG, "InnerTube resolved nothing playable for $videoId and no offline copy found.")
+                onStep(upcomingOrFailure(videoId, PlaybackFailure.EXTRACTION, null, relatedVideos, resolveUpcoming))
             }
-        }
-
-        private suspend fun assembleMerged(
-            request: PlaybackResolutionRequest,
-            streamInfo: StreamInfo,
-            innerTubeResult: InnerTubeVideoStreamExtractor.VideoExtractionResult?,
-            preferences: StreamPreferences,
-            downloadedFilePath: String?,
-            isOfflineAvailable: Boolean,
-            relatedVideos: List<Video>,
-            savedPositionDeferred: Deferred<Long>,
-            autoplayDeferred: Deferred<Boolean>,
-            resolveUpcoming: suspend (String, Boolean) -> UpcomingPremiere,
-        ): ResolvedPlayback.Merged {
-            val videoId = request.videoId
-            // A downloaded copy overrides the resolved streams, whether it is a full video or audio only.
-            val localFilePath = downloadedFilePath?.takeIf { File(it).exists() }
-            val streams =
-                MergedPlaybackAssembly.assemble(
-                    streamInfo = streamInfo,
-                    innerTubeResult = innerTubeResult,
-                    preferredQuality = preferences.quality,
-                    preferredAudioLanguage = preferences.audioLanguage,
-                    preferredCodecKey = preferences.codecKey,
-                    escalateToSabr = request.escalateToSabr,
-                    localFilePath = localFilePath,
-                )
-
-            // Stored SponsorBlock segments are what an offline play uses; a download that has none
-            // yet is backfilled by the caller so the next play does not go looking again.
-            val storedSponsorBlockJson =
-                if (localFilePath != null) videoDownloadManager.getSponsorBlockData(videoId) else null
-            val offlineSegments = storedSponsorBlockJson?.let { sponsorBlockRepository.parseSegments(it) }
-
-            val upcoming =
-                if (!streams.hasPlayableContent && !isOfflineAvailable) {
-                    resolveUpcoming(videoId, streams.isLiveType || streamInfo.streamType == StreamType.NONE)
-                } else {
-                    UpcomingPremiere.NOT_UPCOMING
-                }
-            if (upcoming.isUpcoming) {
-                PlayerDiagnostics.logWarning(
-                    "Upcoming",
-                    "no playable content videoId=$videoId type=${streamInfo.streamType} " +
-                        "liveType=${streams.isLiveType} release=${upcoming.scheduledStartMs}",
-                )
-            }
-
-            return ResolvedPlayback.Merged(
-                streamInfo = streamInfo,
-                streams = streams,
-                relatedVideos = relatedVideos,
-                // Resolved once for both the UI state and the playback preparation; the read was
-                // started in parallel with extraction.
-                savedPositionMs = savedPositionDeferred.await(),
-                autoplayEnabled = autoplayDeferred.await(),
-                offlineSegments = offlineSegments,
-                sponsorBlockBackfillNeeded = localFilePath != null && storedSponsorBlockJson == null,
-                isUpcomingContent = upcoming.isUpcoming,
-                upcomingReleaseTimeMs = upcoming.scheduledStartMs,
-                resumeOverrideRequested = request.resumePositionOverrideMs != null,
-            )
         }
 
         private suspend fun upcomingOrFailure(
@@ -415,34 +282,6 @@ class PlaybackLoadResolver
             } else {
                 ResolvedPlayback.Failed(failure, cause, relatedVideos)
             }
-        }
-
-        private suspend fun fetchStreamInfo(videoId: String): NewPipeOutcome {
-            var info: StreamInfo? = null
-            var lastError: Throwable? = null
-            var attempt = 0
-            while (info == null && attempt < NEWPIPE_ATTEMPTS) {
-                try {
-                    attempt++
-                    info = withTimeoutOrNull(NEWPIPE_TIMEOUT_MS) { repository.getVideoStreamInfo(videoId) }
-                    if (info == null && attempt < NEWPIPE_ATTEMPTS) {
-                        Log.w(TAG, "Stream info fetch failed (attempt $attempt), retrying in ${attempt * RETRY_BACKOFF_MS}ms...")
-                        delay(attempt * RETRY_BACKOFF_MS)
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: ContentNotAvailableException) {
-                    Log.e(TAG, "Content restriction for $videoId: ${e.javaClass.simpleName}: ${e.message}")
-                    lastError = e
-                    break
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to load stream info (attempt $attempt)", e)
-                    lastError = e
-                    if (attempt < NEWPIPE_ATTEMPTS) delay(attempt * RETRY_BACKOFF_MS)
-                }
-            }
-            if (info == null) Log.e(TAG, "Stream info fetch failed after $NEWPIPE_ATTEMPTS attempts")
-            return info to lastError
         }
 
         private suspend fun extractInnerTube(
@@ -474,6 +313,7 @@ class PlaybackLoadResolver
                     },
                 audioLanguage = playerPreferences.preferredAudioLanguage.first(),
                 codecKey = playerPreferences.videoCodecPriority.first(),
+                subtitleLanguage = playerPreferences.preferredSubtitleLanguage.first(),
             )
 
         private suspend fun findDownloadedVideo(videoId: String) =
@@ -490,24 +330,9 @@ class PlaybackLoadResolver
         private suspend fun storedSponsorBlockSegments(videoId: String) =
             sponsorBlockRepository.parseSegments(videoDownloadManager.getSponsorBlockData(videoId))
 
-        private fun classifyNewPipeResult(streamInfo: StreamInfo?): PlaybackResolverReadiness {
-            if (streamInfo == null) return PlaybackResolverReadiness.NEEDS_FALLBACK
-            return PlaybackStartupPolicy.classifyNewPipeResult(
-                hasProgressiveVideo = streamInfo.videoStreams.isNotEmpty(),
-                hasVideoOnly = streamInfo.videoOnlyStreams.isNotEmpty(),
-                hasAudio = streamInfo.audioStreams.isNotEmpty(),
-                hasDashManifest = !streamInfo.dashMpdUrl.isNullOrEmpty(),
-                hasHlsManifest = !streamInfo.hlsUrl.isNullOrEmpty(),
-                isKnownUpcoming = streamInfo.streamType == StreamType.NONE,
-            )
-        }
-
         private companion object {
             const val TAG = "PlaybackLoadResolver"
-            const val NEWPIPE_ATTEMPTS = 3
-            const val NEWPIPE_TIMEOUT_MS = 10_000L
             const val INNERTUBE_TIMEOUT_MS = 25_000L
-            const val RETRY_BACKOFF_MS = 300L
             const val LOAD_TIMEOUT_MS = 30_000L
             const val SABR_LOAD_TIMEOUT_MS = 120_000L
 

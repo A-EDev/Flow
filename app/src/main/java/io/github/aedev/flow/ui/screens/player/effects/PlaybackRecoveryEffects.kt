@@ -174,9 +174,9 @@ internal fun PlaybackStartupRecoveryEffect(
         recoveredVideoId = null
     }
 
-    LaunchedEffect(videoId, uiState.isLoading, uiState.streamInfo, uiState.localFilePath, uiState.error) {
+    LaunchedEffect(videoId, uiState.isLoading, uiState.audioStream, uiState.localFilePath, uiState.error) {
         if (uiState.isLoading || uiState.error != null || uiState.isRestoredSession) return@LaunchedEffect
-        if (uiState.streamInfo == null && uiState.localFilePath == null) return@LaunchedEffect
+        if (uiState.audioStream == null && uiState.localFilePath == null) return@LaunchedEffect
 
         delay(STARTUP_RECOVERY_DELAY_MS)
 

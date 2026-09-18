@@ -724,9 +724,8 @@ private fun TvDescriptionPanelContent(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val description =
-        uiState.streamInfo
+        uiState.cachedVideo
             ?.description
-            ?.content
             .orEmpty()
     // Mobile's formatter: strips/styles HTML, highlights links and timestamps.
     val formattedDescription = remember(description) { parseHtmlDescription(description) }

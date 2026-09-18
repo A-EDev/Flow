@@ -3,11 +3,6 @@ package io.github.aedev.flow.player.stream
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
-import kotlinx.coroutines.Deferred
-import org.schabi.newpipe.extractor.stream.StreamInfo
-
-/** The NewPipe leg's outcome: the info it produced, or the last error that stopped it producing one. */
-typealias NewPipeOutcome = Pair<StreamInfo?, Throwable?>
 
 /** Everything [PlaybackLoadResolver] needs that the player screen owns. */
 data class PlaybackResolutionRequest(
@@ -36,30 +31,16 @@ enum class PlaybackFailure {
  * One thing the player screen can act on, handed over in the order the pipeline produces it.
  *
  * A single resolution emits one step in the common case and two when a downloaded copy starts
- * playing before the network legs finish, or when NewPipe metadata lands before the merged result
- * is assembled. The screen owns every `_uiState` write and every hand-off to the player manager;
- * this type carries only the values those need.
+ * playing before the network leg finishes. The screen owns every `_uiState` write and every
+ * hand-off to the player manager; this type carries only the values those need.
  */
 sealed interface ResolvedPlayback {
-    /**
-     * NewPipe returned metadata for the video that is loading. Emitted before the merged result is
-     * assembled so the session identity and the media notification are armed at the same point in
-     * the load as they were before the pipeline moved out of the ViewModel.
-     */
-    data class PrimaryMetadata(
-        val streamInfo: StreamInfo,
-    ) : ResolvedPlayback
-
-    /**
-     * A downloaded copy of the video exists and should start playing now.
-     *
-     * [clearStreamInfo] is set only on the give-up path, where a partially applied stream result
-     * may still be on screen.
-     */
+    /** A downloaded copy of the video exists and should start playing now. */
     data class LocalCopyReady(
         val localFilePath: String,
         val offlineSegments: List<SponsorBlockSegment>?,
-        val clearStreamInfo: Boolean = false,
+        /** The download was saved before SponsorBlock data was, so it is worth fetching once. */
+        val needsSponsorBlockBackfill: Boolean = false,
     ) : ResolvedPlayback
 
     /**
@@ -81,37 +62,21 @@ sealed interface ResolvedPlayback {
         val relatedVideos: List<Video>,
     ) : ResolvedPlayback
 
-    /** NewPipe and InnerTube merged into one playable result. */
-    data class Merged(
-        val streamInfo: StreamInfo,
-        val streams: MergedPlayback,
-        val relatedVideos: List<Video>,
-        val savedPositionMs: Long,
-        val autoplayEnabled: Boolean,
-        val offlineSegments: List<SponsorBlockSegment>?,
-        val sponsorBlockBackfillNeeded: Boolean,
-        val isUpcomingContent: Boolean,
-        val upcomingReleaseTimeMs: Long?,
-        val resumeOverrideRequested: Boolean,
-    ) : ResolvedPlayback
-
-    /** A live stream whose manifest only InnerTube produced. */
+    /** A live stream, from the manifest InnerTube produced. */
     data class Live(
         val result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
         val relatedVideos: List<Video>,
-        val lateStreamInfo: Deferred<NewPipeOutcome>?,
     ) : ResolvedPlayback
 
-    /** A VOD whose streams only InnerTube produced, optionally ahead of NewPipe's metadata. */
+    /** A VOD, from the streams InnerTube produced. */
     data class VodFromInnerTube(
         val result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
         val relatedVideos: List<Video>,
         val preferredQuality: VideoQuality,
         val preferredAudioLanguage: String,
         val preferredCodecKey: String,
+        val preferredSubtitleLanguage: String,
         val resumePositionOverrideMs: Long?,
-        val lateStreamInfo: Deferred<NewPipeOutcome>?,
-        val streamError: Throwable?,
     ) : ResolvedPlayback
 
     /** The video has not premiered yet, so the screen shows a countdown rather than an error. */

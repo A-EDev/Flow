@@ -116,13 +116,13 @@ class VideoPlayerViewModelEntryPointsTest {
 
             advanceUntilIdle()
             assertThat(viewModel.uiState.value.resumedInMiniPlayer).isTrue()
-            coVerify(exactly = 3) { harness.repository.getVideoStreamInfo("hist_1") }
+            coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("hist_1", forceSabr = false) }
 
             viewModel.clearResumedInMiniPlayer()
             assertThat(viewModel.uiState.value.resumedInMiniPlayer).isFalse()
 
             viewModel.resumeRestoredSession()
-            coVerify(exactly = 3) { harness.repository.getVideoStreamInfo("hist_1") }
+            coVerify(exactly = 1) { InnerTubeVideoStreamExtractor.extract("hist_1", forceSabr = false) }
         }
 
     @Test

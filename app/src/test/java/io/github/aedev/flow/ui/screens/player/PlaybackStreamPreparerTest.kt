@@ -8,6 +8,7 @@ import io.github.aedev.flow.innertube.models.Thumbnail
 import io.github.aedev.flow.innertube.models.Thumbnails
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import org.junit.Test
@@ -138,6 +139,43 @@ class PlaybackStreamPreparerTest {
         assertThat(identity.enrichedVideo.duration).isEqualTo(0)
     }
 
+    @Test
+    fun `creator keywords become engine topic tags`() {
+        val identity =
+            preparer.assembleVod(VIDEO_ID, cached = null, step = vodStep(keywords = listOf("storage", "backup"))).identity
+
+        assertThat(identity.enrichedVideo.tags).containsExactly("storage", "backup").inOrder()
+    }
+
+    @Test
+    fun `the category joins the tags when the client returned a microformat`() {
+        val identity =
+            preparer
+                .assembleVod(
+                    VIDEO_ID,
+                    cached = null,
+                    step = vodStep(keywords = listOf("storage"), category = "Science & Technology"),
+                ).identity
+
+        assertThat(identity.enrichedVideo.tags).containsExactly("storage", "Science & Technology").inOrder()
+    }
+
+    @Test
+    fun `a response without a microformat contributes no category`() {
+        val identity = preparer.assembleVod(VIDEO_ID, cached = null, step = vodStep(keywords = listOf("storage"))).identity
+
+        assertThat(identity.enrichedVideo.tags).containsExactly("storage")
+    }
+
+    @Test
+    fun `cached tags are kept when the response carries none`() {
+        val cached = cachedVideo().copy(tags = listOf("remembered"))
+
+        val identity = preparer.assembleVod(VIDEO_ID, cached, vodStep()).identity
+
+        assertThat(identity.enrichedVideo.tags).containsExactly("remembered")
+    }
+
     private fun cachedVideo(): Video =
         Video(
             id = VIDEO_ID,
@@ -157,16 +195,20 @@ class PlaybackStreamPreparerTest {
         channelId: String = "UC_innertube",
         lengthSeconds: String = "300",
         thumbnailUrl: String? = "https://example.invalid/innertube.jpg",
+        keywords: List<String>? = null,
+        category: String? = null,
     ): ResolvedPlayback.VodFromInnerTube =
         ResolvedPlayback.VodFromInnerTube(
-            result = extraction(playerResponse(title, author, channelId, lengthSeconds, thumbnailUrl)),
+            result =
+                extraction(
+                    playerResponse(title, author, channelId, lengthSeconds, thumbnailUrl, keywords, category),
+                ),
             relatedVideos = emptyList(),
             preferredQuality = preferredQuality,
             preferredAudioLanguage = "original",
             preferredCodecKey = "auto",
+            preferredSubtitleLanguage = CaptionTrackResolver.NO_PREFERRED_LANGUAGE,
             resumePositionOverrideMs = null,
-            lateStreamInfo = null,
-            streamError = null,
         )
 
     private fun extraction(
@@ -192,6 +234,8 @@ class PlaybackStreamPreparerTest {
         channelId: String,
         lengthSeconds: String,
         thumbnailUrl: String?,
+        keywords: List<String>? = null,
+        category: String? = null,
     ): PlayerResponse =
         PlayerResponse(
             responseContext = ResponseContext(visitorData = null, serviceTrackingParams = null),
@@ -206,8 +250,15 @@ class PlaybackStreamPreparerTest {
                     channelId = channelId,
                     lengthSeconds = lengthSeconds,
                     thumbnail = thumbnailUrl?.let { Thumbnails(listOf(Thumbnail(url = it, width = 1280, height = 720))) },
+                    keywords = keywords,
                 ),
             playbackTracking = null,
+            microformat =
+                category?.let {
+                    PlayerResponse.Microformat(
+                        playerMicroformatRenderer = PlayerResponse.Microformat.PlayerMicroformatRenderer(category = it),
+                    )
+                },
         )
 
     private companion object {

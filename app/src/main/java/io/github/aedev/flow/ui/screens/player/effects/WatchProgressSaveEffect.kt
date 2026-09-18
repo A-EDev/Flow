@@ -10,7 +10,7 @@ import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.delay
 import org.schabi.newpipe.extractor.stream.StreamType
 
-internal fun VideoPlayerUiState.isCurrentLiveStream(): Boolean = streamInfo?.streamType == StreamType.LIVE_STREAM || !hlsUrl.isNullOrEmpty()
+internal fun VideoPlayerUiState.isCurrentLiveStream(): Boolean = !hlsUrl.isNullOrEmpty()
 
 internal data class WatchHistoryEntry(
     val videoId: String,
@@ -54,8 +54,7 @@ internal fun buildWatchHistoryEntry(
     duration: Long,
 ): WatchHistoryEntry? {
     if (uiState.isCurrentLiveStream() || duration <= 0L) return null
-    val streamInfo = uiState.streamInfo
-    val title = streamInfo?.name ?: video.title
+    val title = video.title
     if (title.isEmpty()) return null
 
     return WatchHistoryEntry(
@@ -64,11 +63,10 @@ internal fun buildWatchHistoryEntry(
         duration = duration,
         title = title,
         thumbnailUrl =
-            streamInfo?.bestThumbnailUrl
-                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
+            video.thumbnailUrl.takeIf { it.isNotEmpty() }
                 ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(video.id),
-        channelName = resolveHistoryChannelName(video, streamInfo?.uploaderName),
-        channelId = streamInfo?.uploaderChannelId ?: video.channelId,
+        channelName = resolveHistoryChannelName(video, null),
+        channelId = video.channelId,
         isShort = video.isShort,
     )
 }

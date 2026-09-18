@@ -74,7 +74,7 @@ class PlayerSecondaryMetadataLoaderTest {
             currentState = { uiState },
             relatedVideosFor = { videoId ->
                 uiState
-                    .takeIf { it.cachedVideo?.id == videoId || it.streamInfo?.id == videoId }
+                    .takeIf { it.cachedVideo?.id == videoId }
                     ?.relatedVideos
                     .orEmpty()
             },

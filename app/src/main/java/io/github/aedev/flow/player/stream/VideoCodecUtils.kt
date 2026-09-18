@@ -197,11 +197,6 @@ object VideoCodecUtils {
         fps: Int,
     ): String = if (fps >= HIGH_FRAME_RATE_FPS) "${height}p$fps" else "${height}p"
 
-    fun qualityLabelFromStream(stream: VideoStream): String =
-        stream.resolution
-            .takeIf { it.isNotBlank() && it != VideoStream.RESOLUTION_UNKNOWN }
-            ?: "${qualityHeightFromStream(stream)}p"
-
     fun playbackCodecRank(stream: VideoStream): Int = playbackCodecRank(codecKeyFromStream(stream))
 
     fun playbackCodecRank(codecKey: String): Int =

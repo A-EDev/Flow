@@ -90,9 +90,9 @@ internal fun VideoInfoContent(
     VideoInfoSection(
         video = video,
         title = resolvedVideoTitle,
-        viewCount = uiState.streamInfo?.viewCount ?: video.viewCount,
+        viewCount = video.viewCount,
         uploadDate = streamUploadDate ?: video.uploadDate,
-        description = uiState.streamInfo?.description?.content ?: video.description,
+        description = video.description,
         isUpcoming = uiState.isUpcoming,
         channelName = resolvedChannelName,
         channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
@@ -102,11 +102,10 @@ internal fun VideoInfoContent(
         isSubscribed = uiState.isSubscribed,
         isNotificationsEnabled = uiState.isNotificationsEnabled,
         likeState = uiState.likeState ?: "NONE",
-        likeCount = uiState.streamInfo?.likeCount ?: video.likeCount,
+        likeCount = video.likeCount,
         dislikeCount = uiState.dislikeCount,
         onLikeClick = {
-            val streamInfo = uiState.streamInfo
-            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
+            val thumbnailUrl = video.thumbnailUrl
 
             when (uiState.likeState) {
                 "LIKED" -> {
@@ -118,7 +117,7 @@ internal fun VideoInfoContent(
                         video.id,
                         resolvedVideoTitle,
                         thumbnailUrl,
-                        streamInfo?.uploaderName ?: video.channelName,
+                        video.channelName,
                     )
                 }
             }
@@ -130,64 +129,46 @@ internal fun VideoInfoContent(
             }
         },
         onSubscribeClick = {
-            uiState.streamInfo?.let { streamInfo ->
-                val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-                val channelNameSafe = streamInfo.uploaderName ?: video.channelName
-                // Use the fetched channel avatar URL if available, otherwise fallback to existing video thumbnail as last resort
-                // but checking for uploaderUrl is wrong as it is a web link.
-                val channelThumbSafe =
-                    uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() }
-                        ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
-                        ?: ""
+            val channelThumbSafe =
+                uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() }
+                    ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
+                    ?: ""
 
-                viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
+            viewModel.toggleSubscription(video.channelId, video.channelName, channelThumbSafe)
 
-                scope.launch {
-                    val message =
-                        if (uiState.isSubscribed) {
-                            context.getString(R.string.unsubscribed_from, channelNameSafe)
-                        } else {
-                            context.getString(R.string.subscribed_to, channelNameSafe)
-                        }
-
-                    val result =
-                        snackbarHostState.showSnackbar(
-                            message,
-                            actionLabel = if (uiState.isSubscribed) context.getString(R.string.undo) else null,
-                        )
-
-                    if (result == SnackbarResult.ActionPerformed && uiState.isSubscribed) {
-                        viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
+            scope.launch {
+                val message =
+                    if (uiState.isSubscribed) {
+                        context.getString(R.string.unsubscribed_from, video.channelName)
+                    } else {
+                        context.getString(R.string.subscribed_to, video.channelName)
                     }
+
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message,
+                        actionLabel = if (uiState.isSubscribed) context.getString(R.string.undo) else null,
+                    )
+
+                if (result == SnackbarResult.ActionPerformed && uiState.isSubscribed) {
+                    viewModel.toggleSubscription(video.channelId, video.channelName, channelThumbSafe)
                 }
             }
         },
         onUnsubscribeClick = {
-            uiState.streamInfo?.let { streamInfo ->
-                val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-                val channelNameSafe = streamInfo.uploaderName ?: video.channelName
-                val channelThumbSafe =
-                    uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() }
-                        ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
-                        ?: ""
-                viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
-                scope.launch {
-                    snackbarHostState.showSnackbar(
-                        context.getString(R.string.unsubscribed_from, channelNameSafe),
-                    )
-                }
+            val channelThumbSafe =
+                uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() }
+                    ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
+                    ?: ""
+            viewModel.toggleSubscription(video.channelId, video.channelName, channelThumbSafe)
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    context.getString(R.string.unsubscribed_from, video.channelName),
+                )
             }
         },
-        onNotificationChange = { enabled ->
-            val channelIdSafe = uiState.streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-            viewModel.setNotificationEnabled(channelIdSafe, enabled)
-        },
-        onChannelClick = {
-            uiState.streamInfo?.let { streamInfo ->
-                val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-                onChannelClick(channelIdSafe)
-            } ?: onChannelClick(video.channelId)
-        },
+        onNotificationChange = { enabled -> viewModel.setNotificationEnabled(video.channelId, enabled) },
+        onChannelClick = { onChannelClick(video.channelId) },
         onCollaboratorClick = onChannelClick,
         onSaveClick = { showAddToPlaylistDialog = true },
         onShareClick = { shareVideoAction(video.id, resolvedVideoTitle) },

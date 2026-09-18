@@ -29,7 +29,6 @@ import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.ui.components.videoplayer.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
-import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.stage.*
 import io.github.aedev.flow.ui.screens.player.state.*
@@ -88,7 +87,6 @@ fun VideoPlayerHost(
     val screenState = rememberPlayerScreenState()
     val audioSystemInfo = rememberAudioSystemInfo(context)
     val pipPreferences = rememberPipPreferences(context)
-    val completeVideo = rememberCompleteVideo(video, playerUiState)
     val canGoPrevious by playerViewModel.canGoPrevious.collectAsStateWithLifecycle()
     val commentsUiState = rememberPlayerCommentsUiState(playerViewModel)
 
@@ -358,7 +356,7 @@ fun VideoPlayerHost(
 
     // Short video prompt
     ShortVideoPromptEffect(
-        videoDuration = completeVideo.duration,
+        videoDuration = video.duration,
         screenState = screenState,
         isInQueue = playerState.queueSize > 1,
         disableShortsPlayer = prefs.disableShortsPlayer,
@@ -367,7 +365,12 @@ fun VideoPlayerHost(
 
     SponsorSkipEffect(context)
 
-    SubtitleLoadErrorEffect(context, screenState)
+    SubtitleLoadErrorEffect(
+        context = context,
+        screenState = screenState,
+        subtitles = playerState.availableSubtitles,
+        rememberLanguage = rememberSubtitleLanguage,
+    )
 
     OrientationListenerEffect(
         context = context,
@@ -587,7 +590,7 @@ fun VideoPlayerHost(
 
             VideoPlayerDialogs(
                 session = stageSession,
-                completeVideo = completeVideo,
+                completeVideo = video,
                 mediaSheetHeights = mediaSheetHeights,
                 onMediaSheetProgressChange = mediaSheetGeometry.onProgressChange,
                 canUseFullscreenSidePanel = canUseFullscreenSidePanel,

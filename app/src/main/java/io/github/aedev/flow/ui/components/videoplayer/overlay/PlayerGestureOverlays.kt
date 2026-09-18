@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.GestureOverlayStyle
@@ -27,6 +29,12 @@ fun PlayerGestureOverlays(
         Box(modifier = modifier.fillMaxSize()) {
             val isFullscreen = screenState.isFullscreen
             val isVertical = style == GestureOverlayStyle.VERTICAL
+            val edgeInset = HudSideInset + cutoutEdgeInset(isFullscreen)
+            val topInset = HudTopInset + cutoutTopInset(screenState.isFullscreenPortrait)
+            val centredAlignment = centredHudAlignment(style)
+            // Only a read-out that actually sits on the top edge clears the punch-hole. The ring
+            // reads out in the middle of the picture, nowhere near it.
+            val centredTopInset = if (centredAlignment == Alignment.TopCenter) topInset else HudTopInset
 
             SeekAnimationOverlay(
                 showSeekBack = screenState.showSeekBackAnimation,
@@ -46,13 +54,11 @@ fun PlayerGestureOverlays(
                     if (isVertical) {
                         Modifier
                             .align(Alignment.CenterEnd)
-                            .hudInsets(isFullscreen)
-                            .padding(horizontal = HudSideInset)
+                            .padding(horizontal = edgeInset)
                     } else {
                         Modifier
-                            .align(Alignment.TopCenter)
-                            .hudInsets(isFullscreen)
-                            .padding(top = HudTopInset)
+                            .align(centredAlignment)
+                            .padding(top = centredTopInset)
                     },
             )
 
@@ -65,13 +71,11 @@ fun PlayerGestureOverlays(
                     if (isVertical) {
                         Modifier
                             .align(Alignment.CenterStart)
-                            .hudInsets(isFullscreen)
-                            .padding(horizontal = HudSideInset)
+                            .padding(horizontal = edgeInset)
                     } else {
                         Modifier
-                            .align(Alignment.TopCenter)
-                            .hudInsets(isFullscreen)
-                            .padding(top = HudTopInset)
+                            .align(centredAlignment)
+                            .padding(top = centredTopInset)
                     },
             )
 
@@ -88,17 +92,30 @@ fun PlayerGestureOverlays(
                 modifier =
                     Modifier
                         .align(Alignment.TopCenter)
-                        .hudInsets(isFullscreen)
-                        .padding(top = HudTopInset),
+                        .padding(top = topInset),
             )
         }
     }
 }
 
-/**
- * Keeps a read-out clear of the display cutout. In landscape fullscreen the punch-hole sits on one
- * of the long edges, which is exactly where the standing bar wants to be.
- */
+/** The ring is a badge, not a bar: it belongs in the middle of the picture, where the eye is. */
+private fun centredHudAlignment(style: GestureOverlayStyle): Alignment =
+    if (style == GestureOverlayStyle.CIRCULAR) Alignment.Center else Alignment.TopCenter
+
 @Composable
-private fun Modifier.hudInsets(isFullscreen: Boolean): Modifier =
-    if (isFullscreen) this.windowInsetsPadding(WindowInsets.displayCutout) else this
+internal fun cutoutTopInset(isFullscreenPortrait: Boolean): Dp {
+    if (!isFullscreenPortrait) return 0.dp
+    val density = LocalDensity.current
+    return with(density) { WindowInsets.displayCutout.getTop(this).toDp() }
+}
+
+@Composable
+private fun cutoutEdgeInset(isFullscreen: Boolean): Dp {
+    if (!isFullscreen) return 0.dp
+    val density = LocalDensity.current
+    val direction = LocalLayoutDirection.current
+    val cutout = WindowInsets.displayCutout
+    return with(density) {
+        maxOf(cutout.getLeft(this, direction), cutout.getRight(this, direction)).toDp()
+    }
+}

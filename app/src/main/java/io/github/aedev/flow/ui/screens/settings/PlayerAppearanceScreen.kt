@@ -44,6 +44,7 @@ import io.github.aedev.flow.data.local.MAX_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.ScrubPreviewStyle
 import io.github.aedev.flow.data.local.SeekbarPaddingMode
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.local.SliderStyle
@@ -129,10 +130,17 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
             defaultPaddingDp = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP,
             maxPaddingDp = MAX_FULLSCREEN_SEEKBAR_PADDING_DP,
         )
+    val scrubPreviewStyle by playerPreferences.scrubPreviewStyle.collectAsState(
+        initial = overlayDefaults.scrubPreviewStyle,
+    )
+    val frameStepButtonsEnabled by playerPreferences.frameStepButtonsEnabled.collectAsState(
+        initial = overlayDefaults.frameStepButtonsEnabled,
+    )
 
     var showStyleSheet by remember { mutableStateOf(false) }
     var showBackgroundStyleSheet by remember { mutableStateOf(false) }
     var showLongPressSpeedDialog by remember { mutableStateOf(false) }
+    var showGestureStyleSheet by remember { mutableStateOf(false) }
 
     if (showStyleSheet) {
         ModalBottomSheet(
@@ -212,6 +220,18 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (showGestureStyleSheet) {
+        GestureOverlayStyleSheet(
+            selected = gestureOverlayStyle,
+            onSelected = { style ->
+                coroutineScope.launch {
+                    playerPreferences.setGestureOverlayStyle(style)
+                }
+            },
+            onDismiss = { showGestureStyleSheet = false },
+        )
     }
 
     if (showBackgroundStyleSheet) {
@@ -348,6 +368,33 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         onCustomPaddingChange = { paddingDp ->
                             coroutineScope.launch {
                                 playerPreferences.setPortraitSeekbarCustomPaddingDp(paddingDp)
+                            }
+                        },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+                    ScrubPreviewStyleItem(
+                        selectedStyle = scrubPreviewStyle,
+                        onStyleSelected = { style ->
+                            coroutineScope.launch {
+                                playerPreferences.setScrubPreviewStyle(style)
+                            }
+                        },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_progress_bar_style),
+                        title = stringResource(R.string.player_appearance_frame_step_title),
+                        subtitle = stringResource(R.string.player_appearance_frame_step_subtitle),
+                        checked = frameStepButtonsEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setFrameStepButtonsEnabled(enabled)
                             }
                         },
                     )
@@ -541,13 +588,11 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
 
-                    GestureOverlayStyleItem(
-                        selected = gestureOverlayStyle,
-                        onSelected = { style ->
-                            coroutineScope.launch {
-                                playerPreferences.setGestureOverlayStyle(style)
-                            }
-                        },
+                    SettingsItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_gesture_overlay_title),
+                        subtitle = stringResource(gestureOverlayStyleLabelRes(gestureOverlayStyle)),
+                        onClick = { showGestureStyleSheet = true },
                     )
 
                     HorizontalDivider(
@@ -858,16 +903,14 @@ fun SettingsItem(
  * the part of the frame the user is adjusting, so the bar and text forms are offered alongside it.
  */
 @Composable
-private fun GestureOverlayStyleItem(
-    selected: GestureOverlayStyle,
-    onSelected: (GestureOverlayStyle) -> Unit,
+private fun ScrubPreviewStyleItem(
+    selectedStyle: ScrubPreviewStyle,
+    onStyleSelected: (ScrubPreviewStyle) -> Unit,
 ) {
     val options =
         listOf(
-            FlowToggleOption(GestureOverlayStyle.CIRCULAR, stringResource(R.string.gesture_overlay_style_circular)),
-            FlowToggleOption(GestureOverlayStyle.VERTICAL, stringResource(R.string.gesture_overlay_style_vertical)),
-            FlowToggleOption(GestureOverlayStyle.HORIZONTAL, stringResource(R.string.gesture_overlay_style_horizontal)),
-            FlowToggleOption(GestureOverlayStyle.MINIMAL, stringResource(R.string.gesture_overlay_style_minimal)),
+            FlowToggleOption(ScrubPreviewStyle.STRIP, stringResource(R.string.player_appearance_scrub_preview_strip)),
+            FlowToggleOption(ScrubPreviewStyle.FRAME, stringResource(R.string.player_appearance_scrub_preview_frame)),
         )
 
     Row(
@@ -878,7 +921,7 @@ private fun GestureOverlayStyleItem(
         verticalAlignment = Alignment.Top,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_swipe_gesture),
+            painter = painterResource(R.drawable.ic_progress_bar_style),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier =
@@ -889,11 +932,11 @@ private fun GestureOverlayStyleItem(
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.player_appearance_gesture_overlay_title),
+                text = stringResource(R.string.player_appearance_scrub_preview_title),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(
-                text = stringResource(R.string.player_appearance_gesture_overlay_subtitle),
+                text = stringResource(R.string.player_appearance_scrub_preview_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -902,8 +945,8 @@ private fun GestureOverlayStyleItem(
 
             FlowConnectedToggleGroup(
                 options = options,
-                selected = selected,
-                onSelected = onSelected,
+                selected = selectedStyle,
+                onSelected = onStyleSelected,
             )
         }
     }

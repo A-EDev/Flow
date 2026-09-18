@@ -33,19 +33,6 @@ class WatchHistoryEntryTest {
             isShort = isShort,
         )
 
-    private fun streamInfo(
-        name: String = "Extracted title",
-        uploaderName: String? = "Extracted channel",
-        uploaderUrl: String? = "https://www.youtube.com/channel/extracted_channel",
-        streamType: StreamType = StreamType.VIDEO_STREAM,
-        thumbnails: List<Image> = emptyList(),
-    ): StreamInfo =
-        StreamInfo(0, "https://example.invalid/watch", "https://example.invalid/watch", streamType, "vid_1", name, 0).apply {
-            setUploaderName(uploaderName)
-            setUploaderUrl(uploaderUrl)
-            setThumbnails(thumbnails)
-        }
-
     private fun image(
         url: String,
         height: Int,
@@ -59,50 +46,16 @@ class WatchHistoryEntryTest {
     ) = buildWatchHistoryEntry(video, uiState, position, duration)
 
     @Test
-    fun `an extracted stream wins over the cached video for title channel and thumbnail`() {
-        val result =
-            entry(
-                VideoPlayerUiState(
-                    streamInfo =
-                        streamInfo(
-                            thumbnails =
-                                listOf(
-                                    image("https://example.invalid/small.jpg", 90),
-                                    image("https://example.invalid/big.jpg", 720),
-                                ),
-                        ),
-                ),
-            )
-
-        assertThat(result).isNotNull()
-        assertThat(result!!.title).isEqualTo("Extracted title")
-        assertThat(result.channelName).isEqualTo("Extracted channel")
-        assertThat(result.channelId).isEqualTo("extracted_channel")
-        assertThat(result.thumbnailUrl).isEqualTo("https://example.invalid/big.jpg")
-        assertThat(result.videoId).isEqualTo("vid_1")
-        assertThat(result.position).isEqualTo(30_000L)
-        assertThat(result.duration).isEqualTo(120_000L)
-        assertThat(result.isShort).isFalse()
-    }
-
-    @Test
-    fun `a collaboration keeps the cached channel name over the extracted one`() {
+    fun `a collaboration keeps the cached channel name`() {
         listOf("Alice and Bob", "Alice & Bob", "Alice x Bob", "Alice with Bob").forEach { cached ->
-            val result = entry(VideoPlayerUiState(streamInfo = streamInfo()), video = video(channelName = cached))
+            val result = entry(VideoPlayerUiState(), video = video(channelName = cached))
 
             assertThat(result!!.channelName).isEqualTo(cached)
         }
     }
 
     @Test
-    fun `a blank extracted channel name falls back to the cached one`() {
-        val result = entry(VideoPlayerUiState(streamInfo = streamInfo(uploaderName = "   ")), video = video(channelName = "Solo"))
-
-        assertThat(result!!.channelName).isEqualTo("Solo")
-    }
-
-    @Test
-    fun `no stream info at all falls back to the cached video everywhere`() {
+    fun `the entry is built from the cached video everywhere`() {
         val result = entry(VideoPlayerUiState())
 
         assertThat(result!!.title).isEqualTo("Cached title")
@@ -120,7 +73,6 @@ class WatchHistoryEntryTest {
 
     @Test
     fun `a live stream is never written`() {
-        assertThat(entry(VideoPlayerUiState(streamInfo = streamInfo(streamType = StreamType.LIVE_STREAM)))).isNull()
         assertThat(entry(VideoPlayerUiState(hlsUrl = "https://example.invalid/manifest.m3u8"))).isNull()
     }
 

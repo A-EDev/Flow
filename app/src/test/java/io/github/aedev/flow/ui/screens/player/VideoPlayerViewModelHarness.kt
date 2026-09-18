@@ -30,6 +30,7 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.PlaybackLoadResolver
 import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
@@ -153,6 +154,7 @@ internal class VideoPlayerViewModelHarness(
         every { playerPreferences.defaultQualityWifi } returns flowOf(VideoQuality.AUTO)
         every { playerPreferences.defaultQualityCellular } returns flowOf(VideoQuality.AUTO)
         every { playerPreferences.preferredAudioLanguage } returns flowOf("original")
+        every { playerPreferences.preferredSubtitleLanguage } returns flowOf(CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
         every { playerPreferences.videoCodecPriority } returns flowOf("auto")
         every { playerPreferences.rememberPlaybackSpeed } returns flowOf(false)
         every { playerPreferences.playbackSpeed } returns flowOf(1f)
@@ -165,8 +167,6 @@ internal class VideoPlayerViewModelHarness(
         coEvery { videoDownloadManager.getSponsorBlockData(any()) } returns null
         coEvery { offlineSubtitleStore.load(any()) } returns emptyList()
 
-        coEvery { repository.getVideoStreamInfo(any()) } throws RuntimeException("newpipe unavailable")
-        every { repository.getRelatedVideosFromStreamInfo(any()) } returns emptyList()
         coEvery { repository.getComments(any()) } returns (emptyList<Comment>() to null as Page?)
         coEvery { repository.getVideoComments(any(), any()) } returns CommentsPageResult.EMPTY
 

@@ -337,8 +337,8 @@ fun TvPlayerScreen(
         }
     }
 
-    val title = uiState.streamInfo?.name?.takeIf { it.isNotBlank() } ?: video.title
-    val channelName = uiState.streamInfo?.uploaderName?.takeIf { it.isNotBlank() } ?: video.channelName
+    val title = video.title
+    val channelName = video.channelName
 
     Box(
         modifier =

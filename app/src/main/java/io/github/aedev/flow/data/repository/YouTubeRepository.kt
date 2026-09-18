@@ -12,6 +12,10 @@ import io.github.aedev.flow.data.shorts.ChannelReelIndex
 import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
+import io.github.aedev.flow.innertube.models.response.VideoChapter
+import io.github.aedev.flow.innertube.models.response.VideoChaptersParser
+import io.github.aedev.flow.innertube.models.response.VideoHeatmap
+import io.github.aedev.flow.innertube.models.response.VideoHeatmapParser
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
@@ -23,6 +27,7 @@ import io.github.aedev.flow.utils.bestImageUrl
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.newPipeContentCountry
 import io.github.aedev.flow.utils.newPipeLocalization
+import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import io.github.aedev.flow.utils.parseToTimestamp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -36,12 +41,13 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem
-import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.kiosk.KioskExtractor
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.stream.ContentAvailability
@@ -70,6 +76,15 @@ class YouTubeRepository
             InFlightRequestCoalescer<String, JsonElement?>(
                 CoroutineScope(SupervisorJob() + Dispatchers.IO),
             )
+
+        private val videoCategoryCoalescer =
+            InFlightRequestCoalescer<String, String?>(
+                CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            )
+
+        // A category never changes, so this is a plain memo rather than a short player-side cache:
+        // the value is worth keeping for every video the engine has already learned from.
+        private val videoCategoryCache = VideoCategoryMemo(VIDEO_CATEGORY_CACHE_SIZE)
 
         // The comment section, the attributed description and the related lane all read one watch
         // response, so it is fetched once per video and held for the few videos in play.
@@ -1025,6 +1040,88 @@ class YouTubeRepository
             }
         }
 
+        // Read-only by design: the cache is three deep and holds what the player is working with,
+        // so the feed-side callers below reuse an entry but never evict one by populating it.
+        private fun cachedWatchMetadata(videoId: String): WatchMetadataResponse? = watchNextCache.get(videoId)?.let(::decodeWatchMetadata)
+
+        /**
+         * The typed watch response, off the one request the player already makes.
+         *
+         * [watchNextResponse] is cached and coalesced; [YouTube.watchMetadata] is neither, and
+         * issues its own `/next` (sometimes two). Reaching for that one directly on a cache miss is
+         * what had a single load fetching the watch page up to three times, once per consumer, none
+         * of them seeding the cache for the next.
+         */
+        private suspend fun watchMetadataFor(
+            videoId: String,
+            requireRelated: Boolean = false,
+        ): WatchMetadataResponse? {
+            cachedWatchMetadata(videoId)?.let { return it }
+            val shared = watchNextResponse(videoId)?.let(::decodeWatchMetadata)
+            // [YouTube.watchMetadata] retries against the other host when the lane comes back
+            // empty, so a caller that needs one still gets that second chance.
+            if (shared != null && (!requireRelated || shared.relatedVideos().isNotEmpty())) return shared
+            return YouTube.watchMetadata(videoId).getOrNull() ?: shared
+        }
+
+        /** Seeds [videoCategory] when a player response happened to carry the category already. */
+        fun rememberVideoCategory(
+            videoId: String,
+            category: String,
+        ) {
+            videoCategoryCache.remember(videoId, category)
+        }
+
+        /**
+         * The creator-declared category for [videoId], e.g. "Science & Technology".
+         *
+         * Costs one small MWEB request, because no client that serves playable URLs returns a
+         * microformat and /next carries no category at all. Cached for the process: it is a strong,
+         * stable clustering signal for the recommendation engine and never changes.
+         */
+        suspend fun videoCategory(videoId: String): String? {
+            if (videoId.isBlank()) return null
+            videoCategoryCache.cached(videoId)?.let { return it }
+            return videoCategoryCoalescer.run(videoId) {
+                YouTube
+                    .videoCategory(videoId)
+                    .getOrNull()
+                    ?.also { videoCategoryCache.remember(videoId, it) }
+            }
+        }
+
+        /**
+         * The rewatch curve for [videoId], or null when the video has none.
+         *
+         * Free: it rides the watch response the description and comments already fetch. Plenty of
+         * videos have no heatmap — too new, too few views, or live — so null is ordinary.
+         */
+        suspend fun videoHeatmap(videoId: String): VideoHeatmap? =
+            withContext(Dispatchers.IO) {
+                VideoHeatmapParser.parse(watchNextResponse(videoId))
+            }
+
+        /**
+         * [video] filled in from the watch response: exact view and like counts, the upload date and
+         * the real description.
+         *
+         * Read from the cached response where there is one, so the enrichment that used to ride on a
+         * second extraction now costs nothing on top of the lane fetch.
+         */
+        suspend fun enrichFromWatchMetadata(video: Video): Video? =
+            withContext(Dispatchers.IO) {
+                val response =
+                    watchMetadataFor(video.id)
+                        ?: return@withContext null
+                mergeWatchMetadata(video, response)
+            }
+
+        /** The creator's chapters for [videoId], empty when the video has none. */
+        suspend fun videoChapters(videoId: String): List<VideoChapter> =
+            withContext(Dispatchers.IO) {
+                VideoChaptersParser.parse(watchNextResponse(videoId))
+            }
+
         /** The watch page description for [videoId], or null when the response could not be read. */
         suspend fun getVideoDescription(videoId: String): VideoDescriptionPage? =
             withContext(Dispatchers.IO) {
@@ -1303,7 +1400,9 @@ class YouTubeRepository
 
         suspend fun getLiveWatchMetadata(videoId: String): LiveWatchMetadata? =
             withContext(Dispatchers.IO) {
-                val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext null
+                val resp =
+                    watchMetadataFor(videoId, requireRelated = true)
+                        ?: return@withContext null
                 val related = WatchMetadataVideoMapper.relatedVideos(resp)
                 Log.i(
                     TAG,
@@ -1325,7 +1424,9 @@ class YouTubeRepository
         /** Light related-video harvest for the feed (InnerTube /next, no stream resolution). */
         suspend fun getRelatedCandidates(videoId: String): List<Video> =
             withContext(Dispatchers.IO) {
-                val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext emptyList()
+                val resp =
+                    watchMetadataFor(videoId, requireRelated = true)
+                        ?: return@withContext emptyList()
                 enrichLikelyCollabAvatarStacks(WatchMetadataVideoMapper.relatedVideos(resp))
                     .filter { it.id.isNotBlank() && it.id != videoId }
                     .distinctBy { it.id }
@@ -1674,6 +1775,7 @@ class YouTubeRepository
             private const val COMMENT_AVATAR_FETCH_TIMEOUT_MS = 6_000L
             private const val REEL_INDEX_TIMEOUT_MS = 3_000L
             private const val WATCH_NEXT_CACHE_SIZE = 3
+            private const val VIDEO_CATEGORY_CACHE_SIZE = 500
 
             @Volatile
             private var instance: YouTubeRepository? = null
@@ -1704,13 +1806,19 @@ internal fun mergeWatchMetadata(
     response: WatchMetadataResponse,
 ): Video? {
     val uploadDate = response.uploadDate()?.takeIf { it.isNotBlank() } ?: return null
-    val timestamp = parseToTimestamp(uploadDate) ?: video.timestamp
+    // The relative form first: the absolute one is a date with no time, so on its own it places
+    // every upload at midnight and reads back as however long the day has been running.
+    val timestamp =
+        response.relativeUploadDate()?.let { parseRelativeToTimestamp(it) }
+            ?: parseToTimestamp(uploadDate)
+            ?: video.timestamp
     val avatarUrl = response.channelAvatarUrl().orEmpty().ifBlank { video.channelThumbnailUrl }
     return video.copy(
         title = response.title().orEmpty().ifBlank { video.title },
         channelName = response.channelName().orEmpty().ifBlank { video.channelName },
         channelId = response.channelId().orEmpty().ifBlank { video.channelId },
         viewCount = parseAbbreviatedCount(response.viewCountText()) ?: video.viewCount,
+        likeCount = parseAbbreviatedCount(response.likeCountText()) ?: video.likeCount,
         uploadDate = uploadDate,
         timestamp = timestamp,
         description = response.description().orEmpty().ifBlank { video.description },
@@ -1755,6 +1863,39 @@ internal fun String?.isLiveViewCountText(): Boolean {
     return lower.contains("watching") || lower.contains("viewer")
 }
 
+/**
+ * Process-lifetime memo for video categories. Separate from the repository so the keep/skip rules
+ * can be exercised without standing one up; a category never changes, so there is no TTL.
+ */
+internal class VideoCategoryMemo(
+    private val maxEntries: Int = 500,
+) {
+    // A plain access-ordered map rather than android.util.LruCache: that one is an Android stub in
+    // a JVM test and silently returns null, which would make these rules untestable.
+    private val entries =
+        object : LinkedHashMap<String, String>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean = size > maxEntries
+        }
+
+    @Synchronized
+    fun cached(videoId: String): String? = videoId.takeIf { it.isNotBlank() }?.let(entries::get)
+
+    @Synchronized
+    fun remember(
+        videoId: String,
+        category: String,
+    ) {
+        if (videoId.isBlank() || category.isBlank()) return
+        entries[videoId] = category
+    }
+}
+
+private val watchMetadataJson = Json { ignoreUnknownKeys = true }
+
+/** The watch response as the typed model, or null when the payload no longer matches it. */
+internal fun decodeWatchMetadata(raw: JsonElement): WatchMetadataResponse? =
+    runCatching { watchMetadataJson.decodeFromJsonElement(WatchMetadataResponse.serializer(), raw) }.getOrNull()
+
 internal object WatchMetadataVideoMapper {
     fun relatedVideos(resp: WatchMetadataResponse): List<Video> =
         resp.relatedVideos().mapNotNull { cv ->
@@ -1770,6 +1911,8 @@ internal object WatchMetadataVideoMapper {
                 thumbnailUrl =
                     cv.thumbnail?.bestUrl()?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(id, it) }
                         ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
+                channelThumbnailUrl =
+                    cv.channelAvatarUrl?.let(ThumbnailUrlResolver::resolveChannelAvatar).orEmpty(),
                 duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
                 viewCount = parseAbbreviatedCount(viewText) ?: 0L,
                 uploadDate = uploadDateText,

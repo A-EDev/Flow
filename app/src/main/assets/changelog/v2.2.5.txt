@@ -12,6 +12,10 @@ NEW FEATURES
 - The video player is now adaptive: a supporting pane and navigation rail on wide screens, with the description, chapters, comments and settings served in the pane or a fullscreen drawer
 - Player comments and descriptions now come from InnerTube, and every player surface moves to Material 3 Expressive
 - Portrait fullscreen is rebuilt around the video with the title and channel above it, reached the same way by swipe or by the fullscreen button, and the volume and brightness read-outs can now be circular, vertical, a bar, or just the number
+- Scrubbing the seek bar now previews the moment under your thumb, as a sliding filmstrip or a single frame — your choice in Player Appearance — with the time, chapter and SponsorBlock segment labelled beside it
+- The seek bar draws the most-replayed curve while you scrub and badges its peak, so the parts everyone rewinds to are visible before you let go
+- Optional frame-by-frame stepping while paused, off by default, and the volume and brightness overlay style is now chosen from a sheet that previews each one
+- The video player resolves every video through the native InnerTube client alone, retiring the second extraction stack it used to race against, and the watch page is now fetched once per video instead of once per consumer
 - One grid layout across Home, Channels and Search: your cards-per-row setting applies everywhere, and rows the grid cannot fill switch to full-width list cards on tablets and foldables
 - A local music taste engine ranks every music shelf and composes Quick Picks, learning the artists you love from how much of each song you actually play — entirely on-device
 - New shelves built from your taste and rendered with no network calls: On Repeat, Rediscover for loved artists you have not played in weeks, a time-of-day rotation, and "From artists you love" for their latest releases

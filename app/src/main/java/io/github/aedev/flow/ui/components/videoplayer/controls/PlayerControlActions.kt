@@ -7,6 +7,7 @@ internal data class PlayerControlActions(
     val onPlayPause: () -> Unit = {},
     val onPrevious: () -> Unit = {},
     val onNext: () -> Unit = {},
+    val onStepFrame: (forward: Boolean) -> Unit = {},
     val onBack: () -> Unit = {},
     val onSettingsClick: () -> Unit = {},
     val onQualityClick: () -> Unit = {},

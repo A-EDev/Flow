@@ -815,6 +815,12 @@
     <string name="player_fullscreen_seekbar_width_default">Default</string>
     <string name="player_fullscreen_seekbar_width_custom">Custom</string>
     <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
+    <string name="player_appearance_scrub_preview_title">Scrub Preview</string>
+    <string name="player_appearance_scrub_preview_subtitle">What the seekbar shows while you drag it</string>
+    <string name="player_appearance_scrub_preview_strip">Filmstrip</string>
+    <string name="player_appearance_scrub_preview_frame">Single frame</string>
+    <string name="player_appearance_frame_step_title">Frame Step Buttons</string>
+    <string name="player_appearance_frame_step_subtitle">Show step-back and step-forward arrows while paused</string>
     <!-- Lyrics Provider -->
     <string name="lyrics_provider_title">Lyrics Provider</string>
     <string name="lyrics_provider_subtitle">Choose your preferred source for song lyrics</string>
@@ -1918,6 +1924,8 @@
     <string name="btn_minimize">Minimize</string>
     <string name="captions">Captions</string>
     <string name="pip_mode">Picture-in-Picture</string>
+    <string name="previous_frame">Previous frame</string>
+    <string name="next_frame">Next frame</string>
     <string name="previous_video">Previous Video</string>
     <string name="next_video">Next Video</string>
     <string name="fullscreen">Fullscreen</string>
@@ -2702,6 +2710,7 @@
     <string name="audio_track_original">Original</string>
     <string name="audio_track_dubbed">Dubbed</string>
     <string name="subtitle_load_failed">Couldn’t load %1$s subtitles — try again</string>
+    <string name="subtitle_translation_unavailable">Translation unavailable — showing %1$s</string>
     <string name="ui_skipped_segment">Skipped %1$s</string>
     <string name="ui_started_download">Started download: %1$s</string>
     <string name="ui_download_start_failed">Download failed to start: %1$s</string>

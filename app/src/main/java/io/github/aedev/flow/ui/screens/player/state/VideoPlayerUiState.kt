@@ -5,6 +5,8 @@ import io.github.aedev.flow.data.model.LiveChatMessage
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.innertube.models.response.VideoHeatmap
+import io.github.aedev.flow.player.stream.StoryboardLevel
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamSegment
@@ -12,7 +14,6 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 
 data class VideoPlayerUiState(
     val cachedVideo: Video? = null,
-    val streamInfo: StreamInfo? = null,
     val relatedVideos: List<Video> = emptyList(),
     val videoStream: VideoStream? = null,
     val audioStream: AudioStream? = null,
@@ -31,6 +32,10 @@ data class VideoPlayerUiState(
     val channelSubscriberCount: Long? = null,
     val channelAvatarUrl: String? = null,
     val chapters: List<StreamSegment> = emptyList(),
+    val storyboard: List<StoryboardLevel> = emptyList(),
+    /** A livestream that has ended: its date reads "Streamed …" rather than a plain date. */
+    val isArchivedLivestream: Boolean = false,
+    val heatmap: VideoHeatmap? = null,
     val autoplayEnabled: Boolean = true,
     val streamSizes: Map<String, Long> = emptyMap(),
     val localFilePath: String? = null,
@@ -66,7 +71,6 @@ data class VideoPlayerUiState(
             isLoading = true,
             error = null,
             errorHint = null,
-            streamInfo = null,
             videoStream = null,
             audioStream = null,
             streamSizes = emptyMap(),

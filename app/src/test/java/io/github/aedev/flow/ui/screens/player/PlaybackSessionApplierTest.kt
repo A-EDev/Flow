@@ -11,6 +11,7 @@ import io.github.aedev.flow.innertube.models.Thumbnails
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.MergedPlayback
 import io.github.aedev.flow.player.stream.PlaybackFailure
@@ -99,69 +100,38 @@ class PlaybackSessionApplierTest {
         )
 
     @Test
-    fun `a merged result arms autoplay, writes the streams, then loads the channel and the related lane`() =
-        runTest(testDispatcher) {
-            val streamInfo = mockk<StreamInfo>(relaxed = true)
-            val related = listOf(video("rel_1"))
-
-            applier().apply(merged(streamInfo, mergedPlayback(), relatedVideos = related), load())
-            advanceUntilIdle()
-
-            val state = uiState.value
-            assertThat(state.streamInfo).isSameInstanceAs(streamInfo)
-            assertThat(state.isLoading).isFalse()
-            assertThat(state.savedPosition).isEqualTo(5_000L)
-            assertThat(state.relatedVideos.map { it.id }).containsExactly("rel_1")
-
-            coVerifyOrder {
-                harness.playerManager.setAutoplayCandidates(VIDEO_ID, related, true)
-                playbackPreparer.prepareMergedStreams(VIDEO_ID, any<ResolvedPlayback.Merged>(), any(), any())
-                secondaryMetadata.loadChannelMetadata(VIDEO_ID, any(), any(), any(), CURRENT_TOKEN)
-                secondaryMetadata.loadRelatedVideos(VIDEO_ID, related, CURRENT_TOKEN)
-            }
-        }
-
-    @Test
-    fun `merged upcoming content writes the countdown and hands nothing to the player`() =
-        runTest(testDispatcher) {
-            val step =
-                merged(mockk(relaxed = true), mergedPlayback(), isUpcomingContent = true, upcomingReleaseTimeMs = 1_700L)
-
-            applier().apply(step, load())
-            advanceUntilIdle()
-
-            assertThat(uiState.value.isUpcoming).isTrue()
-            assertThat(uiState.value.upcomingReleaseTimeMs).isEqualTo(1_700L)
-            coVerify(exactly = 0) { playbackPreparer.prepareMergedStreams(any(), any<ResolvedPlayback.Merged>(), any(), any()) }
-            coVerify(exactly = 0) { secondaryMetadata.loadChannelMetadata(any(), any(), any(), any(), any()) }
-            verify(exactly = 0) { liveChat.start(any()) }
-        }
-
-    @Test
-    fun `a merged live stream starts the chat and refreshes the live watch metadata`() =
-        runTest(testDispatcher) {
-            applier().apply(merged(mockk(relaxed = true), mergedPlayback(isLiveStream = true)), load())
-            advanceUntilIdle()
-
-            coVerifyOrder {
-                liveChat.start(VIDEO_ID)
-                secondaryMetadata.refreshLiveWatchMetadata(VIDEO_ID, any(), CURRENT_TOKEN)
-            }
-            coVerify(exactly = 0) { secondaryMetadata.loadRelatedVideos(any(), any(), any()) }
-        }
-
-    @Test
-    fun `a merged result that needs a SponsorBlock backfill saves the segments and publishes them`() =
+    fun `a downloaded copy with no stored segments fetches them once and publishes them`() =
         runTest(testDispatcher) {
             val segments = listOf(segment())
             coEvery { harness.sponsorBlockRepository.getSegments(VIDEO_ID) } returns segments
             coEvery { harness.sponsorBlockRepository.serializeSegments(segments) } returns "[segments]"
 
-            applier().apply(merged(mockk(relaxed = true), mergedPlayback(), backfillNeeded = true), load())
+            val step =
+                ResolvedPlayback.LocalCopyReady(
+                    localFilePath = "/tmp/$VIDEO_ID.mp4",
+                    offlineSegments = null,
+                    needsSponsorBlockBackfill = true,
+                )
+            applier().apply(step, load())
             advanceUntilIdle()
 
             coVerify(exactly = 1) { harness.videoDownloadManager.saveSponsorBlockData(VIDEO_ID, "[segments]") }
             assertThat(uiState.value.offlineSponsorBlockSegments).isEqualTo(segments)
+        }
+
+    @Test
+    fun `a downloaded copy that already carries its segments fetches nothing`() =
+        runTest(testDispatcher) {
+            val step =
+                ResolvedPlayback.LocalCopyReady(
+                    localFilePath = "/tmp/$VIDEO_ID.mp4",
+                    offlineSegments = listOf(segment()),
+                    needsSponsorBlockBackfill = false,
+                )
+            applier().apply(step, load())
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { harness.sponsorBlockRepository.getSegments(any()) }
         }
 
     @Test
@@ -326,51 +296,6 @@ class PlaybackSessionApplierTest {
     private fun segment(): SponsorBlockSegment =
         SponsorBlockSegment(category = "sponsor", segment = listOf(0f, 1f), uuid = "uuid_1", actionType = "skip")
 
-    private fun merged(
-        streamInfo: StreamInfo,
-        streams: MergedPlayback,
-        relatedVideos: List<Video> = emptyList(),
-        isUpcomingContent: Boolean = false,
-        upcomingReleaseTimeMs: Long? = null,
-        backfillNeeded: Boolean = false,
-    ): ResolvedPlayback.Merged =
-        ResolvedPlayback.Merged(
-            streamInfo = streamInfo,
-            streams = streams,
-            relatedVideos = relatedVideos,
-            savedPositionMs = 5_000L,
-            autoplayEnabled = true,
-            offlineSegments = null,
-            sponsorBlockBackfillNeeded = backfillNeeded,
-            isUpcomingContent = isUpcomingContent,
-            upcomingReleaseTimeMs = upcomingReleaseTimeMs,
-            resumeOverrideRequested = false,
-        )
-
-    private fun mergedPlayback(isLiveStream: Boolean = false): MergedPlayback =
-        MergedPlayback(
-            videoStreams = emptyList(),
-            audioStreams = emptyList(),
-            availableQualities = emptyList(),
-            selectedVideoStream = null,
-            selectedAudioStream = null,
-            subtitles = emptyList(),
-            chapters = emptyList(),
-            streamSizes = emptyMap(),
-            innerTubeVideoFormats = emptyList(),
-            innerTubeAudioFormats = emptyList(),
-            hlsUrl = null,
-            dashManifestUrl = null,
-            isLiveType = isLiveStream,
-            isLiveStream = isLiveStream,
-            hasPlayableContent = true,
-            localFilePath = null,
-            sabrInfo = null,
-            preferSabr = false,
-            preferredQuality = VideoQuality.AUTO,
-            preferredCodecKey = "auto",
-        )
-
     private fun vodStep(relatedVideos: List<Video> = emptyList()): ResolvedPlayback.VodFromInnerTube =
         ResolvedPlayback.VodFromInnerTube(
             result = extraction(),
@@ -378,16 +303,14 @@ class PlaybackSessionApplierTest {
             preferredQuality = VideoQuality.Q_1080P,
             preferredAudioLanguage = "original",
             preferredCodecKey = "auto",
+            preferredSubtitleLanguage = CaptionTrackResolver.NO_PREFERRED_LANGUAGE,
             resumePositionOverrideMs = null,
-            lateStreamInfo = null,
-            streamError = null,
         )
 
     private fun liveStep(): ResolvedPlayback.Live =
         ResolvedPlayback.Live(
             result = extraction(isLive = true, liveHlsUrl = LIVE_HLS_URL),
             relatedVideos = emptyList(),
-            lateStreamInfo = null,
         )
 
     private fun extraction(

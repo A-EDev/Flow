@@ -85,7 +85,7 @@ internal class PlaybackStreamPreparer {
             availableQualities = VideoQualityOptions.availableQualities(videoStreams),
             videoStream = selected.first,
             audioStream = selected.second,
-            subtitles = captionStreams(result),
+            subtitles = captionStreams(result, step.preferredSubtitleLanguage),
             isAdaptiveMode = step.preferredQuality == VideoQuality.AUTO,
             streamSizes =
                 StreamSizeEstimator.fromInnerTubeFormats(
@@ -105,7 +105,7 @@ internal class PlaybackStreamPreparer {
             identity = identity(videoId, cached, result, fallbackTitle = "Live", durationSeconds = 0L),
             hlsUrl = result.liveHlsUrl,
             dashManifestUrl = result.liveDashUrl,
-            subtitles = captionStreams(result),
+            subtitles = captionStreams(result, CaptionTrackResolver.NO_PREFERRED_LANGUAGE),
         )
 
     private fun identity(
@@ -134,6 +134,11 @@ internal class PlaybackStreamPreparer {
                     channelId = channelId,
                     thumbnailUrl = thumbnail,
                     duration = durationSeconds.toInt(),
+                    // Creator-declared keywords, plus the category when the winning client happened
+                    // to return a microformat (WEB/MWEB do, VISIONOS does not). The engine already
+                    // ingests Video.tags; until now nothing on the player path filled them, so a
+                    // watched video taught it nothing beyond its title.
+                    tags = topicTags(result, cached),
                 ),
             title = title,
             channel = channel,
@@ -143,6 +148,28 @@ internal class PlaybackStreamPreparer {
         )
     }
 
-    private fun captionStreams(result: InnerTubeVideoStreamExtractor.VideoExtractionResult): List<SubtitlesStream> =
-        StreamProcessor.processSubtitleStreams(CaptionTrackResolver.resolve(result.playerResponse))
+    private fun topicTags(
+        result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
+        cached: Video?,
+    ): List<String> {
+        val keywords =
+            result.playerResponse.videoDetails
+                ?.keywords
+                .orEmpty()
+        val category =
+            result.playerResponse.microformat
+                ?.playerMicroformatRenderer
+                ?.category
+                ?.takeIf { it.isNotBlank() }
+        val tags = (keywords + listOfNotNull(category)).distinct()
+        return tags.ifEmpty { cached?.tags.orEmpty() }
+    }
+
+    private fun captionStreams(
+        result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
+        translateTo: String,
+    ): List<SubtitlesStream> =
+        StreamProcessor.processSubtitleStreams(
+            CaptionTrackResolver.resolve(result.playerResponse, translateTo = translateTo),
+        )
 }
