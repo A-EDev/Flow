@@ -228,7 +228,6 @@ fun FlowDescriptionBottomSheet(
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                     ),
-                dividerAlpha = null,
                 actions = {
                     IconButton(
                         onClick = {

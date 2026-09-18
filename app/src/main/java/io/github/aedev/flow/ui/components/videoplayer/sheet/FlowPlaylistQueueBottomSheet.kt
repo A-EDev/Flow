@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowSheetHeaderDefaults
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
@@ -251,6 +252,10 @@ private fun QueueSheetHeader(
             }
         }
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
+        HorizontalDivider(
+            color =
+                MaterialTheme.colorScheme.outlineVariant
+                    .copy(alpha = FlowSheetHeaderDefaults.DividerAlpha),
+        )
     }
 }

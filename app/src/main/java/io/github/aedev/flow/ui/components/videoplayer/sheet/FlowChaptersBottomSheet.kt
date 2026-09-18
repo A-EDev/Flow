@@ -103,7 +103,6 @@ fun FlowChaptersBottomSheet(
                         fontSize = 22.sp,
                     ),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 10.dp),
-                dividerAlpha = 0.18f,
             )
         },
     ) {
