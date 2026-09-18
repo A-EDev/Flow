@@ -81,6 +81,11 @@ import io.github.aedev.flow.innertube.pages.channel.toChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.toChannelShortsPage
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabContent
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabs
+import io.github.aedev.flow.innertube.pages.explore.CHARTS_BROWSE_ID
+import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
+import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
+import io.github.aedev.flow.innertube.pages.explore.toExploreDestinationPage
+import io.github.aedev.flow.innertube.pages.explore.toVideoChartsPage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
@@ -961,6 +966,45 @@ object YouTube {
                 .parseToJsonElement(response.bodyAsText())
                 .jsonObject
                 .toChannelShortsPage()
+        }
+
+    /**
+     * An explore destination's landing page. `FEtrending` and `FEexplore` are dead — see
+     * [io.github.aedev.flow.innertube.pages.explore.ExploreDestination].
+     */
+    suspend fun exploreDestination(
+        browseId: String,
+        params: String? = null,
+    ): Result<ExploreDestinationPage> =
+        runCatching {
+            channelBrowseJson(browseId = browseId, params = params).toExploreDestinationPage()
+        }
+
+    /**
+     * A destination shelf's "see all": a flat paginated grid of the renderer the channel tabs
+     * already parse, so it rides [channelTab] rather than a second paging path.
+     */
+    suspend fun exploreShelf(
+        browseId: String,
+        params: String,
+    ): Result<ChannelTabContent> = channelTab(browseId, params, FeedItemOwner(), ChannelTabKind.Videos)
+
+    suspend fun videoCharts(
+        chartType: String,
+        country: String,
+    ): Result<VideoChartsPage> =
+        runCatching {
+            val response =
+                innerTube.analyticsChartsBrowse(
+                    browseId = CHARTS_BROWSE_ID,
+                    query =
+                        "perspective=CHART_DETAILS" +
+                            "&chart_params_country_code=$country" +
+                            "&chart_params_chart_type=$chartType",
+                )
+            Json
+                .parseToJsonElement(response.bodyAsText())
+                .toVideoChartsPage(chartType, country)
         }
 
     suspend fun communityPosts(

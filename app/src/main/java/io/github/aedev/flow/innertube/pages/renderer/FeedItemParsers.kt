@@ -161,8 +161,11 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
             .stringOrNull()
             ?.toLongOrNull()
             ?.times(1000L)
+    val timeStatus = this["thumbnailOverlays"].timeStatusStyle()
     val badges = this["badges"].metadataBadges()
     val (snippet, highlights) = this["detailedMetadataSnippets"].matchedSnippet()
+    val isLive = timeStatus == TIME_STATUS_LIVE || this["badges"].hasLiveBadge() || viewsText.mentionsWatching()
+    val isUpcoming = upcomingStartMs != null || timeStatus == TIME_STATUS_UPCOMING
     return FeedItem.VideoItem(
         Video(
             id = videoId,
@@ -174,12 +177,14 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
                     ?: owner.id,
             thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, this["thumbnail"].largestImageUrl()),
             duration = parseDurationText(this["lengthText"].youtubeText()) ?: 0,
-            viewCount = parseYouTubeViewCount(viewsText),
+            // A live or upcoming row's count is concurrent viewers ("1,575 watching", "1 waiting"),
+            // which a card would otherwise print as a view count.
+            viewCount = if (isLive || isUpcoming) 0L else parseYouTubeViewCount(viewsText),
             uploadDate = upcomingStartMs?.let(::premiereDateText) ?: uploadText,
             timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText) ?: 0L,
             channelThumbnailUrl = bylineAvatarUrl() ?: owner.avatarUrl,
-            isLive = this["badges"].hasLiveBadge() || viewsText?.contains("watching", ignoreCase = true) == true,
-            isUpcoming = upcomingStartMs != null,
+            isLive = isLive,
+            isUpcoming = isUpcoming,
             isVerifiedChannel = this["ownerBadges"].hasVerifiedBadge(),
             badges = badges,
             snippet = snippet,
@@ -187,6 +192,22 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
         ),
     )
 }
+
+/**
+ * The explore destinations ship live rows with no `badges` array at all, so the overlay is the only
+ * signal that survives a locale where "watching" is not the word.
+ */
+private fun JsonElement?.timeStatusStyle(): String? =
+    arrayOrNull()
+        .orEmpty()
+        .firstNotNullOfOrNull { it.objectOrNull()?.get("thumbnailOverlayTimeStatusRenderer").objectOrNull() }
+        ?.get("style")
+        .stringOrNull()
+
+private fun String?.mentionsWatching(): Boolean = this?.contains("watching", ignoreCase = true) == true
+
+private const val TIME_STATUS_LIVE = "LIVE"
+private const val TIME_STATUS_UPCOMING = "UPCOMING"
 
 private fun JsonObject.toPlaylistRendererItem(): FeedItem? {
     val playlistId = this["playlistId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
