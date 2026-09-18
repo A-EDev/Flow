@@ -6,27 +6,33 @@ import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.innertube.pages.renderer.browseParams
-import io.github.aedev.flow.innertube.pages.renderer.toFeedShelves
+import io.github.aedev.flow.innertube.pages.renderer.feedShelfSequence
 import io.github.aedev.flow.innertube.pages.stringOrNull
 import io.github.aedev.flow.innertube.pages.youtubeText
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
- * A destination landing page.
+ * A destination landing page with none of its shelves read yet — the title and the category tabs,
+ * which is everything the screen can show before an item has been mapped.
+ */
+internal fun JsonElement.toExploreDestinationShell(owner: FeedItemOwner = FeedItemOwner()): ExploreDestinationPage =
+    ExploreDestinationPage(title = pageTitle(), tabs = exploreTabs(), owner = owner)
+
+/**
+ * The page's shelves, mapped one at a time so a caller can paint the first without waiting on the
+ * rest.
  *
- * Shelves are read out of the selected tab's own container rather than by walking the response: a
+ * They are read out of the selected tab's own container rather than by walking the response: a
  * destination runs to megabytes and its header carries carousels a document-order search would pick
  * up as content. Most destinations arrive as a `richGridRenderer`; Gaming still uses the older
  * `sectionListRenderer`, so both are accepted.
  */
-internal fun JsonElement.toExploreDestinationPage(owner: FeedItemOwner = FeedItemOwner()): ExploreDestinationPage =
-    ExploreDestinationPage(
-        title = pageTitle(),
-        tabs = exploreTabs(),
-        shelves = selectedTabContainer()?.toFeedShelves(owner).orEmpty().map(FeedShelf::asScheduledStreams),
-        owner = owner,
-    )
+internal fun JsonElement.exploreShelves(owner: FeedItemOwner = FeedItemOwner()): Sequence<FeedShelf> =
+    selectedTabContainer()
+        ?.feedShelfSequence(owner)
+        ?.map(FeedShelf::asScheduledStreams)
+        .orEmpty()
 
 /**
  * These destinations serve streams, so a row still ahead is a scheduled broadcast rather than a

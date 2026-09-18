@@ -14,19 +14,29 @@ import kotlinx.serialization.json.JsonObject
  * A shelf that parses to nothing is dropped here rather than rendered empty — the screen only ever
  * receives sections that have something in them.
  */
-internal fun JsonElement.toFeedShelves(owner: FeedItemOwner): List<FeedShelf> {
-    val sections = mutableListOf<FeedShelf>()
-    objectOrNull()
-        ?.get("contents")
-        .arrayOrNull()
-        .orEmpty()
-        .forEach { entry ->
-            entry.shelfHolders().forEach { holder ->
-                holder.objectOrNull()?.toFeedShelf(owner, sections.size)?.let(sections::add)
+internal fun JsonElement.toFeedShelves(owner: FeedItemOwner): List<FeedShelf> = feedShelfSequence(owner).toList()
+
+/**
+ * The same shelves, mapped one at a time. An explore destination arranges hundreds of items across
+ * a dozen shelves, and a caller that paints as it goes should not pay for all of them to show the
+ * first one.
+ */
+internal fun JsonElement.feedShelfSequence(owner: FeedItemOwner): Sequence<FeedShelf> =
+    sequence {
+        var index = 0
+        objectOrNull()
+            ?.get("contents")
+            .arrayOrNull()
+            .orEmpty()
+            .forEach { entry ->
+                entry.shelfHolders().forEach { holder ->
+                    holder.objectOrNull()?.toFeedShelf(owner, index)?.let {
+                        yield(it)
+                        index++
+                    }
+                }
             }
-        }
-    return sections
-}
+    }
 
 /** One list entry can hold a shelf directly, or wrap one (or several) in a section container. */
 private fun JsonElement.shelfHolders(): List<JsonElement> {

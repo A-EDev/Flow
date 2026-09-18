@@ -47,7 +47,7 @@ class ExploreBylineTest {
     fun `destination rows name their creator too`() {
         val videos =
             ExploreFixture(ExploreFixture.DESTINATION_LIVE)
-                .toExploreDestinationPage()
+                .toSettledExploreDestinationPage()
                 .shelves
                 .flatMap { it.items }
                 .filterIsInstance<FeedItem.VideoItem>()

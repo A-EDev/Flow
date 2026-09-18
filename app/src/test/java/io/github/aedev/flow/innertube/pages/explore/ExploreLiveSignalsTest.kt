@@ -13,7 +13,7 @@ import org.junit.Test
 class ExploreLiveSignalsTest {
     private fun videos(title: String): List<Video> =
         ExploreFixture(ExploreFixture.DESTINATION_LIVE)
-            .toExploreDestinationPage()
+            .toSettledExploreDestinationPage()
             .shelves
             .first { it.title == title }
             .items

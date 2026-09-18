@@ -6,7 +6,7 @@ import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import org.junit.Test
 
 class ExploreDestinationParserTest {
-    private fun page(name: String) = ExploreFixture(name).toExploreDestinationPage()
+    private fun page(name: String) = ExploreFixture(name).toSettledExploreDestinationPage()
 
     private fun shelfTitled(
         name: String,
@@ -111,5 +111,20 @@ class ExploreDestinationParserTest {
 
         assertThat(page.shelves).isEmpty()
         assertThat(page.title).isEqualTo("Movies")
+    }
+
+    /**
+     * The shelf id is position-qualified, and the position counts shelves that parsed rather than
+     * entries walked — streaming them one at a time has to keep that counter, or two shelves
+     * sharing a title would collide and crash the lazy list.
+     */
+    @Test
+    fun `streamed shelves match the settled page, in order and with unique ids`() {
+        val fixture = ExploreFixture(ExploreFixture.DESTINATION_LIVE)
+        val streamed = fixture.exploreShelves().toList()
+        val settled = fixture.toSettledExploreDestinationPage().shelves
+
+        assertThat(streamed.map { it.id }).isEqualTo(settled.map { it.id })
+        assertThat(streamed.map { it.id }.toSet()).hasSize(streamed.size)
     }
 }

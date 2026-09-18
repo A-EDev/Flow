@@ -9,15 +9,20 @@ import io.github.aedev.flow.innertube.pages.explore.ExploreDestination
 import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
 import io.github.aedev.flow.innertube.pages.explore.ExploreSectionKind
 import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
+import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -44,7 +49,7 @@ class CategoriesViewModelTest {
         Dispatchers.setMain(testDispatcher)
         // The loads are not what these assert, and a real one would reach the network.
         mockkObject(YouTube)
-        coEvery { YouTube.exploreDestination(any(), any()) } returns Result.success(ExploreDestinationPage())
+        every { YouTube.exploreDestination(any(), any()) } returns flowOf(ExploreDestinationPage())
         coEvery { YouTube.videoCharts(any(), any()) } returns Result.success(VideoChartsPage("", ""))
     }
 
@@ -139,7 +144,71 @@ class CategoriesViewModelTest {
             assertThat(viewModel.uiState.value.isListView).isEqualTo(!before)
         }
 
-    private fun shelf(moreParams: String?) =
-        io.github.aedev.flow.innertube.pages.renderer
-            .FeedShelf(id = "shelf:0:Live Now", title = "Live Now", moreParams = moreParams)
+    private fun shelf(moreParams: String?) = FeedShelf(id = "shelf:0:Live Now", title = "Live Now", moreParams = moreParams)
+
+    private fun CategoriesViewModel.shelfTitles() = uiState.value.shelves.mapNotNull(FeedShelf::title)
+
+    private fun pageOf(vararg titles: String) =
+        ExploreDestinationPage(
+            shelves = titles.mapIndexed { index, title -> FeedShelf(id = "shelf:$index:$title", title = title) },
+        )
+
+    /**
+     * The destination arrives as one response but is mapped shelf by shelf, so a shelf must reach
+     * the screen while the rest of the page is still being read — not once the whole thing settles.
+     */
+    @Test
+    fun `a shelf is shown while the rest of the page is still being mapped`() =
+        runTest(testDispatcher) {
+            val rest = CompletableDeferred<Unit>()
+            every { YouTube.exploreDestination(any(), any()) } returns
+                flow {
+                    emit(ExploreDestinationPage())
+                    emit(pageOf("Live now"))
+                    rest.await()
+                    emit(pageOf("Live now", "Upcoming"))
+                }
+
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            assertThat(viewModel.shelfTitles()).containsExactly("Live now")
+            assertThat(viewModel.uiState.value.isLoading).isFalse()
+
+            rest.complete(Unit)
+            advanceUntilIdle()
+
+            assertThat(viewModel.shelfTitles()).containsExactly("Live now", "Upcoming").inOrder()
+        }
+
+    /** A destination response runs to megabytes; tapping back to a tab must not pay for it twice. */
+    @Test
+    fun `a tab returned to inside the cache window is not fetched again`() =
+        runTest(testDispatcher) {
+            every { YouTube.exploreDestination(any(), any()) } returns flowOf(pageOf("Live now"))
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            viewModel.select(ExploreDestination.GAMING)
+            advanceUntilIdle()
+            viewModel.select(ExploreDestination.LIVE)
+            advanceUntilIdle()
+
+            verify(exactly = 1) { YouTube.exploreDestination(ExploreDestination.LIVE.browseId, any()) }
+            assertThat(viewModel.uiState.value.shelves).hasSize(1)
+            assertThat(viewModel.uiState.value.isLoading).isFalse()
+        }
+
+    @Test
+    fun `a region change drops what the tabs had cached`() =
+        runTest(testDispatcher) {
+            every { YouTube.exploreDestination(any(), any()) } returns flowOf(pageOf("Live now"))
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            viewModel.setRegion("FR")
+            advanceUntilIdle()
+
+            verify(exactly = 2) { YouTube.exploreDestination(ExploreDestination.LIVE.browseId, any()) }
+        }
 }

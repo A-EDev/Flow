@@ -44,3 +44,12 @@ internal object ExploreFixture {
         return json.parseToJsonElement(stream!!.bufferedReader().use { it.readText() }).jsonObject
     }
 }
+
+/**
+ * The whole page at once. Production streams it — the shell, then a shelf at a time — but an
+ * assertion wants it settled.
+ */
+internal fun JsonObject.toSettledExploreDestinationPage(): ExploreDestinationPage {
+    val shell = toExploreDestinationShell()
+    return shell.copy(shelves = exploreShelves(shell.owner).toList())
+}

@@ -17,6 +17,7 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.explore.ExploreDestination
+import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
 import io.github.aedev.flow.innertube.pages.explore.ExploreSectionKind
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
@@ -77,6 +78,32 @@ class CategoriesViewModel
             val browseId: String,
             val params: String,
         )
+
+        private data class CacheKey(
+            val destination: ExploreDestination,
+            val params: String?,
+        )
+
+        private data class CachedSection(
+            val shelves: List<FeedShelf> = emptyList(),
+            val chartEntries: List<Video> = emptyList(),
+            val subTabs: List<CategorySubTab> = emptyList(),
+            val selectedSubTab: String? = null,
+            val loadedAtMs: Long = System.currentTimeMillis(),
+        ) {
+            val isFresh: Boolean get() = System.currentTimeMillis() - loadedAtMs < CACHE_TTL_MS
+        }
+
+        /**
+         * What each tab last showed. A destination response runs to megabytes, so re-fetching one
+         * on every tap back is the most expensive thing this screen can do: inside [CACHE_TTL_MS] a
+         * tab repaints from here and skips the call, and past it the stale page is shown while a
+         * fresh one loads behind it. A region change clears it; a retry drops the tab's own entry.
+         */
+        private val cache =
+            object : LinkedHashMap<CacheKey, CachedSection>(0, CACHE_LOAD_FACTOR, true) {
+                override fun removeEldestEntry(eldest: Map.Entry<CacheKey, CachedSection>): Boolean = size > CACHE_ENTRIES
+            }
 
         private val gridKey = MutableStateFlow<GridKey?>(null)
 
@@ -157,12 +184,15 @@ class CategoriesViewModel
 
         fun refresh() {
             val state = _uiState.value
+            cache.remove(CacheKey(state.selected, state.subTabParams()))
             load(state.selected, params = state.subTabParams())
         }
 
         fun setRegion(region: String) {
             viewModelScope.launch {
                 preferences.setTrendingRegion(region)
+                // Every destination honours `gl`, so none of what is held still describes this region.
+                cache.clear()
                 load(_uiState.value.selected, params = _uiState.value.subTabParams())
             }
         }
@@ -172,43 +202,90 @@ class CategoriesViewModel
             params: String? = destination.params,
         ) {
             loadJob?.cancel()
+            val key = CacheKey(destination, params)
+            val cached = cache[key]
             _uiState.update {
                 it.copy(
                     sectionKind = destination.kind,
-                    isLoading = true,
+                    isLoading = cached == null,
                     error = null,
                     openShelfTitle = null,
-                    shelves = emptyList(),
-                    chartEntries = emptyList(),
+                    shelves = cached?.shelves.orEmpty(),
+                    chartEntries = cached?.chartEntries.orEmpty(),
+                    // A sub-tab switch reloads within a destination, whose tab row outlives it.
+                    subTabs = cached?.subTabs?.takeIf(List<CategorySubTab>::isNotEmpty) ?: it.subTabs,
+                    selectedSubTab = cached?.selectedSubTab ?: it.selectedSubTab,
                 )
             }
+            if (cached != null && cached.isFresh) return
             loadJob =
                 viewModelScope.launch {
                     when (destination.kind) {
-                        ExploreSectionKind.CHART -> loadChart(destination)
-                        ExploreSectionKind.GRID -> loadGrid(destination, params)
-                        ExploreSectionKind.SHELVES -> loadShelves(destination, params)
+                        ExploreSectionKind.CHART -> {
+                            loadChart(destination, key)
+                        }
+
+                        ExploreSectionKind.GRID -> {
+                            loadGrid(destination, params)
+                        }
+
+                        ExploreSectionKind.SHELVES -> {
+                            loadShelves(destination, params, key, progressive = cached == null)
+                        }
                     }
                 }
         }
 
+        /**
+         * [progressive] is on only for a cold load, where each shelf is worth showing the moment it
+         * is mapped. Revalidating behind a cached page instead swaps the lot in once it has settled,
+         * so shelves already on screen do not shuffle under the reader.
+         */
         private suspend fun loadShelves(
             destination: ExploreDestination,
             params: String?,
+            key: CacheKey,
+            progressive: Boolean,
         ) {
-            YouTube
-                .exploreDestination(destination.browseId, params)
-                .onSuccess { page ->
-                    _uiState.update {
-                        it.copy(
-                            shelves = page.shelves,
-                            subTabs = page.tabs.map { tab -> CategorySubTab(tab.title, tab.params) },
-                            selectedSubTab = it.selectedSubTab ?: page.tabs.firstOrNull { tab -> tab.selected }?.title,
-                            isLoading = false,
-                            error = if (page.shelves.isEmpty()) context.getString(R.string.error_no_videos_for_category) else null,
-                        )
-                    }
-                }.onFailure { failed(it) }
+            var settled: ExploreDestinationPage? = null
+            runCatching {
+                YouTube.exploreDestination(destination.browseId, params).collect { page ->
+                    settled = page
+                    if (progressive) applyPage(page)
+                }
+            }.onFailure { error ->
+                if (_uiState.value.shelves.isEmpty()) failed(error)
+                return
+            }
+
+            val page = settled ?: return
+            applyPage(page)
+            if (page.shelves.isNotEmpty()) {
+                cache[key] =
+                    CachedSection(
+                        shelves = page.shelves,
+                        subTabs = _uiState.value.subTabs,
+                        selectedSubTab = _uiState.value.selectedSubTab,
+                    )
+            }
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = if (page.shelves.isEmpty()) context.getString(R.string.error_no_videos_for_category) else null,
+                )
+            }
+        }
+
+        /** Every emission carries one shelf more than the last, so the page fills as it is mapped. */
+        private fun applyPage(page: ExploreDestinationPage) {
+            _uiState.update {
+                it.copy(
+                    shelves = page.shelves,
+                    subTabs = page.tabs.map { tab -> CategorySubTab(tab.title, tab.params) },
+                    selectedSubTab = it.selectedSubTab ?: page.tabs.firstOrNull { tab -> tab.selected }?.title,
+                    isLoading = it.isLoading && page.shelves.isEmpty(),
+                )
+            }
         }
 
         private fun loadGrid(
@@ -219,7 +296,10 @@ class CategoriesViewModel
             _uiState.update { it.copy(isLoading = false) }
         }
 
-        private suspend fun loadChart(destination: ExploreDestination) {
+        private suspend fun loadChart(
+            destination: ExploreDestination,
+            key: CacheKey,
+        ) {
             val chartType = destination.chartType ?: return
             val region = preferences.trendingRegion.first()
             YouTube
@@ -232,16 +312,23 @@ class CategoriesViewModel
                             error = if (page.entries.isEmpty()) context.getString(R.string.error_no_videos_for_category) else null,
                         )
                     }
-                    enrichChartAvatars(page.entries)
-                }.onFailure { failed(it) }
+                    if (page.entries.isNotEmpty()) cache[key] = CachedSection(chartEntries = page.entries)
+                    enrichChartAvatars(page.entries, key)
+                }.onFailure {
+                    if (_uiState.value.chartEntries.isEmpty()) failed(it)
+                }
         }
 
         /** A chart entry names its channel but carries no avatar, so the rows fill in after paint. */
-        private fun enrichChartAvatars(entries: List<Video>) {
+        private fun enrichChartAvatars(
+            entries: List<Video>,
+            key: CacheKey,
+        ) {
             if (entries.isEmpty()) return
             viewModelScope.launch {
                 val enriched = runCatching { repository.enrichVideosWithAvatars(entries) }.getOrNull() ?: return@launch
                 if (enriched === entries) return@launch
+                cache[key]?.let { cache[key] = it.copy(chartEntries = enriched) }
                 _uiState.update { state ->
                     if (state.chartEntries.map(Video::id) == entries.map(Video::id)) {
                         state.copy(chartEntries = enriched)
@@ -268,3 +355,6 @@ class CategoriesViewModel
 private const val PAGE_SIZE = 20
 private const val PREFETCH_DISTANCE = 6
 private const val SUBSCRIPTION_GRACE_MS = 5_000L
+private const val CACHE_TTL_MS = 5 * 60 * 1000L
+private const val CACHE_ENTRIES = 4
+private const val CACHE_LOAD_FACTOR = 0.75f
