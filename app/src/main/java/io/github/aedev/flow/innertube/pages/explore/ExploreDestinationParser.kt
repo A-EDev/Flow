@@ -2,7 +2,9 @@ package io.github.aedev.flow.innertube.pages.explore
 
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.innertube.pages.renderer.browseParams
 import io.github.aedev.flow.innertube.pages.renderer.toFeedShelves
 import io.github.aedev.flow.innertube.pages.stringOrNull
@@ -22,8 +24,26 @@ internal fun JsonElement.toExploreDestinationPage(owner: FeedItemOwner = FeedIte
     ExploreDestinationPage(
         title = pageTitle(),
         tabs = exploreTabs(),
-        shelves = selectedTabContainer()?.toFeedShelves(owner).orEmpty(),
+        shelves = selectedTabContainer()?.toFeedShelves(owner).orEmpty().map(FeedShelf::asScheduledStreams),
         owner = owner,
+    )
+
+/**
+ * These destinations serve streams, so a row still ahead is a scheduled broadcast rather than a
+ * premiere, and its line should count down the way the player's does. The shared item parser cannot
+ * tell the two apart — YouTube's own label is localised — so the distinction is made here, where the
+ * surface is known, and search and the channel tabs keep the wording they already had.
+ */
+private fun FeedShelf.asScheduledStreams(): FeedShelf =
+    copy(
+        items =
+            items.map { item ->
+                when {
+                    item !is FeedItem.VideoItem -> item
+                    !item.video.isUpcoming -> item
+                    else -> FeedItem.VideoItem(item.video.copy(isScheduledLive = true))
+                }
+            },
     )
 
 private fun JsonElement.pageTitle(): String? =

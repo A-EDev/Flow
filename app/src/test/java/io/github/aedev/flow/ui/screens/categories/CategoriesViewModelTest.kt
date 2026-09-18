@@ -3,10 +3,16 @@ package io.github.aedev.flow.ui.screens.categories
 import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.explore.ExploreDestination
+import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
 import io.github.aedev.flow.innertube.pages.explore.ExploreSectionKind
+import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,11 +35,17 @@ class CategoriesViewModelTest {
             every { trendingRegion } returns flowOf("US")
         }
 
-    private fun viewModel() = CategoriesViewModel(preferences, context)
+    private val repository: YouTubeRepository = mockk(relaxed = true)
+
+    private fun viewModel() = CategoriesViewModel(repository, preferences, context)
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        // The loads are not what these assert, and a real one would reach the network.
+        mockkObject(YouTube)
+        coEvery { YouTube.exploreDestination(any(), any()) } returns Result.success(ExploreDestinationPage())
+        coEvery { YouTube.videoCharts(any(), any()) } returns Result.success(VideoChartsPage("", ""))
     }
 
     @After

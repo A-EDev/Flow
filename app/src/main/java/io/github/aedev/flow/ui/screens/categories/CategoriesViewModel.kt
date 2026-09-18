@@ -13,6 +13,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.FeedTabPagingSource
+import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.explore.ExploreDestination
@@ -62,6 +63,7 @@ data class CategorySubTab(
 class CategoriesViewModel
     @Inject
     constructor(
+        private val repository: YouTubeRepository,
         private val preferences: PlayerPreferences,
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
@@ -230,7 +232,24 @@ class CategoriesViewModel
                             error = if (page.entries.isEmpty()) context.getString(R.string.error_no_videos_for_category) else null,
                         )
                     }
+                    enrichChartAvatars(page.entries)
                 }.onFailure { failed(it) }
+        }
+
+        /** A chart entry names its channel but carries no avatar, so the rows fill in after paint. */
+        private fun enrichChartAvatars(entries: List<Video>) {
+            if (entries.isEmpty()) return
+            viewModelScope.launch {
+                val enriched = runCatching { repository.enrichVideosWithAvatars(entries) }.getOrNull() ?: return@launch
+                if (enriched === entries) return@launch
+                _uiState.update { state ->
+                    if (state.chartEntries.map(Video::id) == entries.map(Video::id)) {
+                        state.copy(chartEntries = enriched)
+                    } else {
+                        state
+                    }
+                }
+            }
         }
 
         private fun failed(error: Throwable) {

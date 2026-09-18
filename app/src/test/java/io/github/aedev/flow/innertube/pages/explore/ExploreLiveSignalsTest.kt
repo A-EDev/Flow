@@ -46,6 +46,26 @@ class ExploreLiveSignalsTest {
         assertThat(videos("Upcoming Live Streams").filter { it.isUpcoming }.all { it.viewCount == 0L }).isTrue()
     }
 
+    /**
+     * The destinations serve streams, so an upcoming row counts down like the player's rather than
+     * reading as a premiere. Search and the channel tabs keep the wording they already had.
+     */
+    @Test
+    fun `an upcoming row on a destination is marked a scheduled stream`() {
+        val upcoming = videos("Upcoming Live Streams").filter { it.isUpcoming }
+
+        assertThat(upcoming).isNotEmpty()
+        assertThat(upcoming.all { it.isScheduledLive }).isTrue()
+    }
+
+    @Test
+    fun `an overlay alone does not mark a row upcoming`() {
+        val live = videos("Live Now")
+
+        assertThat(live.none { it.isUpcoming }).isTrue()
+        assertThat(live.none { it.isScheduledLive }).isTrue()
+    }
+
     @Test
     fun `a finished stream keeps its duration and its real view count`() {
         val recent = videos("Recent Live Streams")

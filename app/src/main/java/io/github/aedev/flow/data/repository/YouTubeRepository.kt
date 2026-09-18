@@ -18,7 +18,6 @@ import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.innertube.models.response.VideoHeatmapParser
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
-import io.github.aedev.flow.innertube.pages.explore.chartsCountryOrFallback
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.RelativeUploadDateParser
@@ -270,29 +269,6 @@ class YouTubeRepository
                     }.orEmpty()
             return merged.copy(avatarUrl = fallbackAvatar)
         }
-
-        /**
-         * The region's most popular videos.
-         *
-         * `FEtrending` is HTTP 400 on every InnerTube client — the Trending page is retired — so this
-         * reads YouTube Charts instead. That chart is 30 ranked entries with no next page, hence the
-         * null continuation.
-         */
-        suspend fun getTrendingVideos(
-            region: String = "",
-            nextPage: Page? = null,
-        ): Pair<List<Video>, Page?> =
-            withContext(Dispatchers.IO) {
-                if (nextPage != null) return@withContext Pair(emptyList(), null)
-                val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
-                YouTube
-                    .videoCharts(CHART_TYPE_TRENDING_VIDEOS, chartsCountryOrFallback(effectiveRegion))
-                    .map { page -> Pair(enrichLikelyCollabAvatarStacks(page.entries), null as Page?) }
-                    .getOrElse { error ->
-                        Log.w(TAG, "Trending unavailable: ${error.message}")
-                        Pair(emptyList(), null)
-                    }
-            }
 
         /**
          * Fetch YouTube Shorts specifically
@@ -856,22 +832,6 @@ class YouTubeRepository
                             }.awaitAll()
 
                     results.flatten().distinctBy { it.id }
-                }
-            }
-
-        suspend fun prefetchTrendingAndShorts(region: String = ""): Pair<List<Video>, List<Video>> =
-            withContext(PerformanceDispatcher.networkIO) {
-                supervisorScope {
-                    val trendingDeferred =
-                        async {
-                            withTimeoutOrNull(12_000L) { getTrendingVideos(region).first } ?: emptyList()
-                        }
-                    val shortsDeferred =
-                        async {
-                            withTimeoutOrNull(10_000L) { getShorts().first } ?: emptyList()
-                        }
-
-                    Pair(trendingDeferred.await(), shortsDeferred.await())
                 }
             }
 
@@ -1664,7 +1624,6 @@ class YouTubeRepository
         }
 
         companion object {
-            private const val CHART_TYPE_TRENDING_VIDEOS = "TRENDING_VIDEOS"
             private const val TAG = "YouTubeRepository"
             private const val HOME_SUBS_MIN_CHANNELS = 10
             private const val HOME_SUBS_MEDIUM_CHANNELS = 14

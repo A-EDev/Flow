@@ -165,14 +165,15 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
     val badges = this["badges"].metadataBadges()
     val (snippet, highlights) = this["detailedMetadataSnippets"].matchedSnippet()
     val isLive = timeStatus == TIME_STATUS_LIVE || this["badges"].hasLiveBadge() || viewsText.mentionsWatching()
-    val isUpcoming = upcomingStartMs != null || timeStatus == TIME_STATUS_UPCOMING
+    val isUpcoming = upcomingStartMs != null
     return FeedItem.VideoItem(
         Video(
             id = videoId,
             title = title,
-            channelName = this["ownerText"].youtubeText()?.takeIf(String::isNotBlank) ?: owner.name,
+            channelName = bylineName() ?: owner.name,
             channelId =
                 this["ownerText"].bylineChannelId()
+                    ?: this["shortBylineText"].bylineChannelId()
                     ?: this["longBylineText"].bylineChannelId()
                     ?: owner.id,
             thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, this["thumbnail"].largestImageUrl()),
@@ -206,8 +207,12 @@ private fun JsonElement?.timeStatusStyle(): String? =
 
 private fun String?.mentionsWatching(): Boolean = this?.contains("watching", ignoreCase = true) == true
 
+/** `ownerText` is the watch-page byline; a grid row only ever carries the short or long one. */
+private fun JsonObject.bylineName(): String? =
+    listOf("ownerText", "shortBylineText", "longBylineText")
+        .firstNotNullOfOrNull { this[it].youtubeText()?.takeIf(String::isNotBlank) }
+
 private const val TIME_STATUS_LIVE = "LIVE"
-private const val TIME_STATUS_UPCOMING = "UPCOMING"
 
 private fun JsonObject.toPlaylistRendererItem(): FeedItem? {
     val playlistId = this["playlistId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
@@ -283,12 +288,13 @@ private fun JsonElement?.bylineChannelId(): String? =
  * `next` request the old search path issued to fetch the same image.
  */
 private fun JsonObject.bylineAvatarUrl(): String? =
-    this["channelThumbnailSupportedRenderers"]
-        .objectOrNull()
-        ?.get("channelThumbnailWithLinkRenderer")
-        .objectOrNull()
-        ?.get("thumbnail")
-        .largestImageUrl()
+    this["channelThumbnail"].largestImageUrl()
+        ?: this["channelThumbnailSupportedRenderers"]
+            .objectOrNull()
+            ?.get("channelThumbnailWithLinkRenderer")
+            .objectOrNull()
+            ?.get("thumbnail")
+            .largestImageUrl()
         ?: this["avatar"]
             .objectOrNull()
             ?.get("decoratedAvatarViewModel")
