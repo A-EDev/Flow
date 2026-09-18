@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.History
@@ -22,7 +21,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +39,7 @@ import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowSearchField
 
 private val HistoryArtworkSize = 56.dp
 
@@ -97,42 +96,20 @@ fun RecognitionHistoryScreen(
                     .fillMaxSize()
                     .padding(padding),
         ) {
-            SearchBarDefaults.InputField(
+            FlowSearchField(
                 query = query,
                 onQueryChange = viewModel::onQueryChange,
-                onSearch = {},
-                expanded = false,
-                onExpandedChange = {},
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.recognition_search_history),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
+                placeholder = stringResource(R.string.recognition_search_history),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Search,
                         contentDescription = null,
                     )
                 },
-                trailingIcon =
-                    if (query.isNotEmpty()) {
-                        {
-                            IconButton(onClick = { viewModel.onQueryChange("") }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.clear),
-                                )
-                            }
-                        }
-                    } else {
-                        null
-                    },
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
             )
 
             if (history.isEmpty()) {

@@ -215,7 +215,6 @@ fun FlowTranscriptBottomSheet(
                                 query = query,
                                 onQueryChange = { query = it },
                                 placeholder = stringResource(R.string.transcript_search_hint),
-                                onClear = { query = "" },
                                 modifier = Modifier.weight(1f),
                             )
                         }

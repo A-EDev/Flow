@@ -396,9 +396,8 @@ internal fun PlaylistSearchBar(
             modifier = Modifier.weight(1f),
             onSearch = onSearch,
             onClear = onClear,
-            expanded = searchActive,
-            onExpandedChange = { expanded -> if (expanded) onActivate() },
             focusRequester = focusRequester,
+            onFieldFocused = onActivate,
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Rounded.Add,
