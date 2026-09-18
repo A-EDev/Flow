@@ -119,6 +119,8 @@ internal fun PlayerDetailSideColumn(
                     viewModel = viewModel,
                     screenState = screenState,
                     trackUrl = transcriptTrackUrl(playerState, screenState),
+                    tracks = playerState.availableSubtitles,
+                    chapters = uiState.chapters,
                     artworkUrl = video.thumbnailUrl,
                     asSidePanel = true,
                     expandedHeight = paneHeight,
