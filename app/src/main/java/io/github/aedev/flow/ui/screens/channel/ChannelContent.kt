@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -55,11 +56,15 @@ import io.github.aedev.flow.ui.components.channel.ChannelAboutSection
 import io.github.aedev.flow.ui.components.channel.ChannelCommunityPosts
 import io.github.aedev.flow.ui.components.channel.ChannelFilterBar
 import io.github.aedev.flow.ui.components.channel.ChannelHeaderSection
-import io.github.aedev.flow.ui.components.channel.ChannelHomeSections
 import io.github.aedev.flow.ui.components.channel.ChannelReadingPane
+import io.github.aedev.flow.ui.components.channel.ChannelRow
 import io.github.aedev.flow.ui.components.channel.ChannelTabItems
 import io.github.aedev.flow.ui.components.channel.ChannelTabRow
+import io.github.aedev.flow.ui.components.channel.CommunityPostCard
 import io.github.aedev.flow.ui.components.channel.PostsPaneMaxWidth
+import io.github.aedev.flow.ui.components.shared.FeedShelfActions
+import io.github.aedev.flow.ui.components.shared.FeedShelfSections
+import io.github.aedev.flow.ui.components.shared.FeedShelfSlots
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -292,38 +297,61 @@ internal fun ChannelContent(
                 }
 
                 tab.kind == ChannelTabKind.Home -> {
-                    ChannelHomeSections(
+                    FeedShelfSections(
                         sections = tabStates[tab.kind]?.sections.orEmpty(),
                         isLoading = tabStates[tab.kind]?.sections.isNullOrEmpty(),
                         listState = homeListState,
                         columnPreference = columnPreference,
                         contentPadding = listPadding,
                         topInset = visibleHeaderHeightDp,
-                        onVideoClick = onVideoClick,
-                        onShortClick = onShortClick,
-                        onPlaylistClick = onPlaylistClick,
-                        onChannelClick = onChannelClick,
-                        canOpenSection = { section -> sectionTarget(section, visibleTabs) != null },
-                        subscribedChannelIds = subscribedChannelIds,
-                        onSubscribeChannel = onSubscribeChannel,
-                        onAuthorClick = { onChannelClick(header.id) },
-                        onPostComments = onCommunityPostComments,
-                        onPostShare = onCommunityPostShare,
-                        onSectionMore = { section ->
-                            when (val target = sectionTarget(section, visibleTabs)) {
-                                is SectionTarget.Playlist -> {
-                                    onPlaylistClick(target.playlistId)
-                                }
+                        actions =
+                            FeedShelfActions(
+                                onVideoClick = onVideoClick,
+                                onShortClick = onShortClick,
+                                onPlaylistClick = onPlaylistClick,
+                                onChannelClick = onChannelClick,
+                                canOpenSection = { section -> sectionTarget(section, visibleTabs) != null },
+                                subscribedChannelIds = subscribedChannelIds,
+                                onSubscribeChannel = onSubscribeChannel,
+                                onSectionMore = { section ->
+                                    when (val target = sectionTarget(section, visibleTabs)) {
+                                        is SectionTarget.Playlist -> {
+                                            onPlaylistClick(target.playlistId)
+                                        }
 
-                                is SectionTarget.Tab -> {
-                                    coroutineScope.launch { pagerState.animateScrollToPage(target.index) }
-                                }
+                                        is SectionTarget.Tab -> {
+                                            coroutineScope.launch { pagerState.animateScrollToPage(target.index) }
+                                        }
 
-                                null -> {
-                                    Unit
-                                }
-                            }
-                        },
+                                        null -> {
+                                            Unit
+                                        }
+                                    }
+                                },
+                            ),
+                        slots =
+                            FeedShelfSlots(
+                                post = { post, compact ->
+                                    CommunityPostCard(
+                                        post = post,
+                                        onAuthorClick = { onChannelClick(header.id) },
+                                        onCommentsClick = { onCommunityPostComments(post) },
+                                        onShareClick = { onCommunityPostShare(post) },
+                                        showDivider = !compact,
+                                        compact = compact,
+                                        modifier = if (compact) Modifier.padding(bottom = 4.dp) else Modifier,
+                                    )
+                                },
+                                channelRow = { channel, isSubscribed ->
+                                    ChannelRow(
+                                        channel = channel,
+                                        onClick = { onChannelClick(channel.id) },
+                                        isSubscribed = isSubscribed,
+                                        onSubscribeClick = { onSubscribeChannel(channel, true) },
+                                        onUnsubscribeClick = { onSubscribeChannel(channel, false) },
+                                    )
+                                },
+                            ),
                     )
                 }
 
