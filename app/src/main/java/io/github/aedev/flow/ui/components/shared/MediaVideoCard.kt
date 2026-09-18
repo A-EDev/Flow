@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.search
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -9,7 +9,7 @@ import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 
 /**
- * One video result, in whichever of the app's two card shapes the row can carry.
+ * One video, in whichever of the app's two card shapes the row can carry.
  *
  * [asThumbnailRow] picks the thumbnail-left row, which is what a lone card on a wide window needs —
  * the full-width card puts a 16:9 image across the whole screen there. [thumbnailWidth] then sizes
@@ -17,7 +17,7 @@ import io.github.aedev.flow.ui.components.VideoCardFullWidth
  * above it.
  */
 @Composable
-fun SearchVideoCard(
+fun MediaVideoCard(
     video: Video,
     asThumbnailRow: Boolean,
     onClick: () -> Unit,
