@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowSearchField
 
 @Composable
 fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
@@ -197,13 +198,12 @@ fun SearchablePickerDialog(
         title = { Text(title) },
         text = {
             Column {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = { Text(stringResource(R.string.search_hint)) },
-                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                    singleLine = true,
+                FlowSearchField(
+                    query = query,
+                    onQueryChange = { query = it },
+                    placeholder = stringResource(R.string.search_hint),
                     modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                 )
                 Spacer(Modifier.height(8.dp))
                 LazyColumn(Modifier.heightIn(max = listMaxHeight)) {

@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -109,14 +109,15 @@ class FlowTranscriptBottomSheetTest {
     fun aMouseWheelAlsoRaisesTheSyncPill() {
         setSheet()
 
-        rule.onNode(hasScrollAction()).performMouseInput {
+        // The search field is single-line and so carries a horizontal scroll action of its own;
+        // only the transcript list can be scrolled to an index.
+        rule.onNode(hasScrollToIndexAction()).performMouseInput {
             moveTo(center)
             scroll(6f)
         }
         rule.waitForIdle()
 
         syncPill().assertExists()
-        println("PROBE bounds=" + syncPill().fetchSemanticsNode().boundsInRoot)
     }
 
     @Test

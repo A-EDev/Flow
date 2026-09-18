@@ -45,6 +45,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -199,19 +200,17 @@ internal fun SubscriptionCreateEditGroupDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text(stringResource(R.string.search_channels_hint)) },
+                FlowSearchField(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = stringResource(R.string.search_channels_hint),
+                    modifier = Modifier.fillMaxWidth(),
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp),
                         )
                     },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
                 )
                 LazyColumn(
                     modifier = Modifier.heightIn(max = ChannelListMaxHeight),

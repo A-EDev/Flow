@@ -8,6 +8,7 @@ package io.github.aedev.flow.ui.components.music.search
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
@@ -17,7 +18,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,9 +27,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,10 +40,9 @@ import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.ui.theme.Dimensions
 
 /**
- * The search screen bar: one Material search pill holding back, the query, clear and voice
- * search, on the page background rather than inside an app bar.
+ * The music search bar, laid out like the Search tab's: back and mic sit outside the field, and the
+ * field itself is the shared pill carrying only the query and its clear button.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicSearchBar(
     query: String,
@@ -55,35 +54,38 @@ fun MusicSearchBar(
     focusRequester: FocusRequester = remember { FocusRequester() },
 ) {
     Surface(color = MaterialTheme.colorScheme.background) {
-        FlowSearchField(
-            query = query,
-            onQueryChange = onQueryChange,
-            placeholder = stringResource(R.string.search_music_placeholder),
+        Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            onSearch = onSearch,
-            onClear = onClearClick,
-            expanded = true,
-            focusRequester = focusRequester,
-            leadingIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.btn_back),
-                    )
-                }
-            },
-            trailingContent = {
-                IconButton(onClick = onVoiceSearchClick) {
-                    Icon(
-                        imageVector = Icons.Rounded.Mic,
-                        contentDescription = stringResource(R.string.voice_search_cd),
-                    )
-                }
-            },
-        )
+                    .padding(horizontal = BarHorizontalPadding, vertical = BarVerticalPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(BarItemSpacing),
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = stringResource(R.string.btn_back),
+                )
+            }
+
+            FlowSearchField(
+                query = query,
+                onQueryChange = onQueryChange,
+                placeholder = stringResource(R.string.search_music_placeholder),
+                modifier = Modifier.weight(1f),
+                onSearch = onSearch,
+                onClear = onClearClick,
+                focusRequester = focusRequester,
+            )
+
+            IconButton(onClick = onVoiceSearchClick) {
+                Icon(
+                    imageVector = Icons.Rounded.Mic,
+                    contentDescription = stringResource(R.string.voice_search_cd),
+                )
+            }
+        }
     }
 }
 
@@ -148,3 +150,7 @@ fun SearchSuggestionRow(
         )
     }
 }
+
+private val BarHorizontalPadding = 4.dp
+private val BarVerticalPadding = 4.dp
+private val BarItemSpacing = 2.dp
