@@ -21,6 +21,7 @@ import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
 import io.github.aedev.flow.innertube.pages.explore.ExploreSectionKind
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -254,6 +255,10 @@ class CategoriesViewModel
                     if (progressive) applyPage(page)
                 }
             }.onFailure { error ->
+                // Switching tab cancels this load, and runCatching catches that like any other
+                // failure. Rethrowing keeps the abandoned tab from both reporting itself onto the
+                // screen the reader moved to and caching the half of the page it had managed.
+                if (error is CancellationException) throw error
                 if (_uiState.value.shelves.isEmpty()) failed(error)
                 return
             }
@@ -340,6 +345,8 @@ class CategoriesViewModel
         }
 
         private fun failed(error: Throwable) {
+            // A Result from a cancelled call carries the cancellation, which is not news to report.
+            if (error is CancellationException) return
             _uiState.update {
                 it.copy(
                     isLoading = false,

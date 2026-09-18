@@ -181,6 +181,30 @@ class CategoriesViewModelTest {
             assertThat(viewModel.shelfTitles()).containsExactly("Live now", "Upcoming").inOrder()
         }
 
+    /**
+     * Switching tab cancels the load in flight. `runCatching` catches the `CancellationException`
+     * that raises like any other failure, so without a guard the abandoned tab writes its own
+     * cancellation onto the screen the user just moved to.
+     */
+    @Test
+    fun `switching away from a loading tab does not surface its cancellation as an error`() =
+        runTest(testDispatcher) {
+            val stalled = CompletableDeferred<Unit>()
+            every { YouTube.exploreDestination(any(), any()) } returns
+                flow {
+                    emit(ExploreDestinationPage())
+                    stalled.await()
+                }
+
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            viewModel.select(ExploreDestination.GAMING)
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.error).isNull()
+        }
+
     /** A destination response runs to megabytes; tapping back to a tab must not pay for it twice. */
     @Test
     fun `a tab returned to inside the cache window is not fetched again`() =
