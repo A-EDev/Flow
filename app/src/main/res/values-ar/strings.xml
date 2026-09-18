@@ -2959,4 +2959,15 @@
     <string name="gesture_overlay_style_vertical">عمودي</string>
     <string name="gesture_overlay_style_horizontal">شريط</string>
     <string name="gesture_overlay_style_minimal">بسيط</string>
+    <string name="transcript_resync">مزامنة مع الفيديو</string>
+    <string name="transcript_language">اللغة</string>
+    <string name="player_appearance_scrub_preview_title">معاينة أثناء السحب</string>
+    <string name="player_appearance_scrub_preview_subtitle">‎ما يعرضه شريط التقدم أثناء سحبه</string>
+    <string name="player_appearance_scrub_preview_strip">‎شريط الصور</string>
+    <string name="player_appearance_scrub_preview_frame">إطار واحد</string>
+    <string name="player_appearance_frame_step_title">‍أزرار التنقل بين الإطارات</string>
+    <string name="player_appearance_frame_step_subtitle">إظهار سهمي التقدم والتراجع عند الإيقاف المؤقت</string>
+    <string name="previous_frame">الإطار السابق</string>
+    <string name="next_frame">الإطار التالي</string>
+    <string name="subtitle_translation_unavailable">الترجمة غير متاحة — يتم عرض %1$s</string>
 </resources>
