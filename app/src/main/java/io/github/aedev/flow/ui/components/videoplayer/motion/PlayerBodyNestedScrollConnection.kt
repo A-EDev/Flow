@@ -6,9 +6,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.unit.Velocity
 
-private const val PORTRAIT_FS_COMMIT_FRACTION = 0.4f
-private const val PORTRAIT_FS_COMMIT_VELOCITY = 1400f
-
 /**
  * Lets the body list drive two things while the player is expanded: a tall video shrinking to
  * 16:9 as the list scrolls up, and an overscroll pull at the top that grows the player into
@@ -95,11 +92,11 @@ internal class PlayerBodyNestedScrollConnection(
         listScrolledThisGesture = false
         pullAccum = 0f
         if (frac <= 0f || frac >= 1f) return Velocity.Zero
-        val shouldEnter = frac > PORTRAIT_FS_COMMIT_FRACTION || available.y > PORTRAIT_FS_COMMIT_VELOCITY
+        val shouldEnter = shouldEnterPortraitFullscreen(fraction = frac, velocityY = available.y)
         animate(
             initialValue = frac,
             targetValue = if (shouldEnter) 1f else 0f,
-            initialVelocity = available.y,
+            initialVelocity = portraitFullscreenSettleVelocity(available.y, portraitFsTravel()),
             animationSpec = portraitFullscreenSettleSpec,
         ) { value, _ -> onPortraitFsFractionChange(value) }
         if (shouldEnter) onEnterPortraitFullscreen()?.invoke()
