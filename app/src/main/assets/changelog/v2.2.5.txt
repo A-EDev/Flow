@@ -47,6 +47,9 @@ IMPROVEMENTS
 - Music radio no longer plays the same artist twice in a row, including across the seam where new tracks are appended
 - Hiding an artist now hides their albums too: a track or album is hidden when any credited artist is hidden, so collaborations no longer slip through
 - Google Takeout imports now work with localized ZIP archives
+- The transcript now stays where you leave it: scrolling no longer drags you back to the spoken line, a Sync to video pill returns you when you want it, the lines are grouped under their chapter headings, and the transcript can be read in any caption language the video carries
+- Transcript lines can be long-pressed, selected and copied, and the player stays tappable while the transcript is open
+- Every bottom sheet now separates its title from its contents with the same divider
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -68,6 +71,7 @@ FIXES AND STABILITY
 - Fix a playback-statistics crash on some devices by replacing Media3's tracker with a wall-clock session tracker
 - Fix the ambient player glow and cap session artwork at the platform limit, ending a crash on some ROMs
 - Fix a tablet held upright splitting the player into two narrow columns, and the volume gesture starting from a stale level or dropping a boost above 100%
+- Fix the page under the video bouncing and jumping around when a drag towards portrait fullscreen is released short of it: it now tracks your finger exactly and settles straight back, and a flick back up cancels the transition however far it had travelled
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
