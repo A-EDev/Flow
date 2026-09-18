@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
@@ -31,6 +32,13 @@ internal fun CategoryPagedGrid(
     onPlaylistClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The pager owns the first page, so its own refresh is the only thing that knows this tab is
+    // still loading — the screen's flag was cleared as soon as the pager was handed its key.
+    if (pagingItems.itemCount == 0 && pagingItems.loadState.refresh is LoadState.Loading) {
+        CategoryShimmer(feedLayout = feedLayout, isListView = isListView, modifier = modifier)
+        return
+    }
+
     val plan =
         rememberFeedGridPlan(
             layout = feedLayout,
