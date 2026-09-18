@@ -71,10 +71,6 @@ class CategoriesViewModel
         val trendingRegion: StateFlow<String> =
             preferences.trendingRegion.stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIPTION_GRACE_MS), "US")
 
-        val showRegionPicker: StateFlow<Boolean> =
-            preferences.showRegionPickerInExplore
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIPTION_GRACE_MS), true)
-
         private data class GridKey(
             val browseId: String,
             val params: String,
@@ -111,11 +107,11 @@ class CategoriesViewModel
             viewModelScope.launch {
                 _uiState.update { it.copy(isListView = preferences.categoriesIsListView.first()) }
             }
-            select(CATEGORY_TABS.first().destination)
+            load(CATEGORY_TABS.first().destination)
         }
 
         fun select(destination: ExploreDestination) {
-            if (_uiState.value.selected == destination && _uiState.value.error == null) return
+            if (_uiState.value.selected == destination) return
             _uiState.update {
                 CategoriesUiState(
                     selected = destination,

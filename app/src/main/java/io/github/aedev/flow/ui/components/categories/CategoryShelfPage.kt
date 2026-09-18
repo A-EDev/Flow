@@ -50,6 +50,7 @@ internal fun CategoryShelfPage(
         contentPadding = PaddingValues(bottom = BottomPadding),
         topInset = 0.dp,
         actions = actions,
+        showChannelInfo = true,
     )
 }
 

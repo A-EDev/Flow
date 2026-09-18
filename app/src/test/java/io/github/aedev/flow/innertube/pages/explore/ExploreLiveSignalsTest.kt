@@ -25,9 +25,10 @@ class ExploreLiveSignalsTest {
         assertThat(videos("Live Now").all { it.isLive }).isTrue()
     }
 
+    /** A live card has no date, so its concurrent-viewer count is the only number it can show. */
     @Test
-    fun `a live row's watching count is not reported as a view count`() {
-        assertThat(videos("Live Now").all { it.viewCount == 0L }).isTrue()
+    fun `a live row keeps its concurrent viewer count`() {
+        assertThat(videos("Live Now").any { it.viewCount > 0L }).isTrue()
     }
 
     /** YouTube mixes already-started streams into its own "Upcoming" shelf, so the row decides, not the shelf. */
@@ -41,8 +42,8 @@ class ExploreLiveSignalsTest {
     }
 
     @Test
-    fun `a waiting or watching count is never reported as a view count`() {
-        assertThat(videos("Upcoming Live Streams").all { it.viewCount == 0L }).isTrue()
+    fun `an upcoming row's waiting count is never reported as a view count`() {
+        assertThat(videos("Upcoming Live Streams").filter { it.isUpcoming }.all { it.viewCount == 0L }).isTrue()
     }
 
     @Test

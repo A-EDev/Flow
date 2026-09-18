@@ -115,7 +115,6 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
     val shareWithoutText by preferences.shareWithoutText.collectAsState(initial = false)
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
     val showShortsPlayerPrompt by preferences.showShortsPlayerPrompt.collectAsState(initial = true)
-    val showRegionPickerInExplore by preferences.showRegionPickerInExplore.collectAsState(initial = true)
     val videoTitleMaxLines by preferences.videoTitleMaxLines.collectAsState(initial = 1)
     val videoCardActionsEnabled by preferences.videoCardActionsEnabled.collectAsState(initial = false)
     val videoCardMarkWatchedEnabled by preferences.videoCardMarkWatchedEnabled.collectAsState(initial = false)
@@ -718,18 +717,6 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setShareWithoutText(enabled)
-                            }
-                        },
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.Language,
-                        title = stringResource(R.string.content_settings_explore_region_picker_title),
-                        subtitle = stringResource(R.string.content_settings_explore_region_picker_subtitle),
-                        checked = showRegionPickerInExplore,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                preferences.setShowRegionPickerInExplore(enabled)
                             }
                         },
                     )

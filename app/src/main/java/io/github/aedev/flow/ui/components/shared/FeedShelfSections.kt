@@ -85,6 +85,9 @@ data class FeedShelfSlots(
  * A page of shelves, in the order the source arranged them — a channel's Home tab, or an explore
  * destination.
  *
+ * [showChannelInfo] is false for a channel, where every row is that channel's own upload and the
+ * repeated name is noise, and true for a destination, where every row is a different creator.
+ *
  * On a phone every shelf is a vertical list of the rows the rest of the app already uses. An earlier
  * version put them in fixed-width horizontal carousels, which crushed thumbnail-left cards into
  * two-word columns and stretched a Shorts card to half the screen; the card decides its own width
@@ -100,6 +103,7 @@ fun FeedShelfSections(
     topInset: Dp,
     actions: FeedShelfActions,
     slots: FeedShelfSlots = FeedShelfSlots(),
+    showChannelInfo: Boolean = false,
 ) {
     val renderable = remember(sections, slots) { sections.filter { it.hasRenderableItems(slots) } }
     if (renderable.isEmpty()) {
@@ -130,6 +134,7 @@ fun FeedShelfSections(
                     onToggleExpanded = { expanded[section.id] = expanded[section.id] != true },
                     actions = actions,
                     slots = slots,
+                    showChannelInfo = showChannelInfo,
                 )
             }
             fullSpanItem(key = "bottom_gap") { Spacer(Modifier.height(16.dp)) }
@@ -154,6 +159,7 @@ private fun LazyGridScope.shelfSection(
     onToggleExpanded: () -> Unit,
     actions: FeedShelfActions,
     slots: FeedShelfSlots,
+    showChannelInfo: Boolean,
 ) {
     if (section.style == FeedShelfStyle.Trailer) {
         val trailer = section.items.filterIsInstance<FeedItem.VideoItem>().firstOrNull() ?: return
@@ -161,14 +167,14 @@ private fun LazyGridScope.shelfSection(
             if (columns > 1) {
                 CompactVideoCard(
                     video = trailer.video,
-                    showChannelName = false,
+                    showChannelName = showChannelInfo,
                     onClick = { actions.onVideoClick(trailer.video) },
                 )
             } else {
                 VideoCardFullWidth(
                     video = trailer.video,
-                    showChannelAvatar = false,
-                    showChannelName = false,
+                    showChannelAvatar = showChannelInfo,
+                    showChannelName = showChannelInfo,
                     onClick = { actions.onVideoClick(trailer.video) },
                 )
             }
@@ -212,7 +218,13 @@ private fun LazyGridScope.shelfSection(
         },
     ) { item ->
         Box(modifier = shelfItemMotion()) {
-            ShelfItem(item = item, gridCards = gridCards, actions = actions, slots = slots)
+            ShelfItem(
+                item = item,
+                gridCards = gridCards,
+                actions = actions,
+                slots = slots,
+                showChannelInfo = showChannelInfo,
+            )
         }
     }
 
@@ -234,14 +246,25 @@ private fun ShelfItem(
     gridCards: Boolean,
     actions: FeedShelfActions,
     slots: FeedShelfSlots,
+    showChannelInfo: Boolean,
 ) {
     when (item) {
         is FeedItem.VideoItem -> {
-            ShelfVideoCard(video = item.video, gridCard = gridCards, onClick = { actions.onVideoClick(item.video) })
+            ShelfVideoCard(
+                video = item.video,
+                gridCard = gridCards,
+                showChannelInfo = showChannelInfo,
+                onClick = { actions.onVideoClick(item.video) },
+            )
         }
 
         is FeedItem.ShortItem -> {
-            ShelfVideoCard(video = item.video, gridCard = gridCards, onClick = { actions.onShortClick(item.video.id) })
+            ShelfVideoCard(
+                video = item.video,
+                gridCard = gridCards,
+                showChannelInfo = showChannelInfo,
+                onClick = { actions.onShortClick(item.video.id) },
+            )
         }
 
         is FeedItem.PlaylistItem -> {
@@ -283,19 +306,20 @@ private fun LazyGridItemScope.shelfItemMotion(): Modifier {
 private fun ShelfVideoCard(
     video: Video,
     gridCard: Boolean,
+    showChannelInfo: Boolean,
     onClick: () -> Unit,
 ) {
     if (gridCard) {
         VideoCardFullWidth(
             video = video,
-            showChannelAvatar = false,
-            showChannelName = false,
+            showChannelAvatar = showChannelInfo,
+            showChannelName = showChannelInfo,
             onClick = onClick,
         )
     } else {
         CompactVideoCard(
             video = video,
-            showChannelName = false,
+            showChannelName = showChannelInfo,
             onClick = onClick,
         )
     }

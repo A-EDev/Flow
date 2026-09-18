@@ -177,9 +177,9 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
                     ?: owner.id,
             thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, this["thumbnail"].largestImageUrl()),
             duration = parseDurationText(this["lengthText"].youtubeText()) ?: 0,
-            // A live or upcoming row's count is concurrent viewers ("1,575 watching", "1 waiting"),
-            // which a card would otherwise print as a view count.
-            viewCount = if (isLive || isUpcoming) 0L else parseYouTubeViewCount(viewsText),
+            // A live row's count is its concurrent viewers, which the card renders in place of the
+            // date it has none of. An upcoming row's "1 waiting" is nobody's view count, so it goes.
+            viewCount = if (isUpcoming) 0L else parseYouTubeViewCount(viewsText),
             uploadDate = upcomingStartMs?.let(::premiereDateText) ?: uploadText,
             timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText) ?: 0L,
             channelThumbnailUrl = bylineAvatarUrl() ?: owner.avatarUrl,

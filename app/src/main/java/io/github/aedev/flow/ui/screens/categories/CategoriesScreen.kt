@@ -38,7 +38,7 @@ import io.github.aedev.flow.ui.components.categories.CategoryChartGrid
 import io.github.aedev.flow.ui.components.categories.CategoryPagedGrid
 import io.github.aedev.flow.ui.components.categories.CategoryShelfPage
 import io.github.aedev.flow.ui.components.categories.CategoryShimmer
-import io.github.aedev.flow.ui.components.categories.CategorySubTabBar
+import io.github.aedev.flow.ui.components.categories.CategorySubTabMenu
 import io.github.aedev.flow.ui.components.categories.CategoryTabBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
@@ -60,7 +60,6 @@ fun CategoriesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val trendingRegion by viewModel.trendingRegion.collectAsStateWithLifecycle()
-    val showRegionPicker by viewModel.showRegionPicker.collectAsStateWithLifecycle()
     val pagingItems = viewModel.gridItems.collectAsLazyPagingItems()
     var showRegionDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -79,14 +78,12 @@ fun CategoriesScreen(
                 title = uiState.openShelfTitle ?: stringResource(R.string.categories_title),
                 onBack = uiState.openShelfTitle?.let { { viewModel.closeShelf() } },
                 actions = {
-                    if (showRegionPicker) {
-                        IconButton(onClick = { showRegionDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Language,
-                                contentDescription =
-                                    stringResource(R.string.categories_region_picker_desc, trendingRegion),
-                            )
-                        }
+                    IconButton(onClick = { showRegionDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Language,
+                            contentDescription =
+                                stringResource(R.string.categories_region_picker_desc, trendingRegion),
+                        )
                     }
                     IconButton(onClick = viewModel::toggleViewMode) {
                         Icon(
@@ -112,7 +109,7 @@ fun CategoriesScreen(
                     onSelect = viewModel::select,
                     modifier = Modifier.padding(vertical = ChipRowVerticalPadding),
                 )
-                CategorySubTabBar(
+                CategorySubTabMenu(
                     subTabs = uiState.subTabs,
                     selected = uiState.selectedSubTab,
                     onSelect = viewModel::selectSubTab,
