@@ -7,7 +7,7 @@ import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
  * One explore destination's landing page: the shelves it arranged, and the category tabs it offers.
  *
  * A destination carries no continuation of its own — each shelf's `moreParams` opens a paginated
- * grid instead, which [io.github.aedev.flow.innertube.YouTube.exploreShelf] loads.
+ * grid instead, which [io.github.aedev.flow.data.paging.FeedTabPagingSource] loads.
  */
 data class ExploreDestinationPage(
     val title: String? = null,

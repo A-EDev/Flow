@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.search
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,12 +20,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 
-/** The tail of a paged search: loading, a retry, or the end of the results. */
+/** The tail of any paged feed: loading, a retry, or the end of the results. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SearchPagingFooter(
+fun FeedPagingFooter(
     appendState: LoadState,
     itemCount: Int,
     onRetry: () -> Unit,

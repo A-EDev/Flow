@@ -18,6 +18,7 @@ import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.innertube.models.response.VideoHeatmapParser
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
+import io.github.aedev.flow.innertube.pages.explore.chartsCountryOrFallback
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.RelativeUploadDateParser
@@ -25,7 +26,6 @@ import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.bestImageUrl
 import io.github.aedev.flow.utils.distinctBestImageUrls
-import io.github.aedev.flow.utils.newPipeContentCountry
 import io.github.aedev.flow.utils.newPipeLocalization
 import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import io.github.aedev.flow.utils.parseToTimestamp
@@ -48,8 +48,6 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem
-import org.schabi.newpipe.extractor.kiosk.KioskExtractor
-import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.stream.ContentAvailability
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -274,43 +272,26 @@ class YouTubeRepository
         }
 
         /**
-         * Fetch trending videos
+         * The region's most popular videos.
+         *
+         * `FEtrending` is HTTP 400 on every InnerTube client — the Trending page is retired — so this
+         * reads YouTube Charts instead. That chart is 30 ranked entries with no next page, hence the
+         * null continuation.
          */
         suspend fun getTrendingVideos(
             region: String = "",
             nextPage: Page? = null,
         ): Pair<List<Video>, Page?> =
             withContext(Dispatchers.IO) {
-                try {
-                    val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
-                    NewPipe.setupLocalization(
-                        newPipeLocalization(playerPreferences.appLanguage.first()),
-                        newPipeContentCountry(effectiveRegion),
-                    )
-
-                    val kioskList = service.kioskList
-                    val trendingExtractor = kioskList.getExtractorById("Trending", null) as KioskExtractor<*>
-
-                    // FIX: ALWAYS call fetchPage to initialize the extractor state
-                    trendingExtractor.fetchPage()
-
-                    val infoItems =
-                        if (nextPage != null) {
-                            trendingExtractor.getPage(nextPage)
-                        } else {
-                            trendingExtractor.initialPage
-                        }
-
-                    val videos =
-                        infoItems.items
-                            .filterIsInstance<StreamInfoItem>()
-                            .map { item -> item.toVideo() }
-
-                    Pair(enrichLikelyCollabAvatarStacks(videos), infoItems.nextPage)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Trending unavailable: ${e.message}")
-                    Pair(emptyList(), null)
-                }
+                if (nextPage != null) return@withContext Pair(emptyList(), null)
+                val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
+                YouTube
+                    .videoCharts(CHART_TYPE_TRENDING_VIDEOS, chartsCountryOrFallback(effectiveRegion))
+                    .map { page -> Pair(enrichLikelyCollabAvatarStacks(page.entries), null as Page?) }
+                    .getOrElse { error ->
+                        Log.w(TAG, "Trending unavailable: ${error.message}")
+                        Pair(emptyList(), null)
+                    }
             }
 
         /**
@@ -877,90 +858,6 @@ class YouTubeRepository
                     results.flatten().distinctBy { it.id }
                 }
             }
-
-        /**
-         * Fetch trending videos for a specific category.
-         * Categories map to YouTube kiosk IDs used by NewPipe.
-         * For ALL, fetches from all non-live categories in parallel and interleaves them.
-         */
-        suspend fun getTrendingByCategory(
-            category: TrendingCategory,
-            region: String = "",
-        ): List<Video> =
-            withContext(Dispatchers.IO) {
-                val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
-                val country = newPipeContentCountry(effectiveRegion)
-                NewPipe.setupLocalization(newPipeLocalization(playerPreferences.appLanguage.first()), country)
-
-                when (category) {
-                    TrendingCategory.ALL -> {
-                        supervisorScope {
-                            val deferreds =
-                                listOf(
-                                    TrendingCategory.TRENDING,
-                                    TrendingCategory.GAMING,
-                                    TrendingCategory.MUSIC,
-                                    TrendingCategory.MOVIES,
-                                ).map { cat ->
-                                    async {
-                                        try {
-                                            fetchKiosk(cat.kioskId, country)
-                                        } catch (e: Exception) {
-                                            emptyList()
-                                        }
-                                    }
-                                }
-                            val results = deferreds.map { it.await() }
-                            interleaveRoundRobin(results)
-                        }
-                    }
-
-                    else -> {
-                        fetchKiosk(category.kioskId, country)
-                    }
-                }
-            }
-
-        private fun fetchKiosk(
-            kioskId: String,
-            country: ContentCountry,
-        ): List<Video> {
-            val kioskList = service.kioskList
-            kioskList.forceContentCountry(country)
-            val extractor = kioskList.getExtractorById(kioskId, null) as KioskExtractor<*>
-            extractor.fetchPage()
-            return extractor.initialPage.items
-                .filterIsInstance<StreamInfoItem>()
-                .map { it.toVideo() }
-        }
-
-        private fun <T> interleaveRoundRobin(lists: List<List<T>>): List<T> {
-            val result = mutableListOf<T>()
-            val iterators = lists.map { it.iterator() }.toMutableList()
-            while (iterators.any { it.hasNext() }) {
-                val iter = iterators.iterator()
-                while (iter.hasNext()) {
-                    val it = iter.next()
-                    if (it.hasNext()) result.add(it.next()) else iter.remove()
-                }
-            }
-            return result
-        }
-
-        /**
-         * Trending categories supported by NewPipe kiosk extractors.
-         */
-        enum class TrendingCategory(
-            val kioskId: String,
-            val displayName: String,
-        ) {
-            ALL("Trending", "All"),
-            TRENDING("Trending", "Trending"),
-            GAMING("trending_gaming", "Gaming"),
-            MUSIC("trending_music", "Music"),
-            MOVIES("trending_movies_and_shows", "Movies"),
-            LIVE("live", "Live"),
-        }
 
         suspend fun prefetchTrendingAndShorts(region: String = ""): Pair<List<Video>, List<Video>> =
             withContext(PerformanceDispatcher.networkIO) {
@@ -1767,6 +1664,7 @@ class YouTubeRepository
         }
 
         companion object {
+            private const val CHART_TYPE_TRENDING_VIDEOS = "TRENDING_VIDEOS"
             private const val TAG = "YouTubeRepository"
             private const val HOME_SUBS_MIN_CHANNELS = 10
             private const val HOME_SUBS_MEDIUM_CHANNELS = 14

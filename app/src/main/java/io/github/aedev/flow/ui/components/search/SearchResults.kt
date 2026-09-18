@@ -22,6 +22,7 @@ import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.ShortsCard
+import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.MediaVideoCard
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
@@ -121,7 +122,7 @@ fun SearchResults(
         }
 
         item(span = { GridItemSpan(maxLineSpan) }) {
-            SearchPagingFooter(
+            FeedPagingFooter(
                 appendState = pagingItems.loadState.append,
                 itemCount = pagingItems.itemCount,
                 onRetry = pagingItems::retry,
@@ -167,7 +168,7 @@ fun SearchShortsGrid(
         }
 
         item(span = { GridItemSpan(maxLineSpan) }) {
-            SearchPagingFooter(
+            FeedPagingFooter(
                 appendState = pagingItems.loadState.append,
                 itemCount = pagingItems.itemCount,
                 onRetry = pagingItems::retry,

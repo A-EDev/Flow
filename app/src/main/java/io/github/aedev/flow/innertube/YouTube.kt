@@ -980,15 +980,6 @@ object YouTube {
             channelBrowseJson(browseId = browseId, params = params).toExploreDestinationPage()
         }
 
-    /**
-     * A destination shelf's "see all": a flat paginated grid of the renderer the channel tabs
-     * already parse, so it rides [channelTab] rather than a second paging path.
-     */
-    suspend fun exploreShelf(
-        browseId: String,
-        params: String,
-    ): Result<ChannelTabContent> = channelTab(browseId, params, FeedItemOwner(), ChannelTabKind.Videos)
-
     suspend fun videoCharts(
         chartType: String,
         country: String,
