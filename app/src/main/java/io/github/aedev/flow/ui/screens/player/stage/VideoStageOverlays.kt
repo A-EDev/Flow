@@ -35,6 +35,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.videoplayer.UpcomingVideoOverlay
 import io.github.aedev.flow.ui.components.videoplayer.gesture.PlayerSpeedBoost
 import io.github.aedev.flow.ui.components.videoplayer.overlay.PlayerGestureOverlays
+import io.github.aedev.flow.ui.components.videoplayer.overlay.cutoutTopInset
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimPanel
@@ -70,7 +71,11 @@ internal fun BoxScope.VideoStageOverlays(session: VideoPlayerStageSession) {
         modifier =
             Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = if (screenState.isFullscreen) 28.dp else 16.dp),
+                .padding(
+                    top =
+                        (if (screenState.isFullscreen) 28.dp else 16.dp) +
+                            cutoutTopInset(screenState.isFullscreenPortrait),
+                ),
     ) {
         Surface(
             color = PlayerScrimPanel,

@@ -30,6 +30,11 @@ fun PlayerGestureOverlays(
             val isFullscreen = screenState.isFullscreen
             val isVertical = style == GestureOverlayStyle.VERTICAL
             val edgeInset = HudSideInset + cutoutEdgeInset(isFullscreen)
+            val topInset = HudTopInset + cutoutTopInset(screenState.isFullscreenPortrait)
+            val centredAlignment = centredHudAlignment(style)
+            // Only a read-out that actually sits on the top edge clears the punch-hole. The ring
+            // reads out in the middle of the picture, nowhere near it.
+            val centredTopInset = if (centredAlignment == Alignment.TopCenter) topInset else HudTopInset
 
             SeekAnimationOverlay(
                 showSeekBack = screenState.showSeekBackAnimation,
@@ -52,8 +57,8 @@ fun PlayerGestureOverlays(
                             .padding(horizontal = edgeInset)
                     } else {
                         Modifier
-                            .align(centredHudAlignment(style))
-                            .padding(top = HudTopInset)
+                            .align(centredAlignment)
+                            .padding(top = centredTopInset)
                     },
             )
 
@@ -69,8 +74,8 @@ fun PlayerGestureOverlays(
                             .padding(horizontal = edgeInset)
                     } else {
                         Modifier
-                            .align(centredHudAlignment(style))
-                            .padding(top = HudTopInset)
+                            .align(centredAlignment)
+                            .padding(top = centredTopInset)
                     },
             )
 
@@ -87,7 +92,7 @@ fun PlayerGestureOverlays(
                 modifier =
                     Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = HudTopInset),
+                        .padding(top = topInset),
             )
         }
     }
@@ -97,15 +102,13 @@ fun PlayerGestureOverlays(
 private fun centredHudAlignment(style: GestureOverlayStyle): Alignment =
     if (style == GestureOverlayStyle.CIRCULAR) Alignment.Center else Alignment.TopCenter
 
-/**
- * How far the standing bars sit in from the long edges in fullscreen.
- *
- * The widest cutout on either edge, applied to both, rather than each side taking its own inset
- * (#1029): the punch-hole is on one edge only, so per-side insets put the two bars at visibly
- * different distances from the picture. Only the edge-aligned bars take it at all — a centred
- * read-out given a one-sided inset is simply pushed off centre, which is what moved every other HUD
- * and the speed badge away from the middle.
- */
+@Composable
+internal fun cutoutTopInset(isFullscreenPortrait: Boolean): Dp {
+    if (!isFullscreenPortrait) return 0.dp
+    val density = LocalDensity.current
+    return with(density) { WindowInsets.displayCutout.getTop(this).toDp() }
+}
+
 @Composable
 private fun cutoutEdgeInset(isFullscreen: Boolean): Dp {
     if (!isFullscreen) return 0.dp
