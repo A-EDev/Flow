@@ -1739,6 +1739,7 @@ class EnhancedPlayerManager private constructor() {
                             prefs.defaultQualityCellular.first()
                         }
                     val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
+                    val preferredSubtitleLanguage = prefs.preferredSubtitleLanguage.first()
                     val preferredCodecKey = prefs.videoCodecPriority.first()
                     val mergedVideoStreams =
                         io.github.aedev.flow.player.stream.InnerTubeStreamBridge
@@ -1769,7 +1770,11 @@ class EnhancedPlayerManager private constructor() {
                         audioStream = selected.second,
                         videoStreams = mergedVideoStreams,
                         audioStreams = mergedAudioStreams,
-                        subtitles = CaptionTrackResolver.resolve(extraction.playerResponse),
+                        subtitles =
+                            CaptionTrackResolver.resolve(
+                                extraction.playerResponse,
+                                translateTo = preferredSubtitleLanguage,
+                            ),
                         durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
                         dashManifestUrl = extraction.liveDashUrl,
                         hlsUrl = extraction.liveHlsUrl,
@@ -1868,6 +1873,7 @@ class EnhancedPlayerManager private constructor() {
                     prefs.defaultQualityCellular.first()
                 }
             val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
+            val preferredSubtitleLanguage = prefs.preferredSubtitleLanguage.first()
             val preferredCodecKey = prefs.videoCodecPriority.first()
             val mergedVideoStreams =
                 io.github.aedev.flow.player.stream.InnerTubeStreamBridge
@@ -1889,7 +1895,11 @@ class EnhancedPlayerManager private constructor() {
                 audioStream = selected.second,
                 videoStreams = mergedVideoStreams,
                 audioStreams = mergedAudioStreams,
-                subtitles = CaptionTrackResolver.resolve(extraction.playerResponse),
+                subtitles =
+                    CaptionTrackResolver.resolve(
+                        extraction.playerResponse,
+                        translateTo = preferredSubtitleLanguage,
+                    ),
                 durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
                 dashManifestUrl = extraction.liveDashUrl,
                 streamType = InnerTubeVideoMapper.streamType(extraction),
