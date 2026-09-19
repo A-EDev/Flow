@@ -81,9 +81,16 @@ import io.github.aedev.flow.innertube.pages.channel.toChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.toChannelShortsPage
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabContent
 import io.github.aedev.flow.innertube.pages.channel.toChannelTabs
+import io.github.aedev.flow.innertube.pages.explore.CHARTS_BROWSE_ID
+import io.github.aedev.flow.innertube.pages.explore.ExploreDestinationPage
+import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
+import io.github.aedev.flow.innertube.pages.explore.exploreShelves
+import io.github.aedev.flow.innertube.pages.explore.toExploreDestinationShell
+import io.github.aedev.flow.innertube.pages.explore.toVideoChartsPage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
+import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.search.SearchResultsPage
@@ -96,10 +103,14 @@ import io.github.aedev.flow.innertube.pages.toShortsPage
 import io.github.aedev.flow.innertube.pages.toVideoCommentsPage
 import io.github.aedev.flow.innertube.pages.toVideoDescriptionPage
 import io.github.aedev.flow.innertube.pages.videoCommentsContinuation
+import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -961,6 +972,51 @@ object YouTube {
                 .parseToJsonElement(response.bodyAsText())
                 .jsonObject
                 .toChannelShortsPage()
+        }
+
+    /**
+     * An explore destination's landing page, emitted as it is mapped: the tabs first, then one more
+     * shelf each time. `FEtrending` and `FEexplore` are dead — see
+     * [io.github.aedev.flow.innertube.pages.explore.ExploreDestination].
+     *
+     * The whole page arrives in a single browse response, so this cannot paint before the body
+     * lands; what it takes off first paint is the mapping of every shelf after the first, which on
+     * a destination runs to hundreds of items. That mapping and the parse it walks both stay off
+     * the collector's thread.
+     */
+    fun exploreDestination(
+        browseId: String,
+        params: String? = null,
+    ): Flow<ExploreDestinationPage> =
+        flow {
+            val response = channelBrowseJson(browseId = browseId, params = params)
+            val shell = response.toExploreDestinationShell()
+            emit(shell)
+            val shelves = mutableListOf<FeedShelf>()
+            response.exploreShelves(shell.owner).forEach { shelf ->
+                shelves += shelf
+                emit(shell.copy(shelves = shelves.toList()))
+            }
+        }.flowOn(PerformanceDispatcher.parsing)
+
+    suspend fun videoCharts(
+        chartType: String,
+        country: String,
+    ): Result<VideoChartsPage> =
+        runCatching {
+            val response =
+                innerTube.analyticsChartsBrowse(
+                    browseId = CHARTS_BROWSE_ID,
+                    query =
+                        "perspective=CHART_DETAILS" +
+                            "&chart_params_country_code=$country" +
+                            "&chart_params_chart_type=$chartType",
+                )
+            withContext(PerformanceDispatcher.parsing) {
+                Json
+                    .parseToJsonElement(response.bodyAsText())
+                    .toVideoChartsPage(chartType, country)
+            }
         }
 
     suspend fun communityPosts(

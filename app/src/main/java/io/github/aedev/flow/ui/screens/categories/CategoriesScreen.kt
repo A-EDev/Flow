@@ -1,94 +1,91 @@
 package io.github.aedev.flow.ui.screens.categories
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.List
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.HomeFeedColumns
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.repository.YouTubeRepository.TrendingCategory
-import io.github.aedev.flow.ui.components.ContentFilterChip
-import io.github.aedev.flow.ui.components.FeedGridLayout
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
-import io.github.aedev.flow.ui.components.VideoCardHorizontal
+import io.github.aedev.flow.innertube.pages.explore.ExploreSectionKind
+import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
+import io.github.aedev.flow.ui.components.categories.CategoryChartGrid
+import io.github.aedev.flow.ui.components.categories.CategoryPagedGrid
+import io.github.aedev.flow.ui.components.categories.CategoryShelfPage
+import io.github.aedev.flow.ui.components.categories.CategoryShimmer
+import io.github.aedev.flow.ui.components.categories.CategorySubTabMenu
+import io.github.aedev.flow.ui.components.categories.CategoryTabBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
-import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
-import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
-import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardHorizontal
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.screens.settings.SearchablePickerDialog
 import io.github.aedev.flow.ui.screens.settings.regionPickerOptions
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 
-private data class CategoryTab(
-    val category: TrendingCategory,
-    val labelRes: Int,
-    val iconRes: ImageVector? = null,
-    val iconResId: Int? = null,
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Explore: one tab per YouTube destination, each rendering whichever of the three shapes its source
+ * actually serves — a page of shelves, a paged grid, or a ranked chart.
+ */
 @Composable
 fun CategoriesScreen(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit = {},
+    onShortClick: (String) -> Unit = {},
+    onPlaylistClick: (String) -> Unit = {},
     viewModel: CategoriesViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val trendingRegion by viewModel.trendingRegion.collectAsStateWithLifecycle()
-    val showRegionPicker by viewModel.showRegionPickerInExplore.collectAsStateWithLifecycle()
-    var showRegionDialog by remember { mutableStateOf(false) }
+    val pagingItems = viewModel.gridItems.collectAsLazyPagingItems()
+    var showRegionDialog by rememberSaveable { mutableStateOf(false) }
 
-    val tabs =
-        remember {
-            listOf(
-                CategoryTab(TrendingCategory.ALL, R.string.category_all),
-                CategoryTab(TrendingCategory.GAMING, R.string.category_gaming),
-                CategoryTab(TrendingCategory.MUSIC, R.string.category_music),
-                CategoryTab(TrendingCategory.MOVIES, R.string.category_movies),
-                CategoryTab(TrendingCategory.LIVE, R.string.category_live),
-            )
-        }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val preferences = remember(context) { PlayerPreferences(context) }
+    val columnPreference by preferences.homeFeedColumns.collectAsStateWithLifecycle(HomeFeedColumns.AUTO)
+
+    val shelfState = rememberLazyGridState()
+    val gridState = rememberLazyGridState()
+
+    BackHandler(enabled = uiState.openShelfTitle != null) { viewModel.closeShelf() }
 
     Scaffold(
         topBar = {
             FlowTopBar(
-                title = stringResource(R.string.categories_title),
+                title = uiState.openShelfTitle ?: stringResource(R.string.categories_title),
+                onBack = uiState.openShelfTitle?.let { { viewModel.closeShelf() } },
                 actions = {
-                    if (showRegionPicker) {
-                        IconButton(onClick = { showRegionDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Language,
-                                contentDescription = stringResource(R.string.categories_region_picker_desc, trendingRegion),
-                            )
-                        }
+                    IconButton(onClick = { showRegionDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Language,
+                            contentDescription =
+                                stringResource(R.string.categories_region_picker_desc, trendingRegion),
+                        )
                     }
-                    IconButton(onClick = { viewModel.toggleViewMode() }) {
+                    IconButton(onClick = viewModel::toggleViewMode) {
                         Icon(
                             imageVector = if (uiState.isListView) Icons.Outlined.GridView else Icons.Outlined.List,
                             contentDescription =
@@ -105,78 +102,67 @@ fun CategoriesScreen(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0.dp),
     ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .background(MaterialTheme.colorScheme.background),
-        ) {
-            // Category filter chips row
-            LazyRow(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(tabs) { tab ->
-                    val selected = uiState.selectedCategory == tab.category
-                    ContentFilterChip(
-                        title = stringResource(tab.labelRes),
-                        isSelected = selected,
-                        onClick = { viewModel.selectCategory(tab.category) },
-                    )
-                }
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            if (uiState.openShelfTitle == null) {
+                CategoryTabBar(
+                    selected = uiState.selected,
+                    onSelect = viewModel::select,
+                    modifier = Modifier.padding(vertical = ChipRowVerticalPadding),
+                )
+                CategorySubTabMenu(
+                    subTabs = uiState.subTabs,
+                    selected = uiState.selectedSubTab,
+                    onSelect = viewModel::selectSubTab,
+                    modifier = Modifier.padding(bottom = ChipRowVerticalPadding),
+                )
             }
 
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                thickness = 0.5.dp,
-            )
-
-            // Content area
-            BoxWithConstraints(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-            ) {
-                val layoutConfig = rememberFeedGridLayout(maxWidth)
+            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, FEED_MAX_AUTO_COLUMNS)
                 when {
                     uiState.isLoading -> {
-                        ShimmerContent(isListView = uiState.isListView, layoutConfig = layoutConfig)
+                        CategoryShimmer(feedLayout = feedLayout, isListView = uiState.isListView)
                     }
 
-                    uiState.error != null && uiState.videos.isEmpty() -> {
-                        ErrorContent(
-                            message = uiState.error!!,
-                            onRetry = { viewModel.refresh() },
+                    uiState.error != null -> {
+                        FlowErrorState(error = uiState.error!!, onRetry = viewModel::refresh)
+                    }
+
+                    uiState.sectionKind == ExploreSectionKind.CHART -> {
+                        CategoryChartGrid(
+                            entries = uiState.chartEntries,
+                            gridState = gridState,
+                            feedLayout = feedLayout,
+                            isListView = uiState.isListView,
+                            onVideoClick = onVideoClick,
+                            onChannelClick = onChannelClick,
+                        )
+                    }
+
+                    uiState.sectionKind == ExploreSectionKind.GRID -> {
+                        CategoryPagedGrid(
+                            pagingItems = pagingItems,
+                            gridState = gridState,
+                            feedLayout = feedLayout,
+                            isListView = uiState.isListView,
+                            onVideoClick = onVideoClick,
+                            onChannelClick = onChannelClick,
+                            onPlaylistClick = onPlaylistClick,
                         )
                     }
 
                     else -> {
-                        if (uiState.isListView) {
-                            ListContent(
-                                videos = uiState.displayedVideos,
-                                canLoadMore = uiState.canLoadMore,
-                                isLoadingMore = uiState.isLoadingMore,
-                                onVideoClick = onVideoClick,
-                                onChannelClick = onChannelClick,
-                                onLoadMore = { viewModel.loadMore() },
-                            )
-                        } else {
-                            GridContent(
-                                videos = uiState.displayedVideos,
-                                canLoadMore = uiState.canLoadMore,
-                                isLoadingMore = uiState.isLoadingMore,
-                                onVideoClick = onVideoClick,
-                                onChannelClick = onChannelClick,
-                                onLoadMore = { viewModel.loadMore() },
-                                layoutConfig = layoutConfig,
-                            )
-                        }
+                        CategoryShelfPage(
+                            shelves = uiState.shelves,
+                            isLoading = uiState.isLoading,
+                            listState = shelfState,
+                            columnPreference = columnPreference,
+                            onVideoClick = onVideoClick,
+                            onShortClick = onShortClick,
+                            onChannelClick = onChannelClick,
+                            onPlaylistClick = onPlaylistClick,
+                            onShelfOpen = viewModel::openShelf,
+                        )
                     }
                 }
             }
@@ -194,191 +180,10 @@ fun CategoriesScreen(
                 showRegionDialog = false
             },
             onDismiss = { showRegionDialog = false },
-            listMaxHeight = 260.dp,
+            listMaxHeight = RegionDialogMaxHeight,
         )
     }
 }
 
-@Composable
-private fun GridContent(
-    videos: List<Video>,
-    canLoadMore: Boolean,
-    isLoadingMore: Boolean,
-    onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
-    onLoadMore: () -> Unit,
-    layoutConfig: FeedGridLayout,
-) {
-    val gridState = rememberLazyGridState()
-
-    LaunchedEffect(gridState) {
-        snapshotFlow { gridState.layoutInfo }
-            .distinctUntilChanged()
-            .filter { layoutInfo ->
-                if (layoutInfo.totalItemsCount == 0) return@filter false
-                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                lastVisible >= layoutInfo.totalItemsCount - 4
-            }.collect { if (canLoadMore && !isLoadingMore) onLoadMore() }
-    }
-
-    LazyVerticalGrid(
-        columns = layoutConfig.cells,
-        state = gridState,
-        contentPadding =
-            PaddingValues(
-                horizontal = layoutConfig.contentPadding,
-                vertical = 12.dp,
-            ),
-        horizontalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
-        verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        items(videos, key = { it.id }) { video ->
-            VideoCardFullWidth(
-                video = video,
-                useInternalPadding = false,
-                modifier = Modifier.fillMaxWidth(),
-                onChannelClick = onChannelClick,
-                onClick = { onVideoClick(video) },
-            )
-        }
-
-        if (canLoadMore) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(28.dp),
-                        strokeWidth = 2.dp,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ListContent(
-    videos: List<Video>,
-    canLoadMore: Boolean,
-    isLoadingMore: Boolean,
-    onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
-    onLoadMore: () -> Unit,
-) {
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo }
-            .distinctUntilChanged()
-            .filter { layoutInfo ->
-                if (layoutInfo.totalItemsCount == 0) return@filter false
-                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                lastVisible >= layoutInfo.totalItemsCount - 3
-            }.collect { if (canLoadMore && !isLoadingMore) onLoadMore() }
-    }
-
-    LazyColumn(
-        state = listState,
-        contentPadding = PaddingValues(vertical = 8.dp),
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        items(videos, key = { it.id }) { video ->
-            VideoCardHorizontal(
-                video = video,
-                modifier = Modifier.fillMaxWidth(),
-                onChannelClick = onChannelClick,
-                onClick = { onVideoClick(video) },
-            )
-        }
-
-        if (canLoadMore) {
-            item {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(28.dp),
-                        strokeWidth = 2.dp,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ShimmerContent(
-    isListView: Boolean,
-    layoutConfig: FeedGridLayout,
-) {
-    if (isListView) {
-        LazyColumn(
-            contentPadding = PaddingValues(vertical = 8.dp),
-            modifier = Modifier.fillMaxSize(),
-            userScrollEnabled = false,
-        ) {
-            items(8) {
-                ShimmerVideoCardHorizontal()
-            }
-        }
-    } else {
-        LazyVerticalGrid(
-            columns = layoutConfig.cells,
-            contentPadding =
-                PaddingValues(
-                    horizontal = layoutConfig.contentPadding,
-                    vertical = 12.dp,
-                ),
-            horizontalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
-            verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
-            modifier = Modifier.fillMaxSize(),
-            userScrollEnabled = false,
-        ) {
-            items(12) {
-                if (layoutConfig.columns == 1) {
-                    ShimmerVideoCardFullWidth(modifier = Modifier.fillMaxWidth())
-                } else {
-                    ShimmerGridVideoCard()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ErrorContent(
-    message: String,
-    onRetry: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onRetry,
-            shape = RoundedCornerShape(12.dp),
-        ) {
-            Text(stringResource(R.string.retry))
-        }
-    }
-}
+private val ChipRowVerticalPadding = 4.dp
+private val RegionDialogMaxHeight = 260.dp

@@ -35,6 +35,7 @@ import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
 import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.ShortsShelf
+import io.github.aedev.flow.ui.components.shared.MediaVideoCard
 
 /**
  * One of the strips YouTube interleaves between search results: a creator's latest uploads, an
@@ -104,7 +105,7 @@ private fun VideoStrip(
         }
 
     shown.forEach { video ->
-        SearchVideoCard(
+        MediaVideoCard(
             video = video,
             asThumbnailRow = asThumbnailRows,
             onClick = { onVideoClick(video) },

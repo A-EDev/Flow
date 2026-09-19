@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.channel
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.HomeFeedColumns
+import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
@@ -57,10 +58,35 @@ import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.feedCardsFormGrid
 import io.github.aedev.flow.ui.components.feedShelfPreviewCount
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
-import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+
+/** Every callback a shelf page needs, threaded through one object rather than a dozen parameters. */
+data class FeedShelfActions(
+    val onVideoClick: (Video) -> Unit,
+    val onShortClick: (String) -> Unit = {},
+    val onPlaylistClick: (String) -> Unit = {},
+    val onChannelClick: (String) -> Unit = {},
+    val onSectionMore: (FeedShelf) -> Unit = {},
+    val canOpenSection: (FeedShelf) -> Boolean = { false },
+    val subscribedChannelIds: Set<String> = emptySet(),
+    val onSubscribeChannel: (Channel, Boolean) -> Unit = { _, _ -> },
+)
 
 /**
- * The channel's own shelves, in the order it arranged them.
+ * The two card shapes a shelf page cannot own: a community post and a channel row both carry
+ * feature vocabulary, so the surface supplies them. A slot left null drops the items it would
+ * have drawn, and a shelf left empty by that is skipped.
+ */
+data class FeedShelfSlots(
+    val post: (@Composable (post: CommunityPost, compact: Boolean) -> Unit)? = null,
+    val channelRow: (@Composable (channel: Channel, isSubscribed: Boolean) -> Unit)? = null,
+)
+
+/**
+ * A page of shelves, in the order the source arranged them — a channel's Home tab, or an explore
+ * destination.
+ *
+ * [showChannelInfo] is false for a channel, where every row is that channel's own upload and the
+ * repeated name is noise, and true for a destination, where every row is a different creator.
  *
  * On a phone every shelf is a vertical list of the rows the rest of the app already uses. An earlier
  * version put them in fixed-width horizontal carousels, which crushed thumbnail-left cards into
@@ -68,33 +94,26 @@ import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
  * here. A wider window turns each shelf into the same card grid the tabs use, previewing two rows.
  */
 @Composable
-internal fun ChannelHomeSections(
+fun FeedShelfSections(
     sections: List<FeedShelf>,
     isLoading: Boolean,
     listState: LazyGridState,
     columnPreference: HomeFeedColumns,
     contentPadding: PaddingValues,
     topInset: Dp,
-    onVideoClick: (Video) -> Unit,
-    onShortClick: (String) -> Unit,
-    onPlaylistClick: (String) -> Unit,
-    onChannelClick: (String) -> Unit,
-    onSectionMore: (FeedShelf) -> Unit,
-    canOpenSection: (FeedShelf) -> Boolean,
-    subscribedChannelIds: Set<String>,
-    onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
-    onAuthorClick: () -> Unit,
-    onPostComments: (CommunityPost) -> Unit,
-    onPostShare: (CommunityPost) -> Unit,
+    actions: FeedShelfActions,
+    slots: FeedShelfSlots = FeedShelfSlots(),
+    showChannelInfo: Boolean = false,
 ) {
-    if (sections.isEmpty()) {
+    val renderable = remember(sections, slots) { sections.filter { it.hasRenderableItems(slots) } }
+    if (renderable.isEmpty()) {
         if (isLoading) {
             FlowLoadingIndicator(modifier = Modifier.padding(top = topInset))
         }
         return
     }
 
-    val expanded = remember(sections) { mutableStateMapOf<String, Boolean>() }
+    val expanded = remember(renderable) { mutableStateMapOf<String, Boolean>() }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, FEED_MAX_AUTO_COLUMNS)
@@ -107,23 +126,15 @@ internal fun ChannelHomeSections(
             verticalArrangement = Arrangement.spacedBy(if (columns > 1) feedLayout.cardSpacing else 0.dp),
         ) {
             fullSpanItem(key = "top_gap") { Spacer(Modifier.height(8.dp)) }
-            sections.forEach { section ->
-                homeSection(
+            renderable.forEach { section ->
+                shelfSection(
                     section = section,
                     columns = columns,
                     isExpanded = expanded[section.id] == true,
                     onToggleExpanded = { expanded[section.id] = expanded[section.id] != true },
-                    onVideoClick = onVideoClick,
-                    onShortClick = onShortClick,
-                    onPlaylistClick = onPlaylistClick,
-                    onChannelClick = onChannelClick,
-                    onSectionMore = onSectionMore,
-                    canOpenSection = canOpenSection,
-                    subscribedChannelIds = subscribedChannelIds,
-                    onSubscribeChannel = onSubscribeChannel,
-                    onAuthorClick = onAuthorClick,
-                    onPostComments = onPostComments,
-                    onPostShare = onPostShare,
+                    actions = actions,
+                    slots = slots,
+                    showChannelInfo = showChannelInfo,
                 )
             }
             fullSpanItem(key = "bottom_gap") { Spacer(Modifier.height(16.dp)) }
@@ -131,22 +142,24 @@ internal fun ChannelHomeSections(
     }
 }
 
-private fun LazyGridScope.homeSection(
+/** A shelf whose every item needs a slot the surface did not supply would render as a bare header. */
+private fun FeedShelf.hasRenderableItems(slots: FeedShelfSlots): Boolean =
+    items.any { item ->
+        when (item) {
+            is FeedItem.PostItem -> slots.post != null
+            is FeedItem.RelatedChannelItem -> slots.channelRow != null
+            else -> true
+        }
+    }
+
+private fun LazyGridScope.shelfSection(
     section: FeedShelf,
     columns: Int,
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
-    onVideoClick: (Video) -> Unit,
-    onShortClick: (String) -> Unit,
-    onPlaylistClick: (String) -> Unit,
-    onChannelClick: (String) -> Unit,
-    onSectionMore: (FeedShelf) -> Unit,
-    canOpenSection: (FeedShelf) -> Boolean,
-    subscribedChannelIds: Set<String>,
-    onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
-    onAuthorClick: () -> Unit,
-    onPostComments: (CommunityPost) -> Unit,
-    onPostShare: (CommunityPost) -> Unit,
+    actions: FeedShelfActions,
+    slots: FeedShelfSlots,
+    showChannelInfo: Boolean,
 ) {
     if (section.style == FeedShelfStyle.Trailer) {
         val trailer = section.items.filterIsInstance<FeedItem.VideoItem>().firstOrNull() ?: return
@@ -154,15 +167,15 @@ private fun LazyGridScope.homeSection(
             if (columns > 1) {
                 CompactVideoCard(
                     video = trailer.video,
-                    showChannelName = false,
-                    onClick = { onVideoClick(trailer.video) },
+                    showChannelName = showChannelInfo,
+                    onClick = { actions.onVideoClick(trailer.video) },
                 )
             } else {
                 VideoCardFullWidth(
                     video = trailer.video,
-                    showChannelAvatar = false,
-                    showChannelName = false,
-                    onClick = { onVideoClick(trailer.video) },
+                    showChannelAvatar = showChannelInfo,
+                    showChannelName = showChannelInfo,
+                    onClick = { actions.onVideoClick(trailer.video) },
                 )
             }
         }
@@ -173,27 +186,23 @@ private fun LazyGridScope.homeSection(
     if (section.items.isNotEmpty() && section.items.all { it is FeedItem.ShortItem }) {
         val shorts = section.items.map { (it as FeedItem.ShortItem).video }
         fullSpanItem(key = section.id) {
-            ShortsShelf(shorts = shorts, onShortClick = { _, tapped -> onShortClick(tapped.id) })
+            ShortsShelf(shorts = shorts, onShortClick = { _, tapped -> actions.onShortClick(tapped.id) })
         }
         return
     }
 
     fullSpanItem(key = "${section.id}:header") {
-        ChannelShelfHeader(
+        ShelfHeader(
             title = section.title,
-            hasMore = canOpenSection(section),
-            onClick = { onSectionMore(section) },
+            hasMore = actions.canOpenSection(section),
+            onClick = { actions.onSectionMore(section) },
         )
     }
 
-    if (columns > 1 && section.items.isNotEmpty() && section.items.all { it is FeedItem.PostItem }) {
+    val postSlot = slots.post
+    if (columns > 1 && postSlot != null && section.items.isNotEmpty() && section.items.all { it is FeedItem.PostItem }) {
         fullSpanItem(key = "${section.id}:posts") {
-            ChannelPostsShelf(
-                posts = section.items.map { (it as FeedItem.PostItem).post },
-                onAuthorClick = onAuthorClick,
-                onPostComments = onPostComments,
-                onPostShare = onPostShare,
-            )
+            PostsShelf(posts = section.items.map { (it as FeedItem.PostItem).post }, post = postSlot)
         }
         return
     }
@@ -212,15 +221,9 @@ private fun LazyGridScope.homeSection(
             ShelfItem(
                 item = item,
                 gridCards = gridCards,
-                onVideoClick = onVideoClick,
-                onShortClick = onShortClick,
-                onPlaylistClick = onPlaylistClick,
-                onChannelClick = onChannelClick,
-                subscribedChannelIds = subscribedChannelIds,
-                onSubscribeChannel = onSubscribeChannel,
-                onAuthorClick = onAuthorClick,
-                onPostComments = onPostComments,
-                onPostShare = onPostShare,
+                actions = actions,
+                slots = slots,
+                showChannelInfo = showChannelInfo,
             )
         }
     }
@@ -228,7 +231,7 @@ private fun LazyGridScope.homeSection(
     if (section.items.size > previewCount) {
         item(key = "${section.id}:expander", span = { GridItemSpan(maxLineSpan) }) {
             Box(modifier = shelfItemMotion()) {
-                ChannelShelfExpander(isExpanded = isExpanded, onClick = onToggleExpanded)
+                ShelfExpander(isExpanded = isExpanded, onClick = onToggleExpanded)
             }
         }
     }
@@ -241,55 +244,48 @@ private fun LazyGridScope.homeSection(
 private fun ShelfItem(
     item: FeedItem,
     gridCards: Boolean,
-    onVideoClick: (Video) -> Unit,
-    onShortClick: (String) -> Unit,
-    onPlaylistClick: (String) -> Unit,
-    onChannelClick: (String) -> Unit,
-    subscribedChannelIds: Set<String>,
-    onSubscribeChannel: (io.github.aedev.flow.data.model.Channel, Boolean) -> Unit,
-    onAuthorClick: () -> Unit,
-    onPostComments: (CommunityPost) -> Unit,
-    onPostShare: (CommunityPost) -> Unit,
+    actions: FeedShelfActions,
+    slots: FeedShelfSlots,
+    showChannelInfo: Boolean,
 ) {
     when (item) {
         is FeedItem.VideoItem -> {
-            ShelfVideoCard(video = item.video, gridCard = gridCards, onClick = { onVideoClick(item.video) })
+            ShelfVideoCard(
+                video = item.video,
+                gridCard = gridCards,
+                showChannelInfo = showChannelInfo,
+                onClick = { actions.onVideoClick(item.video) },
+            )
         }
 
         is FeedItem.ShortItem -> {
-            ShelfVideoCard(video = item.video, gridCard = gridCards, onClick = { onShortClick(item.video.id) })
+            ShelfVideoCard(
+                video = item.video,
+                gridCard = gridCards,
+                showChannelInfo = showChannelInfo,
+                onClick = { actions.onShortClick(item.video.id) },
+            )
         }
 
         is FeedItem.PlaylistItem -> {
             if (gridCards) {
                 PlaylistCard(
                     playlist = item.playlist,
-                    onClick = { onPlaylistClick(item.playlist.id) },
+                    onClick = { actions.onPlaylistClick(item.playlist.id) },
                     layout = PlaylistCardLayout.SHELF,
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )
             } else {
-                PlaylistCard(playlist = item.playlist, onClick = { onPlaylistClick(item.playlist.id) })
+                PlaylistCard(playlist = item.playlist, onClick = { actions.onPlaylistClick(item.playlist.id) })
             }
         }
 
         is FeedItem.RelatedChannelItem -> {
-            ChannelRow(
-                channel = item.channel,
-                onClick = { onChannelClick(item.channel.id) },
-                isSubscribed = item.channel.id in subscribedChannelIds,
-                onSubscribeClick = { onSubscribeChannel(item.channel, true) },
-                onUnsubscribeClick = { onSubscribeChannel(item.channel, false) },
-            )
+            slots.channelRow?.invoke(item.channel, item.channel.id in actions.subscribedChannelIds)
         }
 
         is FeedItem.PostItem -> {
-            CommunityPostCard(
-                post = item.post,
-                onAuthorClick = onAuthorClick,
-                onCommentsClick = { onPostComments(item.post) },
-                onShareClick = { onPostShare(item.post) },
-            )
+            slots.post?.invoke(item.post, false)
         }
     }
 }
@@ -310,19 +306,20 @@ private fun LazyGridItemScope.shelfItemMotion(): Modifier {
 private fun ShelfVideoCard(
     video: Video,
     gridCard: Boolean,
+    showChannelInfo: Boolean,
     onClick: () -> Unit,
 ) {
     if (gridCard) {
         VideoCardFullWidth(
             video = video,
-            showChannelAvatar = false,
-            showChannelName = false,
+            showChannelAvatar = showChannelInfo,
+            showChannelName = showChannelInfo,
             onClick = onClick,
         )
     } else {
         CompactVideoCard(
             video = video,
-            showChannelName = false,
+            showChannelName = showChannelInfo,
             onClick = onClick,
         )
     }
@@ -330,11 +327,9 @@ private fun ShelfVideoCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChannelPostsShelf(
+private fun PostsShelf(
     posts: List<CommunityPost>,
-    onAuthorClick: () -> Unit,
-    onPostComments: (CommunityPost) -> Unit,
-    onPostShare: (CommunityPost) -> Unit,
+    post: @Composable (post: CommunityPost, compact: Boolean) -> Unit,
 ) {
     val shape = MaterialTheme.shapes.medium
     HorizontalMultiBrowseCarousel(
@@ -347,7 +342,7 @@ private fun ChannelPostsShelf(
                 .fillMaxWidth()
                 .height(PostShelfHeight),
     ) { index ->
-        val post = posts[index]
+        val item = posts[index]
         Card(
             shape = shape,
             colors = CardDefaults.outlinedCardColors(),
@@ -357,21 +352,13 @@ private fun ChannelPostsShelf(
                     .maskClip(shape)
                     .maskBorder(CardDefaults.outlinedCardBorder(), shape),
         ) {
-            CommunityPostCard(
-                post = post,
-                onAuthorClick = onAuthorClick,
-                onCommentsClick = { onPostComments(post) },
-                onShareClick = { onPostShare(post) },
-                showDivider = false,
-                compact = true,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
+            post(item, true)
         }
     }
 }
 
 @Composable
-private fun ChannelShelfHeader(
+private fun ShelfHeader(
     title: String?,
     hasMore: Boolean,
     onClick: () -> Unit,
@@ -405,7 +392,7 @@ private fun ChannelShelfHeader(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ChannelShelfExpander(
+private fun ShelfExpander(
     isExpanded: Boolean,
     onClick: () -> Unit,
 ) {

@@ -477,13 +477,6 @@ class HomeViewModel
                                         }.awaitAll()
                                 }
 
-                            val deferredViral =
-                                async {
-                                    runCatching {
-                                        repository.getTrendingVideos(region).first
-                                    }.getOrElse { emptyList() }
-                                }
-
                             // ── Related-graph lane: harvest /next neighbours of recent positives ──
                             val deferredRelated =
                                 async {
@@ -492,34 +485,10 @@ class HomeViewModel
                                     feedSources.fetchRelatedGraph(seedInputs, seedIds, ::cacheFilters)
                                 }
 
-                            // ── Fast first paint ────────────────────────────────────────
-                            val viralResult = deferredViral.await()
-                            if (viralResult.isNotEmpty() && userSubs.isEmpty()) {
-                                val watched = watchedVideoIds.value
-                                val quickFeed =
-                                    FlowNeuroEngine
-                                        .rank(
-                                            viralResult
-                                                .filterValid()
-                                                .filterWatched(watched)
-                                                .filterRecentHomeSuggestion(System.currentTimeMillis()),
-                                            userSubs,
-                                        ).take(15)
-                                if (quickFeed.isNotEmpty()) {
-                                    _uiState.update { state ->
-                                        state.copy(
-                                            videos = quickFeed.filterWatched(watchedVideoIds.value),
-                                            isLoading = true,
-                                            isFlowFeed = true,
-                                        )
-                                    }
-                                }
-                            }
-
                             Wave1FeedResults(
                                 subs = deferredSubs.await(),
                                 discovery = deferredDiscovery.await(),
-                                viral = viralResult,
+                                viral = emptyList(),
                                 related = deferredRelated.await(),
                             )
                         }
@@ -605,7 +574,7 @@ class HomeViewModel
                     subsBacklog = mix.subsBacklog
 
                     if (finalMix.isEmpty()) {
-                        loadTrendingFallback()
+                        settleWithoutFeed()
                         return@launch
                     }
                     val relatedMetrics =
@@ -673,7 +642,7 @@ class HomeViewModel
                             error = appContext.getString(R.string.error_failed_to_load_feed),
                         )
                     }
-                    loadTrendingFallback()
+                    settleWithoutFeed()
                 }
             }
         }
@@ -1119,24 +1088,19 @@ class HomeViewModel
             }
         }
 
-        private suspend fun loadTrendingFallback() {
-            val region = playerPreferences.trendingRegion.first()
-            val (videos, nextPage) = repository.getTrendingVideos(region, null)
-            currentPage = nextPage
-
-            val userSubs = subscriptionRepository.getAllSubscriptionIds()
-            val ranked =
-                FlowNeuroEngine.rank(
-                    videos.filterRecentHomeSuggestion(System.currentTimeMillis()),
-                    userSubs,
-                )
-            updateVideosAndShorts(ranked, append = false)
+        /**
+         * Nothing to fall back to: the trending kiosk this used to load is retired, and the charts
+         * that replaced it belong on Explore, not mixed into the feed. The screen settles empty and
+         * offers a refresh instead of filling itself with unrelated content.
+         */
+        private fun settleWithoutFeed() {
+            currentPage = null
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    hasMorePages = nextPage != null,
+                    isRefreshing = false,
+                    hasMorePages = false,
                     isFlowFeed = false,
-                    error = null,
                 )
             }
         }

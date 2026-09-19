@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.search
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -9,7 +10,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
@@ -18,13 +18,14 @@ import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
-import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.ShortsCard
-import io.github.aedev.flow.ui.components.partialRowIndices
+import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
+import io.github.aedev.flow.ui.components.shared.MediaVideoCard
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
+import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
 /** Every callback the result surfaces need, threaded through one object rather than nine parameters. */
 data class SearchResultActions(
@@ -48,67 +49,38 @@ fun SearchResults(
 ) {
     // The toggle's stored flag is named for its icon: set means the thumbnail-left rows, which are a
     // single full-width column at every size.
-    val listMode = isGridMode
-    val columns = if (listMode) 1 else feedLayout.columns
-    val cells = if (listMode) GridCells.Fixed(1) else feedLayout.cells
+    val plan =
+        rememberFeedGridPlan(
+            layout = feedLayout,
+            listMode = isGridMode,
+            itemCount = pagingItems.itemCount,
+            spansOwnRow = { index -> pagingItems.peek(index).spansRow() },
+            includeLastRun = pagingItems.loadState.append.endOfPaginationReached,
+            itemsKey = pagingItems.itemSnapshotList,
+        )
 
-    val partialRows =
-        remember(pagingItems.itemSnapshotList, columns, pagingItems.loadState.append.endOfPaginationReached) {
-            partialRowIndices(
-                spansOwnRow = (0 until pagingItems.itemCount).map { pagingItems.peek(it).spansRow() },
-                columns = columns,
-                includeLastRun = pagingItems.loadState.append.endOfPaginationReached,
-            )
-        }
-
-    // A card takes the thumbnail-left shape whenever its row is its own: the toggle, a row the grid
-    // could not fill, or a wide window the user pinned to one column.
-    fun isListCard(index: Int) = listMode || index in partialRows || (columns == 1 && !feedLayout.isCompact)
-
-    // Its thumbnail is one grid column wide, so it lines up with the cards it sits between rather
-    // than reading as a different kind of row.
-    val listThumbnailWidth =
-        if (feedLayout.isCompact) CompactVideoCardThumbnailWidth else feedLayout.cardWidth
-
-    val gutter = if (columns == 1) 0.dp else feedLayout.cardSpacing
     LazyVerticalGrid(
-        columns = cells,
+        columns = plan.cells,
         state = gridState,
         modifier = modifier.fillMaxSize().dismissKeyboardOnPress(actions.dismissKeyboard),
-        contentPadding =
-            PaddingValues(
-                start = feedLayout.contentPadding,
-                end = feedLayout.contentPadding,
-                top = TopPadding,
-                bottom = BottomPadding,
-            ),
-        horizontalArrangement =
-            androidx.compose.foundation.layout.Arrangement
-                .spacedBy(gutter),
-        verticalArrangement =
-            androidx.compose.foundation.layout.Arrangement
-                .spacedBy(gutter),
+        contentPadding = plan.contentPadding,
+        horizontalArrangement = Arrangement.spacedBy(plan.gutter),
+        verticalArrangement = Arrangement.spacedBy(plan.gutter),
     ) {
         items(
             count = pagingItems.itemCount,
             key = { index -> pagingItems.peek(index).itemKey(index) },
             contentType = { index -> pagingItems.peek(index).contentType() },
-            span = { index ->
-                if (pagingItems.peek(index).spansRow() || index in partialRows) {
-                    GridItemSpan(maxLineSpan)
-                } else {
-                    GridItemSpan(1)
-                }
-            },
+            span = { index -> plan.span(index, pagingItems.peek(index).spansRow(), maxLineSpan) },
         ) { index ->
             when (val item = pagingItems[index]) {
                 is SearchResultItem.VideoResult -> {
-                    SearchVideoCard(
+                    MediaVideoCard(
                         video = item.video,
-                        asThumbnailRow = isListCard(index),
+                        asThumbnailRow = plan.isListCard(index),
                         onClick = { actions.onVideoClick(item.video) },
                         onChannelClick = { actions.onChannelClick(item.video.asChannel(it)) },
-                        thumbnailWidth = listThumbnailWidth,
+                        thumbnailWidth = plan.listThumbnailWidth,
                     )
                 }
 
@@ -128,15 +100,15 @@ fun SearchResults(
                     PlaylistCard(
                         playlist = item.playlist,
                         onClick = { actions.onPlaylistClick(item.playlist) },
-                        layout = if (isListCard(index)) PlaylistCardLayout.LIST else PlaylistCardLayout.SHELF,
+                        layout = if (plan.isListCard(index)) PlaylistCardLayout.LIST else PlaylistCardLayout.SHELF,
                     )
                 }
 
                 is SearchResultItem.ShelfResult -> {
                     SearchShelf(
                         shelf = item,
-                        asThumbnailRows = listMode || !feedLayout.isCompact,
-                        thumbnailWidth = listThumbnailWidth,
+                        asThumbnailRows = isGridMode || !feedLayout.isCompact,
+                        thumbnailWidth = plan.listThumbnailWidth,
                         onVideoClick = actions.onVideoClick,
                         onShortsClick = actions.onShortsClick,
                         onChannelClick = { actions.onChannelClick(Channel(it, "", "", 0)) },
@@ -150,7 +122,7 @@ fun SearchResults(
         }
 
         item(span = { GridItemSpan(maxLineSpan) }) {
-            SearchPagingFooter(
+            FeedPagingFooter(
                 appendState = pagingItems.loadState.append,
                 itemCount = pagingItems.itemCount,
                 onRetry = pagingItems::retry,
@@ -178,12 +150,8 @@ fun SearchShortsGrid(
                 top = TopPadding,
                 bottom = BottomPadding,
             ),
-        horizontalArrangement =
-            androidx.compose.foundation.layout.Arrangement
-                .spacedBy(ShortCellSpacing),
-        verticalArrangement =
-            androidx.compose.foundation.layout.Arrangement
-                .spacedBy(ShortCellSpacing),
+        horizontalArrangement = Arrangement.spacedBy(ShortCellSpacing),
+        verticalArrangement = Arrangement.spacedBy(ShortCellSpacing),
     ) {
         items(
             count = pagingItems.itemCount,
@@ -200,7 +168,7 @@ fun SearchShortsGrid(
         }
 
         item(span = { GridItemSpan(maxLineSpan) }) {
-            SearchPagingFooter(
+            FeedPagingFooter(
                 appendState = pagingItems.loadState.append,
                 itemCount = pagingItems.itemCount,
                 onRetry = pagingItems::retry,

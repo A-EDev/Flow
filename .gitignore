@@ -40,3 +40,7 @@ Flow-desktop/
 
 # Local engine diagnostics (real exported brains - personal data, never commit)
 diagnostics/
+
+# Captured InnerTube explore payloads: megabytes of response, regenerated locally by
+# notes/innertube-video-responses/trim_explore_fixtures.py rather than tracked.
+/app/src/test/resources/explore/

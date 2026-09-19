@@ -12,7 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Any channel tab, paged. One source for every tab because every tab parses to the same
+ * Any paged feed of [FeedItem] behind a browseId and a params token — a channel tab, or an explore
+ * destination's shelf "see all". One source for all of them because they parse to the same
  * [ChannelTabContent]; what differs is the params token, which the response itself supplied.
  *
  * @param sortToken a chip from the tab's own sort bar. A chip token already encodes the channel, so
@@ -20,7 +21,7 @@ import kotlinx.coroutines.withContext
  * @param onPageLoaded reports the sort bar and the resolved owner back once, so the screen can render
  *   chips without a second browse.
  */
-class ChannelTabPagingSource(
+class FeedTabPagingSource(
     private val browseId: String,
     private val params: String,
     private val kind: ChannelTabKind,
@@ -39,7 +40,7 @@ class ChannelTabPagingSource(
                 when {
                     cursor != null -> YouTube.channelTabContinuation(cursor, owner, kind)
                     sortToken != null -> YouTube.channelTabContinuation(sortToken, owner, kind)
-                    else -> YouTube.channelTab(browseId, this@ChannelTabPagingSource.params, owner, kind)
+                    else -> YouTube.channelTab(browseId, this@FeedTabPagingSource.params, owner, kind)
                 }.getOrElse { return@withContext LoadResult.Error(it) }
 
             if (page.owner.id.isNotBlank()) owner = page.owner

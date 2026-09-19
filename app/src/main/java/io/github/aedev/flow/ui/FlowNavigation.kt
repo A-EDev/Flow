@@ -341,6 +341,16 @@ fun NavGraphBuilder.flowAppGraph(
             onChannelClick = { channelId ->
                 navController.navigateToYoutubeChannel(channelId)
             },
+            onShortClick = { videoId ->
+                if (disableShortsPlayer) {
+                    navController.navigateToPlayer(videoId)
+                } else {
+                    navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
+                }
+            },
+            onPlaylistClick = { playlistId ->
+                navController.navigate("playlist/$playlistId")
+            },
         )
     }
 

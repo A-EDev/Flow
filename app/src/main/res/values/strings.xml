@@ -966,8 +966,6 @@
     <string name="content_settings_disable_shorts_player_subtitle">Play all videos (including YouTube Shorts) in the regular video player</string>
     <string name="content_settings_shorts_player_prompt_title">Shorts player suggestion</string>
     <string name="content_settings_shorts_player_prompt_subtitle">Ask before switching videos under 2 minutes to the Shorts player</string>
-    <string name="content_settings_explore_region_picker_title">Quick region picker in Explore</string>
-    <string name="content_settings_explore_region_picker_subtitle">Show a globe icon in the Explore screen top bar to instantly change the trending region.</string>
     <string name="categories_region_picker_desc">Change trending region (current: %1$s)</string>
     <string name="content_settings_header_nav_tabs">Navigation Tabs</string>
     <string name="settings_home_nav_tab_title">Home tab</string>
@@ -1006,10 +1004,14 @@
     <string name="categories_title">Categories</string>
     <string name="categories_switch_to_grid">Switch to grid view</string>
     <string name="categories_switch_to_list">Switch to list view</string>
-    <string name="category_all">All</string>
-    <string name="category_trending">Trending</string>
     <string name="category_movies">Movies</string>
     <string name="category_live">Live</string>
+    <string name="category_news">News</string>
+    <string name="category_sports">Sports</string>
+    <string name="category_learning">Learning</string>
+    <string name="category_fashion">Fashion</string>
+    <string name="categories_shelf_see_all">See all</string>
+    <string name="categories_shelf_back">Back to all shelves</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
     <string name="settings_continue_watching_subtitle">Show a shelf of in-progress videos on the home screen.</string>
     <string name="continue_watching_title">Continue Watching</string>

@@ -286,7 +286,6 @@ class PlayerPreferences(
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
 
         // Explore screen quick region picker
-        val SHOW_REGION_PICKER_IN_EXPLORE = booleanPreferencesKey("show_region_picker_in_explore")
 
         // App icon — stores the component suffix of the currently selected launcher icon
         val APP_ICON_SUFFIX = stringPreferencesKey("app_icon_suffix")
@@ -2256,18 +2255,6 @@ class PlayerPreferences(
     }
 
     // Show region picker globe icon in CategoriesScreen top bar
-    val showRegionPickerInExplore: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.SHOW_REGION_PICKER_IN_EXPLORE] ?: true
-            }
-
-    suspend fun setShowRegionPickerInExplore(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SHOW_REGION_PICKER_IN_EXPLORE] = enabled
-        }
-    }
-
     // Selected app icon — component suffix string saved on each icon switch so it can be backed up/restored
     val selectedAppIcon: Flow<String?> =
         context.playerPreferencesDataStore.data

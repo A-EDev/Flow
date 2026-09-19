@@ -25,7 +25,6 @@ import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.bestImageUrl
 import io.github.aedev.flow.utils.distinctBestImageUrls
-import io.github.aedev.flow.utils.newPipeContentCountry
 import io.github.aedev.flow.utils.newPipeLocalization
 import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import io.github.aedev.flow.utils.parseToTimestamp
@@ -48,8 +47,6 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem
-import org.schabi.newpipe.extractor.kiosk.KioskExtractor
-import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.stream.ContentAvailability
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -274,46 +271,6 @@ class YouTubeRepository
         }
 
         /**
-         * Fetch trending videos
-         */
-        suspend fun getTrendingVideos(
-            region: String = "",
-            nextPage: Page? = null,
-        ): Pair<List<Video>, Page?> =
-            withContext(Dispatchers.IO) {
-                try {
-                    val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
-                    NewPipe.setupLocalization(
-                        newPipeLocalization(playerPreferences.appLanguage.first()),
-                        newPipeContentCountry(effectiveRegion),
-                    )
-
-                    val kioskList = service.kioskList
-                    val trendingExtractor = kioskList.getExtractorById("Trending", null) as KioskExtractor<*>
-
-                    // FIX: ALWAYS call fetchPage to initialize the extractor state
-                    trendingExtractor.fetchPage()
-
-                    val infoItems =
-                        if (nextPage != null) {
-                            trendingExtractor.getPage(nextPage)
-                        } else {
-                            trendingExtractor.initialPage
-                        }
-
-                    val videos =
-                        infoItems.items
-                            .filterIsInstance<StreamInfoItem>()
-                            .map { item -> item.toVideo() }
-
-                    Pair(enrichLikelyCollabAvatarStacks(videos), infoItems.nextPage)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Trending unavailable: ${e.message}")
-                    Pair(emptyList(), null)
-                }
-            }
-
-        /**
          * Fetch YouTube Shorts specifically
          * Uses search with #shorts and duration filtering
          */
@@ -379,62 +336,6 @@ class YouTubeRepository
                 } catch (e: Exception) {
                     Log.w(TAG, "${e::class.simpleName}: ${e.message}")
                     Pair(emptyList(), null)
-                }
-            }
-
-        /**
-         * Search with support for different content types (videos, channels, playlists)
-         */
-        suspend fun search(
-            query: String,
-            contentFilters: List<String> = emptyList(),
-            nextPage: Page? = null,
-        ): io.github.aedev.flow.data.model.SearchResult =
-            withContext(Dispatchers.IO) {
-                try {
-                    val searchExtractor = service.getSearchExtractor(query, contentFilters, "")
-                    searchExtractor.fetchPage()
-
-                    // FIX: Correct Pagination Logic
-                    val infoItems =
-                        if (nextPage != null) {
-                            searchExtractor.getPage(nextPage)
-                        } else {
-                            searchExtractor.initialPage
-                        }
-
-                    val videos = mutableListOf<Video>()
-                    val channels = mutableListOf<io.github.aedev.flow.data.model.Channel>()
-                    val playlists = mutableListOf<io.github.aedev.flow.data.model.Playlist>()
-
-                    infoItems.items.forEach { item ->
-                        when (item) {
-                            is StreamInfoItem -> {
-                                videos.add(item.toVideo())
-                            }
-
-                            is org.schabi.newpipe.extractor.channel.ChannelInfoItem -> {
-                                channels.add(item.toChannel())
-                            }
-
-                            is org.schabi.newpipe.extractor.playlist.PlaylistInfoItem -> {
-                                playlists.add(item.toPlaylist())
-                            }
-                        }
-                    }
-
-                    io.github.aedev.flow.data.model.SearchResult(
-                        videos =
-                            enrichLikelyCollabAvatarStacks(
-                                enrichVideosWithSearchAvatarStacks(query, videos),
-                            ),
-                        channels = channels,
-                        playlists = playlists,
-                    )
-                } catch (e: Exception) {
-                    Log.w(TAG, "${e::class.simpleName}: ${e.message}")
-                    io.github.aedev.flow.data.model
-                        .SearchResult()
                 }
             }
 
@@ -875,106 +776,6 @@ class YouTubeRepository
                             }.awaitAll()
 
                     results.flatten().distinctBy { it.id }
-                }
-            }
-
-        /**
-         * Fetch trending videos for a specific category.
-         * Categories map to YouTube kiosk IDs used by NewPipe.
-         * For ALL, fetches from all non-live categories in parallel and interleaves them.
-         */
-        suspend fun getTrendingByCategory(
-            category: TrendingCategory,
-            region: String = "",
-        ): List<Video> =
-            withContext(Dispatchers.IO) {
-                val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
-                val country = newPipeContentCountry(effectiveRegion)
-                NewPipe.setupLocalization(newPipeLocalization(playerPreferences.appLanguage.first()), country)
-
-                when (category) {
-                    TrendingCategory.ALL -> {
-                        supervisorScope {
-                            val deferreds =
-                                listOf(
-                                    TrendingCategory.TRENDING,
-                                    TrendingCategory.GAMING,
-                                    TrendingCategory.MUSIC,
-                                    TrendingCategory.MOVIES,
-                                ).map { cat ->
-                                    async {
-                                        try {
-                                            fetchKiosk(cat.kioskId, country)
-                                        } catch (e: Exception) {
-                                            emptyList()
-                                        }
-                                    }
-                                }
-                            val results = deferreds.map { it.await() }
-                            interleaveRoundRobin(results)
-                        }
-                    }
-
-                    else -> {
-                        fetchKiosk(category.kioskId, country)
-                    }
-                }
-            }
-
-        private fun fetchKiosk(
-            kioskId: String,
-            country: ContentCountry,
-        ): List<Video> {
-            val kioskList = service.kioskList
-            kioskList.forceContentCountry(country)
-            val extractor = kioskList.getExtractorById(kioskId, null) as KioskExtractor<*>
-            extractor.fetchPage()
-            return extractor.initialPage.items
-                .filterIsInstance<StreamInfoItem>()
-                .map { it.toVideo() }
-        }
-
-        private fun <T> interleaveRoundRobin(lists: List<List<T>>): List<T> {
-            val result = mutableListOf<T>()
-            val iterators = lists.map { it.iterator() }.toMutableList()
-            while (iterators.any { it.hasNext() }) {
-                val iter = iterators.iterator()
-                while (iter.hasNext()) {
-                    val it = iter.next()
-                    if (it.hasNext()) result.add(it.next()) else iter.remove()
-                }
-            }
-            return result
-        }
-
-        /**
-         * Trending categories supported by NewPipe kiosk extractors.
-         */
-        enum class TrendingCategory(
-            val kioskId: String,
-            val displayName: String,
-        ) {
-            ALL("Trending", "All"),
-            TRENDING("Trending", "Trending"),
-            GAMING("trending_gaming", "Gaming"),
-            MUSIC("trending_music", "Music"),
-            MOVIES("trending_movies_and_shows", "Movies"),
-            LIVE("live", "Live"),
-        }
-
-        suspend fun prefetchTrendingAndShorts(region: String = ""): Pair<List<Video>, List<Video>> =
-            withContext(PerformanceDispatcher.networkIO) {
-                supervisorScope {
-                    val trendingDeferred =
-                        async {
-                            withTimeoutOrNull(12_000L) { getTrendingVideos(region).first } ?: emptyList()
-                        }
-                    val shortsDeferred =
-                        async {
-                            withTimeoutOrNull(10_000L) { getShorts().first } ?: emptyList()
-                        }
-
-                    Pair(trendingDeferred.await(), shortsDeferred.await())
                 }
             }
 
@@ -1643,57 +1444,6 @@ class YouTubeRepository
                 isLive = isLiveStream,
                 isShort = isReel,
                 isMusic = isMusicCandidate,
-            )
-        }
-
-        /**
-         * Extension function to convert ChannelInfoItem to our Channel model
-         */
-        private fun org.schabi.newpipe.extractor.channel.ChannelInfoItem.toChannel(): io.github.aedev.flow.data.model.Channel {
-            val bestThumbnail =
-                thumbnails
-                    .sortedByDescending { it.height }
-                    .firstOrNull()
-                    ?.url ?: ""
-
-            // Extract the channel ID properly from the URL
-            val channelId =
-                when {
-                    url.contains("/channel/") -> url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
-                    url.contains("/@") -> url.substringAfter("/@").substringBefore("/").substringBefore("?")
-                    url.contains("/c/") -> url.substringAfter("/c/").substringBefore("/").substringBefore("?")
-                    url.contains("/user/") -> url.substringAfter("/user/").substringBefore("/").substringBefore("?")
-                    else -> url.substringAfterLast("/").substringBefore("?")
-                }
-
-            return io.github.aedev.flow.data.model.Channel(
-                id = channelId,
-                name = name ?: "Unknown Channel",
-                thumbnailUrl = bestThumbnail,
-                subscriberCount = subscriberCount,
-                description = description ?: "",
-                url = url,
-            )
-        }
-
-        /**
-         * Extension function to convert PlaylistInfoItem to our Playlist model
-         */
-        private fun org.schabi.newpipe.extractor.playlist.PlaylistInfoItem.toPlaylist(): io.github.aedev.flow.data.model.Playlist {
-            val playlistId = url.substringAfterLast("=")
-            val bestThumbnail =
-                thumbnails
-                    .sortedByDescending { it.height }
-                    .map { it.url }
-                    .firstOrNull()
-                    .let { ThumbnailUrlResolver.normalizeVideoThumbnail(playlistId, it) }
-
-            return io.github.aedev.flow.data.model.Playlist(
-                id = playlistId,
-                name = name ?: "Unknown Playlist",
-                thumbnailUrl = bestThumbnail,
-                videoCount = streamCount.toInt(),
-                isLocal = false,
             )
         }
 

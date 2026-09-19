@@ -720,6 +720,9 @@ fun CompactVideoCard(
     val isWatchedCompact = rememberIsWatched(video.id, quickActionsVmCompact.watchedVideoIds, watchProgress)
     val displayTitle = deArrowResultCompact?.title ?: video.title
     val displayThumbnailUrl = deArrowResultCompact?.thumbnailUrl ?: video.thumbnailUrl
+    // A negative count is the older "no count reported" sentinel; a row that declares itself
+    // upcoming counts too. The badge and the metadata line read the same answer.
+    val isUpcomingRow = video.isUpcoming || video.viewCount < 0L
 
     val interactionSource = remember { MutableInteractionSource() }
     Row(
@@ -748,7 +751,7 @@ fun CompactVideoCard(
                 displayTitle = displayTitle,
                 displayThumbnailUrl = displayThumbnailUrl,
                 watchProgress = watchProgress,
-                isUpcoming = video.isUpcoming || video.viewCount < 0L,
+                isUpcoming = isUpcomingRow,
                 badgePadding = 4.dp,
                 showDeArrowBadge = deArrowResultCompact != null && deArrowBadgeEnabledCompact,
             )
@@ -794,12 +797,12 @@ fun CompactVideoCard(
                 text =
                     videoMetadataLine(
                         video = video,
-                        isUpcoming = video.viewCount < 0L,
+                        isUpcoming = isUpcomingRow,
                         channelName = displayChannelName,
                     ),
                 style = MaterialTheme.typography.bodySmall,
                 color =
-                    if (video.viewCount < 0L) {
+                    if (isUpcomingRow) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f)
