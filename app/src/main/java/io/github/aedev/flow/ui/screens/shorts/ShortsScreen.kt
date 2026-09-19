@@ -32,7 +32,6 @@ import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
 import io.github.aedev.flow.ui.components.shared.applyVideoCommentFilters
 import io.github.aedev.flow.ui.components.shared.videoCommentSortFor
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -184,14 +183,6 @@ fun ShortsScreen(
                     viewModel.updateCurrentIndex(pagerState.currentPage)
                 }
 
-                // Load likes and metadata for the current short
-                LaunchedEffect(pagerState.currentPage) {
-                    delay(750)
-                    uiState.shorts.getOrNull(pagerState.currentPage)?.let {
-                        viewModel.loadShortDetails(it.id)
-                    }
-                }
-
                 // Track settled page for player pool management
                 val settledShortId = uiState.shorts.getOrNull(pagerState.settledPage)?.id
                 LaunchedEffect(pagerState.settledPage, settledShortId, shortsTargetHeight) {
@@ -236,6 +227,7 @@ fun ShortsScreen(
                     // cannot see.
                     uiState.shorts.getOrNull(settled)?.let { currentShort ->
                         prepareShort(settled, currentShort, shouldPlay = true)
+                        viewModel.loadShortDetails(currentShort.id)
                     }
 
                     playerPool.releaseUnusedPlayers(settled)
@@ -341,7 +333,7 @@ fun ShortsScreen(
                                     showCommentsSheet = true
                                 },
                                 onDescriptionClick = {
-                                    scope.launch { viewModel.loadShortDetails(short.id) }
+                                    viewModel.loadShortDescription(short.id)
                                     showDescriptionSheet = true
                                 },
                                 onShareClick = {

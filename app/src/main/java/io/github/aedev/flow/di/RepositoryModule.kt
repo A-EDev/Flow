@@ -72,9 +72,9 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideShortsRepository(
+    fun provideShortsDiscoveryEngine(
         @ApplicationContext context: Context,
-    ): io.github.aedev.flow.data.shorts.ShortsRepository =
-        io.github.aedev.flow.data.shorts.ShortsRepository
+    ): io.github.aedev.flow.data.shorts.ShortsDiscoveryEngine =
+        io.github.aedev.flow.data.shorts.ShortsDiscoveryEngine
             .getInstance(context)
 }

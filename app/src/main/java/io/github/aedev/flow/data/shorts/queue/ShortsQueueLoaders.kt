@@ -4,7 +4,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
-import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.data.shorts.ShortsFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import kotlinx.coroutines.flow.first
@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.first
  * continuation) sent it into a cache-clearing refresh the moment the user neared the end.
  */
 class AlgorithmicFeedLoader(
-    private val repository: ShortsRepository,
+    private val repository: ShortsFeedRepository,
     private val seedVideoId: String? = null,
 ) : ShortsQueueLoader {
     override suspend fun initial(): ShortsQueuePage {

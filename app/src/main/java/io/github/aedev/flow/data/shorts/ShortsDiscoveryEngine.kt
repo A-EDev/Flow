@@ -124,7 +124,7 @@ class ShortsDiscoveryEngine private constructor(
      * @param userSubs  Set of subscribed channel IDs for the rank() sub-boost.
      * @param trending  Pre-fetched trending Shorts from InnerTube (used as
      *                  fallback/floor only — not the primary source).
-     * @return Ranked list ready to hand to ShortsRepository.
+     * @return Ranked list ready to hand to ShortsFeedRepository.
      */
     suspend fun getDiscoveryShorts(
         userSubs: Set<String>,

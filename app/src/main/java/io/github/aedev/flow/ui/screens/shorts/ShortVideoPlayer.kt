@@ -54,11 +54,11 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
+import io.github.aedev.flow.data.shorts.ShortAudioTrack
 import io.github.aedev.flow.data.shorts.ShortVideoQuality
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
-import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.toDisplayAspectRatioOrNull
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
@@ -906,17 +906,15 @@ internal fun ShortVideoPage(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
+                    val likeCountLabel = video.likeCount.takeIf { it > 0 }?.let(::formatViewCount)
+                    val commentCountLabel = video.commentCountText.takeIf { it.isNotBlank() }
                     ShortsActionButton(
                         icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         text =
                             if (isSimpleShortsUi) {
-                                video
-                                    .toShortVideo()
-                                    .likeCountText
-                                    .takeIf { it.isNotBlank() }
-                                    .orEmpty()
+                                likeCountLabel.orEmpty()
                             } else {
-                                video.toShortVideo().likeCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_like)
+                                likeCountLabel ?: stringResource(R.string.action_like)
                             },
                         contentDescription = stringResource(R.string.action_like),
                         tint = if (isLiked) Color.Red else Color.White,
@@ -930,13 +928,9 @@ internal fun ShortVideoPage(
                         icon = Icons.Default.Comment,
                         text =
                             if (isSimpleShortsUi) {
-                                video
-                                    .toShortVideo()
-                                    .commentCountText
-                                    .takeIf { it.isNotBlank() }
-                                    .orEmpty()
+                                commentCountLabel.orEmpty()
                             } else {
-                                video.toShortVideo().commentCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_comments)
+                                commentCountLabel ?: stringResource(R.string.action_comments)
                             },
                         contentDescription = stringResource(R.string.action_comments),
                         onClick = actions.onCommentsClick,
@@ -1072,14 +1066,11 @@ internal fun ShortVideoPage(
                     if (!pageState.isLoadingStreams) {
                         pageState.isLoadingStreams = true
                         scope.launch {
-                            val streamInfo = viewModel.getVideoStreamInfo(video.id)
-                            pageState.currentStreamInfo = streamInfo
-                            val (itVideo, itAudio) = viewModel.getInnerTubeDownloadFormats(video.id)
+                            val (itVideo, itAudio) = viewModel.downloadFormats(video.id)
                             pageState.currentInnerTubeVideoFormats = itVideo
                             pageState.currentInnerTubeAudioFormats = itAudio
-                            if (streamInfo != null || itVideo.isNotEmpty()) {
-                                pageState.currentStreamSizes =
-                                    viewModel.streamSizesFor(streamInfo, itVideo, itAudio)
+                            if (itVideo.isNotEmpty()) {
+                                pageState.currentStreamSizes = viewModel.streamSizesFor(video.id, itVideo, itAudio)
                                 pageState.showDownloadDialog = true
                             }
                             pageState.isLoadingStreams = false
@@ -1091,22 +1082,9 @@ internal fun ShortVideoPage(
                     if (!pageState.isLoadingStreams) {
                         pageState.isLoadingStreams = true
                         scope.launch {
-                            val streamInfo = viewModel.getVideoStreamInfo(video.id)
-                            pageState.availableAudioStreams = streamInfo
-                                ?.audioStreams
-                                ?.sortedByDescending { it.averageBitrate }
-                                ?.groupBy { stream ->
-                                    val trackIdLang =
-                                        stream.audioTrackId
-                                            ?.substringAfterLast(".")
-                                            ?.takeIf { it.isNotBlank() && it != stream.audioTrackId }
-                                    val localeLang = stream.audioLocale?.language?.takeIf { it.isNotBlank() }
-                                    val trackName = stream.audioTrackName?.takeIf { it.isNotBlank() }
-                                    trackIdLang ?: localeLang ?: trackName ?: "default"
-                                }?.map { (_, group) -> group.first() }
-                                ?: emptyList()
+                            pageState.availableAudioTracks = viewModel.availableAudioTracks(video.id)
                             pageState.isLoadingStreams = false
-                            if (pageState.availableAudioStreams.isNotEmpty()) {
+                            if (pageState.availableAudioTracks.isNotEmpty()) {
                                 pageState.showAudioTrackSheet = true
                             }
                         }
@@ -1117,7 +1095,7 @@ internal fun ShortVideoPage(
                     if (!pageState.isLoadingStreams) {
                         pageState.isLoadingStreams = true
                         scope.launch {
-                            pageState.availableQualities = viewModel.getAvailableQualities(video.id)
+                            pageState.availableQualities = viewModel.availableQualities(video.id)
                             val activeFormat = playerPool.ownedPlayer(pageIndex)?.videoFormat
                             val activeCodecKey =
                                 activeFormat?.let { format ->
@@ -1177,14 +1155,13 @@ internal fun ShortVideoPage(
         }
 
         // ── Audio Track Selection Sheet ──
-        if (pageState.showAudioTrackSheet && pageState.availableAudioStreams.isNotEmpty()) {
+        if (pageState.showAudioTrackSheet && pageState.availableAudioTracks.isNotEmpty()) {
             ShortsAudioTrackSheet(
-                audioStreams = pageState.availableAudioStreams,
+                audioTracks = pageState.availableAudioTracks,
                 selectedIndex = pageState.selectedAudioIndex,
                 onTrackSelected = { index ->
-                    val stream = pageState.availableAudioStreams[index]
-                    val audioUrl = stream.content ?: stream.url
-                    playerPool.reloadWithAudioUrl(pageIndex, video.id, audioUrl)
+                    val track = pageState.availableAudioTracks[index]
+                    playerPool.reloadWithAudioUrl(pageIndex, video.id, track.url, track.dashManifest)
                     pageState.selectedAudioIndex = index
                     pageState.showAudioTrackSheet = false
                 },
@@ -1212,13 +1189,10 @@ internal fun ShortVideoPage(
         }
 
         // ── Download Dialog ──
-        if (
-            pageState.showDownloadDialog &&
-            (pageState.currentStreamInfo != null || pageState.currentInnerTubeVideoFormats.isNotEmpty())
-        ) {
+        if (pageState.showDownloadDialog && pageState.currentInnerTubeVideoFormats.isNotEmpty()) {
             if (settings.downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
                 io.github.aedev.flow.ui.components.shared.MediaDownloadDialogCompact(
-                    streamInfo = pageState.currentStreamInfo,
+                    streamInfo = null,
                     streamSizes = pageState.currentStreamSizes,
                     innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
                     innerTubeAudioFormats = pageState.currentInnerTubeAudioFormats,
@@ -1227,7 +1201,7 @@ internal fun ShortVideoPage(
                 )
             } else {
                 io.github.aedev.flow.ui.components.shared.MediaDownloadDialog(
-                    streamInfo = pageState.currentStreamInfo,
+                    streamInfo = null,
                     streamSizes = pageState.currentStreamSizes,
                     innerTubeVideoFormats = pageState.currentInnerTubeVideoFormats,
                     innerTubeAudioFormats = pageState.currentInnerTubeAudioFormats,
@@ -1618,7 +1592,7 @@ private fun ShortsSpeedSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ShortsAudioTrackSheet(
-    audioStreams: List<org.schabi.newpipe.extractor.stream.AudioStream>,
+    audioTracks: List<ShortAudioTrack>,
     selectedIndex: Int,
     onTrackSelected: (Int) -> Unit,
     sheetInsets: ShortsSheetInsetState,
@@ -1645,12 +1619,10 @@ private fun ShortsAudioTrackSheet(
                         .weight(1f, fill = false)
                         .verticalScroll(rememberScrollState()),
             ) {
-                audioStreams.forEachIndexed { index, stream ->
+                audioTracks.forEachIndexed { index, track ->
                     MediaAudioTrackRow(
-                        label =
-                            StreamProcessor.audioTrackDisplayName(stream)
-                                ?: audioTrackFallbackLabel(index),
-                        supportingText = audioTrackBitrateLabel(stream.averageBitrate),
+                        label = track.label.ifBlank { audioTrackFallbackLabel(index) },
+                        supportingText = audioTrackBitrateLabel(track.bitrate),
                         selected = index == selectedIndex,
                         onClick = { onTrackSelected(index) },
                     )

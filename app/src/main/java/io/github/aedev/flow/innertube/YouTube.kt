@@ -3055,21 +3055,6 @@ object YouTube {
             innerTube.reelItemWatch(client = WEB, videoId = videoId).body<JsonObject>().toReelOverlay()
         }
 
-    /**
-     * Resolve stream URLs for a Short using the ANDROID client.
-     * The ANDROID client is required for Shorts-compatible stream formats.
-     */
-    suspend fun shortsPlayer(videoId: String): Result<PlayerResponse> =
-        runCatching {
-            innerTube
-                .player(
-                    client = YouTubeClient.ANDROID,
-                    videoId = videoId,
-                    playlistId = null,
-                    signatureTimestamp = null,
-                ).body<PlayerResponse>()
-        }
-
     fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> =
         io.github.aedev.flow.innertube.pages.NewPipeExtractor
             .newPipePlayer(videoId)

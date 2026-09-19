@@ -271,39 +271,6 @@ class YouTubeRepository
         }
 
         /**
-         * Fetch YouTube Shorts specifically
-         * Uses search with #shorts and duration filtering
-         */
-        suspend fun getShorts(nextPage: Page? = null): Pair<List<Video>, Page?> =
-            withContext(Dispatchers.IO) {
-                try {
-                    // Search for #shorts which often returns actual shorts
-                    val searchExtractor = service.getSearchExtractor("#shorts")
-                    searchExtractor.fetchPage()
-
-                    // FIX: Correct Pagination Logic
-                    val infoItems =
-                        if (nextPage != null) {
-                            searchExtractor.getPage(nextPage)
-                        } else {
-                            searchExtractor.initialPage
-                        }
-
-                    val shorts =
-                        infoItems.items
-                            .filterIsInstance<StreamInfoItem>()
-                            .map { it.toVideo() }
-                            .filter { it.duration in 1..60 } // Actual shorts are <= 60s
-                            .sortedByDescending { it.timestamp }
-
-                    Pair(shorts, infoItems.nextPage)
-                } catch (e: Exception) {
-                    Log.w(TAG, "${e::class.simpleName}: ${e.message}")
-                    Pair(emptyList(), null)
-                }
-            }
-
-        /**
          * Search for videos
          */
         suspend fun searchVideos(

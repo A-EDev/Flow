@@ -18,7 +18,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.repository.YouTubeRepository
-import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.data.shorts.ShortsFeedRepository
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CancellationException
@@ -57,7 +57,7 @@ class HomeViewModel
         private val repository: YouTubeRepository,
         private val subscriptionRepository: SubscriptionRepository,
         private val subscriptionFeedRepository: io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository,
-        private val shortsRepository: ShortsRepository,
+        private val shortsRepository: ShortsFeedRepository,
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
         private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
         private val feedSources: HomeFeedSources,
@@ -127,7 +127,6 @@ class HomeViewModel
             } else {
                 hydratePersistentHomeFeed()
                 loadFlowFeed(forceRefresh = true)
-                loadHomeShorts()
             }
         }
 
@@ -230,8 +229,8 @@ class HomeViewModel
                 playerPreferences.effectiveHomeShortsShelfEnabled.collect { enabled ->
                     if (!enabled) {
                         _uiState.update { it.copy(shorts = emptyList()) }
-                    } else if (_uiState.value.shorts.isEmpty()) {
-                        loadHomeShorts()
+                    } else if (_uiState.value.shorts.isEmpty() && !_uiState.value.isLoading) {
+                        refreshFeed()
                     }
                 }
             }
@@ -351,21 +350,6 @@ class HomeViewModel
         fun removeContinueWatchingEntry(videoId: String) {
             viewModelScope.launch {
                 viewHistory.clearVideoHistory(videoId)
-            }
-        }
-
-        private fun loadHomeShorts() {
-            viewModelScope.launch {
-                if (!playerPreferences.effectiveHomeShortsShelfEnabled.first()) return@launch
-                try {
-                    val shorts = shortsRepository.getHomeFeedShorts().map { it.toVideo() }
-                    if (shorts.isNotEmpty()) {
-                        _uiState.update {
-                            it.copy(shorts = shorts.filterWatched(watchedVideoIds.value))
-                        }
-                    }
-                } catch (e: Exception) {
-                }
             }
         }
 

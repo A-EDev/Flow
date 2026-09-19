@@ -13,10 +13,9 @@ import androidx.compose.runtime.setValue
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
+import io.github.aedev.flow.data.shorts.ShortAudioTrack
 import io.github.aedev.flow.data.shorts.ShortVideoQuality
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
-import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
 
 @Immutable
 internal data class ShortVideoPageActions(
@@ -59,14 +58,13 @@ internal class ShortVideoPageState {
     var showAudioTrackSheet by mutableStateOf(false)
     var showQualitySheet by mutableStateOf(false)
     var showSpeedSheet by mutableStateOf(false)
-    var availableAudioStreams by mutableStateOf<List<AudioStream>>(emptyList())
+    var availableAudioTracks by mutableStateOf<List<ShortAudioTrack>>(emptyList())
     var availableQualities by mutableStateOf<List<ShortVideoQuality>>(emptyList())
     var selectedAudioIndex by mutableIntStateOf(0)
     var selectedQualityHeight by mutableIntStateOf(-1)
     var selectedQualityUrl by mutableStateOf<String?>(null)
     var isLoadingStreams by mutableStateOf(false)
     var showDownloadDialog by mutableStateOf(false)
-    var currentStreamInfo by mutableStateOf<StreamInfo?>(null)
     var currentStreamSizes by mutableStateOf<Map<String, Long>>(emptyMap())
     var currentInnerTubeVideoFormats by mutableStateOf<List<PlayerResponse.StreamingData.Format>>(emptyList())
     var currentInnerTubeAudioFormats by mutableStateOf<List<PlayerResponse.StreamingData.Format>>(emptyList())
