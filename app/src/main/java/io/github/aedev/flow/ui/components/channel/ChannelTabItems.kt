@@ -36,6 +36,8 @@ import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.MediaShortCard
+import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
 
 /**
  * Every channel tab's list, whatever it holds.
@@ -83,7 +85,7 @@ internal fun ChannelTabItems(
         val loneItem = feedLayout.columns > 1 && !feedCardsFormGrid(feedLayout.columns, pagingItems.itemCount)
         val cells =
             when {
-                isShorts -> GridCells.Adaptive(ShortCellMinWidth)
+                isShorts -> GridCells.Adaptive(ShortCardDefaults.MinWidth)
                 loneItem -> GridCells.Fixed(1)
                 else -> feedLayout.cells
             }
@@ -132,7 +134,11 @@ internal fun ChannelTabItems(
                     }
 
                     is FeedItem.ShortItem -> {
-                        ChannelShortCard(video = item.video, onClick = { onShortClick(item.video.id) })
+                        MediaShortCard(
+                            video = item.video,
+                            onClick = { onShortClick(item.video.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
 
                     is FeedItem.PlaylistItem -> {
@@ -184,5 +190,4 @@ private fun ChannelTabKind.emptyLabel(): Int =
         else -> R.string.error_no_videos_found
     }
 
-private val ShortCellMinWidth = 160.dp
 private val ShortCellSpacing = 2.dp

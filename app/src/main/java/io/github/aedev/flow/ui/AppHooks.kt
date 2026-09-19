@@ -33,8 +33,7 @@ fun HandleDeepLinks(
                 try {
                     if (navController.currentDestination != null) {
                         if (isShort) {
-                            val src = Uri.encode(ShortsQueueSource.SeededFeed(deeplinkVideoId).encode())
-                            navController.navigate("shorts?src=$src") {
+                            navController.openShorts(ShortsQueueSource.SeededFeed(deeplinkVideoId)) {
                                 launchSingleTop = true
                             }
                         } else {

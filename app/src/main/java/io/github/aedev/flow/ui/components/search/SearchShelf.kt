@@ -34,7 +34,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
 import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
-import io.github.aedev.flow.ui.components.ShortsShelf
+import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
 import io.github.aedev.flow.ui.components.shared.MediaVideoCard
 
 /**
@@ -63,7 +63,7 @@ fun SearchShelf(
         if (shelf.kind != SearchShelfKind.SHORTS) shelf.title?.let { ShelfTitle(it) }
         when (shelf.kind) {
             SearchShelfKind.SHORTS -> {
-                ShortsShelf(shelf.videos, onShortsClick)
+                MediaShortsShelf(shelf.videos, onShortsClick)
             }
 
             SearchShelfKind.VIDEOS -> {

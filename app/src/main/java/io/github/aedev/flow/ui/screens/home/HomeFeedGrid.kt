@@ -17,11 +17,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.ShortsShelf
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import io.github.aedev.flow.ui.components.home.ContinueWatchingShelf
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
+import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
 
 private const val FEED_FOOTER_MIN_VIDEOS = 100
 
@@ -95,7 +95,7 @@ internal fun HomeFeedGrid(
                     span = { GridItemSpan(maxLineSpan) },
                     key = "shorts_shelf",
                 ) {
-                    ShortsShelf(
+                    MediaShortsShelf(
                         shorts = uiState.shorts,
                         onShortClick = onShortClick,
                         onSeeAllClick = onOpenShortsFeed,

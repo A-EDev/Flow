@@ -21,12 +21,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.ShortsCard
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.MediaShortCard
+import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
 
-private val GridCellMinWidth = 160.dp
-private val GridSpacing = 12.dp
 private val GridContentPadding = PaddingValues(16.dp)
 
 @Composable
@@ -57,10 +56,10 @@ fun SavedShortsGridScreen(
             )
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(GridCellMinWidth),
+                columns = GridCells.Adaptive(ShortCardDefaults.MinWidth),
                 contentPadding = GridContentPadding,
-                horizontalArrangement = Arrangement.spacedBy(GridSpacing),
-                verticalArrangement = Arrangement.spacedBy(GridSpacing),
+                horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
+                verticalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
                 modifier = Modifier.padding(padding),
             ) {
                 items(
@@ -68,7 +67,7 @@ fun SavedShortsGridScreen(
                     key = Video::id,
                     contentType = { "short" },
                 ) { video ->
-                    ShortsCard(
+                    MediaShortCard(
                         video = video,
                         onClick = { onVideoClick(video.id) },
                         modifier = Modifier.fillMaxSize(),
