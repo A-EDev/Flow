@@ -16,6 +16,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
+import io.github.aedev.flow.innertube.pages.reel.reelPosterUrl
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.shorts.ShortsStartupTrace
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
@@ -218,7 +219,7 @@ class ShortsRepository private constructor(
             title = "Short",
             channelName = "Unknown",
             channelId = "",
-            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/oar2.jpg",
+            thumbnailUrl = reelPosterUrl(videoId),
         )
 
     private suspend fun fetchDiscoveryFeed(): ShortsSequenceResult {
@@ -391,9 +392,9 @@ class ShortsRepository private constructor(
                 try {
                     withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) {
                         val page = YouTube.shorts(sequenceParams = continuation).getOrNull()
-                        if (page != null && page.items.isNotEmpty()) {
+                        if (page != null && page.entries.isNotEmpty()) {
                             val shorts =
-                                page.items
+                                page.entries
                                     .map { it.toShortVideo() }
                                     .filter { it.id !in recentlyShownIds }
                                     .let { filterWatchedShorts(it) }
@@ -1005,11 +1006,11 @@ class ShortsRepository private constructor(
                 YouTube.shorts().getOrNull()
             }
 
-        if (page == null || page.items.isEmpty()) {
+        if (page == null || page.entries.isEmpty()) {
             return ShortsSequenceResult(emptyList(), null)
         }
 
-        val shorts = page.items.map { it.toShortVideo() }
+        val shorts = page.entries.map { it.toShortVideo() }
 
         return ShortsSequenceResult(shorts, page.continuation)
     }
