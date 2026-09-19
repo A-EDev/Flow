@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.feed.FeedPrefetchQueue
+import io.github.aedev.flow.data.feed.FeedPrefetchRequest
 import io.github.aedev.flow.data.local.CachedHomeVideo
 import io.github.aedev.flow.data.local.HomeFeedCacheFilters
 import io.github.aedev.flow.data.local.HomeFeedCacheRepository
@@ -100,7 +102,11 @@ class HomeViewModel
 
         private var currentPage: Page? = null
         private var isInitialized = false
-        private val homePrefetchQueue = HomePrefetchQueue()
+        private val homePrefetchQueue =
+            FeedPrefetchQueue(
+                prefetchAheadItemCount = HOME_PREFETCH_AHEAD_VIDEO_COUNT,
+                triggerRemainingItems = HOME_PREFETCH_TRIGGER_REMAINING_VIDEOS,
+            )
         private val homePrefetchWorkerLock = Any()
         private var homePrefetchJob: Job? = null
 
@@ -240,7 +246,7 @@ class HomeViewModel
             val state = _uiState.value
             startHomePrefetch(
                 homePrefetchQueue.onVisible(
-                    currentVideoCount = state.videos.size,
+                    currentItemCount = state.videos.size,
                     feedReady = state.isReadyForPrefetch(),
                 ),
             )
@@ -262,15 +268,15 @@ class HomeViewModel
             if (!state.isReadyForPrefetch()) return
             startHomePrefetch(
                 homePrefetchQueue.onViewportChanged(
-                    currentVideoCount = state.videos.size,
-                    lastVisibleVideoIndex = lastVisibleVideoIndex,
+                    currentItemCount = state.videos.size,
+                    lastVisibleItemIndex = lastVisibleVideoIndex,
                 ),
             )
         }
 
         private fun HomeUiState.isReadyForPrefetch(): Boolean = videos.isNotEmpty() && !isLoading && isFlowFeed && hasMorePages
 
-        private fun startHomePrefetch(request: HomePrefetchRequest?) {
+        private fun startHomePrefetch(request: FeedPrefetchRequest?) {
             request ?: return
             val worker =
                 synchronized(homePrefetchWorkerLock) {
