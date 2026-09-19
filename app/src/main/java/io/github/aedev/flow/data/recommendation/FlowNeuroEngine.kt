@@ -164,6 +164,11 @@ class FlowNeuroEngine(
 
         suspend fun getExcludedChannelIds(): Set<String> = requireInstance().getExcludedChannelIds()
 
+        suspend fun selectShortsSeeds(
+            candidates: List<ShortsSeedInput>,
+            maxSeeds: Int = 2,
+        ): List<String> = requireInstance().selectShortsSeeds(candidates, maxSeeds)
+
         suspend fun onChannelTagsLearned(
             context: Context,
             channelId: String,
@@ -1372,6 +1377,45 @@ class FlowNeuroEngine(
             selected
         }
 
+    /**
+     * The reels a related reel chain is opened from, with the same six-hour rotation the video
+     * seeds get, so two sessions in a row do not reopen the same chain.
+     */
+    suspend fun selectShortsSeeds(
+        candidates: List<ShortsSeedInput>,
+        maxSeeds: Int,
+    ): List<String> =
+        withContext(Dispatchers.Default) {
+            if (candidates.isEmpty() || maxSeeds <= 0) return@withContext emptyList()
+            val now = System.currentTimeMillis()
+            val seedCooldownCutoff = now - (NeuroScoring.RELATED_SEED_COOLDOWN_HOURS * 60 * 60 * 1000L)
+            val excludedChannelIds: Set<String>
+            val recentSeedIds: Set<String>
+            brainMutex.withLock {
+                val channelSuppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
+                excludedChannelIds =
+                    currentUserBrain.blockedChannels +
+                    currentUserBrain.suppressedChannels.filter { (_, ts) -> ts > channelSuppressionCutoff }.keys
+                recentSeedIds = currentUserBrain.recentShortsSeeds.filter { (_, ts) -> ts > seedCooldownCutoff }.keys
+            }
+            val selected = ShortsSeedSelector.select(candidates, maxSeeds, now, excludedChannelIds, recentSeedIds)
+            if (selected.isNotEmpty()) {
+                brainMutex.withLock {
+                    val updated = currentUserBrain.recentShortsSeeds.toMutableMap()
+                    updated.entries.removeAll { it.value < seedCooldownCutoff }
+                    selected.forEach { updated[it] = now }
+                    val capped =
+                        updated.entries
+                            .sortedByDescending { it.value }
+                            .take(NeuroScoring.RECENT_RELATED_SEEDS_MAX)
+                            .associate { it.key to it.value }
+                    currentUserBrain = currentUserBrain.copy(recentShortsSeeds = capped)
+                    scheduleDebouncedSave()
+                }
+            }
+            selected
+        }
+
     /** Blocked + actively suppressed channels, for assembly paths that bypass rank(). */
     suspend fun getExcludedChannelIds(): Set<String> =
         brainMutex.withLock {
@@ -2391,9 +2435,8 @@ class FlowNeuroEngine(
         brainMutex.withLock {
             val now = System.currentTimeMillis()
             val updated = currentUserBrain.seenShortsHistory.toMutableMap()
-            shortIds.forEach { id ->
-                if (!updated.containsKey(id)) updated[id] = now
-            }
+            // Every sighting refreshes the stamp, so the seven-day window runs from the last time on screen.
+            shortIds.forEach { id -> updated[id] = now }
             if (updated.size > NeuroScoring.SEEN_SHORTS_MAX) {
                 val toRemove =
                     updated.entries

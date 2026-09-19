@@ -61,6 +61,7 @@ internal class ShortsReelSessionState {
     var hasTouchedHistory by mutableStateOf(false)
     var lastProgressSavedAt by mutableLongStateOf(0L)
     var showOnDemandControls by mutableStateOf(false)
+    var hasReportedDwell by mutableStateOf(false)
 }
 
 @Stable

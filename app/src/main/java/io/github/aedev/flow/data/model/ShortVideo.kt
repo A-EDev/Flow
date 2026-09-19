@@ -2,7 +2,9 @@ package io.github.aedev.flow.data.model
 
 import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
 import io.github.aedev.flow.innertube.pages.reel.ReelEntry
+import io.github.aedev.flow.innertube.pages.reel.ReelLockup
 import io.github.aedev.flow.innertube.pages.reel.reelPosterUrl
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatViewCount
 
 /**
@@ -37,6 +39,16 @@ fun ReelEntry.toShortVideo(): ShortVideo =
     ShortVideo(
         id = videoId,
         thumbnailUrl = posterUrl ?: reelPosterUrl(videoId),
+        playerParams = playerParams,
+    )
+
+/** A lockup names the reel and counts its views; its channel arrives when the reel resolves. */
+fun ReelLockup.toShortVideo(): ShortVideo =
+    ShortVideo(
+        id = id,
+        thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(id, thumbnailUrl.ifBlank { posterUrl }),
+        title = title,
+        viewCount = viewCount,
         playerParams = playerParams,
     )
 

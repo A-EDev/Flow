@@ -22,6 +22,7 @@ private const val FIRST_HISTORY_TOUCH_MS = 1_500L
 private const val HISTORY_SAVE_INTERVAL_MS = 5_000L
 private const val ABANDON_POSITION_MS = 1_000L
 private const val WATCHED_FRACTION = 0.9f
+private const val DWELL_SEED_MS = 8_000L
 private const val AUTO_INTERVAL_MIN_SECONDS = 5
 private const val AUTO_INTERVAL_MAX_SECONDS = 20
 
@@ -194,6 +195,11 @@ internal fun ShortsReelPlaybackEffects(
 
                 if (!sessionState.hasRecordedWatched && duration > 0L && position >= (duration * WATCHED_FRACTION).toLong()) {
                     recordWatched(position, duration)
+                }
+
+                if (!sessionState.hasReportedDwell && position >= DWELL_SEED_MS) {
+                    sessionState.hasReportedDwell = true
+                    viewModel.onReelDwelled(short)
                 }
 
                 if (settings.playbackMode == SHORTS_PLAYBACK_AUTO_INTERVAL && !autoAdvanceState.hasAutoAdvanced) {

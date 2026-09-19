@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.comments.CommentsPager
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
+import io.github.aedev.flow.data.feed.FeedPrefetchQueue
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
@@ -30,7 +31,6 @@ import io.github.aedev.flow.data.shorts.queue.ShortsQueueChange
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueController
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueLoaderFactory
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
-import io.github.aedev.flow.data.shorts.queue.isAlgorithmicFeed
 import io.github.aedev.flow.data.shorts.queue.openAtVideoId
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.VideoCommentSort
@@ -38,7 +38,6 @@ import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.utils.PerformanceDispatcher
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,7 +46,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @HiltViewModel
@@ -70,8 +68,11 @@ class ShortsViewModel
 
         private var queue: ShortsQueueController? = null
 
-        /** Completed once any reel can play, so discovery never competes with the first resolve. */
-        private val firstPlayback = CompletableDeferred<Unit>()
+        private val prefetch =
+            FeedPrefetchQueue(
+                prefetchAheadItemCount = PREFETCH_AHEAD_REELS,
+                triggerRemainingItems = PREFETCH_TRIGGER_REMAINING,
+            )
 
         private val comments =
             CommentsPager(
@@ -98,12 +99,6 @@ class ShortsViewModel
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 playlistRepository.getSavedShortsFlow().collect { savedVideos ->
                     savedShortIds.value = savedVideos.map { it.id }.toSet()
-                }
-            }
-
-            viewModelScope.launch {
-                feed.discoveryFeedUpdate.collect { newShorts ->
-                    if (queue?.mergeDiscovery(newShorts) != ShortsQueueChange.None) publishQueue()
                 }
             }
         }
@@ -179,7 +174,7 @@ class ShortsViewModel
                     val items = controller.items.value
                     val at = controller.currentIndex.value
                     prefetchPlaybackStreams(listOfNotNull(items.getOrNull(at)?.id, items.getOrNull(at + 1)?.id))
-                    if (resolved.isAlgorithmicFeed) discoverOnceWatching()
+                    onScreenVisible()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error loading shorts queue", e)
                     queue = null
@@ -189,14 +184,6 @@ class ShortsViewModel
                             error = e.message ?: context.getString(R.string.error_failed_to_load_shorts),
                         )
                 }
-            }
-        }
-
-        /** Discovery is up to eleven fetches; it waits for the first reel to become playable. */
-        private fun discoverOnceWatching() {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                withTimeoutOrNull(FIRST_PLAYBACK_GRACE_MS) { firstPlayback.await() }
-                runCatching { feed.discoverMore() }.onFailure { Log.w(TAG, "Discovery pass failed: ${it.message}") }
             }
         }
 
@@ -212,6 +199,7 @@ class ShortsViewModel
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 _uiState.value = _uiState.value.copy(isLoadingMore = true)
+                val before = controller.items.value.size
                 try {
                     controller.loadMore()
                 } catch (e: Exception) {
@@ -220,6 +208,8 @@ class ShortsViewModel
                     _uiState.value = _uiState.value.copy(isLoadingMore = false)
                     publishQueue()
                 }
+                val after = controller.items.value.size
+                if (after > before && prefetch.currentRequest(after) != null) loadMoreShorts()
             }
         }
 
@@ -248,9 +238,9 @@ class ShortsViewModel
             controller.setCurrentIndex(index)
             _uiState.value = _uiState.value.copy(currentIndex = controller.currentIndex.value)
 
-            if (index >= controller.items.value.size - PAGE_AHEAD_THRESHOLD) {
-                loadMoreShorts()
-            }
+            prefetch
+                .onViewportChanged(currentItemCount = controller.items.value.size, lastVisibleItemIndex = index)
+                ?.let { loadMoreShorts() }
         }
 
         /** A reel counts as seen once it has actually been on screen for a moment, never when fetched. */
@@ -268,7 +258,6 @@ class ShortsViewModel
             preferredAudioLanguage: String,
         ): ShortPlaybackStreams? {
             val resolved = streams.resolve(videoId, targetHeight, preferredAudioLanguage) ?: return null
-            firstPlayback.complete(Unit)
             resolved.details?.let { applyDetails(videoId, it) }
             return resolved
         }
@@ -471,16 +460,30 @@ class ShortsViewModel
             comments.loadReplies(currentShort.id, comment)
         }
 
+        /** Opens a related chain from [short] and interleaves its first page right after the current reel. */
         fun wantMoreLikeThis(short: ShortVideo) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 try {
                     FlowNeuroEngine.onVideoInteraction(short.toVideo(), InteractionType.LIKED)
+                    val page = feed.chainFrom(short)
+                    if (queue?.mergeDiscovery(page) != ShortsQueueChange.None) publishQueue()
                     _snackbarMessage.value = context.getString(R.string.shorts_showing_more_like_this)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error signaling want more", e)
                 }
             }
         }
+
+        /** A reel the user stayed on becomes a weak seed for the chains that follow this session. */
+        fun onReelDwelled(short: ShortVideo) = feed.noteDwell(short)
+
+        fun onScreenVisible() {
+            prefetch
+                .onVisible(currentItemCount = queue?.items?.value?.size ?: 0, feedReady = queue != null)
+                ?.let { loadMoreShorts() }
+        }
+
+        fun onScreenHidden() = prefetch.onHidden()
 
         fun notInterested(short: ShortVideo) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
@@ -502,12 +505,11 @@ class ShortsViewModel
         companion object {
             private const val TAG = "ShortsViewModel"
 
-            /** How close to the end of the queue the pager gets before the next page is fetched. */
-            private const val PAGE_AHEAD_THRESHOLD = 5
+            /** Reels kept loaded past the one on screen, and how few remaining arm the next page. */
+            private const val PREFETCH_AHEAD_REELS = 12
+            private const val PREFETCH_TRIGGER_REMAINING = 6
 
             private const val COMMENTS_FETCH_TIMEOUT_MS = 10_000L
-
-            private const val FIRST_PLAYBACK_GRACE_MS = 6_000L
 
             private const val DEFAULT_REEL_DURATION_MS = 60_000L
         }

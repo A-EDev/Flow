@@ -5,12 +5,22 @@ import org.junit.Test
 
 class ShortsFeedOrderingTest {
     @Test
-    fun `subscription diversity preserves rank while opening discovery slots`() {
-        val ranked = listOf("s1", "s2", "s3", "d1", "d2", "d3")
+    fun `a reel that resolves into a channel run swaps with the next reel of another channel`() {
+        // Channels: a a ? b, where "?" has just resolved to "a" and sits after the current reel.
+        val queue = listOf("a1" to "a", "a2" to "a", "x" to "a", "b1" to "b", "c1" to "c")
 
-        val result = diversifySubscriptions(ranked, isSubscribed = { it.startsWith("s") })
+        val result = deferChannelRuns(queue, changedIds = setOf("x"), currentIndex = 1, id = { it.first }, channelId = { it.second })
 
-        assertThat(result).containsExactly("s1", "d1", "d2", "s2", "d3", "s3").inOrder()
+        assertThat(result.map { it.first }).containsExactly("a1", "a2", "b1", "x", "c1").inOrder()
+    }
+
+    @Test
+    fun `reels already shown and reels without a channel never move`() {
+        val queue = listOf("a1" to "a", "a2" to "a", "u" to "", "a3" to "a")
+
+        val result = deferChannelRuns(queue, changedIds = setOf("a2", "u"), currentIndex = 2, id = { it.first }, channelId = { it.second })
+
+        assertThat(result).isEqualTo(queue)
     }
 
     @Test

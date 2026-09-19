@@ -125,7 +125,11 @@ fun ShortsScreen(
     DisposableEffect(Unit) {
         val playerPool = ShortsPlayerPool.getInstance()
         val hostToken = playerPool.acquireHost()
-        onDispose { playerPool.releaseIfHost(hostToken) }
+        viewModel.onScreenVisible()
+        onDispose {
+            viewModel.onScreenHidden()
+            playerPool.releaseIfHost(hostToken)
+        }
     }
 
     val sheetInsets = rememberShortsSheetInsetState()

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.shorts.queue
 
 import io.github.aedev.flow.data.model.ShortVideo
+import io.github.aedev.flow.data.shorts.deferChannelRuns
 import io.github.aedev.flow.data.shorts.mergeDiscoveryCandidates
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -178,14 +179,26 @@ class ShortsQueueController(
         return if (wasCurrent) ShortsQueueChange.CurrentItemChanged else ShortsQueueChange.ListOnly
     }
 
-    /** Replaces items in place with enriched copies. Order and position are untouched. */
+    /**
+     * Replaces items in place with enriched copies. Order and position are untouched, with one
+     * exception: a reel whose channel has just become known, and that would follow a reel of that
+     * same channel, swaps places with the next queued reel of another channel. Sequence reels carry
+     * no channel until they resolve, so this is the only point the run is visible at all.
+     */
     fun applyEnrichment(enriched: List<ShortVideo>): ShortsQueueChange {
         if (enriched.isEmpty()) return ShortsQueueChange.None
         val current = _items.value
         if (current.isEmpty()) return ShortsQueueChange.None
 
         val byId = enriched.associateBy { it.id }
-        val updated = current.map { existing -> byId[existing.id] ?: existing }
+        val updated =
+            deferChannelRuns(
+                items = current.map { existing -> byId[existing.id] ?: existing },
+                changedIds = byId.keys,
+                currentIndex = _currentIndex.value,
+                id = ShortVideo::id,
+                channelId = ShortVideo::channelId,
+            )
         if (updated == current) return ShortsQueueChange.None
         _items.value = updated
         return ShortsQueueChange.ListOnly
