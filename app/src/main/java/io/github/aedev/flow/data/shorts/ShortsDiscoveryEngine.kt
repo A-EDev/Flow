@@ -9,7 +9,6 @@ package io.github.aedev.flow.data.shorts
 import android.util.Log
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
-import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.reel.ReelLockup
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -21,7 +20,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -189,64 +187,23 @@ class ShortsDiscoveryEngine
                 !(emojiCount > letterCount && letterCount < 5)
             }
 
-        /**
-         * Shorts-flavoured queries from the engine's learnt interests, several angles per topic so
-         * successive refreshes do not return the same reels.
-         */
         private suspend fun buildDiscoveryQueries(): List<String> {
-            val queries = mutableListOf<String>()
             val brain = FlowNeuroEngine.getBrainSnapshot()
-            val topics =
-                brain.globalVector.topics.entries
-                    .sortedByDescending { it.value }
-                    .take(8)
-                    .map { it.key }
-
-            topics.take(4).forEach { topic -> queries += "$topic #shorts" }
-
-            topics.take(3).forEachIndexed { index, topic ->
-                queries += String.format(SHORTS_PHRASING[(index * 3) % SHORTS_PHRASING.size], topic)
-            }
-
-            if (topics.size >= 2) queries += "${topics[0]} ${topics[1]} shorts"
-            if (topics.size >= 4) queries += "${topics[2]} ${topics[3]} shorts"
-
-            brain.topicAffinities.entries
-                .sortedByDescending { it.value }
-                .take(2)
-                .forEach { (key, _) ->
-                    val parts = key.split("|")
-                    if (parts.size == 2) queries += "${parts[0]} ${parts[1]} #shorts"
-                }
-
-            runCatching { FlowNeuroEngine.generateDiscoveryQueries() }
-                .getOrDefault(emptyList())
-                .take(2)
-                .forEach { query -> queries += "$query shorts" }
-
-            val personaSuffix =
-                when (runCatching { FlowNeuroEngine.getPersona(brain) }.getOrNull()) {
-                    FlowPersona.AUDIOPHILE -> "music edit"
-                    FlowPersona.SCHOLAR -> "explained quick"
-                    FlowPersona.DEEP_DIVER -> "documentary clip"
-                    FlowPersona.SKIMMER -> "satisfying"
-                    FlowPersona.BINGER -> "series part"
-                    FlowPersona.SPECIALIST -> "deep dive"
-                    else -> null
-                }
-            if (personaSuffix != null && topics.isNotEmpty()) queries += "${topics[0]} $personaSuffix #shorts"
-
-            if (topics.isNotEmpty()) {
-                val timeRotation = LocalTime.now().hour / 6
-                queries += "${topics[timeRotation % topics.size]} ${TIME_SUFFIXES[timeRotation]} shorts"
-            }
-
-            val blocked = brain.blockedTopics
-            return queries
-                .distinct()
-                .filter { query -> blocked.none { query.contains(it, ignoreCase = true) } }
-                .shuffled()
-                .take(MAX_DISCOVERY_QUERIES)
+            return discoveryQueriesFrom(
+                topics =
+                    brain.globalVector.topics.entries
+                        .sortedByDescending { it.value }
+                        .take(TOP_TOPICS)
+                        .map { it.key },
+                topicPairs =
+                    brain.topicAffinities.entries
+                        .sortedByDescending { it.value }
+                        .take(TOP_TOPIC_PAIRS)
+                        .mapNotNull { (key, _) -> key.split("|").takeIf { it.size == 2 }?.joinToString(" ") },
+                generated = runCatching { FlowNeuroEngine.generateDiscoveryQueries() }.getOrDefault(emptyList()).take(GENERATED_QUERIES),
+                blocked = brain.blockedTopics,
+                limit = MAX_DISCOVERY_QUERIES,
+            )
         }
 
         private suspend fun searchShorts(query: String): List<Video> =
@@ -294,6 +251,9 @@ class ShortsDiscoveryEngine
 
             /** Searches per refresh: exactly one round of the request semaphore. */
             const val MAX_DISCOVERY_QUERIES = 3
+            const val TOP_TOPICS = 8
+            const val TOP_TOPIC_PAIRS = 2
+            const val GENERATED_QUERIES = 2
             const val SHORTS_PER_SEARCH = 15
             const val CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000L
             const val DISCOVERY_CACHE_TTL_MS = 15 * 60 * 1000L
@@ -312,21 +272,5 @@ class ShortsDiscoveryEngine
                     "dm for",
                     "check bio",
                 )
-
-            val SHORTS_PHRASING =
-                listOf(
-                    "POV %s",
-                    "%s motivation",
-                    "%s be like",
-                    "%s in 60 seconds",
-                    "day in the life %s",
-                    "%s tips you need",
-                    "%s transformation",
-                    "%s challenge",
-                    "things about %s",
-                    "%s moment",
-                )
-
-            val TIME_SUFFIXES = listOf("trending", "viral", "new", "best")
         }
     }
