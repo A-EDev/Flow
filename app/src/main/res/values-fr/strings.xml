@@ -2700,4 +2700,20 @@
     <string name="note_edit">Note de l\'éditeur</string>
     <string name="content_settings_notes_subtitle">Conserver des notes privées sur les chaînes et les vidéos</string>
     <string name="content_settings_channel_notes_title">Notes sur la chaîne</string>
+    <string name="content_settings_channel_notes_subtitle">Afficher une note sur la page de la chaîne</string>
+    <string name="content_settings_video_notes_title">Notes sur la vidéo</string>
+    <string name="content_settings_video_notes_subtitle">Afficher une note dans la description de la vidéo</string>
+    <string name="channel_about_more_info">Plus d\'informations</string>
+    <string name="channel_post_image_count">%1$d / %2$d</string>
+    <string name="channel_post_poll_votes">%1$s</string>
+    <string name="player_background_style_immersive">Illustration immersive</string>
+    <string name="player_appearance_haptics_title">Vibration</string>
+    <string name="player_appearance_haptics_subtitle">De légers cliquetis lorsque vous utilisez les commandes du lecteur et effectuez des gestes</string>
+    <string name="player_appearance_gesture_overlay_title">Style de superposition des gestes</string>
+    <string name="player_appearance_scrub_preview_title">Aperçu du nettoyage</string>
+    <string name="player_appearance_scrub_preview_subtitle">Ce que la barre de défilement affiche lorsque vous la faites glisser</string>
+    <string name="player_appearance_scrub_preview_strip">Diabande</string>
+    <string name="player_appearance_scrub_preview_frame">Image unique</string>
+    <string name="player_appearance_frame_step_title">Boutons de passage d\'image</string>
+    <string name="player_appearance_frame_step_subtitle">Afficher les flèches « Retour » et « Suivant » lorsque la lecture est en pause</string>
 </resources>
