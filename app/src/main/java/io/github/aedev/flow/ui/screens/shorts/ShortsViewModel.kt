@@ -248,13 +248,14 @@ class ShortsViewModel
             controller.setCurrentIndex(index)
             _uiState.value = _uiState.value.copy(currentIndex = controller.currentIndex.value)
 
-            controller.items.value.getOrNull(index)?.id?.let { videoId ->
-                viewModelScope.launch(PerformanceDispatcher.diskIO) { feed.recordShown(videoId) }
-            }
-
             if (index >= controller.items.value.size - PAGE_AHEAD_THRESHOLD) {
                 loadMoreShorts()
             }
+        }
+
+        /** A reel counts as seen once it has actually been on screen for a moment, never when fetched. */
+        fun onReelShown(videoId: String) {
+            viewModelScope.launch(PerformanceDispatcher.diskIO) { feed.recordShown(videoId) }
         }
 
         /**

@@ -77,21 +77,20 @@ class ShortsFeedRepository
                 seeded
             }
 
-        /** The next page of the sequence, or an empty page when the token yields nothing. */
+        /**
+         * The next page of the sequence. A page whose reels are all watched or seen comes back empty
+         * but keeps its continuation, and a failed fetch keeps the token it was given: the sequence
+         * itself never ends, so neither must the feed. Nothing here is recorded as seen — that
+         * happens when a reel is actually on screen.
+         */
         suspend fun loadMore(continuation: String?): ShortsSequenceResult =
             withContext(PerformanceDispatcher.networkIO) {
                 if (continuation == null) return@withContext ShortsSequenceResult(emptyList(), null)
 
-                val page = fetchSequence(continuation = continuation) ?: return@withContext ShortsSequenceResult(emptyList(), null)
-                val recentlySeen = runCatching { FlowNeuroEngine.getRecentlySeenShorts() }.getOrDefault(emptySet())
-                val fresh = page.shorts.filter { it.id !in recentlySeen }
-                if (fresh.size < MIN_FRESH_PER_PAGE && page.shorts.size > MIN_FRESH_PER_PAGE) {
-                    return@withContext forceRefresh()
-                }
-
+                val page = fetchSequence(continuation = continuation) ?: return@withContext ShortsSequenceResult(emptyList(), continuation)
+                val fresh = filterWatchedShorts(page.shorts)
                 val reRanked = orderNewestFirst(reRankWithFlowNeuro(fresh, subscriptionRepository.getAllSubscriptionIds()))
                 remember(reRanked)
-                runCatching { FlowNeuroEngine.recordSeenShorts(reRanked.map { it.id }) }
                 page.copy(shorts = reRanked)
             }
 
@@ -149,10 +148,14 @@ class ShortsFeedRepository
             return getShortsFeed()
         }
 
-        /** YouTube's sequence when it answers, else the discovery engine as the critical path. */
+        /**
+         * YouTube's sequence when it answers, else the discovery engine as the critical path. The
+         * sequence's continuation survives either way: a first page of watched reels is not the end
+         * of the feed.
+         */
         private suspend fun fetchFeed(): ShortsSequenceResult {
             val userSubs = subscriptionRepository.getAllSubscriptionIds()
-            val sequence = fetchSequence()
+            val sequence = fetchOpeningSequence()
             if (sequence != null && sequence.shorts.isNotEmpty()) {
                 val shorts =
                     diversifySubscriptions(
@@ -169,7 +172,7 @@ class ShortsFeedRepository
             val ranked = runDiscovery(userSubs).orEmpty()
             if (ranked.isEmpty()) {
                 Log.w(TAG, "Every Shorts source came back empty")
-                return ShortsSequenceResult(emptyList(), null)
+                return ShortsSequenceResult(emptyList(), sequence?.continuation)
             }
             val candidates =
                 ranked
@@ -180,7 +183,16 @@ class ShortsFeedRepository
                     .let(::orderNewestFirst)
                     .let { spreadChannels(it, ShortVideo::channelId, maxPerChannel = 1) }
             remember(candidates)
-            return ShortsSequenceResult(candidates, null).also(::cacheInitialFeed)
+            return ShortsSequenceResult(candidates, sequence?.continuation).also(::cacheInitialFeed)
+        }
+
+        /** The seedless first page is a single reel on every client, so the opening is pages one and two. */
+        private suspend fun fetchOpeningSequence(): ShortsSequenceResult? {
+            val first = fetchSequence() ?: return null
+            val token = first.continuation
+            if (first.shorts.size > 1 || token == null) return first
+            val second = fetchSequence(continuation = token) ?: return first
+            return ShortsSequenceResult(first.shorts + second.shorts, second.continuation)
         }
 
         private suspend fun fetchSequence(
@@ -327,7 +339,6 @@ class ShortsFeedRepository
             const val CACHE_TTL_MS = 5 * 60 * 1000L
             const val SHORTS_CACHE_SIZE = 100
             const val MAX_RECENTLY_SHOWN = 100
-            const val MIN_FRESH_PER_PAGE = 3
             const val TITLE_SIMILARITY_THRESHOLD = 0.6
         }
     }

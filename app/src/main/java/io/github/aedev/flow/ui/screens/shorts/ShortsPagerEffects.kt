@@ -17,10 +17,14 @@ import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private const val TAG = "ShortsPagerEffects"
+
+/** A reel the user swiped past in under a second was never really shown. */
+private const val SHOWN_DWELL_MS = 1_000L
 
 /**
  * Wifi or not, kept current by the platform callback. Seeded synchronously rather than defaulting
@@ -86,6 +90,10 @@ internal fun ShortsPagerPlaybackEffects(
         shorts.getOrNull(settled)?.let { current ->
             prepareReel(playerPool, viewModel, settled, current, height, preferredLang, shouldPlay = true)
             viewModel.loadShortDetails(current.id)
+            launch {
+                delay(SHOWN_DWELL_MS)
+                viewModel.onReelShown(current.id)
+            }
         }
 
         playerPool.releaseUnusedPlayers(settled)
