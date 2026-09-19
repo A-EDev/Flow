@@ -3034,17 +3034,24 @@ object YouTube {
     /**
      * One page of the reel feed: the seedless first page for a null token, else the page a
      * previous response's continuation names. Entries carry ids and tokens only; see [reelOverlay].
+     *
+     * IOS first because its page is a few kilobytes per entry; ANDROID's carries a serialized
+     * prefetch of every reel's player response and runs to several megabytes for the same ids.
      */
     suspend fun shorts(sequenceParams: String? = null): Result<ReelSequencePage> =
         runCatching {
             ensureVisitorData()
-            innerTube
-                .reel(
-                    client = YouTubeClient.ANDROID,
-                    sequenceParams = sequenceParams ?: ReelParams.INITIAL_SEQUENCE,
-                ).body<JsonObject>()
-                .toReelSequencePage()
+            val params = sequenceParams ?: ReelParams.INITIAL_SEQUENCE
+            runCatching { reelSequence(YouTubeClient.IOS, params) }
+                .getOrNull()
+                ?.takeIf { it.entries.isNotEmpty() }
+                ?: reelSequence(YouTubeClient.ANDROID, params)
         }
+
+    private suspend fun reelSequence(
+        client: YouTubeClient,
+        sequenceParams: String,
+    ): ReelSequencePage = innerTube.reel(client = client, sequenceParams = sequenceParams).body<JsonObject>().toReelSequencePage()
 
     /** The reels that follow [videoId]. The response never contains the seed itself. */
     suspend fun shortsFromVideo(videoId: String): Result<ReelSequencePage> = shorts(ReelParams.seedSequenceParams(videoId))

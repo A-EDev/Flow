@@ -5,6 +5,7 @@ import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
 import io.github.aedev.flow.data.shorts.ShortsFeedRepository
+import io.github.aedev.flow.data.shorts.spreadChannels
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import kotlinx.coroutines.flow.first
@@ -81,7 +82,7 @@ class SubscriptionShortsLoader(
                 .sortedByDescending { it.timestamp }
                 .map { it.toShortVideo() }
                 .toList()
-        return ShortsQueuePage(items, cursor = null, exhausted = true)
+        return ShortsQueuePage(spreadChannels(items, ShortVideo::channelId), cursor = null, exhausted = true)
     }
 
     override suspend fun more(cursor: String?): ShortsQueuePage = exhaustedPage()

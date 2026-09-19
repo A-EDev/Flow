@@ -30,6 +30,24 @@ class ShortsFeedOrderingTest {
             ).inOrder()
     }
 
+    @Test
+    fun `a channel's run of reels is spread across rounds without losing any`() {
+        val feed = listOf("a1", "a2", "a3", "a4", "b1", "a5", "c1", "b2", "b3")
+
+        val result = spreadChannels(feed, channelId = { it.take(1) })
+
+        assertThat(result).containsExactly("a1", "a2", "b1", "c1", "b2", "a3", "a4", "b3", "a5").inOrder()
+    }
+
+    @Test
+    fun `reels without a channel are never moved`() {
+        val feed = listOf("a1", "?1", "a2", "a3", "?2")
+
+        val result = spreadChannels(feed, channelId = { if (it.startsWith("?")) "" else it.take(1) })
+
+        assertThat(result).containsExactly("a1", "?1", "a2", "?2", "a3").inOrder()
+    }
+
     /** #931: the reel endpoint answers with what follows the tapped Short, never the Short itself. */
     @Test
     fun `a sequence without its seed still opens on the seed`() {

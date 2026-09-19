@@ -192,6 +192,36 @@ class SubscriptionDeepShortsLoaderTest {
             assertTrue("nothing is left to fetch", page.exhausted)
         }
 
+    // The complaint this answers: with a handful of channels drained to the bottom, every page of the
+    // deep tier came from the same few channels. Two reels per visit, then on to the channels not yet
+    // seen, and only then back for more.
+    @Test
+    fun `a page takes two reels per channel and the next page moves on to unvisited channels`() =
+        runTest {
+            val channels = listOf("UCa", "UCb", "UCc", "UCd", "UCe", "UCf", "UCg")
+            val tabs =
+                RecordingTabs(
+                    channels.associateWith { channel ->
+                        val prefix = channel.removePrefix("UC")
+                        listOf(tabPage(channel, (1..4).map { "$prefix$it" }))
+                    },
+                )
+            val loader = loader(tabs, subscriptions = channels)
+
+            val first = loader.initial()
+            assertEquals(listOf("a1", "b1", "c1", "d1", "e1", "a2", "b2", "c2", "d2", "e2"), first.items.map { it.id })
+            assertEquals(listOf("UCa", "UCb", "UCc", "UCd", "UCe"), tabs.requested.sorted())
+            assertFalse(first.exhausted)
+
+            val second = loader.more(first.cursor)
+            assertEquals(listOf("f1", "g1", "a3", "b3", "c3", "f2", "g2", "a4", "b4", "c4"), second.items.map { it.id })
+            assertFalse(second.exhausted)
+
+            val third = loader.more(second.cursor)
+            assertEquals(listOf("d3", "e3", "f3", "g3", "d4", "e4", "f4", "g4"), third.items.map { it.id })
+            assertTrue(third.exhausted)
+        }
+
     @Test
     fun `a channel is paged deeper before the queue gives up`() =
         runTest {

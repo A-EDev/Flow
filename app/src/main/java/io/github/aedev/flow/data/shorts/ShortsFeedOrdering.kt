@@ -66,3 +66,28 @@ internal fun <T> mergeDiscoveryCandidates(
     }
     return pinned + mergedTail
 }
+
+/**
+ * Keeps any one channel to [maxPerChannel] reels before every other channel has had its turn.
+ * Surplus reels are not dropped: they form the next round, in their original order, so a channel
+ * that posted five reels still shows all five — spread through the feed rather than in a run.
+ * Reels without a channel id are left where they are.
+ */
+internal fun <T> spreadChannels(
+    items: List<T>,
+    channelId: (T) -> String,
+    maxPerChannel: Int = MAX_REELS_PER_CHANNEL_PER_ROUND,
+): List<T> {
+    if (items.size < 2 || maxPerChannel < 1) return items
+    val seen = HashMap<String, Int>()
+    return items
+        .withIndex()
+        .map { (index, item) ->
+            val channel = channelId(item)
+            val round = if (channel.isBlank()) 0 else (seen.merge(channel, 1, Int::plus)!! - 1) / maxPerChannel
+            Triple(round, index, item)
+        }.sortedWith(compareBy({ it.first }, { it.second }))
+        .map { it.third }
+}
+
+internal const val MAX_REELS_PER_CHANNEL_PER_ROUND = 2
