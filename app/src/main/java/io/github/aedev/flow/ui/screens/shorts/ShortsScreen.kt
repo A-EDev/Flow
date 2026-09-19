@@ -48,9 +48,13 @@ import io.github.aedev.flow.ui.components.shared.applyVideoCommentFilters
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.shared.videoCommentSortFor
 import io.github.aedev.flow.ui.components.shorts.SHORTS_SHEET_HEIGHT_FRACTION
+import io.github.aedev.flow.ui.components.shorts.ShortsDownloadDialog
 import io.github.aedev.flow.ui.components.shorts.ShortsReelActions
 import io.github.aedev.flow.ui.components.shorts.ShortsReelPage
+import io.github.aedev.flow.ui.components.shorts.ShortsSettingsSheet
+import io.github.aedev.flow.ui.components.shorts.ShortsSettingsSheetState
 import io.github.aedev.flow.ui.components.shorts.ShortsTopBar
+import io.github.aedev.flow.ui.components.shorts.rememberShortsReelSettings
 import io.github.aedev.flow.ui.components.shorts.rememberShortsSheetInsetState
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import kotlinx.coroutines.flow.combine
@@ -70,6 +74,7 @@ fun ShortsScreen(
 ) {
     val context = LocalContext.current
     val playerPreferences = remember(context) { PlayerPreferences(context) }
+    val reelSettings = rememberShortsReelSettings(playerPreferences)
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val shareVideo = rememberVideoShareAction()
@@ -100,6 +105,7 @@ fun ShortsScreen(
 
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
+    val settingsSheet = remember { ShortsSettingsSheetState() }
     var commentSortFilter by remember { mutableStateOf(CommentSortFilter.TOP) }
     var commentsTimedOnly by remember { mutableStateOf(false) }
     val comments by viewModel.commentsState.collectAsState()
@@ -138,7 +144,7 @@ fun ShortsScreen(
             sheetInsets.containerHeightPx = constraints.maxHeight.toFloat()
             sheetInsets.shrinkEnabled = canShrinkReel
         }
-        val screenSheetOpen = showCommentsSheet || showDescriptionSheet
+        val screenSheetOpen = showCommentsSheet || showDescriptionSheet || settingsSheet.isOpen
 
         when {
             uiState.isLoading && uiState.shorts.isEmpty() -> {
@@ -157,6 +163,9 @@ fun ShortsScreen(
                 val pagerState = rememberPagerState(initialPage = uiState.currentIndex, pageCount = { uiState.shorts.size })
 
                 LaunchedEffect(pagerState.currentPage) { viewModel.updateCurrentIndex(pagerState.currentPage) }
+                LaunchedEffect(pagerState.settledPage) {
+                    if (settingsSheet.isOpen && settingsSheet.targetIndex != pagerState.settledPage) settingsSheet.close()
+                }
 
                 ShortsPagerPlaybackEffects(
                     pagerState = pagerState,
@@ -178,7 +187,7 @@ fun ShortsScreen(
                         isActive = page == pagerState.currentPage,
                         pageIndex = page,
                         viewModel = viewModel,
-                        playerPreferences = playerPreferences,
+                        settings = reelSettings,
                         sheetInsets = sheetInsets,
                         screenSheetOpen = screenSheetOpen,
                         bottomNavOverlayPadding = bottomNavOverlayPadding,
@@ -194,8 +203,7 @@ fun ShortsScreen(
                                     showDescriptionSheet = true
                                 },
                                 onShareClick = { shareVideo(short.id, short.title) },
-                                onWantMore = { viewModel.wantMoreLikeThis(short) },
-                                onNotInterested = { viewModel.notInterested(short) },
+                                onMoreClick = { settingsSheet.open(page, short.id) },
                                 onVideoEnded = {
                                     scope.launch {
                                         if (page < pagerState.pageCount - 1) pagerState.animateScrollToPage(page + 1)
@@ -257,6 +265,26 @@ fun ShortsScreen(
                 onDismiss = { showDescriptionSheet = false },
             )
         }
+
+        val settingsShort = settingsSheet.targetId?.let { id -> uiState.shorts.firstOrNull { it.id == id } }
+        if (settingsShort != null) {
+            DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
+            ShortsSettingsSheet(
+                short = settingsShort,
+                settings = reelSettings,
+                state = settingsSheet,
+                playerPool = ShortsPlayerPool.getInstance(),
+                viewModel = viewModel,
+                playerPreferences = playerPreferences,
+                onWantMore = { viewModel.wantMoreLikeThis(settingsShort) },
+                onNotInterested = { viewModel.notInterested(settingsShort) },
+                onDownload = { scope.launch { settingsSheet.prepareDownload(settingsShort, viewModel) } },
+                onDismiss = settingsSheet::close,
+                expandedHeight = sheetExpandedHeight,
+                onSheetProgressChange = { progress -> sheetInsets.follow(sheetExpandedHeightPx * progress) },
+            )
+        }
+        ShortsDownloadDialog(state = settingsSheet, style = reelSettings.downloadDialogStyle)
 
         ShortsTopBar(
             visible = uiState.shorts.isNotEmpty() && !isInPip,

@@ -44,7 +44,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.ui.PlayerView
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -77,7 +76,7 @@ internal fun ShortsReelPage(
     isActive: Boolean,
     pageIndex: Int,
     viewModel: ShortsViewModel,
-    playerPreferences: PlayerPreferences,
+    settings: ShortsReelSettings,
     sheetInsets: ShortsSheetInsetState,
     screenSheetOpen: Boolean,
     actions: ShortsReelActions,
@@ -85,7 +84,6 @@ internal fun ShortsReelPage(
     bottomNavOverlayPadding: Dp = 0.dp,
 ) {
     val context = LocalContext.current
-    val settings = rememberShortsReelSettings(playerPreferences)
     val style = settings.style
     val pageState = remember(short.id) { ShortsReelPageState() }
     // Keyed on identity only: including isActive reset hasRecordedWatched every time the page went
@@ -106,7 +104,7 @@ internal fun ShortsReelPage(
     // would bury the reel it is meant to annotate, so the page renders the video and nothing else.
     val isInPip by GlobalPlayerState.isInPipMode.collectAsState()
     val controlsVisible = !isInPip && (!style.controlsOnDemand || sessionState.showOnDemandControls)
-    val sheetOpen = screenSheetOpen || pageState.anySheetOpen
+    val sheetOpen = screenSheetOpen
     val chromeAlpha =
         animateFloatAsState(
             targetValue = if (sheetOpen) 0f else 1f,
@@ -355,7 +353,7 @@ internal fun ShortsReelPage(
                     shareLabel = if (style.showRailLabels) stringResource(R.string.action_share) else "",
                     onShareClick = actions.onShareClick,
                     moreLabel = if (style.showRailLabels) stringResource(R.string.cd_more_options) else "",
-                    onMoreClick = { pageState.showShortsOptionsSheet = true },
+                    onMoreClick = actions.onMoreClick,
                     channelAvatarUrl = short.channelThumbnailUrl,
                     channelName = short.channelName,
                     isDiscSpinning = isActive && pageState.isPlaying,
@@ -394,19 +392,6 @@ internal fun ShortsReelPage(
                         .zIndex(1f),
             )
         }
-
-        ShortsReelSheets(
-            short = short,
-            video = video,
-            pageIndex = pageIndex,
-            pageState = pageState,
-            settings = settings,
-            sheetInsets = sheetInsets,
-            playerPool = playerPool,
-            viewModel = viewModel,
-            playerPreferences = playerPreferences,
-            actions = actions,
-        )
     }
 }
 

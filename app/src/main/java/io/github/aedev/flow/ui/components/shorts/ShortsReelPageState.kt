@@ -6,16 +6,12 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
-import io.github.aedev.flow.data.shorts.ShortAudioTrack
-import io.github.aedev.flow.data.shorts.ShortVideoQuality
-import io.github.aedev.flow.innertube.models.response.PlayerResponse
 
 internal const val SHORTS_PLAYBACK_LOOP = "loop"
 internal const val SHORTS_PLAYBACK_AUTO_NEXT = "auto_next"
@@ -27,8 +23,7 @@ internal data class ShortsReelActions(
     val onCommentsClick: () -> Unit,
     val onDescriptionClick: () -> Unit,
     val onShareClick: () -> Unit,
-    val onWantMore: () -> Unit = {},
-    val onNotInterested: () -> Unit = {},
+    val onMoreClick: () -> Unit,
     val onVideoEnded: () -> Unit = {},
 )
 
@@ -58,23 +53,6 @@ internal class ShortsReelPageState {
     var hasStartedPlaying by mutableStateOf(false)
     var isDragging by mutableStateOf(false)
     var dragProgress by mutableFloatStateOf(0f)
-    var showShortsOptionsSheet by mutableStateOf(false)
-    var showAudioTrackSheet by mutableStateOf(false)
-    var showQualitySheet by mutableStateOf(false)
-    var showSpeedSheet by mutableStateOf(false)
-    var availableAudioTracks by mutableStateOf<List<ShortAudioTrack>>(emptyList())
-    var availableQualities by mutableStateOf<List<ShortVideoQuality>>(emptyList())
-    var selectedAudioIndex by mutableIntStateOf(0)
-    var selectedQualityHeight by mutableIntStateOf(-1)
-    var selectedQualityUrl by mutableStateOf<String?>(null)
-    var isLoadingStreams by mutableStateOf(false)
-    var showDownloadDialog by mutableStateOf(false)
-    var currentStreamSizes by mutableStateOf<Map<String, Long>>(emptyMap())
-    var currentInnerTubeVideoFormats by mutableStateOf<List<PlayerResponse.StreamingData.Format>>(emptyList())
-    var currentInnerTubeAudioFormats by mutableStateOf<List<PlayerResponse.StreamingData.Format>>(emptyList())
-
-    val anySheetOpen: Boolean
-        get() = showShortsOptionsSheet || showSpeedSheet || showAudioTrackSheet || showQualitySheet || isLoadingStreams
 }
 
 @Stable
