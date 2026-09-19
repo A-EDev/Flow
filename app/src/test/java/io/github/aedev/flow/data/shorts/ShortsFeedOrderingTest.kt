@@ -40,6 +40,16 @@ class ShortsFeedOrderingTest {
     }
 
     @Test
+    fun `a slice wraps round the end of a short list`() {
+        val reels = listOf("a", "b", "c", "d", "e")
+
+        assertThat(reels.sliceFrom(offset = 0, count = 3)).containsExactly("a", "b", "c").inOrder()
+        assertThat(reels.sliceFrom(offset = 3, count = 3)).containsExactly("d", "e", "a").inOrder()
+        assertThat(listOf("a").sliceFrom(offset = 5, count = 3)).containsExactly("a")
+        assertThat(emptyList<String>().sliceFrom(offset = 0, count = 3)).isEmpty()
+    }
+
+    @Test
     fun `reels without a channel are never moved`() {
         val feed = listOf("a1", "?1", "a2", "a3", "?2")
 

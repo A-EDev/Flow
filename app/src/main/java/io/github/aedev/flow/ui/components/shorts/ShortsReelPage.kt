@@ -3,7 +3,10 @@ package io.github.aedev.flow.ui.components.shorts
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -68,7 +70,6 @@ private val ChromeStartPadding = 16.dp
 private val ChromeEndPadding = 8.dp
 private val MetadataEndPadding = 16.dp
 private val AutoScrollBadgeEndPadding = 16.dp
-private val BufferingStroke = 3.dp
 
 @Composable
 internal fun ShortsReelPage(
@@ -276,15 +277,10 @@ internal fun ShortsReelPage(
                     .padding(top = ShortsOverlayDefaults.AutoScrollBadgeTopPadding, end = AutoScrollBadgeEndPadding),
         )
 
-        if (pageState.isBuffering) {
-            CircularProgressIndicator(
-                modifier =
-                    Modifier
-                        .align(Alignment.Center)
-                        .size(ShortsOverlayDefaults.BufferingIndicatorSize),
-                strokeWidth = BufferingStroke,
-            )
-        }
+        ShortsBufferingIndicator(
+            visible = pageState.isBuffering,
+            modifier = Modifier.align(Alignment.Center),
+        )
 
         ShortsPauseIndicator(
             visible = pageState.showPauseIndicator && !pageState.isBuffering,
@@ -298,14 +294,21 @@ internal fun ShortsReelPage(
             modifier = Modifier.align(Alignment.Center),
         )
 
-        if (controlsVisible) {
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth(),
+        ) {
             val likeCount = short.likeCount.takeIf { it > 0L }?.let(::formatViewCount)
             val commentCount = short.commentCount.takeIf { it > 0L }?.let(::formatViewCount)
             Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .align(Alignment.BottomStart)
                         .graphicsLayer { alpha = chromeAlpha.value }
                         .padding(bottom = controlsBottomPadding, start = ChromeStartPadding, end = ChromeEndPadding),
                 verticalAlignment = Alignment.Bottom,

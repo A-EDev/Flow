@@ -282,6 +282,7 @@ fun ShortsScreen(
                 onDismiss = settingsSheet::close,
                 expandedHeight = sheetExpandedHeight,
                 onSheetProgressChange = { progress -> sheetInsets.follow(sheetExpandedHeightPx * progress) },
+                bottomContentPadding = bottomNavOverlayPadding,
             )
         }
         ShortsDownloadDialog(state = settingsSheet, style = reelSettings.downloadDialogStyle)

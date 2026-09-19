@@ -1,10 +1,12 @@
 package io.github.aedev.flow.ui.components.shorts
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,10 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,11 +35,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimImmersiveBackdrop
-import io.github.aedev.flow.ui.theme.PlayerScrimLiked
 import io.github.aedev.flow.ui.theme.PlayerScrimPanel
 import kotlinx.coroutines.delay
 
@@ -46,6 +48,7 @@ private const val PAUSE_INDICATOR_SCALE_IN = 0.6f
 private const val PAUSE_INDICATOR_SCALE_OUT = 1.2f
 private const val LIKE_BURST_SCALE_IN = 0.3f
 private const val LIKE_BURST_SCALE_OUT = 1.4f
+private const val ICON_SWAP_SCALE = 0.7f
 
 internal object ShortsOverlayDefaults {
     /** Text resting on video keeps a soft shadow so a bright frame cannot swallow it. */
@@ -142,13 +145,39 @@ internal fun ShortsPauseIndicator(
                     .background(PlayerScrimImmersiveBackdrop, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Default.PlayArrow else Icons.Default.Pause,
-                contentDescription = stringResource(if (isPlaying) R.string.cd_play else R.string.cd_pause),
-                tint = PlayerScrimContent,
-                modifier = Modifier.size(ShortsOverlayDefaults.PauseIndicatorIconSize),
-            )
+            val iconSwapSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+            AnimatedContent(
+                targetState = isPlaying,
+                transitionSpec = {
+                    (scaleIn(iconSwapSpec, initialScale = ICON_SWAP_SCALE) + fadeIn(iconSwapSpec)) togetherWith
+                        (scaleOut(iconSwapSpec, targetScale = ICON_SWAP_SCALE) + fadeOut(iconSwapSpec))
+                },
+                label = "shorts_play_pause",
+            ) { playing ->
+                Icon(
+                    imageVector = if (playing) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                    contentDescription = stringResource(if (playing) R.string.cd_play else R.string.cd_pause),
+                    tint = PlayerScrimContent,
+                    modifier = Modifier.size(ShortsOverlayDefaults.PauseIndicatorIconSize),
+                )
+            }
         }
+    }
+}
+
+/** The same indicator the player shows in its play slot while it waits on the network. */
+@Composable
+internal fun ShortsBufferingIndicator(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        modifier = modifier,
+    ) {
+        FlowLoadingIndicator(modifier = Modifier.size(ShortsOverlayDefaults.BufferingIndicatorSize))
     }
 }
 
@@ -170,9 +199,9 @@ internal fun ShortsLikeBurst(
         modifier = modifier,
     ) {
         Icon(
-            imageVector = Icons.Default.Favorite,
+            imageVector = Icons.Filled.ThumbUp,
             contentDescription = stringResource(R.string.cd_liked),
-            tint = PlayerScrimLiked,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(ShortsOverlayDefaults.LikeBurstSize),
         )
         LaunchedEffect(Unit) {

@@ -112,7 +112,7 @@ class ShortsFeedRepository
                         .map { it.toShortVideo() }
                         .let { filterWatchedShorts(it) }
                         .let(::orderNewestFirst)
-                        .let { spreadChannels(it, ShortVideo::channelId) }
+                        .let { spreadChannels(it, ShortVideo::channelId, maxPerChannel = 1) }
                 if (candidates.isEmpty()) return@withContext
                 remember(candidates)
                 _discoveryFeedUpdate.tryEmit(candidates)
@@ -178,7 +178,7 @@ class ShortsFeedRepository
                     .map { it.toShortVideo() }
                     .let { filterWatchedShorts(it) }
                     .let(::orderNewestFirst)
-                    .let { spreadChannels(it, ShortVideo::channelId) }
+                    .let { spreadChannels(it, ShortVideo::channelId, maxPerChannel = 1) }
             remember(candidates)
             return ShortsSequenceResult(candidates, null).also(::cacheInitialFeed)
         }

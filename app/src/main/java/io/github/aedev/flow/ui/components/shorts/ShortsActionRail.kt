@@ -18,12 +18,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.Comment
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,7 +42,6 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerPillIconButton
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
-import io.github.aedev.flow.ui.theme.PlayerScrimLiked
 import io.github.aedev.flow.ui.theme.PlayerScrimPanel
 
 private const val DISC_SPIN_MS = 4_000
@@ -79,33 +78,33 @@ internal fun ShortsActionRail(
         modifier = modifier,
     ) {
         ShortsRailAction(
-            icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+            icon = if (isLiked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
             label = likeLabel,
             contentDescription = stringResource(R.string.action_like),
-            contentColor = if (isLiked) PlayerScrimLiked else PlayerScrimContent,
+            contentColor = if (isLiked) MaterialTheme.colorScheme.primary else PlayerScrimContent,
             onClick = onLikeClick,
         )
         ShortsRailAction(
-            icon = Icons.Default.Comment,
+            icon = Icons.Outlined.ChatBubbleOutline,
             label = commentLabel,
             contentDescription = stringResource(R.string.action_comments),
             onClick = onCommentsClick,
         )
         ShortsRailAction(
-            icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+            icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
             label = saveLabel,
             contentDescription = stringResource(R.string.action_save),
             contentColor = if (isSaved) MaterialTheme.colorScheme.primary else PlayerScrimContent,
             onClick = onSaveClick,
         )
         ShortsRailAction(
-            icon = Icons.Default.Share,
+            icon = Icons.Outlined.Share,
             label = shareLabel,
             contentDescription = stringResource(R.string.action_share),
             onClick = onShareClick,
         )
         ShortsRailAction(
-            icon = Icons.Default.MoreVert,
+            icon = Icons.Rounded.MoreVert,
             label = moreLabel,
             contentDescription = stringResource(R.string.cd_more_options),
             onClick = onMoreClick,

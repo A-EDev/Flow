@@ -32,9 +32,6 @@ val PlayerScrimEdgeGradient = PlayerScrim.copy(alpha = 0.72f)
 
 val PlayerScrimContent = Color.White
 
-/** The liked heart on a reel: fixed like the rest of the scrim family, since it sits on video. */
-val PlayerScrimLiked = Color.Red
-
 /** Supporting text over video: a channel name, a total duration, a separator. */
 val PlayerScrimContentSecondary = PlayerScrimContent.copy(alpha = 0.7f)
 

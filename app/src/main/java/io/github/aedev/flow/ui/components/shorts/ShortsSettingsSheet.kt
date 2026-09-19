@@ -80,6 +80,7 @@ internal fun ShortsSettingsSheet(
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
     onSheetProgressChange: (Float) -> Unit = {},
+    bottomContentPadding: Dp = 0.dp,
 ) {
     val sheetState = rememberFlowBottomSheetState()
     val scope = rememberCoroutineScope()
@@ -158,7 +159,7 @@ internal fun ShortsSettingsSheet(
                     .fillMaxWidth()
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(vertical = SheetContentVerticalPadding),
+                    .padding(top = SheetContentVerticalPadding, bottom = SheetContentVerticalPadding + bottomContentPadding),
         ) {
             when (state.page) {
                 ShortsSettingsPage.Main -> {

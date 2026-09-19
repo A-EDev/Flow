@@ -36,11 +36,21 @@ class ShortsDiscoveryEngine
     constructor() {
         private val requestSemaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
 
-        private data class CachedShorts(
+        /** A cached page; each refresh takes the next few reels, so no channel repeats the same ones. */
+        private class CachedShorts(
             val shorts: List<Video>,
             val timestamp: Long,
         ) {
+            private var cursor = 0
+
             fun isFresh(ttlMs: Long) = System.currentTimeMillis() - timestamp < ttlMs
+
+            @Synchronized
+            fun nextSlice(count: Int): List<Video> {
+                val slice = shorts.sliceFrom(cursor, count)
+                cursor = (cursor + count).mod(shorts.size.coerceAtLeast(1))
+                return slice
+            }
         }
 
         private val channelShortsCache =
@@ -113,17 +123,16 @@ class ShortsDiscoveryEngine
                         async {
                             try {
                                 val cached = synchronized(channelShortsCache) { channelShortsCache[channelId] }
-                                if (cached != null && cached.isFresh(CHANNEL_CACHE_TTL_MS)) return@async cached.shorts
-
-                                val shorts =
-                                    requestSemaphore.withPermit {
-                                        withTimeoutOrNull(REQUEST_TIMEOUT_MS) { fetchShortsForChannel(channelId) } ?: emptyList()
-                                    }
-                                if (shorts.isNotEmpty()) {
-                                    synchronized(channelShortsCache) { channelShortsCache[channelId] = CachedShorts(shorts, now) }
-                                }
+                                val tab =
+                                    cached?.takeIf { it.isFresh(CHANNEL_CACHE_TTL_MS) }
+                                        ?: requestSemaphore
+                                            .withPermit {
+                                                withTimeoutOrNull(REQUEST_TIMEOUT_MS) { fetchShortsForChannel(channelId) }.orEmpty()
+                                            }.takeIf { it.isNotEmpty() }
+                                            ?.let { CachedShorts(it, now) }
+                                            ?.also { synchronized(channelShortsCache) { channelShortsCache[channelId] = it } }
                                 recentlyFetchedChannels += channelId
-                                shorts
+                                tab?.nextSlice(REELS_PER_CHANNEL_PER_REFRESH).orEmpty()
                             } catch (e: Exception) {
                                 Log.w(TAG, "Failed to fetch Shorts for channel $channelId: ${e.message}")
                                 emptyList()
@@ -133,12 +142,12 @@ class ShortsDiscoveryEngine
                     .flatten()
             }
 
-        /** The channel's own Shorts tab, newest first, which is the reels themselves rather than uploads sieved by length. */
+        /** The channel's own Shorts tab, newest first: the reels themselves, not uploads sieved by length. */
         private suspend fun fetchShortsForChannel(channelId: String): List<Video> =
             ChannelShortsFeed
                 .initial(channelId)
                 ?.videos
-                ?.take(SHORTS_PER_CHANNEL)
+                ?.take(CHANNEL_TAB_REELS_CACHED)
                 .orEmpty()
 
         private suspend fun fetchDiscoveryShorts(): List<Video> =
@@ -243,8 +252,9 @@ class ShortsDiscoveryEngine
         private companion object {
             const val TAG = "ShortsDiscovery"
 
-            /** Reels taken from each subscribed channel's Shorts tab. */
-            const val SHORTS_PER_CHANNEL = 15
+            /** How much of a channel's Shorts tab is kept; [REELS_PER_CHANNEL_PER_REFRESH] of it per refresh. */
+            const val CHANNEL_TAB_REELS_CACHED = 30
+            const val REELS_PER_CHANNEL_PER_REFRESH = 3
 
             /** Subscribed channels visited per refresh; the rotation reaches the rest over time. */
             const val MAX_SUB_CHANNELS = 8

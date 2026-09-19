@@ -91,3 +91,13 @@ internal fun <T> spreadChannels(
 }
 
 internal const val MAX_REELS_PER_CHANNEL_PER_ROUND = 2
+
+/** [count] items from [offset] on, wrapping round the end, so a short list still yields a full slice. */
+internal fun <T> List<T>.sliceFrom(
+    offset: Int,
+    count: Int,
+): List<T> {
+    if (isEmpty() || count <= 0) return emptyList()
+    val start = offset.mod(size)
+    return (indices.drop(start) + indices.take(start)).take(minOf(count, size)).map { this[it] }
+}
