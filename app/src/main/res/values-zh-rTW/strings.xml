@@ -1073,4 +1073,23 @@
     <string name="player_fullscreen_seekbar_width_title">全螢幕進度條寬度</string>
     <string name="player_portrait_seekbar_width_title">直向進度條寬度</string>
     <string name="player_portrait_seekbar_width_spaced">寬間距</string>
+    <string name="player_fullscreen_seekbar_width_subtitle">兩側各有 %1$d dp 的留白</string>
+    <string name="player_fullscreen_seekbar_width_full">全寬</string>
+    <string name="player_fullscreen_seekbar_width_default">預設</string>
+    <string name="player_fullscreen_seekbar_width_custom">自訂</string>
+    <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
+    <string name="player_appearance_scrub_preview_title">拖曳預覽</string>
+    <string name="player_appearance_scrub_preview_subtitle">拖曳進度條時顯示的內容</string>
+    <string name="player_appearance_scrub_preview_strip">連續影格</string>
+    <string name="player_appearance_scrub_preview_frame">單幀預覽</string>
+    <string name="player_appearance_frame_step_title">逐幀播放按鈕</string>
+    <string name="player_appearance_frame_step_subtitle">暫停時顯示上一幀/下一幀箭頭</string>
+    <string name="lyrics_provider_title">歌詞提供者</string>
+    <string name="lyrics_provider_subtitle">選擇偏好的歌詞來源</string>
+    <plurals name="lyrics_providers_enabled">
+        <item quantity="other">%1$d/%2$d 個歌詞來源已啟用</item>
+    </plurals>
+    <string name="lyrics_provider_lrclib">LrcLib</string>
+    <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
+    <string name="lyrics_provider_simpmusic">SimpMusic</string>
 </resources>
