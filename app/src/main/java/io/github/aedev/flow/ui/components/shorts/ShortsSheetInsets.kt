@@ -1,9 +1,11 @@
-package io.github.aedev.flow.ui.screens.shorts
+package io.github.aedev.flow.ui.components.shorts
 
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
@@ -51,6 +53,7 @@ internal fun shortsSheetReservedPx(
 @Stable
 internal class ShortsSheetInsetState(
     private val scope: CoroutineScope,
+    private val releaseSpec: AnimationSpec<Float> = tween(durationMillis = 220, easing = FastOutSlowInEasing),
 ) {
     /** Height of the Shorts screen itself, which is what a sheet is measured and capped against. */
     var containerHeightPx by mutableFloatStateOf(0f)
@@ -86,7 +89,7 @@ internal class ShortsSheetInsetState(
                 animate(
                     initialValue = reservedPx,
                     targetValue = 0f,
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    animationSpec = releaseSpec,
                 ) { value, _ -> reservedPx = value }
                 releaseJob = null
             }
@@ -96,7 +99,8 @@ internal class ShortsSheetInsetState(
 @Composable
 internal fun rememberShortsSheetInsetState(): ShortsSheetInsetState {
     val scope = rememberCoroutineScope()
-    return remember(scope) { ShortsSheetInsetState(scope) }
+    val releaseSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    return remember(scope, releaseSpec) { ShortsSheetInsetState(scope, releaseSpec) }
 }
 
 /**
