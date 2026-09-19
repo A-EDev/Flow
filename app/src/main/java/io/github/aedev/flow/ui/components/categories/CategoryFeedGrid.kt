@@ -9,14 +9,18 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.MediaVideoCard
 import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
@@ -32,10 +36,32 @@ internal fun CategoryPagedGrid(
     onPlaylistClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The pager owns the first page, so its own refresh is the only thing that knows this tab is
-    // still loading — the screen's flag was cleared as soon as the pager was handed its key.
-    if (pagingItems.itemCount == 0 && pagingItems.loadState.refresh is LoadState.Loading) {
-        CategoryShimmer(feedLayout = feedLayout, isListView = isListView, modifier = modifier)
+    // The pager owns the first page, so its own refresh is the only thing that knows how this tab
+    // is doing — the screen's flag was cleared as soon as the pager was handed its key, and the
+    // footer speaks for the append. Without this the tab is a blank screen while it loads, and
+    // stays one if the first page fails or comes back empty.
+    val refresh = pagingItems.loadState.refresh
+    if (pagingItems.itemCount == 0) {
+        when {
+            refresh is LoadState.Loading -> {
+                CategoryShimmer(feedLayout = feedLayout, isListView = isListView, modifier = modifier)
+            }
+
+            refresh is LoadState.Error -> {
+                FlowErrorState(
+                    error = refresh.error.localizedMessage ?: stringResource(R.string.error_failed_to_load_videos),
+                    onRetry = pagingItems::retry,
+                    modifier = modifier,
+                )
+            }
+
+            refresh.endOfPaginationReached -> {
+                FlowEmptyState(
+                    title = stringResource(R.string.error_no_videos_for_category),
+                    modifier = modifier,
+                )
+            }
+        }
         return
     }
 
