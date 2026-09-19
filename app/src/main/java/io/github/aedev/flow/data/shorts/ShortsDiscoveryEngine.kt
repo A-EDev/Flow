@@ -6,16 +6,14 @@
 
 package io.github.aedev.flow.data.shorts
 
-import android.content.Context
 import android.util.Log
-import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
-import io.github.aedev.flow.data.repository.YouTubeRepository
-import io.github.aedev.flow.utils.RelativeUploadDateParser
-import io.github.aedev.flow.utils.distinctBestImageUrls
-import kotlinx.coroutines.Dispatchers
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.pages.reel.ReelLockup
+import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -23,301 +21,287 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import java.time.LocalTime
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
- * ShortsDiscoveryEngine — Topic-Aware Shorts Candidate Sourcing
+ * The reel candidate pool the algorithmic feed leans on when YouTube's own sequence is not enough.
  *
- * This engine builds a targeted candidate pool from three sources:
- *
- *   Phase 1 — SUBSCRIPTION SHORTS:
- *     Fetches recent uploads from subscribed channels and filters to <60s videos.
- *     These get the full subscription boost in rank(). High priority.
- *
- *   Phase 2 — TOPIC DISCOVERY SHORTS:
- *     Uses FlowNeuroEngine.generateDiscoveryQueries() to search for Shorts on
- *     topics the user genuinely cares about. Niche-specific query variants
- *     (#shorts suffix, tips/clip/highlights suffixes) broaden the pool.
- *
- *   Phase 3 — TRENDING FALLBACK:
- *     Only appended when phases 1+2 produce fewer than MIN_POOL_SIZE candidates.
- *     Acts as floor, not primary source.
- *
- * The result: instead of 100 videos from random trending Shorts, the pool
- * contains 60–120 videos that are already thematically pre-filtered before
- * rank() orders them. FlowNeuroEngine.rank() then fine-tunes the order.
+ * Two sources, merged and ranked by [FlowNeuroEngine.rank]: the Shorts tabs of a rotating handful
+ * of subscribed channels, and Shorts searches on the topics the engine has learnt. A search result
+ * knows its id, title, views and poster only; the reel's channel arrives when it is opened.
  */
-class ShortsDiscoveryEngine private constructor(
-    private val appContext: Context,
-) {
-    companion object {
-        private const val TAG = "ShortsDiscovery"
+@Singleton
+class ShortsDiscoveryEngine
+    @Inject
+    constructor() {
+        private val requestSemaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
 
-        /** Max uploads to pull per subscription channel (filter by ≤60s after) */
-        private const val UPLOADS_PER_CHANNEL = 15
-
-        /** Max subscription channels to hit per refresh cycle */
-        private const val MAX_SUB_CHANNELS = 8
-
-        /** Max discovery search queries to run per refresh (3 = exactly one Semaphore(3) round) */
-        private const val MAX_DISCOVERY_QUERIES = 3
-
-        /** Max results to take from each discovery search */
-        private const val SHORTS_PER_SEARCH = 15
-
-        /** Minimum candidate pool before trending is appended as fallback */
-        private const val MIN_POOL_SIZE = 10
-
-        /** Cache TTL: per-channel upload results (30 minutes) */
-        private const val CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000L
-
-        /** Cache TTL: per-query discovery results (15 minutes — rotate faster) */
-        private const val DISCOVERY_CACHE_TTL_MS = 15 * 60 * 1000L
-
-        /** LRU size for per-channel short cache */
-        private const val CHANNEL_CACHE_MAX = 50
-
-        /** Concurrent network request cap — avoids YouTube rate limiting */
-        private const val MAX_CONCURRENT_REQUESTS = 3
-
-        @Volatile
-        private var instance: ShortsDiscoveryEngine? = null
-
-        fun getInstance(context: Context): ShortsDiscoveryEngine =
-            instance ?: synchronized(this) {
-                instance ?: ShortsDiscoveryEngine(context.applicationContext).also { instance = it }
-            }
-    }
-
-    // ── Dependencies ──
-
-    private val youtubeRepository = YouTubeRepository.getInstance()
-
-    private val requestSemaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
-
-    private data class CachedShorts(
-        val shorts: List<Video>,
-        val timestamp: Long,
-    ) {
-        fun isFresh(ttlMs: Long) = System.currentTimeMillis() - timestamp < ttlMs
-    }
-
-    private val channelShortsCache =
-        object : LinkedHashMap<String, CachedShorts>(
-            CHANNEL_CACHE_MAX + 10,
-            0.75f,
-            true,
+        private data class CachedShorts(
+            val shorts: List<Video>,
+            val timestamp: Long,
         ) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CachedShorts>?): Boolean = size > CHANNEL_CACHE_MAX
+            fun isFresh(ttlMs: Long) = System.currentTimeMillis() - timestamp < ttlMs
         }
 
-    private val discoveryCache = HashMap<String, CachedShorts>()
+        private val channelShortsCache =
+            object : LinkedHashMap<String, CachedShorts>(CHANNEL_CACHE_MAX + 10, 0.75f, true) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CachedShorts>?): Boolean = size > CHANNEL_CACHE_MAX
+            }
 
-    private val recentlyFetchedChannels = mutableSetOf<String>()
-    private var lastChannelRotationTime = 0L
+        private val discoveryCache = HashMap<String, CachedShorts>()
 
-    /**
-     * Builds a high-quality Shorts candidate pool from subscriptions + topic
-     * discovery, then ranks the merged pool with FlowNeuroEngine.rank().
-     *
-     * @param userSubs  Set of subscribed channel IDs for the rank() sub-boost.
-     * @param trending  Pre-fetched trending Shorts from InnerTube (used as
-     *                  fallback/floor only — not the primary source).
-     * @return Ranked list ready to hand to ShortsFeedRepository.
-     */
-    suspend fun getDiscoveryShorts(
-        userSubs: Set<String>,
-        trending: List<Video> = emptyList(),
-    ): List<Video> =
-        withContext(Dispatchers.IO) {
-            val recentlySeen =
-                try {
-                    FlowNeuroEngine.getRecentlySeenShorts()
-                } catch (e: Exception) {
-                    emptySet()
-                }
+        private val recentlyFetchedChannels = mutableSetOf<String>()
+        private var lastChannelRotationTime = 0L
 
-            val seenIds = mutableSetOf<String>()
-            seenIds.addAll(recentlySeen)
-            val allCandidates = mutableListOf<Video>()
+        suspend fun getDiscoveryShorts(userSubs: Set<String>): List<Video> =
+            withContext(PerformanceDispatcher.networkIO) {
+                val recentlySeen = runCatching { FlowNeuroEngine.getRecentlySeenShorts() }.getOrDefault(emptySet())
+                val seenIds = recentlySeen.toMutableSet()
+                val candidates = mutableListOf<Video>()
 
-            fun addUnique(videos: List<Video>) {
-                videos.forEach { v ->
-                    if (v.id.isNotBlank() && v.id !in seenIds) {
-                        seenIds += v.id
-                        allCandidates += v
+                fun addUnique(videos: List<Video>) {
+                    videos.forEach { video ->
+                        if (video.id.isNotBlank() && seenIds.add(video.id)) candidates += video
                     }
                 }
+
+                try {
+                    val subscribed = fetchSubscriptionShorts(userSubs)
+                    addUnique(subscribed)
+                    Log.i(TAG, "Phase 1: ${subscribed.size} Shorts from subscribed channels")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Phase 1 (subscription Shorts) failed", e)
+                }
+
+                try {
+                    val searched = fetchDiscoveryShorts()
+                    val kept = filterLowQuality(searched)
+                    addUnique(kept)
+                    Log.i(TAG, "Phase 2: ${searched.size} raw, ${kept.size} after quality filter, ${candidates.size} total")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Phase 2 (discovery Shorts) failed", e)
+                }
+
+                if (candidates.isEmpty()) {
+                    Log.w(TAG, "No candidates from any source")
+                    return@withContext emptyList()
+                }
+
+                val ranked =
+                    diversifySubscriptions(
+                        items = FlowNeuroEngine.rank(candidates, userSubs),
+                        isSubscribed = { it.channelId in userSubs },
+                    )
+                Log.i(TAG, "Discovery complete: ${ranked.size} ranked from ${candidates.size} candidates (${recentlySeen.size} seen)")
+                ranked
             }
 
-            // ── Phase 1: Subscription Shorts ──
-            try {
-                val subShorts = fetchSubscriptionShorts(userSubs)
-                addUnique(subShorts)
-                Log.i(TAG, "Phase 1: ${subShorts.size} Shorts from subscribed channels")
-            } catch (e: Exception) {
-                Log.e(TAG, "Phase 1 (subscription Shorts) failed", e)
-            }
+        private suspend fun fetchSubscriptionShorts(userSubs: Set<String>): List<Video> =
+            coroutineScope {
+                if (userSubs.isEmpty()) return@coroutineScope emptyList()
 
-            // ── Phase 2: Topic Discovery Shorts ──
-            try {
-                val rawDiscoveryShorts = fetchDiscoveryShorts()
-                val qualityFiltered = filterLowQuality(rawDiscoveryShorts)
-                addUnique(qualityFiltered)
-                Log.i(
-                    TAG,
-                    "Phase 2: ${rawDiscoveryShorts.size} raw → " +
-                        "${qualityFiltered.size} after quality filter → " +
-                        "${allCandidates.size} total after dedup",
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Phase 2 (discovery Shorts) failed", e)
-            }
+                val now = System.currentTimeMillis()
+                if (now - lastChannelRotationTime > CHANNEL_CACHE_TTL_MS) {
+                    recentlyFetchedChannels.clear()
+                    lastChannelRotationTime = now
+                }
 
-            // ── Phase 3: Trending Fallback ──
-            if (allCandidates.size < MIN_POOL_SIZE && trending.isNotEmpty()) {
-                addUnique(trending)
-                Log.i(TAG, "Phase 3: backfilled to ${allCandidates.size}")
-            }
-
-            if (allCandidates.isEmpty()) {
-                Log.w(TAG, "No candidates from any source — returning raw trending")
-                return@withContext trending
-            }
-
-            // Rank everything through the engine
-            val ranked =
-                diversifySubscriptions(
-                    items = FlowNeuroEngine.rank(allCandidates, userSubs),
-                    isSubscribed = { it.channelId in userSubs },
-                )
-
-            Log.i(
-                TAG,
-                "Discovery complete: ${ranked.size} ranked from ${allCandidates.size} candidates " +
-                    "(${recentlySeen.size} excluded as seen)",
-            )
-            ranked
-        }
-
-    // ── Phase 1: Subscription Shorts ──
-
-    private suspend fun fetchSubscriptionShorts(userSubs: Set<String>): List<Video> =
-        coroutineScope {
-            if (userSubs.isEmpty()) return@coroutineScope emptyList()
-
-            val now = System.currentTimeMillis()
-
-            if (now - lastChannelRotationTime > CHANNEL_CACHE_TTL_MS) {
-                recentlyFetchedChannels.clear()
-                lastChannelRotationTime = now
-            }
-
-            // Prioritise channels not seen recently in this rotation window
-            val channelsToFetch =
                 userSubs
                     .sortedBy { if (it in recentlyFetchedChannels) 1 else 0 }
                     .take(MAX_SUB_CHANNELS)
+                    .map { channelId ->
+                        async {
+                            try {
+                                val cached = synchronized(channelShortsCache) { channelShortsCache[channelId] }
+                                if (cached != null && cached.isFresh(CHANNEL_CACHE_TTL_MS)) return@async cached.shorts
 
-            channelsToFetch
-                .map { channelId ->
-                    async {
-                        try {
-                            val cached = synchronized(channelShortsCache) { channelShortsCache[channelId] }
-                            if (cached != null && cached.isFresh(CHANNEL_CACHE_TTL_MS)) {
-                                return@async cached.shorts
-                            }
-
-                            val shorts =
-                                requestSemaphore.withPermit {
-                                    withTimeoutOrNull(4_000L) {
-                                        fetchShortsForChannel(channelId)
-                                    } ?: emptyList()
+                                val shorts =
+                                    requestSemaphore.withPermit {
+                                        withTimeoutOrNull(REQUEST_TIMEOUT_MS) { fetchShortsForChannel(channelId) } ?: emptyList()
+                                    }
+                                if (shorts.isNotEmpty()) {
+                                    synchronized(channelShortsCache) { channelShortsCache[channelId] = CachedShorts(shorts, now) }
                                 }
-
-                            if (shorts.isNotEmpty()) {
-                                synchronized(channelShortsCache) {
-                                    channelShortsCache[channelId] = CachedShorts(shorts, now)
-                                }
+                                recentlyFetchedChannels += channelId
+                                shorts
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to fetch Shorts for channel $channelId: ${e.message}")
+                                emptyList()
                             }
-                            recentlyFetchedChannels += channelId
-                            shorts
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Failed to fetch Shorts for channel $channelId: ${e.message}")
-                            emptyList()
                         }
-                    }
-                }.awaitAll()
-                .flatten()
-        }
+                    }.awaitAll()
+                    .flatten()
+            }
 
-    private suspend fun fetchShortsForChannel(channelId: String): List<Video> {
-        val uploads = youtubeRepository.getChannelUploads(channelId, UPLOADS_PER_CHANNEL)
-        return uploads
-            .filter { it.isShort }
-            .sortedByDescending { it.timestamp }
-    }
+        /** The channel's own Shorts tab, newest first, which is the reels themselves rather than uploads sieved by length. */
+        private suspend fun fetchShortsForChannel(channelId: String): List<Video> =
+            ChannelShortsFeed
+                .initial(channelId)
+                ?.videos
+                ?.take(SHORTS_PER_CHANNEL)
+                .orEmpty()
 
-    // ── Phase 2: Topic Discovery Shorts ──
+        private suspend fun fetchDiscoveryShorts(): List<Video> =
+            coroutineScope {
+                val now = System.currentTimeMillis()
+                val queries = buildDiscoveryQueries()
 
-    private suspend fun fetchDiscoveryShorts(): List<Video> =
-        coroutineScope {
-            val now = System.currentTimeMillis()
-            val queries = buildDiscoveryQueries().take(MAX_DISCOVERY_QUERIES)
-
-            synchronized(discoveryCache) {
-                discoveryCache.entries.removeAll { (_, v) ->
-                    now - v.timestamp > DISCOVERY_CACHE_TTL_MS * 4
+                synchronized(discoveryCache) {
+                    discoveryCache.entries.removeAll { (_, cached) -> now - cached.timestamp > DISCOVERY_CACHE_TTL_MS * 4 }
                 }
+
+                queries
+                    .map { query ->
+                        async {
+                            try {
+                                val cached = synchronized(discoveryCache) { discoveryCache[query] }
+                                if (cached != null && cached.isFresh(DISCOVERY_CACHE_TTL_MS)) return@async cached.shorts
+
+                                val results =
+                                    requestSemaphore.withPermit {
+                                        withTimeoutOrNull(REQUEST_TIMEOUT_MS) { searchShorts(query) } ?: emptyList()
+                                    }
+                                if (results.isNotEmpty()) {
+                                    synchronized(discoveryCache) { discoveryCache[query] = CachedShorts(results, now) }
+                                }
+                                results
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Discovery search failed for '$query': ${e.message}")
+                                emptyList()
+                            }
+                        }
+                    }.awaitAll()
+                    .flatten()
             }
 
-            queries
-                .map { query ->
-                    async {
-                        try {
-                            val cached = synchronized(discoveryCache) { discoveryCache[query] }
-                            if (cached != null && cached.isFresh(DISCOVERY_CACHE_TTL_MS)) {
-                                return@async cached.shorts
-                            }
+        /** Drops the obvious spam before it reaches the ranker: placeholder titles, bait, emoji-only bots. */
+        private fun filterLowQuality(shorts: List<Video>): List<Video> =
+            shorts.filter { video ->
+                val title = video.title
+                if (title.isBlank() || title == "Short" || title == "Shorts" || title.length < 3) return@filter false
+                val lower = title.lowercase()
+                if (SPAM_PATTERNS.any { lower.contains(it) }) return@filter false
 
-                            val results =
-                                requestSemaphore.withPermit {
-                                    withTimeoutOrNull(4_000L) {
-                                        searchShorts(query)
-                                    } ?: emptyList()
-                                }
+                val emojiCount = title.count { Character.getType(it) == Character.OTHER_SYMBOL.toInt() }
+                val letterCount = title.count { it.isLetter() }
+                !(emojiCount > letterCount && letterCount < 5)
+            }
 
-                            if (results.isNotEmpty()) {
-                                synchronized(discoveryCache) {
-                                    discoveryCache[query] = CachedShorts(results, now)
-                                }
-                            }
-                            results
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Discovery search failed for '$query': ${e.message}")
-                            emptyList()
-                        }
-                    }
-                }.awaitAll()
-                .flatten()
+        /**
+         * Shorts-flavoured queries from the engine's learnt interests, several angles per topic so
+         * successive refreshes do not return the same reels.
+         */
+        private suspend fun buildDiscoveryQueries(): List<String> {
+            val queries = mutableListOf<String>()
+            val brain = FlowNeuroEngine.getBrainSnapshot()
+            val topics =
+                brain.globalVector.topics.entries
+                    .sortedByDescending { it.value }
+                    .take(8)
+                    .map { it.key }
+
+            topics.take(4).forEach { topic -> queries += "$topic #shorts" }
+
+            topics.take(3).forEachIndexed { index, topic ->
+                queries += String.format(SHORTS_PHRASING[(index * 3) % SHORTS_PHRASING.size], topic)
+            }
+
+            if (topics.size >= 2) queries += "${topics[0]} ${topics[1]} shorts"
+            if (topics.size >= 4) queries += "${topics[2]} ${topics[3]} shorts"
+
+            brain.topicAffinities.entries
+                .sortedByDescending { it.value }
+                .take(2)
+                .forEach { (key, _) ->
+                    val parts = key.split("|")
+                    if (parts.size == 2) queries += "${parts[0]} ${parts[1]} #shorts"
+                }
+
+            runCatching { FlowNeuroEngine.generateDiscoveryQueries() }
+                .getOrDefault(emptyList())
+                .take(2)
+                .forEach { query -> queries += "$query shorts" }
+
+            val personaSuffix =
+                when (runCatching { FlowNeuroEngine.getPersona(brain) }.getOrNull()) {
+                    FlowPersona.AUDIOPHILE -> "music edit"
+                    FlowPersona.SCHOLAR -> "explained quick"
+                    FlowPersona.DEEP_DIVER -> "documentary clip"
+                    FlowPersona.SKIMMER -> "satisfying"
+                    FlowPersona.BINGER -> "series part"
+                    FlowPersona.SPECIALIST -> "deep dive"
+                    else -> null
+                }
+            if (personaSuffix != null && topics.isNotEmpty()) queries += "${topics[0]} $personaSuffix #shorts"
+
+            if (topics.isNotEmpty()) {
+                val timeRotation = LocalTime.now().hour / 6
+                queries += "${topics[timeRotation % topics.size]} ${TIME_SUFFIXES[timeRotation]} shorts"
+            }
+
+            val blocked = brain.blockedTopics
+            return queries
+                .distinct()
+                .filter { query -> blocked.none { query.contains(it, ignoreCase = true) } }
+                .shuffled()
+                .take(MAX_DISCOVERY_QUERIES)
         }
 
-    /**
-     * Filters out obvious low-quality Shorts before they enter the ranking engine.
-     * Catches spam titles, placeholder titles, and emoji-only bots.
-     */
-    private fun filterLowQuality(shorts: List<Video>): List<Video> {
-        return shorts.filter { video ->
-            val titleLower = video.title.lowercase()
+        private suspend fun searchShorts(query: String): List<Video> =
+            YouTube
+                .searchShorts(query)
+                .getOrDefault(emptyList())
+                .take(SHORTS_PER_SEARCH)
+                .map { it.toVideo() }
 
-            if (video.title.isBlank() || video.title == "Short" ||
-                video.title == "Shorts" || video.title.length < 3
-            ) {
-                return@filter false
-            }
+        private fun ReelLockup.toVideo(): Video =
+            Video(
+                id = id,
+                title = title,
+                channelName = "",
+                channelId = "",
+                thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(id, thumbnailUrl.ifBlank { posterUrl }),
+                duration = 0,
+                viewCount = viewCount,
+                uploadDate = "",
+                timestamp = System.currentTimeMillis(),
+                description = "",
+                isShort = true,
+            )
 
-            val spamPatterns =
+        fun clearCaches() {
+            synchronized(channelShortsCache) { channelShortsCache.clear() }
+            synchronized(discoveryCache) { discoveryCache.clear() }
+            recentlyFetchedChannels.clear()
+            Log.d(TAG, "Discovery caches cleared")
+        }
+
+        fun evictChannel(channelId: String) {
+            synchronized(channelShortsCache) { channelShortsCache.remove(channelId) }
+            Log.d(TAG, "Evicted channel $channelId from discovery cache")
+        }
+
+        private companion object {
+            const val TAG = "ShortsDiscovery"
+
+            /** Reels taken from each subscribed channel's Shorts tab. */
+            const val SHORTS_PER_CHANNEL = 15
+
+            /** Subscribed channels visited per refresh; the rotation reaches the rest over time. */
+            const val MAX_SUB_CHANNELS = 8
+
+            /** Searches per refresh: exactly one round of the request semaphore. */
+            const val MAX_DISCOVERY_QUERIES = 3
+            const val SHORTS_PER_SEARCH = 15
+            const val CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000L
+            const val DISCOVERY_CACHE_TTL_MS = 15 * 60 * 1000L
+            const val CHANNEL_CACHE_MAX = 50
+            const val MAX_CONCURRENT_REQUESTS = 3
+            const val REQUEST_TIMEOUT_MS = 4_000L
+
+            val SPAM_PATTERNS =
                 listOf(
                     "subscribe for more",
                     "follow for more",
@@ -328,231 +312,21 @@ class ShortsDiscoveryEngine private constructor(
                     "dm for",
                     "check bio",
                 )
-            if (spamPatterns.any { titleLower.contains(it) }) return@filter false
 
-            val emojiCount = video.title.count { Character.getType(it) == Character.OTHER_SYMBOL.toInt() }
-            val letterCount = video.title.count { it.isLetter() }
-            if (emojiCount > letterCount && letterCount < 5) return@filter false
+            val SHORTS_PHRASING =
+                listOf(
+                    "POV %s",
+                    "%s motivation",
+                    "%s be like",
+                    "%s in 60 seconds",
+                    "day in the life %s",
+                    "%s tips you need",
+                    "%s transformation",
+                    "%s challenge",
+                    "things about %s",
+                    "%s moment",
+                )
 
-            true
+            val TIME_SUFFIXES = listOf("trending", "viral", "new", "best")
         }
     }
-
-    /**
-     * Builds Shorts-specific discovery queries from the engine's learned interests.
-     *
-     * 8 diversification strategies to maximise niche coverage and freshness:
-     *  1. Top 2 topics with "#shorts"
-     *  2. Mid-tier topics (positions 3-5) for breadth
-     *  3. Shorts-native phrasing variants per topic
-     *  4. Cross-topic combinations
-     *  5. Topic-affinity bigrams
-     *  6. Topics the user hasn't explored in Shorts yet
-     *  7. Persona-aware query suffix
-     *  8. Time-rotated trending variants
-     */
-    private suspend fun buildDiscoveryQueries(): List<String> {
-        val queries = mutableListOf<String>()
-        val brain = FlowNeuroEngine.getBrainSnapshot()
-
-        val topTopics =
-            brain.globalVector.topics.entries
-                .sortedByDescending { it.value }
-                .take(8)
-                .map { it.key }
-
-        val primaryTopics = topTopics
-
-        // Strategy 1: Top 2 topics with #shorts
-        primaryTopics.take(2).forEach { topic -> queries += "$topic #shorts" }
-
-        // Strategy 2: Mid-tier topics (positions 3-5) — different results from dominant topics
-        primaryTopics.drop(2).take(2).forEach { topic -> queries += "$topic #shorts" }
-
-        // Strategy 3: Shorts-native phrasing — different pattern per topic for variety
-        val shortsPhrasing =
-            listOf(
-                "POV %s",
-                "%s motivation",
-                "%s be like",
-                "%s in 60 seconds",
-                "day in the life %s",
-                "%s tips you need",
-                "%s transformation",
-                "%s challenge",
-                "things about %s",
-                "%s moment",
-            )
-        primaryTopics.take(3).forEachIndexed { index, topic ->
-            val phrasing = shortsPhrasing[(index * 3) % shortsPhrasing.size]
-            queries += String.format(phrasing, topic)
-        }
-
-        // Strategy 4: Cross-topic combinations
-        if (primaryTopics.size >= 2) queries += "${primaryTopics[0]} ${primaryTopics[1]} shorts"
-        if (primaryTopics.size >= 4) queries += "${primaryTopics[2]} ${primaryTopics[3]} shorts"
-
-        // Strategy 5: Topic-affinity bigrams
-        brain.topicAffinities.entries
-            .sortedByDescending { it.value }
-            .take(2)
-            .forEach { (key, _) ->
-                val parts = key.split("|")
-                if (parts.size == 2) queries += "${parts[0]} ${parts[1]} #shorts"
-            }
-
-        // Strategy 6: Topics unexplored in Shorts
-        val baseQueries =
-            try {
-                FlowNeuroEngine.generateDiscoveryQueries()
-            } catch (e: Exception) {
-                emptyList()
-            }
-        baseQueries.take(2).forEach { q -> queries += "$q shorts" }
-
-        // Strategy 7: Persona-aware query suffix
-        val persona =
-            try {
-                FlowNeuroEngine.getPersona(brain)
-            } catch (e: Exception) {
-                null
-            }
-        val personaSuffix =
-            when (persona) {
-                FlowPersona.AUDIOPHILE -> "music edit"
-                FlowPersona.SCHOLAR -> "explained quick"
-                FlowPersona.DEEP_DIVER -> "documentary clip"
-                FlowPersona.SKIMMER -> "satisfying"
-                FlowPersona.BINGER -> "series part"
-                FlowPersona.SPECIALIST -> "deep dive"
-                else -> null
-            }
-        if (personaSuffix != null && primaryTopics.isNotEmpty()) {
-            queries += "${primaryTopics[0]} $personaSuffix #shorts"
-        }
-
-        // Strategy 8: Time-rotated queries (guard against empty topic list for new users)
-        if (primaryTopics.isNotEmpty()) {
-            val hour =
-                java.util.Calendar
-                    .getInstance()
-                    .get(java.util.Calendar.HOUR_OF_DAY)
-            val timeRotation = hour / 6
-            val rotatedTopic = primaryTopics[timeRotation % primaryTopics.size]
-            val timeSuffixes = listOf("trending", "viral", "new", "best")
-            queries += "$rotatedTopic ${timeSuffixes[timeRotation]} shorts"
-        }
-
-        val blocked = brain.blockedTopics
-        return queries
-            .distinct()
-            .filter { q -> blocked.none { b -> q.lowercase().contains(b.lowercase()) } }
-            .shuffled()
-            .take(MAX_DISCOVERY_QUERIES)
-    }
-
-    // Searches YouTube for Shorts using NewPipe's search extractor.
-    private suspend fun searchShorts(
-        query: String,
-        maxResults: Int = SHORTS_PER_SEARCH,
-    ): List<Video> =
-        withContext(Dispatchers.IO) {
-            try {
-                val service = NewPipe.getService(0)
-                val extractor = service.getSearchExtractor(query)
-                extractor.fetchPage()
-
-                extractor.initialPage
-                    ?.items
-                    ?.filterIsInstance<StreamInfoItem>()
-                    ?.filter { item -> ShortsClassifier.isReel(item) }
-                    ?.take(maxResults)
-                    ?.map { item -> streamInfoItemToVideo(item) }
-                    ?: emptyList()
-            } catch (e: Exception) {
-                Log.w(TAG, "Shorts search failed for '$query': ${e.message}")
-                emptyList()
-            }
-        }
-
-    // ── Conversion ──
-
-    private fun streamInfoItemToVideo(item: StreamInfoItem): Video {
-        val url = item.url ?: ""
-        val videoId =
-            when {
-                url.contains("/shorts/") -> url.substringAfter("/shorts/").substringBefore("?").substringBefore("/")
-                url.contains("v=") -> url.substringAfter("v=").substringBefore("&")
-                url.contains("youtu.be/") -> url.substringAfter("youtu.be/").substringBefore("?")
-                else -> url.substringAfterLast("/").substringBefore("?")
-            }
-
-        val uploaderUrl = item.uploaderUrl ?: ""
-        val channelId =
-            when {
-                uploaderUrl.contains("/channel/") -> {
-                    uploaderUrl.substringAfter("/channel/").substringBefore("/").substringBefore("?")
-                }
-
-                uploaderUrl.contains("/@") -> {
-                    uploaderUrl.substringAfter("/@").substringBefore("/").substringBefore("?")
-                }
-
-                else -> {
-                    uploaderUrl.substringAfterLast("/").substringBefore("?")
-                }
-            }
-
-        val isShort = ShortsClassifier.isReel(item)
-        val timestamp = resolveUploadTimestamp(item) ?: System.currentTimeMillis()
-        val avatarUrls = item.uploaderAvatars.distinctBestImageUrls()
-
-        return Video(
-            id = videoId,
-            title = item.name ?: "",
-            channelName = item.uploaderName ?: "",
-            channelId = channelId,
-            thumbnailUrl =
-                io.github.aedev.flow.utils.ThumbnailUrlResolver.normalizeVideoThumbnail(
-                    videoId,
-                    item.thumbnails?.maxByOrNull { it.height }?.url,
-                ),
-            duration = item.duration.toInt().coerceAtLeast(0),
-            viewCount = if (item.viewCount >= 0) item.viewCount else 0L,
-            likeCount = 0L,
-            uploadDate = item.textualUploadDate ?: "",
-            timestamp = timestamp,
-            channelThumbnailUrl = avatarUrls.firstOrNull().orEmpty(),
-            channelThumbnailUrls = avatarUrls,
-            isShort = isShort,
-            isLive = false,
-            description = "",
-        )
-    }
-
-    // ── Cache Management ──
-    private fun resolveUploadTimestamp(item: StreamInfoItem): Long? {
-        item.uploadDate
-            ?.offsetDateTime()
-            ?.toInstant()
-            ?.toEpochMilli()
-            ?.takeIf { it > 0L }
-            ?.let { return it }
-
-        return parseRelativeUploadDate(item.textualUploadDate)
-    }
-
-    private fun parseRelativeUploadDate(textualDate: String?): Long? = RelativeUploadDateParser.parse(textualDate)
-
-    fun clearCaches() {
-        synchronized(channelShortsCache) { channelShortsCache.clear() }
-        synchronized(discoveryCache) { discoveryCache.clear() }
-        recentlyFetchedChannels.clear()
-        Log.d(TAG, "Discovery caches cleared")
-    }
-
-    fun evictChannel(channelId: String) {
-        synchronized(channelShortsCache) { channelShortsCache.remove(channelId) }
-        Log.d(TAG, "Evicted channel $channelId from discovery cache")
-    }
-}

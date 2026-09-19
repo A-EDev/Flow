@@ -69,12 +69,4 @@ object RepositoryModule {
     ): io.github.aedev.flow.data.local.PlayerPreferences =
         io.github.aedev.flow.data.local
             .PlayerPreferences(context)
-
-    @Provides
-    @Singleton
-    fun provideShortsDiscoveryEngine(
-        @ApplicationContext context: Context,
-    ): io.github.aedev.flow.data.shorts.ShortsDiscoveryEngine =
-        io.github.aedev.flow.data.shorts.ShortsDiscoveryEngine
-            .getInstance(context)
 }
