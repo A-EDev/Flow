@@ -2970,4 +2970,10 @@
     <string name="previous_frame">الإطار السابق</string>
     <string name="next_frame">الإطار التالي</string>
     <string name="subtitle_translation_unavailable">الترجمة غير متاحة — يتم عرض %1$s</string>
+    <string name="category_news">الأخبار</string>
+    <string name="category_sports">الرياضة</string>
+    <string name="category_learning">التعلّم</string>
+    <string name="category_fashion">الموضة</string>
+    <string name="categories_shelf_see_all">عرض الكل</string>
+    <string name="categories_shelf_back">العودة إلى كل الأقسام</string>
 </resources>
