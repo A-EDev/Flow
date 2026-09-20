@@ -1092,4 +1092,15 @@
     <string name="lyrics_provider_lrclib">LrcLib</string>
     <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
     <string name="lyrics_provider_simpmusic">SimpMusic</string>
+    <string name="transcript_resync">與影片同步</string>
+    <string name="transcript_language">語言</string>
+    <string name="end_of_results">已無更多結果</string>
+    <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
+    <string name="content_settings_grid_small_title">小</string>
+    <string name="settings_show_related_videos_title">顯示相關影片</string>
+    <string name="settings_show_related_videos_subtitle">在影片播放器下方顯示相關影片</string>
+    <string name="settings_home_nav_tab_title">首頁分頁</string>
+    <string name="settings_home_nav_tab_subtitle">在導覽列中顯示「首頁」</string>
+    <string name="settings_subs_shorts_shelf_title">訂閱內容中的 Shorts 區塊</string>
+    <string name="settings_subs_shorts_shelf_subtitle">在訂閱內容的影片格狀清單中顯示橫向 Shorts 區塊</string>
 </resources>
