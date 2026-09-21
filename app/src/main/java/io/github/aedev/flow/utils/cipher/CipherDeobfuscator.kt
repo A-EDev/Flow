@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
 /**
  * This is based and ported from Metrolist,
  * see https://github.com/MetrolistGroup/Metrolist for the original code and license.
- * 
+ *
  * Main cipher deobfuscation orchestrator for YouTube stream URLs.
  *
  * Handles both signature deobfuscation (for signatureCipher streams) and
@@ -32,6 +32,22 @@ object CipherDeobfuscator {
 
     @Volatile
     private var cachedSignatureTimestamp: Int? = null
+
+    @Volatile
+    private var lastAnalyzedHash: String? = null
+
+    @Volatile
+    private var refetchedForHash: String? = null
+
+    /**
+     * The player script whose signature and n-function the patterns in [FunctionNameExtractor]
+     * could not find, once a fresh copy has been tried. Non-null means YouTube shipped a player
+     * shape this build does not know — the single most useful thing a bug report can carry, and
+     * not something the logs otherwise name.
+     */
+    @Volatile
+    var unparseablePlayerHash: String? = null
+        private set
 
     fun getSignatureTimestamp(): Int? = cachedSignatureTimestamp
 
@@ -59,7 +75,10 @@ object CipherDeobfuscator {
      * Deobfuscate a signatureCipher stream URL.
      * Returns the full URL with deobfuscated signature, or null if failed.
      */
-    suspend fun deobfuscateStreamUrl(signatureCipher: String, videoId: String): String? {
+    suspend fun deobfuscateStreamUrl(
+        signatureCipher: String,
+        videoId: String,
+    ): String? {
         Log.d(TAG, "deobfuscateStreamUrl: videoId=$videoId, cipher length=${signatureCipher.length}")
         return try {
             deobfuscateInternal(signatureCipher, videoId, isRetry = false)
@@ -76,7 +95,11 @@ object CipherDeobfuscator {
         }
     }
 
-    private suspend fun deobfuscateInternal(signatureCipher: String, videoId: String, isRetry: Boolean): String? {
+    private suspend fun deobfuscateInternal(
+        signatureCipher: String,
+        videoId: String,
+        isRetry: Boolean,
+    ): String? {
         val params = parseQueryParams(signatureCipher)
         val obfuscatedSig = params["s"]
         val sigParam = params["sp"] ?: "signature"
@@ -87,14 +110,15 @@ object CipherDeobfuscator {
             return null
         }
 
-        val webView = getOrCreateWebView(forceRefresh = isRetry) ?: run {
-            Log.e(TAG, "Failed to get/create CipherWebView")
-            return null
-        }
+        val webView =
+            getOrCreateWebView(forceRefresh = isRetry) ?: run {
+                Log.e(TAG, "Failed to get/create CipherWebView")
+                return null
+            }
 
         val deobfuscatedSig = webView.deobfuscateSignature(obfuscatedSig)
         val separator = if ("?" in baseUrl) "&" else "?"
-        val finalUrl = "$baseUrl${separator}${sigParam}=${Uri.encode(deobfuscatedSig)}"
+        val finalUrl = "$baseUrl${separator}$sigParam=${Uri.encode(deobfuscatedSig)}"
 
         Log.d(TAG, "Cipher deobfuscation success: videoId=$videoId, url length=${finalUrl.length}")
         return finalUrl
@@ -127,10 +151,11 @@ object CipherDeobfuscator {
         val nValue = Uri.decode(nValueEncoded)
         Log.d(TAG, "N-param: encoded=$nValueEncoded, decoded=$nValue")
 
-        val webView = getOrCreateWebView(forceRefresh = false) ?: run {
-            Log.e(TAG, "Failed to get CipherWebView for n-transform")
-            return url
-        }
+        val webView =
+            getOrCreateWebView(forceRefresh = false) ?: run {
+                Log.e(TAG, "Failed to get CipherWebView for n-transform")
+                return url
+            }
 
         if (!webView.nFunctionAvailable) {
             Log.e(TAG, "N-transform function was not discovered at init time")
@@ -142,7 +167,7 @@ object CipherDeobfuscator {
 
         return url.replaceFirst(
             Regex("([?&])n=[^&]+"),
-            "$1n=${Uri.encode(transformedN)}"
+            "$1n=${Uri.encode(transformedN)}",
         )
     }
 
@@ -157,6 +182,21 @@ object CipherDeobfuscator {
             closeWebView()
         }
 
+        buildWebView(forceRefresh)?.let { return it }
+
+        // A player script the extractors cannot read stays cached for six hours, so without this
+        // every request in that window fails identically — the device goes a working day with no
+        // signature and no n-transform. Re-fetch once per player hash: if YouTube really did ship
+        // a shape the patterns miss, the second attempt costs one request and then stops.
+        val failedHash = lastAnalyzedHash
+        if (forceRefresh || failedHash == null || refetchedForHash == failedHash) return null
+        refetchedForHash = failedHash
+        Log.w(TAG, "Player JS $failedHash could not be analyzed — dropping the cached copy and refetching once")
+        PlayerJsFetcher.invalidateCache()
+        return buildWebView(forceRefresh = true)
+    }
+
+    private suspend fun buildWebView(forceRefresh: Boolean): CipherWebView? {
         val result = PlayerJsFetcher.getPlayerJs(forceRefresh = forceRefresh)
         if (result == null) {
             Log.e(TAG, "Failed to get player JS")
@@ -168,11 +208,14 @@ object CipherDeobfuscator {
         val analysis = FunctionNameExtractor.analyzePlayerJs(playerJs, knownHash = hash)
         cachedSignatureTimestamp = analysis.signatureTimestamp
         Log.d(TAG, "Extracted signatureTimestamp: $cachedSignatureTimestamp")
+        lastAnalyzedHash = hash
 
         if (analysis.sigInfo == null && analysis.nFuncInfo == null) {
-            Log.e(TAG, "Could not extract signature or n-function info from player JS")
+            Log.e(TAG, "Could not extract signature or n-function info from player JS (hash=$hash)")
+            unparseablePlayerHash = hash
             return null
         }
+        unparseablePlayerHash = null
 
         if (analysis.sigInfo == null) {
             Log.w(TAG, "Could not extract signature function info from player JS; n-transform may still work")
@@ -183,12 +226,13 @@ object CipherDeobfuscator {
         }
 
         Log.d(TAG, "Creating CipherWebView: sig=${analysis.sigInfo?.name}, nFunc=${analysis.nFuncInfo?.name}")
-        val webView = CipherWebView.create(
-            context = appContext,
-            playerJs = playerJs,
-            sigInfo = analysis.sigInfo,
-            nFuncInfo = analysis.nFuncInfo,
-        )
+        val webView =
+            CipherWebView.create(
+                context = appContext,
+                playerJs = playerJs,
+                sigInfo = analysis.sigInfo,
+                nFuncInfo = analysis.nFuncInfo,
+            )
 
         Log.d(TAG, "CipherWebView created: nAvailable=${webView.nFunctionAvailable}, sigAvailable=${webView.sigFunctionAvailable}")
         cipherWebView = webView
