@@ -69,12 +69,4 @@ object RepositoryModule {
     ): io.github.aedev.flow.data.local.PlayerPreferences =
         io.github.aedev.flow.data.local
             .PlayerPreferences(context)
-
-    @Provides
-    @Singleton
-    fun provideShortsRepository(
-        @ApplicationContext context: Context,
-    ): io.github.aedev.flow.data.shorts.ShortsRepository =
-        io.github.aedev.flow.data.shorts.ShortsRepository
-            .getInstance(context)
 }

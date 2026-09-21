@@ -4,39 +4,35 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
-import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.data.shorts.ShortsFeedRepository
+import io.github.aedev.flow.data.shorts.spreadChannels
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import kotlinx.coroutines.flow.first
 
 /**
- * The algorithmic reel feed, optionally seeded from one short.
+ * The algorithmic reel feed, optionally opened on one short.
  *
- * Reports `exhausted` strictly from the continuation token. The pre-queue feed instead inferred
- * "there is more" from having at least five items, which on the discovery path (always a null
- * continuation) sent it into a cache-clearing refresh the moment the user neared the end.
+ * The pager behind [ShortsFeedRepository] never reports an end — its explore chain has none — so
+ * a page can come back empty (every candidate filtered) without the queue giving up on it.
  */
 class AlgorithmicFeedLoader(
-    private val repository: ShortsRepository,
+    private val repository: ShortsFeedRepository,
     private val seedVideoId: String? = null,
 ) : ShortsQueueLoader {
-    override suspend fun initial(): ShortsQueuePage {
-        val result = repository.getShortsFeed(seedVideoId = seedVideoId)
-        return ShortsQueuePage(
-            items = result.shorts,
-            cursor = result.continuation,
-            exhausted = result.continuation == null,
-        )
-    }
+    override suspend fun initial(): ShortsQueuePage = page(repository.openFeed(seedVideoId))
 
-    override suspend fun more(cursor: String?): ShortsQueuePage {
-        if (cursor == null) return exhaustedPage()
-        val result = repository.loadMore(cursor)
-        return ShortsQueuePage(
-            items = result.shorts,
-            cursor = result.continuation,
-            exhausted = result.continuation == null,
+    override suspend fun more(cursor: String?): ShortsQueuePage = page(repository.nextPage())
+
+    private fun page(items: List<ShortVideo>): ShortsQueuePage =
+        ShortsQueuePage(
+            items = items,
+            cursor = MORE.takeUnless { repository.isExhausted },
+            exhausted = repository.isExhausted,
         )
+
+    private companion object {
+        const val MORE = "more"
     }
 }
 
@@ -81,7 +77,7 @@ class SubscriptionShortsLoader(
                 .sortedByDescending { it.timestamp }
                 .map { it.toShortVideo() }
                 .toList()
-        return ShortsQueuePage(items, cursor = null, exhausted = true)
+        return ShortsQueuePage(spreadChannels(items, ShortVideo::channelId), cursor = null, exhausted = true)
     }
 
     override suspend fun more(cursor: String?): ShortsQueuePage = exhaustedPage()

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.shorts
+package io.github.aedev.flow.ui.components.shorts
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -6,34 +6,32 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
-import io.github.aedev.flow.data.shorts.ShortVideoQuality
-import io.github.aedev.flow.innertube.models.response.PlayerResponse
-import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
+
+internal const val SHORTS_PLAYBACK_LOOP = "loop"
+internal const val SHORTS_PLAYBACK_AUTO_NEXT = "auto_next"
+internal const val SHORTS_PLAYBACK_AUTO_INTERVAL = "auto_interval"
 
 @Immutable
-internal data class ShortVideoPageActions(
+internal data class ShortsReelActions(
     val onChannelClick: () -> Unit,
     val onCommentsClick: () -> Unit,
     val onDescriptionClick: () -> Unit,
     val onShareClick: () -> Unit,
-    val onWantMore: () -> Unit = {},
-    val onNotInterested: () -> Unit = {},
+    val onMoreClick: () -> Unit,
     val onVideoEnded: () -> Unit = {},
 )
 
 @Immutable
-internal data class ShortVideoPlayerSettings(
+internal data class ShortsReelSettings(
     val playbackMode: String,
     val autoScrollSeconds: Int,
-    val uiMode: ShortsPlayerUiMode,
+    val style: ShortsOverlayStyle,
     val ambientModeEnabled: Boolean,
     val playbackSpeed: Float,
     val groupedQualitySelectorEnabled: Boolean,
@@ -44,7 +42,7 @@ internal data class ShortVideoPlayerSettings(
 )
 
 @Stable
-internal class ShortVideoPageState {
+internal class ShortsReelPageState {
     var isPlaying by mutableStateOf(false)
     var currentPosition by mutableLongStateOf(0L)
     var duration by mutableLongStateOf(0L)
@@ -55,33 +53,19 @@ internal class ShortVideoPageState {
     var hasStartedPlaying by mutableStateOf(false)
     var isDragging by mutableStateOf(false)
     var dragProgress by mutableFloatStateOf(0f)
-    var showShortsOptionsSheet by mutableStateOf(false)
-    var showAudioTrackSheet by mutableStateOf(false)
-    var showQualitySheet by mutableStateOf(false)
-    var showSpeedSheet by mutableStateOf(false)
-    var availableAudioStreams by mutableStateOf<List<AudioStream>>(emptyList())
-    var availableQualities by mutableStateOf<List<ShortVideoQuality>>(emptyList())
-    var selectedAudioIndex by mutableIntStateOf(0)
-    var selectedQualityHeight by mutableIntStateOf(-1)
-    var selectedQualityUrl by mutableStateOf<String?>(null)
-    var isLoadingStreams by mutableStateOf(false)
-    var showDownloadDialog by mutableStateOf(false)
-    var currentStreamInfo by mutableStateOf<StreamInfo?>(null)
-    var currentStreamSizes by mutableStateOf<Map<String, Long>>(emptyMap())
-    var currentInnerTubeVideoFormats by mutableStateOf<List<PlayerResponse.StreamingData.Format>>(emptyList())
-    var currentInnerTubeAudioFormats by mutableStateOf<List<PlayerResponse.StreamingData.Format>>(emptyList())
 }
 
 @Stable
-internal class ShortVideoSessionState {
+internal class ShortsReelSessionState {
     var hasRecordedWatched by mutableStateOf(false)
     var hasTouchedHistory by mutableStateOf(false)
     var lastProgressSavedAt by mutableLongStateOf(0L)
-    var showImpressiveControls by mutableStateOf(false)
+    var showOnDemandControls by mutableStateOf(false)
+    var hasReportedDwell by mutableStateOf(false)
 }
 
 @Stable
-internal class ShortVideoAutoAdvanceState {
+internal class ShortsReelAutoAdvanceState {
     var hasAutoAdvanced by mutableStateOf(false)
 
     /** An advance that came due while a sheet was open, held back until the sheet is gone. */
@@ -89,26 +73,22 @@ internal class ShortVideoAutoAdvanceState {
 }
 
 @Composable
-internal fun rememberShortVideoPlayerSettings(playerPreferences: PlayerPreferences): ShortVideoPlayerSettings {
-    val playbackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
+internal fun rememberShortsReelSettings(playerPreferences: PlayerPreferences): ShortsReelSettings {
+    val playbackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = SHORTS_PLAYBACK_LOOP)
     val autoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
     val uiMode by playerPreferences.shortsPlayerUiMode.collectAsState(initial = ShortsPlayerUiMode.DEFAULT)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val playbackSpeed by playerPreferences.shortsPlaybackSpeed.collectAsState(initial = 1f)
-    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(
-        initial = false,
-    )
+    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
     val customSpeedsEnabled by playerPreferences.customSpeedsEnabled.collectAsState(initial = false)
     val customSpeedPresetsRaw by playerPreferences.customSpeedPresets.collectAsState(initial = "")
     val speedSliderEnabled by playerPreferences.speedSliderEnabled.collectAsState(initial = false)
-    val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(
-        initial = DownloadDialogStyle.FULL,
-    )
+    val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = DownloadDialogStyle.FULL)
 
-    return ShortVideoPlayerSettings(
+    return ShortsReelSettings(
         playbackMode = playbackMode,
         autoScrollSeconds = autoScrollSeconds,
-        uiMode = uiMode,
+        style = ShortsOverlayStyle.from(uiMode),
         ambientModeEnabled = ambientModeEnabled,
         playbackSpeed = playbackSpeed,
         groupedQualitySelectorEnabled = groupedQualitySelectorEnabled,

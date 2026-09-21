@@ -36,6 +36,8 @@ NEW FEATURES
 - Fresh subscription uploads are drawn from your whole subscription feed rather than the handful fetched this refresh
 - The recommendation brain now learns from real watch time, early skips, downloads, Watch Later, playlist saves, live subscribes and the searches you type, and learns what each channel is about from its creator tags and recent uploads
 - Device pairing can now be completed by entering connection details by hand when a QR scan is not practical
+- Shorts run on the native InnerTube client with a rebuilt reel page and settings sheet, and a new feed engine that blends chains related to reels you liked, saved or watched with fresh discovery, exploration and subscriptions — endless, unrepeated and one reel per channel at a time
+- Shorts now honour your blocked channels and topics on every reel, "Don't show this channel" joins the reel sheet, and the ad creatives YouTube slips into the reel feed are dropped
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls

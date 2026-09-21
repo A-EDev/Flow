@@ -12,7 +12,6 @@ import io.github.aedev.flow.innertube.models.body.*
 import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
-import io.github.aedev.flow.innertube.models.response.ReelWatchSequenceResponse
 import io.github.aedev.flow.innertube.utils.parseCookieString
 import io.github.aedev.flow.innertube.utils.sha1
 import io.ktor.client.*
@@ -348,9 +347,15 @@ class InnerTube {
     private suspend fun webBrowse(
         client: YouTubeClient,
         body: (String?) -> BrowseBody,
+    ) = mainSitePost(client, "browse", body)
+
+    private suspend inline fun <reified T> mainSitePost(
+        client: YouTubeClient,
+        path: String,
+        crossinline body: (String?) -> T,
     ) = withRetry {
         withVisitorDataFallback { requestVisitorData ->
-            httpClient.post("https://www.youtube.com/youtubei/v1/browse") {
+            httpClient.post("https://www.youtube.com/youtubei/v1/$path") {
                 headers {
                     append("X-YouTube-Client-Name", client.clientId)
                     append("X-YouTube-Client-Version", client.clientVersion)
@@ -640,26 +645,30 @@ class InnerTube {
 
     suspend fun reel(
         client: YouTubeClient,
-        params: String? = null,
-        sequenceParams: String? = "CA8%3D", // Default for initial fetch
-        setLogin: Boolean = false,
-    ) = withRetry {
-        httpClient
-            .post("reel/reel_watch_sequence") {
-                ytClient(client, setLogin = setLogin)
-                setBody(
-                    ReelBody(
-                        context =
-                            client.toContext(
-                                locale,
-                                visitorData,
-                                if (setLogin) dataSyncId else null,
-                            ),
-                        params = params,
-                        sequenceParams = sequenceParams,
-                    ),
-                )
-            }.body<ReelWatchSequenceResponse>()
+        sequenceParams: String,
+    ) = mainSitePost(client, "reel/reel_watch_sequence") { requestVisitorData ->
+        ReelBody(
+            context = client.toContext(locale, requestVisitorData, null),
+            sequenceParams = sequenceParams,
+        )
+    }
+
+    /**
+     * One reel's overlay. Only the id is required: the WEB overlay is complete without a signature
+     * timestamp or the reel's own `playerParams`, which matter only to the inline player response
+     * this never asks for.
+     */
+    suspend fun reelItemWatch(
+        client: YouTubeClient,
+        videoId: String,
+        playerParams: String? = null,
+        disablePlayerResponse: Boolean = true,
+    ) = mainSitePost(client, "reel/reel_item_watch") { requestVisitorData ->
+        ReelItemWatchBody(
+            context = client.toContext(locale, requestVisitorData, null),
+            playerRequest = ReelItemWatchBody.PlayerRequest(videoId = videoId, params = playerParams),
+            disablePlayerResponse = disablePlayerResponse,
+        )
     }
 
     suspend fun next(

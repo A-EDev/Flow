@@ -6,8 +6,8 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
 import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
+import io.github.aedev.flow.innertube.pages.reel.parseReelLockup
 import io.github.aedev.flow.innertube.pages.stringOrNull
-import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.youtubeText
 import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -374,7 +374,7 @@ private fun JsonObject.toShortItem(
     key: String,
     owner: FeedItemOwner,
 ): FeedItem? {
-    val item = JsonObject(mapOf(key to this)).toSearchShorts().firstOrNull() ?: return null
+    val item = JsonObject(mapOf(key to this)).parseReelLockup() ?: return null
     return FeedItem.ShortItem(
         Video(
             id = item.id,

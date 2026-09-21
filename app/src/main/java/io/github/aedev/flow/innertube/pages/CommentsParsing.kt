@@ -314,7 +314,7 @@ internal fun JsonElement?.bestThumbnailUrl(): String? {
             val objectValue = thumbnail.objectOrNull()
             val width = (objectValue?.get("width") as? JsonPrimitive)?.intOrNull ?: 0
             val height = (objectValue?.get("height") as? JsonPrimitive)?.intOrNull ?: 0
-            width.toLong() * height.toLong()
+            width.toLong() * height.toLong().coerceAtLeast(1)
         }?.objectOrNull()
         ?.let { thumbnail ->
             thumbnail["url"].stringOrNull() ?: thumbnail["uri"].stringOrNull()

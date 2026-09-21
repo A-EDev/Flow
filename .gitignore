@@ -44,3 +44,7 @@ diagnostics/
 # Captured InnerTube explore payloads: megabytes of response, regenerated locally by
 # notes/innertube-video-responses/trim_explore_fixtures.py rather than tracked.
 /app/src/test/resources/explore/
+/app/src/test/resources/shorts/
+
+# macOS Finder metadata
+.DS_Store

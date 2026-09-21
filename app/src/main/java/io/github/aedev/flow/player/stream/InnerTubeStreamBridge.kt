@@ -2,31 +2,31 @@ package io.github.aedev.flow.player.stream
 
 import android.util.Log
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.services.youtube.ItagItem
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.AudioTrackType
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.Stream
 import org.schabi.newpipe.extractor.stream.VideoStream
-import org.schabi.newpipe.extractor.MediaFormat
-import org.schabi.newpipe.extractor.services.youtube.ItagItem
 import java.util.Locale
 
 object InnerTubeStreamBridge {
     private const val TAG = "InnerTubeStreamBridge"
 
-    fun convertVideoFormats(
-        formats: List<PlayerResponse.StreamingData.Format>
-    ): List<VideoStream> {
+    fun convertVideoFormats(formats: List<PlayerResponse.StreamingData.Format>): List<VideoStream> {
         return formats.mapNotNull { format ->
             val url = format.url ?: return@mapNotNull null
             val height = format.height ?: return@mapNotNull null
             val mediaFormat = mapVideoMimeToMediaFormat(format.mimeType) ?: return@mapNotNull null
-            val resolutionLabel = format.qualityLabel
-                ?.takeIf { it.isNotBlank() }
-                ?: "${height}p"
+            val resolutionLabel =
+                format.qualityLabel
+                    ?.takeIf { it.isNotBlank() }
+                    ?: "${height}p"
 
             try {
-                VideoStream.Builder()
+                VideoStream
+                    .Builder()
                     .setId(format.itag.toString())
                     .setItagItem(buildItagItem(format, isAudio = false))
                     .setContent(url, true)
@@ -42,16 +42,15 @@ object InnerTubeStreamBridge {
         }
     }
 
-    fun convertAudioFormats(
-        formats: List<PlayerResponse.StreamingData.Format>
-    ): List<AudioStream> {
+    fun convertAudioFormats(formats: List<PlayerResponse.StreamingData.Format>): List<AudioStream> {
         return formats.preferNonDrc().mapNotNull { format ->
             val url = format.url ?: return@mapNotNull null
             val mediaFormat = mapAudioMimeToMediaFormat(format.mimeType) ?: return@mapNotNull null
             val bitrate = format.averageBitrate ?: format.bitrate
 
             try {
-                AudioStream.Builder()
+                AudioStream
+                    .Builder()
                     .setId(format.itag.toString())
                     .setItagItem(buildItagItem(format, isAudio = true))
                     .setContent(url, true)
@@ -72,19 +71,17 @@ object InnerTubeStreamBridge {
      * by a handful of bytes/s, so any downstream "highest bitrate wins" pick would otherwise land on
      * the loudness-flattened copy. Order is preserved so default-track selection is unaffected.
      */
-    private fun List<PlayerResponse.StreamingData.Format>.preferNonDrc():
-        List<PlayerResponse.StreamingData.Format> {
-        val normalTwins = filterNot { it.isDynamicRangeCompressed }
-            .mapTo(mutableSetOf()) { it.itag to it.audioTrack?.id }
+    private fun List<PlayerResponse.StreamingData.Format>.preferNonDrc(): List<PlayerResponse.StreamingData.Format> {
+        val normalTwins =
+            filterNot { it.isDynamicRangeCompressed }
+                .mapTo(mutableSetOf()) { it.itag to it.audioTrack?.id }
         if (normalTwins.isEmpty()) return this
         return filterNot {
             it.isDynamicRangeCompressed && (it.itag to it.audioTrack?.id) in normalTwins
         }
     }
 
-    private fun AudioStream.Builder.applyAudioTrackMetadata(
-        format: PlayerResponse.StreamingData.Format
-    ): AudioStream.Builder {
+    private fun AudioStream.Builder.applyAudioTrackMetadata(format: PlayerResponse.StreamingData.Format): AudioStream.Builder {
         setAudioTrackType(if (format.isOriginal) AudioTrackType.ORIGINAL else AudioTrackType.DUBBED)
         format.audioTrack?.let { track ->
             track.id?.takeIf { it.isNotBlank() }?.let { setAudioTrackId(it) }
@@ -102,9 +99,18 @@ object InnerTubeStreamBridge {
     private fun mapVideoMimeToMediaFormat(mimeType: String): MediaFormat? {
         val mime = mimeType.lowercase()
         return when {
-            mime.startsWith("video/mp4") -> MediaFormat.MPEG_4
-            mime.startsWith("video/webm") -> MediaFormat.WEBM
-            mime.startsWith("video/3gpp") -> MediaFormat.v3GPP
+            mime.startsWith("video/mp4") -> {
+                MediaFormat.MPEG_4
+            }
+
+            mime.startsWith("video/webm") -> {
+                MediaFormat.WEBM
+            }
+
+            mime.startsWith("video/3gpp") -> {
+                MediaFormat.v3GPP
+            }
+
             else -> {
                 Log.d(TAG, "Unknown video MIME: $mimeType")
                 null
@@ -115,9 +121,18 @@ object InnerTubeStreamBridge {
     private fun mapAudioMimeToMediaFormat(mimeType: String): MediaFormat? {
         val mime = mimeType.lowercase()
         return when {
-            mime.startsWith("audio/mp4") -> MediaFormat.M4A
-            mime.startsWith("audio/webm") && mime.contains("opus") -> MediaFormat.WEBMA_OPUS
-            mime.startsWith("audio/webm") -> MediaFormat.WEBMA
+            mime.startsWith("audio/mp4") -> {
+                MediaFormat.M4A
+            }
+
+            mime.startsWith("audio/webm") && mime.contains("opus") -> {
+                MediaFormat.WEBMA_OPUS
+            }
+
+            mime.startsWith("audio/webm") -> {
+                MediaFormat.WEBMA
+            }
+
             else -> {
                 Log.d(TAG, "Unknown audio MIME: $mimeType")
                 null
@@ -127,16 +142,20 @@ object InnerTubeStreamBridge {
 
     private fun buildItagItem(
         format: PlayerResponse.StreamingData.Format,
-        isAudio: Boolean
+        isAudio: Boolean,
     ): ItagItem? {
-        val item = try {
-            ItagItem.getItag(format.itag)
-        } catch (e: Exception) {
-            Log.d(TAG, "No NewPipe ItagItem metadata for itag=${format.itag}: ${e.message}")
-            return null
-        }
+        val item =
+            try {
+                ItagItem.getItag(format.itag)
+            } catch (e: Exception) {
+                syntheticItagItem(format, isAudio) ?: run {
+                    Log.d(TAG, "No NewPipe ItagItem metadata for itag=${format.itag}: ${e.message}")
+                    return null
+                }
+            }
 
-        VideoCodecUtils.codecStringFromMimeType(format.mimeType)
+        VideoCodecUtils
+            .codecStringFromMimeType(format.mimeType)
             .takeIf { it.isNotBlank() }
             ?.let { item.codec = it }
         item.bitrate = format.averageBitrate ?: format.bitrate
@@ -162,5 +181,22 @@ object InnerTubeStreamBridge {
             item.quality = format.quality
         }
         return item
+    }
+
+    /**
+     * NewPipe's itag table lags YouTube's ladder — the 608×1080 Shorts tier (779/780 vp9, 787/788
+     * av01) is absent from 0.26.5 — and a format it cannot describe would lose its DASH manifest and
+     * fall back to the throttled progressive path. The response carries everything the table would
+     * have said, so describe the format from it instead.
+     */
+    private fun syntheticItagItem(
+        format: PlayerResponse.StreamingData.Format,
+        isAudio: Boolean,
+    ): ItagItem? {
+        if (isAudio) return null
+        val mediaFormat = mapVideoMimeToMediaFormat(format.mimeType) ?: return null
+        val height = format.height ?: return null
+        val resolution = format.qualityLabel?.takeIf { it.isNotBlank() } ?: "${height}p"
+        return ItagItem(format.itag, ItagItem.ItagType.VIDEO_ONLY, mediaFormat, resolution, format.fps ?: 30)
     }
 }

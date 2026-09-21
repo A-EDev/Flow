@@ -1,11 +1,11 @@
-package io.github.aedev.flow.ui.screens.shorts
+package io.github.aedev.flow.ui.components.shorts
 
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -15,10 +15,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
-import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -51,6 +47,7 @@ internal fun shortsSheetReservedPx(
 @Stable
 internal class ShortsSheetInsetState(
     private val scope: CoroutineScope,
+    private val releaseSpec: AnimationSpec<Float> = tween(durationMillis = 220, easing = FastOutSlowInEasing),
 ) {
     /** Height of the Shorts screen itself, which is what a sheet is measured and capped against. */
     var containerHeightPx by mutableFloatStateOf(0f)
@@ -86,7 +83,7 @@ internal class ShortsSheetInsetState(
                 animate(
                     initialValue = reservedPx,
                     targetValue = 0f,
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    animationSpec = releaseSpec,
                 ) { value, _ -> reservedPx = value }
                 releaseJob = null
             }
@@ -96,7 +93,8 @@ internal class ShortsSheetInsetState(
 @Composable
 internal fun rememberShortsSheetInsetState(): ShortsSheetInsetState {
     val scope = rememberCoroutineScope()
-    return remember(scope) { ShortsSheetInsetState(scope) }
+    val releaseSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    return remember(scope, releaseSpec) { ShortsSheetInsetState(scope, releaseSpec) }
 }
 
 /**
@@ -119,46 +117,3 @@ internal fun Modifier.shortsSheetInset(state: ShortsSheetInsetState): Modifier =
         val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
         layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
     }
-
-/**
- * Gives a child back the height [shortsSheetInset] took away from its parent.
- *
- * A Shorts page is one item of the pager, and a pager item lays its root nodes out one after another
- * down the scroll axis — so a sheet emitted as a second root of the page lands a whole screen below
- * it, which is why the sheets are children of the reel's own container. This measures such a child
- * against the page rather than against the reel that has shrunk inside it; it then draws past the
- * bottom of that container on purpose, and nothing between there and the pager's viewport clips.
- */
-internal fun Modifier.shortsSheetOutset(state: ShortsSheetInsetState): Modifier =
-    layout { measurable, constraints ->
-        if (!constraints.hasBoundedHeight) {
-            val placeable = measurable.measure(constraints)
-            return@layout layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-        }
-        val height = constraints.maxHeight + state.reservedPx.roundToInt().coerceAtLeast(0)
-        val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
-        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
-    }
-
-/**
- * A Shorts player settings sheet: the same slide-up as the comments sheet, reporting its own height
- * so the reel lifts clear of it instead of hiding behind it.
- */
-@Composable
-internal fun ShortsPlayerSheet(
-    insets: ShortsSheetInsetState,
-    onDismiss: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val maxHeight = with(LocalDensity.current) { insets.sheetMaxHeightPx.toDp() }
-    FlowBottomSheet(
-        modifier = Modifier.zIndex(2f).shortsSheetOutset(insets),
-        onDismiss = onDismiss,
-        maxHeight = maxHeight.takeIf { it > 0.dp },
-        onVisibleHeightChange = insets::follow,
-        content = content,
-    )
-    DisposableEffect(insets) {
-        onDispose { insets.release() }
-    }
-}

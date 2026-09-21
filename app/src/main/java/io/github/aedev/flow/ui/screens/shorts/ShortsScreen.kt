@@ -1,28 +1,40 @@
 package io.github.aedev.flow.ui.screens.shorts
 
-import android.content.Intent
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -30,12 +42,25 @@ import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.applyVideoCommentFilters
+import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.shared.videoCommentSortFor
-import kotlinx.coroutines.delay
+import io.github.aedev.flow.ui.components.shorts.SHORTS_SHEET_HEIGHT_FRACTION
+import io.github.aedev.flow.ui.components.shorts.ShortsDownloadDialog
+import io.github.aedev.flow.ui.components.shorts.ShortsReelActions
+import io.github.aedev.flow.ui.components.shorts.ShortsReelPage
+import io.github.aedev.flow.ui.components.shorts.ShortsSettingsSheet
+import io.github.aedev.flow.ui.components.shorts.ShortsSettingsSheetState
+import io.github.aedev.flow.ui.components.shorts.ShortsTopBar
+import io.github.aedev.flow.ui.components.shorts.rememberShortsReelSettings
+import io.github.aedev.flow.ui.components.shorts.rememberShortsSheetInsetState
+import io.github.aedev.flow.ui.theme.PlayerScrim
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+private val SnackbarBottomPadding = 80.dp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -43,94 +68,56 @@ fun ShortsScreen(
     source: ShortsQueueSource,
     onBack: () -> Unit,
     onChannelClick: (String) -> Unit,
-    bottomNavOverlayPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    bottomNavOverlayPadding: Dp = 0.dp,
     modifier: Modifier = Modifier,
     viewModel: ShortsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val audioLangPref = remember(context) { PlayerPreferences(context) }
+    val playerPreferences = remember(context) { PlayerPreferences(context) }
+    val reelSettings = rememberShortsReelSettings(playerPreferences)
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+    val shareVideo = rememberVideoShareAction()
 
     val isInPip by GlobalPlayerState.isInPipMode.collectAsState()
     ShortsPipActionEffect()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
-
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { message ->
-            snackbarHostState.showSnackbar(
-                message = message,
-                duration = SnackbarDuration.Short,
-            )
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
             viewModel.clearSnackbar()
         }
     }
 
-    // Seeded synchronously rather than defaulting to false: the ViewModel's prefetch reads the
-    // transport synchronously too, and the two must agree or they key the playback-stream cache
-    // differently and the prefetch is wasted.
-    var isWifi by remember { mutableStateOf(isOnWifi(context)) }
-    DisposableEffect(context) {
-        val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-
-        fun update() {
-            isWifi = cm
-                .getNetworkCapabilities(cm.activeNetwork)
-                ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
-        }
-        update()
-        val networkCallback =
-            object : android.net.ConnectivityManager.NetworkCallback() {
-                override fun onCapabilitiesChanged(
-                    network: android.net.Network,
-                    caps: android.net.NetworkCapabilities,
-                ) = update()
-
-                override fun onLost(network: android.net.Network) {
-                    update()
-                }
-
-                override fun onAvailable(network: android.net.Network) {
-                    update()
-                }
-            }
-        cm.registerDefaultNetworkCallback(networkCallback)
-        onDispose { cm.unregisterNetworkCallback(networkCallback) }
-    }
+    val isWifi = rememberIsOnWifi()
     // Null until DataStore has actually emitted. Resolving against a placeholder height would key
     // the playback-stream cache differently from the ViewModel's prefetch (which reads the real
     // preference), guaranteeing a miss — and the correction would then re-resolve and reload all
     // three pooled players on every entry to the screen.
-    val shortsQualityPair by remember(audioLangPref) {
-        audioLangPref.shortsQualityWifi.combine(audioLangPref.shortsQualityCellular, ::Pair)
+    val shortsQualityPair by remember(playerPreferences) {
+        playerPreferences.shortsQualityWifi.combine(playerPreferences.shortsQualityCellular, ::Pair)
     }.collectAsState(initial = null)
     val shortsTargetHeight by remember(isWifi, shortsQualityPair) {
-        derivedStateOf {
-            shortsQualityPair?.let { (wifi, cellular) -> shortsTargetHeight(isWifi, wifi, cellular) }
-        }
+        derivedStateOf { shortsQualityPair?.let { (wifi, cellular) -> shortsTargetHeight(isWifi, wifi, cellular) } }
     }
-    val prevShortsTargetHeight = remember { mutableStateOf<Int?>(null) }
 
-    // Bottom sheet states
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
+    val settingsSheet = remember { ShortsSettingsSheetState() }
     var commentSortFilter by remember { mutableStateOf(CommentSortFilter.TOP) }
     var commentsTimedOnly by remember { mutableStateOf(false) }
     val comments by viewModel.commentsState.collectAsState()
     val isLoadingComments by viewModel.isLoadingComments.collectAsState()
     val commentSortOptions by viewModel.commentSortOptions.collectAsState()
     val commentTotalText by viewModel.commentTotalText.collectAsState()
-
     val visibleComments =
         remember(comments, commentSortFilter, commentsTimedOnly) {
             applyVideoCommentFilters(comments, commentSortFilter, commentsTimedOnly)
         }
 
-    LaunchedEffect(source) {
-        viewModel.load(source)
-    }
+    LaunchedEffect(source) { viewModel.load(source) }
 
     // Release the pool on the way out — unless a later Shorts screen has claimed it in the meantime.
     // An external /shorts/ link arriving while the Shorts tab is open pushes a second destination,
@@ -138,7 +125,11 @@ fun ShortsScreen(
     DisposableEffect(Unit) {
         val playerPool = ShortsPlayerPool.getInstance()
         val hostToken = playerPool.acquireHost()
-        onDispose { playerPool.releaseIfHost(hostToken) }
+        viewModel.onScreenVisible()
+        onDispose {
+            viewModel.onScreenHidden()
+            playerPool.releaseIfHost(hostToken)
+        }
     }
 
     val sheetInsets = rememberShortsSheetInsetState()
@@ -148,7 +139,7 @@ fun ShortsScreen(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(PlayerScrim),
     ) {
         val canShrinkReel = maxHeight > maxWidth
         val sheetExpandedHeight = (maxHeight * SHORTS_SHEET_HEIGHT_FRACTION).takeIf { canShrinkReel }
@@ -157,164 +148,36 @@ fun ShortsScreen(
             sheetInsets.containerHeightPx = constraints.maxHeight.toFloat()
             sheetInsets.shrinkEnabled = canShrinkReel
         }
-        val screenSheetOpen = showCommentsSheet || showDescriptionSheet
+        val screenSheetOpen = showCommentsSheet || showDescriptionSheet || settingsSheet.isOpen
 
         when {
             uiState.isLoading && uiState.shorts.isEmpty() -> {
-                ShortsLoadingState(modifier = Modifier.align(Alignment.Center))
+                FlowLoadingIndicator()
             }
 
             uiState.error != null && uiState.shorts.isEmpty() -> {
-                ShortsErrorState(
-                    error = uiState.error,
+                FlowErrorState(
+                    error = uiState.error ?: stringResource(R.string.error_short_load),
                     onRetry = { viewModel.retry(source) },
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
 
             uiState.shorts.isNotEmpty() -> {
-                val pagerState =
-                    rememberPagerState(
-                        initialPage = uiState.currentIndex,
-                        pageCount = { uiState.shorts.size },
-                    )
+                val pagerState = rememberPagerState(initialPage = uiState.currentIndex, pageCount = { uiState.shorts.size })
 
-                // Track page changes
-                LaunchedEffect(pagerState.currentPage) {
-                    viewModel.updateCurrentIndex(pagerState.currentPage)
+                LaunchedEffect(pagerState.currentPage) { viewModel.updateCurrentIndex(pagerState.currentPage) }
+                LaunchedEffect(pagerState.settledPage) {
+                    if (settingsSheet.isOpen && settingsSheet.targetIndex != pagerState.settledPage) settingsSheet.close()
                 }
 
-                // Load likes and metadata for the current short
-                LaunchedEffect(pagerState.currentPage) {
-                    delay(750)
-                    uiState.shorts.getOrNull(pagerState.currentPage)?.let {
-                        viewModel.loadShortDetails(it.id)
-                    }
-                }
-
-                // Track settled page for player pool management
-                val settledShortId = uiState.shorts.getOrNull(pagerState.settledPage)?.id
-                LaunchedEffect(pagerState.settledPage, settledShortId, shortsTargetHeight) {
-                    val targetHeight = shortsTargetHeight ?: return@LaunchedEffect
-                    val settled = pagerState.settledPage
-                    val playerPool = ShortsPlayerPool.getInstance()
-                    playerPool.initialize(context)
-                    playerPool.setCurrentVideo(uiState.shorts.getOrNull(settled))
-
-                    val preferredLang = audioLangPref.preferredAudioLanguage.first()
-
-                    suspend fun prepareShort(
-                        index: Int,
-                        short: ShortVideo,
-                        shouldPlay: Boolean,
-                    ) {
-                        try {
-                            val streams = viewModel.getPlaybackStreams(short.id, targetHeight, preferredLang)
-                            if (streams != null) {
-                                playerPool.prepare(
-                                    index = index,
-                                    videoId = short.id,
-                                    videoUrl = streams.videoUrl,
-                                    audioUrl = streams.audioUrl,
-                                    shouldPlay = shouldPlay,
-                                    videoDashManifest = streams.videoDashManifest,
-                                    audioDashManifest = streams.audioDashManifest,
-                                )
-                            } else {
-                                Log.w("ShortsScreen", "No stream URL resolved for ${short.id}")
-                            }
-                        } catch (e: Exception) {
-                            Log.e("ShortsScreen", "Failed to prepare player for ${short.id}", e)
-                        }
-                    }
-
-                    playerPool.activatePlayer(settled)
-
-                    // Awaited, not launched alongside the neighbours. Each resolve mints a BotGuard
-                    // PoToken, and those serialise on one process-wide WebView — so firing all of
-                    // them at once can leave the short the user is looking at queued behind two it
-                    // cannot see.
-                    uiState.shorts.getOrNull(settled)?.let { currentShort ->
-                        prepareShort(settled, currentShort, shouldPlay = true)
-                    }
-
-                    playerPool.releaseUnusedPlayers(settled)
-
-                    uiState.shorts.getOrNull(settled + 1)?.let { nextShort ->
-                        launch { prepareShort(settled + 1, nextShort, shouldPlay = false) }
-                    }
-                    uiState.shorts.getOrNull(settled - 1)?.let { prevShort ->
-                        launch { prepareShort(settled - 1, prevShort, shouldPlay = false) }
-                    }
-                    // Two ahead: resolved only, not handed to a player. Last so it never competes
-                    // with the visible short.
-                    uiState.shorts.getOrNull(settled + 2)?.let { preloadShort ->
-                        launch {
-                            runCatching {
-                                viewModel.getPlaybackStreams(preloadShort.id, targetHeight, preferredLang)
-                            }
-                        }
-                    }
-                }
-
-                LaunchedEffect(shortsTargetHeight) {
-                    val newHeight = shortsTargetHeight ?: return@LaunchedEffect
-                    val previous = prevShortsTargetHeight.value
-                    prevShortsTargetHeight.value = newHeight
-                    // The first non-null value is the preference loading, not the user changing it.
-                    // The settle effect above already prepares at that height.
-                    if (previous == null || newHeight == previous) return@LaunchedEffect
-
-                    val settled = pagerState.settledPage
-                    val playerPool = ShortsPlayerPool.getInstance()
-                    val preferredLang = audioLangPref.preferredAudioLanguage.first()
-
-                    val currentShort = uiState.shorts.getOrNull(settled) ?: return@LaunchedEffect
-                    try {
-                        val streams = viewModel.getPlaybackStreams(currentShort.id, newHeight, preferredLang)
-                        if (streams != null) {
-                            playerPool.reloadWithVideoUrl(
-                                settled,
-                                currentShort.id,
-                                streams.videoUrl,
-                                streams.videoDashManifest,
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Log.e("ShortsScreen", "Quality change: failed to reload ${currentShort.id}", e)
-                    }
-
-                    uiState.shorts.getOrNull(settled + 1)?.let { nextShort ->
-                        launch {
-                            runCatching {
-                                val streams = viewModel.getPlaybackStreams(nextShort.id, newHeight, preferredLang)
-                                if (streams != null) {
-                                    playerPool.reloadWithVideoUrl(
-                                        settled + 1,
-                                        nextShort.id,
-                                        streams.videoUrl,
-                                        streams.videoDashManifest,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    uiState.shorts.getOrNull(settled - 1)?.let { prevShort ->
-                        launch {
-                            runCatching {
-                                val streams = viewModel.getPlaybackStreams(prevShort.id, newHeight, preferredLang)
-                                if (streams != null) {
-                                    playerPool.reloadWithVideoUrl(
-                                        settled - 1,
-                                        prevShort.id,
-                                        streams.videoUrl,
-                                        streams.videoDashManifest,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                ShortsPagerPlaybackEffects(
+                    pagerState = pagerState,
+                    shorts = uiState.shorts,
+                    targetHeight = shortsTargetHeight,
+                    playerPreferences = playerPreferences,
+                    viewModel = viewModel,
+                )
 
                 VerticalPager(
                     state = pagerState,
@@ -323,66 +186,48 @@ fun ShortsScreen(
                     key = { uiState.shorts[it].id },
                 ) { page ->
                     val short = uiState.shorts[page]
-                    val isActive = page == pagerState.currentPage
-
-                    ShortVideoPage(
-                        video = short.toVideo(),
-                        isActive = isActive,
+                    ShortsReelPage(
+                        short = short,
+                        isActive = page == pagerState.currentPage,
                         pageIndex = page,
                         viewModel = viewModel,
-                        bottomNavOverlayPadding = bottomNavOverlayPadding,
+                        settings = reelSettings,
                         sheetInsets = sheetInsets,
                         screenSheetOpen = screenSheetOpen,
+                        bottomNavOverlayPadding = bottomNavOverlayPadding,
                         actions =
-                            ShortVideoPageActions(
+                            ShortsReelActions(
                                 onChannelClick = { onChannelClick(short.channelId) },
                                 onCommentsClick = {
                                     viewModel.loadComments(short.id)
                                     showCommentsSheet = true
                                 },
                                 onDescriptionClick = {
-                                    scope.launch { viewModel.loadShortDetails(short.id) }
+                                    viewModel.loadShortDescription(short.id)
                                     showDescriptionSheet = true
                                 },
-                                onShareClick = {
-                                    val sendIntent =
-                                        Intent(Intent.ACTION_SEND).apply {
-                                            action = Intent.ACTION_SEND
-                                            putExtra(
-                                                Intent.EXTRA_TEXT,
-                                                context.getString(R.string.share_short_template, short.id),
-                                            )
-                                            type = "text/plain"
-                                        }
-                                    context.startActivity(Intent.createChooser(sendIntent, null))
-                                },
-                                onWantMore = { viewModel.wantMoreLikeThis(short) },
-                                onNotInterested = { viewModel.notInterested(short) },
+                                onShareClick = { shareVideo(short.id, short.title) },
+                                onMoreClick = { settingsSheet.open(page, short.id) },
                                 onVideoEnded = {
                                     scope.launch {
-                                        if (page < pagerState.pageCount - 1) {
-                                            pagerState.animateScrollToPage(page + 1)
-                                        }
+                                        if (page < pagerState.pageCount - 1) pagerState.animateScrollToPage(page + 1)
                                     }
                                 },
                             ),
                     )
                 }
 
-                // Loading more indicator at bottom
                 if (uiState.isLoadingMore && !isInPip) {
                     LinearProgressIndicator(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
                                 .align(Alignment.BottomCenter),
-                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
         }
 
-        // Comments Sheet
         if (showCommentsSheet) {
             DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
             FlowCommentsBottomSheet(
@@ -395,9 +240,10 @@ fun ShortsScreen(
                 onFilterChanged = { filter ->
                     commentSortFilter = filter
                     videoCommentSortFor(commentSortOptions, filter)?.let { sort ->
-                        uiState.shorts.getOrNull(uiState.currentIndex)?.id?.let { videoId ->
-                            viewModel.selectCommentSort(videoId, sort)
-                        }
+                        uiState.shorts
+                            .getOrNull(uiState.currentIndex)
+                            ?.id
+                            ?.let { videoId -> viewModel.selectCommentSort(videoId, sort) }
                     }
                 },
                 onLoadReplies = { viewModel.loadCommentReplies(it) },
@@ -412,7 +258,6 @@ fun ShortsScreen(
             )
         }
 
-        // Description Sheet
         if (showDescriptionSheet && uiState.shorts.isNotEmpty()) {
             DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
             val safeIndex = uiState.currentIndex.coerceIn(0, uiState.shorts.size - 1)
@@ -425,7 +270,28 @@ fun ShortsScreen(
             )
         }
 
-        // Top Bar Overlay
+        val settingsShort = settingsSheet.targetId?.let { id -> uiState.shorts.firstOrNull { it.id == id } }
+        if (settingsShort != null) {
+            DisposableEffect(Unit) { onDispose { sheetInsets.release() } }
+            ShortsSettingsSheet(
+                short = settingsShort,
+                settings = reelSettings,
+                state = settingsSheet,
+                playerPool = ShortsPlayerPool.getInstance(),
+                viewModel = viewModel,
+                playerPreferences = playerPreferences,
+                onWantMore = { viewModel.wantMoreLikeThis(settingsShort) },
+                onNotInterested = { viewModel.notInterested(settingsShort) },
+                onBlockChannel = { viewModel.blockChannel(settingsShort) },
+                onDownload = { scope.launch { settingsSheet.prepareDownload(settingsShort, viewModel) } },
+                onDismiss = settingsSheet::close,
+                expandedHeight = sheetExpandedHeight,
+                onSheetProgressChange = { progress -> sheetInsets.follow(sheetExpandedHeightPx * progress) },
+                bottomContentPadding = bottomNavOverlayPadding,
+            )
+        }
+        ShortsDownloadDialog(state = settingsSheet, style = reelSettings.downloadDialogStyle)
+
         ShortsTopBar(
             visible = uiState.shorts.isNotEmpty() && !isInPip,
             showBackButton = source != ShortsQueueSource.Feed,
@@ -439,7 +305,7 @@ fun ShortsScreen(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 80.dp),
+                    .padding(bottom = SnackbarBottomPadding),
         ) { data ->
             Snackbar(
                 snackbarData = data,
@@ -447,85 +313,6 @@ fun ShortsScreen(
                 contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                 shape = MaterialTheme.shapes.medium,
             )
-        }
-    }
-}
-
-@Composable
-private fun ShortsTopBar(
-    visible: Boolean,
-    showBackButton: Boolean,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    if (!visible) return
-
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (showBackButton) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.Rounded.ArrowBack,
-                    contentDescription = stringResource(R.string.btn_back),
-                    tint = Color.White,
-                )
-            }
-        } else {
-            Text(
-                text = stringResource(R.string.shorts),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ShortsLoadingState(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        CircularProgressIndicator(
-            color = Color.White,
-            strokeWidth = 3.dp,
-            modifier = Modifier.size(40.dp),
-        )
-        Text(
-            stringResource(R.string.loading_shorts),
-            color = Color.White.copy(alpha = 0.7f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
-}
-
-@Composable
-private fun ShortsErrorState(
-    error: String?,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            text = error ?: stringResource(R.string.error_short_load),
-            color = Color.White,
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        FilledTonalButton(onClick = onRetry) {
-            Text(stringResource(R.string.retry))
         }
     }
 }

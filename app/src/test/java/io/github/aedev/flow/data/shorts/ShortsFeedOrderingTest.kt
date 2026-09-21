@@ -5,12 +5,22 @@ import org.junit.Test
 
 class ShortsFeedOrderingTest {
     @Test
-    fun `subscription diversity preserves rank while opening discovery slots`() {
-        val ranked = listOf("s1", "s2", "s3", "d1", "d2", "d3")
+    fun `a reel that resolves into a channel run swaps with the next reel of another channel`() {
+        // Channels: a a ? b, where "?" has just resolved to "a" and sits after the current reel.
+        val queue = listOf("a1" to "a", "a2" to "a", "x" to "a", "b1" to "b", "c1" to "c")
 
-        val result = diversifySubscriptions(ranked, isSubscribed = { it.startsWith("s") })
+        val result = deferChannelRuns(queue, changedIds = setOf("x"), currentIndex = 1, id = { it.first }, channelId = { it.second })
 
-        assertThat(result).containsExactly("s1", "d1", "d2", "s2", "d3", "s3").inOrder()
+        assertThat(result.map { it.first }).containsExactly("a1", "a2", "b1", "x", "c1").inOrder()
+    }
+
+    @Test
+    fun `reels already shown and reels without a channel never move`() {
+        val queue = listOf("a1" to "a", "a2" to "a", "u" to "", "a3" to "a")
+
+        val result = deferChannelRuns(queue, changedIds = setOf("a2", "u"), currentIndex = 2, id = { it.first }, channelId = { it.second })
+
+        assertThat(result).isEqualTo(queue)
     }
 
     @Test
@@ -28,6 +38,34 @@ class ShortsFeedOrderingTest {
                 "new2",
                 "old3",
             ).inOrder()
+    }
+
+    @Test
+    fun `a channel's run of reels is spread across rounds without losing any`() {
+        val feed = listOf("a1", "a2", "a3", "a4", "b1", "a5", "c1", "b2", "b3")
+
+        val result = spreadChannels(feed, channelId = { it.take(1) })
+
+        assertThat(result).containsExactly("a1", "a2", "b1", "c1", "b2", "a3", "a4", "b3", "a5").inOrder()
+    }
+
+    @Test
+    fun `a slice wraps round the end of a short list`() {
+        val reels = listOf("a", "b", "c", "d", "e")
+
+        assertThat(reels.sliceFrom(offset = 0, count = 3)).containsExactly("a", "b", "c").inOrder()
+        assertThat(reels.sliceFrom(offset = 3, count = 3)).containsExactly("d", "e", "a").inOrder()
+        assertThat(listOf("a").sliceFrom(offset = 5, count = 3)).containsExactly("a")
+        assertThat(emptyList<String>().sliceFrom(offset = 0, count = 3)).isEmpty()
+    }
+
+    @Test
+    fun `reels without a channel are never moved`() {
+        val feed = listOf("a1", "?1", "a2", "a3", "?2")
+
+        val result = spreadChannels(feed, channelId = { if (it.startsWith("?")) "" else it.take(1) })
+
+        assertThat(result).containsExactly("a1", "?1", "a2", "?2", "a3").inOrder()
     }
 
     /** #931: the reel endpoint answers with what follows the tapped Short, never the Short itself. */

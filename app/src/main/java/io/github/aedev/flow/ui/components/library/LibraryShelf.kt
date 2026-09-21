@@ -35,7 +35,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
-import io.github.aedev.flow.ui.components.ShortsCard
+import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShimmerBone
 
 private const val PLACEHOLDER_CARD_COUNT = 2
@@ -178,7 +178,7 @@ internal fun LibraryShortsShelf(
 ) {
     LibraryShelf(title = title, onTitleClick = onTitleClick) {
         items(shorts, key = Video::id, contentType = { "short" }) { short ->
-            ShortsCard(video = short, onClick = { onShortClick(short) })
+            MediaShortCard(video = short, onClick = { onShortClick(short) })
         }
     }
 }

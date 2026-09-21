@@ -60,11 +60,9 @@ import io.github.aedev.flow.innertube.pages.PlaylistPage
 import io.github.aedev.flow.innertube.pages.RelatedPage
 import io.github.aedev.flow.innertube.pages.SearchPage
 import io.github.aedev.flow.innertube.pages.SearchResult
-import io.github.aedev.flow.innertube.pages.SearchShortItem
 import io.github.aedev.flow.innertube.pages.SearchSuggestionPage
 import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
-import io.github.aedev.flow.innertube.pages.ShortsPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.innertube.pages.channel.ChannelAbout
@@ -87,6 +85,13 @@ import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
 import io.github.aedev.flow.innertube.pages.explore.exploreShelves
 import io.github.aedev.flow.innertube.pages.explore.toExploreDestinationShell
 import io.github.aedev.flow.innertube.pages.explore.toVideoChartsPage
+import io.github.aedev.flow.innertube.pages.reel.ReelLockup
+import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
+import io.github.aedev.flow.innertube.pages.reel.ReelParams
+import io.github.aedev.flow.innertube.pages.reel.ReelSequencePage
+import io.github.aedev.flow.innertube.pages.reel.toReelLockups
+import io.github.aedev.flow.innertube.pages.reel.toReelOverlay
+import io.github.aedev.flow.innertube.pages.reel.toReelSequencePage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
@@ -98,8 +103,6 @@ import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
 import io.github.aedev.flow.innertube.pages.search.parseSearchSuggestions
 import io.github.aedev.flow.innertube.pages.search.toSearchResultsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
-import io.github.aedev.flow.innertube.pages.toSearchShorts
-import io.github.aedev.flow.innertube.pages.toShortsPage
 import io.github.aedev.flow.innertube.pages.toVideoCommentsPage
 import io.github.aedev.flow.innertube.pages.toVideoDescriptionPage
 import io.github.aedev.flow.innertube.pages.videoCommentsContinuation
@@ -318,12 +321,20 @@ object YouTube {
             )
         }
 
-    // Long-form search ignores the Shorts shelf; fetch it from the main site (not music).
-    suspend fun searchShorts(query: String): Result<List<SearchShortItem>> =
+    /** Reels matching [query], through the Shorts filter the search dialog itself sends. */
+    suspend fun searchShorts(query: String): Result<List<ReelLockup>> =
         runCatching {
-            innerTube.webSearch(currentWebClient(), query).body<JsonObject>().toSearchShorts()
-        }.onSuccess { Log.d("SearchShorts", "query='$query' shorts=${it.size}") }
-            .onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
+            ensureVisitorData()
+            innerTube
+                .webSearch(
+                    client = currentWebClient(),
+                    query = query,
+                    params = ReelParams.SEARCH_SHORTS_FILTER,
+                    anonymous = true,
+                    includeVisitorData = true,
+                ).body<JsonObject>()
+                .toReelLockups()
+        }.onFailure { Log.w("SearchShorts", "query='$query' failed: ${it.message}") }
 
     /** Typeahead suggestions for the video search bar, in the app's content language. */
     suspend fun videoSearchSuggestions(query: String): Result<List<SearchSuggestion>> =
@@ -3020,57 +3031,36 @@ object YouTube {
 
     const val MAX_GET_QUEUE_SIZE = 1000
 
-    suspend fun shorts(sequenceParams: String? = null): Result<ShortsPage> =
-        runCatching {
-            innerTube
-                .reel(
-                    client = YouTubeClient.ANDROID,
-                    sequenceParams = sequenceParams ?: "CA8%3D",
-                ).toShortsPage()
-        }
-
     /**
-     * Fetch the Shorts reel sequence that *follows* [videoId].
+     * One page of the reel feed: the seedless first page for a null token, else the page a
+     * previous response's continuation names. Entries carry ids and tokens only; see [reelOverlay].
      *
-     * The seed belongs in `sequenceParams` — the field YouTube's own Shorts player sends. Seeding
-     * through `params` instead is rejected outright (HTTP 400), which is what used to send callers
-     * to the unseeded feed and open an unrelated Short (#931).
-     *
-     * The response never contains the seed itself, because the client that asked is already
-     * playing it; whoever opens a queue on [videoId] has to supply it.
+     * IOS first because its page is a few kilobytes per entry; ANDROID's carries a serialized
+     * prefetch of every reel's player response and runs to several megabytes for the same ids.
      */
-    suspend fun shortsFromVideo(videoId: String): Result<ShortsPage> =
+    suspend fun shorts(sequenceParams: String? = null): Result<ReelSequencePage> =
         runCatching {
-            innerTube
-                .reel(
-                    client = YouTubeClient.ANDROID,
-                    sequenceParams = buildShortsSequenceParams(videoId),
-                ).toShortsPage()
+            ensureVisitorData()
+            val params = sequenceParams ?: ReelParams.INITIAL_SEQUENCE
+            runCatching { reelSequence(YouTubeClient.IOS, params) }
+                .getOrNull()
+                ?.takeIf { it.entries.isNotEmpty() }
+                ?: reelSequence(YouTubeClient.ANDROID, params)
         }
 
-    /**
-     * Resolve stream URLs for a Short using the ANDROID client.
-     * The ANDROID client is required for Shorts-compatible stream formats.
-     */
-    suspend fun shortsPlayer(videoId: String): Result<PlayerResponse> =
-        runCatching {
-            innerTube
-                .player(
-                    client = YouTubeClient.ANDROID,
-                    videoId = videoId,
-                    playlistId = null,
-                    signatureTimestamp = null,
-                ).body<PlayerResponse>()
-        }
+    private suspend fun reelSequence(
+        client: YouTubeClient,
+        sequenceParams: String,
+    ): ReelSequencePage = innerTube.reel(client = client, sequenceParams = sequenceParams).body<JsonObject>().toReelSequencePage()
 
-    /** Protobuf `{1: videoId}`, base64url — how the reel sequence names the Short it continues from. */
-    private fun buildShortsSequenceParams(videoId: String): String {
-        val bytes = byteArrayOf(0x0A) + videoId.length.toByte() + videoId.toByteArray(Charsets.UTF_8)
-        return java.util.Base64
-            .getUrlEncoder()
-            .withoutPadding()
-            .encodeToString(bytes)
-    }
+    /** The reels that follow [videoId]. The response never contains the seed itself. */
+    suspend fun shortsFromVideo(videoId: String): Result<ReelSequencePage> = shorts(ReelParams.seedSequenceParams(videoId))
+
+    /** Title, channel, counts and sound for one reel — everything the sequence leaves out. */
+    suspend fun reelOverlay(videoId: String): Result<ReelOverlay?> =
+        runCatching {
+            innerTube.reelItemWatch(client = WEB, videoId = videoId).body<JsonObject>().toReelOverlay()
+        }
 
     fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> =
         io.github.aedev.flow.innertube.pages.NewPipeExtractor

@@ -1938,6 +1938,7 @@
     <string name="resize_zoom">Zoom</string>
     <!-- Shorts Player Features -->
     <string name="shorts_audio_track">Audio Track</string>
+    <string name="shorts_settings_this_short">This Short</string>
     <string name="shorts_auto_scroll_active_template">Auto %1$ds</string>
     <string name="shorts_quality">Quality</string>
     <string name="shorts_no_audio_tracks">No audio tracks available</string>
