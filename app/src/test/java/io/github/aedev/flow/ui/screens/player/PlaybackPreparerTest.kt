@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.utils.NetworkState
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -281,6 +282,112 @@ class PlaybackPreparerTest {
             }
             verify(exactly = 0) { playerManager.initialize(any()) }
         }
+
+    @Test
+    fun `an escalated reload plays the SABR session even when it only ties the direct ladder`() =
+        runTest(testDispatcher) {
+            // The regression this pins: on a 403 escalation both ladders are read out of the same
+            // response, so "prefer SABR when it is taller" always ties, and playback fell back to
+            // the very URLs GVS had just refused.
+            preparer.prepareVodStreams(
+                videoId = VIDEO_ID,
+                videoStream = null,
+                audioStream = null,
+                videoStreams = emptyList(),
+                audioStreams = emptyList(),
+                subtitles = emptyList(),
+                durationSeconds = 600L,
+                savedPositionMs = 0L,
+                resumeOverrideRequested = false,
+                isAdaptiveMode = false,
+                sabrInfo = sabrInfo(videoHeight = 0),
+                itVideoFormats = emptyList(),
+                itAudioFormats = emptyList(),
+                preferredVideoCodec = "auto",
+                preferredLiveQualityHeight = 1080,
+                escalatedToSabr = true,
+                isCurrent = { true },
+            )
+
+            coVerify {
+                playerManager.setStreams(
+                    videoId = VIDEO_ID,
+                    videoStream = any(),
+                    audioStream = any(),
+                    videoStreams = any(),
+                    audioStreams = any(),
+                    subtitles = any(),
+                    durationSeconds = any(),
+                    dashManifestUrl = any(),
+                    hlsUrl = any(),
+                    streamType = any(),
+                    startPosition = any(),
+                    sabrInfo = any(),
+                    itVideoFormats = any(),
+                    itAudioFormats = any(),
+                    preferredVideoCodec = any(),
+                    preferSabr = true,
+                    preferredLiveQualityHeight = any(),
+                )
+            }
+        }
+
+    @Test
+    fun `an ordinary load still only prefers SABR when it beats the direct ladder`() =
+        runTest(testDispatcher) {
+            preparer.prepareVodStreams(
+                videoId = VIDEO_ID,
+                videoStream = null,
+                audioStream = null,
+                videoStreams = emptyList(),
+                audioStreams = emptyList(),
+                subtitles = emptyList(),
+                durationSeconds = 600L,
+                savedPositionMs = 0L,
+                resumeOverrideRequested = false,
+                isAdaptiveMode = false,
+                sabrInfo = sabrInfo(videoHeight = 0),
+                itVideoFormats = emptyList(),
+                itAudioFormats = emptyList(),
+                preferredVideoCodec = "auto",
+                preferredLiveQualityHeight = 1080,
+                escalatedToSabr = false,
+                isCurrent = { true },
+            )
+
+            coVerify {
+                playerManager.setStreams(
+                    videoId = VIDEO_ID,
+                    videoStream = any(),
+                    audioStream = any(),
+                    videoStreams = any(),
+                    audioStreams = any(),
+                    subtitles = any(),
+                    durationSeconds = any(),
+                    dashManifestUrl = any(),
+                    hlsUrl = any(),
+                    streamType = any(),
+                    startPosition = any(),
+                    sabrInfo = any(),
+                    itVideoFormats = any(),
+                    itAudioFormats = any(),
+                    preferredVideoCodec = any(),
+                    preferSabr = false,
+                    preferredLiveQualityHeight = any(),
+                )
+            }
+        }
+
+    private fun sabrInfo(videoHeight: Int) =
+        SabrStreamInfo(
+            streamingUrl = "https://rr1.googlevideo.com/videoplayback?sabr=1",
+            audioItag = 140,
+            audioLmt = 1L,
+            videoItag = 137,
+            videoLmt = 2L,
+            durationMs = 600_000L,
+            videoHeight = videoHeight,
+        )
 
     @Test
     fun `local media is initialised, resumed from the saved position and played`() =

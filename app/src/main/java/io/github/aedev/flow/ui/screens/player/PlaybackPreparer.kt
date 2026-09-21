@@ -85,6 +85,7 @@ internal class PlaybackPreparer(
         itAudioFormats = step.result.audioFormats,
         preferredVideoCodec = step.preferredCodecKey,
         preferredLiveQualityHeight = step.preferredQuality.height,
+        escalatedToSabr = step.escalatedToSabr,
         isCurrent = isCurrent,
     )
 
@@ -227,6 +228,7 @@ internal class PlaybackPreparer(
         itAudioFormats: List<PlayerResponse.StreamingData.Format>,
         preferredVideoCodec: String,
         preferredLiveQualityHeight: Int,
+        escalatedToSabr: Boolean = false,
         isCurrent: () -> Boolean,
     ) = withContext(Dispatchers.Main) {
         if (!isCurrent()) return@withContext
@@ -240,7 +242,8 @@ internal class PlaybackPreparer(
             )
         val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
         val preferSabr =
-            sabrInfo != null && SabrRoutingPolicy.shouldPreferSabr(false, sabrInfo.videoHeight, directMaxHeight)
+            sabrInfo != null &&
+                SabrRoutingPolicy.shouldPreferSabr(escalatedToSabr, sabrInfo.videoHeight, directMaxHeight)
 
         playerManager.setStreams(
             videoId = videoId,

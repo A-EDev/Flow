@@ -2,6 +2,7 @@ package io.github.aedev.flow.utils.potoken
 
 import android.util.Log
 import android.webkit.CookieManager
+import android.webkit.WebStorage
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +72,43 @@ object PoTokenGenerator {
                     throw e
                 } // includes PoTokenException
             }
+        }
+    }
+
+    /**
+     * Whether the last streaming token BotGuard handed back was a cold, short one.
+     *
+     * Read by [WebPoTokenSession] to decide when the browsing identity itself is the problem: the
+     * retry loop in [ensureWebPoTokenGenerator] re-runs the challenge under the same visitor, and a
+     * verdict GVS has already reached about that visitor cannot be changed by asking again.
+     */
+    val lastStreamingTokenWasLowTrust: Boolean
+        get() = webPoTokenStreamingPotLowTrust
+
+    /**
+     * Drops the BotGuard session together with the browsing state it was built on.
+     *
+     * Clearing cookies and web storage is the point rather than a side effect — the WebView's
+     * jar is what carries the identity BotGuard keeps grading, so a session rebuilt on top of it
+     * inherits the same grade. The jar is used only by this WebView and the cipher one; the app
+     * has no account login, so nothing signed-in is lost.
+     */
+    suspend fun resetSession() {
+        webPoTokenGenLock.withLock {
+            withContext(NonCancellable + Dispatchers.Main) {
+                webPoTokenGenerator?.close()
+                runCatching {
+                    CookieManager.getInstance().removeAllCookies(null)
+                    CookieManager.getInstance().flush()
+                    WebStorage.getInstance().deleteAllData()
+                }.onFailure { Log.w(TAG, "Could not clear WebView state: ${it.message}") }
+            }
+            webPoTokenGenerator = null
+            webPoTokenSessionId = null
+            webPoTokenStreamingPot = null
+            webPoTokenStreamingPotLowTrust = false
+            webViewBadImpl = false
+            Log.w(TAG, "BotGuard session and WebView identity reset")
         }
     }
 
