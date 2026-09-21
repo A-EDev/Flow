@@ -2890,4 +2890,21 @@
     <string name="gesture_overlay_style_vertical">Вертикальний</string>
     <string name="gesture_overlay_style_horizontal">Смуга</string>
     <string name="gesture_overlay_style_minimal">Мінімальний</string>
+    <string name="transcript_resync">Синхронізувати з відео</string>
+    <string name="transcript_language">Мова</string>
+    <string name="player_appearance_scrub_preview_title">Передперегляд при перетягуванні</string>
+    <string name="player_appearance_scrub_preview_subtitle">Що показує повзунок, коли ви його тягнете</string>
+    <string name="player_appearance_scrub_preview_strip">Кіноплівка</string>
+    <string name="player_appearance_scrub_preview_frame">Один кадр</string>
+    <string name="player_appearance_frame_step_title">Кнопки кроку кадру</string>
+    <string name="player_appearance_frame_step_subtitle">Показувати стрілки назад і вперед під час паузи</string>
+    <string name="category_news">Новини</string>
+    <string name="category_sports">Спорт</string>
+    <string name="category_learning">Вивчення</string>
+    <string name="category_fashion">Мода</string>
+    <string name="categories_shelf_see_all">Переглянути все</string>
+    <string name="categories_shelf_back">Назад до полиць</string>
+    <string name="previous_frame">Попередній кадр</string>
+    <string name="next_frame">Наступний кадр</string>
+    <string name="subtitle_translation_unavailable">Переклад недоступний: показується %1$s</string>
 </resources>
