@@ -75,23 +75,14 @@ object PoTokenGenerator {
         }
     }
 
-    /**
-     * Whether the last streaming token BotGuard handed back was a cold, short one.
-     *
-     * Read by [WebPoTokenSession] to decide when the browsing identity itself is the problem: the
-     * retry loop in [ensureWebPoTokenGenerator] re-runs the challenge under the same visitor, and a
-     * verdict GVS has already reached about that visitor cannot be changed by asking again.
-     */
+    /** Whether the last streaming token BotGuard handed back was a cold, short one. */
     val lastStreamingTokenWasLowTrust: Boolean
         get() = webPoTokenStreamingPotLowTrust
 
     /**
-     * Drops the BotGuard session together with the browsing state it was built on.
-     *
-     * Clearing cookies and web storage is the point rather than a side effect — the WebView's
-     * jar is what carries the identity BotGuard keeps grading, so a session rebuilt on top of it
-     * inherits the same grade. The jar is used only by this WebView and the cipher one; the app
-     * has no account login, so nothing signed-in is lost.
+     * Drops the BotGuard session and the browsing state it was built on. Clearing the WebView jar
+     * is the point, not a side effect: it carries the identity BotGuard keeps grading. Nothing
+     * signed-in is lost — the app has no account login.
      */
     suspend fun resetSession() {
         webPoTokenGenLock.withLock {
@@ -198,7 +189,7 @@ object PoTokenGenerator {
                     attempt++
                     Log.w(
                         TAG,
-                        "Streaming poToken is low-trust (${PoTokenAttestationPolicy.tokenByteLength(pot)} bytes, " +
+                        "Streaming poToken is low-trust (${PoTokenAttestationPolicy.tokenLength(pot)} chars, " +
                             "attempt $attempt/$STREAMING_POT_ATTEMPTS)",
                     )
                 }
