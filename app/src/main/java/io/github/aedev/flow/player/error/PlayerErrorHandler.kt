@@ -59,14 +59,21 @@ class PlayerErrorHandler(
 ) {
     companion object {
         private const val TAG = "PlayerErrorHandler"
-        private const val MAX_CONSECUTIVE_EXPIRY = 3
-        private const val EXPIRY_DEBOUNCE_MS = 1500L
     }
 
-    private val expiryRetryLimiter =
-        StreamExpiryRetryLimiter(
-            maxConsecutiveFailures = MAX_CONSECUTIVE_EXPIRY,
-            debounceMs = EXPIRY_DEBOUNCE_MS,
+    private val denialRecovery =
+        StreamDenialRecovery(
+            appContext = appContext,
+            stateFlow = stateFlow,
+            onPlaybackShutdown = onPlaybackShutdown,
+            onStreamExpired = onStreamExpired,
+            onPlaybackAbandoned = onPlaybackAbandoned,
+            onGatedCodecFallback = onGatedCodecFallback,
+            markStreamFailed = markStreamFailed,
+            getCurrentVideoStream = getCurrentVideoStream,
+            getCurrentAudioStream = getCurrentAudioStream,
+            setRecoveryState = setRecoveryState,
+            reloadPlaybackManager = reloadPlaybackManager,
         )
 
     // ── Public entry point ────────────────────────────────────────────────────
@@ -111,19 +118,19 @@ class PlayerErrorHandler(
             // ── IO errors ─────────────────────────────────────────────────
 
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> {
-                isCatchableException = handleBadHttpStatus(error, player)
+                isCatchableException = denialRecovery.handleBadHttpStatus(error, player)
                 if (isCatchableException) return true
             }
 
             PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE -> {
                 PlayerDiagnostics.logWarning(TAG, "Invalid HTTP content type — stream URL may be stale")
-                handleStreamExpired("invalid-content-type")
+                denialRecovery.handleStreamExpired("invalid-content-type")
                 return true
             }
 
             PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> {
                 PlayerDiagnostics.logError(TAG, "Stream resource not found — URL may have expired")
-                handleStreamExpired("file-not-found")
+                denialRecovery.handleStreamExpired("file-not-found")
                 return true
             }
 
@@ -231,197 +238,11 @@ class PlayerErrorHandler(
         stateFlow.value = stateFlow.value.copy(isBuffering = true, error = null)
     }
 
-    /**
-     * HTTP non-2xx response.
-     *
-     * 403/410 used to be reported as an expired URL unconditionally. They are not the same thing:
-     * the failing URL's own `expire` and `pot` parameters say which of them happened, and the
-     * recoveries differ — a passed deadline is fixed by re-minting under the same client, while an
-     * enforced attestation is not fixed by re-minting at all. See [StreamDenialClassifier].
-     */
-    private fun handleBadHttpStatus(
-        error: PlaybackException,
-        player: ExoPlayer?,
-    ): Boolean {
-        val httpCode = extractHttpStatusCode(error)
-        val context = buildFailureContext("http-$httpCode", httpCode)
-        val urlFragment = error.cause?.message?.take(120) ?: ""
-        PlayerDiagnostics.logError(TAG, "HTTP $httpCode stream context: ${context.toLogString()}")
-        PlayerDiagnostics.logError(
-            TAG,
-            "HTTP $httpCode error. ${StreamDenialClassifier.describeExpiry(context.url)} url_fragment=$urlFragment",
-        )
-        return when (httpCode) {
-            403, 410 -> {
-                if (onGatedCodecFallback(player?.currentPosition ?: 0L)) {
-                    Log.w(TAG, "HTTP $httpCode on AV1 — switched to a compatible codec at the same resolution")
-                    PlayerDiagnostics.logWarning(TAG, "AV1 stream CDN-gated (HTTP $httpCode) — switched to a compatible codec")
-                    resetExpiryCounter()
-                } else {
-                    getCurrentVideoStream()?.getContent()?.let { markStreamFailed(it) }
-                    PlayerDiagnostics.logWarning(TAG, "Failed stream variant: ${context.toLogString()}")
-                    reportDenial(context, httpCode)
-                    handleStreamExpired(context)
-                }
-                true
-            }
-
-            404 -> {
-                getCurrentVideoStream()?.getContent()?.let { markStreamFailed(it) }
-                PlayerDiagnostics.logError(TAG, "HTTP 404 — stream resource not found")
-                handleStreamExpired(buildFailureContext("http-404", 404))
-                true
-            }
-
-            429 -> {
-                PlayerDiagnostics.logWarning(TAG, "HTTP 429 — rate limited, retrying after delay")
-                setRecoveryState()
-                reloadPlaybackManager()
-                true
-            }
-
-            in 500..599 -> {
-                PlayerDiagnostics.logWarning(TAG, "HTTP $httpCode server error — retrying")
-                setRecoveryState()
-                reloadPlaybackManager()
-                true
-            }
-
-            else -> {
-                PlayerDiagnostics.logError(TAG, "Unhandled HTTP status $httpCode")
-                false
-            }
-        }
-    }
-
-    /**
-     * Says what actually happened, and records an enforced client so the extractor's ladder can
-     * step over it on the next video instead of walking into the same refusal every time.
-     */
-    private fun reportDenial(
-        context: StreamFailureContext,
-        httpCode: Int,
-    ) {
-        val expiry = StreamDenialClassifier.describeExpiry(context.url)
-        when (context.denialKind) {
-            StreamDenialKind.URL_EXPIRED -> {
-                Log.w(TAG, "HTTP $httpCode — stream URL expired. Triggering extractor reload.")
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "stream URL expired (HTTP $httpCode, $expiry) — requesting fresh stream info",
-                )
-            }
-
-            StreamDenialKind.ATTESTATION_GATED -> {
-                ClientGateTracker.reportGated(context.client)
-                Log.w(TAG, "HTTP $httpCode — ${context.client} gated (URL still valid, no PO Token). Demoting the client.")
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "stream DENIED (HTTP $httpCode, $expiry, pot=false, client=${context.client}) — " +
-                        "attestation enforced, demoting this client and escalating",
-                )
-            }
-
-            StreamDenialKind.TOKEN_REJECTED -> {
-                WebPoTokenSession.reportTokenRejected()
-                val demoted = ClientGateTracker.reportRefused(context.client)
-                Log.w(TAG, "HTTP $httpCode — PO Token refused for ${context.client} (URL still valid). demoted=$demoted")
-                PlayerDiagnostics.logWarning(
-                    TAG,
-                    "stream DENIED (HTTP $httpCode, $expiry, pot=true, client=${context.client}) — " +
-                        if (demoted) "token refused twice, demoting this client" else "token refused, re-attesting",
-                )
-            }
-
-            else -> {
-                Log.w(TAG, "HTTP $httpCode on a URL with no readable deadline — treating as a reload.")
-                PlayerDiagnostics.logWarning(TAG, "stream DENIED (HTTP $httpCode, $expiry) — cause unreadable, reloading")
-            }
-        }
-    }
-
-    private fun handleStreamExpired(reason: String) {
-        handleStreamExpired(buildFailureContext(reason))
-    }
-
-    private fun handleStreamExpired(context: StreamFailureContext) {
-        when (val decision = expiryRetryLimiter.record(context)) {
-            StreamExpiryRetryLimiter.Decision.AlreadyAbandoned -> {
-                Log.d(TAG, "Stream expiry on an already-abandoned variant - ignoring. ${context.toLogString()}")
-                return
-            }
-
-            StreamExpiryRetryLimiter.Decision.Debounced -> {
-                Log.d(TAG, "Stream expiry within debounce window - coalescing into the in-flight reload. ${context.toLogString()}")
-                return
-            }
-
-            is StreamExpiryRetryLimiter.Decision.GiveUp -> {
-                Log.e(
-                    TAG,
-                    "Stream denial limit reached (${decision.attempts}/${decision.limit}) - stopping playback. ${context.toLogString()}",
-                )
-                PlayerDiagnostics.logError(TAG, "Giving up after ${decision.attempts} stream denials. ${context.toLogString()}")
-                onPlaybackShutdown()
-                stateFlow.value =
-                    stateFlow.value.copy(
-                        isBuffering = false,
-                        isPlaying = false,
-                        error = appContext.getString(R.string.error_expiring_stream_urls),
-                        recoveryAttempted = true,
-                    )
-                onPlaybackAbandoned()
-                return
-            }
-
-            is StreamExpiryRetryLimiter.Decision.Retry -> {
-                Log.w(
-                    TAG,
-                    "Stream denied - requesting full extractor reload (attempt ${decision.attempt}/${decision.limit}). ${context.toLogString()}",
-                )
-            }
-        }
-
-        stateFlow.value =
-            stateFlow.value.copy(
-                isBuffering = true,
-                error = null,
-                recoveryAttempted = true,
-            )
-        onStreamExpired()
-    }
-
     fun resetExpiryCounter() {
-        expiryRetryLimiter.reset()
+        denialRecovery.resetExpiryCounter()
     }
 
-    fun hasGivenUp(): Boolean = expiryRetryLimiter.hasGivenUp()
-
-    private fun buildFailureContext(
-        reason: String,
-        httpCode: Int? = null,
-    ): StreamFailureContext {
-        val video = getCurrentVideoStream()
-        val audio = getCurrentAudioStream()
-        val url = video?.getContent()
-        return StreamFailureContext(
-            reason = reason,
-            httpCode = httpCode,
-            url = url,
-            denialKind = StreamDenialClassifier.classify(url),
-            client = StreamDenialClassifier.clientOf(url),
-            videoHeight = video?.let(VideoCodecUtils::qualityHeightFromStream),
-            videoCodec = video?.let(VideoCodecUtils::codecKeyFromStream),
-            videoItag =
-                video?.itagItem?.id?.toString()
-                    ?: runCatching { video?.id }.getOrNull()?.takeIf { !it.isNullOrBlank() },
-            videoMimeType = video?.format?.mimeType,
-            audioItag =
-                audio?.itagItem?.id?.toString()
-                    ?: runCatching { audio?.id }.getOrNull()?.takeIf { !it.isNullOrBlank() },
-            audioMimeType = audio?.format?.mimeType,
-        )
-    }
+    fun hasGivenUp(): Boolean = denialRecovery.hasGivenUp()
 
     private fun handleParsingError(error: PlaybackException) {
         Log.e(TAG, "Source validation error: ${error.errorCode} - ${error.message}")
@@ -509,11 +330,10 @@ class PlayerErrorHandler(
             PlayerDiagnostics.logWarning(TAG, "YouTube data-changed pattern detected in IO error — triggering extractor reload")
             // A 403 that arrives as a generic IO error is the same refusal, so it earns the same
             // verdict — otherwise the client that was just enforced escapes demotion on this path.
-            val context = buildFailureContext("data-changed-in-io")
-            if (fullErrorInfo.contains("403") || fullErrorInfo.contains("410")) {
-                reportDenial(context, if (fullErrorInfo.contains("410")) 410 else 403)
-            }
-            handleStreamExpired(context)
+            denialRecovery.handleIoStreamDenial(
+                isForbidden = fullErrorInfo.contains("403") || fullErrorInfo.contains("410"),
+                httpCode = if (fullErrorInfo.contains("410")) 410 else 403,
+            )
             return
         }
 
@@ -688,26 +508,4 @@ class PlayerErrorHandler(
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
-
-    /**
-     * Try to read the HTTP status code from the exception chain.
-     */
-    private fun extractHttpStatusCode(error: PlaybackException): Int {
-        try {
-            var cause: Throwable? = error.cause
-            while (cause != null) {
-                val field =
-                    runCatching { cause!!.javaClass.getField("responseCode") }.getOrNull()
-                        ?: runCatching { cause!!.javaClass.getDeclaredField("responseCode") }.getOrNull()
-                if (field != null) {
-                    field.isAccessible = true
-                    return (field.get(cause) as? Int) ?: 0
-                }
-                cause = cause.cause
-            }
-        } catch (e: Exception) {
-            Log.d(TAG, "Could not extract HTTP code: ${e.message}")
-        }
-        return 0
-    }
 }
