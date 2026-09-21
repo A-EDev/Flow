@@ -276,6 +276,47 @@ def _load_xenova_metadata_configuration(path: Path) -> dict[str, object]:
     }
 
 
+def _load_scriptsmith_dataset_configuration(path: Path) -> dict[str, object]:
+    with path.open("rb") as source:
+        configuration = tomllib.load(source)
+    dataset = configuration.get("scriptsmith_dataset", {})
+    provenance_path = dataset.get("provenance_path")
+    return {
+        "subtitles_directory": Path(dataset["subtitles_directory"]),
+        "metadata_directory": Path(dataset["metadata_directory"]),
+        "mirror_path": Path(dataset["mirror_path"]),
+        "exclude_split_directories": [
+            Path(value) for value in dataset.get("exclude_split_directories", [])
+        ],
+        "output_directory": Path(dataset["output_directory"]),
+        "manifest_path": Path(dataset["manifest_path"]),
+        "encoder": str(dataset["encoder"]),
+        "encoder_revision": str(dataset["encoder_revision"]),
+        "max_length": int(dataset.get("max_length", 1024)),
+        "overlap_tokens": int(dataset.get("overlap_tokens", 128)),
+        "seed": str(dataset["seed"]),
+        "train_fraction": float(dataset.get("train_fraction", 0.8)),
+        "validation_fraction": float(dataset.get("validation_fraction", 0.1)),
+        "language_prefixes": list(dataset.get("language_prefixes", ["en"])),
+        "positive_categories": list(dataset.get("positive_categories", ["sponsor"])),
+        "hard_negative_categories": list(
+            dataset.get("hard_negative_categories", ["selfpromo", "interaction"])
+        ),
+        "ordinary_negative_windows_per_video": int(
+            dataset.get("ordinary_negative_windows_per_video", 4)
+        ),
+        "maximum_video_duration_seconds": int(
+            dataset.get("maximum_video_duration_seconds", 14400)
+        ),
+        "minimum_cues": int(dataset.get("minimum_cues", 10)),
+        "ordinary_negative_weight": float(
+            dataset.get("ordinary_negative_weight", 0.5)
+        ),
+        "maximum_videos": int(dataset.get("maximum_videos", 0)),
+        "provenance_path": Path(provenance_path) if provenance_path else None,
+    }
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sponsor-detection")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -505,6 +546,15 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("ml/sponsor_detection/config/xenova_metadata.toml"),
     )
+    scriptsmith_parser = data_commands.add_parser(
+        "build-scriptsmith-dataset",
+        help="Build training splits from the ScriptSmith auto-caption dataset",
+    )
+    scriptsmith_parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("ml/sponsor_detection/config/scriptsmith_dataset.toml"),
+    )
     return parser
 
 
@@ -546,7 +596,7 @@ def _print_collection_progress(
     )
 
 
-def _print_xenova_progress(message: str) -> None:
+def _print_stage_progress(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
@@ -854,7 +904,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
             revision=revision,
             expected_sha256=checksums,
             current_labels_path=current_labels_path,
-            progress_callback=_print_xenova_progress,
+            progress_callback=_print_stage_progress,
         )
         print(f"wrote Xenova dataset profile: {report_path}")
         print(
@@ -868,9 +918,21 @@ def main(arguments: Sequence[str] | None = None) -> int:
         configuration = _load_training_dataset_configuration(options.config)
         manifest = build_training_dataset(
             **configuration,
-            progress_callback=_print_xenova_progress,
+            progress_callback=_print_stage_progress,
         )
         print(f"wrote training dataset manifest: {configuration['manifest_path']}")
+        for split, output in manifest["outputs"].items():
+            print(f"{split}: {output['rows']:,} rows across {output['videos']:,} videos")
+        return 0
+    if options.command == "data" and options.data_command == "build-scriptsmith-dataset":
+        from sponsor_detection.data.scriptsmith_dataset import build_scriptsmith_dataset
+
+        configuration = _load_scriptsmith_dataset_configuration(options.config)
+        manifest = build_scriptsmith_dataset(
+            **configuration,
+            progress_callback=_print_stage_progress,
+        )
+        print(f"wrote ScriptSmith dataset manifest: {configuration['manifest_path']}")
         for split, output in manifest["outputs"].items():
             print(f"{split}: {output['rows']:,} rows across {output['videos']:,} videos")
         return 0
