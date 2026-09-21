@@ -261,7 +261,6 @@ class PlaybackLoadResolver
                         preferredCodecKey = preferences.codecKey,
                         preferredSubtitleLanguage = preferences.subtitleLanguage,
                         resumePositionOverrideMs = request.resumePositionOverrideMs,
-                        escalatedToSabr = request.escalateToSabr,
                     ),
                 )
             } else {

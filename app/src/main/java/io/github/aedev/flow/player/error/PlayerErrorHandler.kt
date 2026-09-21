@@ -324,11 +324,12 @@ class PlayerErrorHandler(
 
             StreamDenialKind.TOKEN_REJECTED -> {
                 WebPoTokenSession.reportTokenRejected()
-                Log.w(TAG, "HTTP $httpCode — PO Token refused for ${context.client} (URL still valid).")
+                val demoted = ClientGateTracker.reportRefused(context.client)
+                Log.w(TAG, "HTTP $httpCode — PO Token refused for ${context.client} (URL still valid). demoted=$demoted")
                 PlayerDiagnostics.logWarning(
                     TAG,
                     "stream DENIED (HTTP $httpCode, $expiry, pot=true, client=${context.client}) — " +
-                        "token refused, re-attesting",
+                        if (demoted) "token refused twice, demoting this client" else "token refused, re-attesting",
                 )
             }
 

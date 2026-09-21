@@ -25,10 +25,31 @@ open class ClientGateRegistry(
     private val clockMs: () -> Long = { System.currentTimeMillis() },
 ) {
     private val gatedUntilMs = ConcurrentHashMap<String, Long>()
+    private val refusalStrikes = ConcurrentHashMap<String, Int>()
 
     fun reportGated(clientName: String?) {
         val key = clientName?.takeIf { it.isNotBlank() }?.uppercase() ?: return
         gatedUntilMs[key] = clockMs() + ttlMs
+    }
+
+    /**
+     * GVS took the client's PO Token and refused it.
+     *
+     * Demoted on the second strike rather than the first: one refusal can be a cold attestation
+     * that the next mint fixes, so demoting immediately would drop the only client whose token the
+     * app can mint at all. Two refusals are a verdict, and without this the escalated reload
+     * re-mints for the same client forever — measured on device as six BotGuard challenges and six
+     * re-extractions in forty seconds, none of which could have produced a different answer.
+     *
+     * @return true when this strike demoted the client.
+     */
+    fun reportRefused(clientName: String?): Boolean {
+        val key = clientName?.takeIf { it.isNotBlank() }?.uppercase() ?: return false
+        val strikes = refusalStrikes.merge(key, 1, Int::plus) ?: 1
+        if (strikes < REFUSALS_BEFORE_DEMOTION) return false
+        refusalStrikes.remove(key)
+        gatedUntilMs[key] = clockMs() + ttlMs
+        return true
     }
 
     fun isGated(clientName: String?): Boolean {
@@ -50,6 +71,11 @@ open class ClientGateRegistry(
 
     fun clear() {
         gatedUntilMs.clear()
+        refusalStrikes.clear()
+    }
+
+    private companion object {
+        const val REFUSALS_BEFORE_DEMOTION = 2
     }
 }
 

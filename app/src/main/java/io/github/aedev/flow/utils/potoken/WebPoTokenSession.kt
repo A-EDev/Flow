@@ -20,11 +20,17 @@ object WebPoTokenSession {
     private const val TAG = "WebPoTokenSession"
 
     /**
-     * Consecutive cold mints tolerated before the visitor identity itself is replaced. Two, because
-     * one cold token is ordinary (BotGuard warms up) while a second under the same identity means
-     * the grade is the identity's, not the attempt's.
+     * Server refusals tolerated before the visitor identity itself is replaced. Two, because one
+     * refusal can be a cold attestation the next mint fixes, while a second under the same identity
+     * means the grade is the identity's rather than the attempt's.
      */
-    private const val LOW_TRUST_ROTATION_THRESHOLD = 2
+    private const val REFUSALS_BEFORE_ROTATION = 2
+
+    /**
+     * A rotation destroys and rebuilds the BotGuard WebView on the main thread, so it is rate
+     * limited. Without this, a device whose attestation never improves rotates on every reload.
+     */
+    private const val ROTATION_COOLDOWN_MS = 5 * 60 * 1000L
 
     private val generator = PoTokenGenerator
     private val visitorMutex = Mutex()
@@ -44,8 +50,19 @@ object WebPoTokenSession {
     @Volatile
     private var forceReattestNextMint = false
 
+    @Volatile
+    private var lastRotationMs = 0L
+
+    /**
+     * Only a server refusal justifies replacing the identity.
+     *
+     * A cold mint does not: measured on device 2026-09-21, a handset whose BotGuard never returns
+     * more than ~88 bytes played normally for a minute on those tokens, and rotating on the length
+     * heuristic alone rebuilt the WebView on a loop that could never reach a different verdict.
+     * The byte length stays a diagnostic; the 403 is the signal.
+     */
     private val attestationStuck: Boolean
-        get() = consecutiveLowTrustMints >= LOW_TRUST_ROTATION_THRESHOLD || tokenRejections >= LOW_TRUST_ROTATION_THRESHOLD
+        get() = tokenRejections >= REFUSALS_BEFORE_ROTATION
 
     /**
      * Bumped every time the visitor identity is replaced. Lets callers that cached a verdict about
@@ -151,7 +168,7 @@ object WebPoTokenSession {
     fun reportTokenRejected() {
         forceReattestNextMint = true
         tokenRejections++
-        Log.w(TAG, "GVS refused the PO Token ($tokenRejections/$LOW_TRUST_ROTATION_THRESHOLD before rotating)")
+        Log.w(TAG, "GVS refused the PO Token ($tokenRejections/$REFUSALS_BEFORE_ROTATION before rotating)")
     }
 
     private fun consumeReattestationRequest(): Boolean {
@@ -170,7 +187,7 @@ object WebPoTokenSession {
         consecutiveLowTrustMints =
             if (generator.lastStreamingTokenWasLowTrust) {
                 val count = consecutiveLowTrustMints + 1
-                Log.w(TAG, "Cold streaming token under the current visitor ($count/$LOW_TRUST_ROTATION_THRESHOLD)")
+                Log.w(TAG, "Cold streaming token under the current visitor (mint #$count) — diagnostic only")
                 count
             } else {
                 0
@@ -189,7 +206,14 @@ object WebPoTokenSession {
         rotationMutex.withLock {
             // Another caller may have rotated while this one waited for the lock.
             if (!attestationStuck) return@withLock
-            Log.w(TAG, "Attestation stuck (cold=$consecutiveLowTrustMints, refused=$tokenRejections) — rotating the visitor identity")
+            val sinceLast = System.currentTimeMillis() - lastRotationMs
+            if (lastRotationMs != 0L && sinceLast < ROTATION_COOLDOWN_MS) {
+                Log.w(TAG, "Attestation still refused, but the identity was rotated ${sinceLast}ms ago — not rotating again")
+                tokenRejections = 0
+                return@withLock
+            }
+            Log.w(TAG, "Attestation refused $tokenRejections times (cold mints=$consecutiveLowTrustMints) — rotating the visitor identity")
+            lastRotationMs = System.currentTimeMillis()
             consecutiveLowTrustMints = 0
             tokenRejections = 0
             generator.resetSession()

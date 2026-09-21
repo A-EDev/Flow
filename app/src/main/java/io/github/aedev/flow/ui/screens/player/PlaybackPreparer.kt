@@ -85,7 +85,6 @@ internal class PlaybackPreparer(
         itAudioFormats = step.result.audioFormats,
         preferredVideoCodec = step.preferredCodecKey,
         preferredLiveQualityHeight = step.preferredQuality.height,
-        escalatedToSabr = step.escalatedToSabr,
         isCurrent = isCurrent,
     )
 
@@ -228,7 +227,6 @@ internal class PlaybackPreparer(
         itAudioFormats: List<PlayerResponse.StreamingData.Format>,
         preferredVideoCodec: String,
         preferredLiveQualityHeight: Int,
-        escalatedToSabr: Boolean = false,
         isCurrent: () -> Boolean,
     ) = withContext(Dispatchers.Main) {
         if (!isCurrent()) return@withContext
@@ -241,9 +239,18 @@ internal class PlaybackPreparer(
                 resumeAllowed = resumeOverrideRequested || !playerManager.isCurrentQueueVideo(videoId),
             )
         val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
+        // Escalation deliberately does NOT force the SABR session, even though it is the one path
+        // whose token Flow can mint. Measured on device 2026-09-21: a SABR session opens, reports
+        // `attestation pending`, and streams media segments, but the server never sends an
+        // initialisation segment for either format (`is_init_seg` is false on every MediaHeader, at
+        // playhead 0 and mid-stream alike), so ExoPlayer cannot sniff the fMP4 and fails every
+        // attempt with UnrecognizedInputFormatException / NoDeclaredBrand. Preferring it here turned
+        // a recoverable 403 into an unplayable video. The escalated reload recovers instead by
+        // re-minting attested direct URLs, which is what [InnerTubeVideoStreamExtractor] now
+        // produces on this path. Revisit once a SABR session is observed delivering an init segment.
         val preferSabr =
             sabrInfo != null &&
-                SabrRoutingPolicy.shouldPreferSabr(escalatedToSabr, sabrInfo.videoHeight, directMaxHeight)
+                SabrRoutingPolicy.shouldPreferSabr(false, sabrInfo.videoHeight, directMaxHeight)
 
         playerManager.setStreams(
             videoId = videoId,

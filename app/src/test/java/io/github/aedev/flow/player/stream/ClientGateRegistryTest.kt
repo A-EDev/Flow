@@ -55,6 +55,51 @@ class ClientGateRegistryTest {
     }
 
     @Test
+    fun `one token refusal is tolerated and the second demotes the client`() {
+        // A single refusal can be a cold attestation the next mint fixes; demoting on it would drop
+        // the only client whose token the app can mint.
+        assertThat(registry.reportRefused("MWEB")).isFalse()
+        assertThat(registry.isGated("MWEB")).isFalse()
+
+        assertThat(registry.reportRefused("mweb")).isTrue()
+        assertThat(registry.isGated("MWEB")).isTrue()
+    }
+
+    @Test
+    fun `refusal strikes are counted per client`() {
+        registry.reportRefused("MWEB")
+        registry.reportRefused("WEB")
+
+        assertThat(registry.isGated("MWEB")).isFalse()
+        assertThat(registry.isGated("WEB")).isFalse()
+    }
+
+    @Test
+    fun `a refusal demotion lapses like any other`() {
+        registry.reportRefused("MWEB")
+        registry.reportRefused("MWEB")
+        assertThat(registry.isGated("MWEB")).isTrue()
+
+        nowMs += 1_000L
+
+        assertThat(registry.isGated("MWEB")).isFalse()
+    }
+
+    @Test
+    fun `an unnamed client is never demoted by a refusal`() {
+        assertThat(registry.reportRefused(null)).isFalse()
+        assertThat(registry.reportRefused("")).isFalse()
+    }
+
+    @Test
+    fun `clearing resets refusal strikes too`() {
+        registry.reportRefused("MWEB")
+        registry.clear()
+
+        assertThat(registry.reportRefused("MWEB")).isFalse()
+    }
+
+    @Test
     fun `clearing restores every client at once`() {
         registry.reportGated("VISIONOS")
         registry.clear()

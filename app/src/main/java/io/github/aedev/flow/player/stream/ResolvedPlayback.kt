@@ -77,13 +77,6 @@ sealed interface ResolvedPlayback {
         val preferredCodecKey: String,
         val preferredSubtitleLanguage: String,
         val resumePositionOverrideMs: Long?,
-        /**
-         * True when this load replaced direct URLs that GVS had just refused. The preparer needs
-         * it: the SABR session is otherwise only preferred when it is *taller* than the direct
-         * ladder, and on an escalated load both are read from the same response, so the comparison
-         * ties and the session Flow paid a BotGuard mint for is dropped for the URLs that failed.
-         */
-        val escalatedToSabr: Boolean = false,
     ) : ResolvedPlayback
 
     /** The video has not premiered yet, so the screen shows a countdown rather than an error. */

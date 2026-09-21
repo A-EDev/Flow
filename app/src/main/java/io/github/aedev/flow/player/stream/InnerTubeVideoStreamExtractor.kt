@@ -525,7 +525,16 @@ object InnerTubeVideoStreamExtractor {
         cpn: String = SabrCpn.generate(),
         reloadToken: String? = null,
     ): VideoExtractionResult? {
-        for (client in SABR_CLIENTS) {
+        val clients = SABR_CLIENTS.ungated()
+        if (clients.isEmpty()) {
+            // Returning null rather than retrying a refused client is what lets the forced-SABR
+            // reload fall through to the full ladder in PlaybackLoadResolver, instead of re-minting
+            // a BotGuard token for a client GVS has already refused twice.
+            failureReasons.add("all SABR clients demoted: ${ClientGateTracker.gatedClients().joinToString()}")
+            PlayerDiagnostics.logWarning(TAG, "SABR clients demoted for $videoId — falling through to the direct ladder")
+            return null
+        }
+        for (client in clients) {
             tryWebSabr(
                 videoId = videoId,
                 failureReasons = failureReasons,
