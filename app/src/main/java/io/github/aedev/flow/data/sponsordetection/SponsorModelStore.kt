@@ -10,10 +10,10 @@ import java.io.File
  * [MODEL_VERSION] together; older APKs keep working with their old revision.
  */
 internal object SponsorModelConfig {
-    const val HF_REPOSITORY = "CuriousDragon/ettin-17m-sponsor-v1-android"
-    const val HF_REVISION = "b94190f4d15e8c79fa0e9ead01716011770c53c0"
-    const val MODEL_VERSION = "v1-android-b94190f"
-    const val MODEL_FILE_NAME = "sponsor_detector_v1.int8.ort"
+    const val HF_REPOSITORY = "CuriousDragon/ettin-17m-sponsor-combined-android"
+    const val HF_REVISION = "d4939256c49e92d158429a55fcf39477d003dd58"
+    const val MODEL_VERSION = "combined-android-d493925"
+    const val MODEL_FILE_NAME = "sponsor_detector_combined.int8.ort"
     const val TOKENIZER_FILE_NAME = "tokenizer.json"
     const val MODEL_BYTES = 28_973_008L
     const val TOKENIZER_BYTES = 3_583_228L

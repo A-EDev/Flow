@@ -4,20 +4,20 @@ import io.github.aedev.flow.data.model.SponsorBlockSegment
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-const val SPONSOR_MODEL_NAME = "ettin_17m_sponsor_v1_int8"
-const val SPONSOR_MODEL_SHA256 = "d6fa7bba3c9516db4c7f557945b3a0b5ef12ccfac6ceb9a82d37eb44a14c29fe"
+const val SPONSOR_MODEL_NAME = "ettin_17m_sponsor_combined_int8"
+const val SPONSOR_MODEL_SHA256 = "a710676d38de003310557410b4194566e5156c766d076c1781778034bd778f8f"
 const val SPONSOR_TOKENIZER_SHA256 = "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30"
 
 /**
- * Operating point of the bundled v1 model, frozen by
- * `ml/sponsor_detection/reports/ettin_17m_v1_android_export.json`
- * (`inference.confidence_threshold`, validated span F1 0.82 at temporal IoU 0.5
+ * Operating point of the bundled combined model, frozen by
+ * `ml/sponsor_detection/reports/ettin_17m_combined_android_export.json`
+ * (`inference.confidence_threshold`, validated span F1 0.889 at temporal IoU 0.5
  * on the 39-video mixed pilot with exact FP32/INT8 parity).
  *
- * The v3/v4 decoder threshold of 0.65 belongs to different checkpoints and
- * must never be applied to these v1 weights.
+ * This threshold is calibrated to the combined checkpoint and must never be
+ * applied to other weights.
  */
-const val SPONSOR_CONFIDENCE_THRESHOLD = 0.0
+const val SPONSOR_CONFIDENCE_THRESHOLD = 0.7
 
 @Serializable
 data class SponsorPredictedSpan(
