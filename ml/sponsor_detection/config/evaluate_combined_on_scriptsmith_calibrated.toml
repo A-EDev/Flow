@@ -1,0 +1,15 @@
+[dataset]
+manifest_path = "ml/sponsor_detection/reports/sponsor_windows_scriptsmith_manifest.json"
+test_path = "ml/sponsor_detection/data/training/sponsor_windows_scriptsmith/test.parquet"
+
+[model]
+checkpoint_path = "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined"
+decoder_config_path = "ml/sponsor_detection/reports/ettin_17m_combined_decoder.json"
+max_length = 1024
+
+[evaluation]
+batch_size = 16
+bf16 = true
+error_limit = 100
+report_path = "ml/sponsor_detection/reports/ettin_17m_combined_calibrated_scriptsmith_evaluation.json"
+errors_path = "ml/sponsor_detection/reports/ettin_17m_combined_calibrated_scriptsmith_errors.json"
