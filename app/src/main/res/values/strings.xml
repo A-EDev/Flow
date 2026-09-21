@@ -2296,6 +2296,11 @@
     <string name="diagnostics_clear_crashes">Clear Crash Reports</string>
     <string name="diagnostics_clear_confirm_title">Clear crash reports?</string>
     <string name="diagnostics_clear_confirm_body">All saved crash reports will be permanently deleted. This cannot be undone.</string>
+    <string name="diagnostics_reset_session">Reset YouTube session</string>
+    <string name="diagnostics_reset_session_confirm_title">Reset YouTube session?</string>
+    <string name="diagnostics_reset_session_confirm_body">Flow will discard the browsing identity it uses to verify playback requests and build a new one. Use this if videos stop after about a minute or refuse to play. Nothing you have saved is affected.</string>
+    <string name="diagnostics_reset_session_done">YouTube session reset. Reopen the video to try again.</string>
+    <string name="reset">Reset</string>
     <string name="diagnostics_no_crashes">No crash reports — great!</string>
     <string name="diagnostics_no_session_logs">No warnings or errors in this session.</string>
     <string name="diagnostics_loading">Reading logs…</string>
