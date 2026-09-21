@@ -1,6 +1,7 @@
 package io.github.aedev.flow.innertube.pages.reel
 
 import io.github.aedev.flow.innertube.pages.arrayOrNull
+import io.github.aedev.flow.innertube.pages.booleanOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
 import io.github.aedev.flow.innertube.pages.renderer.largestImageUrl
 import io.github.aedev.flow.innertube.pages.stringOrNull
@@ -37,6 +38,7 @@ fun JsonObject.toReelSequencePage(): ReelSequencePage {
                         ?.get("reelWatchEndpoint")
                         .objectOrNull() ?: return@mapNotNull null
                 val videoId = endpoint["videoId"].stringOrNull()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                if (endpoint.isAd()) return@mapNotNull null
                 ReelEntry(
                     videoId = videoId,
                     playerParams = endpoint["playerParams"].stringOrNull(),
@@ -54,3 +56,13 @@ fun JsonObject.toReelSequencePage(): ReelSequencePage {
             }
     return ReelSequencePage(entries, continuation?.takeIf { it.isNotBlank() })
 }
+
+/**
+ * The seedless chain and channel sequences interleave ad creatives (3–7 of a 15–29 entry page on
+ * IOS, probed 2026-09-21): `videoType` names them on the app clients, `adClientParams.isAd` on
+ * every client, and they carry no overlay. They are ordinary uploads to `/player`, so nothing
+ * later in the pipeline could tell them apart.
+ */
+private fun JsonObject.isAd(): Boolean =
+    this["videoType"].stringOrNull() == "REEL_VIDEO_TYPE_AD" ||
+        this["adClientParams"].objectOrNull()?.get("isAd").booleanOrNull() == true

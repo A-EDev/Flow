@@ -41,6 +41,25 @@ class ReelSequencePageTest {
     }
 
     @Test
+    fun `ad entries are dropped on every client shape`() {
+        val page =
+            parse(
+                """
+                { "entries": [
+                    { "command": { "reelWatchEndpoint": { "videoId": "aaaaaaaaaaa", "videoType": "REEL_VIDEO_TYPE_VIDEO" } } },
+                    { "command": { "reelWatchEndpoint": { "videoId": "ad1ad1ad1ad", "videoType": "REEL_VIDEO_TYPE_AD",
+                        "adClientParams": { "isAd": true } } } },
+                    { "command": { "reelWatchEndpoint": { "videoId": "ad2ad2ad2ad", "adClientParams": { "isAd": true } } } },
+                    { "command": { "reelWatchEndpoint": { "videoId": "bbbbbbbbbbb", "adClientParams": { "isAd": false } } } }
+                  ],
+                  "continuation": "NEXT" }
+                """.trimIndent(),
+            )
+
+        assertEquals(listOf("aaaaaaaaaaa", "bbbbbbbbbbb"), page.entries.map { it.videoId })
+    }
+
+    @Test
     fun `reads the web continuation endpoint`() {
         val page =
             parse(
