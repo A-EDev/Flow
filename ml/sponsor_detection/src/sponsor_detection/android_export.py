@@ -196,11 +196,15 @@ def export_android_bundle_from_config(
     merge_gap_characters = int(configuration.get("merge_gap_characters", 24))
     merge_gap_ms = int(configuration.get("merge_gap_ms", 1500))
     maximum_f1_drop = float(configuration.get("maximum_span_f1_drop", 0.01))
+    artifact_stem = str(configuration.get("artifact_stem", "sponsor_detector_v1"))
+    package_name = str(
+        configuration.get("package_name", "ettin-17m-sponsor-v1-android-int8")
+    )
     output_directory.mkdir(parents=True, exist_ok=True)
     android_directory = output_directory / "android"
     android_directory.mkdir(parents=True, exist_ok=True)
-    fp32_path = output_directory / "sponsor_detector_v1.fp32.onnx"
-    int8_path = output_directory / "sponsor_detector_v1.int8.onnx"
+    fp32_path = output_directory / f"{artifact_stem}.fp32.onnx"
+    int8_path = output_directory / f"{artifact_stem}.int8.onnx"
 
     if progress_callback:
         progress_callback("export_fp32")
@@ -212,7 +216,7 @@ def export_android_bundle_from_config(
         progress_callback("convert_ort")
     ort_path, operator_config_path = _convert_to_ort(int8_path)
 
-    bundled_model_path = android_directory / "sponsor_detector_v1.int8.ort"
+    bundled_model_path = android_directory / f"{artifact_stem}.int8.ort"
     bundled_operator_config_path = android_directory / "required_operators_and_types.config"
     shutil.copyfile(ort_path, bundled_model_path)
     shutil.copyfile(operator_config_path, bundled_operator_config_path)
@@ -301,7 +305,7 @@ def export_android_bundle_from_config(
     }
     manifest = {
         "schema_version": 1,
-        "name": "ettin-17m-sponsor-v1-android-int8",
+        "name": package_name,
         "status": status,
         "source": {
             "checkpoint_path": str(checkpoint_path),

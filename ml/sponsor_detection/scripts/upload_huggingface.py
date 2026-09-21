@@ -36,6 +36,16 @@ window corpus. Non-commercial use and share-alike apply to this derivative.
 This project is not affiliated with SponsorBlock.
 """
 
+SCRIPT_SMITH_NOTICE = """\
+## ScriptSmith corpus
+
+This model additionally used the
+[`ScriptSmith/sponsorblock-youtube-metadata-2024`](https://huggingface.co/datasets/ScriptSmith/sponsorblock-youtube-metadata-2024)
+transcript/metadata dataset (CC BY 4.0 compilation; its YouTube auto-captions
+remain under YouTube's terms). Those transcripts are rolling auto-captions that
+were reconstructed before alignment, so caption boundaries are approximate.
+"""
+
 SHARED_LIMITATIONS = """\
 ## Limitations
 
@@ -194,17 +204,24 @@ def stage_pytorch(
     return dest
 
 
-def stage_android() -> Path:
-    repo_name = "ettin-17m-sponsor-v1-android"
+def stage_android_package(
+    *,
+    repo_name: str,
+    source_directory: Path,
+    artifact_stem: str,
+    export_report: Path,
+    source_model: str,
+    confidence_threshold: str,
+    extra_notice: str = "",
+) -> Path:
     dest = STAGING / repo_name
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
 
-    android = ML / "artifacts" / "android" / "ettin_17m_sponsor_v1"
-    packaged = android / "android"
+    packaged = source_directory / "android"
     copies = {
-        packaged / "sponsor_detector_v1.int8.ort": "sponsor_detector_v1.int8.ort",
+        packaged / f"{artifact_stem}.int8.ort": f"{artifact_stem}.int8.ort",
         packaged / "config.json": "config.json",
         packaged / "tokenizer.json": "tokenizer.json",
         packaged / "tokenizer_config.json": "tokenizer_config.json",
@@ -212,9 +229,9 @@ def stage_android() -> Path:
         packaged / "tokenizer_goldens.json": "tokenizer_goldens.json",
         packaged / "sponsor_feedback_v1.schema.json": "sponsor_feedback_v1.schema.json",
         packaged / "manifest.json": "android_manifest.json",
-        android / "sponsor_detector_v1.fp32.onnx": "sponsor_detector_v1.fp32.onnx",
-        android / "sponsor_detector_v1.int8.onnx": "sponsor_detector_v1.int8.onnx",
-        ML / "reports" / "ettin_17m_v1_android_export.json": "export_report.json",
+        source_directory / f"{artifact_stem}.fp32.onnx": f"{artifact_stem}.fp32.onnx",
+        source_directory / f"{artifact_stem}.int8.onnx": f"{artifact_stem}.int8.onnx",
+        export_report: "export_report.json",
     }
     for src, name in copies.items():
         _copy(src, dest / name)
@@ -244,34 +261,56 @@ tags:
 # Ettin 17M sponsor detector (Android INT8)
 
 ONNX Runtime package used by Flow for on-device sponsor-span detection.
-Quantized from [`{NAMESPACE}/ettin-17m-sponsor-v1`](https://huggingface.co/CuriousDragon/ettin-17m-sponsor-v1)
+Quantized from [`{source_model}`](https://huggingface.co/{source_model})
 (`embedding_int8_per_channel`, ORT format, opset 18).
 
-- **Primary runtime file:** `sponsor_detector_v1.int8.ort` (~28 MB)
+- **Primary runtime file:** `{artifact_stem}.int8.ort` (~28 MB)
 - **Also included:** FP32 ONNX and INT8 ONNX for desktop/debug
 - **Tokenizer:** same Ettin / ModernBERT tokenizer as the PyTorch checkpoints
-- **Confidence threshold in the Android package:** `0.0` (raw scores retained
-  for evaluation; Flow can filter later)
+- **Confidence threshold in the Android package:** `{confidence_threshold}`
 
 ## Files
 
 | File | Role |
 | --- | --- |
-| `sponsor_detector_v1.int8.ort` | Shipping Android model |
-| `sponsor_detector_v1.int8.onnx` | INT8 ONNX before ORT packing |
-| `sponsor_detector_v1.fp32.onnx` | Unquantized ONNX |
+| `{artifact_stem}.int8.ort` | Shipping Android model |
+| `{artifact_stem}.int8.onnx` | INT8 ONNX before ORT packing |
+| `{artifact_stem}.fp32.onnx` | Unquantized ONNX |
 | `tokenizer.json` / `tokenizer_config.json` | Tokenizer |
 | `required_operators_and_types.config` | Reduced ORT operator config |
 | `tokenizer_goldens.json` | Tokenization goldens |
 | `sponsor_feedback_v1.schema.json` | Local training-journal schema |
 | `android_manifest.json` | Export manifest and hashes |
 
-{SHARED_LIMITATIONS}
+{extra_notice}{SHARED_LIMITATIONS}
 
 {LICENSE_NOTICE}
 """,
     )
     return dest
+
+
+def stage_android() -> Path:
+    return stage_android_package(
+        repo_name="ettin-17m-sponsor-v1-android",
+        source_directory=ML / "artifacts" / "android" / "ettin_17m_sponsor_v1",
+        artifact_stem="sponsor_detector_v1",
+        export_report=ML / "reports" / "ettin_17m_v1_android_export.json",
+        source_model=f"{NAMESPACE}/ettin-17m-sponsor-v1",
+        confidence_threshold="0.0",
+    )
+
+
+def stage_android_combined() -> Path:
+    return stage_android_package(
+        repo_name="ettin-17m-sponsor-combined-android",
+        source_directory=ML / "artifacts" / "android" / "ettin_17m_sponsor_combined",
+        artifact_stem="sponsor_detector_combined",
+        export_report=ML / "reports" / "ettin_17m_combined_android_export.json",
+        source_model=f"{NAMESPACE}/ettin-17m-sponsor-combined",
+        confidence_threshold="0.7",
+        extra_notice=SCRIPT_SMITH_NOTICE + "\n",
+    )
 
 
 def stage_all() -> dict[str, Path]:
@@ -391,7 +430,122 @@ Calibrated validation span IoU 0.5: P 0.929 / R 0.850 / F1 0.888
         ],
     )
 
+    staged["ettin-17m-sponsor-combined"] = stage_pytorch(
+        repo_name="ettin-17m-sponsor-combined",
+        checkpoint=ML / "checkpoints" / "ettin_17m_sponsor_combined",
+        title="Ettin 17M sponsor detector (combined)",
+        summary=(
+            "Production candidate. One low-learning-rate epoch from v4 over the "
+            "combined leakage-safe train split: 298,069 Xenova windows plus "
+            "209,390 ScriptSmith auto-caption windows (507,459 total). Chosen for "
+            "the strongest generalization profile across both transcript "
+            "distributions and the frozen full-video pilot. Calibrated decoder "
+            "threshold 0.70."
+        ),
+        status="production candidate (rc1)",
+        metrics_block="""\
+## Token metrics (combined held-out test)
+
+Sponsor token P / R / F1: 0.923 / 0.848 / **0.884**
+
+## Cross-evaluation, raw decoder (threshold 0)
+
+| Held-out set | Window P/R/F1 | Span IoU 0.5 P/R/F1 | Coverage F1 |
+| --- | --- | --- | --- |
+| Xenova test | 0.943 / 0.862 / 0.901 | 0.901 / 0.824 / 0.861 | 0.915 |
+| ScriptSmith test | 0.910 / 0.804 / 0.854 | 0.839 / 0.733 / 0.783 | 0.853 |
+
+## Calibrated decoder (threshold 0.70)
+
+| Held-out set | Window P/R/F1 | Span IoU 0.5 P/R/F1 | Coverage F1 |
+| --- | --- | --- | --- |
+| Xenova test | 0.970 / 0.807 / 0.881 | 0.945 / 0.782 / 0.856 | 0.911 |
+| ScriptSmith test | 0.942 / 0.718 / 0.815 | 0.901 / 0.669 / 0.768 | 0.842 |
+
+Frozen 39-video mixed pilot (13 positive / 13 hard negative / 13 ordinary
+negative): video presence F1 0.923; temporal span IoU 0.5 P 0.941 / R 0.842 /
+F1 0.889; temporal coverage F1 0.909.
+""",
+        extra_files=[
+            (ML / "reports" / "ettin_17m_combined_decoder.json", "decoder.json"),
+            (
+                ML / "reports" / "ettin_17m_sponsor_combined_rc1_manifest.json",
+                "release_manifest.json",
+            ),
+        ],
+        extra=SCRIPT_SMITH_NOTICE
+        + """\
+`decoder.json` is bound to these weights by SHA-256. Do not mix it with another checkpoint.
+
+Related: [`CuriousDragon/ettin-17m-sponsor-v4`](https://huggingface.co/CuriousDragon/ettin-17m-sponsor-v4)
+(same lineage on the Xenova corpus only).
+""",
+    )
+
+    staged["ettin-17m-sponsor-scriptsmith-replay"] = stage_pytorch(
+        repo_name="ettin-17m-sponsor-scriptsmith-replay",
+        checkpoint=ML / "checkpoints" / "ettin_17m_sponsor_scriptsmith_replay",
+        title="Ettin 17M sponsor detector (ScriptSmith replay, 1 epoch)",
+        summary=(
+            "Challenger. One low-learning-rate epoch from v4 over the 209,390-window "
+            "ScriptSmith auto-caption train split only. Slightly better recall than "
+            "the combined model on the Xenova test set. Calibrated decoder threshold "
+            "0.75. Kept for head-to-head comparison on a larger frozen video set."
+        ),
+        status="challenger",
+        metrics_block="""\
+## Cross-evaluation, raw decoder (threshold 0)
+
+| Held-out set | Window P/R/F1 | Span IoU 0.5 P/R/F1 | Coverage F1 |
+| --- | --- | --- | --- |
+| Xenova test | 0.936 / 0.872 / 0.903 | 0.894 / 0.833 / 0.862 | 0.915 |
+| ScriptSmith test | 0.911 / 0.802 / 0.853 | 0.842 / 0.732 / 0.783 | 0.854 |
+
+Calibrated decoder threshold 0.75. Frozen 39-video mixed pilot: temporal span
+IoU 0.5 P 0.941 / R 0.842 / F1 0.889; temporal coverage F1 0.905.
+""",
+        extra_files=[
+            (ML / "reports" / "ettin_17m_scriptsmith_decoder.json", "decoder.json"),
+        ],
+        extra=SCRIPT_SMITH_NOTICE
+        + "Related: [`CuriousDragon/ettin-17m-sponsor-combined`](https://huggingface.co/CuriousDragon/ettin-17m-sponsor-combined)",
+    )
+
+    staged["ettin-17m-sponsor-scriptsmith-replay3"] = stage_pytorch(
+        repo_name="ettin-17m-sponsor-scriptsmith-replay3",
+        checkpoint=ML / "checkpoints" / "ettin_17m_sponsor_scriptsmith_replay3",
+        title="Ettin 17M sponsor detector (ScriptSmith replay, 3 epochs)",
+        summary=(
+            "Experiment only. Three epochs from v4 over the ScriptSmith train split. "
+            "Gains are concentrated on the ScriptSmith test set while the "
+            "independent full-video pilot does not improve, indicating adaptation "
+            "to the new source rather than a general improvement. Superseded by the "
+            "combined and 1-epoch replay models."
+        ),
+        status="experiment (overfits ScriptSmith; not recommended)",
+        metrics_block="""\
+## Cross-evaluation, raw decoder (threshold 0)
+
+| Held-out set | Window P/R/F1 | Span IoU 0.5 P/R/F1 | Coverage F1 |
+| --- | --- | --- | --- |
+| Xenova test | 0.938 / 0.868 / 0.901 | 0.895 / 0.829 / 0.861 | 0.913 |
+| ScriptSmith test | 0.912 / 0.813 / 0.860 | 0.850 / 0.748 / 0.796 | 0.860 |
+
+Calibrated decoder threshold 0.80. Frozen 39-video mixed pilot: temporal span
+IoU 0.5 F1 0.857; temporal coverage F1 0.896.
+""",
+        extra_files=[
+            (
+                ML / "reports" / "ettin_17m_scriptsmith_replay3_decoder.json",
+                "decoder.json",
+            ),
+        ],
+        extra=SCRIPT_SMITH_NOTICE
+        + "Superseded by [`CuriousDragon/ettin-17m-sponsor-combined`](https://huggingface.co/CuriousDragon/ettin-17m-sponsor-combined).",
+    )
+
     staged["ettin-17m-sponsor-v1-android"] = stage_android()
+    staged["ettin-17m-sponsor-combined-android"] = stage_android_combined()
     return staged
 
 
@@ -437,9 +591,13 @@ def ensure_collection(repo_names: list[str]) -> str:
     notes = {
         "ettin-17m-sponsor-v1": "Reference / Android export source",
         "ettin-17m-sponsor-v2": "Archived experiment",
-        "ettin-17m-sponsor-v3-replay": "Release candidate",
-        "ettin-17m-sponsor-v4": "Full-data continuation from v3",
-        "ettin-17m-sponsor-v1-android": "INT8 ORT package used by Flow",
+        "ettin-17m-sponsor-v3-replay": "Prior release candidate (Xenova only)",
+        "ettin-17m-sponsor-v4": "Full-data continuation from v3 (Xenova only)",
+        "ettin-17m-sponsor-combined": "Production candidate: Xenova + ScriptSmith",
+        "ettin-17m-sponsor-scriptsmith-replay": "Challenger: ScriptSmith-only 1-epoch replay",
+        "ettin-17m-sponsor-scriptsmith-replay3": "Experiment: ScriptSmith-only 3-epoch replay",
+        "ettin-17m-sponsor-v1-android": "INT8 ORT package (legacy v1 model)",
+        "ettin-17m-sponsor-combined-android": "INT8 ORT package for the combined model",
     }
     for repo_name in repo_names:
         item_id = f"{NAMESPACE}/{repo_name}"

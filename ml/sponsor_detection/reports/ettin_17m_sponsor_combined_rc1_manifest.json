@@ -1,0 +1,194 @@
+{
+  "base_encoder": {
+    "name": "jhu-clsp/ettin-encoder-17m",
+    "revision": "987607455c61e7a5bbc85f7758e0512ea6d0ae4c"
+  },
+  "checkpoint": {
+    "artifacts": {
+      "model": {
+        "bytes": 67462820,
+        "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined/model.safetensors",
+        "sha256": "81184081034207ff887cde4807916d145f98708034ae325229ebaa17e54ca102"
+      },
+      "model_config": {
+        "bytes": 1852,
+        "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined/config.json",
+        "sha256": "6a288d0f8ed552a2e6273c46dcb97a8b1d382b62a7863640165c2e86d28ff07a"
+      },
+      "tokenizer": {
+        "bytes": 3583228,
+        "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined/tokenizer.json",
+        "sha256": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30"
+      },
+      "tokenizer_config": {
+        "bytes": 350,
+        "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined/tokenizer_config.json",
+        "sha256": "b777be9359fc2dd0dd89a5fab5d6f1ebdc937040cf47be84b75e431c5129885b"
+      },
+      "training_metrics": {
+        "bytes": 1456,
+        "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined/metrics.json",
+        "sha256": "3c894238499b83149b8e404fab8df6a854059c75c5589810fc2fac83e2961165"
+      }
+    },
+    "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined"
+  },
+  "decoder": {
+    "confidence_threshold": 0.7,
+    "config": {
+      "bytes": 1174,
+      "path": "ml/sponsor_detection/reports/ettin_17m_combined_decoder.json",
+      "sha256": "1b688cc632e0a3c23ed4c42d458d60f55eb99f2e3cb2aa67d8935ec04793d7ab"
+    }
+  },
+  "generated_at": "2026-09-21T08:46:05.840605+00:00",
+  "inference": {
+    "max_length": 768,
+    "merge_gap_characters": 24,
+    "merge_gap_ms": 1500,
+    "overlap_tokens": 128,
+    "text_normalization": [
+      "collapse_whitespace",
+      "lowercase",
+      "replace_urls_with_URL_TOKEN",
+      "replace_numbers_with_NUMBER_TOKEN"
+    ]
+  },
+  "metrics": {
+    "calibrated_window_test": {
+      "character_coverage": {
+        "expected": 7830382,
+        "f1": 0.8419408868725337,
+        "overlap": 6064488,
+        "precision": 0.9222729705278113,
+        "predicted": 6575589,
+        "recall": 0.7744817558070602
+      },
+      "rows": 26504,
+      "span_iou_0.5": {
+        "f1": 0.7682586138087002,
+        "false_negative": 2853,
+        "false_positive": 631,
+        "precision": 0.9014985950671246,
+        "recall": 0.6693324061196105,
+        "true_positive": 5775
+      },
+      "window_presence": {
+        "f1": 0.8149517354692956,
+        "false_negative": 2337,
+        "false_positive": 366,
+        "precision": 0.9420702754036088,
+        "recall": 0.7180600796235975,
+        "true_negative": 17849,
+        "true_positive": 5952
+      }
+    },
+    "full_video_canary": {
+      "boundary_error_ms_at_iou_0.5": {
+        "end_median": 2625,
+        "end_p95": 5052,
+        "matched_spans": 16,
+        "start_median": 1032,
+        "start_p95": 1687
+      },
+      "span_temporal_iou_0.5": {
+        "f1": 0.8888888888888888,
+        "false_negative": 3,
+        "false_positive": 1,
+        "precision": 0.9411764705882353,
+        "recall": 0.8421052631578947,
+        "true_positive": 16
+      },
+      "temporal_coverage": {
+        "expected": 1124504,
+        "f1": 0.9085934596348201,
+        "overlap": 1018193,
+        "precision": 0.9117490353679034,
+        "predicted": 1116747,
+        "recall": 0.9054596515441474
+      },
+      "video_presence": {
+        "f1": 0.9230769230769231,
+        "false_negative": 1,
+        "false_positive": 1,
+        "precision": 0.9230769230769231,
+        "recall": 0.9230769230769231,
+        "true_negative": 25,
+        "true_positive": 12
+      },
+      "videos": 39
+    }
+  },
+  "name": "ettin-17m-sponsor-combined-rc1",
+  "release_config": {
+    "bytes": 1967,
+    "path": "ml/sponsor_detection/config/freeze_ettin_17m_combined.toml",
+    "sha256": "899a1746bfecb16f5119d69a197ed8e4106583dfbe9bd79130a9b1b5807a49a7"
+  },
+  "schema_version": 1,
+  "source_artifacts": {
+    "calibrated_window_evaluation": {
+      "bytes": 2730,
+      "path": "ml/sponsor_detection/reports/ettin_17m_combined_calibrated_scriptsmith_evaluation.json",
+      "sha256": "11eda6a69ad0b1b4605c3990fe78f6aeba944fa72eef3500621f4a5aaa8eec96"
+    },
+    "calibrated_xenova_evaluation": {
+      "bytes": 2733,
+      "path": "ml/sponsor_detection/reports/ettin_17m_combined_calibrated_xenova_evaluation.json",
+      "sha256": "2ed960ea848d65da5c352494d50e9fd24715265f37fe8ddd30f5806fac0aab01"
+    },
+    "calibration_report": {
+      "bytes": 16838,
+      "path": "ml/sponsor_detection/reports/ettin_17m_combined_calibration.json",
+      "sha256": "2a773fa949a21bfe4ac49e22fb59ae70e57858e4863c2f9efba489c65f51be60"
+    },
+    "decoder_config": {
+      "bytes": 1174,
+      "path": "ml/sponsor_detection/reports/ettin_17m_combined_decoder.json",
+      "sha256": "1b688cc632e0a3c23ed4c42d458d60f55eb99f2e3cb2aa67d8935ec04793d7ab"
+    },
+    "full_video_evaluation": {
+      "bytes": 20072,
+      "path": "ml/sponsor_detection/reports/ettin_17m_combined_mixed_pilot_evaluation.json",
+      "sha256": "6276d572b273f16cf850167c3b4ae13455ef24e85b256a1b1fe26728c6b58507"
+    },
+    "raw_window_evaluation": {
+      "bytes": 2665,
+      "path": "ml/sponsor_detection/reports/compare_combined_on_scriptsmith.json",
+      "sha256": "e63495f7b5522f0f14e023e89ffc567eaa625b93b25f63906636d3fd82ff75d6"
+    },
+    "raw_xenova_evaluation": {
+      "bytes": 2676,
+      "path": "ml/sponsor_detection/reports/compare_combined_on_xenova.json",
+      "sha256": "72533fbeab99a69281831ffb44b598e0077eaadd6d7105b7f9178873e95ec2a4"
+    },
+    "scriptsmith_provenance": {
+      "bytes": 4634,
+      "path": "ml/sponsor_detection/reports/scriptsmith_dataset_provenance.json",
+      "sha256": "6bacf7bfc1bfd746a8db3bc607aedfaf3d6236d246357911e0d2a21eb57e5def"
+    },
+    "training_dataset_manifest": {
+      "bytes": 2877,
+      "path": "ml/sponsor_detection/reports/sponsor_windows_combined_manifest.json",
+      "sha256": "0a6c1164d0c189c3604ce35e4b858737526776e3dc82f2966fa256bed079d698"
+    }
+  },
+  "status": "release_candidate",
+  "validation_scope": {
+    "full_video_canary_classes": {
+      "hard_negative": 13,
+      "ordinary_negative": 13,
+      "sponsor_positive": 13
+    },
+    "full_video_canary_is_positive_only": false,
+    "full_video_canary_videos": 39,
+    "known_limitations": [
+      "ScriptSmith transcripts are YouTube auto-captions; rolling cues were reconstructed and caption boundaries are approximate.",
+      "Held-out SponsorBlock-derived labels contain missing and category-noisy annotations.",
+      "The full-video mixed pilot has only 39 videos (13 positive, 13 hard negative, 13 ordinary negative) and cannot by itself establish generalization.",
+      "A larger independently reviewed holdout is still required before claiming a generalization gain.",
+      "Transcript timestamp boundaries are interpolated within caption cues."
+    ],
+    "window_test_is_frozen": true
+  }
+}

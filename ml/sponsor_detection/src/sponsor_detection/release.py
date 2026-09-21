@@ -52,6 +52,19 @@ def freeze_release_from_config(path: Path) -> dict[str, object]:
     full_video_evaluation = json.loads(
         Path(artifacts_configuration["full_video_evaluation"]).read_text()
     )
+    validation_scope_configuration = configuration.get("validation_scope", {})
+    benchmark_classes = full_video_evaluation["dataset"].get("benchmark_classes", {})
+    negative_classes = {
+        name: count
+        for name, count in benchmark_classes.items()
+        if name != "sponsor_positive" and count
+    }
+    canary_videos = int(full_video_evaluation["dataset"]["videos"])
+    default_limitations = [
+        "Held-out SponsorBlock-derived labels contain missing and category-noisy annotations.",
+        f"The full-video canary has only {canary_videos} videos and cannot estimate specificity from a large sample.",
+        "Transcript timestamp boundaries are interpolated within caption cues.",
+    ]
     manifest = {
         "schema_version": 1,
         "generated_at": datetime.now(tz=UTC).isoformat(),
@@ -104,14 +117,17 @@ def freeze_release_from_config(path: Path) -> dict[str, object]:
             },
         },
         "validation_scope": {
-            "window_test_is_frozen": True,
-            "full_video_canary_is_positive_only": True,
-            "full_video_canary_videos": full_video_evaluation["dataset"]["videos"],
-            "known_limitations": [
-                "Held-out SponsorBlock-derived labels contain missing and category-noisy annotations.",
-                "The full-video canary has only 20 sponsor-positive videos and cannot estimate negative-video specificity.",
-                "Transcript timestamp boundaries are interpolated within caption cues.",
-            ],
+            "window_test_is_frozen": bool(
+                validation_scope_configuration.get("window_test_is_frozen", True)
+            ),
+            "full_video_canary_is_positive_only": not negative_classes,
+            "full_video_canary_videos": canary_videos,
+            "full_video_canary_classes": benchmark_classes,
+            "known_limitations": list(
+                validation_scope_configuration.get(
+                    "known_limitations", default_limitations
+                )
+            ),
         },
         "release_config": _artifact(path),
     }

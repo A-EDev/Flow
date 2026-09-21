@@ -1,0 +1,36 @@
+[release]
+name = "ettin-17m-sponsor-combined-rc1"
+status = "release_candidate"
+manifest_path = "ml/sponsor_detection/reports/ettin_17m_sponsor_combined_rc1_manifest.json"
+
+[model]
+checkpoint_path = "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined"
+base_encoder = "jhu-clsp/ettin-encoder-17m"
+base_revision = "987607455c61e7a5bbc85f7758e0512ea6d0ae4c"
+
+[inference]
+max_length = 768
+overlap_tokens = 128
+merge_gap_characters = 24
+merge_gap_ms = 1500
+
+[artifacts]
+training_dataset_manifest = "ml/sponsor_detection/reports/sponsor_windows_combined_manifest.json"
+decoder_config = "ml/sponsor_detection/reports/ettin_17m_combined_decoder.json"
+calibration_report = "ml/sponsor_detection/reports/ettin_17m_combined_calibration.json"
+raw_window_evaluation = "ml/sponsor_detection/reports/compare_combined_on_scriptsmith.json"
+calibrated_window_evaluation = "ml/sponsor_detection/reports/ettin_17m_combined_calibrated_scriptsmith_evaluation.json"
+calibrated_xenova_evaluation = "ml/sponsor_detection/reports/ettin_17m_combined_calibrated_xenova_evaluation.json"
+raw_xenova_evaluation = "ml/sponsor_detection/reports/compare_combined_on_xenova.json"
+full_video_evaluation = "ml/sponsor_detection/reports/ettin_17m_combined_mixed_pilot_evaluation.json"
+scriptsmith_provenance = "ml/sponsor_detection/reports/scriptsmith_dataset_provenance.json"
+
+[validation_scope]
+window_test_is_frozen = true
+known_limitations = [
+  "ScriptSmith transcripts are YouTube auto-captions; rolling cues were reconstructed and caption boundaries are approximate.",
+  "Held-out SponsorBlock-derived labels contain missing and category-noisy annotations.",
+  "The full-video mixed pilot has only 39 videos (13 positive, 13 hard negative, 13 ordinary negative) and cannot by itself establish generalization.",
+  "A larger independently reviewed holdout is still required before claiming a generalization gain.",
+  "Transcript timestamp boundaries are interpolated within caption cues.",
+]
