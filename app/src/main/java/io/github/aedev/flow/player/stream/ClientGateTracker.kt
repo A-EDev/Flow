@@ -4,21 +4,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
- * Remembers which InnerTube clients GVS is currently refusing to serve unattested.
+ * Remembers which InnerTube clients GVS is currently refusing, so the ladder stops restarting at
+ * one: a 403 arrives on a URL that has already been discarded, so without this nothing survives the
+ * re-extraction and every video plays for a minute and stalls.
  *
- * Without this the client ladder restarts at the same gated client for every video: the refusal
- * arrives as an HTTP 403 on a URL that has already been discarded, so nothing survives the
- * re-extraction to say "that one is being enforced right now". The result a user sees is every
- * video playing for about a minute and then stalling, one after another.
- *
- * Keyed by [io.github.aedev.flow.innertube.models.YouTubeClient.clientName] because that is what
- * the failing URL's `c=` parameter reports, and because enforcement is bound to the client
- * identity rather than to a particular build of it.
- *
- * Entries lapse on a timer rather than on a connectivity callback. A gate does travel with the
- * network, but registering an app-wide network callback to catch that would cost battery in every
- * session to serve a minority failure; the timer is short enough that a genuine network change is
- * re-probed within one, and [clear] covers the cases the app already knows about.
+ * Keyed by `clientName`, which is what the failing URL's `c=` parameter reports. Entries lapse on a
+ * timer rather than a connectivity callback, which would cost battery in every session to serve a
+ * minority failure.
  */
 open class ClientGateRegistry(
     private val ttlMs: Long,
@@ -33,13 +25,9 @@ open class ClientGateRegistry(
     }
 
     /**
-     * GVS took the client's PO Token and refused it.
-     *
-     * Demoted on the second strike rather than the first: one refusal can be a cold attestation
-     * that the next mint fixes, so demoting immediately would drop the only client whose token the
-     * app can mint at all. Two refusals are a verdict, and without this the escalated reload
-     * re-mints for the same client forever — measured on device as six BotGuard challenges and six
-     * re-extractions in forty seconds, none of which could have produced a different answer.
+     * GVS took the client's PO Token and refused it. Demoted on the second strike, because one
+     * refusal can be a cold attestation the next mint fixes and the first strike would drop the
+     * only client whose token the app can mint at all.
      *
      * @return true when this strike demoted the client.
      */

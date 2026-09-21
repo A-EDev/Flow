@@ -19,17 +19,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 object WebPoTokenSession {
     private const val TAG = "WebPoTokenSession"
 
-    /**
-     * Server refusals tolerated before the visitor identity itself is replaced. Two, because one
-     * refusal can be a cold attestation the next mint fixes, while a second under the same identity
-     * means the grade is the identity's rather than the attempt's.
-     */
+    /** Refusals tolerated before the identity is replaced; one can be a cold attestation. */
     private const val REFUSALS_BEFORE_ROTATION = 2
 
-    /**
-     * A rotation destroys and rebuilds the BotGuard WebView on the main thread, so it is rate
-     * limited. Without this, a device whose attestation never improves rotates on every reload.
-     */
+    /** A rotation rebuilds the BotGuard WebView on the main thread, so it is rate limited. */
     private const val ROTATION_COOLDOWN_MS = 5 * 60 * 1000L
 
     private val generator = PoTokenGenerator
@@ -39,11 +32,8 @@ object WebPoTokenSession {
     @Volatile
     private var consecutiveLowTrustMints = 0
 
-    /**
-     * Counted separately from cold mints and never cleared by a good mint. A re-attestation after a
-     * rejection usually *does* hand back a full-trust token, so folding the two together let a
-     * refused-token loop reset its own counter on every pass and rotate nothing.
-     */
+    // Never cleared by a good mint: a re-attestation after a refusal usually does return a healthy
+    // token, so a shared counter let a refused-token loop reset itself every pass and rotate nothing.
     @Volatile
     private var tokenRejections = 0
 
@@ -53,21 +43,11 @@ object WebPoTokenSession {
     @Volatile
     private var lastRotationMs = 0L
 
-    /**
-     * Only a server refusal justifies replacing the identity.
-     *
-     * A cold mint does not: measured on device 2026-09-21, a handset whose BotGuard never returns
-     * more than ~88 bytes played normally for a minute on those tokens, and rotating on the length
-     * heuristic alone rebuilt the WebView on a loop that could never reach a different verdict.
-     * The byte length stays a diagnostic; the 403 is the signal.
-     */
+    /** Only a server refusal justifies replacing the identity; token length is a diagnostic. */
     private val attestationStuck: Boolean
         get() = tokenRejections >= REFUSALS_BEFORE_ROTATION
 
-    /**
-     * Bumped every time the visitor identity is replaced. Lets callers that cached a verdict about
-     * the old identity — which client GVS was refusing, say — notice it no longer applies.
-     */
+    /** Bumped on every identity replacement, so callers can drop verdicts about the old one. */
     @Volatile
     var identityGeneration: Int = 0
         private set
@@ -158,12 +138,8 @@ object WebPoTokenSession {
     }
 
     /**
-     * GVS accepted the request but refused the token on it.
-     *
-     * Counted alongside cold mints because it is the same verdict arriving later: the token was
-     * well-formed and correctly bound, and the server still would not have it. The next mint
-     * re-attests rather than handing back the cached token GVS has already rejected, and a second
-     * rejection takes the identity itself out of service.
+     * GVS took the token and refused it. The next mint re-attests rather than handing back the one
+     * the server has already rejected, and a second refusal retires the identity.
      */
     fun reportTokenRejected() {
         forceReattestNextMint = true
@@ -178,9 +154,8 @@ object WebPoTokenSession {
     }
 
     /**
-     * Counts cold mints, but never rotates here: the caller is about to send this token *alongside*
-     * the visitorData it was minted for, and swapping the identity underneath it would produce a
-     * mismatched pair. The rotation happens in [sessionVisitorData], where both are read together.
+     * Never rotates here: the caller sends this token alongside the visitorData it was minted for,
+     * so swapping the identity underneath it would produce a mismatched pair.
      */
     private fun noteMintTrust(result: PoTokenResult?) {
         if (result == null) return
@@ -195,12 +170,9 @@ object WebPoTokenSession {
     }
 
     /**
-     * Replaces the visitor identity the BotGuard session is graded against.
-     *
-     * Re-attesting alone cannot lift a stuck verdict — the challenge is re-run under the same
-     * visitor ID, which is the thing GVS has already judged. This is the supported version of what
-     * users discovered by clearing app data, and [resetSession] discards the WebView jar the
-     * identity lives in so the replacement really is a new one.
+     * Replaces the visitor identity the BotGuard session is graded against. Re-attesting alone
+     * cannot lift a stuck verdict: the challenge re-runs under the same visitor ID, which is the
+     * thing GVS has already judged.
      */
     suspend fun rotateVisitorIdentity() {
         rotationMutex.withLock {

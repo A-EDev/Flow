@@ -239,15 +239,9 @@ internal class PlaybackPreparer(
                 resumeAllowed = resumeOverrideRequested || !playerManager.isCurrentQueueVideo(videoId),
             )
         val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
-        // Escalation deliberately does NOT force the SABR session, even though it is the one path
-        // whose token Flow can mint. Measured on device 2026-09-21: a SABR session opens, reports
-        // `attestation pending`, and streams media segments, but the server never sends an
-        // initialisation segment for either format (`is_init_seg` is false on every MediaHeader, at
-        // playhead 0 and mid-stream alike), so ExoPlayer cannot sniff the fMP4 and fails every
-        // attempt with UnrecognizedInputFormatException / NoDeclaredBrand. Preferring it here turned
-        // a recoverable 403 into an unplayable video. The escalated reload recovers instead by
-        // re-minting attested direct URLs, which is what [InnerTubeVideoStreamExtractor] now
-        // produces on this path. Revisit once a SABR session is observed delivering an init segment.
+        // An escalated reload must not force SABR: measured 2026-09-21, a session never receives an
+        // init segment, so ExoPlayer cannot sniff it and every attempt dies. Recovery is the
+        // re-minted attested direct ladder instead. Revisit when an init segment is observed.
         val preferSabr =
             sabrInfo != null &&
                 SabrRoutingPolicy.shouldPreferSabr(false, sabrInfo.videoHeight, directMaxHeight)
