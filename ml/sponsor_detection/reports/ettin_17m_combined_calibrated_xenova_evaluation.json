@@ -1,0 +1,103 @@
+{
+  "boundary_error_characters_at_iou_0.5": {
+    "end_median": 3,
+    "end_p95": 105,
+    "iou_median": 0.9810311284046692,
+    "iou_p05": 0.7491103202846975,
+    "matched_spans": 8686,
+    "start_median": 3,
+    "start_p95": 168
+  },
+  "breakdown_by_label_kind": {
+    "hard_negative": {
+      "expected_spans": 0,
+      "false_positive": 166,
+      "predicted_spans": 166,
+      "true_negative": 5847,
+      "windows": 6013
+    },
+    "ordinary_negative": {
+      "expected_spans": 0,
+      "false_positive": 105,
+      "predicted_spans": 105,
+      "true_negative": 16454,
+      "windows": 16559
+    },
+    "positive": {
+      "expected_spans": 11107,
+      "false_negative": 2121,
+      "predicted_spans": 8916,
+      "true_positive": 8885,
+      "windows": 11006
+    }
+  },
+  "character_coverage": {
+    "expected": 10851030,
+    "f1": 0.9114027290673574,
+    "overlap": 9528649,
+    "precision": 0.9472925463254949,
+    "predicted": 10058824,
+    "recall": 0.8781331357484036
+  },
+  "checkpoint": {
+    "model_sha256": "81184081034207ff887cde4807916d145f98708034ae325229ebaa17e54ca102",
+    "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_combined"
+  },
+  "dataset": {
+    "manifest_sha256": "57d711c82807e30475fd679ce97e86419a5b8d8d9f5b87d7c33d194bdc585b51",
+    "rows": 33578,
+    "test_sha256": "08fdb9dbfa789bca20511552ea5413c4297a94464cf50ebb4c10ff07f55eff18"
+  },
+  "decoder": {
+    "confidence_threshold": 0.7,
+    "config_path": "ml/sponsor_detection/reports/ettin_17m_combined_decoder.json"
+  },
+  "predicted_span_confidence": {
+    "count": 9187,
+    "median": 0.9553956487031677,
+    "p05": 0.7750028073609764,
+    "p95": 0.9892073857580161
+  },
+  "runtime": {
+    "batch_size": 16,
+    "bf16": true,
+    "device": "cuda",
+    "elapsed_seconds": 156.23
+  },
+  "schema_version": 1,
+  "span_metrics_by_character_iou": {
+    "0.3": {
+      "f1": 0.8678427121316645,
+      "false_negative": 2301,
+      "false_positive": 381,
+      "precision": 0.9585283552846413,
+      "recall": 0.7928333483388854,
+      "true_positive": 8806
+    },
+    "0.5": {
+      "f1": 0.8560165566177195,
+      "false_negative": 2421,
+      "false_positive": 501,
+      "precision": 0.9454664199412213,
+      "recall": 0.7820293508598182,
+      "true_positive": 8686
+    },
+    "0.7": {
+      "f1": 0.8271410269045038,
+      "false_negative": 2714,
+      "false_positive": 794,
+      "precision": 0.9135735278110373,
+      "recall": 0.7556495903484289,
+      "true_positive": 8393
+    }
+  },
+  "window_presence": {
+    "f1": 0.8813609760936415,
+    "false_negative": 2121,
+    "false_positive": 271,
+    "precision": 0.9704019222367847,
+    "recall": 0.8072869343994185,
+    "true_negative": 22301,
+    "true_positive": 8885
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "dataset_manifest_sha256": "051e49e19f7a4f55a4fab415328dabbedb6ff48c27cc05a9e985910ca9be4871",
+  "dataset_rows": {
+    "test": 26504,
+    "train": 209390,
+    "validation": 25184
+  },
+  "encoder": "jhu-clsp/ettin-encoder-17m",
+  "max_length": 1024,
+  "revision": "987607455c61e7a5bbc85f7758e0512ea6d0ae4c",
+  "splits": {
+    "test": {
+      "clipped_sponsor_spans": 0,
+      "max_tokens": 1024,
+      "overlength_windows": 0,
+      "p50_tokens": 1024,
+      "p95_tokens": 1024,
+      "p99_tokens": 1024,
+      "rows": 26504,
+      "unaligned_sponsor_spans": 0
+    },
+    "train": {
+      "clipped_sponsor_spans": 0,
+      "max_tokens": 1024,
+      "overlength_windows": 0,
+      "p50_tokens": 1024,
+      "p95_tokens": 1024,
+      "p99_tokens": 1024,
+      "rows": 209390,
+      "unaligned_sponsor_spans": 0
+    },
+    "validation": {
+      "clipped_sponsor_spans": 0,
+      "max_tokens": 1024,
+      "overlength_windows": 0,
+      "p50_tokens": 1024,
+      "p95_tokens": 1024,
+      "p99_tokens": 1024,
+      "rows": 25184,
+      "unaligned_sponsor_spans": 0
+    }
+  },
+  "valid": true
+}

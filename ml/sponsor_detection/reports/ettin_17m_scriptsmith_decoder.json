@@ -1,0 +1,34 @@
+{
+  "calibration_report_metrics": {
+    "span_iou_0.5": {
+      "f1": 0.7344504830917875,
+      "false_negative": 3129,
+      "false_positive": 389,
+      "precision": 0.9259611724400457,
+      "recall": 0.6085814360770578,
+      "true_positive": 4865
+    },
+    "window_presence": {
+      "f1": 0.771872571872572,
+      "false_negative": 2676,
+      "false_positive": 260,
+      "precision": 0.9502582743447484,
+      "recall": 0.649875703257883,
+      "true_negative": 17281,
+      "true_positive": 4967
+    }
+  },
+  "calibration_report_path": "ml/sponsor_detection/reports/ettin_17m_scriptsmith_calibration.json",
+  "checkpoint": {
+    "model_sha256": "eb543b4c6d7af0f7c30cde33b622d2d41bd4a9f5e784d84c2c079092c8b3aba5",
+    "path": "ml/sponsor_detection/checkpoints/ettin_17m_sponsor_scriptsmith_replay"
+  },
+  "confidence_threshold": 0.75,
+  "schema_version": 1,
+  "validation_dataset": {
+    "manifest_sha256": "051e49e19f7a4f55a4fab415328dabbedb6ff48c27cc05a9e985910ca9be4871",
+    "path": "ml/sponsor_detection/data/training/sponsor_windows_scriptsmith/validation.parquet",
+    "rows": 25184,
+    "sha256": "eef5ab76d283834af3e9fce8ecad70bcf1d2577dd64facf9a7c6f850ba8253a1"
+  }
+}
