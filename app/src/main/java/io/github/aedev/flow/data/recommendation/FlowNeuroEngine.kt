@@ -164,6 +164,8 @@ class FlowNeuroEngine(
 
         suspend fun getExcludedChannelIds(): Set<String> = requireInstance().getExcludedChannelIds()
 
+        suspend fun blockedContentMatcher(): (title: String, channelName: String) -> Boolean = requireInstance().blockedContentMatcher()
+
         suspend fun selectShortsSeeds(
             candidates: List<ShortsSeedInput>,
             maxSeeds: Int = 2,
@@ -1425,6 +1427,20 @@ class FlowNeuroEngine(
                     .filter { (_, ts) -> ts > cutoff }
                     .keys
         }
+
+    /** The blocked topics as one text test, for feed paths whose reels never pass through [rank]. */
+    suspend fun blockedContentMatcher(): (title: String, channelName: String) -> Boolean {
+        val matchers =
+            brainMutex.withLock {
+                NeuroScoring.buildBlockedMatchers(
+                    currentUserBrain.blockedTopics,
+                    NeuroTopicCatalog.TOPIC_CATEGORIES,
+                    tokenizer::normalizeLemma,
+                )
+            }
+        if (matchers.isEmpty()) return { _, _ -> false }
+        return { title, channelName -> NeuroScoring.isBlockedByText(title, channelName, matchers, tokenizer::normalizeLemma) }
+    }
 
     /**
      * Learns a channel's creator-declared keyword tags (+ description lead) into

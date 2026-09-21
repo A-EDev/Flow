@@ -110,8 +110,24 @@ class ShortsFeedRepository
             openedAtMillis = 0L
         }
 
+        /** Drops a channel from every lane pool and from the persisted reserve. */
         fun evictChannel(channelId: String) {
+            if (channelId.isBlank()) return
             pager?.evictChannel(channelId)
+            scope.launch { runCatching { homeFeedCache.deleteChannel(channelId) } }
+        }
+
+        /**
+         * Whether a reel that has just been named must leave the queue: sequence reels carry no
+         * channel or title until `/player` answers, so the page filters could not judge them.
+         */
+        suspend fun isBlocked(
+            channelId: String,
+            title: String,
+            channelName: String,
+        ): Boolean {
+            if (channelId.isNotBlank() && channelId in excludedChannelIds()) return true
+            return blockedTextMatcher()(title, channelName)
         }
 
         private fun saveReserve(pager: ShortsFeedPager) {
@@ -126,13 +142,19 @@ class ShortsFeedRepository
         private suspend fun loadReserve(): List<ShortsLaneItem> =
             runCatching {
                 homeFeedCache
-                    .loadShortsReserve(HomeFeedCacheFilters(watchedVideoIds = watchedReelIds()))
+                    .loadShortsReserve(HomeFeedCacheFilters(watchedVideoIds = watchedReelIds(), blockedChannelIds = excludedChannelIds()))
                     .mapNotNull { cached ->
                         ShortsFeedLane.entries
                             .firstOrNull { it.name == cached.source }
                             ?.let { lane -> ShortsLaneItem(cached.video.toShortVideo(), lane, cached.relatedSeedId) }
                     }
             }.getOrElse { emptyList() }
+
+        private suspend fun excludedChannelIds(): Set<String> =
+            runCatching { FlowNeuroEngine.getExcludedChannelIds() }.getOrDefault(emptySet())
+
+        private suspend fun blockedTextMatcher(): (String, String) -> Boolean =
+            runCatching { FlowNeuroEngine.blockedContentMatcher() }.getOrElse { { _, _ -> false } }
 
         private suspend fun watchedReelIds(): Set<String> {
             val threshold = playerPreferences.watchedThreshold.first()
@@ -192,7 +214,8 @@ class ShortsFeedRepository
                                 ?.filterValues { it > suppressionCutoff }
                                 ?.keys
                                 .orEmpty(),
-                        excludedChannelIds = runCatching { FlowNeuroEngine.getExcludedChannelIds() }.getOrDefault(emptySet()),
+                        excludedChannelIds = excludedChannelIds(),
+                        isBlockedText = blockedTextMatcher(),
                     )
                 }
 

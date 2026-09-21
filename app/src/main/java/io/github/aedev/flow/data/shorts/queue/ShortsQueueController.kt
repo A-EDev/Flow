@@ -156,12 +156,19 @@ class ShortsQueueController(
      * the index stays put while a different short slides into it, and the player pool has to be told
      * or it keeps playing the one that was just rejected.
      */
-    fun remove(id: String): ShortsQueueChange {
-        val current = _items.value
-        val removedIndex = current.indexOfFirst { it.id == id }
-        if (removedIndex < 0) return ShortsQueueChange.None
+    fun remove(id: String): ShortsQueueChange = removeAll { it.id == id }
 
-        val updated = current.filterNot { it.id == id }
+    /** Drops every short of a channel — "Don't show this channel". */
+    fun removeChannel(channelId: String): ShortsQueueChange {
+        if (channelId.isBlank()) return ShortsQueueChange.None
+        return removeAll { it.channelId == channelId }
+    }
+
+    private fun removeAll(rejected: (ShortVideo) -> Boolean): ShortsQueueChange {
+        val current = _items.value
+        val updated = current.filterNot(rejected)
+        if (updated.size == current.size) return ShortsQueueChange.None
+
         // Deliberately kept in seenIds so a rejected short cannot come back on the next append.
         _items.value = updated
 
@@ -171,11 +178,11 @@ class ShortsQueueController(
         }
 
         val position = _currentIndex.value
-        val wasCurrent = removedIndex == position
+        val wasCurrent = current.getOrNull(position)?.let(rejected) == true
         // Removing something above the cursor shifts the whole list under it; the index has to move
         // with it or the user is silently pushed onto the next short.
-        val shifted = if (removedIndex < position) position - 1 else position
-        _currentIndex.value = shifted.coerceIn(0, updated.lastIndex)
+        val removedAbove = current.take(position).count(rejected)
+        _currentIndex.value = (position - removedAbove).coerceIn(0, updated.lastIndex)
         return if (wasCurrent) ShortsQueueChange.CurrentItemChanged else ShortsQueueChange.ListOnly
     }
 

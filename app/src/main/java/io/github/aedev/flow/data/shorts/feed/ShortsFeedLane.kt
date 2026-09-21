@@ -32,10 +32,15 @@ data class ShortsFeedProfile(
         get() = subscribedChannelIds.isNotEmpty()
 }
 
-/** Everything a reel must not be to reach the page. Read once per page; all of it is by id. */
+/**
+ * Everything a reel must not be to reach the page. Read once per page. The id sets cover every
+ * lane; [isBlockedText] can only judge reels that carry a title, so id-only reels from the
+ * sequence chains are judged again when their `/player` response names them.
+ */
 data class ShortsFeedFilters(
     val watchedIds: Set<String> = emptySet(),
     val seenIds: Set<String> = emptySet(),
     val suppressedIds: Set<String> = emptySet(),
     val excludedChannelIds: Set<String> = emptySet(),
+    val isBlockedText: (title: String, channelName: String) -> Boolean = { _, _ -> false },
 )

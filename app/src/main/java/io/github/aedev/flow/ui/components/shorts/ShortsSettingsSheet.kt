@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.NotInterested
 import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -60,7 +61,7 @@ private val HeaderContentPadding = PaddingValues(start = 20.dp, end = 8.dp, top 
 private val LoadingPadding = 32.dp
 private val EmptyPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
 private const val HEADER_DIVIDER_ALPHA = 0.4f
-private const val THIS_SHORT_ROWS = 3
+private const val THIS_SHORT_ROWS = 4
 
 /**
  * The reel's settings: the same paged sheet the video player uses, one instance whose pages swap in
@@ -76,6 +77,7 @@ internal fun ShortsSettingsSheet(
     playerPreferences: PlayerPreferences,
     onWantMore: () -> Unit,
     onNotInterested: () -> Unit,
+    onBlockChannel: () -> Unit,
     onDownload: () -> Unit,
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
@@ -173,6 +175,10 @@ internal fun ShortsSettingsSheet(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             sheetState.dismiss(onNotInterested)
                         },
+                        onBlockChannel = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            sheetState.dismiss(onBlockChannel)
+                        },
                         onDownload = { sheetState.dismiss(onDownload) },
                         onQuality = ::openQuality,
                         onSpeed = { state.page = ShortsSettingsPage.Speed },
@@ -230,6 +236,7 @@ private fun ShortsSettingsMainPage(
     settings: ShortsReelSettings,
     onWantMore: () -> Unit,
     onNotInterested: () -> Unit,
+    onBlockChannel: () -> Unit,
     onDownload: () -> Unit,
     onQuality: () -> Unit,
     onSpeed: () -> Unit,
@@ -251,9 +258,16 @@ private fun ShortsSettingsMainPage(
             onClick = onNotInterested,
         )
         FlowNavRow(
+            leadingIcon = Icons.Rounded.Block,
+            title = stringResource(R.string.dont_show_channel),
+            supportingText = stringResource(R.string.dont_show_channel_desc),
+            shape = flowRowGroupShape(2, THIS_SHORT_ROWS),
+            onClick = onBlockChannel,
+        )
+        FlowNavRow(
             leadingIcon = Icons.Filled.Download,
             title = stringResource(R.string.download_video),
-            shape = flowRowGroupShape(2, THIS_SHORT_ROWS),
+            shape = flowRowGroupShape(3, THIS_SHORT_ROWS),
             onClick = onDownload,
         )
     }

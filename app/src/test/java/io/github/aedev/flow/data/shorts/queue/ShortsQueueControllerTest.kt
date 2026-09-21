@@ -11,15 +11,17 @@ class ShortsQueueControllerTest {
     // Pinned: ShortVideo.timestamp defaults to System.currentTimeMillis(), so two fixtures for the
     // same id are unequal whenever they straddle a millisecond — which made the enrichment test fail
     // at random.
-    private fun short(id: String) =
-        ShortVideo(
-            id = id,
-            title = "t-$id",
-            channelName = "c",
-            channelId = "ch",
-            thumbnailUrl = "https://i.ytimg.com/vi/$id/oar2.jpg",
-            timestamp = 0L,
-        )
+    private fun short(
+        id: String,
+        channelId: String = "ch",
+    ) = ShortVideo(
+        id = id,
+        title = "t-$id",
+        channelName = "c",
+        channelId = channelId,
+        thumbnailUrl = "https://i.ytimg.com/vi/$id/oar2.jpg",
+        timestamp = 0L,
+    )
 
     private fun shorts(vararg ids: String) = ids.map(::short)
 
@@ -271,6 +273,34 @@ class ShortsQueueControllerTest {
             controller.loadMore()
 
             assertEquals(listOf("a", "c"), ids(controller))
+        }
+
+    @Test
+    fun `removing a channel drops every one of its shorts and keeps the position on the same short`() =
+        runTest {
+            val page = listOf(short("a", "UCx"), short("b"), short("c", "UCx"), short("d"), short("e", "UCx"))
+            val controller = ShortsQueueController(FakeLoader(listOf(page)))
+            controller.loadInitial(null)
+            controller.setCurrentIndex(3)
+
+            val change = controller.removeChannel("UCx")
+
+            assertEquals(ShortsQueueChange.ListOnly, change)
+            assertEquals(listOf("b", "d"), ids(controller))
+            assertEquals("d", controller.currentItem?.id)
+            assertEquals(1, controller.currentIndex.value)
+        }
+
+    @Test
+    fun `removing the current short's channel reports the position change`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(listOf(short("a"), short("b", "UCx"), short("c")))))
+            controller.loadInitial(null)
+            controller.setCurrentIndex(1)
+
+            assertEquals(ShortsQueueChange.CurrentItemChanged, controller.removeChannel("UCx"))
+            assertEquals("c", controller.currentItem?.id)
+            assertEquals(ShortsQueueChange.None, controller.removeChannel(""))
         }
 
     @Test

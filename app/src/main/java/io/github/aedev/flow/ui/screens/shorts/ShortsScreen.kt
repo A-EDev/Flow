@@ -282,6 +282,7 @@ fun ShortsScreen(
                 playerPreferences = playerPreferences,
                 onWantMore = { viewModel.wantMoreLikeThis(settingsShort) },
                 onNotInterested = { viewModel.notInterested(settingsShort) },
+                onBlockChannel = { viewModel.blockChannel(settingsShort) },
                 onDownload = { scope.launch { settingsSheet.prepareDownload(settingsShort, viewModel) } },
                 onDismiss = settingsSheet::close,
                 expandedHeight = sheetExpandedHeight,

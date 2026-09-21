@@ -101,6 +101,11 @@ class ShortsViewModel
                     savedShortIds.value = savedVideos.map { it.id }.toSet()
                 }
             }
+            viewModelScope.launch {
+                FeedInvalidationBus.events.collect { event ->
+                    if (event is FeedInvalidationBus.Event.ChannelBlocked) dropChannel(event.channelId)
+                }
+            }
         }
 
         /** Mirrors the controller's state into [uiState], the single thing the screen observes. */
@@ -303,17 +308,27 @@ class ShortsViewModel
             }
         }
 
-        private fun applyDetails(
+        /**
+         * A sequence reel is an id until `/player` names it, so blocked channels and topics are
+         * judged here as well as at page assembly; a reel that fails leaves the queue instead.
+         */
+        private suspend fun applyDetails(
             videoId: String,
             details: ShortDetails,
-        ) = enrich(videoId) { short ->
-            short.copy(
-                title = details.title.ifBlank { short.title },
-                channelName = details.channelName.ifBlank { short.channelName },
-                channelId = details.channelId.ifBlank { short.channelId },
-                viewCount = details.viewCount ?: short.viewCount,
-                durationMs = details.durationMs ?: short.durationMs,
-            )
+        ) {
+            if (feed.isBlocked(details.channelId, details.title, details.channelName)) {
+                if (queue?.remove(videoId) != ShortsQueueChange.None) publishQueue()
+                return
+            }
+            enrich(videoId) { short ->
+                short.copy(
+                    title = details.title.ifBlank { short.title },
+                    channelName = details.channelName.ifBlank { short.channelName },
+                    channelId = details.channelId.ifBlank { short.channelId },
+                    viewCount = details.viewCount ?: short.viewCount,
+                    durationMs = details.durationMs ?: short.durationMs,
+                )
+            }
         }
 
         private fun ShortVideo.withOverlay(overlay: ReelOverlay): ShortVideo =
@@ -484,6 +499,28 @@ class ShortsViewModel
         }
 
         fun onScreenHidden() = prefetch.onHidden()
+
+        /** "Don't show this channel": the same permanent block the Home feed's sheet applies. */
+        fun blockChannel(short: ShortVideo) {
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                try {
+                    val channelId = short.channelId
+                    check(channelId.isNotBlank()) { context.getString(R.string.channel_metadata_unavailable) }
+                    FlowNeuroEngine.blockChannel(context, channelId)
+                    dropChannel(channelId)
+                    FeedInvalidationBus.emit(FeedInvalidationBus.Event.ChannelBlocked(channelId, short.id))
+                    _snackbarMessage.value = context.getString(R.string.channel_blocked_toast, short.channelName)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error blocking channel", e)
+                    _snackbarMessage.value = context.getString(R.string.quick_actions_error_template, e.message)
+                }
+            }
+        }
+
+        private fun dropChannel(channelId: String) {
+            feed.evictChannel(channelId)
+            if (queue?.removeChannel(channelId) != ShortsQueueChange.None) publishQueue()
+        }
 
         fun notInterested(short: ShortVideo) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {

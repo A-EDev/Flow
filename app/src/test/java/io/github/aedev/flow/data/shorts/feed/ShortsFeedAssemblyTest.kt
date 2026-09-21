@@ -31,6 +31,26 @@ class ShortsFeedAssemblyTest {
     }
 
     @Test
+    fun `a titled reel that matches a blocked topic is dropped and an untitled one is left for resolve time`() {
+        val pools =
+            mapOf(
+                lane(
+                    ShortsFeedLane.DISCOVERY,
+                    reel("cats").copy(title = "Cats being cats"),
+                    reel("dogs").copy(title = "Dogs at the park"),
+                    reel("untitled"),
+                ),
+            )
+        val filters = ShortsFeedFilters(isBlockedText = { title, _ -> "cats" in title.lowercase() })
+
+        val assembly =
+            assembleShortsPage(pools, quotas, targetSize = 3, filters = filters, usedIds = emptySet(), recentChannels = emptyList())
+
+        assertEquals(listOf("dogs", "untitled"), assembly.page.map { it.short.id })
+        assertTrue("cats" in assembly.consumed)
+    }
+
+    @Test
     fun `the seen gate is skipped while the pools are thin`() {
         val pools = mapOf(lane(ShortsFeedLane.EXPLORE, reel("seen1"), reel("seen2"), reel("fresh")))
         val filters = ShortsFeedFilters(seenIds = setOf("seen1", "seen2"))
