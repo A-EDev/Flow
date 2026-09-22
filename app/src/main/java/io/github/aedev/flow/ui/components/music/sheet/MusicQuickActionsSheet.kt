@@ -178,17 +178,20 @@ fun MusicQuickActionsSheet(
                 FlowMenuSectionHeader(stringResource(R.string.playback_header))
                 FlowMenuGroup(
                     items =
-                        listOf(
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.Radio, null) },
-                                title = { Text(stringResource(R.string.start_radio)) },
-                                description = { Text(stringResource(R.string.start_radio_desc)) },
-                                onClick = {
-                                    // Springboard an endless radio seeded from just this track.
-                                    viewModel.loadAndPlayTrack(track, listOf(track), null)
-                                    onDismiss()
-                                },
-                            ),
+                        listOfNotNull(
+                            if (viewModel.canStartRadio(track)) {
+                                FlowMenuItemData(
+                                    icon = { Icon(Icons.Outlined.Radio, null) },
+                                    title = { Text(stringResource(R.string.start_radio)) },
+                                    description = { Text(stringResource(R.string.start_radio_desc)) },
+                                    onClick = {
+                                        viewModel.startRadio(track)
+                                        onDismiss()
+                                    },
+                                )
+                            } else {
+                                null
+                            },
                             FlowMenuItemData(
                                 icon = { Icon(Icons.Outlined.QueueMusic, null) },
                                 title = { Text(stringResource(R.string.play_next)) },
