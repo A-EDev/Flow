@@ -55,7 +55,7 @@ internal fun FlowNavigationBar(
             ShortNavigationBarItem(
                 selected = selected,
                 onClick = { onTabSelected(tab) },
-                icon = { FlowTabIcon(tab = tab, selected = selected) },
+                icon = { Icon(imageVector = tab.icon(selected), contentDescription = null) },
                 label = { Text(text = stringResource(tab.labelRes)) },
                 iconPosition = iconPosition,
             )
@@ -82,15 +82,10 @@ private fun OverflowItem(
     // One Box per bar slot: the bar measures every direct child as an item, and the menu's
     // popup anchor would otherwise count as one.
     Box(propagateMinConstraints = true) {
-        val selected = selectedTab in tabs
         ShortNavigationBarItem(
-            selected = selected,
+            selected = selectedTab in tabs,
             onClick = { expanded = true },
-            icon = {
-                AnimatedNavIcon(selected = selected, pose = OverflowPose) {
-                    Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = null)
-                }
-            },
+            icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = null) },
             label = { Text(text = stringResource(R.string.nav_more)) },
             iconPosition = iconPosition,
         )

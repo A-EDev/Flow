@@ -65,7 +65,7 @@ internal fun FlowNavigationRail(
             WideNavigationRailItem(
                 selected = selected,
                 onClick = { onTabSelected(tab) },
-                icon = { FlowTabIcon(tab = tab, selected = selected) },
+                icon = { Icon(imageVector = tab.icon(selected), contentDescription = null) },
                 label = { Text(text = stringResource(tab.labelRes)) },
                 railExpanded = railExpanded,
             )
