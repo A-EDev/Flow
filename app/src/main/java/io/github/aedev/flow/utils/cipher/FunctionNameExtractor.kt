@@ -18,17 +18,17 @@ object FunctionNameExtractor {
         val name: String,
         val constantArg: Int?,
         val constantArgs: List<Int>? = null,
-        val preprocessFunc: String? = null, 
+        val preprocessFunc: String? = null,
         val preprocessArgs: List<Int>? = null,
-        val isHardcoded: Boolean = false
+        val isHardcoded: Boolean = false,
     )
 
     data class NFunctionInfo(
         val name: String,
         val arrayIndex: Int?,
-        val constantArgs: List<Int>? = null, 
+        val constantArgs: List<Int>? = null,
         val isHardcoded: Boolean = false,
-        val acceptsUrl: Boolean = false
+        val acceptsUrl: Boolean = false,
     )
 
     data class HardcodedPlayerConfig(
@@ -40,90 +40,123 @@ object FunctionNameExtractor {
         val nFuncName: String,
         val nArrayIndex: Int?,
         val nConstantArgs: List<Int>?,
-        val signatureTimestamp: Int
+        val signatureTimestamp: Int,
     )
 
     // ==================== KNOWN PLAYER CONFIGS ====================
 
-    private val KNOWN_PLAYER_CONFIGS = mapOf(
-        "74edf1a3" to HardcodedPlayerConfig(
-            sigFuncName = "JI",
-            sigConstantArg = 48,
-            sigConstantArgs = listOf(48, 1918),
-            sigPreprocessFunc = "f1",
-            sigPreprocessArgs = listOf(1, 6528),
-            nFuncName = "GU",
-            nArrayIndex = null,
-            nConstantArgs = listOf(6, 6010),
-            signatureTimestamp = 20522
-        ),
-        "f4c47414" to HardcodedPlayerConfig(
-            sigFuncName = "hJ",
-            sigConstantArg = 6,
-            sigConstantArgs = listOf(6), 
-            sigPreprocessFunc = null, 
-            sigPreprocessArgs = null,
-            nFuncName = "",
-            nArrayIndex = null,
-            nConstantArgs = null,
-            signatureTimestamp = 20543
+    private val KNOWN_PLAYER_CONFIGS =
+        mapOf(
+            "74edf1a3" to
+                HardcodedPlayerConfig(
+                    sigFuncName = "JI",
+                    sigConstantArg = 48,
+                    sigConstantArgs = listOf(48, 1918),
+                    sigPreprocessFunc = "f1",
+                    sigPreprocessArgs = listOf(1, 6528),
+                    nFuncName = "GU",
+                    nArrayIndex = null,
+                    nConstantArgs = listOf(6, 6010),
+                    signatureTimestamp = 20522,
+                ),
+            "f4c47414" to
+                HardcodedPlayerConfig(
+                    sigFuncName = "hJ",
+                    sigConstantArg = 6,
+                    sigConstantArgs = listOf(6),
+                    sigPreprocessFunc = null,
+                    sigPreprocessArgs = null,
+                    nFuncName = "",
+                    nArrayIndex = null,
+                    nConstantArgs = null,
+                    signatureTimestamp = 20543,
+                ),
         )
-    )
 
     // ==================== DETECTION PATTERNS ====================
 
-    private val Q_ARRAY_PATTERN = Regex("""var\s+Q\s*=\s*"[^"]+"\s*\.\s*split\s*\(\s*"\}"\s*\)""")
+    /**
+     * The string-array obfuscation: every literal the player needs is hoisted into one delimited
+     * string that is split into an array at load, and the code indexes that array instead of
+     * writing the literal.
+     *
+     * Neither the array's name nor its delimiter is stable — measured 2026-09-22, player `ecb23058`
+     * used `var LJ=...split(";")` and `dac2d7b2` used `var jd=...split(";")`. Matching only `Q` and
+     * `}` (and, in NewPipe 0.26.5, only a *single-character* name) misses both.
+     */
+    private val STRING_ARRAY_PATTERN =
+        Regex("""var\s+([A-Za-z0-9_${'$'}]{1,6})\s*=\s*"[^"]{100,}"\s*\.\s*split\s*\(\s*"([;{}])"\s*\)""")
 
-    private val PLAYER_HASH_PATTERNS = listOf(
-        Regex("""jsUrl['":\s]+[^"']*?/player/([a-f0-9]{8})/"""),
-        Regex("""player_ias\.vflset/[^/]+/([a-f0-9]{8})/"""),
-        Regex("""/s/player/([a-f0-9]{8})/""")
-    )
+    private val PLAYER_HASH_PATTERNS =
+        listOf(
+            Regex("""jsUrl['":\s]+[^"']*?/player/([a-f0-9]{8})/"""),
+            Regex("""player_ias\.vflset/[^/]+/([a-f0-9]{8})/"""),
+            Regex("""/s/player/([a-f0-9]{8})/"""),
+        )
 
-    private val SIG_FUNCTION_PATTERNS = listOf(
-        Regex("""&&\s*\(\s*[a-zA-Z0-9$]+\s*=\s*([a-zA-Z0-9$]+)\s*\(\s*(\d+)\s*,\s*decodeURIComponent\s*\(\s*[a-zA-Z0-9$]+\s*\)"""),
-        Regex("""&&\s*\(\s*[a-zA-Z0-9$]+\s*=\s*([a-zA-Z0-9$]+)\s*\(\s*(\d+)\s*,\s*decodeURIComponent\s*\(\s*[a-zA-Z0-9$]+\s*\.\s*[a-z]\s*\)"""),
-        Regex("""\b[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*encodeURIComponent\(([a-zA-Z0-9$]+)\("""),
-        Regex("""\b[a-zA-Z0-9]+\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*encodeURIComponent\(([a-zA-Z0-9$]+)\("""),
-        Regex("""\bm=([a-zA-Z0-9${'$'}]{2,})\(decodeURIComponent\(h\.s\)\)"""),
-        Regex("""\bc\s*&&\s*d\.set\([^,]+\s*,\s*(?:encodeURIComponent\s*\()([a-zA-Z0-9$]+)\("""),
-        Regex("""\bc\s*&&\s*[a-z]\.set\([^,]+\s*,\s*encodeURIComponent\(([a-zA-Z0-9$]+)\("""),
-    )
+    private val SIG_FUNCTION_PATTERNS =
+        listOf(
+            Regex("""&&\s*\(\s*[a-zA-Z0-9$]+\s*=\s*([a-zA-Z0-9$]+)\s*\(\s*(\d+)\s*,\s*decodeURIComponent\s*\(\s*[a-zA-Z0-9$]+\s*\)"""),
+            Regex(
+                """&&\s*\(\s*[a-zA-Z0-9$]+\s*=\s*([a-zA-Z0-9$]+)\s*\(\s*(\d+)\s*,\s*decodeURIComponent\s*\(\s*[a-zA-Z0-9$]+\s*\.\s*[a-z]\s*\)""",
+            ),
+            Regex("""\b[cs]\s*&&\s*[adf]\.set\([^,]+\s*,\s*encodeURIComponent\(([a-zA-Z0-9$]+)\("""),
+            Regex("""\b[a-zA-Z0-9]+\s*&&\s*[a-zA-Z0-9]+\.set\([^,]+\s*,\s*encodeURIComponent\(([a-zA-Z0-9$]+)\("""),
+            Regex("""\bm=([a-zA-Z0-9${'$'}]{2,})\(decodeURIComponent\(h\.s\)\)"""),
+            Regex("""\bc\s*&&\s*d\.set\([^,]+\s*,\s*(?:encodeURIComponent\s*\()([a-zA-Z0-9$]+)\("""),
+            Regex("""\bc\s*&&\s*[a-z]\.set\([^,]+\s*,\s*encodeURIComponent\(([a-zA-Z0-9$]+)\("""),
+        )
 
-    private val N_FUNCTION_PATTERNS = listOf(
-        Regex("""\.get\("n"\)\)&&\(b=([a-zA-Z0-9$]+)(?:\[(\d+)\])?\(([a-zA-Z0-9])\)"""),
-        Regex("""\.get\("n"\)\)\s*&&\s*\(([a-zA-Z0-9$]+)\s*=\s*([a-zA-Z0-9$]+)(?:\[(\d+)\])?\(\1\)"""),
-        Regex("""\.get\("n"\);if\([a-zA-Z0-9$]+\)\s*\{[^}]*match"""),
-        Regex("""\(\s*([a-zA-Z0-9$]+)\s*=\s*String\.fromCharCode\(110\)"""),
-        Regex("""([a-zA-Z0-9$]+)\s*=\s*function\([a-zA-Z0-9]\)\s*\{[^}]*?enhanced_except_"""),
-    )
+    private val N_FUNCTION_PATTERNS =
+        listOf(
+            Regex("""\.get\("n"\)\)&&\(b=([a-zA-Z0-9$]+)(?:\[(\d+)\])?\(([a-zA-Z0-9])\)"""),
+            Regex("""\.get\("n"\)\)\s*&&\s*\(([a-zA-Z0-9$]+)\s*=\s*([a-zA-Z0-9$]+)(?:\[(\d+)\])?\(\1\)"""),
+            Regex("""\.get\("n"\);if\([a-zA-Z0-9$]+\)\s*\{[^}]*match"""),
+            Regex("""\(\s*([a-zA-Z0-9$]+)\s*=\s*String\.fromCharCode\(110\)"""),
+            Regex("""([a-zA-Z0-9$]+)\s*=\s*function\([a-zA-Z0-9]\)\s*\{[^}]*?enhanced_except_"""),
+        )
 
-    private val N_URL_WRAPPER_PATTERNS = listOf(
-        Regex("""([a-zA-Z0-9${'$'}]+)\s*=\s*function\(([a-zA-Z0-9${'$'}]+)\)\s*\{\s*try\s*\{\s*var\s+[a-zA-Z0-9${'$'}]+\s*=\s*\(new\s+g\.[a-zA-Z0-9${'$'}]+\(\2\s*,\s*!0\)\)\.get\("n"\)"""),
-        Regex("""([a-zA-Z0-9${'$'}]+)\s*=\s*function\(([a-zA-Z0-9${'$'}]+)\)\s*\{[^{}]{0,300}\.get\("n"\)[^{}]{0,300}/\\?/n\\?/""")
-    )
+    private val N_URL_WRAPPER_PATTERNS =
+        listOf(
+            Regex(
+                """([a-zA-Z0-9${'$'}]+)\s*=\s*function\(([a-zA-Z0-9${'$'}]+)\)\s*\{\s*try\s*\{\s*var\s+[a-zA-Z0-9${'$'}]+\s*=\s*\(new\s+g\.[a-zA-Z0-9${'$'}]+\(\2\s*,\s*!0\)\)\.get\("n"\)""",
+            ),
+            Regex("""([a-zA-Z0-9${'$'}]+)\s*=\s*function\(([a-zA-Z0-9${'$'}]+)\)\s*\{[^{}]{0,300}\.get\("n"\)[^{}]{0,300}/\\?/n\\?/"""),
+        )
 
     // ==================== EXTRACTION FUNCTIONS ====================
 
     fun hasQArrayObfuscation(playerJs: String): Boolean {
-        val hasQArray = Q_ARRAY_PATTERN.containsMatchIn(playerJs)
-        Log.d(TAG, "Q-array obfuscation check: hasQArray=$hasQArray")
-
-        if (hasQArray) {
-            val match = Q_ARRAY_PATTERN.find(playerJs)
-            if (match != null) {
-                val start = match.range.first
-                val qDefEnd = playerJs.indexOf(";", start)
-                if (qDefEnd > start) {
-                    val qDef = playerJs.substring(start, qDefEnd)
-                    val elementCount = qDef.count { it == '}' } + 1
-                    Log.d(TAG, "Q-array detected with ~$elementCount elements")
-                }
-            }
+        val match = STRING_ARRAY_PATTERN.find(playerJs)
+        if (match == null) {
+            Log.d(TAG, "String-array obfuscation check: none found")
+            return false
         }
-        return hasQArray
+        val name = match.groupValues[1]
+        val separator = match.groupValues[2]
+        val literalIndexed = Regex("""\b${Regex.escape(name)}\[\d+\]""").containsMatchIn(playerJs)
+        val computedIndexed = Regex("""\b${Regex.escape(name)}\[[^\]\d]""").containsMatchIn(playerJs)
+        Log.d(
+            TAG,
+            "String-array obfuscation: array=$name separator='$separator' " +
+                "literalIndexed=$literalIndexed computedIndexed=$computedIndexed",
+        )
+        return true
     }
 
+    /**
+     * Whether the player computes its string-array indices from runtime values.
+     *
+     * When it does, no pattern can name the signature function, because there is no longer a
+     * signature function to name: measured on `ecb23058`, the transform is inlined inside a
+     * control-flow-flattened dispatch (`mL=function(L,G,f,C)`) whose every index is an XOR of its
+     * arguments. Worth reporting rather than retrying — it is the difference between "the patterns
+     * are out of date" and "this player cannot be read this way".
+     */
+    fun hasComputedArrayIndices(playerJs: String): Boolean {
+        val name = STRING_ARRAY_PATTERN.find(playerJs)?.groupValues?.get(1) ?: return false
+        return Regex("""\b${Regex.escape(name)}\[[^\]\d]""").containsMatchIn(playerJs)
+    }
 
     fun extractPlayerHash(playerJs: String): String? {
         Log.d(TAG, "Extracting player hash from playerJs (${playerJs.length} chars)")
@@ -164,7 +197,10 @@ object FunctionNameExtractor {
      * @param playerJs The player.js content
      * @param knownHash Optional hash for hardcoded config lookup
      */
-    fun extractSigFunctionInfo(playerJs: String, knownHash: String? = null): SigFunctionInfo? {
+    fun extractSigFunctionInfo(
+        playerJs: String,
+        knownHash: String? = null,
+    ): SigFunctionInfo? {
         Log.d(TAG, "========== EXTRACTING SIG FUNCTION ==========")
         Log.d(TAG, "Player.js size: ${playerJs.length} chars")
 
@@ -176,7 +212,16 @@ object FunctionNameExtractor {
                 val constArg = if (match.groupValues.size > 2) match.groupValues[2].toIntOrNull() else null
                 Log.d(TAG, "SIG FUNCTION FOUND via pattern $index:")
                 Log.d(TAG, "  name=$name, constantArg=$constArg")
-                Log.d(TAG, "  match context: ...${playerJs.substring(maxOf(0, match.range.first - 20), minOf(playerJs.length, match.range.last + 20))}...")
+                Log.d(
+                    TAG,
+                    "  match context: ...${playerJs.substring(
+                        maxOf(0, match.range.first - 20),
+                        minOf(
+                            playerJs.length,
+                            match.range.last + 20,
+                        ),
+                    )}...",
+                )
                 return SigFunctionInfo(name, constArg, isHardcoded = false)
             }
         }
@@ -197,7 +242,7 @@ object FunctionNameExtractor {
                         constantArgs = config.sigConstantArgs,
                         preprocessFunc = config.sigPreprocessFunc,
                         preprocessArgs = config.sigPreprocessArgs,
-                        isHardcoded = true
+                        isHardcoded = true,
                     )
                 }
             }
@@ -215,7 +260,10 @@ object FunctionNameExtractor {
      * @param playerJs The player.js content
      * @param knownHash Optional hash for hardcoded config lookup
      */
-    fun extractNFunctionInfo(playerJs: String, knownHash: String? = null): NFunctionInfo? {
+    fun extractNFunctionInfo(
+        playerJs: String,
+        knownHash: String? = null,
+    ): NFunctionInfo? {
         Log.d(TAG, "========== EXTRACTING N-FUNCTION ==========")
         Log.d(TAG, "Player.js size: ${playerJs.length} chars")
 
@@ -242,6 +290,7 @@ object FunctionNameExtractor {
                         Log.d(TAG, "  name=$name, arrayIndex=$arrayIdx")
                         return NFunctionInfo(name, arrayIdx, isHardcoded = false)
                     }
+
                     1 -> {
                         val name = match.groupValues[2]
                         val arrayIdx = match.groupValues[3].toIntOrNull()
@@ -249,6 +298,7 @@ object FunctionNameExtractor {
                         Log.d(TAG, "  name=$name, arrayIndex=$arrayIdx")
                         return NFunctionInfo(name, arrayIdx, isHardcoded = false)
                     }
+
                     else -> {
                         if (pattern.toPattern().matcher("").groupCount() < 1) {
                             Log.d(TAG, "N-pattern $index matched but has no capture groups; skipping")
@@ -286,11 +336,12 @@ object FunctionNameExtractor {
     fun extractSignatureTimestamp(playerJs: String): Int? {
         Log.d(TAG, "Extracting signatureTimestamp...")
 
-        val patterns = listOf(
-            Regex("""signatureTimestamp['":\s]+(\d+)"""),
-            Regex("""sts['":\s]+(\d+)"""),
-            Regex(""""signatureTimestamp"\s*:\s*(\d+)""")
-        )
+        val patterns =
+            listOf(
+                Regex("""signatureTimestamp['":\s]+(\d+)"""),
+                Regex("""sts['":\s]+(\d+)"""),
+                Regex(""""signatureTimestamp"\s*:\s*(\d+)"""),
+            )
         for ((index, pattern) in patterns.withIndex()) {
             val match = pattern.find(playerJs)
             if (match != null) {
@@ -318,15 +369,19 @@ object FunctionNameExtractor {
      * @param playerJs The player.js content
      * @param knownHash Optional hash from PlayerJsFetcher (preferred over computed)
      */
-    fun analyzePlayerJs(playerJs: String, knownHash: String? = null): PlayerAnalysis {
+    fun analyzePlayerJs(
+        playerJs: String,
+        knownHash: String? = null,
+    ): PlayerAnalysis {
         Log.d(TAG, "=== PLAYER.JS CIPHER ANALYSIS ===")
 
-        val playerHash = if (knownHash != null) {
-            Log.d(TAG, "Using known hash from PlayerJsFetcher: $knownHash")
-            knownHash
-        } else {
-            extractPlayerHash(playerJs)
-        }
+        val playerHash =
+            if (knownHash != null) {
+                Log.d(TAG, "Using known hash from PlayerJsFetcher: $knownHash")
+                knownHash
+            } else {
+                extractPlayerHash(playerJs)
+            }
 
         val hasQArray = hasQArrayObfuscation(playerJs)
         val sigInfo = extractSigFunctionInfo(playerJs, playerHash)
@@ -338,7 +393,10 @@ object FunctionNameExtractor {
         Log.d(TAG, "Q-Array Obfuscated: $hasQArray")
         Log.d(TAG, "Sig Function:       ${sigInfo?.name ?: "NOT FOUND"} (hardcoded=${sigInfo?.isHardcoded})")
         Log.d(TAG, "Sig Constant Arg:   ${sigInfo?.constantArg}")
-        Log.d(TAG, "N-Function:         ${nFuncInfo?.name ?: "NOT FOUND"} (hardcoded=${nFuncInfo?.isHardcoded}, acceptsUrl=${nFuncInfo?.acceptsUrl})")
+        Log.d(
+            TAG,
+            "N-Function:         ${nFuncInfo?.name ?: "NOT FOUND"} (hardcoded=${nFuncInfo?.isHardcoded}, acceptsUrl=${nFuncInfo?.acceptsUrl})",
+        )
         Log.d(TAG, "N-Array Index:      ${nFuncInfo?.arrayIndex}")
         Log.d(TAG, "Signature TS:       $signatureTimestamp")
 
@@ -347,7 +405,7 @@ object FunctionNameExtractor {
             hasQArrayObfuscation = hasQArray,
             sigInfo = sigInfo,
             nFuncInfo = nFuncInfo,
-            signatureTimestamp = signatureTimestamp
+            signatureTimestamp = signatureTimestamp,
         )
     }
 
@@ -356,6 +414,6 @@ object FunctionNameExtractor {
         val hasQArrayObfuscation: Boolean,
         val sigInfo: SigFunctionInfo?,
         val nFuncInfo: NFunctionInfo?,
-        val signatureTimestamp: Int?
+        val signatureTimestamp: Int?,
     )
 }

@@ -210,12 +210,21 @@ object CipherDeobfuscator {
         Log.d(TAG, "Extracted signatureTimestamp: $cachedSignatureTimestamp")
         lastAnalyzedHash = hash
 
+        // Reported on a missing signature alone, not only when the n-function is missing too: the
+        // signature is the capability that is actually lost, and a player whose indices are computed
+        // at runtime cannot be read by any pattern, so the hash is the useful thing to report.
+        if (analysis.sigInfo == null) {
+            unparseablePlayerHash = hash
+            val computed = FunctionNameExtractor.hasComputedArrayIndices(playerJs)
+            Log.e(TAG, "No signature function in player JS (hash=$hash, computedArrayIndices=$computed)")
+        } else {
+            unparseablePlayerHash = null
+        }
+
         if (analysis.sigInfo == null && analysis.nFuncInfo == null) {
             Log.e(TAG, "Could not extract signature or n-function info from player JS (hash=$hash)")
-            unparseablePlayerHash = hash
             return null
         }
-        unparseablePlayerHash = null
 
         if (analysis.sigInfo == null) {
             Log.w(TAG, "Could not extract signature function info from player JS; n-transform may still work")
