@@ -1016,6 +1016,10 @@
     <string name="settings_categories_nav_tab_subtitle">Show a Trending &amp; Categories explore tab in the bottom navigation bar.</string>
     <string name="nav_explore">Explore</string>
     <string name="nav_more">More</string>
+    <string name="nav_rail_expand">Expand navigation</string>
+    <string name="nav_rail_collapse">Collapse navigation</string>
+    <string name="nav_rail_state_expanded">Expanded</string>
+    <string name="nav_rail_state_collapsed">Collapsed</string>
     <string name="categories_title">Categories</string>
     <string name="categories_switch_to_grid">Switch to grid view</string>
     <string name="categories_switch_to_list">Switch to list view</string>

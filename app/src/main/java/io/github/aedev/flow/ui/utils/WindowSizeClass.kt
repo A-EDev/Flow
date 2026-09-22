@@ -7,6 +7,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.window.core.layout.WindowSizeClass
+import androidx.window.core.layout.computeWindowSizeClass
 
 /**
  * The window's size class, computed once at the root from the container the app actually draws in,
@@ -32,7 +33,10 @@ fun ProvideWindowSizeClass(content: @Composable () -> Unit) {
     val windowSizeClass =
         remember(containerSize, density) {
             with(density) {
-                WindowSizeClass.compute(containerSize.width.toDp().value, containerSize.height.toDp().value)
+                WindowSizeClass.BREAKPOINTS_V2.computeWindowSizeClass(
+                    containerSize.width.toDp().value,
+                    containerSize.height.toDp().value,
+                )
             }
         }
     val isLandscape = remember(containerSize) { containerSize.width > containerSize.height }
@@ -48,6 +52,9 @@ val WindowSizeClass.isMediumWidth: Boolean
 
 val WindowSizeClass.isExpandedWidth: Boolean
     get() = isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+
+val WindowSizeClass.isLargeWidth: Boolean
+    get() = isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND)
 
 val WindowSizeClass.isMediumHeight: Boolean
     get() = isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND)

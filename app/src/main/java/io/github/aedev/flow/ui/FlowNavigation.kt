@@ -27,6 +27,7 @@ import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.shorts.queue.openAtVideoId
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.musicplayer.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
@@ -108,7 +109,7 @@ fun NavGraphBuilder.flowAppGraph(
     composable("home") {
         currentRoute.value = "home"
         showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
-        selectedBottomNavIndex.intValue = 0
+        selectedBottomNavIndex.intValue = FlowTab.Home.id
         HomeScreen(
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) {
@@ -162,7 +163,7 @@ fun NavGraphBuilder.flowAppGraph(
         val source = ShortsQueueSource.decode(backStackEntry.arguments?.getString(SHORTS_ROUTE_ARG))
         val isRootTab = source == ShortsQueueSource.Feed
         showBottomNav.value = isRootTab
-        if (isRootTab) selectedBottomNavIndex.intValue = 1
+        if (isRootTab) selectedBottomNavIndex.intValue = FlowTab.Shorts.id
         ShortsScreen(
             source = source,
             bottomNavOverlayPadding = if (isRootTab) bottomNavOverlayPadding() else 0.dp,
@@ -178,7 +179,7 @@ fun NavGraphBuilder.flowAppGraph(
     composable("subscriptions") {
         currentRoute.value = "subscriptions"
         showBottomNav.value = true
-        selectedBottomNavIndex.intValue = 3
+        selectedBottomNavIndex.intValue = FlowTab.Subscriptions.id
         SubscriptionsScreen(
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) {
@@ -202,7 +203,7 @@ fun NavGraphBuilder.flowAppGraph(
     composable("library") {
         currentRoute.value = "library"
         showBottomNav.value = true
-        selectedBottomNavIndex.intValue = 4
+        selectedBottomNavIndex.intValue = FlowTab.Library.id
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
         val downloadsSourceName =
             androidx.compose.ui.res.stringResource(
@@ -275,7 +276,7 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "search"
         // Search owns the whole screen, the way YouTube's does.
         showBottomNav.value = false
-        selectedBottomNavIndex.intValue = 5
+        selectedBottomNavIndex.intValue = FlowTab.Search.id
         SearchScreen(
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) { navController.navigateToPlayer(it.id) }
@@ -298,7 +299,7 @@ fun NavGraphBuilder.flowAppGraph(
     composable("categories") {
         currentRoute.value = "categories"
         showBottomNav.value = true
-        selectedBottomNavIndex.intValue = 6
+        selectedBottomNavIndex.intValue = FlowTab.Explore.id
         io.github.aedev.flow.ui.screens.categories.CategoriesScreen(
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) { navController.navigateToPlayer(it.id) }
@@ -818,7 +819,7 @@ fun NavGraphBuilder.flowAppGraph(
     composable("music") {
         currentRoute.value = "music"
         showBottomNav.value = true
-        selectedBottomNavIndex.intValue = 2
+        selectedBottomNavIndex.intValue = FlowTab.Music.id
 
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
 

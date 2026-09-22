@@ -13,10 +13,8 @@ import androidx.compose.material.icons.automirrored.outlined.Comment
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.DesktopWindows
-import androidx.compose.material.icons.outlined.DragIndicator
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
@@ -57,12 +55,12 @@ import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.local.WatchedThreshold
-import io.github.aedev.flow.ui.NavigationVisibility
+import io.github.aedev.flow.ui.components.layout.navigation.NavigationVisibility
+import io.github.aedev.flow.ui.components.layout.navigation.resolveDefaultFlowTab
+import io.github.aedev.flow.ui.components.layout.navigation.visibleFlowTabs
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
-import io.github.aedev.flow.ui.resolveDefaultNavTabIndex
 import io.github.aedev.flow.ui.theme.GridItemSize
-import io.github.aedev.flow.ui.visibleNavTabIndices
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,13 +134,8 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
             search = isSearchNavigationEnabled,
             categories = isCategoriesNavigationEnabled,
         )
-    val visibleNavIndices = visibleNavTabIndices(navTabOrder, navigationVisibility)
-    val resolvedDefaultNavTabIndex =
-        resolveDefaultNavTabIndex(
-            preferredIndex = defaultNavTabIndex,
-            order = navTabOrder,
-            visibility = navigationVisibility,
-        )
+    val visibleNavTabs = visibleFlowTabs(navTabOrder, navigationVisibility)
+    val defaultNavTab = resolveDefaultFlowTab(defaultNavTabIndex, navTabOrder, navigationVisibility)
     val downloadDialogStyle by preferences.downloadDialogStyle.collectAsState(
         initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL,
     )
@@ -880,23 +873,16 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     NavTabOrderSettings(
                         order = navTabOrder,
-                        enabledIndices = visibleNavIndices.toSet(),
-                        defaultTabIndex = resolvedDefaultNavTabIndex,
-                        onMove = { index, direction ->
-                            val currentIndex = navTabOrder.indexOf(index)
-                            val targetIndex = (currentIndex + direction).coerceIn(0, navTabOrder.lastIndex)
-                            if (currentIndex >= 0 && currentIndex != targetIndex) {
-                                val updated = navTabOrder.toMutableList()
-                                val moved = updated.removeAt(currentIndex)
-                                updated.add(targetIndex, moved)
-                                coroutineScope.launch {
-                                    preferences.setNavTabOrder(updated)
-                                }
+                        enabledTabs = visibleNavTabs.toSet(),
+                        defaultTab = defaultNavTab,
+                        onOrderChanged = { updated ->
+                            coroutineScope.launch {
+                                preferences.setNavTabOrder(updated)
                             }
                         },
-                        onDefaultSelected = { index ->
+                        onDefaultSelected = { tab ->
                             coroutineScope.launch {
-                                preferences.setDefaultNavTabIndex(index)
+                                preferences.setDefaultNavTabIndex(tab.id)
                             }
                         },
                     )
@@ -1110,109 +1096,6 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
         )
     }
 }
-
-@Composable
-private fun NavTabOrderSettings(
-    order: List<Int>,
-    enabledIndices: Set<Int>,
-    defaultTabIndex: Int,
-    onMove: (index: Int, direction: Int) -> Unit,
-    onDefaultSelected: (Int) -> Unit,
-) {
-    Column(modifier = Modifier.padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Outlined.DragIndicator,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = stringResource(R.string.content_settings_nav_order_title),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    text = stringResource(R.string.content_settings_nav_order_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        order.forEachIndexed { position, index ->
-            val enabled = index in enabledIndices
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RadioButton(
-                    selected = defaultTabIndex == index,
-                    enabled = enabled,
-                    onClick = { onDefaultSelected(index) },
-                )
-                Icon(
-                    navTabIcon(index),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = navTabLabel(index),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(
-                    onClick = { onMove(index, -1) },
-                    enabled = position > 0,
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.move_up))
-                }
-                IconButton(
-                    onClick = { onMove(index, 1) },
-                    enabled = position < order.lastIndex,
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.move_down))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun navTabLabel(index: Int): String =
-    when (index) {
-        0 -> stringResource(R.string.nav_home)
-        1 -> stringResource(R.string.nav_shorts)
-        2 -> stringResource(R.string.nav_music)
-        3 -> stringResource(R.string.nav_subs)
-        4 -> stringResource(R.string.nav_library)
-        5 -> stringResource(R.string.nav_search)
-        6 -> stringResource(R.string.nav_explore)
-        else -> stringResource(R.string.nav_home)
-    }
-
-@Composable
-private fun navTabIcon(index: Int): ImageVector =
-    when (index) {
-        0 -> Icons.Outlined.Home
-        1 -> ImageVector.vectorResource(id = R.drawable.ic_shorts)
-        2 -> Icons.Outlined.MusicNote
-        3 -> Icons.Outlined.Subscriptions
-        4 -> Icons.Outlined.VideoLibrary
-        5 -> Icons.Outlined.Search
-        6 -> Icons.Outlined.Explore
-        else -> Icons.Outlined.Home
-    }
 
 @Composable
 private fun watchedThresholdLabel(threshold: WatchedThreshold): String =
