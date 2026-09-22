@@ -321,7 +321,7 @@ object InnerTubeVideoStreamExtractor {
         coroutineScope {
             val sts: Int? =
                 if (clients.any { it.useSignatureTimestamp }) {
-                    NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+                    CipherDeobfuscator.ensureSignatureTimestamp()
                 } else {
                     null
                 }
@@ -451,7 +451,8 @@ object InnerTubeVideoStreamExtractor {
                     PlayerDiagnostics.logWarning(
                         TAG,
                         "probe ${client.clientName} v${client.clientVersion}: adaptive=${adaptiveFormats.size} " +
-                            "hasUrl=$rawUrlCount resolvable=${formatsWithUrl.size} sabr=$sabrPresent pot=${clientPoToken != null}",
+                            "hasUrl=$rawUrlCount resolvable=${formatsWithUrl.size} sabr=$sabrPresent " +
+                            "pot=${clientPoToken != null} attest=${playerResponse.attestationDemand()}",
                     )
                     if (formatsWithUrl.isEmpty()) {
                         failureReasons.add("${client.clientName}: ${adaptiveFormats.size} formats, none resolvable (SABR-only)")
@@ -575,9 +576,7 @@ object InnerTubeVideoStreamExtractor {
                 Log.w(TAG, "$label+SABR: PoToken mint returned null (WebView missing/broken?)")
                 return null
             }
-            val sts =
-                NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
-                    ?: CipherDeobfuscator.ensureSignatureTimestamp()
+            val sts = CipherDeobfuscator.ensureSignatureTimestamp()
 
             val playerResponse =
                 withTimeoutOrNull(WEB_PLAYER_TIMEOUT_MS) {
@@ -737,7 +736,7 @@ object InnerTubeVideoStreamExtractor {
     ): VideoExtractionResult? {
         val sts: Int? =
             if (LIVE_MANIFEST_CLIENTS.any { it.useSignatureTimestamp }) {
-                NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+                CipherDeobfuscator.ensureSignatureTimestamp()
             } else {
                 null
             }
@@ -800,6 +799,20 @@ object InnerTubeVideoStreamExtractor {
             liveHlsUrl = hls,
             liveDashUrl = dash,
         )
+    }
+
+    /**
+     * Whether YouTube asked this client to attest for this video, and under what shape.
+     *
+     * Reported next to the format counts because the two together are the question that matters
+     * when a client's URLs are refused: was the response served freely, or did the server already
+     * signal that it wanted proof this client could not give?
+     */
+    private fun PlayerResponse.attestationDemand(): String {
+        val renderer = attestation?.playerAttestationRenderer ?: return "none"
+        val challenge = renderer.challenge ?: return "empty"
+        val shared = if (renderer.useSharedChallenge == true) ",shared" else ""
+        return "yes(${challenge.length}c$shared)"
     }
 
     private fun isBotWall(reason: String?): Boolean {

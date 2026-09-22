@@ -3,6 +3,7 @@ package io.github.aedev.flow.utils.cipher
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -52,14 +53,21 @@ object CipherDeobfuscator {
     fun getSignatureTimestamp(): Int? = cachedSignatureTimestamp
 
     /**
-     * Ensure the signature timestamp is available, fetching/analyzing the player JS if needed.
-     * Required by the WEB client player request. Safe to call repeatedly (cached after first).
+     * The signature timestamp the WEB/MWEB `/player` request has to send. Cached after the first
+     * read; the player script itself is cached by [PlayerJsFetcher].
+     *
+     * Reads the script and runs one regex rather than standing up the cipher WebView: the timestamp
+     * is a plain number in the script and needs none of the machinery a decipher does. That also
+     * makes it independent of signature extraction, which the current player defeats entirely —
+     * the timestamp still resolves on players whose cipher cannot be read at all.
      */
     suspend fun ensureSignatureTimestamp(): Int? {
         cachedSignatureTimestamp?.let { return it }
         return try {
-            getOrCreateWebView(forceRefresh = false)
-            cachedSignatureTimestamp
+            val playerJs = PlayerJsFetcher.getPlayerJs()?.first ?: return null
+            FunctionNameExtractor.extractSignatureTimestamp(playerJs)?.also { cachedSignatureTimestamp = it }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "ensureSignatureTimestamp failed: ${e.message}")
             cachedSignatureTimestamp
