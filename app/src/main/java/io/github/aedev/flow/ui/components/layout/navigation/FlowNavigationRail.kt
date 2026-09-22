@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.layout.navigation
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -37,7 +38,7 @@ private val HeaderButtonStartPadding = 24.dp
 
 /**
  * The start-edge navigation rail. Collapsed by default; on large windows its header offers an
- * expanded form with labels beside the icons.
+ * expanded form with labels beside the icons. Items centre on the full height; the header stays on top.
  */
 @Composable
 internal fun FlowNavigationRail(
@@ -57,13 +58,14 @@ internal fun FlowNavigationRail(
         modifier = modifier.fillMaxHeight(),
         state = state,
         header = if (expandable) ({ RailToggle(state) }) else null,
+        arrangement = Arrangement.Center,
     ) {
         tabs.forEach { tab ->
             val selected = tab == selectedTab
             WideNavigationRailItem(
                 selected = selected,
                 onClick = { onTabSelected(tab) },
-                icon = { Icon(imageVector = tab.icon(selected), contentDescription = null) },
+                icon = { FlowTabIcon(tab = tab, selected = selected) },
                 label = { Text(text = stringResource(tab.labelRes)) },
                 railExpanded = railExpanded,
             )

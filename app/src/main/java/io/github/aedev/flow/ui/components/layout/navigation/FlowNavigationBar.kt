@@ -8,6 +8,7 @@ import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.NavigationItemIconPosition
 import androidx.compose.material3.ShortNavigationBar
@@ -45,6 +46,7 @@ internal fun FlowNavigationBar(
 
     ShortNavigationBar(
         modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
         arrangement =
             if (horizontalItems) ShortNavigationBarArrangement.Centered else ShortNavigationBarArrangement.EqualWeight,
     ) {
@@ -53,7 +55,7 @@ internal fun FlowNavigationBar(
             ShortNavigationBarItem(
                 selected = selected,
                 onClick = { onTabSelected(tab) },
-                icon = { Icon(imageVector = tab.icon(selected), contentDescription = null) },
+                icon = { FlowTabIcon(tab = tab, selected = selected) },
                 label = { Text(text = stringResource(tab.labelRes)) },
                 iconPosition = iconPosition,
             )
@@ -80,10 +82,15 @@ private fun OverflowItem(
     // One Box per bar slot: the bar measures every direct child as an item, and the menu's
     // popup anchor would otherwise count as one.
     Box(propagateMinConstraints = true) {
+        val selected = selectedTab in tabs
         ShortNavigationBarItem(
-            selected = selectedTab in tabs,
+            selected = selected,
             onClick = { expanded = true },
-            icon = { Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = null) },
+            icon = {
+                AnimatedNavIcon(selected = selected, pose = OverflowPose) {
+                    Icon(imageVector = Icons.Filled.MoreHoriz, contentDescription = null)
+                }
+            },
             label = { Text(text = stringResource(R.string.nav_more)) },
             iconPosition = iconPosition,
         )
