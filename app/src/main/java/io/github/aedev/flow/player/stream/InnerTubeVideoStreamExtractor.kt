@@ -808,7 +808,7 @@ object InnerTubeVideoStreamExtractor {
      * when a client's URLs are refused: was the response served freely, or did the server already
      * signal that it wanted proof this client could not give?
      */
-    private fun PlayerResponse.attestationDemand(): String {
+    internal fun PlayerResponse.attestationDemand(): String {
         val renderer = attestation?.playerAttestationRenderer ?: return "none"
         val challenge = renderer.challenge ?: return "empty"
         val shared = if (renderer.useSharedChallenge == true) ",shared" else ""
