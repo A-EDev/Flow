@@ -121,7 +121,11 @@ class MusicRadioPlannerTest {
         assertThat(context.explicit).isFalse()
     }
 
-    private fun track(id: String) = MusicTrack(videoId = id, title = id, artist = "A", thumbnailUrl = "", duration = 100)
+    // Distinct by default so the pool tests exercise pooling, not the per-artist cap.
+    private fun track(
+        id: String,
+        artist: String = id,
+    ) = MusicTrack(videoId = id, title = id, artist = artist, thumbnailUrl = "", duration = 100)
 
     @Test
     fun `a fresh pool never lists what is already queued`() {
@@ -196,5 +200,55 @@ class MusicRadioPlannerTest {
         val batch = MusicRadioPlanner.nextBatch(pool, queueIds = setOf("a"), limit = 2)
 
         assertThat(batch.map { it.videoId }).containsExactly("b", "c").inOrder()
+    }
+
+    @Test
+    fun `one artist cannot fill the station`() {
+        val candidates = List(10) { track("x$it", artist = "Same") }
+
+        val pool = MusicRadioPlanner.seedPool(candidates, currentId = null, queueIds = emptySet())
+
+        assertThat(pool).hasSize(MusicRadioPlanner.MAX_TRACKS_PER_ARTIST)
+    }
+
+    @Test
+    fun `capping keeps an artist's best-placed tracks and the order around them`() {
+        val candidates =
+            listOf(
+                track("a1", "A"),
+                track("b1", "B"),
+                track("a2", "A"),
+                track("a3", "A"),
+                track("c1", "C"),
+            )
+
+        val pool = MusicRadioPlanner.seedPool(candidates, currentId = null, queueIds = emptySet())
+
+        assertThat(pool.map { it.videoId }).containsExactly("a1", "b1", "a2", "c1").inOrder()
+    }
+
+    @Test
+    fun `a top-up cannot sneak an artist past the cap`() {
+        val existing = listOf(track("a1", "A"), track("a2", "A"), track("b1", "B"))
+
+        val grown = MusicRadioPlanner.growPool(existing, listOf(track("a3", "A"), track("b2", "B")), null, emptySet())
+
+        assertThat(grown.map { it.videoId }).containsExactly("a1", "a2", "b1", "b2").inOrder()
+    }
+
+    @Test
+    fun `a varied page is kept whole`() {
+        val candidates = List(6) { track("t$it", artist = "Artist $it") }
+
+        val pool = MusicRadioPlanner.seedPool(candidates, currentId = null, queueIds = emptySet())
+
+        assertThat(pool).hasSize(6)
+    }
+
+    @Test
+    fun `artists are counted by identity, not by track`() {
+        val counts = MusicRadioPlanner.artistCounts(listOf(track("a1", "A"), track("a2", "A"), track("b1", "B")))
+
+        assertThat(counts.values).containsExactly(2, 1)
     }
 }
