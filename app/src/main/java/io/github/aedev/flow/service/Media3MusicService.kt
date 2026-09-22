@@ -21,6 +21,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -46,6 +47,8 @@ import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
+import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
+import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
 import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
@@ -91,6 +94,7 @@ class Media3MusicService : MediaLibraryService() {
         private const val RADIO_APPEND_BATCH = 10
         private const val RADIO_POOL_LOW_WATER = 15
         private const val LOCAL_MEDIA_PREFIX = "local_"
+        private const val MUSIC_URI_SCHEME = "music"
 
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
@@ -141,6 +145,10 @@ class Media3MusicService : MediaLibraryService() {
     private var radioAutoplayEnabled = true
     private var loudnessNormalizationEnabled = true
     private var lastQueueIds: List<String>? = null
+
+    // The item a network failure was deferred for: connectivity can come back long after the
+    // playlist has moved on, so the retry must not re-target whatever is current by then.
+    private var pendingNetworkRetry: MusicPlaybackRecoveryPlanner.FailedItem? = null
 
     // A radio the user started by name outruns the passive endless-radio toggle: that switch
     // governs queues that run out on their own, not a station the user asked for.
@@ -212,7 +220,12 @@ class Media3MusicService : MediaLibraryService() {
             io.github.aedev.flow.data.local
                 .PlayerPreferences(this@Media3MusicService)
         lifecycleScope.launch {
-            prefs.musicEndlessRadioEnabled.collect { radioAutoplayEnabled = it }
+            prefs.musicEndlessRadioEnabled.collect { enabled ->
+                val wasEnabled = radioAutoplayEnabled
+                radioAutoplayEnabled = enabled
+                // Switching it on mid-track otherwise does nothing until the next transition.
+                if (enabled && !wasEnabled && ::player.isInitialized) maybeExtendRadio()
+            }
         }
         lifecycleScope.launch {
             prefs.musicLoudnessNormalizationEnabled.collect {
@@ -280,7 +293,7 @@ class Media3MusicService : MediaLibraryService() {
             val position = player.currentPosition
             val wasPlaying = player.playWhenReady
             downloadUtil.performAggressiveCacheClear(mediaId)
-            refreshCurrentMediaItem(mediaId, position)
+            refreshStreamMediaItemAt(currentIndex, mediaId, position)
             player.prepare()
             player.playWhenReady = wasPlaying
             Log.d(TAG, "Re-streaming $mediaId at new quality from ${position}ms")
@@ -337,10 +350,6 @@ class Media3MusicService : MediaLibraryService() {
                     updateNotification()
                 }
 
-                override fun onPlayerError(error: PlaybackException) {
-                    handlePlayerError(error)
-                }
-
                 override fun onMediaItemTransition(
                     mediaItem: androidx.media3.common.MediaItem?,
                     reason: Int,
@@ -354,11 +363,6 @@ class Media3MusicService : MediaLibraryService() {
                         reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
                     ) {
                         player.seekTo(0L)
-                    }
-
-                    if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
-                        retryCountMap.clear()
-                        lastPlaybackErrorAtMap.clear()
                     }
 
                     mediaItem?.let { item ->
@@ -471,6 +475,19 @@ class Media3MusicService : MediaLibraryService() {
                 }
             },
         )
+
+        // The item that failed is not always the current one: a next-item preload can fail while
+        // the previous track still plays. Only EventTime names the window that actually broke.
+        player.addAnalyticsListener(
+            object : AnalyticsListener {
+                override fun onPlayerError(
+                    eventTime: AnalyticsListener.EventTime,
+                    error: PlaybackException,
+                ) {
+                    handlePlayerError(error, eventTime.windowIndex)
+                }
+            },
+        )
     }
 
     // ── Listen-session accounting (feeds MusicBrainEngine) ──
@@ -564,26 +581,36 @@ class Media3MusicService : MediaLibraryService() {
     /**
      * Main error handling logic with error-type-specific handlers.
      */
-    private fun handlePlayerError(error: PlaybackException) {
-        val mediaId = player.currentMediaItem?.mediaId
-        if (mediaId == null) {
-            Log.e(TAG, "Player error with no current media item", error)
+    private fun handlePlayerError(
+        error: PlaybackException,
+        errorWindowIndex: Int,
+    ) {
+        val failed =
+            MusicPlaybackRecoveryPlanner.resolveFailedItem(
+                errorWindowIndex = errorWindowIndex,
+                currentIndex = player.currentMediaItemIndex,
+                currentPositionMs = player.currentPosition,
+                mediaIds = playerMediaIds(),
+            )
+        if (failed == null) {
+            Log.e(TAG, "Player error with no resolvable media item", error)
             return
         }
+        val mediaId = failed.mediaId
 
         Log.e(TAG, "Playback error for $mediaId: ${error.errorCodeName} (code=${error.errorCode})", error)
         lastPlaybackErrorAtMap[mediaId] = System.currentTimeMillis()
 
         if (recentlyFailedSongs.contains(mediaId)) {
             Log.w(TAG, "$mediaId is in recently failed list, skipping to next")
-            skipToNext()
+            skipPastFailedItem(failed)
             return
         }
 
         val currentRetry = retryCountMap.getOrDefault(mediaId, 0)
 
         if (currentRetry >= MAX_RETRY_PER_SONG) {
-            handleFinalFailure(mediaId)
+            handleFinalFailure(failed)
             return
         }
 
@@ -592,39 +619,88 @@ class Media3MusicService : MediaLibraryService() {
         when {
             isAudioRendererError(error) -> {
                 Log.d(TAG, "AudioTrack error detected (${error.errorCode}), performing safe recovery")
-                handleAudioRendererError(mediaId, currentRetry)
+                handleAudioRendererError(failed, currentRetry)
             }
 
             isRangeNotSatisfiableError(error) -> {
                 Log.d(TAG, "Range Not Satisfiable (416) detected, performing strict recovery")
-                handleRangeNotSatisfiableError(mediaId, currentRetry)
+                handleRangeNotSatisfiableError(failed, currentRetry)
             }
 
             isPageReloadError(error) -> {
                 Log.d(TAG, "Page reload error detected, performing strict recovery")
-                handlePageReloadError(mediaId, currentRetry)
+                handlePageReloadError(failed, currentRetry)
             }
 
             isExpiredUrlError(error) -> {
                 Log.d(TAG, "Expired URL (403) detected, refreshing stream URL")
                 notifyMusicWarning(getString(R.string.music_playback_warning_forbidden))
-                handleExpiredUrlError(mediaId, currentRetry)
+                handleExpiredUrlError(failed, currentRetry)
             }
 
             isFileNotFoundError(error) -> {
                 Log.d(TAG, "Cache file missing (ENOENT) detected, refreshing stream")
-                handleFileNotFoundError(mediaId, currentRetry)
+                handleFileNotFoundError(failed, currentRetry)
             }
 
             !connectivityObserver.checkCurrentConnectivity() || isNetworkError(error) -> {
                 Log.d(TAG, "Network-related error detected, waiting for connection")
                 notifyMusicWarning(getString(R.string.music_playback_warning_network))
-                handleNetworkError(mediaId, currentRetry)
+                handleNetworkError(failed, currentRetry)
             }
 
             else -> {
                 Log.d(TAG, "Generic/IO error detected (${error.errorCode}), attempting recovery")
-                handleGenericError(mediaId, currentRetry)
+                handleGenericError(failed, currentRetry)
+            }
+        }
+    }
+
+    private fun playerMediaIds(): List<String> = List(player.mediaItemCount) { player.getMediaItemAt(it).mediaId }
+
+    /**
+     * Where the failed item sits in the playlist *now*. Recovery runs after a delay, and the radio
+     * appends and queue edits in between move it — an index captured at error time goes stale.
+     */
+    private fun playerIndexOf(failed: MusicPlaybackRecoveryPlanner.FailedItem): Int =
+        MusicQueuePlanner.currentQueueIndex(
+            queueIds = playerMediaIds(),
+            playerIndex = failed.index,
+            currentTrackId = failed.mediaId,
+        )
+
+    /** Re-prepares the item that actually failed, never whatever happens to be current. */
+    private fun restartFailedItem(
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
+        fromStart: Boolean = false,
+    ) {
+        val index = playerIndexOf(failed)
+        if (index == MusicQueuePlanner.INDEX_UNSET) return
+        player.seekTo(index, if (fromStart) 0L else failed.resumePositionMs)
+        player.prepare()
+        player.play()
+    }
+
+    private fun skipPastFailedItem(failed: MusicPlaybackRecoveryPlanner.FailedItem) {
+        val index = playerIndexOf(failed)
+        when {
+            // Shuffle order only matters from where we stand, so hand the skip to the player.
+            index == player.currentMediaItemIndex && player.hasNextMediaItem() -> {
+                player.seekToNextMediaItem()
+                player.prepare()
+                player.play()
+            }
+
+            index != MusicQueuePlanner.INDEX_UNSET && index + 1 < player.mediaItemCount -> {
+                player.seekTo(index + 1, 0L)
+                player.prepare()
+                player.play()
+            }
+
+            player.repeatMode == Player.REPEAT_MODE_ALL && player.mediaItemCount > 0 -> {
+                player.seekTo(0, 0L)
+                player.prepare()
+                player.play()
             }
         }
     }
@@ -684,46 +760,35 @@ class Media3MusicService : MediaLibraryService() {
             error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
 
     private fun handleAudioRendererError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        retryCountMap[mediaId] = currentRetry + 1
+        retryCountMap[failed.mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 try {
                     player.pause()
                     delay(BASE_RETRY_DELAY_MS * 3)
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val currentPosition = player.currentPosition
-                        player.seekTo(currentIndex, currentPosition)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
                     Log.e(TAG, "AudioTrack recovery failed", e)
-                    handleFinalFailure(mediaId)
+                    handleFinalFailure(failed)
                 }
             }
     }
 
     private fun handleRangeNotSatisfiableError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        retryCountMap[mediaId] = currentRetry + 1
+        retryCountMap[failed.mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        player.seekTo(currentIndex, 0L)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed, fromStart = true)
                 } catch (e: Exception) {
                     Log.e(TAG, "Range retry failed", e)
                 }
@@ -731,22 +796,16 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun handlePageReloadError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        retryCountMap[mediaId] = currentRetry + 1
+        retryCountMap[failed.mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS * 2)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val currentPosition = player.currentPosition
-                        player.seekTo(currentIndex, currentPosition)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
                     Log.e(TAG, "Page reload recovery failed", e)
                 }
@@ -754,24 +813,22 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun handleExpiredUrlError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
+        val mediaId = failed.mediaId
         retryCountMap[mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val currentPosition = player.currentPosition
-                        downloadUtil.invalidateUrlCache(mediaId)
-                        MusicPlayerUtils.forceRefreshForVideo(mediaId)
-                        io.github.aedev.flow.player.EnhancedMusicPlayerManager
-                            .invalidateResolvedStream(mediaId)
-                        player.stop()
-                        refreshCurrentMediaItem(mediaId, currentPosition)
+                    downloadUtil.invalidateUrlCache(mediaId)
+                    MusicPlayerUtils.forceRefreshForVideo(mediaId)
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                        .invalidateResolvedStream(mediaId)
+                    player.stop()
+                    if (refreshStreamMediaItem(failed)) {
                         player.prepare()
                         player.play()
                     }
@@ -781,43 +838,49 @@ class Media3MusicService : MediaLibraryService() {
             }
     }
 
-    private fun refreshCurrentMediaItem(
+    /**
+     * Rebuilds a streaming item so the next prepare resolves a fresh url. Returns false when the
+     * item is gone or plays from a local file, which has no url to refresh — rewriting one would
+     * silently turn offline playback into a stream.
+     */
+    private fun refreshStreamMediaItem(failed: MusicPlaybackRecoveryPlanner.FailedItem): Boolean {
+        val index = playerIndexOf(failed)
+        if (index == MusicQueuePlanner.INDEX_UNSET) return false
+        return refreshStreamMediaItemAt(index, failed.mediaId, failed.resumePositionMs)
+    }
+
+    private fun refreshStreamMediaItemAt(
+        index: Int,
         mediaId: String,
         positionMs: Long,
-    ) {
-        val currentIndex = player.currentMediaItemIndex
-        if (currentIndex == C.INDEX_UNSET) return
+    ): Boolean {
+        val currentItem = player.getMediaItemAt(index)
+        if (currentItem.localConfiguration?.uri?.scheme != MUSIC_URI_SCHEME) return false
 
-        val currentItem = player.getMediaItemAt(currentIndex)
         val refreshedItem =
             currentItem
                 .buildUpon()
-                .setUri("music://$mediaId")
+                .setUri("$MUSIC_URI_SCHEME://$mediaId")
                 .setMediaId(mediaId)
                 .setCustomCacheKey(mediaId)
                 .build()
 
-        player.replaceMediaItem(currentIndex, refreshedItem)
-        player.seekTo(currentIndex, positionMs)
+        player.replaceMediaItem(index, refreshedItem)
+        player.seekTo(index, positionMs)
+        return true
     }
 
     private fun handleFileNotFoundError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        retryCountMap[mediaId] = currentRetry + 1
+        retryCountMap[failed.mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val currentPosition = player.currentPosition
-                        player.seekTo(currentIndex, currentPosition)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
                     Log.e(TAG, "File not found recovery failed", e)
                 }
@@ -825,23 +888,24 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun handleNetworkError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
+        pendingNetworkRetry = failed
         if (!connectivityObserver.checkCurrentConnectivity()) {
             Log.d(TAG, "No network connectivity, waiting for connection...")
             waitingForNetwork = true
-            retryCountMap[mediaId] = currentRetry + 1
+            retryCountMap[failed.mediaId] = currentRetry + 1
         } else {
-            scheduleRetry(mediaId, currentRetry, delayMultiplier = 2.0)
+            scheduleRetry(failed, currentRetry, delayMultiplier = 2.0)
         }
     }
 
     private fun handleGenericError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        scheduleRetry(mediaId, currentRetry, delayMultiplier = 1.5)
+        scheduleRetry(failed, currentRetry, delayMultiplier = 1.5)
     }
 
     private fun retryJobCancel() {
@@ -850,35 +914,30 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun scheduleRetry(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
         delayMultiplier: Double,
     ) {
+        val mediaId = failed.mediaId
         retryCountMap[mediaId] = currentRetry + 1
         val baseDelay = (BASE_RETRY_DELAY_MS * delayMultiplier).toLong()
         val delay = min(baseDelay * (1L shl currentRetry), MAX_RETRY_DELAY_MS)
 
         Log.d(TAG, "Scheduling retry ${currentRetry + 1}/$MAX_RETRY_PER_SONG for $mediaId in ${delay}ms")
-
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(delay)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val position = player.currentPosition
-                        player.seekTo(currentIndex, position)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
                     Log.e(TAG, "Scheduled retry failed for $mediaId", e)
                 }
             }
     }
 
-    private fun handleFinalFailure(mediaId: String) {
+    private fun handleFinalFailure(failed: MusicPlaybackRecoveryPlanner.FailedItem) {
+        val mediaId = failed.mediaId
         Log.w(TAG, "All retries exhausted for $mediaId, marking as failed")
         notifyMusicWarning(getString(R.string.music_playback_warning_final))
         retryCountMap.remove(mediaId)
@@ -887,23 +946,7 @@ class Media3MusicService : MediaLibraryService() {
             recentlyFailedSongs.iterator().next().let { recentlyFailedSongs.remove(it) }
         }
         recentlyFailedSongs.add(mediaId)
-        skipToNext()
-    }
-
-    private fun skipToNext() {
-        when {
-            player.hasNextMediaItem() -> {
-                player.seekToNextMediaItem()
-                player.prepare()
-                player.play()
-            }
-
-            player.repeatMode == Player.REPEAT_MODE_ALL && player.mediaItemCount > 0 -> {
-                player.seekTo(0, 0L)
-                player.prepare()
-                player.play()
-            }
-        }
+        skipPastFailedItem(failed)
     }
 
     private fun notifyMusicWarning(message: String) {
@@ -926,28 +969,23 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun triggerRetryAfterNetworkRestore() {
-        val mediaId = player.currentMediaItem?.mediaId ?: return
-        val currentRetry = retryCountMap.getOrDefault(mediaId, 0)
+        val failed = pendingNetworkRetry ?: return
+        val currentRetry = retryCountMap.getOrDefault(failed.mediaId, 0)
 
         if (currentRetry < MAX_RETRY_PER_SONG) {
-            Log.d(TAG, "Triggering retry after network restore for $mediaId")
-            performAggressiveCacheClear(mediaId)
+            Log.d(TAG, "Triggering retry after network restore for ${failed.mediaId}")
+            performAggressiveCacheClear(failed.mediaId)
 
             lifecycleScope.launch {
                 delay(1000)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val position = player.currentPosition
-                        player.seekTo(currentIndex, position)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Network restore retry failed for $mediaId", e)
+                    Log.e(TAG, "Network restore retry failed for ${failed.mediaId}", e)
                 }
             }
         }
+        pendingNetworkRetry = null
     }
 
     @OptIn(UnstableApi::class)
@@ -1127,6 +1165,8 @@ class Media3MusicService : MediaLibraryService() {
     private fun startRadio(seedId: String) {
         automixJob?.cancel()
         radioTopUpJob?.cancel()
+        io.github.aedev.flow.player.EnhancedMusicPlayerManager
+            .setRadioLoading(true)
         automixJob =
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -1162,7 +1202,14 @@ class Media3MusicService : MediaLibraryService() {
                         radioEndpoint = page?.endpoint
                     }
 
-                    val ranked = musicBrain.rankTracks(mapped, "radio")
+                    // Ordered once, here: the pool IS the up-next list the user reads, so the
+                    // queue must be able to take it from the head without re-sequencing.
+                    val ranked =
+                        musicBrain.sequenceRadioBatch(
+                            musicBrain.rankTracks(mapped, "radio"),
+                            io.github.aedev.flow.player.EnhancedMusicPlayerManager.currentTrack.value,
+                            MusicRadioPlanner.MAX_POOL_SIZE,
+                        )
                     Log.d(TAG, "Radio seeded from $seedId: ${ranked.size} tracks, continuation=${radioContinuation != null}")
                     if (ranked.isNotEmpty()) {
                         io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -1175,6 +1222,9 @@ class Media3MusicService : MediaLibraryService() {
                     throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "Error seeding radio", e)
+                } finally {
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                        .setRadioLoading(false)
                 }
             }
     }
@@ -1206,15 +1256,7 @@ class Media3MusicService : MediaLibraryService() {
         if (!ended && remaining > RADIO_MIN_UPCOMING) return
 
         val queueIds = manager.queue.value.mapTo(HashSet()) { it.videoId }
-        // A wider candidate window than the batch gives the artist spread real
-        // alternatives; sequencing is seeded with the queue tail so the appended
-        // batch never opens with the artist that just played (review feedback:
-        // same artist back-to-back in a 10-track radio queue).
-        val candidates =
-            manager.automixItems.value
-                .filterNot { it.videoId in queueIds }
-                .take(RADIO_APPEND_BATCH * 2)
-        val batch = musicBrain.sequenceRadioBatch(candidates, manager.queue.value.lastOrNull(), RADIO_APPEND_BATCH)
+        val batch = MusicRadioPlanner.nextBatch(manager.automixItems.value, queueIds, RADIO_APPEND_BATCH)
         if (ended && batch.isNotEmpty() && !radioResumeWhenAppended) {
             radioResumeWhenAppended = true
             radioEndedItemCount = player.mediaItemCount
@@ -1236,6 +1278,8 @@ class Media3MusicService : MediaLibraryService() {
     /** Fetch the next radio page and APPEND it to the pool — never replaces. */
     private fun extendRadioPool() {
         if (radioTopUpJob?.isActive == true) return
+        io.github.aedev.flow.player.EnhancedMusicPlayerManager
+            .setRadioLoading(true)
         radioTopUpJob =
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -1262,7 +1306,13 @@ class Media3MusicService : MediaLibraryService() {
                         page.items
                             .mapNotNull { InnertubeMusicService.convertToMusicTrack(it) }
                             .distinctBy { it.videoId }
-                    val ranked = musicBrain.rankTracks(mapped, "radio")
+                    val tail = manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull()
+                    val ranked =
+                        musicBrain.sequenceRadioBatch(
+                            musicBrain.rankTracks(mapped, "radio"),
+                            tail,
+                            MusicRadioPlanner.MAX_POOL_SIZE,
+                        )
                     Log.d(TAG, "Radio pool topped up with ${ranked.size} tracks, continuation=${radioContinuation != null}")
                     if (ranked.isNotEmpty()) {
                         manager.appendAutomixItems(ranked)
@@ -1274,6 +1324,9 @@ class Media3MusicService : MediaLibraryService() {
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Radio top-up failed: ${e.message}")
+                } finally {
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                        .setRadioLoading(false)
                 }
             }
     }

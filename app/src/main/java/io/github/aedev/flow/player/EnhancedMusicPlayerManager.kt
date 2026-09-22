@@ -61,6 +61,15 @@ object EnhancedMusicPlayerManager {
     @Volatile
     var pendingRadioSeedId: String? = null
 
+    private val _radioLoading = MutableStateFlow(false)
+
+    /** True while the service is seeding or topping up the station, for the queue sheet's spinner. */
+    val radioLoading: StateFlow<Boolean> = _radioLoading.asStateFlow()
+
+    fun setRadioLoading(loading: Boolean) {
+        _radioLoading.value = loading
+    }
+
     private var appContext: Context? = null
 
     private val _playerInstance = MutableStateFlow<Player?>(null)
@@ -678,27 +687,28 @@ object EnhancedMusicPlayerManager {
     }
 
     fun updateAutomixItems(items: List<MusicTrack>) {
-        val currentId = _currentTrack.value?.videoId
         _automixItems.value =
-            items
-                .filterNot { it.videoId == currentId }
-                .distinctBy { it.videoId }
+            MusicRadioPlanner.seedPool(
+                candidates = items,
+                currentId = _currentTrack.value?.videoId,
+                queueIds = _queue.value.mapTo(HashSet()) { it.videoId },
+            )
         triggerQueueSave()
     }
 
     /** Radio top-up path: grows the suggestion pool without disturbing what's already in it. */
     fun appendAutomixItems(items: List<MusicTrack>) {
         if (items.isEmpty()) return
-        val currentId = _currentTrack.value?.videoId
-        val queueIds = _queue.value.mapTo(HashSet()) { it.videoId }
         val existing = _automixItems.value
-        val existingIds = existing.mapTo(HashSet()) { it.videoId }
-        val fresh =
-            items
-                .distinctBy { it.videoId }
-                .filterNot { it.videoId == currentId || it.videoId in queueIds || it.videoId in existingIds }
-        if (fresh.isEmpty()) return
-        _automixItems.value = existing + fresh
+        val grown =
+            MusicRadioPlanner.growPool(
+                existing = existing,
+                incoming = items,
+                currentId = _currentTrack.value?.videoId,
+                queueIds = _queue.value.mapTo(HashSet()) { it.videoId },
+            )
+        if (grown === existing) return
+        _automixItems.value = grown
         triggerQueueSave()
     }
 
@@ -1075,6 +1085,7 @@ object EnhancedMusicPlayerManager {
             _automixItems.value = emptyList()
             playContextGenre = null
             pendingRadioSeedId = null
+            _radioLoading.value = false
             _currentQueueIndex.value = 0
             clearPendingPlayNext()
             _currentPosition.value = 0L

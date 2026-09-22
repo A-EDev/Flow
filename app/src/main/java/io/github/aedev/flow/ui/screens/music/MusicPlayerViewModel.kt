@@ -189,12 +189,13 @@ class MusicPlayerViewModel
 
             viewModelScope.launch {
                 EnhancedMusicPlayerManager.automixItems.collect { automix ->
-                    _uiState.update {
-                        it.copy(
-                            autoplaySuggestions = automix,
-                            isRelatedLoading = false,
-                        )
-                    }
+                    _uiState.update { it.copy(autoplaySuggestions = automix) }
+                }
+            }
+
+            viewModelScope.launch {
+                EnhancedMusicPlayerManager.radioLoading.collect { loading ->
+                    _uiState.update { it.copy(isRadioLoading = loading) }
                 }
             }
 
@@ -477,6 +478,17 @@ class MusicPlayerViewModel
         fun addRadioTrackToQueue(track: MusicTrack) {
             EnhancedMusicPlayerManager.addToQueue(track)
             EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+        }
+
+        /**
+         * Plays a suggestion by taking it into the queue and jumping to it. Loading it as a track
+         * would replace the whole queue with that one song — the sheet is showing what comes next,
+         * not an invitation to throw away what the user lined up.
+         */
+        fun playRadioTrack(track: MusicTrack) {
+            addRadioTrackToQueue(track)
+            val index = EnhancedMusicPlayerManager.queue.value.indexOfFirst { it.videoId == track.videoId }
+            if (index >= 0) EnhancedMusicPlayerManager.playFromQueue(index) else loadAndPlayTrack(track)
         }
 
         fun setEndlessRadioEnabled(enabled: Boolean) {
@@ -938,6 +950,7 @@ data class MusicPlayerUiState(
     val endlessRadioEnabled: Boolean = true,
     val relatedContent: List<MusicTrack> = emptyList(),
     val isRelatedLoading: Boolean = false,
+    val isRadioLoading: Boolean = false,
     val downloadedTrackIds: Set<String> = emptySet(),
     val lyricsProviderName: String = "",
     val lyricsSyncOffsetMs: Long = 0L,
