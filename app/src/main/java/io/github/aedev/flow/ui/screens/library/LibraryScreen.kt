@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,8 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.ui.OnTabReselected
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 
@@ -56,12 +59,15 @@ fun LibraryScreen(
     val shortsEnabled by viewModel.shortsEnabled.collectAsStateWithLifecycle()
     val shelfPreviewsEnabled by viewModel.shelfPreviewsEnabled.collectAsStateWithLifecycle()
     val isLibraryEmpty by viewModel.isLibraryEmpty.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    OnTabReselected(FlowTab.Library.route) { listState.animateScrollToItem(0) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = { FlowTopBar(title = stringResource(R.string.library)) },
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier =
                 modifier
                     .fillMaxSize()

@@ -33,6 +33,7 @@ import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.explore.ExploreSectionKind
+import io.github.aedev.flow.ui.OnTabReselected
 import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.categories.CategoryChartGrid
 import io.github.aedev.flow.ui.components.categories.CategoryPagedGrid
@@ -40,6 +41,7 @@ import io.github.aedev.flow.ui.components.categories.CategoryShelfPage
 import io.github.aedev.flow.ui.components.categories.CategoryShimmer
 import io.github.aedev.flow.ui.components.categories.CategorySubTabMenu
 import io.github.aedev.flow.ui.components.categories.CategoryTabBar
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
@@ -69,6 +71,11 @@ fun CategoriesScreen(
 
     val shelfState = rememberLazyGridState()
     val gridState = rememberLazyGridState()
+    OnTabReselected(FlowTab.Explore.route) {
+        val isGridSection =
+            uiState.sectionKind == ExploreSectionKind.CHART || uiState.sectionKind == ExploreSectionKind.GRID
+        if (uiState.openShelfTitle == null && isGridSection) gridState.animateScrollToItem(0) else shelfState.animateScrollToItem(0)
+    }
 
     BackHandler(enabled = uiState.openShelfTitle != null) { viewModel.closeShelf() }
 
