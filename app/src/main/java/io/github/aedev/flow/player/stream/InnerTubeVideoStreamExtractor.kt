@@ -677,7 +677,7 @@ object InnerTubeVideoStreamExtractor {
             // which is the "stream URLs keep expiring" loop. Resolve them the way the direct path
             // resolves its own, so the fallback is a real fallback.
             val rawFormats = playerResponse.streamingData?.adaptiveFormats.orEmpty()
-            val decipheredFormats = rawFormats.mapNotNull { it.withCipherResolvedUrl(videoId) }
+            val decipheredFormats = rawFormats.decipherWhilePossible(videoId)
             primeRemoteNsigIfNeeded(videoId, decipheredFormats)
             val streamingPot = poToken.streamingDataPoToken.takeIf { it.isNotEmpty() }
             val playableFormats =
@@ -701,6 +701,19 @@ object InnerTubeVideoStreamExtractor {
                 "$label+SABR $videoId: session ready, direct fallback ${playableFormats.size}/${rawFormats.size} " +
                     "formats pot=${streamingPot != null}",
             )
+
+            // A SABR session on its own cannot play — the server never sends an init segment, so
+            // ExoPlayer has nothing to sniff. Its direct formats are the whole value of this path,
+            // and without them the ladder is better off trying the next client than returning a
+            // result that only looks playable.
+            if (videoFormats.isEmpty() || audioFormats.isEmpty()) {
+                failureReasons.add("$label: SABR resolved but no format survived decipher/n-transform")
+                PlayerDiagnostics.logWarning(
+                    TAG,
+                    "$label+SABR $videoId: session resolved but 0 playable formats — falling through to the next client",
+                )
+                return null
+            }
 
             return VideoExtractionResult(
                 videoFormats = videoFormats,
@@ -801,6 +814,40 @@ object InnerTubeVideoStreamExtractor {
         videoId: String,
         allowUntransformedN: Boolean,
     ): PlayerResponse.StreamingData.Format? = withCipherResolvedUrl(videoId)?.withPlayableUrl(videoId, allowUntransformedN)
+
+    /**
+     * Deciphers a whole ladder, and stops trying once one signature fails.
+     *
+     * Whether a `signatureCipher` can be resolved is a property of the player script, not of the
+     * format, so the first failure settles it for all of them. Measured 2026-09-22: without this,
+     * a player script whose signature function the patterns cannot find sent every one of ~30
+     * formats through a failing WebView round trip and blew the whole extraction budget.
+     */
+    private suspend fun List<PlayerResponse.StreamingData.Format>.decipherWhilePossible(
+        videoId: String,
+    ): List<PlayerResponse.StreamingData.Format> {
+        var cipherUsable = true
+        return mapNotNull { format ->
+            when {
+                !format.url.isNullOrEmpty() -> {
+                    format
+                }
+
+                !cipherUsable -> {
+                    null
+                }
+
+                else -> {
+                    format.withCipherResolvedUrl(videoId).also {
+                        if (it == null) {
+                            cipherUsable = false
+                            Log.w(TAG, "Signature deciphering unavailable for $videoId — skipping the remaining ciphered formats")
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     /**
      * The format with a real `url`, deciphered if it only carried a `signatureCipher`, and with the
