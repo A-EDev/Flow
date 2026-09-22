@@ -68,6 +68,10 @@ interface WatchHistoryDao {
     @Query("SELECT COUNT(*) FROM watch_history WHERE isMusic = 0 AND isLocal = 0")
     fun getVideoCount(): Flow<Int>
 
+    /** Counts exactly the rows [getRecentLibraryHistory] draws from, for the Library section row. */
+    @Query("SELECT COUNT(*) FROM watch_history WHERE isShort = 0 AND isLocal = 0")
+    fun getLibraryHistoryCount(): Flow<Int>
+
     /**
      * Returns video IDs that the user has already watched (position > 0 OR appeared in history).
      * Used to filter watched shorts from the subscription shelf. Local files are excluded so the

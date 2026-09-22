@@ -216,6 +216,8 @@ class ViewHistory private constructor(
     /** Efficient count without loading all rows — use this instead of list.size. */
     fun getVideoCount(): Flow<Int> = dao.getVideoCount()
 
+    fun getLibraryHistoryCount(): Flow<Int> = dao.getLibraryHistoryCount()
+
     /**
      * Returns the most recently watched unfinished video (<95% complete).
      * Used to restore the "resume" mini player on app launch.

@@ -92,6 +92,7 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
     val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
     val showRestoredMusicMiniPlayer by preferences.showRestoredMusicMiniPlayer.collectAsState(initial = true)
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
+    val libraryShelfPreviewsEnabled by preferences.libraryShelfPreviewsEnabled.collectAsState(initial = true)
 
     val homeViewModeString by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
     val currentHomeViewMode = homeViewModeString
@@ -594,6 +595,24 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                     preferences = preferences,
                     coroutineScope = coroutineScope,
                 )
+            }
+
+            // Library Section
+            item {
+                SectionHeader(text = stringResource(R.string.content_settings_header_library))
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.VideoLibrary,
+                        title = stringResource(R.string.content_settings_library_previews_title),
+                        subtitle = stringResource(R.string.content_settings_library_previews_subtitle),
+                        checked = libraryShelfPreviewsEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setLibraryShelfPreviewsEnabled(enabled)
+                            }
+                        },
+                    )
+                }
             }
 
             // Content Components Section

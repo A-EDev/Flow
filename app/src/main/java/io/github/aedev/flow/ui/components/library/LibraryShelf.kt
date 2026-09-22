@@ -1,9 +1,7 @@
 package io.github.aedev.flow.ui.components.library
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,7 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
@@ -27,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,36 +36,61 @@ import io.github.aedev.flow.ui.components.shared.ShimmerBone
 
 private const val PLACEHOLDER_CARD_COUNT = 2
 private const val PLACEHOLDER_STAGGER_MS = 120
+private val HeaderIconSize = 20.dp
 
 @Composable
-internal fun LibraryShelf(
+private fun LibraryShelfHeader(
     title: String,
-    onTitleClick: () -> Unit,
+    icon: ImageVector,
+    showChevron: Boolean,
     modifier: Modifier = Modifier,
-    content: LazyListScope.() -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onTitleClick)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Spacer(modifier = Modifier.weight(1f))
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(HeaderIconSize),
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        if (showChevron) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+internal fun LibraryShelf(
+    title: String,
+    icon: ImageVector,
+    onTitleClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: LazyListScope.() -> Unit,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        LibraryShelfHeader(
+            title = title,
+            icon = icon,
+            showChevron = true,
+            modifier = Modifier.clickable(onClick = onTitleClick),
+        )
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -82,6 +103,7 @@ internal fun LibraryShelf(
 @Composable
 internal fun LibraryMediaShelf(
     title: String,
+    icon: ImageVector,
     items: List<LibraryMediaItem>,
     sourceName: String,
     onTitleClick: () -> Unit,
@@ -103,7 +125,7 @@ internal fun LibraryMediaShelf(
             items.mapNotNull { (it as? LibraryMediaItem.DownloadedMusicItem)?.download }
         }
 
-    LibraryShelf(title = title, onTitleClick = onTitleClick) {
+    LibraryShelf(title = title, icon = icon, onTitleClick = onTitleClick) {
         items(
             items = items,
             key = LibraryMediaItem::key,
@@ -172,11 +194,12 @@ internal fun LibraryMediaShelf(
 @Composable
 internal fun LibraryShortsShelf(
     title: String,
+    icon: ImageVector,
     shorts: List<Video>,
     onTitleClick: () -> Unit,
     onShortClick: (Video) -> Unit,
 ) {
-    LibraryShelf(title = title, onTitleClick = onTitleClick) {
+    LibraryShelf(title = title, icon = icon, onTitleClick = onTitleClick) {
         items(shorts, key = Video::id, contentType = { "short" }) { short ->
             MediaShortCard(video = short, onClick = { onShortClick(short) })
         }
@@ -186,23 +209,15 @@ internal fun LibraryShortsShelf(
 @Composable
 internal fun LibraryShelfPlaceholder(
     title: String,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-        }
+        LibraryShelfHeader(
+            title = title,
+            icon = icon,
+            showChevron = false,
+        )
 
         Row(
             modifier = Modifier.padding(horizontal = 16.dp),
@@ -232,56 +247,5 @@ internal fun LibraryShelfPlaceholder(
                 }
             }
         }
-    }
-}
-
-@Composable
-internal fun LibraryNavigationRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
