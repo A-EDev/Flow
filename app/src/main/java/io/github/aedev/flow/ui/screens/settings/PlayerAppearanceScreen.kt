@@ -38,11 +38,13 @@ import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
+import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.MAX_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MAX_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.ScrubPreviewStyle
 import io.github.aedev.flow.data.local.SeekbarPaddingMode
 import io.github.aedev.flow.data.local.ShortsPlayerUiMode
 import io.github.aedev.flow.data.local.SliderStyle
@@ -52,6 +54,8 @@ import io.github.aedev.flow.ui.components.musicplayer.ExpressivePlayerSlider
 import io.github.aedev.flow.ui.components.musicplayer.ExpressiveWavySlider
 import io.github.aedev.flow.ui.components.musicplayer.SquigglySlider
 import io.github.aedev.flow.ui.components.musicplayer.expressiveSliderSpec
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -91,12 +95,13 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val seekSwipeGesturesEnabled by playerPreferences.seekSwipeGesturesEnabled.collectAsState(initial = true)
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
+    val gestureOverlayStyle by
+        playerPreferences.gestureOverlayStyle.collectAsState(initial = GestureOverlayStyle.CIRCULAR)
+    val playerHapticsEnabled by playerPreferences.playerHapticsEnabled.collectAsState(initial = true)
     val overlayDefaults = remember { PlayerOverlayPreferences() }
     val showControlsWhileLoading by
         playerPreferences.showControlsWhileLoading.collectAsState(overlayDefaults.showControlsWhileLoading)
     val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
-    val showFullscreenTitle by
-        playerPreferences.showFullscreenTitle.collectAsState(overlayDefaults.fullscreenTitleEnabled)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
     val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
     val portraitSeekbarPaddingMode by playerPreferences.portraitSeekbarPaddingMode.collectAsState(
@@ -125,10 +130,17 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
             defaultPaddingDp = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP,
             maxPaddingDp = MAX_FULLSCREEN_SEEKBAR_PADDING_DP,
         )
+    val scrubPreviewStyle by playerPreferences.scrubPreviewStyle.collectAsState(
+        initial = overlayDefaults.scrubPreviewStyle,
+    )
+    val frameStepButtonsEnabled by playerPreferences.frameStepButtonsEnabled.collectAsState(
+        initial = overlayDefaults.frameStepButtonsEnabled,
+    )
 
     var showStyleSheet by remember { mutableStateOf(false) }
     var showBackgroundStyleSheet by remember { mutableStateOf(false) }
     var showLongPressSpeedDialog by remember { mutableStateOf(false) }
+    var showGestureStyleSheet by remember { mutableStateOf(false) }
 
     if (showStyleSheet) {
         ModalBottomSheet(
@@ -208,6 +220,18 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (showGestureStyleSheet) {
+        GestureOverlayStyleSheet(
+            selected = gestureOverlayStyle,
+            onSelected = { style ->
+                coroutineScope.launch {
+                    playerPreferences.setGestureOverlayStyle(style)
+                }
+            },
+            onDismiss = { showGestureStyleSheet = false },
+        )
     }
 
     if (showBackgroundStyleSheet) {
@@ -344,6 +368,33 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         onCustomPaddingChange = { paddingDp ->
                             coroutineScope.launch {
                                 playerPreferences.setPortraitSeekbarCustomPaddingDp(paddingDp)
+                            }
+                        },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+                    ScrubPreviewStyleItem(
+                        selectedStyle = scrubPreviewStyle,
+                        onStyleSelected = { style ->
+                            coroutineScope.launch {
+                                playerPreferences.setScrubPreviewStyle(style)
+                            }
+                        },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_progress_bar_style),
+                        title = stringResource(R.string.player_appearance_frame_step_title),
+                        subtitle = stringResource(R.string.player_appearance_frame_step_subtitle),
+                        checked = frameStepButtonsEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setFrameStepButtonsEnabled(enabled)
                             }
                         },
                     )
@@ -520,6 +571,35 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
 
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_haptics_title),
+                        subtitle = stringResource(R.string.player_appearance_haptics_subtitle),
+                        checked = playerHapticsEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setPlayerHapticsEnabled(enabled)
+                            }
+                        },
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+
+                    SettingsItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_gesture_overlay_title),
+                        subtitle = stringResource(gestureOverlayStyleLabelRes(gestureOverlayStyle)),
+                        onClick = { showGestureStyleSheet = true },
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    )
+
                     SettingsItem(
                         icon = painterResource(R.drawable.ic_swipe_gesture),
                         title = stringResource(R.string.player_appearance_long_press_speed_title),
@@ -566,23 +646,6 @@ fun PlayerAppearanceScreen(onNavigateBack: () -> Unit) {
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 playerPreferences.setVideoAmbientModeEnabled(enabled)
-                            }
-                        },
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    )
-
-                    SettingsToggleItem(
-                        icon = painterResource(R.drawable.ic_progress_bar_style),
-                        title = stringResource(R.string.player_show_title_title),
-                        subtitle = stringResource(R.string.player_show_title_subtitle),
-                        checked = showFullscreenTitle,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                playerPreferences.setShowFullscreenTitle(enabled)
                             }
                         },
                     )
@@ -832,6 +895,60 @@ fun SettingsItem(
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/**
+ * Picks how the volume and brightness read-outs are drawn (#1029): the one big centred ring covers
+ * the part of the frame the user is adjusting, so the bar and text forms are offered alongside it.
+ */
+@Composable
+private fun ScrubPreviewStyleItem(
+    selectedStyle: ScrubPreviewStyle,
+    onStyleSelected: (ScrubPreviewStyle) -> Unit,
+) {
+    val options =
+        listOf(
+            FlowToggleOption(ScrubPreviewStyle.STRIP, stringResource(R.string.player_appearance_scrub_preview_strip)),
+            FlowToggleOption(ScrubPreviewStyle.FRAME, stringResource(R.string.player_appearance_scrub_preview_frame)),
+        )
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_progress_bar_style),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier =
+                Modifier
+                    .padding(top = 2.dp)
+                    .size(24.dp),
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.player_appearance_scrub_preview_title),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = stringResource(R.string.player_appearance_scrub_preview_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            FlowConnectedToggleGroup(
+                options = options,
+                selected = selectedStyle,
+                onSelected = onStyleSelected,
+            )
+        }
     }
 }
 

@@ -175,6 +175,10 @@ private fun CommentsSheetHeader(
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+        HorizontalDivider(
+            color =
+                MaterialTheme.colorScheme.outlineVariant
+                    .copy(alpha = FlowSheetHeaderDefaults.DividerAlpha),
+        )
     }
 }

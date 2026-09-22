@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimPanel
 import io.github.aedev.flow.utils.formatMultiplierLabel
 
 @Composable
@@ -35,7 +36,7 @@ internal fun SpeedBoostOverlay(
         modifier = modifier,
     ) {
         Surface(
-            color = PlayerScrim.copy(alpha = 0.6f),
+            color = PlayerScrimPanel,
             shape = CircleShape,
             modifier = Modifier.wrapContentSize(),
         ) {

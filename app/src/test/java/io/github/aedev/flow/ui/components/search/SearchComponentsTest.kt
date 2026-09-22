@@ -23,6 +23,7 @@ import io.github.aedev.flow.data.local.SearchFeature
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.model.Channel
+import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.FlowSuggestionRow
 import org.junit.Rule
 import org.junit.Test
@@ -208,7 +209,7 @@ class SearchComponentsTest {
     @Test
     fun `the paging tail says when the results have run out`() {
         show {
-            SearchPagingFooter(
+            FeedPagingFooter(
                 appendState = LoadState.NotLoading(endOfPaginationReached = true),
                 itemCount = 12,
                 onRetry = {},
@@ -222,7 +223,7 @@ class SearchComponentsTest {
     fun `the paging tail offers a retry after a failed append`() {
         var retried = false
         show {
-            SearchPagingFooter(
+            FeedPagingFooter(
                 appendState = LoadState.Error(IllegalStateException("offline")),
                 itemCount = 12,
                 onRetry = { retried = true },
@@ -237,7 +238,7 @@ class SearchComponentsTest {
     @Test
     fun `an empty page shows no tail at all`() {
         show {
-            SearchPagingFooter(
+            FeedPagingFooter(
                 appendState = LoadState.NotLoading(endOfPaginationReached = true),
                 itemCount = 0,
                 onRetry = {},

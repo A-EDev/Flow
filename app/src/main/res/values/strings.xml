@@ -7,7 +7,6 @@
     <string name="subscriptions_sort_name">Name (A–Z)</string>
     <string name="subscriptions_sort_recent">Recently updated</string>
     <string name="top_bar_subscriptions_title">Subscriptions</string>
-    <string name="top_bar_clear_search">Clear search</string>
     <string name="top_bar_close_search">Close search</string>
     <string name="view_all_button_label">All</string>
     <string name="subscribed">Subscribed</string>
@@ -371,6 +370,8 @@
     <string name="transcript_unavailable">No transcript is available for this video</string>
     <string name="transcript_search_hint">Search transcript</string>
     <string name="transcript_no_matches">No lines match your search</string>
+    <string name="transcript_resync">Sync to video</string>
+    <string name="transcript_language">Language</string>
     <string name="channel_links">Links</string>
     <string name="artist">Artist</string>
     <string name="playlist">Playlist</string>
@@ -404,6 +405,19 @@
     <plurals name="songs_count_template">
         <item quantity="one">%1$d song</item>
         <item quantity="other">%1$d songs</item>
+    </plurals>
+    <plurals name="playlists_count_template">
+        <item quantity="one">%1$d playlist</item>
+        <item quantity="other">%1$d playlists</item>
+    </plurals>
+    <plurals name="shorts_count_template">
+        <item quantity="one">%1$d Short</item>
+        <item quantity="other">%1$d Shorts</item>
+    </plurals>
+    <!-- Library section counts that mix videos and music, e.g. history and likes -->
+    <plurals name="library_items_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
     </plurals>
     <string name="metadata_separator">·</string>
     <!-- Separator between the parts of a one-line detail list, e.g. "OPUS · 160kbps · English" -->
@@ -754,6 +768,14 @@
     <string name="player_background_style_default">Default Surface</string>
     <string name="player_appearance_hide_music_artwork_title">Hide music player artwork</string>
     <string name="player_appearance_hide_music_artwork_subtitle">Show the app icon on the extracted artwork color instead</string>
+    <string name="player_appearance_haptics_title">Vibration</string>
+    <string name="player_appearance_haptics_subtitle">Small taps when you use the player controls and gestures</string>
+    <string name="player_appearance_gesture_overlay_title">Gesture overlay style</string>
+    <string name="player_appearance_gesture_overlay_subtitle">How the volume and brightness read-outs are drawn while you swipe</string>
+    <string name="gesture_overlay_style_circular">Circular</string>
+    <string name="gesture_overlay_style_vertical">Vertical</string>
+    <string name="gesture_overlay_style_horizontal">Bar</string>
+    <string name="gesture_overlay_style_minimal">Minimal</string>
     <string name="player_appearance_shorts_ui_title">Shorts player UI</string>
     <string name="player_appearance_shorts_ui_subtitle">Choose how much of the Shorts overlay stays visible</string>
     <string name="shorts_player_ui_default">Default</string>
@@ -801,8 +823,6 @@
     <string name="player_appearance_fullscreen_header">Fullscreen</string>
     <string name="player_adaptive_size_title">Adaptive Player Size</string>
     <string name="player_adaptive_size_subtitle">Use the video format for player height. Turn off for fixed 16:9.</string>
-    <string name="player_show_title_title">Show Video Title</string>
-    <string name="player_show_title_subtitle">Display the video title below the top bar while in fullscreen mode</string>
     <string name="player_fullscreen_seekbar_width_title">Fullscreen Seekbar Width</string>
     <string name="player_portrait_seekbar_width_title">Portrait Seekbar Width</string>
     <string name="player_portrait_seekbar_width_spaced">Spaced</string>
@@ -811,6 +831,12 @@
     <string name="player_fullscreen_seekbar_width_default">Default</string>
     <string name="player_fullscreen_seekbar_width_custom">Custom</string>
     <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
+    <string name="player_appearance_scrub_preview_title">Scrub Preview</string>
+    <string name="player_appearance_scrub_preview_subtitle">What the seekbar shows while you drag it</string>
+    <string name="player_appearance_scrub_preview_strip">Filmstrip</string>
+    <string name="player_appearance_scrub_preview_frame">Single frame</string>
+    <string name="player_appearance_frame_step_title">Frame Step Buttons</string>
+    <string name="player_appearance_frame_step_subtitle">Show step-back and step-forward arrows while paused</string>
     <!-- Lyrics Provider -->
     <string name="lyrics_provider_title">Lyrics Provider</string>
     <string name="lyrics_provider_subtitle">Choose your preferred source for song lyrics</string>
@@ -955,8 +981,6 @@
     <string name="content_settings_disable_shorts_player_subtitle">Play all videos (including YouTube Shorts) in the regular video player</string>
     <string name="content_settings_shorts_player_prompt_title">Shorts player suggestion</string>
     <string name="content_settings_shorts_player_prompt_subtitle">Ask before switching videos under 2 minutes to the Shorts player</string>
-    <string name="content_settings_explore_region_picker_title">Quick region picker in Explore</string>
-    <string name="content_settings_explore_region_picker_subtitle">Show a globe icon in the Explore screen top bar to instantly change the trending region.</string>
     <string name="categories_region_picker_desc">Change trending region (current: %1$s)</string>
     <string name="content_settings_header_nav_tabs">Navigation Tabs</string>
     <string name="settings_home_nav_tab_title">Home tab</string>
@@ -995,10 +1019,14 @@
     <string name="categories_title">Categories</string>
     <string name="categories_switch_to_grid">Switch to grid view</string>
     <string name="categories_switch_to_list">Switch to list view</string>
-    <string name="category_all">All</string>
-    <string name="category_trending">Trending</string>
     <string name="category_movies">Movies</string>
     <string name="category_live">Live</string>
+    <string name="category_news">News</string>
+    <string name="category_sports">Sports</string>
+    <string name="category_learning">Learning</string>
+    <string name="category_fashion">Fashion</string>
+    <string name="categories_shelf_see_all">See all</string>
+    <string name="categories_shelf_back">Back to all shelves</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
     <string name="settings_continue_watching_subtitle">Show a shelf of in-progress videos on the home screen.</string>
     <string name="continue_watching_title">Continue Watching</string>
@@ -1914,6 +1942,8 @@
     <string name="btn_minimize">Minimize</string>
     <string name="captions">Captions</string>
     <string name="pip_mode">Picture-in-Picture</string>
+    <string name="previous_frame">Previous frame</string>
+    <string name="next_frame">Next frame</string>
     <string name="previous_video">Previous Video</string>
     <string name="next_video">Next Video</string>
     <string name="fullscreen">Fullscreen</string>
@@ -1923,6 +1953,7 @@
     <string name="resize_zoom">Zoom</string>
     <!-- Shorts Player Features -->
     <string name="shorts_audio_track">Audio Track</string>
+    <string name="shorts_settings_this_short">This Short</string>
     <string name="shorts_auto_scroll_active_template">Auto %1$ds</string>
     <string name="shorts_quality">Quality</string>
     <string name="shorts_no_audio_tracks">No audio tracks available</string>
@@ -1987,6 +2018,9 @@
     <string name="library_empty_body">Videos and music you watch, like, save or download will collect here.</string>
     <string name="playlist_load_failed">Could not load this playlist</string>
     <string name="library_settings_subtitle">Playback, downloads, appearance and data</string>
+    <string name="content_settings_header_library">Library</string>
+    <string name="content_settings_library_previews_title">Library previews</string>
+    <string name="content_settings_library_previews_subtitle">Show a scrollable row of items under each Library section. Turn off for a compact list of sections.</string>
     <string name="remove_incomplete_downloads">Remove incomplete downloads</string>
     <plurals name="remove_incomplete_downloads_message">
         <item quantity="one">Remove %1$d paused, failed, or partial download? Completed downloads will not be touched.</item>
@@ -2240,8 +2274,6 @@
     <!-- Double-tap seek indicator: the chasing chevrons and the seconds the tap adds or removes -->
     <string name="player_seek_seconds_forward">+%1$d</string>
     <string name="player_seek_seconds_back">-%1$d</string>
-    <string name="player_seek_chevron_forward">&gt;</string>
-    <string name="player_seek_chevron_back">&lt;</string>
     <!-- New Video Player Strings -->
     <string name="player_settings_overlay_controls">Overlay Controls</string>
     <string name="player_settings_overlay_cast">Cast Button</string>
@@ -2282,6 +2314,11 @@
     <string name="diagnostics_clear_crashes">Clear Crash Reports</string>
     <string name="diagnostics_clear_confirm_title">Clear crash reports?</string>
     <string name="diagnostics_clear_confirm_body">All saved crash reports will be permanently deleted. This cannot be undone.</string>
+    <string name="diagnostics_reset_session">Reset YouTube session</string>
+    <string name="diagnostics_reset_session_confirm_title">Reset YouTube session?</string>
+    <string name="diagnostics_reset_session_confirm_body">Flow will discard the browsing identity it uses to verify playback requests and build a new one. Use this if videos stop after about a minute or refuse to play.\n\nA new identity is untrusted at first, so the next minute or two can be worse before it settles. Nothing you have saved is affected.</string>
+    <string name="diagnostics_reset_session_done">YouTube session reset. Reopen the video to try again.</string>
+    <string name="reset">Reset</string>
     <string name="diagnostics_no_crashes">No crash reports — great!</string>
     <string name="diagnostics_no_session_logs">No warnings or errors in this session.</string>
     <string name="diagnostics_loading">Reading logs…</string>
@@ -2700,6 +2737,7 @@
     <string name="audio_track_original">Original</string>
     <string name="audio_track_dubbed">Dubbed</string>
     <string name="subtitle_load_failed">Couldn’t load %1$s subtitles — try again</string>
+    <string name="subtitle_translation_unavailable">Translation unavailable — showing %1$s</string>
     <string name="ui_skipped_segment">Skipped %1$s</string>
     <string name="ui_started_download">Started download: %1$s</string>
     <string name="ui_download_start_failed">Download failed to start: %1$s</string>

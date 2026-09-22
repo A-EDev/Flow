@@ -3,7 +3,7 @@ package io.github.aedev.flow.ui.components.videoplayer.overlay
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Icon
@@ -22,24 +22,12 @@ import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimPanel
+import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 import kotlinx.coroutines.delay
 
 private const val SB_SKIP_DIM_DELAY_MS = 5_000L
 private const val SB_SKIP_DIMMED_ALPHA = 0.45f
-
-private fun sbCategoryLabelRes(category: String): Int? =
-    when (category) {
-        "sponsor" -> R.string.sb_category_sponsor
-        "selfpromo" -> R.string.sb_category_selfpromo
-        "interaction" -> R.string.sb_category_interaction
-        "intro" -> R.string.sb_category_intro
-        "outro" -> R.string.sb_category_outro
-        "music_offtopic" -> R.string.sb_category_music_offtopic
-        "filler" -> R.string.sb_category_filler
-        "preview" -> R.string.sb_category_preview
-        "exclusive_access" -> R.string.sb_category_exclusive_access
-        else -> null
-    }
 
 /**
  * Overlay button that lets the user manually skip a SponsorBlock segment.
@@ -107,7 +95,7 @@ fun SponsorBlockSkipButton(
         modifier = modifier,
     ) {
         val seg = displaySegment ?: return@AnimatedVisibility
-        val categoryRes = sbCategoryLabelRes(seg.category)
+        val categoryRes = sponsorCategoryLabelRes(seg.category)
         val skipLabel =
             if (categoryRes != null) {
                 stringResource(R.string.sb_skip_segment, stringResource(categoryRes))
@@ -119,9 +107,9 @@ fun SponsorBlockSkipButton(
                 skippedUuids = skippedUuids + seg.uuid
                 onSkipClick((seg.endTime * 1000L).toLong())
             },
-            color = PlayerScrim.copy(alpha = 0.5f),
+            color = PlayerScrimPanel,
             contentColor = PlayerScrimContent,
-            shape = RoundedCornerShape(50),
+            shape = CircleShape,
             tonalElevation = 0.dp,
             modifier = Modifier.graphicsLayer { alpha = buttonAlpha.value },
         ) {

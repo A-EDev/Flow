@@ -4,7 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
-import io.github.aedev.flow.data.paging.ChannelTabPagingSource
+import io.github.aedev.flow.data.paging.FeedTabPagingSource
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.channel.ChannelFilterGroup
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
@@ -139,7 +139,7 @@ internal class ChannelTabController(
             Pager(
                 config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false),
                 pagingSourceFactory = {
-                    ChannelTabPagingSource(
+                    FeedTabPagingSource(
                         browseId = browseId,
                         params = params,
                         kind = kind,

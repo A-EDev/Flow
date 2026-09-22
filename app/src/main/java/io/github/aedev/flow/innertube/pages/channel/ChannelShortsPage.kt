@@ -1,15 +1,15 @@
 package io.github.aedev.flow.innertube.pages.channel
 
-import io.github.aedev.flow.innertube.pages.SearchShortItem
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
+import io.github.aedev.flow.innertube.pages.reel.ReelLockup
+import io.github.aedev.flow.innertube.pages.reel.toReelLockups
 import io.github.aedev.flow.innertube.pages.stringOrNull
-import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.youtubeText
 import kotlinx.serialization.json.JsonObject
 
 data class ChannelShortsPage(
-    val shorts: List<SearchShortItem>,
+    val shorts: List<ReelLockup>,
     val sorts: List<ChannelSortOption>,
     val continuation: String?,
     /** Present on an initial browse, absent on a continuation, which carries no channel header. */
@@ -25,7 +25,7 @@ data class ChannelShortsPage(
 fun JsonObject.toChannelShortsPage(): ChannelShortsPage {
     val metadata = this["metadata"].objectOrNull()?.get("channelMetadataRenderer").objectOrNull()
     return ChannelShortsPage(
-        shorts = toSearchShorts(),
+        shorts = toReelLockups(),
         sorts = channelSortOptions(),
         continuation = channelItemContinuation(),
         channelId = metadata?.get("externalId").stringOrNull().orEmpty(),

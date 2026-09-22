@@ -114,7 +114,6 @@ internal object UpcomingPremierePolicy {
             isLoading = false,
             error = null,
             errorHint = null,
-            streamInfo = null,
             videoStream = null,
             audioStream = null,
             relatedVideos = relatedVideos.ifEmpty { state.relatedVideos },

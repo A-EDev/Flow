@@ -71,6 +71,7 @@ class DraggablePlayerGeometryTest {
 
     private fun large(
         isTwoPaneWindow: Boolean = false,
+        maxMiniWidthPx: Float = Float.MAX_VALUE,
         detailPaneWidth: Float = 0f,
         currentSizeScale: Float = 1f,
         cachedTargetX: Float = 0f,
@@ -87,6 +88,7 @@ class DraggablePlayerGeometryTest {
         isTwoPaneWindow = isTwoPaneWindow,
         detailPaneWidth = detailPaneWidth,
         miniPlayerScale = 0.45f,
+        maxMiniWidthPx = maxMiniWidthPx,
         videoAspectRatio = 16f / 9f,
         currentSizeScale = currentSizeScale,
         corner = corner,
@@ -96,10 +98,26 @@ class DraggablePlayerGeometryTest {
     )
 
     @Test
-    fun `the mini scale follows the window class and ignores the user scale on a large window`() {
+    fun `the size preference applies at every window size`() {
         assertThat(phone().baseMiniWidth).isWithin(0.01f).of(1080f * 0.45f)
-        assertThat(large().baseMiniWidth).isWithin(0.01f).of(1600f * 0.35f)
-        assertThat(large(isTwoPaneWindow = true).baseMiniWidth).isWithin(0.01f).of(1600f * 0.32f)
+        assertThat(large().baseMiniWidth).isWithin(0.01f).of(1600f * 0.45f)
+        assertThat(large(isTwoPaneWindow = true).baseMiniWidth).isWithin(0.01f).of(1600f * 0.45f)
+    }
+
+    @Test
+    fun `a large window is bounded by an absolute ceiling rather than by a fraction of itself`() {
+        // A fraction of a tablet is the wrong unit: the caller passes the width the size setting is
+        // worth in dp, and the preference scales that instead of the screen.
+        // 1600 x 0.45 is 720, so a ceiling under that is what actually binds.
+        assertThat(large(maxMiniWidthPx = 500f).baseMiniWidth).isWithin(0.01f).of(500f)
+        assertThat(large(isTwoPaneWindow = true, maxMiniWidthPx = 500f).baseMiniWidth)
+            .isWithin(0.01f)
+            .of(500f)
+    }
+
+    @Test
+    fun `a ceiling the window is already under leaves the preference alone`() {
+        assertThat(large(maxMiniWidthPx = 5000f).baseMiniWidth).isWithin(0.01f).of(1600f * 0.45f)
     }
 
     @Test

@@ -8,31 +8,49 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
- * The Home tab's shelves, in the order the channel arranged them.
+ * The shelves of a shelf page, in the order it arranged them — a channel's Home tab, or one of the
+ * explore destinations, which wrap each shelf in a `richSectionRenderer` instead.
  *
  * A shelf that parses to nothing is dropped here rather than rendered empty — the screen only ever
  * receives sections that have something in them.
  */
-internal fun JsonElement.toFeedShelves(owner: FeedItemOwner): List<FeedShelf> {
-    val sections = mutableListOf<FeedShelf>()
-    objectOrNull()
+internal fun JsonElement.toFeedShelves(owner: FeedItemOwner): List<FeedShelf> = feedShelfSequence(owner).toList()
+
+/**
+ * The same shelves, mapped one at a time. An explore destination arranges hundreds of items across
+ * a dozen shelves, and a caller that paints as it goes should not pay for all of them to show the
+ * first one.
+ */
+internal fun JsonElement.feedShelfSequence(owner: FeedItemOwner): Sequence<FeedShelf> =
+    sequence {
+        var index = 0
+        objectOrNull()
+            ?.get("contents")
+            .arrayOrNull()
+            .orEmpty()
+            .forEach { entry ->
+                entry.shelfHolders().forEach { holder ->
+                    holder.objectOrNull()?.toFeedShelf(owner, index)?.let {
+                        yield(it)
+                        index++
+                    }
+                }
+            }
+    }
+
+/** One list entry can hold a shelf directly, or wrap one (or several) in a section container. */
+private fun JsonElement.shelfHolders(): List<JsonElement> {
+    val node = objectOrNull() ?: return listOf(this)
+    node["itemSectionRenderer"]
+        .objectOrNull()
         ?.get("contents")
         .arrayOrNull()
-        .orEmpty()
-        .forEach { entry ->
-            val holders =
-                entry
-                    .objectOrNull()
-                    ?.get("itemSectionRenderer")
-                    .objectOrNull()
-                    ?.get("contents")
-                    .arrayOrNull()
-                    ?: listOfNotNull(entry)
-            holders.forEach { holder ->
-                holder.objectOrNull()?.toFeedShelf(owner, sections.size)?.let(sections::add)
-            }
-        }
-    return sections
+        ?.let { return it }
+    node["richSectionRenderer"]
+        .objectOrNull()
+        ?.get("content")
+        ?.let { return listOf(it) }
+    return listOf(this)
 }
 
 /**
@@ -60,6 +78,7 @@ internal fun JsonObject.toFeedShelf(
     val shelf =
         this["shelfRenderer"].objectOrNull()
             ?: this["reelShelfRenderer"].objectOrNull()
+            ?: this["richShelfRenderer"].objectOrNull()
             ?: return null
     val (style, entries) = shelf.shelfItems()
     val items = entries.mapNotNull { it.toFeedItem(owner) }.distinctBy { it.distinctKey() }
@@ -119,6 +138,7 @@ private fun JsonObject.toGridShelf(
  */
 private fun JsonObject.shelfItems(): Pair<FeedShelfStyle, List<JsonElement>> {
     this["items"].arrayOrNull()?.let { return FeedShelfStyle.Carousel to it }
+    this["contents"].arrayOrNull()?.let { return FeedShelfStyle.Carousel to it }
     val content = this["content"].objectOrNull() ?: return FeedShelfStyle.Carousel to emptyList()
     content["verticalListRenderer"].objectOrNull()?.get("items").arrayOrNull()?.let {
         return FeedShelfStyle.List to it

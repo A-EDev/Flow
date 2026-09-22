@@ -93,12 +93,6 @@ data class Comment(
     val isArtist: Boolean = false,
 )
 
-data class SearchResult(
-    val videos: List<Video> = emptyList(),
-    val channels: List<Channel> = emptyList(),
-    val playlists: List<Playlist> = emptyList(),
-)
-
 enum class SearchFilter {
     ALL,
     VIDEOS,

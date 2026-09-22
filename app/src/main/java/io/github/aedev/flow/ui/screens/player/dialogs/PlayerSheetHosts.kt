@@ -35,6 +35,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.model.uploadDateMillis
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.state.SubtitleOption
 import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
@@ -44,6 +45,7 @@ import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowChaptersBottomSh
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowTranscriptBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatList
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlayerCommentsPanel
+import io.github.aedev.flow.ui.components.videoplayer.sheet.TranscriptChapter
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
@@ -111,33 +113,17 @@ internal fun PlayerDescriptionSheetHost(
     LaunchedEffect(video.id) {
         viewModel.loadDescription(video.id)
     }
-    val dateSettings = rememberDateDisplaySettings()
-    val currentVideo =
-        remember(uiState.streamInfo, video, uiState.channelAvatarUrl, dateSettings) {
-            val streamInfo = uiState.streamInfo ?: return@remember video
-            streamInfo.toVideo(
-                base = video,
-                uploadDateText =
-                    streamInfo.textualUploadDate
-                        ?: streamInfo.uploadDateMillis
-                            ?.let { dateSettings.format(date = null, context = DateContext.DESCRIPTION, timestampFallbackMs = it) }
-                            ?.takeIf { it.isNotBlank() }
-                        ?: video.uploadDate,
-                channelAvatarUrl = uiState.channelAvatarUrl,
-                likeCount = streamInfo.likeCount,
-            )
-        }
     FlowDescriptionBottomSheet(
-        video = currentVideo,
+        video = video,
         descriptionPage = descriptionPage,
-        tags = uiState.streamInfo?.tags ?: emptyList(),
+        tags = video.tags,
         chapterCount = uiState.chapters.size,
         onChaptersClick = onChaptersClick,
         onTranscriptClick = onTranscriptClick?.takeIf { hasTranscriptTrack },
         note = videoNote.takeIf { videoNotesEnabled },
         onEditNote = { showNoteEditor = true }.takeIf { videoNotesEnabled },
         onChannelClick = onChannelClick,
-        artworkUrl = currentVideo.thumbnailUrl,
+        artworkUrl = video.thumbnailUrl,
         onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,
@@ -151,7 +137,7 @@ internal fun PlayerDescriptionSheetHost(
         FlowNoteEditorDialog(
             initialText = videoNote.orEmpty(),
             title = stringResource(R.string.note_video_title),
-            onSave = { text -> viewModel.saveVideoNote(currentVideo.id, text) },
+            onSave = { text -> viewModel.saveVideoNote(video.id, text) },
             onDismiss = { showNoteEditor = false },
         )
     }
@@ -162,6 +148,8 @@ internal fun PlayerTranscriptSheetHost(
     viewModel: VideoPlayerViewModel,
     screenState: PlayerScreenState,
     trackUrl: String?,
+    tracks: List<SubtitleOption>,
+    chapters: List<StreamSegment>,
     artworkUrl: String?,
     asSidePanel: Boolean,
     expandedHeight: Dp?,
@@ -173,6 +161,12 @@ internal fun PlayerTranscriptSheetHost(
     LaunchedEffect(trackUrl) {
         viewModel.loadTranscript(trackUrl)
     }
+    val transcriptChapters =
+        remember(chapters) {
+            chapters.map { chapter ->
+                TranscriptChapter(startMs = chapter.startTimeSeconds.toLong() * 1000L, title = chapter.title)
+            }
+        }
     FlowTranscriptBottomSheet(
         cues = transcript.cues,
         isLoading = transcript.isLoading,
@@ -180,6 +174,10 @@ internal fun PlayerTranscriptSheetHost(
         artworkUrl = artworkUrl,
         onSeekMs = { EnhancedPlayerManager.getInstance().seekTo(it) },
         onDismiss = onDismiss,
+        chapters = transcriptChapters,
+        tracks = tracks,
+        selectedTrackUrl = trackUrl,
+        onTrackSelected = { screenState.selectedTranscriptUrl = it },
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,
         enableVerticalDismiss = !asSidePanel,

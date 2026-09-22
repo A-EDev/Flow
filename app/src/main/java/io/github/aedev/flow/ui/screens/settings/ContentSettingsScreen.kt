@@ -92,6 +92,7 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
     val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
     val showRestoredMusicMiniPlayer by preferences.showRestoredMusicMiniPlayer.collectAsState(initial = true)
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
+    val libraryShelfPreviewsEnabled by preferences.libraryShelfPreviewsEnabled.collectAsState(initial = true)
 
     val homeViewModeString by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
     val currentHomeViewMode = homeViewModeString
@@ -115,7 +116,6 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
     val shareWithoutText by preferences.shareWithoutText.collectAsState(initial = false)
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
     val showShortsPlayerPrompt by preferences.showShortsPlayerPrompt.collectAsState(initial = true)
-    val showRegionPickerInExplore by preferences.showRegionPickerInExplore.collectAsState(initial = true)
     val videoTitleMaxLines by preferences.videoTitleMaxLines.collectAsState(initial = 1)
     val videoCardActionsEnabled by preferences.videoCardActionsEnabled.collectAsState(initial = false)
     val videoCardMarkWatchedEnabled by preferences.videoCardMarkWatchedEnabled.collectAsState(initial = false)
@@ -597,6 +597,24 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                 )
             }
 
+            // Library Section
+            item {
+                SectionHeader(text = stringResource(R.string.content_settings_header_library))
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.VideoLibrary,
+                        title = stringResource(R.string.content_settings_library_previews_title),
+                        subtitle = stringResource(R.string.content_settings_library_previews_subtitle),
+                        checked = libraryShelfPreviewsEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setLibraryShelfPreviewsEnabled(enabled)
+                            }
+                        },
+                    )
+                }
+            }
+
             // Content Components Section
             item {
                 SectionHeader(text = stringResource(R.string.content_settings_header_content_components))
@@ -718,18 +736,6 @@ fun ContentSettingsScreen(onBackClick: () -> Unit) {
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setShareWithoutText(enabled)
-                            }
-                        },
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.Language,
-                        title = stringResource(R.string.content_settings_explore_region_picker_title),
-                        subtitle = stringResource(R.string.content_settings_explore_region_picker_subtitle),
-                        checked = showRegionPickerInExplore,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                preferences.setShowRegionPickerInExplore(enabled)
                             }
                         },
                     )

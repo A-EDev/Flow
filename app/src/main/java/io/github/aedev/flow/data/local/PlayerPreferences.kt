@@ -124,12 +124,15 @@ class PlayerPreferences(
         val MUSIC_PLAYER_BACKGROUND_STYLE = stringPreferencesKey("music_player_background_style")
         val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
+        val GESTURE_OVERLAY_STYLE = stringPreferencesKey("gesture_overlay_style")
+        val PLAYER_HAPTICS_ENABLED = booleanPreferencesKey("player_haptics_enabled")
         val GROUPED_QUALITY_SELECTOR_ENABLED = booleanPreferencesKey("grouped_quality_selector_enabled")
         val SHORTS_CONTENT_ENABLED = booleanPreferencesKey("shorts_content_enabled")
         val NOTES_ENABLED = booleanPreferencesKey("notes_enabled")
         val CHANNEL_NOTES_ENABLED = booleanPreferencesKey("channel_notes_enabled")
         val VIDEO_NOTES_ENABLED = booleanPreferencesKey("video_notes_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
+        val LIBRARY_SHELF_PREVIEWS_ENABLED = booleanPreferencesKey("library_shelf_previews_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val HOME_NAVIGATION_ENABLED = booleanPreferencesKey("home_navigation_enabled")
         val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
@@ -212,12 +215,13 @@ class PlayerPreferences(
         val OVERLAY_COMMENTS_ENABLED = booleanPreferencesKey("overlay_comments_enabled")
 
         // Fullscreen Player
-        val SHOW_FULLSCREEN_TITLE = booleanPreferencesKey("show_fullscreen_title")
         val ADAPTIVE_PLAYER_SIZE_ENABLED = booleanPreferencesKey("adaptive_player_size_enabled")
         val PORTRAIT_SEEKBAR_PADDING_MODE = stringPreferencesKey("portrait_seekbar_padding_mode")
         val PORTRAIT_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("portrait_seekbar_custom_padding_dp")
         val FULLSCREEN_SEEKBAR_PADDING_MODE = stringPreferencesKey("fullscreen_seekbar_padding_mode")
         val FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("fullscreen_seekbar_custom_padding_dp")
+        val SCRUB_PREVIEW_STYLE = stringPreferencesKey("scrub_preview_style")
+        val FRAME_STEP_BUTTONS_ENABLED = booleanPreferencesKey("frame_step_buttons_enabled")
 
         // Mini Player Customizations
         val MINI_PLAYER_SCALE = floatPreferencesKey("mini_player_scale")
@@ -283,7 +287,6 @@ class PlayerPreferences(
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
 
         // Explore screen quick region picker
-        val SHOW_REGION_PICKER_IN_EXPLORE = booleanPreferencesKey("show_region_picker_in_explore")
 
         // App icon — stores the component suffix of the currently selected launcher icon
         val APP_ICON_SUFFIX = stringPreferencesKey("app_icon_suffix")
@@ -603,7 +606,6 @@ class PlayerPreferences(
             speedIndicatorEnabled =
                 this[Keys.OVERLAY_SPEED_INDICATOR_ENABLED] ?: overlayDefaults.speedIndicatorEnabled,
             commentsEnabled = this[Keys.OVERLAY_COMMENTS_ENABLED] ?: overlayDefaults.commentsEnabled,
-            fullscreenTitleEnabled = this[Keys.SHOW_FULLSCREEN_TITLE] ?: overlayDefaults.fullscreenTitleEnabled,
             showControlsWhileLoading =
                 this[Keys.SHOW_CONTROLS_WHILE_LOADING] ?: overlayDefaults.showControlsWhileLoading,
             fullscreenSeekbarHorizontalPaddingDp =
@@ -624,6 +626,9 @@ class PlayerPreferences(
                     defaultPaddingDp = DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP,
                     maxPaddingDp = MAX_PORTRAIT_SEEKBAR_PADDING_DP,
                 ),
+            scrubPreviewStyle = resolveScrubPreviewStyle(this[Keys.SCRUB_PREVIEW_STYLE]),
+            frameStepButtonsEnabled =
+                this[Keys.FRAME_STEP_BUTTONS_ENABLED] ?: overlayDefaults.frameStepButtonsEnabled,
             sponsorCategoryColors = readSponsorCategoryColors(),
         )
     }
@@ -737,6 +742,30 @@ class PlayerPreferences(
         }
     }
 
+    val gestureOverlayStyle: Flow<GestureOverlayStyle> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.GESTURE_OVERLAY_STYLE]
+                    ?.let { stored -> runCatching { GestureOverlayStyle.valueOf(stored) }.getOrNull() }
+                    ?: GestureOverlayStyle.CIRCULAR
+            }
+
+    val playerHapticsEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.PLAYER_HAPTICS_ENABLED] ?: true }
+
+    suspend fun setPlayerHapticsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYER_HAPTICS_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setGestureOverlayStyle(style: GestureOverlayStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.GESTURE_OVERLAY_STYLE] = style.name
+        }
+    }
+
     val groupedQualitySelectorEnabled: Flow<Boolean> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
@@ -797,6 +826,22 @@ class PlayerPreferences(
     suspend fun setShortsContentEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_CONTENT_ENABLED] = enabled
+        }
+    }
+
+    /**
+     * When OFF the Library screen drops the horizontal preview shelves and lists each section as a
+     * single navigation row with its item count.
+     */
+    val libraryShelfPreviewsEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.LIBRARY_SHELF_PREVIEWS_ENABLED] ?: true
+            }
+
+    suspend fun setLibraryShelfPreviewsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.LIBRARY_SHELF_PREVIEWS_ENABLED] = enabled
         }
     }
 
@@ -1483,16 +1528,6 @@ class PlayerPreferences(
         }
     }
 
-    //  FULLSCREEN PLAYER PREFERENCES
-    val showFullscreenTitle: Flow<Boolean> =
-        overlayPreferences.map { it.fullscreenTitleEnabled }.distinctUntilChanged()
-
-    suspend fun setShowFullscreenTitle(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SHOW_FULLSCREEN_TITLE] = enabled
-        }
-    }
-
     val adaptivePlayerSizeEnabled: Flow<Boolean> =
         context.playerPreferencesDataStore.data
             .map { preferences -> preferences[Keys.ADAPTIVE_PLAYER_SIZE_ENABLED] ?: true }
@@ -1554,6 +1589,26 @@ class PlayerPreferences(
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP] =
                 paddingDp.coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
+        }
+    }
+
+    val scrubPreviewStyle: Flow<ScrubPreviewStyle> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> resolveScrubPreviewStyle(preferences[Keys.SCRUB_PREVIEW_STYLE]) }
+
+    suspend fun setScrubPreviewStyle(style: ScrubPreviewStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SCRUB_PREVIEW_STYLE] = style.name
+        }
+    }
+
+    val frameStepButtonsEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.FRAME_STEP_BUTTONS_ENABLED] ?: false }
+
+    suspend fun setFrameStepButtonsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.FRAME_STEP_BUTTONS_ENABLED] = enabled
         }
     }
 
@@ -2217,18 +2272,6 @@ class PlayerPreferences(
     }
 
     // Show region picker globe icon in CategoriesScreen top bar
-    val showRegionPickerInExplore: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.SHOW_REGION_PICKER_IN_EXPLORE] ?: true
-            }
-
-    suspend fun setShowRegionPickerInExplore(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SHOW_REGION_PICKER_IN_EXPLORE] = enabled
-        }
-    }
-
     // Selected app icon — component suffix string saved on each icon switch so it can be backed up/restored
     val selectedAppIcon: Flow<String?> =
         context.playerPreferencesDataStore.data
@@ -3060,6 +3103,14 @@ enum class MusicPlayerBackgroundStyle {
     DEFAULT,
 }
 
+/** How the volume and brightness read-outs are drawn mid-gesture. */
+enum class GestureOverlayStyle {
+    CIRCULAR,
+    VERTICAL,
+    HORIZONTAL,
+    MINIMAL,
+}
+
 enum class ShortsPlayerUiMode {
     DEFAULT,
     SIMPLE,
@@ -3072,6 +3123,16 @@ enum class SeekbarPaddingMode {
     DEFAULT,
     CUSTOM,
 }
+
+/** What a scrub shows above the bar: a filmstrip around the target, or the single frame under it. */
+enum class ScrubPreviewStyle {
+    STRIP,
+    FRAME,
+}
+
+internal fun resolveScrubPreviewStyle(storedStyle: String?): ScrubPreviewStyle =
+    storedStyle?.let { value -> runCatching { ScrubPreviewStyle.valueOf(value) }.getOrNull() }
+        ?: ScrubPreviewStyle.STRIP
 
 internal fun resolvePortraitSeekbarPaddingMode(storedMode: String?): SeekbarPaddingMode {
     val mode =

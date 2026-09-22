@@ -33,6 +33,26 @@ class DraggablePlayerDragMathTest {
     }
 
     @Test
+    fun `portrait fullscreen commits on travel or a downward fling`() {
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.5f, velocityY = 0f)).isTrue()
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.1f, velocityY = 1500f)).isTrue()
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.3f, velocityY = 0f)).isFalse()
+    }
+
+    @Test
+    fun `a flick back up takes the pull back however far it travelled`() {
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.9f, velocityY = -1500f)).isFalse()
+        assertThat(shouldEnterPortraitFullscreen(fraction = 0.9f, velocityY = -900f)).isTrue()
+    }
+
+    @Test
+    fun `settle velocity is the fling in fractions of the travel`() {
+        assertThat(portraitFullscreenSettleVelocity(velocityY = 2000f, travelPx = 2000f)).isEqualTo(1f)
+        assertThat(portraitFullscreenSettleVelocity(velocityY = -1000f, travelPx = 2000f)).isEqualTo(-0.5f)
+        assertThat(portraitFullscreenSettleVelocity(velocityY = 800f, travelPx = 0f)).isEqualTo(800f)
+    }
+
+    @Test
     fun `corner targets follow the corner`() {
         assertThat(cornerTargetX(MiniPlayerCorner.TopLeft, minX = 24f, maxX = 624f)).isEqualTo(24f)
         assertThat(cornerTargetX(MiniPlayerCorner.BottomRight, minX = 24f, maxX = 624f)).isEqualTo(624f)

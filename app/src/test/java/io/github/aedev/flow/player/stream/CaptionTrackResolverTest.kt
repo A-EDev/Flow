@@ -125,3 +125,123 @@ class CaptionTrackResolverTest {
         )
     }
 }
+
+private fun tracklistWithTranslations(
+    tracks: List<PlayerResponse.Captions.CaptionTrack>,
+    languages: List<String>,
+) = PlayerResponse.Captions.PlayerCaptionsTracklistRenderer(
+    captionTracks = tracks,
+    translationLanguages =
+        languages.map {
+            PlayerResponse.Captions.TranslationLanguage(languageCode = it)
+        },
+)
+
+private fun translatable(
+    languageCode: String,
+    kind: String? = null,
+) = PlayerResponse.Captions.CaptionTrack(
+    baseUrl = BASE_URL,
+    languageCode = languageCode,
+    kind = kind,
+    isTranslatable = true,
+)
+
+class CaptionTrackAutoTranslationTest {
+    @Test
+    fun `a preferred language absent from the video is machine translated`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(
+                tracklistWithTranslations(listOf(translatable("en")), listOf("es", "fr")),
+                translateTo = "es",
+            )
+
+        assertEquals(2, resolved.size)
+        val translated = resolved.last()
+        assertEquals("es", translated.languageTag)
+        assertTrue(CaptionTrackResolver.isTranslated(translated))
+        assertTrue(translated.getContent().contains("&tlang=es"))
+    }
+
+    @Test
+    fun `only one translation is produced however many languages are offered`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(
+                tracklistWithTranslations(listOf(translatable("en")), List(156) { "l$it" } + "es"),
+                translateTo = "es",
+            )
+
+        assertEquals(2, resolved.size)
+    }
+
+    @Test
+    fun `a language the video already carries is never translated`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(
+                tracklistWithTranslations(listOf(translatable("en"), translatable("es")), listOf("es")),
+                translateTo = "es",
+            )
+
+        assertEquals(2, resolved.size)
+        assertFalse(resolved.any { CaptionTrackResolver.isTranslated(it) })
+    }
+
+    @Test
+    fun `no preferred language means no translation`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(
+                tracklistWithTranslations(listOf(translatable("en")), listOf("es")),
+                translateTo = CaptionTrackResolver.NO_PREFERRED_LANGUAGE,
+            )
+
+        assertEquals(1, resolved.size)
+    }
+
+    @Test
+    fun `a language the server does not offer is not invented`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(
+                tracklistWithTranslations(listOf(translatable("en")), listOf("es")),
+                translateTo = "ja",
+            )
+
+        assertEquals(1, resolved.size)
+    }
+
+    @Test
+    fun `an untranslatable track cannot be the source`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(
+                tracklistWithTranslations(listOf(track("en")), listOf("es")),
+                translateTo = "es",
+            )
+
+        assertEquals(1, resolved.size)
+    }
+
+    @Test
+    fun `the translated url carries exactly one fmt and one tlang`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(
+                tracklistWithTranslations(listOf(translatable("en")), listOf("es")),
+                translateTo = "es",
+            )
+
+        val url = resolved.last().getContent()
+        assertEquals("exactly one fmt expected: $url", 1, url.split("fmt=").size - 1)
+        assertEquals("exactly one tlang expected: $url", 1, url.split("tlang=").size - 1)
+    }
+
+    @Test
+    fun `an asr source forces the plain vtt form`() {
+        val resolved =
+            CaptionTrackResolver.resolveTracklist(
+                tracklistWithTranslations(listOf(translatable("en", kind = "asr")), listOf("es")),
+                translateTo = "es",
+            )
+
+        val translated = resolved.last()
+        assertEquals(MediaFormat.VTT, translated.format)
+        assertTrue(translated.getContent().contains("fmt=vtt"))
+    }
+}

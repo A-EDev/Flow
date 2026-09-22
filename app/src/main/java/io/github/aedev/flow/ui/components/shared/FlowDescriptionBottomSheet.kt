@@ -228,7 +228,6 @@ fun FlowDescriptionBottomSheet(
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                     ),
-                dividerAlpha = null,
                 actions = {
                     IconButton(
                         onClick = {
@@ -280,7 +279,8 @@ fun FlowDescriptionBottomSheet(
                         ),
                         VideoDescriptionFactoid(
                             value =
-                                descriptionPage?.publishedDateText
+                                descriptionPage?.relativeDateText
+                                    ?: descriptionPage?.publishedDateText
                                     ?: dateSettings.format(video.uploadDate, DateContext.DESCRIPTION, video.timestamp),
                             label = stringResource(R.string.uploaded),
                         ),

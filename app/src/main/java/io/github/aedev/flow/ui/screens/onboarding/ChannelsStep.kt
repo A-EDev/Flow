@@ -23,8 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -35,8 +33,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,19 +41,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.utils.formatSubscriberCount
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -96,19 +91,13 @@ internal fun ChannelsStep(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onQueryChange,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester),
-            placeholder = {
-                Text(
-                    stringResource(R.string.onboarding_channels_search_placeholder),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-                )
-            },
+        FlowSearchField(
+            query = searchQuery,
+            onQueryChange = onQueryChange,
+            placeholder = stringResource(R.string.onboarding_channels_search_placeholder),
+            modifier = Modifier.fillMaxWidth(),
+            onSearch = { focusManager.clearFocus() },
+            focusRequester = focusRequester,
             leadingIcon = {
                 Icon(
                     Icons.Outlined.Search,
@@ -116,21 +105,11 @@ internal fun ChannelsStep(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
-            trailingIcon =
+            trailingContent = {
                 if (isSearching) {
-                    { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
-                } else {
-                    null
-                },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-            shape = RoundedCornerShape(28.dp),
-            colors =
-                OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                ),
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                }
+            },
         )
 
         Spacer(modifier = Modifier.height(10.dp))

@@ -124,7 +124,7 @@ internal fun Modifier.playerTapGestures(
                 }
 
             if (isLive) manager.seekToLiveTimeline(target) else manager.seekTo(target)
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
         }
 
         fun togglePlayPause() {
@@ -213,7 +213,7 @@ internal fun Modifier.playerTapGestures(
                     currentOnNormalSpeedChange(restoreSpeed)
                     speedBeforeLongPress = null
                     currentOnSpeedBoostChange(false)
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
                 }
             },
         )

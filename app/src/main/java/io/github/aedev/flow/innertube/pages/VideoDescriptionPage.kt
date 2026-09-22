@@ -81,6 +81,8 @@ internal fun JsonElement.toVideoDescriptionPage(ownVideoId: String?): VideoDescr
                 ?.get("originalViewCount")
                 .stringOrNull()
                 ?.toLongOrNull()
+                // An archived livestream serves "0" here beside a real count in the text below.
+                ?.takeIf { it > 0L }
                 ?: viewCountRenderer
                     ?.get("viewCount")
                     .youtubeText()

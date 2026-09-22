@@ -22,6 +22,7 @@ import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.session.MediaSession
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
@@ -63,6 +64,7 @@ import kotlinx.coroutines.withContext
 @OptIn(UnstableApi::class)
 class ShortsPlayerPool private constructor() {
     companion object {
+        private const val SESSION_ID = "flow_shorts_session"
         private const val TAG = "ShortsPlayerPool"
         private const val POOL_SIZE = 3
 
@@ -90,6 +92,13 @@ class ShortsPlayerPool private constructor() {
 
     private var isInitialized = false
     private var dataSourceFactory: DefaultDataSource.Factory? = null
+
+    /**
+     * One session for the whole pool, re-pointed at the active player on every settle, so headset
+     * and Bluetooth buttons reach the reel on screen. A session per page used to be built and torn
+     * down on every swipe.
+     */
+    private var mediaSession: MediaSession? = null
 
     private var activeIndex: Int = -1
 
@@ -190,6 +199,7 @@ class ShortsPlayerPool private constructor() {
                 playerOwnerIndices[i] = null
                 playerVideoIds[i] = null
             }
+            mediaSession = createMediaSession(appContext, players[0]!!)
             isInitialized = true
             Log.d(TAG, "Player pool initialized with $POOL_SIZE players")
         } catch (error: Throwable) {
@@ -232,19 +242,26 @@ class ShortsPlayerPool private constructor() {
             .setUpstreamDataSourceFactory(DefaultDataSource.Factory(appContext, YouTubeHttpDataSource.Factory()))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
+    private fun createMediaSession(
+        context: Context,
+        player: ExoPlayer,
+    ): MediaSession? =
+        try {
+            MediaSession
+                .Builder(context, player)
+                .setId(SESSION_ID)
+                .build()
+        } catch (e: Exception) {
+            Log.w(TAG, "Shorts MediaSession unavailable; media buttons will not reach the reel", e)
+            null
+        }
+
     private fun updateTrackSelectors(language: String) {
         players.filterNotNull().forEach { player ->
             val trackSelector = player.trackSelector as? DefaultTrackSelector
             trackSelector?.let { selector ->
                 val builder = selector.buildUponParameters()
-                when (language) {
-                    "original", "" -> {
-                    }
-
-                    else -> {
-                        builder.setPreferredAudioLanguage(language)
-                    }
-                }
+                builder.setPreferredAudioLanguage(language.takeUnless { it == "original" || it.isBlank() })
                 selector.setParameters(builder)
             }
         }
@@ -487,6 +504,9 @@ class ShortsPlayerPool private constructor() {
                 player.playWhenReady = false
             }
         }
+        players[activeSlot]?.let { active ->
+            mediaSession?.takeIf { it.player !== active }?.setPlayer(active)
+        }
     }
 
     fun releaseUnusedPlayers(currentIndex: Int) {
@@ -671,6 +691,8 @@ class ShortsPlayerPool private constructor() {
         poolScope?.cancel()
         poolScope = null
         cachedDataSourceFactory = null
+        mediaSession?.release()
+        mediaSession = null
         for (i in 0 until POOL_SIZE) {
             players[i]?.stop()
             players[i]?.release()

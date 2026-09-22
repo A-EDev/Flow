@@ -26,7 +26,7 @@ class PlayerLoadDecisionsTest {
 
     @Test
     fun `a forced refresh always runs`() {
-        val loaded = VideoPlayerUiState(streamInfo = streamInfo("vid_a"))
+        val loaded = VideoPlayerUiState(cachedVideo = video("vid_a"))
 
         assertThat(loaded.loadSkipReason("vid_a", forceRefresh = true)).isNull()
         assertThat(loaded.loadSkipReason("vid_a", forceRefresh = false)).isEqualTo(LoadSkip.ALREADY_LOADED)
@@ -34,14 +34,14 @@ class PlayerLoadDecisionsTest {
 
     @Test
     fun `a video already loaded with an error is not skipped`() {
-        val failed = VideoPlayerUiState(streamInfo = streamInfo("vid_a"), error = "boom")
+        val failed = VideoPlayerUiState(cachedVideo = video("vid_a"), error = "boom")
 
         assertThat(failed.loadSkipReason("vid_a", forceRefresh = false)).isNull()
     }
 
     @Test
-    fun `a load in flight for the same video is skipped under either identity`() {
-        val byStream = VideoPlayerUiState(isLoading = true, streamInfo = streamInfo("vid_a"))
+    fun `a load in flight for the same video is skipped`() {
+        val byStream = VideoPlayerUiState(isLoading = true, cachedVideo = video("vid_a"))
         val byCache = VideoPlayerUiState(isLoading = true, cachedVideo = video("vid_a"))
         val other = VideoPlayerUiState(isLoading = true, cachedVideo = video("vid_b"))
 
@@ -55,7 +55,6 @@ class PlayerLoadDecisionsTest {
         val before =
             VideoPlayerUiState(
                 cachedVideo = video("vid_a").copy(channelThumbnailUrl = "avatar.jpg"),
-                streamInfo = streamInfo("vid_old"),
                 relatedVideos = listOf(video("rel_1")),
                 streamSizes = mapOf("137" to 1L),
                 error = "boom",
@@ -72,7 +71,6 @@ class PlayerLoadDecisionsTest {
 
         assertThat(next.isLoading).isTrue()
         assertThat(next.error).isNull()
-        assertThat(next.streamInfo).isNull()
         assertThat(next.relatedVideos).isEmpty()
         assertThat(next.streamSizes).isEmpty()
         assertThat(next.isSubscribed).isFalse()
@@ -100,7 +98,6 @@ class PlayerLoadDecisionsTest {
         assertThat(next.isUpcoming).isTrue()
         assertThat(next.upcomingReleaseTimeMs).isEqualTo(1_700L)
         assertThat(next.isLoading).isFalse()
-        assertThat(next.streamInfo).isNull()
         assertThat(next.localFilePath).isNull()
         assertThat(next.localFileVideoId).isNull()
     }
@@ -180,35 +177,6 @@ class PlayerLoadDecisionsTest {
         val state = VideoPlayerUiState(localFilePath = "/tmp/a.mp4", localFileVideoId = "vid_b")
 
         assertThat(state.latePrepare("vid_a")).isNull()
-    }
-
-    @Test
-    fun `stream metadata with a playable source is re-pushed`() {
-        val videoStream = videoStream()
-        val info = streamInfo("vid_a", videoStreams = listOf(videoStream))
-        val state = VideoPlayerUiState(streamInfo = info, cachedVideo = video("vid_a"), isAdaptiveMode = true, savedPosition = 7_000L)
-
-        val prepare = state.latePrepare("vid_a") as LatePrepare.Streams
-
-        assertThat(prepare.streamInfo).isSameInstanceAs(info)
-        assertThat(prepare.videoStreams).containsExactly(videoStream)
-        assertThat(prepare.isAdaptiveMode).isTrue()
-        assertThat(prepare.savedPosition).isEqualTo(7_000L)
-        assertThat(prepare.fallbackDurationSeconds).isEqualTo(120L)
-    }
-
-    @Test
-    fun `stream metadata with no playable source at all arms nothing`() {
-        val state = VideoPlayerUiState(streamInfo = streamInfo("vid_a"))
-
-        assertThat(state.latePrepare("vid_a")).isNull()
-    }
-
-    @Test
-    fun `an hls url alone is enough to re-push`() {
-        val state = VideoPlayerUiState(streamInfo = streamInfo("vid_a"), hlsUrl = "https://example.invalid/live.m3u8")
-
-        assertThat(state.latePrepare("vid_a")).isInstanceOf(LatePrepare.Streams::class.java)
     }
 
     @Test

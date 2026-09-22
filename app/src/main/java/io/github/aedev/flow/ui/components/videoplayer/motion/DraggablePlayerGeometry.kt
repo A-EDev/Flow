@@ -60,6 +60,7 @@ internal fun computeDraggablePlayerGeometry(
     isLargeWindow: Boolean,
     isTwoPaneWindow: Boolean,
     miniPlayerScale: Float,
+    maxMiniWidthPx: Float = Float.MAX_VALUE,
     startInset: Float = 0f,
     detailPaneWidth: Float = 0f,
     videoAspectRatio: Float,
@@ -69,13 +70,12 @@ internal fun computeDraggablePlayerGeometry(
     cachedTargetX: Float,
     offsetXFallback: () -> Float,
 ): DraggablePlayerGeometry {
-    val effectiveMiniScale =
-        when {
-            isTwoPaneWindow -> 0.32f
-            isLargeWindow -> 0.35f
-            else -> miniPlayerScale
-        }
-    val baseMiniWidth = screenWidth * effectiveMiniScale
+    // The size preference applies at every window size. It used to be overwritten with a constant
+    // on anything large, which happened to equal the "small" option — so on a tablet the setting did
+    // nothing and every choice gave the same oversized player (#991). A fraction of a tablet is the
+    // wrong unit anyway, so the caller supplies an absolute ceiling instead and the preference
+    // scales that.
+    val baseMiniWidth = (screenWidth * miniPlayerScale).coerceAtMost(maxMiniWidthPx)
     val maxWideFraction = if (isLargeWindow) 0.60f else 1.00f
     val maxWideWidth = ((screenWidth * maxWideFraction) - (margin * 2f)).coerceAtLeast(baseMiniWidth)
     val clampedAspect = sanitizeDisplayAspectRatio(videoAspectRatio)

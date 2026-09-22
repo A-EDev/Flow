@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.feed.FeedPrefetchQueue
+import io.github.aedev.flow.data.feed.FeedPrefetchRequest
 import io.github.aedev.flow.data.local.CachedHomeVideo
 import io.github.aedev.flow.data.local.HomeFeedCacheFilters
 import io.github.aedev.flow.data.local.HomeFeedCacheRepository
@@ -18,7 +20,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.repository.YouTubeRepository
-import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.data.shorts.ShortsFeedRepository
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CancellationException
@@ -57,7 +59,7 @@ class HomeViewModel
         private val repository: YouTubeRepository,
         private val subscriptionRepository: SubscriptionRepository,
         private val subscriptionFeedRepository: io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository,
-        private val shortsRepository: ShortsRepository,
+        private val shortsRepository: ShortsFeedRepository,
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
         private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
         private val feedSources: HomeFeedSources,
@@ -100,7 +102,11 @@ class HomeViewModel
 
         private var currentPage: Page? = null
         private var isInitialized = false
-        private val homePrefetchQueue = HomePrefetchQueue()
+        private val homePrefetchQueue =
+            FeedPrefetchQueue(
+                prefetchAheadItemCount = HOME_PREFETCH_AHEAD_VIDEO_COUNT,
+                triggerRemainingItems = HOME_PREFETCH_TRIGGER_REMAINING_VIDEOS,
+            )
         private val homePrefetchWorkerLock = Any()
         private var homePrefetchJob: Job? = null
 
@@ -127,7 +133,6 @@ class HomeViewModel
             } else {
                 hydratePersistentHomeFeed()
                 loadFlowFeed(forceRefresh = true)
-                loadHomeShorts()
             }
         }
 
@@ -230,8 +235,8 @@ class HomeViewModel
                 playerPreferences.effectiveHomeShortsShelfEnabled.collect { enabled ->
                     if (!enabled) {
                         _uiState.update { it.copy(shorts = emptyList()) }
-                    } else if (_uiState.value.shorts.isEmpty()) {
-                        loadHomeShorts()
+                    } else if (_uiState.value.shorts.isEmpty() && !_uiState.value.isLoading) {
+                        refreshFeed()
                     }
                 }
             }
@@ -241,7 +246,7 @@ class HomeViewModel
             val state = _uiState.value
             startHomePrefetch(
                 homePrefetchQueue.onVisible(
-                    currentVideoCount = state.videos.size,
+                    currentItemCount = state.videos.size,
                     feedReady = state.isReadyForPrefetch(),
                 ),
             )
@@ -263,15 +268,15 @@ class HomeViewModel
             if (!state.isReadyForPrefetch()) return
             startHomePrefetch(
                 homePrefetchQueue.onViewportChanged(
-                    currentVideoCount = state.videos.size,
-                    lastVisibleVideoIndex = lastVisibleVideoIndex,
+                    currentItemCount = state.videos.size,
+                    lastVisibleItemIndex = lastVisibleVideoIndex,
                 ),
             )
         }
 
         private fun HomeUiState.isReadyForPrefetch(): Boolean = videos.isNotEmpty() && !isLoading && isFlowFeed && hasMorePages
 
-        private fun startHomePrefetch(request: HomePrefetchRequest?) {
+        private fun startHomePrefetch(request: FeedPrefetchRequest?) {
             request ?: return
             val worker =
                 synchronized(homePrefetchWorkerLock) {
@@ -351,21 +356,6 @@ class HomeViewModel
         fun removeContinueWatchingEntry(videoId: String) {
             viewModelScope.launch {
                 viewHistory.clearVideoHistory(videoId)
-            }
-        }
-
-        private fun loadHomeShorts() {
-            viewModelScope.launch {
-                if (!playerPreferences.effectiveHomeShortsShelfEnabled.first()) return@launch
-                try {
-                    val shorts = shortsRepository.getHomeFeedShorts().map { it.toVideo() }
-                    if (shorts.isNotEmpty()) {
-                        _uiState.update {
-                            it.copy(shorts = shorts.filterWatched(watchedVideoIds.value))
-                        }
-                    }
-                } catch (e: Exception) {
-                }
             }
         }
 
@@ -477,13 +467,6 @@ class HomeViewModel
                                         }.awaitAll()
                                 }
 
-                            val deferredViral =
-                                async {
-                                    runCatching {
-                                        repository.getTrendingVideos(region).first
-                                    }.getOrElse { emptyList() }
-                                }
-
                             // ── Related-graph lane: harvest /next neighbours of recent positives ──
                             val deferredRelated =
                                 async {
@@ -492,34 +475,10 @@ class HomeViewModel
                                     feedSources.fetchRelatedGraph(seedInputs, seedIds, ::cacheFilters)
                                 }
 
-                            // ── Fast first paint ────────────────────────────────────────
-                            val viralResult = deferredViral.await()
-                            if (viralResult.isNotEmpty() && userSubs.isEmpty()) {
-                                val watched = watchedVideoIds.value
-                                val quickFeed =
-                                    FlowNeuroEngine
-                                        .rank(
-                                            viralResult
-                                                .filterValid()
-                                                .filterWatched(watched)
-                                                .filterRecentHomeSuggestion(System.currentTimeMillis()),
-                                            userSubs,
-                                        ).take(15)
-                                if (quickFeed.isNotEmpty()) {
-                                    _uiState.update { state ->
-                                        state.copy(
-                                            videos = quickFeed.filterWatched(watchedVideoIds.value),
-                                            isLoading = true,
-                                            isFlowFeed = true,
-                                        )
-                                    }
-                                }
-                            }
-
                             Wave1FeedResults(
                                 subs = deferredSubs.await(),
                                 discovery = deferredDiscovery.await(),
-                                viral = viralResult,
+                                viral = emptyList(),
                                 related = deferredRelated.await(),
                             )
                         }
@@ -605,7 +564,7 @@ class HomeViewModel
                     subsBacklog = mix.subsBacklog
 
                     if (finalMix.isEmpty()) {
-                        loadTrendingFallback()
+                        settleWithoutFeed()
                         return@launch
                     }
                     val relatedMetrics =
@@ -673,7 +632,7 @@ class HomeViewModel
                             error = appContext.getString(R.string.error_failed_to_load_feed),
                         )
                     }
-                    loadTrendingFallback()
+                    settleWithoutFeed()
                 }
             }
         }
@@ -1119,24 +1078,19 @@ class HomeViewModel
             }
         }
 
-        private suspend fun loadTrendingFallback() {
-            val region = playerPreferences.trendingRegion.first()
-            val (videos, nextPage) = repository.getTrendingVideos(region, null)
-            currentPage = nextPage
-
-            val userSubs = subscriptionRepository.getAllSubscriptionIds()
-            val ranked =
-                FlowNeuroEngine.rank(
-                    videos.filterRecentHomeSuggestion(System.currentTimeMillis()),
-                    userSubs,
-                )
-            updateVideosAndShorts(ranked, append = false)
+        /**
+         * Nothing to fall back to: the trending kiosk this used to load is retired, and the charts
+         * that replaced it belong on Explore, not mixed into the feed. The screen settles empty and
+         * offers a refresh instead of filling itself with unrelated content.
+         */
+        private fun settleWithoutFeed() {
+            currentPage = null
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    hasMorePages = nextPage != null,
+                    isRefreshing = false,
+                    hasMorePages = false,
                     isFlowFeed = false,
-                    error = null,
                 )
             }
         }

@@ -136,7 +136,6 @@ fun HistoryScreen(
                     Modifier
                         .fillMaxWidth()
                         .padding(SearchFieldPadding),
-                onClear = { viewModel.setSearchQuery("") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,

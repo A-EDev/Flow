@@ -7,8 +7,6 @@ import io.github.aedev.flow.data.shorts.ChannelShortsFeed
 import io.github.aedev.flow.data.shorts.ChannelShortsOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.channel.ChannelInfo
 
 class ChannelShortsLoader(
     private val channelUrl: String,
@@ -48,16 +46,12 @@ class ChannelShortsLoader(
             page(page.videos.map { it.toShortVideo() })
         }
 
-    private suspend fun resolveChannelId(): String? {
+    /** `Channel.url` is always `/channel/<id>`; anything else has no id to browse. */
+    private fun resolveChannelId(): String? =
         CHANNEL_ID
             .find(channelUrl)
             ?.groupValues
             ?.getOrNull(1)
-            ?.let { return it }
-        return runCatching {
-            ChannelInfo.getInfo(NewPipe.getService(SERVICE_YOUTUBE), channelUrl).id
-        }.getOrNull()?.takeIf { it.isNotBlank() }
-    }
 
     private fun page(shorts: List<ShortVideo>): ShortsQueuePage {
         val hasMore = nextPage != null
@@ -75,7 +69,6 @@ class ChannelShortsLoader(
 
     private companion object {
         const val TAG = "ChannelShortsLoader"
-        const val SERVICE_YOUTUBE = 0
         const val MORE = "more"
         val CHANNEL_ID = Regex("/channel/(UC[\\w-]+)")
     }

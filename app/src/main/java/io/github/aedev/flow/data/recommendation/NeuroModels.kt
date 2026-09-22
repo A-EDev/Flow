@@ -120,6 +120,8 @@ data class UserBrain(
     val clusterRotation: Map<String, Long> = emptyMap(),
     /** Tag co-occurrence edges from opened videos ("a|b" → weight), for clustering. */
     val tagAffinities: Map<String, Double> = emptyMap(),
+    /** Reels used as related-chain seeds recently (videoId → lastUsedAt), for rotation. */
+    val recentShortsSeeds: Map<String, Long> = emptyMap(),
     val schemaVersion: Int = 15,
 )
 
@@ -259,6 +261,27 @@ data class GraphSeedInput(
     val durationSec: Int,
     val percentWatched: Double,
     val isShort: Boolean = false,
+)
+
+/** Where a reel seed comes from; the weights live in [ShortsSeedSelector]. */
+enum class ShortsSeedSource {
+    LIKED,
+    WANT_MORE,
+    SAVED,
+    WATCHED,
+
+    /** A reel the user dwelt on this session — usable, weakest. */
+    FEED,
+}
+
+/** A reel the user engaged with, offered as the seed of a related reel chain. */
+data class ShortsSeedInput(
+    val id: String,
+    val channelId: String,
+    val source: ShortsSeedSource,
+    val timestamp: Long,
+    /** Watched share for [ShortsSeedSource.WATCHED]; ignored elsewhere. */
+    val percentWatched: Double = 100.0,
 )
 
 /** A seed annotated with its interest cluster, for diversified selection. */

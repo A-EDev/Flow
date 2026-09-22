@@ -79,15 +79,62 @@ class PlayerRelatedVideosPolicyTest {
         assertThat(selected).containsExactly(reel)
     }
 
-    private fun video(id: String) =
-        Video(
-            id = id,
-            title = id,
-            channelName = "channel",
-            channelId = "channel-id",
-            thumbnailUrl = "thumbnail",
-            duration = 60,
-            viewCount = 1L,
-            uploadDate = "today",
-        )
+    @Test
+    fun `a blocked creator is dropped from the related list`() {
+        val candidates = listOf(video("keep", channelId = "wanted"), video("drop", channelId = "blocked"))
+
+        val sanitized =
+            PlayerRelatedVideosPolicy.sanitize(
+                videoId = "playing",
+                candidates = candidates,
+                blockedChannelIds = setOf("blocked"),
+            )
+
+        assertThat(sanitized.map { it.id }).containsExactly("keep")
+    }
+
+    @Test
+    fun `a candidate with no channel id survives rather than being dropped blindly`() {
+        val candidates = listOf(video("unknown", channelId = ""))
+
+        val sanitized =
+            PlayerRelatedVideosPolicy.sanitize(
+                videoId = "playing",
+                candidates = candidates,
+                blockedChannelIds = setOf("blocked"),
+            )
+
+        assertThat(sanitized.map { it.id }).containsExactly("unknown")
+    }
+
+    @Test
+    fun `a source made empty by blocking falls through to the next one`() {
+        val primary = listOf(video("blocked-only", channelId = "blocked"))
+        val fallback = listOf(video("wanted", channelId = "wanted"))
+
+        val selected =
+            PlayerRelatedVideosPolicy.select(
+                videoId = "playing",
+                primary = primary,
+                fallback = fallback,
+                current = emptyList(),
+                blockedChannelIds = setOf("blocked"),
+            )
+
+        assertThat(selected.map { it.id }).containsExactly("wanted")
+    }
+
+    private fun video(
+        id: String,
+        channelId: String = "channel-id",
+    ) = Video(
+        id = id,
+        title = id,
+        channelName = "channel",
+        channelId = channelId,
+        thumbnailUrl = "thumbnail",
+        duration = 60,
+        viewCount = 1L,
+        uploadDate = "today",
+    )
 }

@@ -30,8 +30,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.utils.FlowDiagnostics
+import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
+import io.github.aedev.flow.utils.cipher.PlayerJsFetcher
+import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -88,6 +92,7 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
 
     // UI feedback
     var showClearDialog by remember { mutableStateOf(false) }
+    var showResetSessionDialog by remember { mutableStateOf(false) }
     var copiedSnackShown by remember { mutableStateOf(false) }
     val snackbarHost = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
@@ -158,6 +163,12 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
                 title = stringResource(R.string.diagnostics_title),
                 onBack = onNavigateBack,
                 actions = {
+                    IconButton(onClick = { showResetSessionDialog = true }) {
+                        Icon(
+                            Icons.Outlined.Restore,
+                            contentDescription = stringResource(R.string.diagnostics_reset_session),
+                        )
+                    }
                     IconButton(onClick = ::shareReport) {
                         Icon(
                             Icons.Outlined.Share,
@@ -331,6 +342,59 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    // -----------------------------------------------------------------------
+    // Reset the attestation identity. Re-attesting alone cannot lift a verdict GVS has already
+    // reached about this visitor, so the identity itself has to go — this is the supported form
+    // of the "clear app data" workaround users found for videos that stall a minute in.
+    // -----------------------------------------------------------------------
+    if (showResetSessionDialog) {
+        val resetDoneMessage = stringResource(R.string.diagnostics_reset_session_done)
+        AlertDialog(
+            onDismissRequest = { showResetSessionDialog = false },
+            icon = {
+                Icon(
+                    Icons.Outlined.Restore,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            },
+            title = {
+                Text(
+                    stringResource(R.string.diagnostics_reset_session_confirm_title),
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    stringResource(R.string.diagnostics_reset_session_confirm_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showResetSessionDialog = false
+                        scope.launch {
+                            WebPoTokenSession.resetIdentity()
+                            ClientGateTracker.clear()
+                            CipherDeobfuscator.invalidateSignatureTimestamp()
+                            withContext(Dispatchers.IO) { PlayerJsFetcher.invalidateCache() }
+                            snackbarHost.showSnackbar(
+                                message = resetDoneMessage,
+                                duration = SnackbarDuration.Short,
+                            )
+                        }
+                    },
+                ) { Text(stringResource(R.string.reset)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetSessionDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             },

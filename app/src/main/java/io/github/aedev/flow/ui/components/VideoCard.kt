@@ -720,6 +720,9 @@ fun CompactVideoCard(
     val isWatchedCompact = rememberIsWatched(video.id, quickActionsVmCompact.watchedVideoIds, watchProgress)
     val displayTitle = deArrowResultCompact?.title ?: video.title
     val displayThumbnailUrl = deArrowResultCompact?.thumbnailUrl ?: video.thumbnailUrl
+    // A negative count is the older "no count reported" sentinel; a row that declares itself
+    // upcoming counts too. The badge and the metadata line read the same answer.
+    val isUpcomingRow = video.isUpcoming || video.viewCount < 0L
 
     val interactionSource = remember { MutableInteractionSource() }
     Row(
@@ -748,7 +751,7 @@ fun CompactVideoCard(
                 displayTitle = displayTitle,
                 displayThumbnailUrl = displayThumbnailUrl,
                 watchProgress = watchProgress,
-                isUpcoming = video.isUpcoming || video.viewCount < 0L,
+                isUpcoming = isUpcomingRow,
                 badgePadding = 4.dp,
                 showDeArrowBadge = deArrowResultCompact != null && deArrowBadgeEnabledCompact,
             )
@@ -794,12 +797,12 @@ fun CompactVideoCard(
                 text =
                     videoMetadataLine(
                         video = video,
-                        isUpcoming = video.viewCount < 0L,
+                        isUpcoming = isUpcomingRow,
                         channelName = displayChannelName,
                     ),
                 style = MaterialTheme.typography.bodySmall,
                 color =
-                    if (video.viewCount < 0L) {
+                    if (isUpcomingRow) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f)
@@ -963,131 +966,6 @@ fun CollaboratorsBottomSheet(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun ShortsShelf(
-    shorts: List<Video>,
-    onShortClick: (shelf: List<Video>, tapped: Video) -> Unit,
-    modifier: Modifier = Modifier,
-    onSeeAllClick: (() -> Unit)? = null,
-) {
-    val uniqueShorts =
-        remember(shorts) {
-            shorts.distinctByNonBlankKey(Video::id)
-        }
-    if (uniqueShorts.isEmpty()) return
-    val context = LocalContext.current
-    Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .then(if (onSeeAllClick != null) Modifier.clickable(onClick = onSeeAllClick) else Modifier)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                contentDescription = stringResource(R.string.shorts),
-                tint = MaterialTheme.extendedColors.shortsAccent,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = context.getString(R.string.shorts),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            if (onSeeAllClick != null) {
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-        }
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(uniqueShorts, key = { it.id }) { short ->
-                ShortsCard(video = short, onClick = { onShortClick(uniqueShorts, short) })
-            }
-        }
-    }
-}
-
-@Composable
-fun ShortsCard(
-    video: Video,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier.width(160.dp),
-    trailingContent: (@Composable () -> Unit)? = null,
-) {
-    var showQuickActions by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-    Column(
-        modifier =
-            modifier
-                .pressScale(interactionSource)
-                .combinedClickable(
-                    interactionSource = interactionSource,
-                    indication = androidx.compose.material3.ripple(),
-                    onLongClick = { showQuickActions = true },
-                    onClick = onClick,
-                ),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(9f / 16f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .thumbnailGradientOverlay(),
-        ) {
-            VideoThumbnailImage(
-                videoId = video.id,
-                model = video.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-            ShortWatchedIndicator(videoId = video.id)
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = video.title,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = stringResource(R.string.views_template, formatViewCount(video.viewCount)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.extendedColors.textSecondary,
-                modifier = Modifier.weight(1f),
-            )
-            trailingContent?.invoke()
-        }
-    }
-
-    if (showQuickActions) {
-        VideoQuickActionsBottomSheet(
-            video = video,
-            onChannelClick = null,
-            onDismiss = { showQuickActions = false },
-        )
     }
 }
 

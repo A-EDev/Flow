@@ -150,12 +150,11 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
     @Test
     @Config(qualifiers = "sw800dp-w840dp-h1200dp-port")
-    fun expandedPortraitWindowAddsTheSideColumn() {
+    fun expandedPortraitWindowKeepsTheSingleColumn() {
         setScreen()
 
         rule.onNodeWithText(video.title).assertExists()
-        sideColumnCloseChat.assertExists()
-        assertPanes(mainPaneWidth = 456.dp, supportingPaneStart = 480.dp)
+        assertSingleColumn()
     }
 
     /**
@@ -163,11 +162,11 @@ class EnhancedVideoPlayerScreenLayoutTest {
      * pane's edge, and nothing of it lands in the bottom-sheet slot over the video.
      */
     @Test
-    @Config(qualifiers = "sw800dp-w840dp-h1200dp-port")
+    @Config(qualifiers = "sw800dp-w1280dp-h800dp-land")
     fun expandedWindowHostsTheSheetsInTheSupportingPane() {
         val screenState = PlayerScreenState()
         setScreen(screenState)
-        val paneStartPx = 480f * rule.density.density
+        val paneStartPx = 920f * rule.density.density
 
         listOf(
             PlayerSheet.Description to R.string.description,

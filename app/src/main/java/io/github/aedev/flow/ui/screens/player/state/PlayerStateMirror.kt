@@ -25,8 +25,8 @@ internal fun VideoPlayerUiState.mirrorPlayerState(playerState: EnhancedPlayerSta
 internal fun VideoPlayerUiState.foreignVideoIdNeedingLoad(playerState: EnhancedPlayerState): String? {
     val videoId = playerState.currentVideoId ?: return null
     val hasActiveStreams = playerState.isPrepared || playerState.isBuffering
-    val isSameVideoNeedsReload = !hasActiveStreams && streamInfo == null && cachedVideo?.id == videoId
-    val isForeignVideo = videoId != streamInfo?.id && videoId != cachedVideo?.id
+    val isSameVideoNeedsReload = !hasActiveStreams && cachedVideo?.id == videoId
+    val isForeignVideo = videoId != cachedVideo?.id
     val needsLoad =
         (isForeignVideo || isSameVideoNeedsReload) &&
             !isLoading &&

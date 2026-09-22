@@ -52,20 +52,6 @@ class PlayerPlaybackReducersTest {
     }
 
     @Test
-    fun `a ready local copy keeps the stream info unless the step asks for it to be cleared`() {
-        val streamInfo = mockk<StreamInfo>(relaxed = true)
-        val state = VideoPlayerUiState(streamInfo = streamInfo)
-
-        val kept =
-            state.applyLocalCopyReady("vid_a", ResolvedPlayback.LocalCopyReady("/tmp/a.mp4", null, clearStreamInfo = false))
-        val cleared =
-            state.applyLocalCopyReady("vid_a", ResolvedPlayback.LocalCopyReady("/tmp/a.mp4", null, clearStreamInfo = true))
-
-        assertThat(kept.streamInfo).isSameInstanceAs(streamInfo)
-        assertThat(cleared.streamInfo).isNull()
-    }
-
-    @Test
     fun `a local copy after a failure only clears the load and the error`() {
         val video = video("vid_a")
         val state = VideoPlayerUiState(cachedVideo = video, isLoading = true, error = "boom", errorHint = "hint")
@@ -93,65 +79,6 @@ class PlayerPlaybackReducersTest {
     }
 
     @Test
-    fun `the merged result writes the streams, qualities, chapters and manifests it resolved`() {
-        val videoStream = videoStream("1080p")
-        val audioStream = mockk<AudioStream>(relaxed = true)
-        val streams =
-            mergedPlayback(
-                selectedVideoStream = videoStream,
-                selectedAudioStream = audioStream,
-                availableQualities = listOf(VideoQuality.Q_1080P, VideoQuality.Q_720P),
-                streamSizes = mapOf("137" to 100L),
-                hlsUrl = "https://example.invalid/live.m3u8",
-                isLiveStream = true,
-                preferredQuality = VideoQuality.Q_1080P,
-            )
-
-        val next = VideoPlayerUiState(isLoading = true).applyMergedPlayback("vid_a", merged(streams))
-
-        assertThat(next.videoStream).isSameInstanceAs(videoStream)
-        assertThat(next.audioStream).isSameInstanceAs(audioStream)
-        assertThat(next.availableQualities).containsExactly(VideoQuality.Q_1080P, VideoQuality.Q_720P).inOrder()
-        assertThat(next.selectedQuality).isEqualTo(VideoQuality.Q_1080P)
-        assertThat(next.streamSizes).containsExactly("137", 100L)
-        assertThat(next.hlsUrl).isEqualTo("https://example.invalid/live.m3u8")
-        assertThat(next.isLive).isTrue()
-        assertThat(next.isAdaptiveMode).isFalse()
-        assertThat(next.isLoading).isFalse()
-        assertThat(next.savedPosition).isEqualTo(5_000L)
-        assertThat(next.localFileVideoId).isNull()
-        assertThat(next.isUpcoming).isFalse()
-    }
-
-    @Test
-    fun `merged upcoming content keeps the countdown and drops every stream the merge produced`() {
-        val streams = mergedPlayback(selectedVideoStream = videoStream("720p"), hlsUrl = "https://example.invalid/live.m3u8")
-
-        val next =
-            VideoPlayerUiState().applyMergedPlayback(
-                "vid_a",
-                merged(streams, isUpcomingContent = true, upcomingReleaseTimeMs = 1_700L),
-            )
-
-        assertThat(next.videoStream).isNull()
-        assertThat(next.audioStream).isNull()
-        assertThat(next.hlsUrl).isNull()
-        assertThat(next.isLive).isFalse()
-        assertThat(next.isUpcoming).isTrue()
-        assertThat(next.upcomingReleaseTimeMs).isEqualTo(1_700L)
-    }
-
-    @Test
-    fun `a merged local file stamps the video id it belongs to`() {
-        val streams = mergedPlayback(localFilePath = "/tmp/a.mp4")
-
-        val next = VideoPlayerUiState().applyMergedPlayback("vid_a", merged(streams))
-
-        assertThat(next.localFilePath).isEqualTo("/tmp/a.mp4")
-        assertThat(next.localFileVideoId).isEqualTo("vid_a")
-    }
-
-    @Test
     fun `the InnerTube VOD path writes its own field set and leaves the merged-only fields alone`() {
         val videoStream = videoStream("720p")
         val chapters = emptyList<org.schabi.newpipe.extractor.stream.StreamSegment>()
@@ -167,6 +94,8 @@ class PlayerPlaybackReducersTest {
 
         val next =
             before.applyVodStreams(
+                cachedVideo = video("vid_a"),
+                isArchivedLivestream = false,
                 relatedVideos = listOf(video("rel_1")),
                 videoStream = videoStream,
                 audioStream = null,
@@ -177,9 +106,9 @@ class PlayerPlaybackReducersTest {
                 innerTubeVideoFormats = emptyList(),
                 innerTubeAudioFormats = emptyList(),
                 streamSizes = mapOf("136" to 7L),
+                storyboard = emptyList(),
             )
 
-        assertThat(next.streamInfo).isNull()
         assertThat(next.videoStream).isSameInstanceAs(videoStream)
         assertThat(next.selectedQuality).isEqualTo(VideoQuality.Q_720P)
         assertThat(next.savedPosition).isEqualTo(9_000L)
@@ -201,7 +130,6 @@ class PlayerPlaybackReducersTest {
     fun `the InnerTube live path publishes the manifest and empties the InnerTube format lists`() {
         val before =
             VideoPlayerUiState(
-                streamInfo = mockk(relaxed = true),
                 isLoading = true,
                 error = "boom",
                 errorHint = "hint",
@@ -212,7 +140,6 @@ class PlayerPlaybackReducersTest {
 
         val next = before.applyLiveStreams(listOf(video("rel_1")), "https://example.invalid/live.m3u8")
 
-        assertThat(next.streamInfo).isNull()
         assertThat(next.hlsUrl).isEqualTo("https://example.invalid/live.m3u8")
         assertThat(next.isLive).isTrue()
         assertThat(next.isLoading).isFalse()
@@ -318,33 +245,6 @@ class PlayerPlaybackReducersTest {
     }
 
     @Test
-    fun `enriched metadata merges its stream sizes into the map the download dialog reads`() {
-        val streamInfo = mockk<StreamInfo>(relaxed = true)
-        every { streamInfo.streamSegments } returns null
-        every { streamInfo.videoStreams } returns emptyList()
-        every { streamInfo.videoOnlyStreams } returns emptyList()
-        every { streamInfo.audioStreams } returns emptyList()
-        val enriched = video("vid_a").copy(title = "Enriched")
-        val before = VideoPlayerUiState(streamSizes = mapOf("137" to 10L), relatedVideos = listOf(video("rel_1")))
-
-        val next =
-            before.applyEnrichedMetadata(
-                SecondaryMetadata.Enriched(
-                    videoId = "vid_a",
-                    loadToken = 1L,
-                    video = enriched,
-                    streamInfo = streamInfo,
-                    relatedVideos = emptyList(),
-                ),
-            )
-
-        assertThat(next.cachedVideo).isEqualTo(enriched)
-        assertThat(next.streamInfo).isSameInstanceAs(streamInfo)
-        assertThat(next.streamSizes).containsExactly("137", 10L)
-        assertThat(next.relatedVideos.map { it.id }).containsExactly("rel_1")
-    }
-
-    @Test
     fun `the live watch refresh keeps the avatar and count it could not resolve`() {
         val before = VideoPlayerUiState(channelAvatarUrl = "old.jpg", channelSubscriberCount = 7L)
         val refreshed = video("vid_a").copy(title = "Live now")
@@ -364,47 +264,6 @@ class PlayerPlaybackReducersTest {
         assertThat(next.cachedVideo).isEqualTo(refreshed)
         assertThat(next.channelAvatarUrl).isEqualTo("old.jpg")
         assertThat(next.channelSubscriberCount).isEqualTo(7L)
-    }
-
-    @Test
-    fun `primary metadata enriches the cached video and stops when the title is blank`() {
-        val streamInfo = mockk<StreamInfo>(relaxed = true)
-        every { streamInfo.name } returns "Real title"
-        every { streamInfo.uploaderName } returns "Real channel"
-        every { streamInfo.uploaderUrl } returns "https://youtube.invalid/channel/UC_real"
-        every { streamInfo.thumbnails } returns emptyList()
-        every { streamInfo.duration } returns 300L
-        val cached = video("vid_a").copy(channelId = "", thumbnailUrl = "cached.jpg", duration = 10)
-
-        val enriched = VideoPlayerUiState(cachedVideo = cached).primaryMetadataVideo("vid_a", streamInfo)
-
-        assertThat(enriched?.title).isEqualTo("Real title")
-        assertThat(enriched?.channelName).isEqualTo("Real channel")
-        assertThat(enriched?.channelId).isEqualTo("UC_real")
-        assertThat(enriched?.thumbnailUrl).isEqualTo("cached.jpg")
-        assertThat(enriched?.duration).isEqualTo(300)
-
-        every { streamInfo.name } returns "  "
-        assertThat(VideoPlayerUiState(cachedVideo = cached).primaryMetadataVideo("vid_a", streamInfo)).isNull()
-    }
-
-    @Test
-    fun `the neuro signal video carries the description and tags a title-only stub would lose`() {
-        val streamInfo = mockk<StreamInfo>(relaxed = true)
-        every { streamInfo.name } returns "Title"
-        every { streamInfo.uploaderName } returns "Channel"
-        every { streamInfo.uploaderUrl } returns "https://youtube.invalid/channel/UC_real"
-        every { streamInfo.thumbnails } returns emptyList()
-        every { streamInfo.duration } returns 42L
-        every { streamInfo.viewCount } returns 99L
-        every { streamInfo.tags } returns listOf("kotlin")
-
-        val signal = neuroSignalVideo("vid_a", streamInfo)
-
-        assertThat(signal.id).isEqualTo("vid_a")
-        assertThat(signal.duration).isEqualTo(42)
-        assertThat(signal.viewCount).isEqualTo(99L)
-        assertThat(signal.tags).containsExactly("kotlin")
     }
 
     @Test
@@ -493,23 +352,6 @@ class PlayerPlaybackReducersTest {
             preferSabr = false,
             preferredQuality = preferredQuality,
             preferredCodecKey = "auto",
-        )
-
-    private fun merged(
-        streams: MergedPlayback,
-        isUpcomingContent: Boolean = false,
-        upcomingReleaseTimeMs: Long? = null,
-    ): ResolvedPlayback.Merged =
-        ResolvedPlayback.Merged(
-            streamInfo = mockk(relaxed = true),
-            streams = streams,
-            relatedVideos = emptyList(),
-            savedPositionMs = 5_000L,
-            autoplayEnabled = true,
-            offlineSegments = null,
-            sponsorBlockBackfillNeeded = false,
-            isUpcomingContent = isUpcomingContent,
-            upcomingReleaseTimeMs = upcomingReleaseTimeMs,
-            resumeOverrideRequested = false,
+            storyboard = emptyList(),
         )
 }

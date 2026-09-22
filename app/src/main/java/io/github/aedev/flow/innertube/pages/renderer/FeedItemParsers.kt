@@ -6,8 +6,8 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
 import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
+import io.github.aedev.flow.innertube.pages.reel.parseReelLockup
 import io.github.aedev.flow.innertube.pages.stringOrNull
-import io.github.aedev.flow.innertube.pages.toSearchShorts
 import io.github.aedev.flow.innertube.pages.youtubeText
 import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -161,25 +161,31 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
             .stringOrNull()
             ?.toLongOrNull()
             ?.times(1000L)
+    val timeStatus = this["thumbnailOverlays"].timeStatusStyle()
     val badges = this["badges"].metadataBadges()
     val (snippet, highlights) = this["detailedMetadataSnippets"].matchedSnippet()
+    val isLive = timeStatus == TIME_STATUS_LIVE || this["badges"].hasLiveBadge() || viewsText.mentionsWatching()
+    val isUpcoming = upcomingStartMs != null
     return FeedItem.VideoItem(
         Video(
             id = videoId,
             title = title,
-            channelName = this["ownerText"].youtubeText()?.takeIf(String::isNotBlank) ?: owner.name,
+            channelName = bylineName() ?: owner.name,
             channelId =
                 this["ownerText"].bylineChannelId()
+                    ?: this["shortBylineText"].bylineChannelId()
                     ?: this["longBylineText"].bylineChannelId()
                     ?: owner.id,
             thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, this["thumbnail"].largestImageUrl()),
             duration = parseDurationText(this["lengthText"].youtubeText()) ?: 0,
-            viewCount = parseYouTubeViewCount(viewsText),
+            // A live row's count is its concurrent viewers, which the card renders in place of the
+            // date it has none of. An upcoming row's "1 waiting" is nobody's view count, so it goes.
+            viewCount = if (isUpcoming) 0L else parseYouTubeViewCount(viewsText),
             uploadDate = upcomingStartMs?.let(::premiereDateText) ?: uploadText,
             timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText) ?: 0L,
             channelThumbnailUrl = bylineAvatarUrl() ?: owner.avatarUrl,
-            isLive = this["badges"].hasLiveBadge() || viewsText?.contains("watching", ignoreCase = true) == true,
-            isUpcoming = upcomingStartMs != null,
+            isLive = isLive,
+            isUpcoming = isUpcoming,
             isVerifiedChannel = this["ownerBadges"].hasVerifiedBadge(),
             badges = badges,
             snippet = snippet,
@@ -187,6 +193,26 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
         ),
     )
 }
+
+/**
+ * The explore destinations ship live rows with no `badges` array at all, so the overlay is the only
+ * signal that survives a locale where "watching" is not the word.
+ */
+private fun JsonElement?.timeStatusStyle(): String? =
+    arrayOrNull()
+        .orEmpty()
+        .firstNotNullOfOrNull { it.objectOrNull()?.get("thumbnailOverlayTimeStatusRenderer").objectOrNull() }
+        ?.get("style")
+        .stringOrNull()
+
+private fun String?.mentionsWatching(): Boolean = this?.contains("watching", ignoreCase = true) == true
+
+/** `ownerText` is the watch-page byline; a grid row only ever carries the short or long one. */
+private fun JsonObject.bylineName(): String? =
+    listOf("ownerText", "shortBylineText", "longBylineText")
+        .firstNotNullOfOrNull { this[it].youtubeText()?.takeIf(String::isNotBlank) }
+
+private const val TIME_STATUS_LIVE = "LIVE"
 
 private fun JsonObject.toPlaylistRendererItem(): FeedItem? {
     val playlistId = this["playlistId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
@@ -262,12 +288,13 @@ private fun JsonElement?.bylineChannelId(): String? =
  * `next` request the old search path issued to fetch the same image.
  */
 private fun JsonObject.bylineAvatarUrl(): String? =
-    this["channelThumbnailSupportedRenderers"]
-        .objectOrNull()
-        ?.get("channelThumbnailWithLinkRenderer")
-        .objectOrNull()
-        ?.get("thumbnail")
-        .largestImageUrl()
+    this["channelThumbnail"].largestImageUrl()
+        ?: this["channelThumbnailSupportedRenderers"]
+            .objectOrNull()
+            ?.get("channelThumbnailWithLinkRenderer")
+            .objectOrNull()
+            ?.get("thumbnail")
+            .largestImageUrl()
         ?: this["avatar"]
             .objectOrNull()
             ?.get("decoratedAvatarViewModel")
@@ -347,7 +374,7 @@ private fun JsonObject.toShortItem(
     key: String,
     owner: FeedItemOwner,
 ): FeedItem? {
-    val item = JsonObject(mapOf(key to this)).toSearchShorts().firstOrNull() ?: return null
+    val item = JsonObject(mapOf(key to this)).parseReelLockup() ?: return null
     return FeedItem.ShortItem(
         Video(
             id = item.id,

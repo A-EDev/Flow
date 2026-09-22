@@ -61,6 +61,13 @@ import kotlin.math.roundToInt
 const val MINI_PLAYER_CORNER_RADIUS_DP = 12f
 
 private val MiniPlayerMargin = 8.dp
+
+/**
+ * What the mini player is worth on a window too wide to size it by fraction: the width the default
+ * size setting gets, which the smaller and larger settings scale around.
+ */
+private val MiniPlayerLargeWindowWidth = 260.dp
+private const val DEFAULT_MINI_PLAYER_SCALE = 0.45f
 private val PortraitFullscreenActivation = 28.dp
 private val MiniPlayerShadowElevation = 8.dp
 
@@ -148,6 +155,14 @@ fun DraggablePlayerLayout(
                     isTwoPaneWindow = isTwoPaneWindow,
                     detailPaneWidth = with(density) { detailPaneWidth.toPx() },
                     miniPlayerScale = miniPlayerScale,
+                    maxMiniWidthPx =
+                        if (isLargeWindow || isTwoPaneWindow) {
+                            with(density) {
+                                (MiniPlayerLargeWindowWidth * (miniPlayerScale / DEFAULT_MINI_PLAYER_SCALE)).toPx()
+                            }
+                        } else {
+                            Float.MAX_VALUE
+                        },
                     videoAspectRatio = videoAspectRatio,
                     currentSizeScale = state.miniSizeScale.targetValue,
                     corner = state.corner,
@@ -201,12 +216,20 @@ fun DraggablePlayerLayout(
                 targets = geometry.resnapTargets(isLargeScreen = isLargeWindow),
             )
 
-            val portraitFsTravel = (screenHeight - geometry.expandedVideoHeight).coerceAtLeast(1f)
+            // How far the video's bottom edge travels on its way to filling the screen. The pull
+            // maps a finger to this distance and the page below slides by exactly the same amount,
+            // so the page stays under the finger and glued to the bottom of the video.
+            val portraitFsTravelProvider =
+                remember(screenHeight, statusBarHeight, currentExpandedVideoHeightProvider) {
+                    {
+                        (screenHeight - statusBarHeight - currentExpandedVideoHeightProvider())
+                            .coerceAtLeast(1f)
+                    }
+                }
             val portraitFsEnabled =
                 !isLandscape && !isLargeWindow && !isFullscreen &&
                     onEnterPortraitFullscreen != null
             val portraitFsActivationPx = with(density) { PortraitFullscreenActivation.toPx() }
-            val portraitFsTravelState = rememberUpdatedState(portraitFsTravel)
             val portraitFsEnabledState = rememberUpdatedState(portraitFsEnabled)
             val portraitFsActivationState = rememberUpdatedState(portraitFsActivationPx)
             val onEnterPortraitFsState = rememberUpdatedState(onEnterPortraitFullscreen)
@@ -218,8 +241,8 @@ fun DraggablePlayerLayout(
                         playerHeightFraction = { playerHeightFraction },
                         onPlayerHeightFractionChange = { playerHeightFraction = it },
                         portraitFsFraction = { portraitFsFraction },
-                        onPortraitFsFractionChange = { portraitFsFraction = it },
-                        portraitFsTravel = { portraitFsTravelState.value },
+                        onPortraitFsFractionChange = { portraitFsFraction = it.coerceIn(0f, 1f) },
+                        portraitFsTravel = portraitFsTravelProvider,
                         portraitFsEnabled = { portraitFsEnabledState.value },
                         portraitFsActivationPx = { portraitFsActivationState.value },
                         expandFraction = { state.expandFraction.value },
@@ -271,7 +294,8 @@ fun DraggablePlayerLayout(
                                             if (fraction > 0.999f) {
                                                 placeable.height.toFloat()
                                             } else {
-                                                fraction * BODY_SLIDE_PX + portraitFsFraction * screenHeight
+                                                fraction * BODY_SLIDE_PX +
+                                                    portraitFsFraction * portraitFsTravelProvider()
                                             }
                                         placeable.place(0, topPad + slide.roundToInt())
                                     }

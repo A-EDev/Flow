@@ -36,7 +36,7 @@ class AddToPlaylistViewModel
         val playlists: StateFlow<List<PlaylistInfo>> =
             repository
                 .getAllPlaylistsFlow()
-                .map { all -> all.filter { it.id != PlaylistRepository.WATCH_LATER_ID } }
+                .map { all -> all.filter { it.id != PlaylistRepository.WATCH_LATER_ID && it.id != PlaylistRepository.SAVED_SHORTS_ID } }
                 .distinctUntilChanged()
                 .stateIn(
                     viewModelScope,

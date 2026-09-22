@@ -200,7 +200,10 @@ fun parseToTimestamp(text: String?): Long? {
 
     val cleanRaw =
         raw
-            .replace(Regex("(?i)^(streamed|premiered)\\s+"), "")
+            // "Streamed live on Jun 19, 2020" and "Premiered on Jan 1, 2020" carry the date behind
+            // words no format string matches, so without dropping them the parse fails and the
+            // caller falls back to whatever timestamp it already had.
+            .replace(Regex("(?i)^(streamed|premiered)\\s+(live\\s+)?(on\\s+)?"), "")
             .trim()
 
     val absFormats =
@@ -241,8 +244,28 @@ internal fun resolveDisplayUploadTimestamp(
     return when {
         storedTimestamp != null && relativeTimestamp != null -> minOf(storedTimestamp, relativeTimestamp)
         relativeTimestamp != null -> relativeTimestamp
-        else -> parseToTimestamp(date) ?: storedTimestamp
+        else -> preferStoredWithinDay(parseToTimestamp(date), storedTimestamp)
     }
+}
+
+/**
+ * A parsed date beats a stored timestamp, except on the day they share.
+ *
+ * "Sep 17, 2026" carries no time, so parsing it lands on midnight; a stored timestamp from the same
+ * day knows the hour too. Taking the parse regardless is what made a video published four hours ago
+ * read as however long the day had been running.
+ */
+private fun preferStoredWithinDay(
+    parsed: Long?,
+    stored: Long?,
+): Long? {
+    if (parsed == null) return stored
+    if (stored == null) return parsed
+    val zone = ZoneId.systemDefault()
+    val sameDay =
+        Instant.ofEpochMilli(parsed).atZone(zone).toLocalDate() ==
+            Instant.ofEpochMilli(stored).atZone(zone).toLocalDate()
+    return if (sameDay) stored else parsed
 }
 
 internal fun parseRelativeToTimestamp(

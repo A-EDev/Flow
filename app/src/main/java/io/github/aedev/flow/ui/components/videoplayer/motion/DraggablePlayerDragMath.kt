@@ -24,6 +24,10 @@ private const val CORNER_VELOCITY_PROJECTION_S = 0.3f
 private const val DISMISS_FLING_VELOCITY = 2000f
 private const val DISMISS_AXIS_DOMINANCE = 3f
 
+/** Share of the pull, and the fling, that commits to growing into portrait fullscreen. */
+private const val PORTRAIT_FS_COMMIT_FRACTION = 0.4f
+private const val PORTRAIT_FS_COMMIT_VELOCITY = 1400f
+
 internal fun lerpClamped(
     start: Float,
     stop: Float,
@@ -40,6 +44,28 @@ internal fun shouldEnterFullscreenFromSwipe(
     totalUpwardDragPx: Float,
     scaledVelocityY: Float,
 ): Boolean = totalUpwardDragPx > EXPAND_DRAG_COMMIT_PX || scaledVelocityY < FULLSCREEN_SWIPE_VELOCITY
+
+/**
+ * Whether a released portrait-fullscreen pull grows the rest of the way. A flick back up is the
+ * user taking the pull back, so it wins over how far they had already travelled before they
+ * changed their mind.
+ */
+internal fun shouldEnterPortraitFullscreen(
+    fraction: Float,
+    velocityY: Float,
+): Boolean =
+    velocityY > -PORTRAIT_FS_COMMIT_VELOCITY &&
+        (fraction > PORTRAIT_FS_COMMIT_FRACTION || velocityY > PORTRAIT_FS_COMMIT_VELOCITY)
+
+/**
+ * The release fling, handed over in pixels a second, as the fraction a second the settle
+ * animation runs in. The pixel value passed straight through starts the spring hundreds of times
+ * too fast, which throws the page below off screen and back before it settles.
+ */
+internal fun portraitFullscreenSettleVelocity(
+    velocityY: Float,
+    travelPx: Float,
+): Float = velocityY / travelPx.coerceAtLeast(1f)
 
 internal fun shouldCollapseOnRelease(
     fraction: Float,

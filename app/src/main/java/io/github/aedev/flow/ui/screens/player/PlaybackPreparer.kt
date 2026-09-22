@@ -62,40 +62,6 @@ internal class PlaybackPreparer(
             autoplay
         }
 
-    /** The merged result a load resolved, unpacked onto the full hand-off below. */
-    suspend fun prepareMergedStreams(
-        videoId: String,
-        step: ResolvedPlayback.Merged,
-        fallbackDurationSeconds: Long,
-        isCurrent: () -> Boolean,
-    ) {
-        val streams = step.streams
-        prepareMergedStreams(
-            videoId = videoId,
-            streamInfo = step.streamInfo,
-            videoStream = streams.selectedVideoStream,
-            audioStream = streams.selectedAudioStream,
-            videoStreams = streams.videoStreams,
-            audioStreams = streams.audioStreams,
-            subtitles = streams.subtitles,
-            savedPosition = step.savedPositionMs,
-            fallbackDurationSeconds = fallbackDurationSeconds,
-            localFilePath = streams.localFilePath,
-            offlineSegments = step.offlineSegments,
-            hlsUrl = streams.hlsUrl,
-            isAdaptiveMode = streams.isAdaptiveMode,
-            resumeOverrideRequested = step.resumeOverrideRequested,
-            isCurrent = isCurrent,
-            sabrInfo = streams.sabrInfo,
-            itVideoFormats = streams.innerTubeVideoFormats,
-            itAudioFormats = streams.innerTubeAudioFormats,
-            preferredVideoCodec = streams.preferredCodecKey,
-            dashManifestUrl = streams.dashManifestUrl,
-            preferSabr = streams.preferSabr,
-            preferredLiveQualityHeight = streams.preferredQuality.height,
-        )
-    }
-
     /** The InnerTube-only VOD assembly, unpacked onto the full hand-off below. */
     suspend fun prepareVodStreams(
         videoId: String,
@@ -273,8 +239,12 @@ internal class PlaybackPreparer(
                 resumeAllowed = resumeOverrideRequested || !playerManager.isCurrentQueueVideo(videoId),
             )
         val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
+        // An escalated reload must not force SABR: measured 2026-09-21, a session never receives an
+        // init segment, so ExoPlayer cannot sniff it and every attempt dies. Recovery is the
+        // re-minted attested direct ladder instead. Revisit when an init segment is observed.
         val preferSabr =
-            sabrInfo != null && SabrRoutingPolicy.shouldPreferSabr(false, sabrInfo.videoHeight, directMaxHeight)
+            sabrInfo != null &&
+                SabrRoutingPolicy.shouldPreferSabr(false, sabrInfo.videoHeight, directMaxHeight)
 
         playerManager.setStreams(
             videoId = videoId,

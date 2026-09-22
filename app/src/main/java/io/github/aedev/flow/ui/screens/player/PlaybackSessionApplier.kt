@@ -18,23 +18,20 @@ import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.ResolvedPlayback
+import io.github.aedev.flow.player.stream.StoryboardSpec
 import io.github.aedev.flow.player.stream.UpcomingDetails
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
-import io.github.aedev.flow.utils.distinctBestImageUrls
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
 /** The load a step belongs to: the video it resolved for, and the token saying it is still current. */
@@ -88,12 +85,9 @@ internal class PlaybackSessionApplier(
         load: LoadContext,
     ) {
         when (step) {
-            is ResolvedPlayback.PrimaryMetadata -> {
-                applyPrimaryMetadata(load, step.streamInfo)
-            }
-
             is ResolvedPlayback.LocalCopyReady -> {
                 uiState.update { it.applyLocalCopyReady(load.videoId, step) }
+                if (step.needsSponsorBlockBackfill) backfillSponsorBlockSegments(load.videoId)
                 prepareLocalMedia(load, step.localFilePath, step.offlineSegments)
             }
 
@@ -108,13 +102,8 @@ internal class PlaybackSessionApplier(
                 }
             }
 
-            is ResolvedPlayback.Merged -> {
-                applyMergedPlayback(load, step)
-            }
-
             is ResolvedPlayback.Live -> {
                 prepareLiveStreamFromInnerTube(load, step.result, step.relatedVideos)
-                step.lateStreamInfo?.let { secondaryMetadata.enrichWhenReady(load.videoId, it, load.token) }
             }
 
             is ResolvedPlayback.VodFromInnerTube -> {
@@ -136,22 +125,33 @@ internal class PlaybackSessionApplier(
         when (result) {
             is SecondaryMetadata.Channel -> applyChannelMetadata(result)
             is SecondaryMetadata.Related -> publishRelatedVideos(result.videoId, result.videos, result.loadToken)
-            is SecondaryMetadata.Enriched -> applyEnrichedMetadata(result)
             is SecondaryMetadata.LiveWatch -> applyLiveWatchMetadata(result)
+            is SecondaryMetadata.Category -> applyCategory(result)
+            is SecondaryMetadata.Heatmap -> applyHeatmap(result)
+            is SecondaryMetadata.Chapters -> applyChapters(result)
+            is SecondaryMetadata.WatchInfo -> applyWatchInfo(result)
         }
     }
 
+    /**
+     * The same request answers both counts.
+     *
+     * Its like count is only adopted when the watch page withheld one, which is what a creator who
+     * hides likes leaves behind: the response carries an `unset_like_count_entity_key` and nothing
+     * else, and the screen was showing that as a flat zero.
+     */
     fun startDislikeLoad(load: LoadContext) {
         scope.launch(networkDispatcher) {
             if (playerPreferences.rytdEnabled.first()) {
-                withTimeoutOrNull(5000L) {
-                    repository.returnYouTubeDislikeCounts(load.videoId)
-                }?.dislikes?.let { dislikeCount ->
-                    if (isLoadCurrent(load.token) &&
-                        (uiState.value.cachedVideo?.id == load.videoId || uiState.value.streamInfo?.id == load.videoId)
-                    ) {
-                        uiState.update { it.copy(dislikeCount = dislikeCount) }
-                    }
+                val counts = withTimeoutOrNull(5000L) { repository.returnYouTubeDislikeCounts(load.videoId) }
+                if (counts == null || !isLoadCurrent(load.token)) return@launch
+                uiState.update { state ->
+                    val cached = state.cachedVideo?.takeIf { it.id == load.videoId } ?: return@update state
+                    val likes = counts.likes?.takeIf { it > 0L && cached.likeCount <= 0L }
+                    state.copy(
+                        dislikeCount = counts.dislikes ?: state.dislikeCount,
+                        cachedVideo = likes?.let { cached.copy(likeCount = it) } ?: cached,
+                    )
                 }
             }
         }
@@ -181,9 +181,7 @@ internal class PlaybackSessionApplier(
         val videoId = load.videoId
         when (val prepare = latest.latePrepare(videoId)) {
             null -> {
-                if (latest.streamInfo != null) {
-                    Log.w(TAG, "Late prepare skipped for $videoId: no playable streams in UI state")
-                }
+                Unit
             }
 
             is LatePrepare.LocalFile -> {
@@ -195,115 +193,23 @@ internal class PlaybackSessionApplier(
                     savedPosition = prepare.savedPosition ?: viewHistory.getPlaybackPosition(videoId).first(),
                 )
             }
-
-            is LatePrepare.Streams -> {
-                Log.w(
-                    TAG,
-                    "Late prepare: arming stream playback for $videoId " +
-                        "(audio=${prepare.audioStream != null}, videos=${prepare.videoStreams.size})",
-                )
-                playbackPreparer.prepareMergedStreams(
-                    videoId = videoId,
-                    streamInfo = prepare.streamInfo,
-                    videoStream = prepare.videoStream,
-                    audioStream = prepare.audioStream,
-                    videoStreams = prepare.videoStreams,
-                    audioStreams = prepare.streamInfo.audioStreams,
-                    subtitles = prepare.streamInfo.subtitles ?: emptyList(),
-                    savedPosition = prepare.savedPosition ?: viewHistory.getPlaybackPosition(videoId).first(),
-                    fallbackDurationSeconds = prepare.fallbackDurationSeconds,
-                    localFilePath = prepare.localFilePath,
-                    offlineSegments = prepare.offlineSegments,
-                    hlsUrl = prepare.hlsUrl,
-                    isAdaptiveMode = prepare.isAdaptiveMode,
-                    resumeOverrideRequested = false,
-                    isCurrent = { isLoadCurrent(load.token) },
-                    preferredVideoCodec = playerPreferences.videoCodecPriority.first(),
-                )
-            }
         }
     }
 
-    private fun applyPrimaryMetadata(
-        load: LoadContext,
-        streamInfo: StreamInfo,
-    ) {
-        // Record interaction for Flow Neuro Engine — off the startup path: it takes the brain
-        // mutex and updates vectors, none of which first frame needs.
+    /**
+     * The engine's click signal.
+     *
+     * It used to hang off the NewPipe metadata step, which meant it only ever fired on a load that
+     * leg won; a load InnerTube resolved by itself taught the engine nothing. Off the startup path
+     * because it takes the brain mutex and updates vectors, none of which first frame needs.
+     */
+    private fun recordWatchClick(video: Video) {
         scope.launch(ioDispatcher) {
             try {
-                FlowNeuroEngine.onVideoInteraction(context, neuroSignalVideo(load.videoId, streamInfo), InteractionType.CLICK)
+                FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to record interaction", e)
             }
-        }
-
-        val realChannel = streamInfo.uploaderName?.takeIf { it.isNotBlank() }
-        val realThumbnail =
-            streamInfo.thumbnails
-                ?.maxByOrNull { it.height }
-                ?.url
-                ?.takeIf { it.isNotBlank() }
-        val enrichedVideo = uiState.value.primaryMetadataVideo(load.videoId, streamInfo) ?: return
-        if (isLoadCurrent(load.token)) {
-            GlobalPlayerState.setCurrentVideo(enrichedVideo)
-            playerManager.startBackgroundService(
-                videoId = load.videoId,
-                title = enrichedVideo.title,
-                channel = realChannel ?: "",
-                thumbnail = realThumbnail ?: "",
-            )
-        }
-    }
-
-    private suspend fun applyMergedPlayback(
-        load: LoadContext,
-        step: ResolvedPlayback.Merged,
-    ) {
-        val videoId = load.videoId
-        val streamInfo = step.streamInfo
-        val streams = step.streams
-        if (step.sponsorBlockBackfillNeeded) {
-            backfillSponsorBlockSegments(videoId)
-        }
-
-        playerManager.setAutoplayCandidates(
-            sourceVideoId = videoId,
-            videos = step.relatedVideos,
-            enabled = step.autoplayEnabled,
-        )
-
-        uiState.update { it.applyMergedPlayback(videoId, step) }
-
-        currentCoroutineContext().ensureActive()
-        if (!isLoadCurrent(load.token)) return
-
-        if (!step.isUpcomingContent) {
-            playbackPreparer.prepareMergedStreams(
-                videoId = videoId,
-                step = step,
-                fallbackDurationSeconds = cachedDurationSeconds(),
-                isCurrent = { isLoadCurrent(load.token) },
-            )
-            secondaryMetadata.loadChannelMetadata(
-                videoId = videoId,
-                uploaderUrl = streamInfo.uploaderUrl,
-                channelId = uiState.value.cachedVideo?.channelId,
-                embeddedAvatarUrls = streamInfo.uploaderAvatars.distinctBestImageUrls(),
-                loadToken = load.token,
-            )
-            if (!streams.isLiveType) {
-                secondaryMetadata.loadRelatedVideos(videoId, step.relatedVideos, load.token)
-            }
-        }
-
-        if (!step.isUpcomingContent && streams.isLiveStream) {
-            liveChat.start(videoId)
-            secondaryMetadata.refreshLiveWatchMetadata(
-                videoId = videoId,
-                fallbackVideo = uiState.value.liveWatchFallbackVideo(videoId, streamInfo),
-                loadToken = load.token,
-            )
         }
     }
 
@@ -313,7 +219,6 @@ internal class PlaybackSessionApplier(
     ) {
         try {
             prepareVodStreamFromInnerTube(load, step)
-            step.lateStreamInfo?.let { secondaryMetadata.enrichWhenReady(load.videoId, it, load.token) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -321,7 +226,7 @@ internal class PlaybackSessionApplier(
             if (tryEnterUpcoming(load.videoId, step.relatedVideos, load.token)) {
                 armCountdownMetadata(load, step.relatedVideos, channelId = null)
             } else {
-                val videoError = VideoErrorMapper.from(context, step.streamError ?: e, load.videoId)
+                val videoError = VideoErrorMapper.from(context, e, load.videoId)
                 if (isLoadCurrent(load.token)) {
                     uiState.update { it.applyVodFailure(step.relatedVideos, videoError) }
                 }
@@ -376,6 +281,7 @@ internal class PlaybackSessionApplier(
         val streams = streamPreparer.assembleLive(videoId, uiState.value.cachedVideo, result)
         val identity = streams.identity
         GlobalPlayerState.setCurrentVideo(identity.enrichedVideo)
+        recordWatchClick(identity.enrichedVideo)
 
         playbackPreparer.beginSession(videoId, identity.title, identity.channel, identity.thumbnail)
         playbackPreparer.applyAutoplayCandidates(videoId = videoId, videos = relatedVideos)
@@ -417,6 +323,7 @@ internal class PlaybackSessionApplier(
         val streams = streamPreparer.assembleVod(videoId, uiState.value.cachedVideo, step)
         val identity = streams.identity
         GlobalPlayerState.setCurrentVideo(identity.enrichedVideo)
+        recordWatchClick(identity.enrichedVideo)
 
         playbackPreparer.beginSession(videoId, identity.title, identity.channel, identity.thumbnail)
 
@@ -436,6 +343,12 @@ internal class PlaybackSessionApplier(
 
         uiState.update {
             it.applyVodStreams(
+                cachedVideo = identity.enrichedVideo,
+                // A stream that was live but is not now. The extractor reported this as a
+                // POST_LIVE_STREAM type; the player response splits it across two flags.
+                isArchivedLivestream =
+                    result.playerResponse.videoDetails?.isLiveContent == true &&
+                        result.playerResponse.videoDetails?.isLive != true,
                 relatedVideos = relatedVideos,
                 videoStream = streams.videoStream,
                 audioStream = streams.audioStream,
@@ -446,12 +359,29 @@ internal class PlaybackSessionApplier(
                 innerTubeVideoFormats = result.videoFormats,
                 innerTubeAudioFormats = result.audioFormats,
                 streamSizes = streams.streamSizes,
+                storyboard =
+                    StoryboardSpec.parse(
+                        spec =
+                            result.playerResponse.storyboards
+                                ?.playerStoryboardSpecRenderer
+                                ?.spec,
+                        durationMs = streams.durationSeconds * 1000L,
+                    ),
             )
         }
 
         // Queue and preloaded playback may already own this media item. Arm secondary metadata
         // before the prepared-player return so those transitions still populate the screen.
         secondaryMetadata.loadRelatedVideos(videoId, relatedVideos, load.token)
+        // A SABR/web client already returned the category, so spend nothing fetching it again.
+        result.playerResponse.microformat
+            ?.playerMicroformatRenderer
+            ?.category
+            ?.let { repository.rememberVideoCategory(videoId, it) }
+        secondaryMetadata.loadCategory(videoId, load.token)
+        secondaryMetadata.loadHeatmap(videoId, load.token)
+        secondaryMetadata.loadChapters(videoId, load.token)
+        secondaryMetadata.loadWatchInfo(videoId, identity.enrichedVideo, load.token)
         secondaryMetadata.loadChannelMetadata(
             videoId = videoId,
             uploaderUrl = null,
@@ -490,6 +420,37 @@ internal class PlaybackSessionApplier(
         secondaryMetadata.loadRelatedVideos(load.videoId, relatedVideos, load.token, awaitPlayback = false)
     }
 
+    private fun applyHeatmap(result: SecondaryMetadata.Heatmap) {
+        if (!isLoadCurrent(result.loadToken)) return
+        uiState.update { it.copy(heatmap = result.heatmap) }
+    }
+
+    private fun applyChapters(result: SecondaryMetadata.Chapters) {
+        if (!isLoadCurrent(result.loadToken)) return
+        uiState.update { it.applyChapters(result.chapters) }
+    }
+
+    private fun applyWatchInfo(result: SecondaryMetadata.WatchInfo) {
+        if (!isLoadCurrent(result.loadToken) || uiState.value.cachedVideo?.id != result.videoId) return
+        GlobalPlayerState.setCurrentVideo(result.video)
+        uiState.update { it.applyWatchInfo(result.video) }
+    }
+
+    /** Folded into the tags the engine ingests, so the watch signal carries it. */
+    private fun applyCategory(result: SecondaryMetadata.Category) {
+        if (!isLoadCurrent(result.loadToken)) return
+
+        uiState.update { state ->
+            val cached = state.cachedVideo?.takeIf { it.id == result.videoId } ?: return@update state
+            if (result.category in cached.tags) return@update state
+            state.copy(cachedVideo = cached.copy(tags = cached.tags + result.category))
+        }
+
+        uiState.value.cachedVideo
+            ?.takeIf { it.id == result.videoId }
+            ?.let(GlobalPlayerState::setCurrentVideo)
+    }
+
     private fun applyChannelMetadata(result: SecondaryMetadata.Channel) {
         if (!isLoadCurrent(result.loadToken)) return
 
@@ -508,7 +469,7 @@ internal class PlaybackSessionApplier(
     ) {
         if (!isLoadCurrent(loadToken) || videos.isEmpty()) return
         val state = uiState.value
-        if (state.cachedVideo?.id != videoId && state.streamInfo?.id != videoId) return
+        if (state.cachedVideo?.id != videoId) return
 
         scope.launch {
             if (!isLoadCurrent(loadToken)) return@launch
@@ -521,13 +482,6 @@ internal class PlaybackSessionApplier(
             )
             uiState.update { it.applyRelatedVideos(videoId, videos) }
         }
-    }
-
-    private fun applyEnrichedMetadata(result: SecondaryMetadata.Enriched) {
-        if (!isLoadCurrent(result.loadToken) || uiState.value.cachedVideo?.id != result.videoId) return
-
-        GlobalPlayerState.setCurrentVideo(result.video)
-        uiState.update { it.applyEnrichedMetadata(result) }
     }
 
     private fun applyLiveWatchMetadata(result: SecondaryMetadata.LiveWatch) {

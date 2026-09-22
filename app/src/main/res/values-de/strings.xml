@@ -1808,4 +1808,7 @@
     <string name="channel_affinity_balanced">Ausgewogen</string>
     <string name="channel_affinity_cooling">Abkühlend</string>
     <string name="channel_affinity_score">Affinitätswert</string>
+    <string name="content_settings_channel_group_badge_subtitle">Die Avatare von Labels und Künstlern mit der Abonnementgruppe kennzeichnen, zu der sie gehören</string>
+    <string name="channel_add_to_group">Zur Gruppe hinzufügen</string>
+    <string name="channel_groups_sheet_title">Kanalgruppen</string>
 </resources>

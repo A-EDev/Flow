@@ -2,8 +2,8 @@ package io.github.aedev.flow.data.shorts
 
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.pages.SearchShortItem
 import io.github.aedev.flow.innertube.pages.channel.ChannelShortsPage
+import io.github.aedev.flow.innertube.pages.reel.ReelLockup
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockkObject
@@ -40,7 +40,7 @@ class ChannelReelIndexTest {
 
     private fun page(vararg ids: String) =
         ChannelShortsPage(
-            shorts = ids.map { SearchShortItem(id = it, title = it, viewCount = 0L) },
+            shorts = ids.map { ReelLockup(id = it, title = it, viewCount = 0L) },
             sorts = emptyList(),
             continuation = null,
         )

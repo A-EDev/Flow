@@ -3,7 +3,6 @@ package io.github.aedev.flow.ui.components.videoplayer.overlay
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.theme.PlayerScrim
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimPanel
 import io.github.aedev.flow.utils.formatDurationMillis
 import kotlin.math.abs
 
@@ -47,8 +47,8 @@ internal fun SeekDragOverlay(
         Column(
             modifier =
                 Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(PlayerScrim.copy(alpha = 0.58f))
+                    .clip(MaterialTheme.shapes.large)
+                    .background(PlayerScrimPanel)
                     .padding(horizontal = 22.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

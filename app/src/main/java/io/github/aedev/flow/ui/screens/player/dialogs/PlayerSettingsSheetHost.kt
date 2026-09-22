@@ -60,6 +60,19 @@ internal fun PlayerSettingsSheetHost(
         },
         onAudioTrackSelected = { index ->
             EnhancedPlayerManager.getInstance().switchAudioTrack(index)
+            SubtitleSelection
+                .subtitleFollowingAudio(
+                    subtitles = playerState.availableSubtitles,
+                    audioLanguage = playerState.availableAudioTracks.getOrNull(index)?.language,
+                    selectedUrl = screenState.selectedSubtitleUrl,
+                )?.let { subtitleIndex ->
+                    SubtitleSelection.applyAt(
+                        screenState = screenState,
+                        subtitles = playerState.availableSubtitles,
+                        index = subtitleIndex,
+                        rememberLanguage = rememberSubtitleLanguage,
+                    )
+                }
         },
         onSpeedSelected = { speed ->
             EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)

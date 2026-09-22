@@ -74,8 +74,6 @@ internal fun ChannelFilterBar(
                     Modifier
                         .weight(1f)
                         .padding(horizontal = 8.dp),
-                onSearch = { onSearchQueryChange(searchQuery) },
-                onClear = { onSearchQueryChange("") },
             )
             IconButton(onClick = onSearchToggle) {
                 Icon(

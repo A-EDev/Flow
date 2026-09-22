@@ -69,11 +69,9 @@ internal class PlaybackSettingsController(
 
     fun switchQuality(quality: VideoQuality) {
         val state = uiState.value
-        val streamInfo = state.streamInfo ?: return
         scope.launch {
             val streams =
                 MergedPlaybackAssembly.selectQualityStreams(
-                    streamInfo = streamInfo,
                     innerTubeVideoFormats = state.innerTubeVideoFormats,
                     innerTubeAudioFormats = state.innerTubeAudioFormats,
                     quality = quality,

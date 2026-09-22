@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.*
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.transcript.TranscriptRepository
@@ -105,6 +106,7 @@ class VideoPlayerViewModel
                 isLoadCurrent = ::isPlaybackLoadCurrent,
                 currentLoadToken = { playbackLoadToken },
                 shortsEnabled = { shortsContentEnabled },
+                blockedChannelIds = { blockedChannelIds },
             )
 
         private val comments = collaborators.comments
@@ -227,7 +229,24 @@ class VideoPlayerViewModel
         @Volatile
         private var shortsContentEnabled: Boolean = true
 
+        /**
+         * Channels the viewer has blocked, so the related list drops them the way search and the
+         * home feed do. The engine publishes no change signal, so this is re-read when a video
+         * loads — the same cadence search re-reads it at, and cheap beside the work a load already
+         * does.
+         */
+        @Volatile
+        private var blockedChannelIds: Set<String> = emptySet()
+
+        private fun refreshBlockedChannels() {
+            viewModelScope.launch {
+                blockedChannelIds = FlowNeuroEngine.getInstance(context).getBlockedChannels()
+            }
+        }
+
         init {
+            refreshBlockedChannels()
+
             playerPreferences.shortsContentEnabled
                 .onEach { shortsContentEnabled = it }
                 .launchIn(viewModelScope)
@@ -287,7 +306,7 @@ class VideoPlayerViewModel
             val state = _uiState.value
             val alreadySynced =
                 state.cachedVideo?.id == video.id &&
-                    (state.streamInfo?.id == video.id || state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty())
+                    (state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty())
             if (alreadySynced) return
 
             if (upcomingPremiere.applyCountdown(video)) {
@@ -476,7 +495,7 @@ class VideoPlayerViewModel
             val currentState = _uiState.value
             Log.d(
                 "VideoPlayerViewModel",
-                "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, " +
+                "loadVideoInfo: Request=$videoId. Current=${currentState.cachedVideo?.id}, " +
                     "IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh, " +
                     "escalateToSabr=$escalateToSabr",
             )
@@ -489,6 +508,7 @@ class VideoPlayerViewModel
                 return
             }
 
+            refreshBlockedChannels()
             navigationHistory.push(videoId)
             _canGoPrevious.value = navigationHistory.canGoPrevious
 
@@ -519,6 +539,7 @@ class VideoPlayerViewModel
                                     escalateToSabr = escalateToSabr,
                                     resumePositionOverrideMs = resumePositionOverrideMs,
                                     allowShorts = shortsContentEnabled,
+                                    blockedChannelIds = blockedChannelIds,
                                 ),
                             isCurrent = { isPlaybackLoadCurrent(loadToken) },
                             resolveUpcoming = upcomingPremiere::resolve,
@@ -620,12 +641,12 @@ class VideoPlayerViewModel
         ) = comments.selectSort(videoId, sort)
 
         fun loadCommentReplies(comment: Comment) {
-            val videoId = _uiState.value.streamInfo?.id ?: return
+            val videoId = _uiState.value.cachedVideo?.id ?: return
             comments.loadReplies(videoId, comment)
         }
 
         fun loadMoreCommentReplies(comment: Comment) {
-            val videoId = _uiState.value.streamInfo?.id ?: return
+            val videoId = _uiState.value.cachedVideo?.id ?: return
             comments.loadMoreReplies(videoId, comment)
         }
 

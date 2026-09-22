@@ -53,6 +53,10 @@ class PlayerScreenState {
     var selectedSubtitleUrl by mutableStateOf<String?>(null)
     var subtitleStyle by mutableStateOf(SubtitleStyle())
 
+    // The caption track the transcript is read from. Separate from the subtitle choice: reading
+    // a transcript in another language should not put that language on top of the video.
+    var selectedTranscriptUrl by mutableStateOf<String?>(null)
+
     // Video Display
     var resizeMode by mutableIntStateOf(0) // 0=Fit, 1=Fill, 2=Zoom
 
@@ -87,6 +91,7 @@ class PlayerScreenState {
         duration = 0L
         subtitlesEnabled = false
         selectedSubtitleUrl = null
+        selectedTranscriptUrl = null
         showBrightnessOverlay = false
         showVolumeOverlay = false
         showSeekBackAnimation = false
@@ -145,6 +150,7 @@ class PlayerScreenState {
     fun disableSubtitles() {
         subtitlesEnabled = false
         selectedSubtitleUrl = null
+        selectedTranscriptUrl = null
     }
 
     fun onInteraction() {
@@ -162,13 +168,16 @@ fun rememberPlayerScreenState(): PlayerScreenState = remember { PlayerScreenStat
 /**
  * The caption track a transcript should read.
  *
- * The user's own choice wins; otherwise the first authored track, since an auto-translation is a
- * machine pass over a track already in the list and reads worse than the original.
+ * The transcript's own language choice wins, then whatever the video is subtitled with, then the
+ * first authored track, since an auto-translation is a machine pass over a track already in the
+ * list and reads worse than the original. A choice the current video has no track for is dropped
+ * rather than fetched, so a queue advance cannot leave the panel reading an empty URL.
  */
 internal fun transcriptTrackUrl(
     playerState: io.github.aedev.flow.player.EnhancedPlayerState,
     screenState: PlayerScreenState,
 ): String? =
-    screenState.selectedSubtitleUrl
+    screenState.selectedTranscriptUrl?.takeIf { url -> playerState.availableSubtitles.any { it.url == url } }
+        ?: screenState.selectedSubtitleUrl
         ?: playerState.availableSubtitles.firstOrNull { !it.isTranslated }?.url
         ?: playerState.availableSubtitles.firstOrNull()?.url
