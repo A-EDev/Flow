@@ -46,6 +46,7 @@ import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
+import io.github.aedev.flow.player.MusicRadioPlanner
 import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.factory.LoadControlFactory
@@ -140,6 +141,10 @@ class Media3MusicService : MediaLibraryService() {
     private var radioAutoplayEnabled = true
     private var loudnessNormalizationEnabled = true
     private var lastQueueIds: List<String>? = null
+
+    // A radio the user started by name outruns the passive endless-radio toggle: that switch
+    // governs queues that run out on their own, not a station the user asked for.
+    private var explicitRadioRequest = false
 
     // Queue-end continuation: appends go through the manager's MediaController and
     // land asynchronously, so a resume at STATE_ENDED must wait for the timeline.
@@ -1096,19 +1101,18 @@ class Media3MusicService : MediaLibraryService() {
     private fun onQueueContextChanged(currentId: String) {
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
         val queueIds = manager.queue.value.map { it.videoId }
-        // Same session when the track was already part of the previous queue: skips
-        // and queue jumps rebuild the playlist (sometimes with a pruned list), but
-        // the user never left their queue — only a track from OUTSIDE it reseeds.
-        val previous = lastQueueIds
-        val sameContext = previous != null && (previous == queueIds || currentId in previous)
-        lastQueueIds =
-            if (sameContext && previous != null && queueIds.size < previous.size) {
-                // A pruned rebuild (stale mirror) must not shrink the known context.
-                (previous + queueIds).distinct()
-            } else {
-                queueIds
-            }
-        if (sameContext) {
+        val explicitSeedId = manager.pendingRadioSeedId
+        manager.pendingRadioSeedId = null
+
+        val context =
+            MusicRadioPlanner.resolveQueueContext(
+                currentId = currentId,
+                queueIds = queueIds,
+                previousIds = lastQueueIds,
+                explicitSeedId = explicitSeedId,
+            )
+        lastQueueIds = context.knownIds
+        if (!context.reseed) {
             maybeExtendRadio()
             return
         }
@@ -1116,6 +1120,7 @@ class Media3MusicService : MediaLibraryService() {
         radioContinuation = null
         radioEndpoint = null
         radioResumeWhenAppended = false
+        explicitRadioRequest = context.explicit
         startRadio(currentId)
     }
 
@@ -1180,7 +1185,7 @@ class Media3MusicService : MediaLibraryService() {
      * nothing the user sees is replaced — and refills the pool in the background.
      */
     private fun maybeExtendRadio() {
-        if (!radioAutoplayEnabled) return
+        if (!radioAutoplayEnabled && !explicitRadioRequest) return
         if (!::player.isInitialized) return
         // Repeat already produces an endless queue — matching desktop.
         if (player.repeatMode != Player.REPEAT_MODE_OFF) return

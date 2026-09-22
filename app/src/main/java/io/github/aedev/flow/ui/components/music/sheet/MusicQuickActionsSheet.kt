@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.QueueMusic
+import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -177,7 +178,20 @@ fun MusicQuickActionsSheet(
                 FlowMenuSectionHeader(stringResource(R.string.playback_header))
                 FlowMenuGroup(
                     items =
-                        listOf(
+                        listOfNotNull(
+                            if (viewModel.canStartRadio(track)) {
+                                FlowMenuItemData(
+                                    icon = { Icon(Icons.Outlined.Radio, null) },
+                                    title = { Text(stringResource(R.string.start_radio)) },
+                                    description = { Text(stringResource(R.string.start_radio_desc)) },
+                                    onClick = {
+                                        viewModel.startRadio(track)
+                                        onDismiss()
+                                    },
+                                )
+                            } else {
+                                null
+                            },
                             FlowMenuItemData(
                                 icon = { Icon(Icons.Outlined.QueueMusic, null) },
                                 title = { Text(stringResource(R.string.play_next)) },

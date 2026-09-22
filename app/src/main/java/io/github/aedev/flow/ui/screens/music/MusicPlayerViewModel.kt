@@ -275,6 +275,7 @@ class MusicPlayerViewModel
             track: MusicTrack,
             queue: List<MusicTrack> = emptyList(),
             sourceName: String? = null,
+            asRadio: Boolean = false,
         ) {
             loadTrackJob?.cancel()
             // Genre-scoped surfaces tag their source; the genre becomes listen
@@ -317,6 +318,11 @@ class MusicPlayerViewModel
                             playingFrom = finalSourceName,
                         )
                     }
+
+                    // Flagged as late as possible: the service consumes the seed on the next
+                    // playlist change, and an unrelated advance during the lookup above would
+                    // otherwise eat it.
+                    EnhancedMusicPlayerManager.pendingRadioSeedId = track.videoId.takeIf { asRadio }
 
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
                         EnhancedMusicPlayerManager.playTrack(
@@ -361,6 +367,18 @@ class MusicPlayerViewModel
                     }
                 }
         }
+
+        /**
+         * Starts a station seeded from this track alone. The seed is flagged for the service,
+         * which would otherwise read a track taken from the playing queue as an in-queue skip
+         * and leave the previous station running.
+         */
+        fun startRadio(track: MusicTrack) {
+            loadAndPlayTrack(track, asRadio = true)
+        }
+
+        /** Local files have no InnerTube seed, so no station can be built from one. */
+        fun canStartRadio(track: MusicTrack): Boolean = !isLocalMediaId(track.videoId)
 
         private fun resolveSourceName(
             sourceName: String?,

@@ -53,6 +53,14 @@ object EnhancedMusicPlayerManager {
     @Volatile
     var playContextGenre: String? = null
 
+    /**
+     * Video id of a radio the user asked for by name. The seed is usually already in the playing
+     * queue, which the service reads as the same session, so the request has to travel as its own
+     * signal. Consumed by the service on the next queue context change.
+     */
+    @Volatile
+    var pendingRadioSeedId: String? = null
+
     private var appContext: Context? = null
 
     private val _playerInstance = MutableStateFlow<Player?>(null)
@@ -1066,6 +1074,7 @@ object EnhancedMusicPlayerManager {
             _queue.value = emptyList()
             _automixItems.value = emptyList()
             playContextGenre = null
+            pendingRadioSeedId = null
             _currentQueueIndex.value = 0
             clearPendingPlayNext()
             _currentPosition.value = 0L
