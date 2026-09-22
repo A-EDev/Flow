@@ -16,6 +16,23 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+
+/** Navigates to a route handed in from outside the graph, once the graph has its first entry. */
+@Composable
+fun HandlePendingRoute(
+    pendingRoute: String?,
+    navController: NavController,
+    onConsumed: () -> Unit,
+) {
+    LaunchedEffect(pendingRoute) {
+        pendingRoute?.let { route ->
+            navController.currentBackStackEntryFlow.first()
+            navController.navigate(route)
+            onConsumed()
+        }
+    }
+}
 
 @Composable
 fun HandleDeepLinks(

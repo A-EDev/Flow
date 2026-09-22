@@ -2,27 +2,19 @@ package io.github.aedev.flow.ui
 
 import android.app.Activity
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
@@ -31,10 +23,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
-import io.github.aedev.flow.data.subscriptions.refreshSubscriptionsAtStartup
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -52,7 +42,6 @@ import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpacer
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerHeight
-import io.github.aedev.flow.ui.components.musicplayer.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.musicplayer.UnifiedMusicPlayerSheet
 import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
@@ -64,9 +53,6 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
-import io.github.aedev.flow.ui.theme.isEffectivelyDark
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 
 @UnstableApi
 @Composable
@@ -155,64 +141,30 @@ fun FlowApp(
         needsOnboarding = if (bypass) false else FlowNeuroEngine.needsOnboarding()
     }
 
-    LaunchedEffect(sleepTimerCloseAppOnExpiry) {
-        SleepTimerManager.updatePreferredCloseAppOnExpiry(sleepTimerCloseAppOnExpiry)
-    }
-
-    LaunchedEffect(subscriptionRefreshOnStartup) {
-        if (subscriptionRefreshOnStartup) {
-            refreshSubscriptionsAtStartup(context.applicationContext)
-        }
-    }
-
-    LaunchedEffect(snackbarHostState) {
-        DeepFlowManager.messages.collectLatest { message ->
-            snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar(
-                message = message,
-                duration = androidx.compose.material3.SnackbarDuration.Short,
-            )
-        }
-    }
-
-    LaunchedEffect(snackbarHostState) {
-        EnhancedMusicPlayerManager.playbackWarnings.collectLatest { message ->
-            snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar(
-                message = message,
-                duration = androidx.compose.material3.SnackbarDuration.Long,
-            )
-        }
-    }
+    FlowAppSideEffects(
+        snackbarHostState = snackbarHostState,
+        sleepTimerCloseAppOnExpiry = sleepTimerCloseAppOnExpiry,
+        subscriptionRefreshOnStartup = subscriptionRefreshOnStartup,
+    )
 
     HandleDeepLinks(deeplinkVideoId, isShort, navController, onDeeplinkConsumed)
+    HandlePendingRoute(pendingRoute, navController, onPendingRouteConsumed)
     OfflineMonitor(context, navController, snackbarHostState, currentRoute)
 
     val currentEntry by navController.currentBackStackEntryAsState()
     val currentTab = currentEntry?.flowTab()
-    // Detail screens keep the tab they were opened from, so this remembers the last tab root seen.
-    var selectedTab by remember { mutableStateOf(defaultTab) }
-    LaunchedEffect(navController) {
-        navController.currentBackStackEntryFlow.collect { entry -> entry.flowTab()?.let { selectedTab = it } }
-    }
+    val selectedTab by rememberSelectedFlowTab(navController, defaultTab)
     val usesNavigationRail = flowUsesNavigationRail()
     var navigationRailWidth by remember { mutableStateOf(0.dp) }
     var navigationBarHeight by remember { mutableStateOf(FlowNavigationDefaults.BarHeight) }
 
-    LaunchedEffect(defaultTab) {
-        currentRoute.value = defaultTab.route
-    }
-
-    LaunchedEffect(isHomeNavigationEnabled, currentRoute.value, defaultStartRoute, needsOnboarding) {
-        if (needsOnboarding == false && !isHomeNavigationEnabled && currentRoute.value == "home") {
-            currentRoute.value = defaultStartRoute
-            navController.navigate(defaultStartRoute) {
-                popUpTo("home") { inclusive = true }
-                launchSingleTop = true
-                restoreState = true
-            }
-        }
-    }
+    FlowStartTabEffects(
+        navController = navController,
+        currentRoute = currentRoute,
+        defaultTab = defaultTab,
+        isHomeNavigationEnabled = isHomeNavigationEnabled,
+        needsOnboarding = needsOnboarding,
+    )
 
     val navScrollState =
         rememberFlowNavigationScrollState(
@@ -343,14 +295,6 @@ fun FlowApp(
         LaunchedEffect(showRestoredMusicMiniPlayer) {
             if (showRestoredMusicMiniPlayer == false && !musicPlayerSheetState.isExpanded) {
                 musicPlayerSheetState.dismiss()
-            }
-        }
-
-        LaunchedEffect(pendingRoute) {
-            pendingRoute?.let { route ->
-                navController.currentBackStackEntryFlow.first()
-                navController.navigate(route)
-                onPendingRouteConsumed()
             }
         }
 
@@ -523,34 +467,10 @@ fun FlowApp(
                                 NavHost(
                                     navController = navController,
                                     startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
-                                    enterTransition = {
-                                        fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
-                                            slideInHorizontally(
-                                                initialOffsetX = { (it * 0.06f).toInt() },
-                                                animationSpec =
-                                                    spring(
-                                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                    ),
-                                            )
-                                    },
-                                    exitTransition = {
-                                        fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
-                                    },
-                                    popEnterTransition = {
-                                        fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing))
-                                    },
-                                    popExitTransition = {
-                                        fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing)) +
-                                            slideOutHorizontally(
-                                                targetOffsetX = { (it * 0.06f).toInt() },
-                                                animationSpec =
-                                                    spring(
-                                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                    ),
-                                            )
-                                    },
+                                    enterTransition = FlowNavTransitions.enter,
+                                    exitTransition = FlowNavTransitions.exit,
+                                    popEnterTransition = FlowNavTransitions.popEnter,
+                                    popExitTransition = FlowNavTransitions.popExit,
                                 ) {
                                     flowAppGraph(
                                         navController = navController,
@@ -675,57 +595,5 @@ fun FlowApp(
             enabled = needsOnboarding == false && !isInPipMode && !playerVisible,
             onNavigateToDonations = { navController.navigate("donations") },
         )
-    }
-}
-
-private fun String.isLibraryOrSettingsRouteForMusicMiniPlayer(): Boolean =
-    this == "library" ||
-        this == "history" ||
-        this == "playlists" ||
-        this == "playlist" ||
-        this == "likes" ||
-        this == "downloads" ||
-        this == "savedShorts" ||
-        startsWith("settings")
-
-@Composable
-private fun ApplyStatusBarStyle(
-    themeMode: ThemeMode,
-    themeVariant: ThemeVariant,
-    systemLightThemeMode: ThemeMode,
-    systemDarkThemeMode: ThemeMode,
-    isFullscreen: Boolean,
-    isMusicPlayerImmersive: Boolean = false,
-    musicPlayerFollowsTheme: Boolean = false,
-    isShortsPlayer: Boolean = false,
-) {
-    val activity = LocalContext.current as? Activity ?: return
-    val view = LocalView.current
-    val colorScheme = MaterialTheme.colorScheme
-    val isSystemDark = isSystemInDarkTheme()
-    val isDarkTheme =
-        themeMode.isEffectivelyDark(
-            isSystemDark = isSystemDark,
-            systemLightThemeMode = systemLightThemeMode,
-            systemDarkThemeMode = systemDarkThemeMode,
-            themeVariant = themeVariant,
-        )
-
-    SideEffect {
-        val window = activity.window
-        val insetsController = WindowCompat.getInsetsController(window, view)
-        val shouldDrawBehindStatusBar = isFullscreen || isMusicPlayerImmersive || isShortsPlayer
-
-        window.statusBarColor =
-            if (shouldDrawBehindStatusBar) {
-                android.graphics.Color.TRANSPARENT
-            } else {
-                colorScheme.background.toArgb()
-            }
-
-        val musicImmersiveOnLightSurface =
-            isMusicPlayerImmersive && musicPlayerFollowsTheme && !isDarkTheme && !isFullscreen && !isShortsPlayer
-        insetsController.isAppearanceLightStatusBars =
-            (!isDarkTheme && !shouldDrawBehindStatusBar) || musicImmersiveOnLightSurface
     }
 }
