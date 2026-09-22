@@ -1,37 +1,40 @@
 package io.github.aedev.flow.ui
 
-import io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NavigationDestinationsTest {
     @Test
-    fun hiddenHomeFallsBackToFirstVisibleDestination() {
-        val visibility = NavigationVisibility(home = false, shorts = false, music = false)
-
-        val resolved =
-            resolveDefaultNavTabIndex(
-                preferredIndex = 0,
-                order = listOf(0, 4, 3, 1, 2, 5, 6),
-                visibility = visibility,
-            )
-
-        assertEquals(4, resolved)
-        assertFalse(visibleNavTabIndices(listOf(0, 4, 3), visibility).contains(0))
+    fun tabRootsMapToTheirTab() {
+        FlowTab.entries.filter { it != FlowTab.Shorts }.forEach { tab ->
+            assertEquals(tab, flowTabForDestination(tab.route, shortsSourceArg = null))
+        }
     }
 
     @Test
-    fun reEnabledHomeRestoresAHomeDefault() {
-        val resolved =
-            resolveDefaultNavTabIndex(
-                preferredIndex = 0,
-                order = listOf(3, 0, 4),
-                visibility = NavigationVisibility(home = true),
-            )
+    fun onlyTheShortsFeedIsTheShortsTab() {
+        assertEquals(FlowTab.Shorts, flowTabForDestination(SHORTS_ROUTE_PATTERN, shortsSourceArg = null))
+        assertEquals(FlowTab.Shorts, flowTabForDestination(SHORTS_ROUTE_PATTERN, shortsSourceArg = "feed"))
+        assertNull(flowTabForDestination(SHORTS_ROUTE_PATTERN, shortsSourceArg = "feed:dQw4w9WgXcQ"))
+        assertNull(flowTabForDestination(SHORTS_ROUTE_PATTERN, shortsSourceArg = "saved:"))
+    }
 
-        assertEquals(0, resolved)
+    @Test
+    fun detailScreensAreNotTabRoots() {
+        listOf("settings", "settings/content", "playlists", "playlist/{playlistId}", "onboarding", null).forEach { route ->
+            assertNull(flowTabForDestination(route, shortsSourceArg = null))
+        }
+    }
+
+    @Test
+    fun searchIsTheOnlyTabWithoutTheBar() {
+        FlowTab.entries.forEach { tab -> assertEquals(tab != FlowTab.Search, tab.showsNavigationBar()) }
+        assertFalse((null as FlowTab?).showsNavigationBar())
+        assertTrue(FlowTab.Home.showsNavigationBar())
     }
 
     @Test
@@ -83,50 +86,5 @@ class NavigationDestinationsTest {
             "channel?url=https%3A%2F%2Fwww.youtube.com%2F%40flow",
             youtubeChannelRoute("@flow"),
         )
-    }
-
-    /**
-     * Settings and Notifications live in the top bar of every root destination, which only works if
-     * a root destination always exists. Subscriptions (3) and Library (4) are unconditional in
-     * [visibleNavTabIndices] — this pins that down so hiding tabs can never orphan those screens.
-     */
-    @Test
-    fun everyVisibilityCombinationKeepsAnUnhideableRootDestination() {
-        val orders =
-            listOf(
-                DEFAULT_NAV_TAB_ORDER,
-                listOf(6, 5, 4, 3, 2, 1, 0),
-                listOf(4, 3),
-                emptyList(),
-            )
-
-        for (bits in 0 until 32) {
-            val visibility =
-                NavigationVisibility(
-                    home = bits and 1 != 0,
-                    shorts = bits and 2 != 0,
-                    music = bits and 4 != 0,
-                    search = bits and 8 != 0,
-                    categories = bits and 16 != 0,
-                )
-
-            for (order in orders) {
-                val visible = visibleNavTabIndices(order, visibility)
-                assertTrue(
-                    "no visible tab for $visibility / $order",
-                    visible.isNotEmpty(),
-                )
-                assertTrue(
-                    "no unhideable root destination for $visibility / $order",
-                    visible.contains(3) || visible.contains(4),
-                )
-
-                val resolved = resolveDefaultNavTabIndex(0, order, visibility)
-                assertTrue(
-                    "resolved default $resolved is not visible for $visibility / $order",
-                    visible.contains(resolved),
-                )
-            }
-        }
     }
 }

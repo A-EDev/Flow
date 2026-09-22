@@ -1,54 +1,26 @@
 package io.github.aedev.flow.ui
 
-import io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER
+import androidx.navigation.NavBackStackEntry
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import java.net.URI
 import java.net.URLEncoder
 
-internal data class NavigationVisibility(
-    val home: Boolean = true,
-    val shorts: Boolean = true,
-    val music: Boolean = true,
-    val search: Boolean = false,
-    val categories: Boolean = false,
-)
-
-internal fun visibleNavTabIndices(
-    order: List<Int>,
-    visibility: NavigationVisibility,
-): List<Int> {
-    val enabled =
-        buildSet {
-            if (visibility.home) add(0)
-            if (visibility.shorts) add(1)
-            if (visibility.music) add(2)
-            add(3)
-            add(4)
-            if (visibility.search) add(5)
-            if (visibility.categories) add(6)
-        }
-    return (order + DEFAULT_NAV_TAB_ORDER).distinct().filter(enabled::contains)
-}
-
-internal fun resolveDefaultNavTabIndex(
-    preferredIndex: Int,
-    order: List<Int>,
-    visibility: NavigationVisibility,
-): Int {
-    val visible = visibleNavTabIndices(order, visibility)
-    return preferredIndex.takeIf(visible::contains) ?: visible.first()
-}
-
-internal fun navRouteForIndex(index: Int): String =
-    when (index) {
-        0 -> "home"
-        1 -> "shorts"
-        2 -> "music"
-        3 -> "subscriptions"
-        4 -> "library"
-        5 -> "search"
-        6 -> "categories"
-        else -> "home"
+/** The tab whose root screen [route] is, or null for every screen that is not a tab root. */
+internal fun flowTabForDestination(
+    route: String?,
+    shortsSourceArg: String?,
+): FlowTab? =
+    when (route) {
+        null -> null
+        SHORTS_ROUTE_PATTERN -> FlowTab.Shorts.takeIf { ShortsQueueSource.decode(shortsSourceArg) == ShortsQueueSource.Feed }
+        else -> FlowTab.entries.firstOrNull { it.route == route }
     }
+
+internal fun NavBackStackEntry.flowTab(): FlowTab? = flowTabForDestination(destination.route, arguments?.getString(SHORTS_ROUTE_ARG))
+
+/** Search is a tab, but it keeps the back-button layout of the other search screens, so no bar. */
+internal fun FlowTab?.showsNavigationBar(): Boolean = this != null && this != FlowTab.Search
 
 internal fun youtubeChannelUrl(channelIdOrHandle: String): String? {
     val value = channelIdOrHandle.trim()
@@ -124,3 +96,13 @@ private fun normalizeYoutubeChannelUrl(url: String): String {
         else -> "https://www.youtube.com/@$channelValue"
     }
 }
+
+internal fun String.isLibraryOrSettingsRouteForMusicMiniPlayer(): Boolean =
+    this == "library" ||
+        this == "history" ||
+        this == "playlists" ||
+        this == "playlist" ||
+        this == "likes" ||
+        this == "downloads" ||
+        this == "savedShorts" ||
+        startsWith("settings")
