@@ -1,7 +1,26 @@
 package io.github.aedev.flow.ui
 
+import androidx.navigation.NavBackStackEntry
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import java.net.URI
 import java.net.URLEncoder
+
+/** The tab whose root screen [route] is, or null for every screen that is not a tab root. */
+internal fun flowTabForDestination(
+    route: String?,
+    shortsSourceArg: String?,
+): FlowTab? =
+    when (route) {
+        null -> null
+        SHORTS_ROUTE_PATTERN -> FlowTab.Shorts.takeIf { ShortsQueueSource.decode(shortsSourceArg) == ShortsQueueSource.Feed }
+        else -> FlowTab.entries.firstOrNull { it.route == route }
+    }
+
+internal fun NavBackStackEntry.flowTab(): FlowTab? = flowTabForDestination(destination.route, arguments?.getString(SHORTS_ROUTE_ARG))
+
+/** Search is a tab, but it keeps the back-button layout of the other search screens, so no bar. */
+internal fun FlowTab?.showsNavigationBar(): Boolean = this != null && this != FlowTab.Search
 
 internal fun youtubeChannelUrl(channelIdOrHandle: String): String? {
     val value = channelIdOrHandle.trim()

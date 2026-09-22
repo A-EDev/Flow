@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -42,7 +43,6 @@ import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.DonationPromptHost
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationChrome
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationDefaults
-import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.navigation.NavigationVisibility
 import io.github.aedev.flow.ui.components.layout.navigation.flowUsesNavigationRail
 import io.github.aedev.flow.ui.components.layout.navigation.rememberFlowNavigationScrollState
@@ -188,20 +188,23 @@ fun FlowApp(
     HandleDeepLinks(deeplinkVideoId, isShort, navController, onDeeplinkConsumed)
     OfflineMonitor(context, navController, snackbarHostState, currentRoute)
 
-    val selectedBottomNavIndex = remember { mutableIntStateOf(defaultTab.id) }
-    val showBottomNav = remember { mutableStateOf(true) }
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val currentTab = currentEntry?.flowTab()
+    // Detail screens keep the tab they were opened from, so this remembers the last tab root seen.
+    var selectedTab by remember { mutableStateOf(defaultTab) }
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry -> entry.flowTab()?.let { selectedTab = it } }
+    }
     val usesNavigationRail = flowUsesNavigationRail()
     var navigationRailWidth by remember { mutableStateOf(0.dp) }
     var navigationBarHeight by remember { mutableStateOf(FlowNavigationDefaults.BarHeight) }
 
     LaunchedEffect(defaultTab) {
-        selectedBottomNavIndex.intValue = defaultTab.id
         currentRoute.value = defaultTab.route
     }
 
     LaunchedEffect(isHomeNavigationEnabled, currentRoute.value, defaultStartRoute, needsOnboarding) {
         if (needsOnboarding == false && !isHomeNavigationEnabled && currentRoute.value == "home") {
-            selectedBottomNavIndex.intValue = defaultTab.id
             currentRoute.value = defaultStartRoute
             navController.navigate(defaultStartRoute) {
                 popUpTo("home") { inclusive = true }
@@ -217,7 +220,6 @@ fun FlowApp(
             routeKey = currentRoute.value,
             locked = currentRoute.value == SHORTS_ROUTE_KEY,
         )
-    val isNavScrolledVisible = navScrollState.isBarVisible
 
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
@@ -247,7 +249,6 @@ fun FlowApp(
 
         LaunchedEffect(playerSheetState.currentValue, playerSheetState.isDragging) {
             if (!playerSheetState.isDragging) {
-                showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
                 when (playerSheetState.currentValue) {
                     PlayerSheetValue.Expanded -> {
                         GlobalPlayerState.expandMiniPlayer()
@@ -283,7 +284,6 @@ fun FlowApp(
                     playerSheetState.snapTo(PlayerSheetValue.Collapsed)
                     GlobalPlayerState.hideMiniPlayer()
                     playerVisible = false
-                    showBottomNav.value = true
                     return@LaunchedEffect
                 }
                 GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
@@ -365,14 +365,6 @@ fun FlowApp(
             }
         }
 
-        LaunchedEffect(musicPlayerSheetState.isExpanded) {
-            if (musicPlayerSheetState.isExpanded) {
-                showBottomNav.value = false
-            } else if (!musicPlayerSheetState.isDismissed && playerSheetState.currentValue != PlayerSheetValue.Expanded) {
-                showBottomNav.value = true
-            }
-        }
-
         ApplyStatusBarStyle(
             themeMode = currentTheme,
             themeVariant = themeVariant,
@@ -412,22 +404,29 @@ fun FlowApp(
             }
         }
 
+        val isMusicSheetShown =
+            currentMusicTrack != null && !suppressMusicMiniAfterVideo && playerUiState.cachedVideo == null
+        val isPlayerCoveringContent =
+            (playerVisible && playerSheetState.currentValue == PlayerSheetValue.Expanded) ||
+                (isMusicSheetShown && musicPlayerSheetState.isExpanded)
+        val showBottomNav = !isInPipMode && currentTab.showsNavigationBar() && !isPlayerCoveringContent
+        val isBottomNavShown = !usesNavigationRail && showBottomNav && navScrollState.isBarVisible
+        val bottomNavOverlayHeight = rememberUpdatedState(if (isBottomNavShown) navigationBarHeight else 0.dp)
         // The rail is hidden only where content goes truly full screen; the expanded players cover
         // it instead, so opening them never re-lays out the page beneath.
+        val currentDestinationRoute = currentEntry?.destination?.route
         val isNavigationRailVisible =
             !isInPipMode &&
                 needsOnboarding != null &&
-                currentRoute.value != "onboarding" &&
-                (currentRoute.value != SHORTS_ROUTE_KEY || showBottomNav.value)
+                currentDestinationRoute != "onboarding" &&
+                !(currentDestinationRoute == SHORTS_ROUTE_PATTERN && currentTab == null)
         FlowNavigationChrome(
             tabs = navigationTabs,
-            selectedTab = FlowTab.fromId(selectedBottomNavIndex.intValue),
+            selectedTab = selectedTab,
             onTabSelected = { tab ->
-                val activeRoute = navController.currentBackStackEntry?.destination?.route
-                if (activeRoute == tab.route) {
+                if (currentTab == tab) {
                     TabScrollEventBus.emitScrollToTop(tab.route)
                 } else {
-                    selectedBottomNavIndex.intValue = tab.id
                     currentRoute.value = tab.route
                     navController.navigate(tab.route) {
                         popUpTo(defaultStartRoute) {
@@ -438,7 +437,7 @@ fun FlowApp(
                     }
                 }
             },
-            barVisible = !isInPipMode && showBottomNav.value && isNavScrolledVisible,
+            barVisible = showBottomNav && navScrollState.isBarVisible,
             railVisible = isNavigationRailVisible,
             onBarHeightChanged = { navigationBarHeight = it },
             onRailWidthChanged = { navigationRailWidth = it },
@@ -465,14 +464,7 @@ fun FlowApp(
             )
             val bottomNavContentPadding by animateDpAsState(
                 targetValue =
-                    if (
-                        !bottomNavHideOnScroll &&
-                        !usesNavigationRail &&
-                        !isInPipMode &&
-                        showBottomNav.value &&
-                        isNavScrolledVisible &&
-                        !isShortsPlayerRoute
-                    ) {
+                    if (!bottomNavHideOnScroll && isBottomNavShown && !isShortsPlayerRoute) {
                         navigationBarHeight
                     } else {
                         0.dp
@@ -563,8 +555,6 @@ fun FlowApp(
                                     flowAppGraph(
                                         navController = navController,
                                         currentRoute = currentRoute,
-                                        showBottomNav = showBottomNav,
-                                        selectedBottomNavIndex = selectedBottomNavIndex,
                                         playerSheetState = playerSheetState,
                                         musicPlayerSheetState = musicPlayerSheetState,
                                         homeViewModel = homeViewModel,
@@ -585,13 +575,7 @@ fun FlowApp(
                                         onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
                                         disableShortsPlayer = disableShortsPlayer,
                                         defaultStartRoute = defaultStartRoute,
-                                        bottomNavOverlayPadding = {
-                                            if (!usesNavigationRail && showBottomNav.value && isNavScrolledVisible) {
-                                                navigationBarHeight
-                                            } else {
-                                                0.dp
-                                            }
-                                        },
+                                        bottomNavOverlayPadding = { bottomNavOverlayHeight.value },
                                     )
                                 }
                             }
@@ -602,7 +586,7 @@ fun FlowApp(
         }
 
         val bottomPaddingTarget =
-            if (!usesNavigationRail && !isInPipMode && showBottomNav.value && isNavScrolledVisible) {
+            if (isBottomNavShown) {
                 navigationBarHeight + with(density) { navBarBottomInset.toDp() }
             } else {
                 with(density) { navBarBottomInset.toDp() }
@@ -639,7 +623,6 @@ fun FlowApp(
                 playerSheetState.snapTo(PlayerSheetValue.Collapsed)
                 GlobalPlayerState.hideMiniPlayer()
                 playerVisible = false
-                showBottomNav.value = true
             },
             onNavigateToChannel = { channelArg ->
                 playerSheetState.collapse()
