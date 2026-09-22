@@ -20,7 +20,29 @@ data class PlayerResponse(
     val playbackTracking: PlaybackTracking?,
     val storyboards: Storyboards? = null,
     val microformat: Microformat? = null,
+    val attestation: Attestation? = null,
 ) {
+    /**
+     * The attestation demand YouTube attaches to a player response, as
+     * `a=6&b=<nonce>&c=<issued>&d=<clientId>&e=<videoId>&hh=<binding>`.
+     *
+     * Not interchangeable with the BotGuard challenge the WebView fetches from `/api/jnn/v1/Create`
+     * — that one descrambles to `[wrappedScript, program, globalName]`, the interpreter and program
+     * the VM runs. This is a descriptor of *what* to attest, bound to one video and one client, and
+     * reading it tells us whether YouTube asked this client to prove itself for this video at all.
+     */
+    @Serializable
+    data class Attestation(
+        val playerAttestationRenderer: PlayerAttestationRenderer? = null,
+    ) {
+        @Serializable
+        data class PlayerAttestationRenderer(
+            val challenge: String? = null,
+            /** Set by ANDROID_VR: the same challenge may be reused across requests. */
+            val useSharedChallenge: Boolean? = null,
+        )
+    }
+
     @Serializable
     data class Storyboards(
         val playerStoryboardSpecRenderer: PlayerStoryboardSpecRenderer? = null,

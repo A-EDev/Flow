@@ -12,6 +12,7 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.error.PlayerDiagnostics
+import io.github.aedev.flow.player.error.StreamDenialClassifier
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -51,6 +52,18 @@ class YouTubeHttpDataSource private constructor(
     companion object {
         private const val TAG = "YouTubeHttpDataSource"
         private val clientLock = Any()
+
+        /** Clients whose URLs a browser minted, and which therefore send browser CORS headers. */
+        private val WEB_FAMILY_CLIENTS =
+            setOf(
+                "WEB",
+                "MWEB",
+                "WEB_REMIX",
+                "WEB_CREATOR",
+                "WEB_EMBEDDED_PLAYER",
+                "TVHTML5",
+                "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+            )
 
         @Volatile
         private var cachedClient: OkHttpClient? = null
@@ -99,7 +112,7 @@ class YouTubeHttpDataSource private constructor(
         val requestHeaders = LinkedHashMap<String, String>()
         requestHeaders.putAll(defaultRequestProperties)
         if (isYouTubeUri(dataSpec.uri)) {
-            requestHeaders.putAll(youtubeHeaders())
+            requestHeaders.putAll(youtubeHeaders(dataSpec.uri))
         }
         if (requestHeaders.isNotEmpty()) {
             factory.setDefaultRequestProperties(requestHeaders)
@@ -115,25 +128,20 @@ class YouTubeHttpDataSource private constructor(
     }
 
     private fun logForbidden(dataSpec: DataSpec) {
-        val uri = dataSpec.uri
-        val expire = uri.getQueryParameter("expire")?.toLongOrNull()
-        val nowSec = System.currentTimeMillis() / 1000
-        val expiry =
-            when {
-                expire == null -> "expire=absent"
-                expire < nowSec -> "expire=PASSED ${nowSec - expire}s ago"
-                else -> "expire=valid ${expire - nowSec}s left"
-            }
+        val url = dataSpec.uri.toString()
+        val expiry = StreamDenialClassifier.describeExpiry(url)
+        val kind = StreamDenialClassifier.classify(url)
+        val client = StreamDenialClassifier.clientOf(url)
+        val itag = StreamDenialClassifier.itagOf(url)
+        val pot = StreamDenialClassifier.hasPoToken(url)
         Log.w(
             TAG,
-            "HTTP 403 c=${uri.getQueryParameter("c")} itag=${uri.getQueryParameter("itag")} " +
-                "mime=${uri.getQueryParameter("mime")} pot=${uri.getQueryParameter("pot") != null} " +
-                "range=${dataSpec.position}+${dataSpec.length} $expiry",
+            "HTTP 403 c=$client itag=$itag mime=${StreamDenialClassifier.queryParam(url, "mime")} " +
+                "pot=$pot range=${dataSpec.position}+${dataSpec.length} $expiry denial=$kind",
         )
         PlayerDiagnostics.logWarning(
             TAG,
-            "403 c=${uri.getQueryParameter("c")} itag=${uri.getQueryParameter("itag")} " +
-                "pot=${uri.getQueryParameter("pot") != null} range=${dataSpec.position}+${dataSpec.length} $expiry",
+            "403 c=$client itag=$itag pot=$pot range=${dataSpec.position}+${dataSpec.length} $expiry denial=$kind",
         )
     }
 
@@ -185,19 +193,32 @@ class YouTubeHttpDataSource private constructor(
         }
 
     /**
-     * Add headers that YouTube expects/requires for video streaming.
-     * These help avoid bot detection and ensure proper CDN routing.
+     * Headers YouTube expects for video streaming, matched to the client that minted the URL.
+     *
+     * `Origin`, `Referer` and the `Sec-Fetch-*` triple are browser-only: a real visionOS or
+     * Android VR client sends none of them. Stamping them on every googlevideo request paired the
+     * native user agent [resolveYouTubeUserAgent] picks with a browser's CORS preamble, which is
+     * the same client/request mismatch that function exists to avoid.
+     *
+     * Kept as a hypothesis about the 403s rather than a proven cause — but sending a native
+     * client's request the way that client actually sends it is the defensible default either way.
      */
-    private fun youtubeHeaders(): Map<String, String> =
-        mapOf(
-            "Origin" to "https://www.youtube.com",
-            "Referer" to "https://www.youtube.com/",
-            "Sec-Fetch-Dest" to "empty",
-            "Sec-Fetch-Mode" to "cors",
-            "Sec-Fetch-Site" to "cross-site",
-            // Accept-Encoding helps with CDN optimization
-            "Accept-Encoding" to "identity",
-            // Accept header for video content
-            "Accept" to "*/*",
-        )
+    private fun youtubeHeaders(uri: Uri): Map<String, String> {
+        val headers =
+            linkedMapOf(
+                // Media is already compressed and served in byte ranges, so identity keeps the
+                // range arithmetic exact rather than saving anything.
+                "Accept-Encoding" to "identity",
+                "Accept" to "*/*",
+            )
+        val client = uri.getQueryParameter("c")?.uppercase()
+        if (client == null || client in WEB_FAMILY_CLIENTS) {
+            headers["Origin"] = "https://www.youtube.com"
+            headers["Referer"] = "https://www.youtube.com/"
+            headers["Sec-Fetch-Dest"] = "empty"
+            headers["Sec-Fetch-Mode"] = "cors"
+            headers["Sec-Fetch-Site"] = "cross-site"
+        }
+        return headers
+    }
 }

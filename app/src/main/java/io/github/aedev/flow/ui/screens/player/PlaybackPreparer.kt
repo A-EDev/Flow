@@ -239,8 +239,12 @@ internal class PlaybackPreparer(
                 resumeAllowed = resumeOverrideRequested || !playerManager.isCurrentQueueVideo(videoId),
             )
         val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
+        // An escalated reload must not force SABR: measured 2026-09-21, a session never receives an
+        // init segment, so ExoPlayer cannot sniff it and every attempt dies. Recovery is the
+        // re-minted attested direct ladder instead. Revisit when an init segment is observed.
         val preferSabr =
-            sabrInfo != null && SabrRoutingPolicy.shouldPreferSabr(false, sabrInfo.videoHeight, directMaxHeight)
+            sabrInfo != null &&
+                SabrRoutingPolicy.shouldPreferSabr(false, sabrInfo.videoHeight, directMaxHeight)
 
         playerManager.setStreams(
             videoId = videoId,

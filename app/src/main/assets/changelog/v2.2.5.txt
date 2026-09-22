@@ -76,6 +76,11 @@ FIXES AND STABILITY
 - Fix the ambient player glow and cap session artwork at the platform limit, ending a crash on some ROMs
 - Fix a tablet held upright splitting the player into two narrow columns, and the volume gesture starting from a stale level or dropping a boost above 100%
 - Fix the page under the video bouncing and jumping around when a drag towards portrait fullscreen is released short of it: it now tracks your finger exactly and settles straight back, and a flick back up cancels the transition however far it had travelled
+- Fix videos that play for about a minute and then buffer forever: Flow now tells an expired stream link apart from one YouTube has refused, re-requests the refused ones properly signed instead of replaying them unsigned, and moves on to a different source after YouTube refuses the same one twice rather than retrying it forever
+- Fix playback that could never recover once YouTube stopped trusting the app: the browsing identity behind verification is now replaced automatically, and a new Reset YouTube session action in Diagnostics does it on demand — the supported version of clearing app data
+- Fix a day-long playback outage whenever YouTube changes its player script: an unreadable copy is refetched instead of being trusted from the cache for six hours, and the diagnostics report now names the script version that could not be read
+- Stream requests now carry the headers of the client that issued them, rather than pairing a native client with a browser's
+- Every playback request used to re-run YouTube's bot check three times because a healthy verification token was being measured in the wrong unit and always looked untrustworthy; it now runs once, cutting a burst of background work off the start of every video
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
