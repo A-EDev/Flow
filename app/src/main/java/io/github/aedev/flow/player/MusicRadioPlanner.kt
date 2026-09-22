@@ -1,5 +1,7 @@
 package io.github.aedev.flow.player
 
+import io.github.aedev.flow.data.music.model.MusicTrack
+
 /**
  * Decides whether a playlist change opens a new radio session or continues the current one.
  *
@@ -40,4 +42,47 @@ internal object MusicRadioPlanner {
         val knownIds = if (queueIds.size < previous.size) (previous + queueIds).distinct() else queueIds
         return QueueContext(reseed = false, explicit = false, knownIds = knownIds)
     }
+
+    /**
+     * The list under the toggle is the up-next buffer, so it is ordered once here and consumed
+     * from the head. Ordering it for display and re-ordering it again at append time is what made
+     * the queue fill with tracks other than the ones on screen.
+     */
+    const val MAX_POOL_SIZE = 100
+
+    /** The pool a fresh station starts with. */
+    fun seedPool(
+        candidates: List<MusicTrack>,
+        currentId: String?,
+        queueIds: Set<String>,
+    ): List<MusicTrack> =
+        candidates
+            .distinctBy { it.videoId }
+            .filterNot { it.videoId == currentId || it.videoId in queueIds }
+            .take(MAX_POOL_SIZE)
+
+    /** Grows the pool without disturbing what is already in it, and without letting it run away. */
+    fun growPool(
+        existing: List<MusicTrack>,
+        incoming: List<MusicTrack>,
+        currentId: String?,
+        queueIds: Set<String>,
+    ): List<MusicTrack> {
+        val room = MAX_POOL_SIZE - existing.size
+        if (room <= 0) return existing
+        val existingIds = existing.mapTo(HashSet()) { it.videoId }
+        val fresh =
+            incoming
+                .distinctBy { it.videoId }
+                .filterNot { it.videoId == currentId || it.videoId in queueIds || it.videoId in existingIds }
+                .take(room)
+        return if (fresh.isEmpty()) existing else existing + fresh
+    }
+
+    /** What the queue takes next: the head of the list the user is looking at, in that order. */
+    fun nextBatch(
+        pool: List<MusicTrack>,
+        queueIds: Set<String>,
+        limit: Int,
+    ): List<MusicTrack> = pool.filterNot { it.videoId in queueIds }.take(limit)
 }

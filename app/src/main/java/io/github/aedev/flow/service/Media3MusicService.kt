@@ -220,7 +220,12 @@ class Media3MusicService : MediaLibraryService() {
             io.github.aedev.flow.data.local
                 .PlayerPreferences(this@Media3MusicService)
         lifecycleScope.launch {
-            prefs.musicEndlessRadioEnabled.collect { radioAutoplayEnabled = it }
+            prefs.musicEndlessRadioEnabled.collect { enabled ->
+                val wasEnabled = radioAutoplayEnabled
+                radioAutoplayEnabled = enabled
+                // Switching it on mid-track otherwise does nothing until the next transition.
+                if (enabled && !wasEnabled && ::player.isInitialized) maybeExtendRadio()
+            }
         }
         lifecycleScope.launch {
             prefs.musicLoudnessNormalizationEnabled.collect {
@@ -1160,6 +1165,8 @@ class Media3MusicService : MediaLibraryService() {
     private fun startRadio(seedId: String) {
         automixJob?.cancel()
         radioTopUpJob?.cancel()
+        io.github.aedev.flow.player.EnhancedMusicPlayerManager
+            .setRadioLoading(true)
         automixJob =
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -1195,7 +1202,14 @@ class Media3MusicService : MediaLibraryService() {
                         radioEndpoint = page?.endpoint
                     }
 
-                    val ranked = musicBrain.rankTracks(mapped, "radio")
+                    // Ordered once, here: the pool IS the up-next list the user reads, so the
+                    // queue must be able to take it from the head without re-sequencing.
+                    val ranked =
+                        musicBrain.sequenceRadioBatch(
+                            musicBrain.rankTracks(mapped, "radio"),
+                            io.github.aedev.flow.player.EnhancedMusicPlayerManager.currentTrack.value,
+                            MusicRadioPlanner.MAX_POOL_SIZE,
+                        )
                     Log.d(TAG, "Radio seeded from $seedId: ${ranked.size} tracks, continuation=${radioContinuation != null}")
                     if (ranked.isNotEmpty()) {
                         io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -1208,6 +1222,9 @@ class Media3MusicService : MediaLibraryService() {
                     throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "Error seeding radio", e)
+                } finally {
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                        .setRadioLoading(false)
                 }
             }
     }
@@ -1239,15 +1256,7 @@ class Media3MusicService : MediaLibraryService() {
         if (!ended && remaining > RADIO_MIN_UPCOMING) return
 
         val queueIds = manager.queue.value.mapTo(HashSet()) { it.videoId }
-        // A wider candidate window than the batch gives the artist spread real
-        // alternatives; sequencing is seeded with the queue tail so the appended
-        // batch never opens with the artist that just played (review feedback:
-        // same artist back-to-back in a 10-track radio queue).
-        val candidates =
-            manager.automixItems.value
-                .filterNot { it.videoId in queueIds }
-                .take(RADIO_APPEND_BATCH * 2)
-        val batch = musicBrain.sequenceRadioBatch(candidates, manager.queue.value.lastOrNull(), RADIO_APPEND_BATCH)
+        val batch = MusicRadioPlanner.nextBatch(manager.automixItems.value, queueIds, RADIO_APPEND_BATCH)
         if (ended && batch.isNotEmpty() && !radioResumeWhenAppended) {
             radioResumeWhenAppended = true
             radioEndedItemCount = player.mediaItemCount
@@ -1269,6 +1278,8 @@ class Media3MusicService : MediaLibraryService() {
     /** Fetch the next radio page and APPEND it to the pool — never replaces. */
     private fun extendRadioPool() {
         if (radioTopUpJob?.isActive == true) return
+        io.github.aedev.flow.player.EnhancedMusicPlayerManager
+            .setRadioLoading(true)
         radioTopUpJob =
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -1295,7 +1306,13 @@ class Media3MusicService : MediaLibraryService() {
                         page.items
                             .mapNotNull { InnertubeMusicService.convertToMusicTrack(it) }
                             .distinctBy { it.videoId }
-                    val ranked = musicBrain.rankTracks(mapped, "radio")
+                    val tail = manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull()
+                    val ranked =
+                        musicBrain.sequenceRadioBatch(
+                            musicBrain.rankTracks(mapped, "radio"),
+                            tail,
+                            MusicRadioPlanner.MAX_POOL_SIZE,
+                        )
                     Log.d(TAG, "Radio pool topped up with ${ranked.size} tracks, continuation=${radioContinuation != null}")
                     if (ranked.isNotEmpty()) {
                         manager.appendAutomixItems(ranked)
@@ -1307,6 +1324,9 @@ class Media3MusicService : MediaLibraryService() {
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Radio top-up failed: ${e.message}")
+                } finally {
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                        .setRadioLoading(false)
                 }
             }
     }
