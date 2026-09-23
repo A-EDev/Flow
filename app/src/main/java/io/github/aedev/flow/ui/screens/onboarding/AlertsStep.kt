@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.NewReleases
@@ -44,7 +45,7 @@ private val FootnotePadding = 16.dp
 
 @Composable
 internal fun AlertsStep(
-    hero: HeroSlot,
+    header: LazyListScope.() -> Unit,
     newVideoAlerts: Boolean,
     onNewVideoAlertsChange: (Boolean) -> Unit,
     contentPadding: PaddingValues,
@@ -67,10 +68,8 @@ internal fun AlertsStep(
     val rowCount = if (asksPermission) 3 else 2
     val offset = if (asksPermission) 1 else 0
 
-    val title = stringResource(R.string.onboarding_alerts_title)
-    val subtitle = stringResource(R.string.onboarding_alerts_subtitle)
     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = contentPadding) {
-        stepHeader(hero = hero, title = title, subtitle = subtitle)
+        header()
         item(key = "rows") {
             Column(verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap)) {
                 if (asksPermission) {

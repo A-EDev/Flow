@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -52,6 +54,8 @@ private val BarSpacing = 12.dp
 private val BottomBarPadding = 20.dp
 private val HeaderSpacing = 12.dp
 private val HeaderBottomPadding = 20.dp
+private val SidePanePadding = 40.dp
+private val SidePaneSpacing = 18.dp
 private const val CURRENT_SEGMENT_WEIGHT = 2.4f
 
 @Composable
@@ -231,5 +235,70 @@ internal fun LazyListScope.stepHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+internal data class StepCopy(
+    val title: String,
+    val subtitle: String,
+)
+
+/** The title and subtitle a step shows, in its list header or beside it in the start pane. */
+@Composable
+internal fun stepCopy(
+    state: OnboardingUiState,
+    step: OnboardingStep,
+): StepCopy =
+    when (step) {
+        OnboardingStep.INTERESTS -> {
+            StepCopy(
+                stringResource(R.string.onboarding_interests_title),
+                if (state.topicsLeft > 0) {
+                    stringResource(R.string.onboarding_interests_hint, MIN_TOPICS, state.topicsLeft)
+                } else {
+                    stringResource(R.string.onboarding_interests_ready)
+                },
+            )
+        }
+
+        OnboardingStep.CHANNELS -> {
+            StepCopy(stringResource(R.string.onboarding_channels_title), stringResource(R.string.onboarding_channels_subtitle))
+        }
+
+        OnboardingStep.ALERTS -> {
+            StepCopy(stringResource(R.string.onboarding_alerts_title), stringResource(R.string.onboarding_alerts_subtitle))
+        }
+
+        OnboardingStep.IMPORT -> {
+            StepCopy(stringResource(R.string.onboarding_import_title), stringResource(R.string.onboarding_import_subtitle))
+        }
+
+        OnboardingStep.WELCOME, OnboardingStep.READY -> {
+            StepCopy("", "")
+        }
+    }
+
+/** The start pane of the two-pane layout: the hero, a large title and the subtitle. */
+@Composable
+internal fun StepSidePane(
+    hero: HeroSlot,
+    copy: StepCopy,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.verticalScroll(rememberScrollState()).padding(SidePanePadding),
+        verticalArrangement = Arrangement.spacedBy(SidePaneSpacing),
+    ) {
+        hero(HeroSide)
+        Text(
+            text = copy.title,
+            style = MaterialTheme.typography.displaySmallEmphasized,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            text = copy.subtitle,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

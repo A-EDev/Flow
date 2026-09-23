@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -58,15 +59,13 @@ private const val WIDE_COLUMNS = 3
  */
 @Composable
 internal fun ImportStep(
-    hero: HeroSlot,
+    header: LazyListScope.() -> Unit,
     importOperation: BackupOperation,
     importedSources: Set<ImportSource>,
     onImport: (ImportKind) -> Unit,
     contentPadding: PaddingValues,
 ) {
     var openSource by rememberSaveable { mutableStateOf<ImportSource?>(null) }
-    val title = stringResource(R.string.onboarding_import_title)
-    val subtitle = stringResource(R.string.onboarding_import_subtitle)
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val columns = if (maxWidth >= WideGridWidth) WIDE_COLUMNS else NARROW_COLUMNS
@@ -76,7 +75,7 @@ internal fun ImportStep(
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(TileSpacing),
         ) {
-            stepHeader(hero = hero, title = title, subtitle = subtitle)
+            header()
             (importOperation as? BackupOperation.Running)?.let { running ->
                 item(key = "progress") {
                     FlowProgressBanner(

@@ -194,3 +194,4 @@ internal fun Modifier.onboardingBackdrop(
 internal val HeroSmall: Dp = 72.dp
 internal val HeroLarge: Dp = 220.dp
 internal val HeroReady: Dp = 180.dp
+internal val HeroSide: Dp = 132.dp

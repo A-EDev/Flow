@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -19,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.recommendation.NeuroTopicCatalog
 import io.github.aedev.flow.data.recommendation.TopicCategory
 import io.github.aedev.flow.ui.components.shared.FlowPillChip
@@ -38,7 +38,7 @@ private val SectionSpacing = 28.dp
 internal fun InterestsStep(
     selectedTopics: Set<String>,
     onTopicToggle: (String) -> Unit,
-    hero: HeroSlot,
+    header: LazyListScope.() -> Unit,
     revealed: Boolean,
     onRevealed: () -> Unit,
     contentPadding: PaddingValues,
@@ -54,15 +54,6 @@ internal fun InterestsStep(
         onRevealed()
     }
 
-    val title = stringResource(R.string.onboarding_interests_title)
-    val remaining = (MIN_TOPICS - selectedTopics.size).coerceAtLeast(0)
-    val subtitle =
-        if (remaining > 0) {
-            stringResource(R.string.onboarding_interests_hint, MIN_TOPICS, remaining)
-        } else {
-            stringResource(R.string.onboarding_interests_ready)
-        }
-
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     LazyColumn(
@@ -70,7 +61,7 @@ internal fun InterestsStep(
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(SectionSpacing),
     ) {
-        stepHeader(hero = hero, title = title, subtitle = subtitle)
+        header()
 
         itemsIndexed(categories, key = { _, category -> category.name }) { index, category ->
             AnimatedVisibility(
