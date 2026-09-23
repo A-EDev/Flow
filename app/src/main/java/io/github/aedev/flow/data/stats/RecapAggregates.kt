@@ -67,6 +67,40 @@ internal object RecapAggregates {
         )
     }
 
+    /** Watching and listening time per day from [from] to [to], both ledgers together. */
+    fun dailyTime(
+        video: VideoStatsSnapshot,
+        music: MusicStatsStorage.SerializableStats,
+        from: LocalDate,
+        to: LocalDate,
+    ): Map<LocalDate, Long> {
+        val days = HashMap<LocalDate, Long>()
+
+        fun add(
+            key: String,
+            dayMs: Map<Int, Long>,
+        ) {
+            val month = LedgerTime.parseMonth(key) ?: return
+            dayMs.forEach { (day, ms) ->
+                val date = month.dateOrNull(day) ?: return@forEach
+                if (date in from..to) days[date] = (days[date] ?: 0L) + ms
+            }
+        }
+        video.months.forEach { (key, month) -> add(key, month.dayMs) }
+        music.months.forEach { (key, month) -> add(key, month.dayMs.ifEmpty { estimatedDayMs(month) }) }
+        return days
+    }
+
+    /** The first day the video ledger holds anything; before it, only watch history knows. */
+    fun videoLedgerStart(video: VideoStatsSnapshot): LocalDate? =
+        video.months
+            .mapNotNull { (key, month) ->
+                val parsed = LedgerTime.parseMonth(key) ?: return@mapNotNull null
+                month.dayMs.keys
+                    .minOrNull()
+                    ?.let { parsed.dateOrNull(it) }
+            }.minOrNull()
+
     private fun <M> Map<String, M>.inPeriod(period: RecapPeriod): List<Pair<YearMonth, M>> =
         mapNotNull { (key, month) -> LedgerTime.parseMonth(key)?.takeIf(period::contains)?.let { it to month } }
             .sortedBy { it.first }

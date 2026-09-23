@@ -29,6 +29,20 @@ data class WatchTimeSummary(
     }
 }
 
+/**
+ * The seven days ending [today] from the recap ledgers' real per-day time, or null while the ledger
+ * does not yet cover the whole week and watch history is still the better estimate.
+ */
+internal fun summarizeLedgerTime(
+    dayMs: Map<LocalDate, Long>,
+    ledgerStart: LocalDate?,
+    today: LocalDate,
+): WatchTimeSummary? {
+    val first = today.minusDays((WEEK_DAYS - 1).toLong())
+    if (ledgerStart == null || ledgerStart > first) return null
+    return WatchTimeSummary((0 until WEEK_DAYS).map { offset -> first.plusDays(offset.toLong()).let { DayWatchTime(it, dayMs[it] ?: 0L) } })
+}
+
 /** A watched item: when it was last watched and how far into it playback got. */
 data class WatchRecord(
     val timestamp: Long,
