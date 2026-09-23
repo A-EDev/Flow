@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.player.stream.AudioStreamSelector
+import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -310,7 +311,10 @@ object YouTubeMusicService {
                 val streamInfo = getStreamInfo(videoId) ?: return@withContext null
                 val preferences = PlayerPreferences(FlowApplication.appContext)
                 val preferredAudioLanguage = preferences.preferredAudioLanguage.first()
-                val preferredMusicAudioQuality = preferences.musicAudioQuality.first()
+                val preferredMusicAudioQuality =
+                    preferences.musicAudioQuality
+                        .first()
+                        .resolve(onWifi = NetworkState.isOnWifi(FlowApplication.appContext))
                 val audioStream =
                     AudioStreamSelector.selectPreferredAudioStream(
                         streams =
@@ -341,7 +345,10 @@ object YouTubeMusicService {
                 val streamInfo = getStreamInfo(videoId)
                 val preferences = PlayerPreferences(FlowApplication.appContext)
                 val preferredAudioLanguage = preferences.preferredAudioLanguage.first()
-                val preferredMusicAudioQuality = preferences.musicAudioQuality.first()
+                val preferredMusicAudioQuality =
+                    preferences.musicAudioQuality
+                        .first()
+                        .resolve(onWifi = NetworkState.isOnWifi(FlowApplication.appContext))
                 val audioStream =
                     AudioStreamSelector.selectPreferredAudioStream(
                         streams =

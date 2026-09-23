@@ -45,6 +45,24 @@ class SettingsListScope internal constructor(
         }
     }
 
+    /** A section title on its own, for a section whose body is a single free-standing [item]. */
+    fun header(
+        key: String,
+        @StringRes text: Int,
+    ) {
+        keys.add(key)
+        lazy.item(key = key) {
+            SettingsColumnFrame(Modifier.padding(horizontal = GroupHeaderInset)) {
+                SettingsHighlightFrame(key = key, shape = RectangleShape) {
+                    FlowSectionHeader(
+                        text = stringResource(text),
+                        modifier = Modifier.padding(top = GroupHeaderTopPadding),
+                    )
+                }
+            }
+        }
+    }
+
     /**
      * A titled group of rows drawn as one segmented surface. A group whose builder adds no rows is
      * skipped entirely, header and footer included. The header item is keyed [key], so an entry for
@@ -58,20 +76,7 @@ class SettingsListScope internal constructor(
     ) {
         val built = SettingsGroupScope().apply(rows).rows
         if (built.isEmpty()) return
-        if (header != null) {
-            val headerKey = key
-            keys.add(headerKey)
-            lazy.item(key = headerKey) {
-                SettingsColumnFrame(Modifier.padding(horizontal = GroupHeaderInset)) {
-                    SettingsHighlightFrame(key = headerKey, shape = RectangleShape) {
-                        FlowSectionHeader(
-                            text = stringResource(header),
-                            modifier = Modifier.padding(top = GroupHeaderTopPadding),
-                        )
-                    }
-                }
-            }
-        }
+        if (header != null) header(key = key, text = header)
         built.forEachIndexed { index, row ->
             keys.add(row.key)
             lazy.item(key = row.key) {

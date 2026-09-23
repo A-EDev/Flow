@@ -3076,6 +3076,14 @@ enum class MusicAudioQuality(
     LOW("Low"),
     ;
 
+    /** The quality to actually stream: Auto picks High on Wi-Fi and Medium on mobile data, like video does. */
+    fun resolve(onWifi: Boolean): MusicAudioQuality =
+        when {
+            this != AUTO -> this
+            onWifi -> HIGH
+            else -> MEDIUM
+        }
+
     companion object {
         fun fromString(label: String): MusicAudioQuality = values().find { it.label == label } ?: AUTO
     }

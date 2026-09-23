@@ -3,6 +3,17 @@ package io.github.aedev.flow.ui.screens.settings
 import androidx.compose.runtime.Composable
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
+import io.github.aedev.flow.ui.screens.settings.appearance.AppearanceScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.DateTimeScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.NavigationBarScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.player.PlayerAppearanceScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemeScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.theme.ThemeScreen
+import io.github.aedev.flow.ui.screens.settings.content.ContentSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
+import io.github.aedev.flow.ui.screens.settings.region.LanguageRegionScreen
 import io.github.aedev.flow.ui.screens.sync.SyncScreen
 
 /**
@@ -15,31 +26,32 @@ internal fun SettingsDetail(
     onBack: (() -> Unit)?,
     onNavigate: (SettingsTarget) -> Unit,
     onOpenDonations: () -> Unit,
-    legacyAppearance: @Composable (onBack: () -> Unit) -> Unit,
 ) {
     val back = onBack ?: {}
     when (target.destination) {
         SettingsDestination.HOME,
         SettingsDestination.APPEARANCE,
-        SettingsDestination.THEME,
-        SettingsDestination.CUSTOM_THEME,
-        -> legacyAppearance(back)
+        -> AppearanceScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
 
-        SettingsDestination.NAVIGATION_BAR,
-        SettingsDestination.CONTENT,
-        -> ContentSettingsScreen(onBackClick = back)
+        SettingsDestination.THEME -> ThemeScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
 
-        SettingsDestination.DATE_TIME -> DateTimeSettingsScreen(onNavigateBack = back)
+        SettingsDestination.CUSTOM_THEME -> CustomThemeScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.PLAYER_APPEARANCE -> PlayerAppearanceScreen(onNavigateBack = back)
+        SettingsDestination.NAVIGATION_BAR -> NavigationBarScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.LANGUAGE_REGION -> ContentSettingsScreen(onBackClick = back)
+        SettingsDestination.CONTENT -> ContentSettingsScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.PLAYBACK -> PlayerSettingsScreen(onNavigateBack = back)
+        SettingsDestination.DATE_TIME -> DateTimeScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.BUFFER -> BufferSettingsScreen(onNavigateBack = back)
+        SettingsDestination.PLAYER_APPEARANCE -> PlayerAppearanceScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.QUALITY -> VideoQualitySettingsScreen(onNavigateBack = back)
+        SettingsDestination.LANGUAGE_REGION -> LanguageRegionScreen(onBack = onBack, highlight = target.highlight)
+
+        SettingsDestination.PLAYBACK -> PlaybackSettingsScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+
+        SettingsDestination.BUFFER -> BufferSettingsScreen(onBack = onBack, highlight = target.highlight)
+
+        SettingsDestination.QUALITY -> QualitySettingsScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
 
         SettingsDestination.TOPICS -> UserPreferencesScreen(onNavigateBack = back)
 

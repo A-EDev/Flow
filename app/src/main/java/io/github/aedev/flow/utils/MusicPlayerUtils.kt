@@ -118,7 +118,10 @@ object MusicPlayerUtils {
         val playerPreferences = PlayerPreferences(FlowApplication.appContext)
         return AudioSelectionPreferences(
             preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first(),
-            musicAudioQuality = playerPreferences.musicAudioQuality.first(),
+            musicAudioQuality =
+                playerPreferences.musicAudioQuality
+                    .first()
+                    .resolve(onWifi = NetworkState.isOnWifi(FlowApplication.appContext)),
         )
     }
 

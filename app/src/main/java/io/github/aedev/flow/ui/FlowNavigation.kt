@@ -315,23 +315,6 @@ fun NavGraphBuilder.flowAppGraph(
             onExit = { navController.popBackStack() },
             onOpenPersona = { navController.navigate("personality") },
             onOpenDonations = { navController.navigate("donations") },
-            legacyAppearance = { onBack ->
-                io.github.aedev.flow.ui.screens.settings.AppearanceScreen(
-                    currentTheme = currentTheme,
-                    themeVariant = themeVariant,
-                    customThemePalettes = customThemePalettes,
-                    systemLightThemeMode = systemLightThemeMode,
-                    systemDarkThemeMode = systemDarkThemeMode,
-                    systemDarkThemeVariant = systemDarkThemeVariant,
-                    onThemeChange = onThemeChange,
-                    onThemeVariantChange = onThemeVariantChange,
-                    onCustomThemePalettesChange = onCustomThemePalettesChange,
-                    onSystemLightThemeChange = onSystemLightThemeChange,
-                    onSystemDarkThemeChange = onSystemDarkThemeChange,
-                    onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
-                    onNavigateBack = onBack,
-                )
-            },
         )
     }
 

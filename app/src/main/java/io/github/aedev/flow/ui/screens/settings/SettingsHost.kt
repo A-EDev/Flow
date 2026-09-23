@@ -38,7 +38,6 @@ fun SettingsHost(
     onExit: () -> Unit,
     onOpenPersona: () -> Unit,
     onOpenDonations: () -> Unit,
-    legacyAppearance: @Composable (onBack: () -> Unit) -> Unit,
 ) {
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
     val scope = rememberCoroutineScope()
@@ -112,7 +111,6 @@ fun SettingsHost(
                         onBack = if (twoPane && stack.size <= 1) null else ::back,
                         onNavigate = ::push,
                         onOpenDonations = onOpenDonations,
-                        legacyAppearance = legacyAppearance,
                     )
                 }
             }

@@ -30,7 +30,8 @@ private const val DISABLED_ALPHA = 0.4f
 
 /**
  * A setting answered in place by a connected toggle group under its title — the Material 3
- * Expressive replacement for a segmented button row.
+ * Expressive replacement for a segmented button row. A [preview] sits between the two when the
+ * choice is easier to see than to read.
  */
 @Composable
 fun <T> SettingsToggleGroupRow(
@@ -42,9 +43,11 @@ fun <T> SettingsToggleGroupRow(
     modifier: Modifier = Modifier,
     summary: String? = null,
     enabled: Boolean = true,
+    preview: (@Composable () -> Unit)? = null,
 ) {
     SettingsControlRowFrame(shape = shape, modifier = modifier) {
         SettingsControlRowTitle(title = title, summary = summary, enabled = enabled)
+        preview?.invoke()
         FlowConnectedToggleGroup(
             options = options,
             selected = selected,

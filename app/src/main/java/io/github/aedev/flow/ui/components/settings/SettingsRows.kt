@@ -2,13 +2,16 @@ package io.github.aedev.flow.ui.components.settings
 
 import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
 import io.github.aedev.flow.ui.components.shared.FlowSelectionRow
 import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * A switch for [entry]. [summary] replaces the entry's own summary when the row needs to say
@@ -31,6 +34,51 @@ fun SettingsGroupScope.switch(
         enabled = enabled,
         leadingIcon = icon,
         leadingPainter = iconRes?.let { painterResource(it) },
+        shape = shape,
+    )
+}
+
+/**
+ * A switch that collects its own [state], so flipping it recomposes this row alone rather than the
+ * page that declared it.
+ */
+fun SettingsGroupScope.switch(
+    entry: SettingEntry,
+    state: StateFlow<Boolean>,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+) = row(entry.key) { shape ->
+    val checked by state.collectAsStateWithLifecycle()
+    FlowSwitchRow(
+        title = stringResource(entry.title),
+        supportingText = entry.summaryText(),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        enabled = enabled,
+        leadingIcon = icon,
+        shape = shape,
+    )
+}
+
+/**
+ * A row that opens a picker for [entry] and shows its current choice, read inside the row by
+ * [valueText] so a changed value recomposes this row alone.
+ */
+fun SettingsGroupScope.choice(
+    entry: SettingEntry,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    valueText: @Composable () -> String?,
+) = row(entry.key) { shape ->
+    FlowNavRow(
+        title = stringResource(entry.title),
+        supportingText = valueText() ?: entry.summaryText(),
+        onClick = onClick,
+        enabled = enabled,
+        showChevron = false,
+        leadingIcon = icon,
         shape = shape,
     )
 }
@@ -89,10 +137,32 @@ fun <T> SettingsGroupScope.toggleGroup(
     onSelected: (T) -> Unit,
     enabled: Boolean = true,
     summary: String? = null,
+    preview: (@Composable () -> Unit)? = null,
 ) = row(entry.key) { shape ->
     SettingsToggleGroupRow(
         title = stringResource(entry.title),
         summary = summary ?: entry.summaryText(),
+        options = options,
+        selected = selected,
+        onSelected = onSelected,
+        enabled = enabled,
+        shape = shape,
+        preview = preview,
+    )
+}
+
+/** A toggle group that collects its own [state]; see the state-backed [switch]. */
+fun <T> SettingsGroupScope.toggleGroup(
+    entry: SettingEntry,
+    options: List<FlowToggleOption<T>>,
+    state: StateFlow<T>,
+    onSelected: (T) -> Unit,
+    enabled: Boolean = true,
+) = row(entry.key) { shape ->
+    val selected by state.collectAsStateWithLifecycle()
+    SettingsToggleGroupRow(
+        title = stringResource(entry.title),
+        summary = entry.summaryText(),
         options = options,
         selected = selected,
         onSelected = onSelected,
