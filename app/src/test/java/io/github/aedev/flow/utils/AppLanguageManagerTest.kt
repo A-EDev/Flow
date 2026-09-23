@@ -10,9 +10,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.ConscryptMode
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class, qualifiers = "en-rUS-notnight")
+@ConscryptMode(ConscryptMode.Mode.OFF)
 class AppLanguageManagerTest {
     private val app: Application get() = ApplicationProvider.getApplicationContext()
 

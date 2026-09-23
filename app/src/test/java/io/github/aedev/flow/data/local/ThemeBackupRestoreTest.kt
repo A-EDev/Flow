@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.ConscryptMode
 
 /**
  * Old backups carry palette names that no longer exist and the single custom palette older versions
@@ -20,6 +21,7 @@ import org.robolectric.annotation.Config
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class)
+@ConscryptMode(ConscryptMode.Mode.OFF)
 class ThemeBackupRestoreTest {
     private val manager = LocalDataManager(ApplicationProvider.getApplicationContext())
 
