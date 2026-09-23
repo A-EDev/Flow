@@ -78,6 +78,7 @@ internal fun LyricsProvidersSheet(
             title = stringResource(R.string.lyrics_provider_title),
             subtitle = stringResource(R.string.settings_lyrics_provider_order_description),
             onClose = onDismiss,
+            showDragHandle = false,
         )
         ReorderableColumn(
             list = providers,

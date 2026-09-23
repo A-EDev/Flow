@@ -53,7 +53,7 @@ fun <T> SettingsPreviewSheet(
         sheetState = rememberFlowSheetState(),
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
-        FlowSheetHeader(title = title, subtitle = subtitle, onClose = onDismiss)
+        FlowSheetHeader(title = title, subtitle = subtitle, onClose = onDismiss, showDragHandle = false)
         LazyColumn(
             contentPadding =
                 PaddingValues(
