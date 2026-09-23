@@ -3075,4 +3075,12 @@
     <string name="settings_location_default">Default</string>
     <string name="settings_music_folder_label">Music / Flow</string>
     <string name="settings_keywords_downloads">save offline, folder, storage, sd card</string>
+    <string name="settings_section_notification_types">Notify me about</string>
+    <string name="settings_keywords_notifications">alerts, push, new uploads, background checks</string>
+    <string name="settings_section_proxy_server">Server</string>
+    <string name="settings_section_proxy_sign_in">Sign-in</string>
+    <string name="settings_keywords_network">proxy, socks, http, vpn, connection</string>
+    <string name="settings_show_password">Show password</string>
+    <string name="settings_hide_password">Hide password</string>
+    <string name="settings_proxy_unsaved">You have unsaved changes</string>
 </resources>

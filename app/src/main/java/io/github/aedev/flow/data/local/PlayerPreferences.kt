@@ -12,11 +12,14 @@ import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.DateFormatStyle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 internal fun resolveMigratedHideWatchedPreference(
     splitValue: Boolean?,
@@ -2638,18 +2641,6 @@ class PlayerPreferences(
         }
     }
 
-    val proxyPassword: Flow<String> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.PROXY_PASSWORD].orEmpty()
-            }
-
-    suspend fun setProxyPassword(password: String) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PROXY_PASSWORD] = password
-        }
-    }
-
     val proxyConfig: Flow<AppProxyConfig> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
@@ -2659,13 +2650,14 @@ class PlayerPreferences(
                     host = preferences[Keys.PROXY_HOST].orEmpty(),
                     port = preferences[Keys.PROXY_PORT] ?: 8080,
                     username = preferences[Keys.PROXY_USERNAME].orEmpty(),
-                    password = preferences[Keys.PROXY_PASSWORD].orEmpty(),
+                    password = KeystoreSecretBox.open(preferences[Keys.PROXY_PASSWORD]),
                 )
-            }
+            }.flowOn(Dispatchers.IO)
 
     suspend fun getProxyConfig(): AppProxyConfig = proxyConfig.first()
 
     suspend fun setProxyConfig(config: AppProxyConfig) {
+        val sealed = withContext(Dispatchers.IO) { KeystoreSecretBox.seal(config.password) }
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PROXY_ENABLED] = config.enabled
             preferences[Keys.PROXY_TYPE] = config.type.storageValue
@@ -2675,7 +2667,7 @@ class PlayerPreferences(
             if (config.password.isEmpty()) {
                 preferences.remove(Keys.PROXY_PASSWORD)
             } else {
-                preferences[Keys.PROXY_PASSWORD] = config.password
+                preferences[Keys.PROXY_PASSWORD] = sealed
             }
         }
     }

@@ -13,6 +13,8 @@ import io.github.aedev.flow.ui.screens.settings.backup.BackupScreen
 import io.github.aedev.flow.ui.screens.settings.content.ContentSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.downloads.DownloadSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.integrations.IntegrationsScreen
+import io.github.aedev.flow.ui.screens.settings.network.NetworkSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.notifications.NotificationSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
@@ -69,9 +71,9 @@ internal fun SettingsDetail(
 
         SettingsDestination.DOWNLOADS -> DownloadSettingsScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.NOTIFICATIONS -> NotificationSettingsScreen(onNavigateBack = back)
+        SettingsDestination.NOTIFICATIONS -> NotificationSettingsScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.NETWORK -> ProxySettingsScreen(onNavigateBack = back)
+        SettingsDestination.NETWORK -> NetworkSettingsScreen(onBack = onBack, highlight = target.highlight)
 
         SettingsDestination.WELLBEING -> TimeManagementScreen(onNavigateBack = back)
 

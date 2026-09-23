@@ -21,6 +21,8 @@ internal object SettingsIndex {
             TopicsIndex.all +
             IntegrationsIndex.all +
             BackupIndex.all +
-            DownloadsIndex.all
+            DownloadsIndex.all +
+            NotificationsIndex.all +
+            NetworkIndex.all
     }
 }
