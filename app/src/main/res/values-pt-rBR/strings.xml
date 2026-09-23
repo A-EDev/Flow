@@ -895,7 +895,7 @@
     <string name="settings_shorts_nav_tab_subtitle">Exibir a aba \"Shorts\" na barra de navegação inferior.</string>
     <string name="settings_music_nav_tab_subtitle">Exibir a aba Música na barra de navegação inferior.</string>
     <string name="settings_search_nav_tab_subtitle">Exibir uma aba de pesquisa de acesso rápido na barra de navegação inferior.</string>
-    <string name="settings_categories_nav_tab_subtitle">Exibir abas Em Alta e Categoria na barra de navegação inferior.</string>
+    <string name="settings_categories_nav_tab_subtitle">Exibir aba Em Alta e Categorias na barra de navegação inferior.</string>
     <string name="nav_explore">Explorar</string>
     <string name="settings_continue_watching_title">Prateleira de Continuar Assistindo</string>
     <string name="settings_continue_watching_subtitle">Exibir uma lista de vídeos em andamento na tela inicial.</string>
@@ -2836,4 +2836,44 @@
     <string name="gesture_overlay_style_minimal">Mínimo</string>
     <string name="player_appearance_scrub_preview_subtitle">O que a barra de progresso mostra enquanto você a arrasta</string>
     <string name="player_appearance_frame_step_subtitle">Mostrar avançar/retroceder</string>
+    <string name="start_radio_desc">Tocar rádio baseada nesta música</string>
+    <plurals name="playlists_count_template">
+        <item quantity="one">%1$d playlist</item>
+        <item quantity="many">%1$d de playlists</item>
+        <item quantity="other">%1$d playlists</item>
+    </plurals>
+    <plurals name="shorts_count_template">
+        <item quantity="one">%1$d Short</item>
+        <item quantity="many">%1$d de Shorts</item>
+        <item quantity="other">%1$d Shorts</item>
+    </plurals>
+    <plurals name="library_items_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="many">%1$d de itens</item>
+        <item quantity="other">%1$d itens</item>
+    </plurals>
+    <string name="nav_rail_state_expanded">Expandido</string>
+    <string name="nav_rail_state_collapsed">Colapsado</string>
+    <string name="category_news">Notícias</string>
+    <string name="category_sports">Esportes</string>
+    <string name="category_learning">Aprender</string>
+    <string name="category_fashion">Moda</string>
+    <string name="categories_shelf_see_all">Ver tudo</string>
+    <string name="categories_shelf_back">Voltar a todas as prateleiras</string>
+    <string name="previous_frame">Quadro anterior</string>
+    <string name="next_frame">Próximo quadro</string>
+    <string name="shorts_settings_this_short">Este Short</string>
+    <string name="content_settings_header_library">Biblioteca</string>
+    <string name="content_settings_library_previews_title">Prévias da biblioteca</string>
+    <string name="content_settings_library_previews_subtitle">Mostrar uma linha rolável de itens em cada seção da Biblioteca. Desative para uma lista compacta de seções.</string>
+    <string name="diagnostics_reset_session">Reiniciar sessão com YouTube</string>
+    <string name="diagnostics_reset_session_confirm_title">Reiniciar sessão com YouTube?</string>
+    <string name="diagnostics_reset_session_confirm_body">O Flow descartará a identidade de navegação que usa para verificar solicitações de reprodução e criarará uma nova. Use isso se os vídeos travarem depois de cerca de um minuto ou se recusam a tocar.\n\nUma nova identidade não é confiável no início, então o próximo minuto ou dois pode ser pior antes de se estabelecer. Nada do que você salvou é afetado.</string>
+    <string name="diagnostics_reset_session_done">Sessão com YouTube reiniciada. Reabra o vídeo para tentar novamente.</string>
+    <string name="reset">Reiniciar</string>
+    <string name="subtitle_translation_unavailable">Tradução indisponível — mostrando %1$s</string>
+    <string name="start_radio">Iniciar rádio</string>
+    <string name="nav_rail_expand">Expandir a navegação</string>
+    <string name="search_filter_group_features">Recursos</string>
+    <string name="search_feature_creative_commons">Creative Commons</string>
 </resources>
