@@ -27,7 +27,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,6 +49,7 @@ import io.github.aedev.flow.data.model.FilterType
 import io.github.aedev.flow.data.model.ParametricEQ
 import io.github.aedev.flow.data.model.ParametricEQBand
 import io.github.aedev.flow.player.audio.AudioEffectsController
+import io.github.aedev.flow.ui.components.shared.FlowSwitch
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -230,7 +230,7 @@ private fun BandControl(
 
                 Spacer(Modifier.weight(1f))
 
-                Switch(checked = band.enabled, onCheckedChange = { onUpdate(band.copy(enabled = it)) }, modifier = Modifier.scale(0.8f))
+                FlowSwitch(checked = band.enabled, onCheckedChange = { onUpdate(band.copy(enabled = it)) }, modifier = Modifier.scale(0.8f))
                 IconButton(onClick = onRemove, modifier = Modifier.size(24.dp)) {
                     Icon(Icons.Default.Close, stringResource(R.string.remove), modifier = Modifier.size(16.dp))
                 }

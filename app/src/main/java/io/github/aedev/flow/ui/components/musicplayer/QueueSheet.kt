@@ -46,7 +46,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -83,6 +82,7 @@ import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.musicplayer.motion.QueueRowSwipeGestureHandler
 import io.github.aedev.flow.ui.components.musicplayer.motion.QueueSwipeAction
+import io.github.aedev.flow.ui.components.shared.FlowSwitch
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -370,7 +370,7 @@ fun QueueSheet(
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.weight(1f),
                         )
-                        Switch(
+                        FlowSwitch(
                             checked = endlessRadioEnabled,
                             onCheckedChange = onToggleEndlessRadio,
                         )

@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowSwitch
 import io.github.aedev.flow.ui.theme.SubtitleBackgroundSwatches
 import io.github.aedev.flow.ui.theme.SubtitleTextSwatches
 
@@ -163,7 +164,7 @@ fun SubtitleCustomizer(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(R.string.subtitle_bold_text), style = MaterialTheme.typography.labelLarge)
-            Switch(
+            FlowSwitch(
                 checked = currentStyle.isBold,
                 onCheckedChange = { onStyleChange(currentStyle.copy(isBold = it)) },
             )

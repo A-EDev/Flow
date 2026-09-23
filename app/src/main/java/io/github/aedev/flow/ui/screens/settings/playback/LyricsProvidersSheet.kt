@@ -16,7 +16,6 @@ import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
+import io.github.aedev.flow.ui.components.shared.FlowSwitch
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import sh.calvin.reorderable.ReorderableColumn
@@ -136,7 +136,7 @@ internal fun LyricsProvidersSheet(
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.weight(1f),
                             )
-                            Switch(
+                            FlowSwitch(
                                 checked = provider.enabled,
                                 onCheckedChange = { viewModel.setLyricsProviderEnabled(provider.name, it) },
                             )

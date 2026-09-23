@@ -19,7 +19,6 @@ import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -184,7 +183,7 @@ fun FlowSwitchRow(
         supportingContent = rowSupportingContent(supportingText),
         leadingContent = rowLeadingContent(leadingIcon, leadingPainter),
         trailingContent = {
-            Switch(
+            FlowSwitch(
                 checked = checked,
                 enabled = enabled,
                 onCheckedChange = null,
