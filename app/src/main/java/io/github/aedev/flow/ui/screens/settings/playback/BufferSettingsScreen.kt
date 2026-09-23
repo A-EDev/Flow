@@ -31,7 +31,7 @@ internal fun BufferSettingsScreen(
     val maxBuffer by viewModel.maxBufferMs.collectAsStateWithLifecycle()
     val startBuffer by viewModel.startBufferMs.collectAsStateWithLifecycle()
     val rebuffer by viewModel.rebufferMs.collectAsStateWithLifecycle()
-    val profileLabels = PresetProfiles.associateWith { profileLabel(it) }
+    val profileLabels = BufferProfile.entries.associateWith { profileLabel(it) }
 
     SettingsPage(
         title = stringResource(R.string.buffer_settings_title),
@@ -52,8 +52,8 @@ internal fun BufferSettingsScreen(
         group(key = "buffer.custom", header = R.string.buffer_settings_header_custom, footer = R.string.buffer_custom_mode_desc) {
             option(
                 key = "buffer.profile.CUSTOM",
-                label = profileLabels[BufferProfile.CUSTOM]?.first.orEmpty(),
-                supportingText = profileLabels[BufferProfile.CUSTOM]?.second,
+                label = profileLabels.getValue(BufferProfile.CUSTOM).first,
+                supportingText = profileLabels.getValue(BufferProfile.CUSTOM).second,
                 selected = profile == BufferProfile.CUSTOM,
                 onClick = { viewModel.setProfile(BufferProfile.CUSTOM) },
             )
