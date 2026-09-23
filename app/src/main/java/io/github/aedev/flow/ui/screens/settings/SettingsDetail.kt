@@ -11,6 +11,7 @@ import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemeScre
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.ThemeScreen
 import io.github.aedev.flow.ui.screens.settings.backup.BackupScreen
 import io.github.aedev.flow.ui.screens.settings.content.ContentSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.diagnostics.DiagnosticsScreen
 import io.github.aedev.flow.ui.screens.settings.downloads.DownloadSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.history.HistorySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.integrations.IntegrationsScreen
@@ -81,6 +82,6 @@ internal fun SettingsDetail(
 
         SettingsDestination.ABOUT -> AboutScreen(onNavigateBack = back, onNavigateToDonations = onOpenDonations)
 
-        SettingsDestination.DIAGNOSTICS -> DiagnosticsScreen(onNavigateBack = back)
+        SettingsDestination.DIAGNOSTICS -> DiagnosticsScreen(onBack = onBack, highlight = target.highlight)
     }
 }

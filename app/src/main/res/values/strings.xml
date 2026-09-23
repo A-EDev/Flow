@@ -3088,4 +3088,14 @@
     <string name="settings_sleep_window_summary">Sleep window: %1$s</string>
     <string name="settings_notification_permission_needed">Allow notifications to get reminders</string>
     <string name="settings_watch_time_week_total">%1$s this week</string>
+    <string name="settings_section_this_device">This device</string>
+    <string name="settings_section_report">Report</string>
+    <string name="settings_diagnostics_model">Model</string>
+    <string name="settings_diagnostics_android">Android version</string>
+    <string name="settings_diagnostics_android_value">Android %1$s (SDK %2$d)</string>
+    <string name="settings_diagnostics_app_version">App version</string>
+    <string name="settings_diagnostics_copy_summary">Device details, this session\'s warnings and saved crash reports</string>
+    <string name="settings_diagnostics_share_summary">Send the report to another app</string>
+    <string name="settings_diagnostics_reset_summary">Try this if videos stop about a minute in or refuse to play</string>
+    <string name="settings_keywords_diagnostics">logs, crash, bug report, debug, support, logcat</string>
 </resources>

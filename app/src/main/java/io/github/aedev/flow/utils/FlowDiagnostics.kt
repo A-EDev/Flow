@@ -3,8 +3,8 @@ package io.github.aedev.flow.utils
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -68,7 +68,7 @@ object FlowDiagnostics {
         sessionLogs: String,
     ): String =
         buildString {
-            val ts = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+            val ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US))
             appendLine("=".repeat(60))
             appendLine("FLOW DIAGNOSTICS REPORT")
             appendLine("Generated: $ts")
@@ -80,8 +80,8 @@ object FlowDiagnostics {
             appendLine("SESSION LOGS  (W/E level, current session)")
             appendLine("=".repeat(60))
             appendLine(sessionLogs)
-            val crashes = getCrashLogs(context)
-            if (crashes != "No crash logs") {
+            val crashes = crashLogsOrNull(context)
+            if (crashes != null) {
                 appendLine()
                 appendLine("=".repeat(60))
                 appendLine("CRASH REPORTS  (persisted across sessions)")
@@ -90,18 +90,44 @@ object FlowDiagnostics {
             }
         }
 
+    /** Persisted crash reports, or null when there are none. */
+    fun crashLogsOrNull(context: Context): String? = getCrashLogs(context).takeUnless { it.isBlank() || it.trim() == NO_CRASH_LOGS }
+
+    fun deviceInfo(context: Context): DeviceInfo {
+        val packageInfo = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
+        return DeviceInfo(
+            manufacturer = Build.MANUFACTURER,
+            model = Build.MODEL,
+            brand = Build.BRAND,
+            androidRelease = Build.VERSION.RELEASE,
+            sdk = Build.VERSION.SDK_INT,
+            versionName = packageInfo?.versionName,
+            versionCode = packageInfo?.longVersionCode,
+        )
+    }
+
     /** one-liner block of device + app version metadata. */
     fun buildDeviceInfo(context: Context): String =
-        buildString {
-            appendLine("Manufacturer : ${Build.MANUFACTURER}")
-            appendLine("Model        : ${Build.MODEL}")
-            appendLine("Android      : ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
-            appendLine("Brand        : ${Build.BRAND}")
-            try {
-                val pi = context.packageManager.getPackageInfo(context.packageName, 0)
-                appendLine("App version  : ${pi.versionName} (${pi.longVersionCode})")
-            } catch (_: Exception) {
-                appendLine("App version  : unknown")
-            }
-        }.trimEnd()
+        deviceInfo(context).let { info ->
+            buildString {
+                appendLine("Manufacturer : ${info.manufacturer}")
+                appendLine("Model        : ${info.model}")
+                appendLine("Android      : ${info.androidRelease} (SDK ${info.sdk})")
+                appendLine("Brand        : ${info.brand}")
+                appendLine("App version  : ${info.versionName?.let { "$it (${info.versionCode})" } ?: "unknown"}")
+            }.trimEnd()
+        }
+
+    private const val NO_CRASH_LOGS = "No crash logs"
 }
+
+/** The device and build a diagnostics report describes. */
+data class DeviceInfo(
+    val manufacturer: String,
+    val model: String,
+    val brand: String,
+    val androidRelease: String,
+    val sdk: Int,
+    val versionName: String?,
+    val versionCode: Long?,
+)
