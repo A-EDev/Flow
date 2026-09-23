@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -22,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -31,6 +34,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.backup.BackupOperation
 import io.github.aedev.flow.data.backup.ImportKind
+import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
+import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
+import io.github.aedev.flow.ui.utils.isExpandedWidth
 
 @Composable
 fun OnboardingScreen(
@@ -97,15 +103,19 @@ fun OnboardingScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = { OnboardingTopBar(step = state.step, onSkip = viewModel::next) },
             bottomBar = {
-                OnboardingBottomBar(
-                    state = state,
-                    onBack = { viewModel.back() },
-                    onNext = {
-                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                        viewModel.next()
-                    },
-                    onRestore = { viewModel.goTo(OnboardingStep.IMPORT) },
-                )
+                val besideList = LocalWindowSizeClass.current.isExpandedWidth && state.step.showsProgress
+                Box(Modifier.fillMaxWidth(), contentAlignment = if (besideList) Alignment.CenterEnd else Alignment.Center) {
+                    OnboardingBottomBar(
+                        modifier = Modifier.widthIn(max = FlowMaxContentWidth),
+                        state = state,
+                        onBack = { viewModel.back() },
+                        onNext = {
+                            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                            viewModel.next()
+                        },
+                        onRestore = { viewModel.goTo(OnboardingStep.IMPORT) },
+                    )
+                }
             },
         ) { innerPadding ->
             SharedTransitionLayout(Modifier.fillMaxSize().padding(innerPadding)) {

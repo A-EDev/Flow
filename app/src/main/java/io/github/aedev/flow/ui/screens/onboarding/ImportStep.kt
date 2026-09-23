@@ -180,7 +180,9 @@ private fun SourceGlyph(source: ImportSource) {
         Box(contentAlignment = Alignment.Center) {
             val iconRes = source.iconRes
             if (iconRes != null) {
-                Icon(painterResource(iconRes), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(GlyphIconSize))
+                // Metrolist's icon is light grey artwork that vanishes on a light disc; it reads as a silhouette.
+                val tint = if (source == ImportSource.METROLIST) MaterialTheme.colorScheme.onSurface else Color.Unspecified
+                Icon(painterResource(iconRes), contentDescription = null, tint = tint, modifier = Modifier.size(GlyphIconSize))
             } else {
                 Icon(Icons.Outlined.History, contentDescription = null, modifier = Modifier.size(GlyphIconSize))
             }
