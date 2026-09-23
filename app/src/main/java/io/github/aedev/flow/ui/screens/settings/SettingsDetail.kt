@@ -36,7 +36,6 @@ internal fun SettingsDetail(
     onBack: (() -> Unit)?,
     onNavigate: (SettingsTarget) -> Unit,
 ) {
-    val back = onBack ?: {}
     when (target.destination) {
         SettingsDestination.HOME,
         SettingsDestination.APPEARANCE,
@@ -68,7 +67,7 @@ internal fun SettingsDetail(
 
         SettingsDestination.BACKUP -> BackupScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
 
-        SettingsDestination.SYNC -> SyncScreen(onNavigateBack = back)
+        SettingsDestination.SYNC -> SyncScreen(onBack = onBack)
 
         SettingsDestination.HISTORY -> HistorySettingsScreen(onBack = onBack, highlight = target.highlight)
 
