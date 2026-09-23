@@ -4,7 +4,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -16,6 +15,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.discord.DiscordConnectionState
@@ -47,7 +47,7 @@ internal fun SettingsListScope.discordSection(
                 checked = state.isEnabled,
                 enabled = state.canEnable,
                 onCheckedChange = onEnabledChange,
-                leadingIcon = Icons.Outlined.Share,
+                leadingPainter = painterResource(R.drawable.ic_discord),
                 shape = shape,
             )
         }
