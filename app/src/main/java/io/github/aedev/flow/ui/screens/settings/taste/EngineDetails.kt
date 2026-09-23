@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.settings.diagnostics
+package io.github.aedev.flow.ui.screens.settings.taste
 
 import androidx.compose.runtime.Immutable
 import io.github.aedev.flow.data.recommendation.UserBrain

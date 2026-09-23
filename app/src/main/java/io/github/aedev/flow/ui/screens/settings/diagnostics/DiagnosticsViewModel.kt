@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import io.github.aedev.flow.utils.DeviceInfo
@@ -28,11 +27,6 @@ class DiagnosticsViewModel
     ) : SettingsViewModel() {
         val device: DeviceInfo by lazy { FlowDiagnostics.deviceInfo(context) }
 
-        private val _engine = MutableStateFlow<EngineDetails?>(null)
-
-        /** What the video engine currently remembers, read without changing any of it. */
-        val engine: StateFlow<EngineDetails?> = _engine.asStateFlow()
-
         private val _session = MutableStateFlow<LogState>(LogState.Loading)
         private val _crashes = MutableStateFlow<LogState>(LogState.Loading)
         val session: StateFlow<LogState> = _session.asStateFlow()
@@ -45,13 +39,6 @@ class DiagnosticsViewModel
                 sessionText = FlowDiagnostics.readSessionLogs()
                 _session.value = parseLog(sessionText, ::logcatLevel)
                 _crashes.value = parseLog(FlowDiagnostics.crashLogsOrNull(context), ::crashLevel)
-            }
-            viewModelScope.launch(Dispatchers.Default) {
-                _engine.value =
-                    runCatching {
-                        FlowNeuroEngine.initialize(context)
-                        EngineDetails.of(FlowNeuroEngine.getBrainSnapshot())
-                    }.getOrNull()
             }
         }
 

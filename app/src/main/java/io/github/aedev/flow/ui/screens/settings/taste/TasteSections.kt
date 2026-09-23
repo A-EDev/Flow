@@ -22,6 +22,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
+import io.github.aedev.flow.ui.components.settings.info
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.screens.settings.index.TasteIndex
 
@@ -45,6 +46,7 @@ internal class TasteActions(
 internal fun SettingsListScope.tasteContent(
     state: TasteState,
     hiddenLabel: String,
+    noQueriesLabel: String,
     actions: TasteActions,
 ) {
     state.persona?.let { persona -> item("taste.persona") { PersonaHeroCard(persona, state.maturity) } }
@@ -56,7 +58,25 @@ internal fun SettingsListScope.tasteContent(
         nav(TasteIndex.recap, onClick = actions.onOpenRecap, icon = Icons.Outlined.Insights)
         nav(TasteIndex.hidden, onClick = actions.onOpenHidden, value = hiddenLabel, icon = Icons.Outlined.VisibilityOff)
     }
+    state.engine?.let { engineDetails(it, noQueriesLabel) }
     data(actions)
+}
+
+/** What the video engine currently remembers, read without changing any of it. */
+private fun SettingsListScope.engineDetails(
+    details: EngineDetails,
+    noQueries: String,
+) {
+    group(key = "taste.engine", header = R.string.diagnostics_engine_header) {
+        info(TasteIndex.engineInteractions, details.interactions.toString())
+        info(TasteIndex.engineTopics, details.topics.toString())
+        info(TasteIndex.engineChannels, details.channels.toString())
+        info(TasteIndex.engineHistory, details.history.toString())
+        info(TasteIndex.engineFeedMemory, details.feedMemory.toString())
+        info(TasteIndex.engineSuppressed, details.suppressed.toString())
+        info(TasteIndex.engineShortsSeen, details.shortsSeen.toString())
+        info(TasteIndex.engineQueries, details.recentQueries.joinToString("\n").ifEmpty { noQueries })
+    }
 }
 
 private fun SettingsListScope.traits(

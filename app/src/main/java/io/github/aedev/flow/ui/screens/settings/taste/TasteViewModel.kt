@@ -85,6 +85,7 @@ data class TasteState(
     val channels: List<TasteChannel> = emptyList(),
     val music: MusicTaste? = null,
     val hidden: HiddenContent = HiddenContent(),
+    val engine: EngineDetails? = null,
 )
 
 /**
@@ -191,6 +192,7 @@ class TasteViewModel
                         )
                     },
                 hidden = hidden(brain, names),
+                engine = EngineDetails.of(brain),
             )
         }
 

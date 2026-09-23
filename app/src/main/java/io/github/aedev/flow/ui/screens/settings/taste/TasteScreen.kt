@@ -75,6 +75,7 @@ internal fun TasteScreen(
     val importMusic =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(viewModel::importMusicProfile) }
     val hiddenLabel = hiddenCountLabel(state.hidden.count)
+    val noQueriesLabel = stringResource(R.string.diagnostics_engine_queries_none)
 
     val actions =
         remember(viewModel) {
@@ -102,7 +103,7 @@ internal fun TasteScreen(
         if (state.loading) {
             item("taste.loading") { FlowLoadingIndicator(Modifier.fillMaxWidth().height(LoadingHeight)) }
         } else {
-            tasteContent(state, hiddenLabel, actions)
+            tasteContent(state, hiddenLabel, noQueriesLabel, actions)
         }
     }
 
