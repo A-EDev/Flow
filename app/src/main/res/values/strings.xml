@@ -553,6 +553,8 @@
     <string name="time_today">Today</string>
     <string name="time_yesterday">Yesterday</string>
     <string name="time_earlier">Earlier</string>
+    <string name="notifications_group_new">New</string>
+    <string name="notifications_group_last_week">Last 7 days</string>
     <!-- Notifications Screen -->
     <string name="clear_all_notifications">Clear all notifications</string>
     <string name="delete">Delete</string>

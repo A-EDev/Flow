@@ -30,12 +30,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.NotificationEntity
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import java.text.SimpleDateFormat
-import java.util.*
+import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -44,30 +44,16 @@ fun NotificationScreen(
     onNotificationClick: (String) -> Unit,
     viewModel: NotificationViewModel = hiltViewModel(),
 ) {
-    val notifications by viewModel.notifications.collectAsState()
-    val context = LocalContext.current
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+    val newIds by viewModel.newIds.collectAsStateWithLifecycle()
+    val zone = remember { ZoneId.systemDefault() }
+    val today = rememberToday(zone)
 
     LaunchedEffect(Unit) {
-        viewModel.markAllAsRead()
+        viewModel.openInbox()
     }
 
-    val groupedNotifications =
-        remember(notifications, context) {
-            notifications.groupBy { entity ->
-                val calendar = Calendar.getInstance()
-                val now = calendar.timeInMillis
-                val itemTime = entity.timestamp
-
-                val diff = now - itemTime
-                val days = (diff / (1000 * 60 * 60 * 24)).toInt()
-
-                when {
-                    days == 0 -> context.getString(R.string.time_today)
-                    days == 1 -> context.getString(R.string.time_yesterday)
-                    else -> context.getString(R.string.time_earlier)
-                }
-            }
-        }
+    val sections = remember(notifications, newIds, today) { groupNotifications(notifications, newIds, today, zone) }
 
     // Removed Scaffold completely. Using pure Column for absolute control.
     Column(
@@ -98,17 +84,19 @@ fun NotificationScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 32.dp),
             ) {
-                groupedNotifications.forEach { (header, items) ->
-                    stickyHeader {
-                        NotificationHeader(header)
+                sections.forEach { section ->
+                    stickyHeader(key = section.bucket) {
+                        NotificationHeader(stringResource(section.bucket.titleRes))
                     }
 
                     items(
-                        items = items,
+                        items = section.items,
                         key = { it.id }, // Keys ensure beautiful swipe animations
                     ) { notification ->
                         SwipeToDismissNotification(
                             notification = notification,
+                            isNew = notification.id in newIds,
+                            time = notificationTime(notification.timestamp, today, zone).label(),
                             onDismiss = { viewModel.deleteNotification(notification) },
                             onClick = { onNotificationClick(notification.videoId) },
                         )
@@ -141,6 +129,8 @@ private fun NotificationHeader(title: String) {
 @Composable
 private fun SwipeToDismissNotification(
     notification: NotificationEntity,
+    isNew: Boolean,
+    time: String,
     onDismiss: () -> Unit,
     onClick: () -> Unit,
 ) {
@@ -184,6 +174,8 @@ private fun SwipeToDismissNotification(
         content = {
             NotificationItem(
                 notification = notification,
+                isNew = isNew,
+                time = time,
                 onClick = onClick,
                 onDismiss = onDismiss,
             )
@@ -194,11 +186,12 @@ private fun SwipeToDismissNotification(
 @Composable
 private fun NotificationItem(
     notification: NotificationEntity,
+    isNew: Boolean,
+    time: String,
     onClick: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-    val isUnread = !notification.isRead
+    val isUnread = isNew
 
     // Instead of Card, we use a raw Row. It is perfectly optimized for LazyColumn.
     Row(
@@ -279,7 +272,7 @@ private fun NotificationItem(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "${notification.channelName} • ${timeFormat.format(Date(notification.timestamp))}",
+                    text = "${notification.channelName} • $time",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
