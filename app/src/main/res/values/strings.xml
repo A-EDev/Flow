@@ -3098,4 +3098,10 @@
     <string name="settings_diagnostics_share_summary">Send the report to another app</string>
     <string name="settings_diagnostics_reset_summary">Try this if videos stop about a minute in or refuse to play</string>
     <string name="settings_keywords_diagnostics">logs, crash, bug report, debug, support, logcat</string>
+    <string name="donation_currency_bitcoin" translatable="false">Bitcoin</string>
+    <string name="donation_currency_ethereum" translatable="false">Ethereum</string>
+    <string name="donation_currency_solana" translatable="false">Solana</string>
+    <string name="donation_currency_usdt" translatable="false">USDT (TRC-20)</string>
+    <string name="donation_currency_monero" translatable="false">Monero</string>
+    <string name="settings_keywords_about">version, license, open source, github, reddit, contact, changelog</string>
 </resources>

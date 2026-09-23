@@ -320,7 +320,7 @@ fun NavGraphBuilder.flowAppGraph(
 
     composable("donations") {
         currentRoute.value = "donations"
-        io.github.aedev.flow.ui.screens.settings.DonationsScreen(
+        io.github.aedev.flow.ui.screens.settings.about.DonationsScreen(
             onNavigateBack = { navController.popBackStack() },
         )
     }

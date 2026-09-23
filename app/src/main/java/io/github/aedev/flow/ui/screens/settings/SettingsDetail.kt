@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.settings
 import androidx.compose.runtime.Composable
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
+import io.github.aedev.flow.ui.screens.settings.about.AboutScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.AppearanceScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.DateTimeScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.NavigationBarScreen
@@ -34,7 +35,6 @@ internal fun SettingsDetail(
     target: SettingsTarget,
     onBack: (() -> Unit)?,
     onNavigate: (SettingsTarget) -> Unit,
-    onOpenDonations: () -> Unit,
 ) {
     val back = onBack ?: {}
     when (target.destination) {
@@ -80,7 +80,7 @@ internal fun SettingsDetail(
 
         SettingsDestination.WELLBEING -> WellbeingScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.ABOUT -> AboutScreen(onNavigateBack = back, onNavigateToDonations = onOpenDonations)
+        SettingsDestination.ABOUT -> AboutScreen(onBack = onBack, highlight = target.highlight)
 
         SettingsDestination.DIAGNOSTICS -> DiagnosticsScreen(onBack = onBack, highlight = target.highlight)
     }

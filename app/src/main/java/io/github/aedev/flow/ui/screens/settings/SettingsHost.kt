@@ -110,7 +110,6 @@ fun SettingsHost(
                         target = target,
                         onBack = if (twoPane && stack.size <= 1) null else ::back,
                         onNavigate = ::push,
-                        onOpenDonations = onOpenDonations,
                     )
                 }
             }
