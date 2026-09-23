@@ -148,6 +148,7 @@ private fun CreatorRow(
     shape: Shape,
     onClick: () -> Unit,
 ) {
+    var avatarLoaded by remember { mutableStateOf(false) }
     SegmentedListItem(
         onClick = onClick,
         verticalAlignment = Alignment.CenterVertically,
@@ -158,11 +159,14 @@ private fun CreatorRow(
                 modifier = Modifier.size(AvatarSize).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!avatarLoaded) {
+                    Icon(Icons.Outlined.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 AsyncImage(
                     model = CREATOR_AVATAR_URL,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    onSuccess = { avatarLoaded = true },
                     modifier = Modifier.matchParentSize(),
                 )
             }
