@@ -253,25 +253,25 @@ fun ColorScheme.complete(
     val surfaceContainerLowestColor = if (isDark) Color.Black else Color.White
     val surfaceContainerLowColor =
         if (isDark) {
-            if (isOled) Color(0xFF0A0A0A) else surface.adjust(lightnessOverride = 0.06f)
+            if (isOled) AmoledSurfaceContainerLow else surface.adjust(lightnessOverride = 0.06f)
         } else {
             surface.adjust(lightnessOverride = 0.96f)
         }
     val surfaceContainerColor =
         if (isDark) {
-            if (isOled) Color(0xFF0F0F0F) else surface.adjust(lightnessOverride = 0.08f)
+            if (isOled) AmoledSurfaceContainer else surface.adjust(lightnessOverride = 0.08f)
         } else {
             surface.adjust(lightnessOverride = 0.94f)
         }
     val surfaceContainerHighColor =
         if (isDark) {
-            if (isOled) Color(0xFF161616) else surface.adjust(lightnessOverride = 0.10f)
+            if (isOled) AmoledSurfaceContainerHigh else surface.adjust(lightnessOverride = 0.10f)
         } else {
             surface.adjust(lightnessOverride = 0.92f)
         }
     val surfaceContainerHighestColor =
         if (isDark) {
-            if (isOled) Color(0xFF202020) else surface.adjust(lightnessOverride = 0.14f)
+            if (isOled) AmoledSurfaceContainerHighest else surface.adjust(lightnessOverride = 0.14f)
         } else {
             surface.adjust(lightnessOverride = 0.90f)
         }
@@ -701,6 +701,28 @@ private fun customThemeColorScheme(colors: CustomThemeColors): ColorScheme =
         surfaceContainerHighest = Color(colors.colorOf(CustomColorRole.SURFACE_CONTAINER_HIGHEST)),
     )
 
+/**
+ * The system's dynamic scheme is already a complete, tuned Material 3 scheme, so it is used as the
+ * system delivers it (#798). Only the AMOLED variant changes it, taking the background and surface
+ * ladder to black while keeping the dynamic accents and containers.
+ */
+private fun ColorScheme.withBlackSurfaces(): ColorScheme =
+    copy(
+        background = Color.Black,
+        surface = Color.Black,
+        surfaceDim = Color.Black,
+        surfaceContainerLowest = Color.Black,
+        surfaceContainerLow = AmoledSurfaceContainerLow,
+        surfaceContainer = AmoledSurfaceContainer,
+        surfaceContainerHigh = AmoledSurfaceContainerHigh,
+        surfaceContainerHighest = AmoledSurfaceContainerHighest,
+    )
+
+private val AmoledSurfaceContainerLow = Color(0xFF0A0A0A)
+private val AmoledSurfaceContainer = Color(0xFF0F0F0F)
+private val AmoledSurfaceContainerHigh = Color(0xFF161616)
+private val AmoledSurfaceContainerHighest = Color(0xFF202020)
+
 private fun ColorScheme.withVariant(
     variant: ThemeVariant,
     preserveLightSurfaces: Boolean = false,
@@ -955,6 +977,9 @@ fun resolveFlowColorScheme(
                 }
             }
         }
+    if (effectiveThemeMode == ThemeMode.MATERIAL_YOU && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        return if (effectiveVariant == ThemeVariant.AMOLED) baseColorScheme.withBlackSurfaces() else baseColorScheme
+    }
     return if (effectiveThemeMode == ThemeMode.CUSTOM) {
         baseColorScheme
     } else {
