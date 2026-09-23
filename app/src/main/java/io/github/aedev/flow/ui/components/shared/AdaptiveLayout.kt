@@ -16,6 +16,9 @@ import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.ui.utils.isExpandedWidth
 import io.github.aedev.flow.ui.utils.isMediumWidth
 
+/** Widest a single column of rows grows, so it stays readable on a tablet or an unfolded foldable. */
+val FlowMaxContentWidth: Dp = 720.dp
+
 private val MinLaneItemWidth = 240.dp
 private val MinHeroArtworkSize = 180.dp
 private val MaxHeroArtworkSize = 240.dp

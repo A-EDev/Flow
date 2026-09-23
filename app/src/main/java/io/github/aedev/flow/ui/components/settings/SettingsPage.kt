@@ -30,10 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.components.layout.topbar.FlowGlobalActionsMode
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import kotlinx.coroutines.flow.first
 
-/** Widest a settings column grows, so rows stay readable on a tablet or an unfolded foldable. */
-internal val SettingsMaxContentWidth = 720.dp
+internal val SettingsMaxContentWidth = FlowMaxContentWidth
 internal val SettingsHorizontalPadding = 16.dp
 private val SettingsBottomSpacing = 32.dp
 private const val HIGHLIGHT_VISIBLE_OFFSET_PX = -160

@@ -555,6 +555,15 @@
     <string name="time_earlier">Earlier</string>
     <string name="notifications_group_new">New</string>
     <string name="notifications_group_last_week">Last 7 days</string>
+    <string name="notifications_meta">%1$s · %2$s</string>
+    <string name="notifications_removed">Notification removed</string>
+    <string name="notifications_open_settings">Notification settings</string>
+    <string name="notifications_clear_title">Clear all notifications?</string>
+    <plurals name="notifications_clear_body">
+        <item quantity="one">This removes %d notification. You can\'t undo this.</item>
+        <item quantity="other">This removes %d notifications. You can\'t undo this.</item>
+    </plurals>
+    <string name="notifications_clear_confirm">Clear all</string>
     <!-- Notifications Screen -->
     <string name="clear_all_notifications">Clear all notifications</string>
     <string name="delete">Delete</string>
