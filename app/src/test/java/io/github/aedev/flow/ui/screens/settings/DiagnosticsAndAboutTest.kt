@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui.screens.settings
 
-import io.github.aedev.flow.ui.screens.settings.about.latestChangelog
+import io.github.aedev.flow.ui.screens.settings.about.parseChangelog
+import io.github.aedev.flow.ui.screens.settings.about.sectionTitle
+import io.github.aedev.flow.ui.screens.settings.about.sortedChangelogs
 import io.github.aedev.flow.ui.screens.settings.diagnostics.LOG_CHUNK_LINES
 import io.github.aedev.flow.ui.screens.settings.diagnostics.LogLevel
 import io.github.aedev.flow.ui.screens.settings.diagnostics.LogState
@@ -11,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class DiagnosticsAndAboutTest {
     @Test
@@ -40,9 +43,53 @@ class DiagnosticsAndAboutTest {
     }
 
     @Test
-    fun `the newest changelog is picked by version, not by spelling`() {
-        assertEquals("v2.10.0.txt", latestChangelog(listOf("v2.9.5.txt", "v2.10.0.txt", "v2.2.5.txt", "notes.md")))
-        assertEquals("v2.2.10.txt", latestChangelog(listOf("v2.2.9.txt", "v2.2.10.txt")))
-        assertNull(latestChangelog(listOf("readme.md")))
+    fun `changelogs sort newest first by version, not by spelling`() {
+        assertEquals(
+            listOf("v2.10.0.txt", "v2.9.5.txt", "v2.2.10.txt", "v2.2.9.txt"),
+            sortedChangelogs(listOf("v2.2.9.txt", "v2.9.5.txt", "notes.md", "v2.10.0.txt", "v2.2.10.txt")),
+        )
+    }
+
+    @Test
+    fun `a release note splits into its header, sections and changes`() {
+        val release =
+            parseChangelog(
+                """
+                FLOW CHANGE LOG
+                VERSION: 2.2.5
+                DATE: 2026-09-15
+                STATUS: PRE-RELEASE
+
+                NEW FEATURES
+                - Search runs on InnerTube
+                - Notes on any video
+
+                UI AND STYLE ENHANCEMENTS
+                - Expressive settings
+                CORE:
+                - Faster start
+                """.trimIndent(),
+                fallbackVersion = "0",
+            )
+        assertEquals("2.2.5", release.version)
+        assertEquals(LocalDate.of(2026, 9, 15), release.date)
+        assertTrue(release.preRelease)
+        assertEquals(listOf("New features", "UI and style enhancements", "Core"), release.sections.map { it.title })
+        assertEquals(listOf("Search runs on InnerTube", "Notes on any video"), release.sections.first().items)
+    }
+
+    @Test
+    fun `a note without a header keeps the fallback version and no date`() {
+        val release = parseChangelog("FIXES\n- One", fallbackVersion = "1.4.0")
+        assertEquals("1.4.0", release.version)
+        assertNull(release.date)
+        assertEquals("Fixes", release.sections.single().title)
+    }
+
+    @Test
+    fun `section titles keep acronyms and mixed case`() {
+        assertEquals("Build and CI", sectionTitle("BUILD AND CI"))
+        assertEquals("Important", sectionTitle("!IMPORTANT!"))
+        assertEquals("Recommendation Engine (V9.1)", sectionTitle("Recommendation Engine (V9.1)"))
     }
 }

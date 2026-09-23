@@ -3104,4 +3104,44 @@
     <string name="donation_currency_usdt" translatable="false">USDT (TRC-20)</string>
     <string name="donation_currency_monero" translatable="false">Monero</string>
     <string name="settings_keywords_about">version, license, open source, github, reddit, contact, changelog</string>
+    <string name="settings_changelog_version">Version %1$s</string>
+    <string name="settings_changelog_installed">Installed</string>
+    <string name="settings_changelog_prerelease">Pre-release</string>
+    <string name="settings_changelog_all_releases">All releases on GitHub</string>
+    <string name="settings_changelog_expand">Show changes</string>
+    <string name="settings_changelog_collapse">Hide changes</string>
+    <string name="settings_creator_role">Creator and developer of Flow</string>
+    <string name="device_info_section_device">Device</string>
+    <string name="device_info_section_system">System</string>
+    <string name="device_info_section_display">Display</string>
+    <string name="device_info_section_media">Video decoding</string>
+    <string name="device_info_section_app">App</string>
+    <string name="device_info_model">Model</string>
+    <string name="device_info_brand">Brand</string>
+    <string name="device_info_codename">Codename</string>
+    <string name="device_info_chipset">Chipset</string>
+    <string name="device_info_abis">CPU architectures</string>
+    <string name="device_info_memory">Memory</string>
+    <string name="device_info_storage">Storage</string>
+    <string name="device_info_android">Android</string>
+    <string name="device_info_android_value">%1$s (SDK %2$d)</string>
+    <string name="device_info_security_patch">Security patch</string>
+    <string name="device_info_build">Build</string>
+    <string name="device_info_kernel">Kernel</string>
+    <string name="device_info_resolution">Resolution</string>
+    <string name="device_info_resolution_value">%1$d × %2$d</string>
+    <string name="device_info_density">Density</string>
+    <string name="device_info_density_value">%1$d dpi</string>
+    <string name="device_info_refresh_rate">Refresh rate</string>
+    <string name="device_info_refresh_rate_value">%1$d Hz</string>
+    <string name="device_info_hdr">HDR</string>
+    <string name="device_info_supported">Supported</string>
+    <string name="device_info_not_supported">Not supported</string>
+    <string name="device_info_hardware">Hardware</string>
+    <string name="device_info_software">Software only</string>
+    <string name="device_info_version">Version</string>
+    <string name="device_info_build_type">Build type</string>
+    <string name="device_info_installer">Installed from</string>
+    <string name="device_info_package">Package</string>
+    <string name="codec_name_hevc" translatable="false">HEVC</string>
 </resources>
