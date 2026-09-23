@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -31,11 +32,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.BackupRepository
+import io.github.aedev.flow.data.backup.BackupOperation
+import io.github.aedev.flow.data.backup.ImportKind
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
-import io.github.aedev.flow.ui.screens.settings.ImportViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -48,8 +49,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     val haptic = LocalHapticFeedback.current
 
     val subscriptionRepo = remember { SubscriptionRepository.getInstance(context) }
-    val backupRepo = remember { BackupRepository(context) }
-    val importViewModel: ImportViewModel = hiltViewModel(context as ComponentActivity)
+    val importViewModel: OnboardingImportViewModel = hiltViewModel()
 
     var currentStep by remember { mutableStateOf(OnboardingStep.INTERESTS) }
 
@@ -64,25 +64,15 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     var importMessage by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val importState by importViewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(importState) {
-        when (val s = importState) {
-            is ImportViewModel.State.Success -> {
-                importMessage = s.message ?: if ((s.count ?: 0) > 0) {
-                    context.getString(R.string.onboarding_imported_count, s.count, s.label.lowercase())
-                } else {
-                    context.getString(R.string.onboarding_imported, s.label)
-                }
-                importViewModel.dismiss()
+    val importOperation by importViewModel.operation.collectAsStateWithLifecycle()
+    LaunchedEffect(importOperation) {
+        importMessage =
+            when (val operation = importOperation) {
+                is BackupOperation.Succeeded -> operation.message
+                is BackupOperation.Failed -> operation.message
+                else -> return@LaunchedEffect
             }
-
-            is ImportViewModel.State.Error -> {
-                importMessage = context.getString(R.string.onboarding_import_failed_template, s.message)
-                importViewModel.dismiss()
-            }
-
-            else -> {}
-        }
+        importViewModel.dismiss()
     }
 
     LaunchedEffect(importMessage) {
@@ -92,150 +82,18 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         }
     }
 
-    val flowImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri ->
-            uri?.let {
-                scope.launch {
-                    val result = backupRepo.importData(it)
-                    importMessage =
-                        if (result.isSuccess) {
-                            context.getString(R.string.import_flow_backup_success)
-                        } else {
-                            context.getString(
-                                R.string.import_flow_backup_failed_template,
-                                result.exceptionOrNull()?.message ?: context.getString(R.string.unknown),
-                            )
-                        }
-                }
-            }
+    var pendingImport by rememberSaveable { mutableStateOf<ImportKind?>(null) }
+    val importPicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            val kind = pendingImport
+            pendingImport = null
+            if (uri != null && kind != null) importViewModel.start(kind, uri)
         }
 
-    val newPipeImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importNewPipe(it) } }
-
-    val youtubeImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importYouTube(it) } }
-
-    val youtubeHistoryLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importYouTubeWatchHistory(it) } }
-
-    val freeTubeHistoryLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importFreeTubeWatchHistory(it) } }
-
-    val newPipeHistoryLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importNewPipeWatchHistory(it) } }
-
-    val libreTubeImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importLibreTube(it) } }
-
-    val masterBackupImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importMasterBackup(it) } }
-
-    val metrolistImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importMetrolist(it) } }
-
-    val newPipePlaylistImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importNewPipePlaylists(it) } }
-
-    val libreTubePlaylistImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importLibreTubePlaylists(it) } }
-
-    val youtubeTakeoutImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri -> uri?.let { importViewModel.importYouTubeTakeout(it) } }
-
-    val youtubePlaylistImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri ->
-            uri?.let {
-                scope.launch {
-                    val result = backupRepo.importYouTubePlaylist(it)
-                    importMessage =
-                        if (result.isSuccess) {
-                            val (name, count) = result.getOrNull()!!
-                            context.resources.getQuantityString(
-                                R.plurals.import_yt_playlist_success_template,
-                                count,
-                                name,
-                                count,
-                            )
-                        } else {
-                            context.getString(
-                                R.string.import_yt_playlist_failed_template,
-                                result.exceptionOrNull()?.message ?: context.getString(R.string.unknown),
-                            )
-                        }
-                }
-            }
-        }
-
-    val youtubeMusicPlaylistImportLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri ->
-            uri?.let {
-                scope.launch {
-                    val result = backupRepo.importYouTubePlaylist(it, isMusic = true)
-                    importMessage =
-                        if (result.isSuccess) {
-                            val (name, count) = result.getOrNull()!!
-                            context.resources.getQuantityString(
-                                R.plurals.import_yt_playlist_success_template,
-                                count,
-                                name,
-                                count,
-                            )
-                        } else {
-                            context.getString(
-                                R.string.import_yt_playlist_failed_template,
-                                result.exceptionOrNull()?.message ?: context.getString(R.string.unknown),
-                            )
-                        }
-                }
-            }
-        }
-
-    val importEngineLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.OpenDocument(),
-        ) { uri ->
-            uri?.let {
-                scope.launch {
-                    val success =
-                        context.contentResolver.openInputStream(it)?.use { input ->
-                            FlowNeuroEngine.importBrainFromStream(context, input)
-                        } ?: false
-                    importMessage =
-                        context.getString(
-                            if (success) R.string.import_engine_success else R.string.import_engine_failed,
-                        )
-                }
-            }
-        }
+    fun pick(kind: ImportKind) {
+        pendingImport = kind
+        importPicker.launch(kind.mimeTypes)
+    }
 
     fun finish() {
         scope.launch {
@@ -359,46 +217,22 @@ fun OnboardingScreen(onComplete: () -> Unit) {
 
                 OnboardingStep.IMPORT -> {
                     ImportStep(
-                        importState = importState,
-                        onImportFlowBackup = { flowImportLauncher.launch(arrayOf("application/json")) },
-                        onImportMasterBackup = {
-                            masterBackupImportLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
-                        },
-                        onImportEngineData = { importEngineLauncher.launch(arrayOf("application/json")) },
-                        onImportNewPipe = { newPipeImportLauncher.launch(arrayOf("application/json")) },
-                        onImportYouTube = {
-                            youtubeImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain"))
-                        },
-                        onImportYouTubeHistory = {
-                            youtubeHistoryLauncher.launch(arrayOf("text/html", "application/octet-stream", "*/*"))
-                        },
-                        onImportFreeTubeHistory = {
-                            freeTubeHistoryLauncher.launch(
-                                arrayOf("application/json", "text/plain", "application/octet-stream", "*/*"),
-                            )
-                        },
-                        onImportNewPipeHistory = {
-                            newPipeHistoryLauncher.launch(
-                                arrayOf("application/zip", "application/octet-stream", "application/x-sqlite3", "*/*"),
-                            )
-                        },
-                        onImportLibreTube = { libreTubeImportLauncher.launch(arrayOf("application/json")) },
-                        onImportMetrolist = {
-                            metrolistImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
-                        },
-                        onImportNewPipePlaylists = {
-                            newPipePlaylistImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
-                        },
-                        onImportLibreTubePlaylists = { libreTubePlaylistImportLauncher.launch(arrayOf("application/json")) },
-                        onImportYouTubeTakeout = {
-                            youtubeTakeoutImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
-                        },
-                        onImportYouTubePlaylist = {
-                            youtubePlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain"))
-                        },
-                        onImportYouTubeMusicPlaylist = {
-                            youtubeMusicPlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain"))
-                        },
+                        importOperation = importOperation,
+                        onImportFlowBackup = { pick(ImportKind.FLOW_BACKUP) },
+                        onImportMasterBackup = { pick(ImportKind.MASTER) },
+                        onImportEngineData = { pick(ImportKind.ENGINE) },
+                        onImportNewPipe = { pick(ImportKind.NEWPIPE_SUBSCRIPTIONS) },
+                        onImportYouTube = { pick(ImportKind.YOUTUBE_SUBSCRIPTIONS) },
+                        onImportYouTubeHistory = { pick(ImportKind.YOUTUBE_HISTORY) },
+                        onImportFreeTubeHistory = { pick(ImportKind.FREETUBE_HISTORY) },
+                        onImportNewPipeHistory = { pick(ImportKind.NEWPIPE_HISTORY) },
+                        onImportLibreTube = { pick(ImportKind.LIBRETUBE_SUBSCRIPTIONS) },
+                        onImportMetrolist = { pick(ImportKind.METROLIST) },
+                        onImportNewPipePlaylists = { pick(ImportKind.NEWPIPE_PLAYLISTS) },
+                        onImportLibreTubePlaylists = { pick(ImportKind.LIBRETUBE_PLAYLISTS) },
+                        onImportYouTubeTakeout = { pick(ImportKind.TAKEOUT) },
+                        onImportYouTubePlaylist = { pick(ImportKind.YOUTUBE_PLAYLIST) },
+                        onImportYouTubeMusicPlaylist = { pick(ImportKind.YOUTUBE_MUSIC_PLAYLIST) },
                     )
                 }
             }

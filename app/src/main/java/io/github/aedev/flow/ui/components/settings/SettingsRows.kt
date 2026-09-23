@@ -1,6 +1,12 @@
 package io.github.aedev.flow.ui.components.settings
 
 import androidx.annotation.DrawableRes
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,6 +54,7 @@ fun SettingsGroupScope.switch(
     onCheckedChange: (Boolean) -> Unit,
     enabled: Boolean = true,
     icon: ImageVector? = null,
+    @DrawableRes iconRes: Int? = null,
 ) = row(entry.key) { shape ->
     val checked by state.collectAsStateWithLifecycle()
     FlowSwitchRow(
@@ -57,6 +64,7 @@ fun SettingsGroupScope.switch(
         onCheckedChange = onCheckedChange,
         enabled = enabled,
         leadingIcon = icon,
+        leadingPainter = iconRes?.let { painterResource(it) },
         shape = shape,
     )
 }
@@ -108,6 +116,23 @@ fun SettingsGroupScope.nav(
         leadingPainter = iconRes?.let { painterResource(it) },
         shape = shape,
     )
+}
+
+/** A row that only reports a value, such as when something last ran. It is not clickable. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+fun SettingsGroupScope.info(
+    entry: SettingEntry,
+    value: String?,
+    icon: ImageVector? = null,
+) = row(entry.key) { shape ->
+    SegmentedListItem(
+        shapes = ListItemDefaults.shapes(shape = shape),
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        leadingContent = icon?.let { { Icon(imageVector = it, contentDescription = null) } },
+        supportingContent = (value ?: entry.summaryText())?.let { { Text(it) } },
+    ) {
+        Text(stringResource(entry.title))
+    }
 }
 
 /** One option of a single-choice list drawn inline on a page rather than in a dialog. */

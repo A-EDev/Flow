@@ -35,6 +35,12 @@ val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
 private const val MAX_UNPLAYABLE_VIDEO_IDS = 300
 
+/**
+ * Preferences that never leave the device in a backup: the proxy password, and SponsorBlock's
+ * submission id, which is a private identity for the user's votes and segments.
+ */
+private val BackupExcludedKeys = setOf("proxy_password", "sb_user_id")
+
 private fun String?.decodeUnplayableIds(): Set<String> =
     if (isNullOrBlank()) emptySet() else splitToSequence('\n').filter { it.isNotBlank() }.toCollection(LinkedHashSet())
 
@@ -2960,7 +2966,7 @@ class PlayerPreferences(
         val longs = mutableMapOf<String, Long>()
 
         prefs.asMap().forEach { (key, value) ->
-            if (key.name == "proxy_password") return@forEach
+            if (key.name in BackupExcludedKeys) return@forEach
             when (value) {
                 is String -> strings[key.name] = value
                 is Boolean -> booleans[key.name] = value
@@ -2975,7 +2981,7 @@ class PlayerPreferences(
     suspend fun restoreData(backup: SettingsBackup) {
         context.playerPreferencesDataStore.edit { prefs ->
             backup.strings.forEach { (k, v) ->
-                if (k != "proxy_password") {
+                if (k !in BackupExcludedKeys) {
                     prefs[stringPreferencesKey(k)] = v
                 }
             }

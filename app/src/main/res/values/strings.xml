@@ -2081,7 +2081,7 @@
     <string name="import_engine_failed">Failed to import engine profile</string>
     <!-- Master Backup -->
     <string name="master_backup_title">Master Backup</string>
-    <string name="master_backup_subtitle">Export brain and app data in one file</string>
+    <string name="master_backup_subtitle">App data, the video engine and the music engine in one file</string>
     <string name="master_backup_export_success">Master backup saved successfully</string>
     <string name="master_backup_export_failed">Failed to export master backup</string>
     <string name="import_master_backup_title">Import Master Backup</string>
@@ -3028,4 +3028,42 @@
     <string name="settings_section_watched">Watched videos</string>
     <string name="settings_section_sharing">Sharing</string>
     <string name="settings_keywords_hide_watched">seen, already watched, filter</string>
+    <string-array name="settings_block_suggestions">
+        <item>ASMR</item>
+        <item>Unboxing</item>
+        <item>Reaction</item>
+        <item>Vlogs</item>
+        <item>News</item>
+        <item>Politics</item>
+        <item>Gaming</item>
+        <item>Clickbait</item>
+        <item>Drama</item>
+        <item>Gossip</item>
+        <item>Challenge</item>
+        <item>Family vlog</item>
+    </string-array>
+    <string name="settings_topics_tab_interests">Interests</string>
+    <string name="settings_topics_tab_blocked">Blocked</string>
+    <string name="settings_topics_your_topics">Your topics</string>
+    <string name="settings_keywords_topics">interests, not interested, hide, block, mute, recommendations</string>
+    <string name="settings_keywords_sponsorblock">skip sponsors, ads, segments, intro, outro</string>
+    <string name="settings_keywords_dearrow">clickbait, titles, thumbnails</string>
+    <string name="settings_keywords_discord">rich presence, now playing, status</string>
+    <string name="settings_segment_colour">Colour for %1$s</string>
+    <string name="settings_truncated">%1$s…</string>
+    <string name="settings_backup_exporting">Exporting…</string>
+    <string name="settings_backup_tab_export">Export</string>
+    <string name="settings_backup_tab_import">Import</string>
+    <string name="settings_backup_tab_auto">Automatic</string>
+    <string name="settings_backup_full">Full backup</string>
+    <string name="settings_backup_individual">Individual exports</string>
+    <string name="settings_backup_restore_flow">Restore from Flow</string>
+    <string name="settings_backup_source_youtube">YouTube and Google Takeout</string>
+    <string name="settings_backup_source_newpipe">NewPipe</string>
+    <string name="settings_backup_source_libretube">LibreTube</string>
+    <string name="settings_backup_source_freetube">FreeTube</string>
+    <string name="settings_backup_source_metrolist">Metrolist</string>
+    <string name="settings_backup_one_copy">Each automatic backup replaces the previous file of the same type in the folder.</string>
+    <string name="settings_backup_needs_folder">Choose a folder first</string>
+    <string name="settings_keywords_backup">export, import, restore, migrate, transfer, takeout, newpipe, libretube, freetube</string>
 </resources>

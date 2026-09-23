@@ -69,4 +69,17 @@ object RepositoryModule {
     ): io.github.aedev.flow.data.local.PlayerPreferences =
         io.github.aedev.flow.data.local
             .PlayerPreferences(context)
+
+    /**
+     * Transitional: [io.github.aedev.flow.data.local.BackupRepository] still builds its own
+     * collaborators, so it is provided here rather than injected through its constructor. One
+     * instance serves the whole app.
+     */
+    @Provides
+    @Singleton
+    fun provideBackupRepository(
+        @ApplicationContext context: Context,
+    ): io.github.aedev.flow.data.local.BackupRepository =
+        io.github.aedev.flow.data.local
+            .BackupRepository(context)
 }

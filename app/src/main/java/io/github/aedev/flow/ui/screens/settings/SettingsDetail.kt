@@ -9,11 +9,14 @@ import io.github.aedev.flow.ui.screens.settings.appearance.NavigationBarScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.player.PlayerAppearanceScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemeScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.ThemeScreen
+import io.github.aedev.flow.ui.screens.settings.backup.BackupScreen
 import io.github.aedev.flow.ui.screens.settings.content.ContentSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.integrations.IntegrationsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.region.LanguageRegionScreen
+import io.github.aedev.flow.ui.screens.settings.topics.TopicPreferencesScreen
 import io.github.aedev.flow.ui.screens.sync.SyncScreen
 
 /**
@@ -53,11 +56,11 @@ internal fun SettingsDetail(
 
         SettingsDestination.QUALITY -> QualitySettingsScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
 
-        SettingsDestination.TOPICS -> UserPreferencesScreen(onNavigateBack = back)
+        SettingsDestination.TOPICS -> TopicPreferencesScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
 
-        SettingsDestination.INTEGRATIONS -> SponsorBlockSettingsScreen(onNavigateBack = back)
+        SettingsDestination.INTEGRATIONS -> IntegrationsScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.BACKUP -> ImportDataScreen(onNavigateBack = back)
+        SettingsDestination.BACKUP -> BackupScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
 
         SettingsDestination.SYNC -> SyncScreen(onNavigateBack = back)
 
