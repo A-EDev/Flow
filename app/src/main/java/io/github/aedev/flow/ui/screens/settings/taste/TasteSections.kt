@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.settings.taste
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Upload
@@ -32,6 +33,7 @@ internal class TasteActions(
     val onBlockTopic: (String) -> Unit,
     val onBlockChannel: (String) -> Unit,
     val onOpenHidden: () -> Unit,
+    val onOpenRecap: () -> Unit,
     val onExportVideo: () -> Unit,
     val onImportVideo: () -> Unit,
     val onResetVideo: () -> Unit,
@@ -51,6 +53,7 @@ internal fun SettingsListScope.tasteContent(
     channels(state.channels, actions)
     state.music?.let(::music)
     group(key = "taste.more") {
+        nav(TasteIndex.recap, onClick = actions.onOpenRecap, icon = Icons.Outlined.Insights)
         nav(TasteIndex.hidden, onClick = actions.onOpenHidden, value = hiddenLabel, icon = Icons.Outlined.VisibilityOff)
     }
     data(actions)

@@ -19,6 +19,14 @@ internal object TasteIndex {
     val music = entry("music", R.string.taste_music_header)
     val appetite = entry("appetite", R.string.music_discovery_appetite, R.string.taste_music_header)
     val hidden = entry("hidden", R.string.taste_hidden_title)
+    val recap =
+        SettingEntry(
+            key = "taste.recap",
+            title = R.string.recap_title,
+            summary = R.string.recap_summary,
+            keywords = R.string.recap_keywords,
+            destination = page,
+        )
     val exportVideo = entry("export_video", R.string.taste_export_video, R.string.taste_data_header)
     val importVideo = entry("import_video", R.string.taste_import_video, R.string.taste_data_header)
     val resetVideo = entry("reset_video", R.string.taste_reset_video, R.string.taste_data_header)
@@ -27,5 +35,18 @@ internal object TasteIndex {
     val resetMusic = entry("reset_music", R.string.taste_reset_music, R.string.taste_data_header)
 
     val all =
-        listOf(shape, interests, channels, music, appetite, exportVideo, importVideo, resetVideo, exportMusic, importMusic, resetMusic)
+        listOf(
+            recap,
+            shape,
+            interests,
+            channels,
+            music,
+            appetite,
+            exportVideo,
+            importVideo,
+            resetVideo,
+            exportMusic,
+            importMusic,
+            resetMusic,
+        )
 }

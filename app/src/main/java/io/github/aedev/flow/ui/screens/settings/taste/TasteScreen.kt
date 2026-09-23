@@ -38,6 +38,7 @@ internal fun TasteScreen(
     onBack: (() -> Unit)?,
     highlight: String?,
     onNavigate: (SettingsTarget) -> Unit,
+    onOpenRecap: () -> Unit,
     viewModel: TasteViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -82,6 +83,7 @@ internal fun TasteScreen(
                 onBlockTopic = viewModel::blockTopic,
                 onBlockChannel = viewModel::blockChannel,
                 onOpenHidden = { onNavigate(SettingsTarget(SettingsDestination.HIDDEN_CONTENT)) },
+                onOpenRecap = onOpenRecap,
                 onExportVideo = { exportVideo.launch("flow_video_profile_${LocalDate.now()}.json") },
                 onImportVideo = { importVideo.launch(arrayOf(JSON)) },
                 onResetVideo = { confirmReset = ResetKind.VIDEO },

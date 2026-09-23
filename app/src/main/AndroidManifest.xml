@@ -443,6 +443,17 @@
             </intent-filter>
         </activity-alias>
 
+
+        <!-- Shares a rendered recap card as an image; only files under cache/recap/ are exposed. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.recap"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/recap_share_paths" />
+        </provider>
     </application>
 
 </manifest>

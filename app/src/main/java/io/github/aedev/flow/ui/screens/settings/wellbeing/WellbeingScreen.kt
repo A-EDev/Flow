@@ -33,6 +33,7 @@ import io.github.aedev.flow.ui.components.settings.notice
 import io.github.aedev.flow.ui.components.settings.switch
 import io.github.aedev.flow.ui.components.shared.FlowChoice
 import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
+import io.github.aedev.flow.ui.components.stats.spentTimeLabel
 import io.github.aedev.flow.ui.screens.settings.index.WellbeingIndex
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -198,7 +199,7 @@ private fun sleepWindowLabel(
     end: LocalTime,
 ): String {
     val minutes = Math.floorMod(Duration.between(start, end).toMinutes().toInt(), MINUTES_PER_DAY)
-    return formatDurationMillis(minutes * MILLIS_PER_MINUTE_LONG)
+    return spentTimeLabel(minutes * MILLIS_PER_MINUTE_LONG)
 }
 
 private const val MILLIS_PER_MINUTE_LONG = 60_000L

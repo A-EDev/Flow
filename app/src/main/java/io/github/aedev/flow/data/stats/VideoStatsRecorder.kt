@@ -80,6 +80,12 @@ class VideoStatsRecorder
         /** Search history was cleared or switched off: the recap forgets every stored search text. */
         fun onSearchHistoryCleared() = record { locked(VideoStatsLedgerOps::clearQueries) }
 
+        /** Counted views in one month, without copying the ledger. */
+        suspend fun monthViews(monthKey: String): Int {
+            ensureInitialized()
+            return mutex.withLock { ledger.months[monthKey]?.views ?: 0 }
+        }
+
         suspend fun snapshot(): VideoStatsSnapshot {
             ensureInitialized()
             return mutex.withLock { ledger.toSnapshot() }

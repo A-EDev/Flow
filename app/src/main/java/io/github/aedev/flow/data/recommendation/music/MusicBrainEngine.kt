@@ -493,6 +493,12 @@ class MusicBrainEngine
             }
         }
 
+        /** Counted plays in one month, without copying the ledger. */
+        suspend fun monthPlays(monthKey: String): Int {
+            ensureInitialized()
+            return mutex.withLock { ledger.months[monthKey]?.plays ?: 0 }
+        }
+
         /** Replaces the listening ledger with a restored one; the brain is untouched. */
         internal suspend fun restoreListeningStats(stats: MusicStatsStorage.SerializableStats) {
             ensureInitialized()

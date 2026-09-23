@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,14 +28,18 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.OnTabReselected
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.stats.RecapEntryCard
+import java.time.format.TextStyle
 
 private val ListContentPadding = PaddingValues(vertical = 12.dp)
 private val ShelfSpacing = 24.dp
+private val RecapCardPadding = 16.dp
 
 @Composable
 fun LibraryScreen(
@@ -46,6 +51,7 @@ fun LibraryScreen(
     onNavigateToDownloads: () -> Unit,
     onNavigateToLocalMedia: () -> Unit,
     onManageData: () -> Unit,
+    onOpenRecap: (RecapPeriod?) -> Unit,
     onVideoClick: (Video) -> Unit,
     onMusicClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
     onPlaylistClick: (String) -> Unit,
@@ -59,6 +65,8 @@ fun LibraryScreen(
     val shortsEnabled by viewModel.shortsEnabled.collectAsStateWithLifecycle()
     val shelfPreviewsEnabled by viewModel.shelfPreviewsEnabled.collectAsStateWithLifecycle()
     val isLibraryEmpty by viewModel.isLibraryEmpty.collectAsStateWithLifecycle()
+    val recapReady by viewModel.recapReady.collectAsStateWithLifecycle()
+    val locale = LocalConfiguration.current.locales[0]
     val listState = rememberLazyListState()
     OnTabReselected(FlowTab.Library.route) { listState.animateScrollToItem(0) }
 
@@ -76,6 +84,28 @@ fun LibraryScreen(
             contentPadding = ListContentPadding,
             verticalArrangement = Arrangement.spacedBy(ShelfSpacing),
         ) {
+            item(key = "recap", contentType = "recap") {
+                RecapEntryCard(
+                    readyLabel =
+                        when (val ready = recapReady) {
+                            is RecapPeriod.Month -> "${ready.month.month.getDisplayName(
+                                TextStyle.FULL_STANDALONE,
+                                locale,
+                            )} ${ready.month.year}"
+
+                            is RecapPeriod.Year -> ready.year.toString()
+
+                            else -> null
+                        },
+                    onOpen = {
+                        val period = recapReady
+                        viewModel.onRecapHandled()
+                        onOpenRecap(period)
+                    },
+                    onDismiss = viewModel::onRecapHandled,
+                    modifier = Modifier.padding(horizontal = RecapCardPadding),
+                )
+            }
             if (shelfPreviewsEnabled && isLibraryEmpty) {
                 item(key = "library-empty", contentType = "empty") {
                     FlowEmptyState(

@@ -38,6 +38,7 @@ internal fun SettingsDetail(
     target: SettingsTarget,
     onBack: (() -> Unit)?,
     onNavigate: (SettingsTarget) -> Unit,
+    onOpenRecap: () -> Unit,
 ) {
     when (target.destination) {
         SettingsDestination.HOME,
@@ -47,7 +48,7 @@ internal fun SettingsDetail(
         }
 
         SettingsDestination.TASTE -> {
-            TasteScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+            TasteScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate, onOpenRecap = onOpenRecap)
         }
 
         SettingsDestination.HIDDEN_CONTENT -> {

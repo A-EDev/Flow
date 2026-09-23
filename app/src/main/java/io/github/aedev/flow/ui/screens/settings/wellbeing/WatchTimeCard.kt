@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.stats.spentTimeLabel
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -61,12 +62,12 @@ internal fun WatchTimeCard(
                 return@Column
             }
             Text(
-                text = formatDurationMillis(summary.dailyAverageMillis),
+                text = spentTimeLabel(summary.dailyAverageMillis),
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = stringResource(R.string.settings_watch_time_week_total, formatDurationMillis(summary.weekMillis)),
+                text = stringResource(R.string.settings_watch_time_week_total, spentTimeLabel(summary.weekMillis)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -91,7 +92,7 @@ private fun WeekChart(summary: WatchTimeSummary) {
     val peak = summary.days.maxOf { it.millis }.coerceAtLeast(1L)
     val today = summary.days.last().date
     val locale = Locale.getDefault()
-    val description = summary.days.map { "${it.date.dayOfWeek.getDisplayName(TextStyle.FULL, locale)} ${formatDurationMillis(it.millis)}" }
+    val description = summary.days.map { "${it.date.dayOfWeek.getDisplayName(TextStyle.FULL, locale)} ${spentTimeLabel(it.millis)}" }
     Row(
         modifier =
             Modifier
@@ -126,18 +127,3 @@ private fun WeekChart(summary: WatchTimeSummary) {
         }
     }
 }
-
-@Composable
-internal fun formatDurationMillis(millis: Long): String {
-    val totalMinutes = (millis / MILLIS_PER_MINUTE).toInt()
-    val hours = totalMinutes / MINUTES_PER_HOUR
-    val minutes = totalMinutes % MINUTES_PER_HOUR
-    return if (hours > 0) {
-        stringResource(R.string.duration_hours_minutes, hours, minutes)
-    } else {
-        pluralStringResource(R.plurals.duration_minutes, minutes, minutes)
-    }
-}
-
-private const val MILLIS_PER_MINUTE = 60_000L
-private const val MINUTES_PER_HOUR = 60
