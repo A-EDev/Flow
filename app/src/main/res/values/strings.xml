@@ -3413,6 +3413,8 @@
     <string name="recap_story_previous">Previous</string>
     <string name="recap_story_page">Page %1$d of %2$d</string>
     <string name="recap_story_made_with">Made with Flow</string>
+    <string name="recap_story_pause">Pause</string>
+    <string name="recap_story_play">Play</string>
     <string name="recap_summary_top_channel">Top channel</string>
     <string name="recap_summary_top_artist">Top artist</string>
     <string name="recap_summary_top_topic">Top topic</string>

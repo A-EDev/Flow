@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.recap
+package io.github.aedev.flow.ui.screens.recap.story
 
 import android.content.Context
 import android.content.Intent
@@ -31,7 +31,17 @@ internal suspend fun shareRecap(
                 runCatching {
                     val dir = File(context.cacheDir, SHARE_DIR).apply { mkdirs() }
                     val file = File(dir, SHARE_FILE)
-                    file.outputStream().use { out -> it.asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, out) }
+                    val bitmap =
+                        it.asAndroidBitmap().let { raw ->
+                            if (raw.config ==
+                                Bitmap.Config.HARDWARE
+                            ) {
+                                raw.copy(Bitmap.Config.ARGB_8888, false)
+                            } else {
+                                raw
+                            }
+                        }
+                    file.outputStream().use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, out) }
                     FileProvider.getUriForFile(context, "${context.packageName}.recap", file)
                 }.getOrNull()
             }

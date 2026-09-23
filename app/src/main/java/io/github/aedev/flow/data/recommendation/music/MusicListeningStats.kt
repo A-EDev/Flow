@@ -44,6 +44,9 @@ class MonthListening(
     val dislikedArtists: MutableMap<String, Long> = HashMap(),
     /** Artists blocked this month, with when. */
     val blockedArtists: MutableMap<String, Long> = HashMap(),
+    /** Artwork URLs seen with a play, for the recap's portraits; never fetched just for it. */
+    val trackArt: MutableMap<String, String> = HashMap(),
+    val artistArt: MutableMap<String, String> = HashMap(),
 )
 
 class MusicStatsLedger {
@@ -89,6 +92,7 @@ object MusicStatsLedgerOps {
         newArtist: Boolean,
         skipped: Boolean = false,
         zone: ZoneId = ZoneId.systemDefault(),
+        artworkUrl: String = "",
     ) {
         if (artistKey.isEmpty() || (listenedMs <= 0L && !counted)) return
         val moment = LedgerTime.at(nowMs, zone)
@@ -112,6 +116,10 @@ object MusicStatsLedgerOps {
         month.artistPlays[artistKey] = (month.artistPlays[artistKey] ?: 0) + 1
         month.trackPlays[trackId] = (month.trackPlays[trackId] ?: 0) + 1
         nameIn(month, artistKey, artistName, trackId, trackTitle)
+        if (artworkUrl.isNotBlank()) {
+            month.trackArt[trackId] = artworkUrl
+            month.artistArt[artistKey] = artworkUrl
+        }
         genre?.takeIf { it.isNotBlank() }?.let { month.genrePlays[it] = (month.genrePlays[it] ?: 0) + 1 }
         if (newArtist) month.discoveredArtists.add(artistKey)
         month.dayPlays[moment.dayOfMonth] = (month.dayPlays[moment.dayOfMonth] ?: 0) + 1
@@ -164,6 +172,8 @@ object MusicStatsLedgerOps {
                 month.blockedArtists,
             )
             capNamed(month.trackPlays, MusicStatsParams.TRACKS_PER_MONTH, month.trackTitles, month.trackSkips)
+            month.trackArt.keys.retainAll(month.trackPlays.keys)
+            month.artistArt.keys.retainAll(month.artistPlays.keys)
         }
     }
 

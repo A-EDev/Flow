@@ -199,4 +199,52 @@ class RecapAggregatesTest {
     fun `nothing recorded is an empty recap`() {
         assertThat(RecapAggregates.summarize(RecapPeriod.AllTime, video(), music()).isEmpty).isTrue()
     }
+
+    @Test
+    fun `ranked items carry their portraits`() {
+        val summary =
+            RecapAggregates.summarize(
+                RecapPeriod.Month(september),
+                video(
+                    september to
+                        VideoMonthRecord(
+                            views = 2,
+                            channelViews = mapOf("UCa" to 2),
+                            channelAvatars = mapOf("UCa" to "https://yt3/avatar"),
+                            videoViews = mapOf("vid1" to 2),
+                        ),
+                ),
+                music(
+                    september to
+                        MusicStatsStorage.SerializableMonth(
+                            plays = 1,
+                            artistPlays = mapOf("a1" to 1),
+                            artistArt = mapOf("a1" to "https://art/a1"),
+                            trackPlays = mapOf("t1" to 1),
+                            trackArt = mapOf("t1" to "https://art/t1"),
+                        ),
+                ),
+            )
+
+        assertThat(
+            summary.video.topChannels
+                .single()
+                .imageUrl,
+        ).isEqualTo("https://yt3/avatar")
+        assertThat(
+            summary.video.topVideos
+                .single()
+                .imageUrl,
+        ).contains("vid1")
+        assertThat(
+            summary.music.topArtists
+                .single()
+                .imageUrl,
+        ).isEqualTo("https://art/a1")
+        assertThat(
+            summary.music.topTracks
+                .single()
+                .imageUrl,
+        ).isEqualTo("https://art/t1")
+    }
 }

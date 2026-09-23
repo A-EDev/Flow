@@ -40,6 +40,8 @@ data class RankedItem(
     val durationMs: Long = 0L,
     /** A secondary line: the channel of a video, or the artist of a track. */
     val detail: String = "",
+    /** A portrait for the item: a channel avatar, video thumbnail or track artwork; blank when unknown. */
+    val imageUrl: String = "",
 )
 
 /** Watching or listening folded over a period, down to the day. */

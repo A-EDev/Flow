@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.recap
+package io.github.aedev.flow.ui.screens.recap.story
 
 import io.github.aedev.flow.data.stats.RankedItem
 import io.github.aedev.flow.data.stats.RecapSummary

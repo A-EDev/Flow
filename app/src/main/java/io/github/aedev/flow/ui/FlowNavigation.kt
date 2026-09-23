@@ -49,7 +49,7 @@ import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.recap.RecapRoutes
 import io.github.aedev.flow.ui.screens.recap.RecapScreen
-import io.github.aedev.flow.ui.screens.recap.RecapStoryScreen
+import io.github.aedev.flow.ui.screens.recap.story.RecapStoryScreen
 import io.github.aedev.flow.ui.screens.search.SearchScreen
 import io.github.aedev.flow.ui.screens.settings.SettingsHost
 import io.github.aedev.flow.ui.screens.shorts.ShortsScreen

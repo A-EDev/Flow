@@ -37,6 +37,8 @@ internal class MusicStatsStorage(
         val artistSkips: Map<String, Int> = emptyMap(),
         val dislikedArtists: Map<String, Long> = emptyMap(),
         val blockedArtists: Map<String, Long> = emptyMap(),
+        val trackArt: Map<String, String> = emptyMap(),
+        val artistArt: Map<String, String> = emptyMap(),
     )
 
     @Serializable
@@ -97,6 +99,8 @@ private fun MonthListening.toSerializable() =
         artistSkips = artistSkips.toMap(),
         dislikedArtists = dislikedArtists.toMap(),
         blockedArtists = blockedArtists.toMap(),
+        trackArt = trackArt.toMap(),
+        artistArt = artistArt.toMap(),
     )
 
 internal fun MusicStatsLedger.toSerializable(): MusicStatsStorage.SerializableStats =
@@ -127,6 +131,8 @@ internal fun MusicStatsStorage.SerializableStats.toLedger(): MusicStatsLedger {
                 artistSkips = HashMap(m.artistSkips),
                 dislikedArtists = HashMap(m.dislikedArtists),
                 blockedArtists = HashMap(m.blockedArtists),
+                trackArt = HashMap(m.trackArt),
+                artistArt = HashMap(m.artistArt),
             )
     }
     return ledger

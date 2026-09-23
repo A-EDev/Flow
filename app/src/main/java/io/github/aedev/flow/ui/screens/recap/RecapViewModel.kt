@@ -5,16 +5,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.SearchHistoryRepository
+import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.ChannelVideoCount
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.MusicStatsStorage
+import io.github.aedev.flow.data.stats.RankedItem
 import io.github.aedev.flow.data.stats.RecapAggregates
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.RecapSummary
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.data.stats.VideoStatsSnapshot
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +58,7 @@ class RecapViewModel
         private val musicBrain: MusicBrainEngine,
         private val watchHistoryDao: WatchHistoryDao,
         private val searchHistory: SearchHistoryRepository,
+        private val subscriptions: SubscriptionRepository,
     ) : ViewModel() {
         private val _state = MutableStateFlow(RecapUiState())
         val state: StateFlow<RecapUiState> = _state.asStateFlow()
@@ -62,7 +66,13 @@ class RecapViewModel
         private var video = VideoStatsSnapshot()
         private var music = MusicStatsStorage.SerializableStats()
         private var queriesSince: YearMonth? = null
+        private var subscribedAvatars: Map<String, String> = emptyMap()
         private var historyLoaded = false
+        private var loaded = false
+
+        /** A period asked for before the ledgers finished loading; it wins over the newest month. */
+        private var requested: Pair<RecapPeriod, RecapSource>? = null
+        private var foldJob: Job? = null
 
         init {
             viewModelScope.launch {
@@ -70,11 +80,18 @@ class RecapViewModel
                     video = runCatching { videoStats.snapshot() }.getOrDefault(VideoStatsSnapshot())
                     music = runCatching { musicBrain.listeningStats() }.getOrDefault(MusicStatsStorage.SerializableStats())
                     queriesSince = searchQueryCutoff()
+                    subscribedAvatars =
+                        runCatching { subscriptions.getAllSubscriptions().first() }
+                            .getOrDefault(emptyList())
+                            .associate { it.channelId to it.channelThumbnail }
+                            .filterValues { it.isNotBlank() }
                 }
                 val months = RecapAggregates.availableMonths(video, music)
-                val period = months.firstOrNull()?.let { RecapPeriod.Month(it) } ?: RecapPeriod.Month(YearMonth.now())
+                val newest = months.firstOrNull()?.let { RecapPeriod.Month(it) } ?: RecapPeriod.Month(YearMonth.now())
                 _state.update { it.copy(months = months) }
-                show(period, _state.value.source)
+                loaded = true
+                val (period, source) = requested ?: (newest to _state.value.source)
+                show(period, source)
             }
         }
 
@@ -82,23 +99,31 @@ class RecapViewModel
 
         fun selectSource(source: RecapSource) = show(_state.value.period, source)
 
-        /** Opens on [month] rather than the newest one, for a recap opened from its month's card. */
-        fun openAt(period: RecapPeriod) {
-            if (_state.value.period != period) show(period, _state.value.source)
+        /** Opens on [period] rather than the newest month, for a recap opened from its own card. */
+        fun openAt(
+            period: RecapPeriod,
+            source: RecapSource = _state.value.source,
+        ) {
+            requested = period to source
+            if (loaded) show(period, source)
         }
 
         private fun show(
             period: RecapPeriod,
             source: RecapSource,
         ) {
-            viewModelScope.launch {
-                val summary =
-                    withContext(Dispatchers.Default) {
-                        RecapAggregates.summarize(period, video.forSource(source), music.forSource(source), queriesSince)
-                    }
-                val history = if (period == RecapPeriod.AllTime && source != RecapSource.MUSIC) channelHistory() else emptyList()
-                _state.update { it.copy(loading = false, period = period, source = source, summary = summary, history = history) }
-            }
+            foldJob?.cancel()
+            foldJob =
+                viewModelScope.launch {
+                    val summary =
+                        withContext(Dispatchers.Default) {
+                            RecapAggregates
+                                .summarize(period, video.forSource(source), music.forSource(source), queriesSince)
+                                .withChannelAvatars(subscribedAvatars)
+                        }
+                    val history = if (period == RecapPeriod.AllTime && source != RecapSource.MUSIC) channelHistory() else emptyList()
+                    _state.update { it.copy(loading = false, period = period, source = source, summary = summary, history = history) }
+                }
         }
 
         private suspend fun channelHistory(): List<ChannelVideoCount> {
@@ -107,6 +132,21 @@ class RecapViewModel
             return withContext(Dispatchers.IO) {
                 runCatching { watchHistoryDao.getChannelVideoCounts(HISTORY_CHANNELS) }.getOrDefault(emptyList())
             }
+        }
+
+        /** Channels viewed before avatars were recorded borrow the avatar their subscription keeps. */
+        private fun RecapSummary.withChannelAvatars(avatars: Map<String, String>): RecapSummary {
+            if (avatars.isEmpty()) return this
+
+            fun List<RankedItem>.filled() = map { if (it.imageUrl.isBlank()) it.copy(imageUrl = avatars[it.id].orEmpty()) else it }
+            return copy(
+                video =
+                    video.copy(
+                        topChannels = video.topChannels.filled(),
+                        discoveredChannels = video.discoveredChannels.filled(),
+                        skippedChannels = video.skippedChannels.filled(),
+                    ),
+            )
         }
 
         private fun VideoStatsSnapshot.forSource(source: RecapSource) = if (source == RecapSource.MUSIC) VideoStatsSnapshot() else this

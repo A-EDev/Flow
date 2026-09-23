@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.components.stats
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,12 +18,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 
 private val CardPadding = 20.dp
@@ -86,19 +90,31 @@ fun StatRankRow(
     value: String,
     shape: Shape,
     detail: String? = null,
+    imageUrl: String = "",
+    imageShape: Shape = MaterialTheme.shapes.medium,
 ) {
     SegmentedListItem(
         verticalAlignment = Alignment.CenterVertically,
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
         leadingContent = {
-            Text(
-                text = rank.toString(),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(min = RankWidth),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RankImageGap)) {
+                Text(
+                    text = rank.toString(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(min = RankWidth),
+                )
+                if (imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(RankImageSize).clip(imageShape).background(MaterialTheme.colorScheme.surfaceContainer),
+                    )
+                }
+            }
         },
         supportingContent = detail?.takeIf { it.isNotBlank() }?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
         trailingContent = { Text(value, style = MaterialTheme.typography.labelLarge) },
@@ -121,6 +137,8 @@ fun StatLegendItem(
 }
 
 private val LegendSwatch = 12.dp
+private val RankImageSize = 44.dp
+private val RankImageGap = 12.dp
 
 /** Time spent, as people say it: "3 h 12 min", or minutes alone under an hour. */
 @Composable

@@ -140,7 +140,9 @@ private fun LazyStaggeredGridScope.recapCards(
     if (showVideo) {
         val video = summary.video
         if (video.topChannels.isNotEmpty()) {
-            item(key = "channels") { RankCard(stringResource(R.string.recap_top_channels), video.topChannels, { viewsLabel(it) }) }
+            item(
+                key = "channels",
+            ) { RankCard(stringResource(R.string.recap_top_channels), video.topChannels, { viewsLabel(it) }, portraits = true) }
         }
         if (video.topVideos.isNotEmpty()) {
             item(key = "videos") { RankCard(stringResource(R.string.recap_top_videos), video.topVideos, { timesLabel(it) }) }
@@ -150,7 +152,9 @@ private fun LazyStaggeredGridScope.recapCards(
     if (showMusic) {
         val music = summary.music
         if (music.topArtists.isNotEmpty()) {
-            item(key = "artists") { RankCard(stringResource(R.string.recap_top_artists), music.topArtists, { playsLabel(it) }) }
+            item(
+                key = "artists",
+            ) { RankCard(stringResource(R.string.recap_top_artists), music.topArtists, { playsLabel(it) }, portraits = true) }
         }
         if (music.topTracks.isNotEmpty()) {
             item(key = "tracks") { RankCard(stringResource(R.string.recap_top_tracks), music.topTracks, { playsLabel(it) }) }

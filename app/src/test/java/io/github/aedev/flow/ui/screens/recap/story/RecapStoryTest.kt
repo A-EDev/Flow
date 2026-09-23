@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.recap
+package io.github.aedev.flow.ui.screens.recap.story
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.recommendation.music.MusicStatsStorage
@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.VideoMonthRecord
 import io.github.aedev.flow.data.stats.VideoStatsSnapshot
 import io.github.aedev.flow.data.stats.ViewFormat
+import io.github.aedev.flow.ui.screens.recap.RecapRoutes
 import org.junit.Test
 import java.time.YearMonth
 

@@ -68,6 +68,7 @@ internal fun viewEventFor(
         watchedMs = watchedMs,
         counted = counted,
         skipped = skipped,
+        channelAvatarUrl = video.channelThumbnailUrl,
     )
 }
 

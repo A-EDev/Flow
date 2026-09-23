@@ -14,6 +14,7 @@ data class ViewEvent(
     val counted: Boolean,
     /** Abandoned early after a real look; named in the recap's "passed on" section. */
     val skipped: Boolean,
+    val channelAvatarUrl: String = "",
 )
 
 /** Pure mutations of the video ledger, called under the recorder's lock. No I/O, no Android. */
@@ -166,6 +167,7 @@ object VideoStatsLedgerOps {
         month.videoChannels.keys.retainAll(videosInUse)
         val channelsInUse = month.channelViews.keys + month.channelSkips.keys + month.channelMs.keys + month.videoChannels.values
         month.channelNames.keys.retainAll(channelsInUse)
+        month.channelAvatars.keys.retainAll(channelsInUse)
     }
 
     private fun nameIn(
@@ -176,6 +178,7 @@ object VideoStatsLedgerOps {
         val channel = event.channelId.takeIf { it.isNotBlank() } ?: return
         month.videoChannels[event.videoId] = channel
         if (event.channelName.isNotBlank()) month.channelNames[channel] = event.channelName
+        if (event.channelAvatarUrl.isNotBlank()) month.channelAvatars[channel] = event.channelAvatarUrl
     }
 
     private fun monthAt(

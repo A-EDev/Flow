@@ -491,6 +491,7 @@ class ShortsViewModel
                 watchedMs = watchedMs,
                 counted = counted,
                 skipped = !counted,
+                channelAvatarUrl = video.channelThumbnailUrl,
             ),
             video.copy(isShort = true),
         )

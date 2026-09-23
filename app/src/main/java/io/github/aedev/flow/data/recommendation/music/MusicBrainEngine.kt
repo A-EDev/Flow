@@ -155,6 +155,7 @@ class MusicBrainEngine
                     counted = counted,
                     newArtist = counted && wasNewArtist,
                     skipped = crossed.isEmpty(),
+                    artworkUrl = track.thumbnailUrl,
                 )
             }
             scheduleDebouncedSave()

@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.stats.RankedItem
 import io.github.aedev.flow.data.stats.VideoRecap
 import io.github.aedev.flow.data.stats.ViewFormat
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
+import io.github.aedev.flow.ui.components.shared.flowArtistShape
 import io.github.aedev.flow.ui.components.shared.flowRowGroupShape
 import io.github.aedev.flow.ui.components.stats.StatBigNumber
 import io.github.aedev.flow.ui.components.stats.StatCard
@@ -46,15 +47,17 @@ internal fun RankCard(
     items: List<RankedItem>,
     value: @Composable (RankedItem) -> String,
     subtitle: String? = null,
+    portraits: Boolean = false,
 ) {
     StatCard(title = title, subtitle = subtitle) {
-        RankedRows(items.take(RANKED_ROWS), value)
+        RankedRows(items.take(RANKED_ROWS), portraits, value)
     }
 }
 
 @Composable
 private fun RankedRows(
     items: List<RankedItem>,
+    portraits: Boolean = false,
     value: @Composable (RankedItem) -> String,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap)) {
@@ -65,6 +68,8 @@ private fun RankedRows(
                 value = value(item),
                 detail = item.detail,
                 shape = flowRowGroupShape(index, items.size),
+                imageUrl = item.imageUrl,
+                imageShape = if (portraits) flowArtistShape() else MaterialTheme.shapes.medium,
             )
         }
     }
