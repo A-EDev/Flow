@@ -39,6 +39,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.info
 import io.github.aedev.flow.ui.components.settings.nav
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
@@ -46,7 +47,6 @@ import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.screens.settings.index.DiagnosticsIndex
 import io.github.aedev.flow.utils.copyPlainText
 import kotlinx.coroutines.launch
-import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 
 private enum class DiagnosticsTab { SESSION, CRASHES }
 
@@ -121,7 +121,10 @@ internal fun DiagnosticsScreen(
             FlowConnectedToggleGroup(options = tabs, selected = tab, onSelected = { tab = it })
         }
         when (tab) {
-            DiagnosticsTab.SESSION -> logSection("diagnostics.session", session, R.string.diagnostics_no_session_logs)
+            DiagnosticsTab.SESSION -> {
+                logSection("diagnostics.session", session, R.string.diagnostics_no_session_logs)
+            }
+
             DiagnosticsTab.CRASHES -> {
                 if (crashes is LogState.Lines) {
                     group(key = "diagnostics.crash_actions") {
@@ -139,7 +142,7 @@ internal fun DiagnosticsScreen(
     }
 
     when (dialog) {
-        DiagnosticsDialog.CLEAR_CRASHES ->
+        DiagnosticsDialog.CLEAR_CRASHES -> {
             DiagnosticsConfirmDialog(
                 title = stringResource(R.string.diagnostics_clear_confirm_title),
                 body = stringResource(R.string.diagnostics_clear_confirm_body),
@@ -148,6 +151,8 @@ internal fun DiagnosticsScreen(
                 onConfirm = viewModel::clearCrashes,
                 onDismiss = { dialog = null },
             )
+        }
+
         DiagnosticsDialog.RESET_SESSION -> {
             val doneMessage = stringResource(R.string.diagnostics_reset_session_done)
             DiagnosticsConfirmDialog(
@@ -164,7 +169,10 @@ internal fun DiagnosticsScreen(
                 onDismiss = { dialog = null },
             )
         }
-        null -> Unit
+
+        null -> {
+            Unit
+        }
     }
 }
 
@@ -174,22 +182,27 @@ private fun SettingsListScope.logSection(
     emptyMessage: Int,
 ) {
     when (state) {
-        LogState.Loading ->
+        LogState.Loading -> {
             item("$key.loading") {
                 Box(Modifier.fillMaxWidth().height(StateHeight), contentAlignment = Alignment.Center) { FlowLoadingIndicator() }
             }
-        LogState.Empty ->
+        }
+
+        LogState.Empty -> {
             item("$key.empty") {
                 Box(Modifier.fillMaxWidth().height(StateHeight)) {
                     FlowEmptyState(title = stringResource(emptyMessage), icon = Icons.Outlined.CheckCircle)
                 }
             }
-        is LogState.Lines ->
+        }
+
+        is LogState.Lines -> {
             group(key = key) {
                 state.chunks.forEachIndexed { index, chunk ->
                     row("$key.$index") { shape -> LogChunk(chunk, shape) }
                 }
             }
+        }
     }
 }
 
