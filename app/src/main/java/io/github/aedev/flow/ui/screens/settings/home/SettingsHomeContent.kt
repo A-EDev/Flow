@@ -21,7 +21,8 @@ internal data class SettingsHomeState(
     val selected: SettingsDestination?,
     val persona: FlowPersona?,
     val deepFlow: DeepFlowState,
-    val updateChecking: Boolean,
+    /** Shown on the update row while a check the user started is running; null when idle. */
+    val updateCheckingLabel: String?,
 )
 
 internal class SettingsHomeActions(
@@ -109,7 +110,8 @@ internal fun SettingsListScope.homeContent(
             nav(
                 HomeIndex.checkForUpdates,
                 onClick = actions.onCheckForUpdates,
-                enabled = !state.updateChecking,
+                value = state.updateCheckingLabel,
+                enabled = state.updateCheckingLabel == null,
                 showChevron = false,
                 icon = HomeRowIcons.Updates,
             )

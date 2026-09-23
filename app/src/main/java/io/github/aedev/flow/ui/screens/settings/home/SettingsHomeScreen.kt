@@ -67,6 +67,7 @@ internal fun SettingsHomeScreen(
     var showDurationDialog by rememberSaveable { mutableStateOf(false) }
     var showResetDialog by rememberSaveable { mutableStateOf(false) }
 
+    val checkingLabel = stringResource(R.string.checking_for_updates)
     val searchable = rememberSearchableSettings()
     val results = remember(query, searchable) { SettingsSearch.search(query, searchable) }
 
@@ -117,7 +118,7 @@ internal fun SettingsHomeScreen(
                         selected = selected,
                         persona = persona,
                         deepFlow = deepFlow,
-                        updateChecking = updateCheck == UpdateCheckState.Checking,
+                        updateCheckingLabel = checkingLabel.takeIf { updateCheck == UpdateCheckState.Checking },
                     ),
                 actions =
                     SettingsHomeActions(
@@ -184,8 +185,12 @@ private fun UpdateCheckFeedback(
                 UpdateCheckState.Failed -> failed
                 else -> return@LaunchedEffect
             }
-        onConsumed()
-        snackbarHostState.showSnackbar(message)
+        // Consuming first would change this effect's key and cancel it before the snackbar shows.
+        try {
+            snackbarHostState.showSnackbar(message)
+        } finally {
+            onConsumed()
+        }
     }
 }
 

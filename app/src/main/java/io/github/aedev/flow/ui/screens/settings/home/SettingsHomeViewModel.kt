@@ -115,7 +115,7 @@ class SettingsHomeViewModel
         }
 
         fun consumeUpdateCheck() {
-            _updateCheck.update { UpdateCheckState.Idle }
+            _updateCheck.update { if (it == UpdateCheckState.Checking) it else UpdateCheckState.Idle }
         }
 
         private companion object {
