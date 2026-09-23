@@ -2924,4 +2924,37 @@
         <item quantity="one">%1$d chapter</item>
         <item quantity="other">%1$d chapters</item>
     </plurals>
+    <!-- Settings (M3E revamp) -->
+    <string name="settings_navigation_bar_title">Navigation bar</string>
+    <string name="settings_language_region_title">Language &amp; region</string>
+    <string name="settings_playback_title">Player &amp; playback</string>
+    <string name="settings_content_title">Feeds &amp; content</string>
+    <string name="settings_topics_title">Interests &amp; blocked topics</string>
+    <string name="settings_integrations_title">Integrations</string>
+    <string name="settings_backup_title">Backup &amp; restore</string>
+    <string name="settings_history_title">History &amp; privacy</string>
+    <string name="settings_downloads_title">Downloads &amp; storage</string>
+    <string name="settings_network_title">Network</string>
+    <string name="settings_wellbeing_title">Wellbeing</string>
+    <string name="settings_group_look">Look &amp; feel</string>
+    <string name="settings_group_watching">Watching</string>
+    <string name="settings_group_data">Your data</string>
+    <string name="settings_group_system">System</string>
+    <string name="settings_appearance_summary">Theme, app icon, layout and navigation bar</string>
+    <string name="settings_language_region_summary">App language, content language and country</string>
+    <string name="settings_playback_summary">Autoplay, gestures, captions and player buttons</string>
+    <string name="settings_quality_summary">Video, Shorts and music quality</string>
+    <string name="settings_content_summary">Home, subscriptions, Shorts and notes</string>
+    <string name="settings_topics_summary">Topics you follow and topics you hide</string>
+    <string name="settings_integrations_summary">SponsorBlock, DeArrow, dislikes and more</string>
+    <string name="settings_backup_summary">Export, import and automatic backups</string>
+    <string name="settings_history_summary">Search history and suggestions</string>
+    <string name="settings_downloads_summary">Download locations, defaults and media cache</string>
+    <string name="settings_network_summary">Proxy for remote traffic</string>
+    <string name="settings_wellbeing_summary">Watch time and break reminders</string>
+    <string name="settings_about_summary">Version, licence and links</string>
+    <string name="settings_theme_summary">Palette and light or dark style</string>
+    <string name="settings_navigation_bar_summary">Tabs, their order and the default tab</string>
+    <string name="settings_player_appearance_summary">Seek bar, backgrounds and mini player</string>
+    <string name="settings_custom_theme_summary">Every colour role of your own palette</string>
 </resources>

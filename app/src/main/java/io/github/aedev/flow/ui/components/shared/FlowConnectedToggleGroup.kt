@@ -46,6 +46,7 @@ fun <T> FlowConnectedToggleGroup(
     selected: T,
     onSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val haptics = LocalHapticFeedback.current
     Row(
@@ -55,6 +56,7 @@ fun <T> FlowConnectedToggleGroup(
         options.forEachIndexed { index, option ->
             ToggleButton(
                 checked = option.value == selected,
+                enabled = enabled,
                 onCheckedChange = {
                     haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                     onSelected(option.value)
