@@ -145,8 +145,15 @@ internal class SettingsKeyRecorder {
 
     fun reset() = keys.clear()
 
-    fun add(key: String) {
+    /**
+     * Records [key] and returns a lazy-list key that is unique on the page. A setting key may appear
+     * twice, as a group header and as that group's first row; search scrolls to the first, the
+     * highlight frames both, and the list must never see the same key twice.
+     */
+    fun add(key: String): String {
+        val occurrence = keys.count { it == key }
         keys += key
+        return if (occurrence == 0) key else "$key#$occurrence"
     }
 
     fun indexOf(key: String): Int = keys.indexOf(key)

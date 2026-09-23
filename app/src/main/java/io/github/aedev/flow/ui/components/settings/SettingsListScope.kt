@@ -37,8 +37,7 @@ class SettingsListScope internal constructor(
         key: String,
         content: @Composable () -> Unit,
     ) {
-        keys.add(key)
-        lazy.item(key = key) {
+        lazy.item(key = keys.add(key)) {
             SettingsColumnFrame(Modifier.padding(horizontal = SettingsHorizontalPadding)) {
                 SettingsHighlightFrame(key = key, shape = RectangleShape) { content() }
             }
@@ -50,8 +49,7 @@ class SettingsListScope internal constructor(
         key: String,
         @StringRes text: Int,
     ) {
-        keys.add(key)
-        lazy.item(key = key) {
+        lazy.item(key = keys.add(key)) {
             SettingsColumnFrame(Modifier.padding(horizontal = GroupHeaderInset)) {
                 SettingsHighlightFrame(key = key, shape = RectangleShape) {
                     FlowSectionHeader(
@@ -78,8 +76,7 @@ class SettingsListScope internal constructor(
         if (built.isEmpty()) return
         if (header != null) header(key = key, text = header)
         built.forEachIndexed { index, row ->
-            keys.add(row.key)
-            lazy.item(key = row.key) {
+            lazy.item(key = keys.add(row.key)) {
                 val shape = flowRowGroupShape(index = index, count = built.size)
                 SettingsColumnFrame(Modifier.padding(horizontal = SettingsHorizontalPadding)) {
                     SettingsHighlightFrame(key = row.key, shape = shape) { row.content(shape) }
