@@ -24,6 +24,7 @@ internal object SettingsIndex {
             DownloadsIndex.all +
             NotificationsIndex.all +
             NetworkIndex.all +
-            HistoryIndex.all
+            HistoryIndex.all +
+            WellbeingIndex.all
     }
 }

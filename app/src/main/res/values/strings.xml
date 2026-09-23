@@ -3084,4 +3084,8 @@
     <string name="settings_hide_password">Hide password</string>
     <string name="settings_proxy_unsaved">You have unsaved changes</string>
     <string name="settings_keywords_history">recent searches, privacy, forget, delete, autocomplete</string>
+    <string name="settings_keywords_wellbeing">screen time, digital wellbeing, sleep, bedtime, break, watch time, usage</string>
+    <string name="settings_sleep_window_summary">Sleep window: %1$s</string>
+    <string name="settings_notification_permission_needed">Allow notifications to get reminders</string>
+    <string name="settings_watch_time_week_total">%1$s this week</string>
 </resources>

@@ -21,6 +21,7 @@ import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.region.LanguageRegionScreen
 import io.github.aedev.flow.ui.screens.settings.topics.TopicPreferencesScreen
+import io.github.aedev.flow.ui.screens.settings.wellbeing.WellbeingScreen
 import io.github.aedev.flow.ui.screens.sync.SyncScreen
 
 /**
@@ -76,7 +77,7 @@ internal fun SettingsDetail(
 
         SettingsDestination.NETWORK -> NetworkSettingsScreen(onBack = onBack, highlight = target.highlight)
 
-        SettingsDestination.WELLBEING -> TimeManagementScreen(onNavigateBack = back)
+        SettingsDestination.WELLBEING -> WellbeingScreen(onBack = onBack, highlight = target.highlight)
 
         SettingsDestination.ABOUT -> AboutScreen(onNavigateBack = back, onNavigateToDonations = onOpenDonations)
 
