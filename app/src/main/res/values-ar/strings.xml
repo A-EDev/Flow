@@ -2977,4 +2977,42 @@
     <string name="categories_shelf_see_all">عرض الكل</string>
     <string name="categories_shelf_back">العودة إلى كل الأقسام</string>
     <string name="shorts_settings_this_short">هذا المقطع القصير</string>
+    <string name="start_radio">بدء الراديو</string>
+    <string name="start_radio_desc">تشغيل محطة استنادًا إلى هذه الأغنية</string>
+    <plurals name="playlists_count_template">
+        <item quantity="zero">لا توجد قوائم تشغيل</item>
+        <item quantity="one">قائمة تشغيل واحدة</item>
+        <item quantity="two">%1$d قائمتا تشغيل</item>
+        <item quantity="few">%1$d قوائم تشغيل</item>
+        <item quantity="many">%1$d قائمة تشغيل</item>
+        <item quantity="other">%1$d قائمة تشغيل</item>
+    </plurals>
+    <plurals name="shorts_count_template">
+        <item quantity="zero">لا توجد مقاطع قصيرة</item>
+        <item quantity="one">مقطع قصير واحد</item>
+        <item quantity="two">%1$d مقطعان قصيران</item>
+        <item quantity="few">%1$d مقاطع قصيرة</item>
+        <item quantity="many">%1$d مقطع قصير</item>
+        <item quantity="other">%1$d مقطع قصير</item>
+    </plurals>
+    <string name="nav_rail_expand">توسيع شريط التنقل</string>
+    <string name="nav_rail_collapse">طيّ شريط التنقل</string>
+    <string name="nav_rail_state_expanded">موسّع</string>
+    <string name="nav_rail_state_collapsed">مطوي</string>
+    <string name="content_settings_header_library">المكتبة</string>
+    <string name="content_settings_library_previews_title">معاينات المكتبة</string>
+    <string name="content_settings_library_previews_subtitle">إظهار صف قابل للتمرير من العناصر أسفل كل قسم في المكتبة. عطّل هذا الخيار لعرض الأقسام في قائمة مختصرة.</string>
+    <string name="diagnostics_reset_session">إعادة تعيين جلسة YouTube</string>
+    <string name="diagnostics_reset_session_confirm_title">هل تريد إعادة تعيين جلسة يوتيوب؟</string>
+    <string name="diagnostics_reset_session_confirm_body">سيحذف Flow هوية التصفح المستخدمة للتحقق من طلبات تشغيل الفيديو، وينشئ هوية جديدة. استخدم هذا الخيار إذا توقفت الفيديوهات بعد نحو دقيقة أو تعذّر تشغيلها.\n\nتحتاج الهوية الجديدة إلى بعض الوقت حتى تصبح موثوقة، لذلك قد يسوء التشغيل خلال الدقيقة أو الدقيقتين التاليتين قبل أن يستقر. لن يتأثر أي شيء حفظته.</string>
+    <string name="diagnostics_reset_session_done">تمت إعادة تعيين جلسة يوتيوب. أعد فتح الفيديو للمحاولة مرة أخرى.</string>
+    <string name="reset">إعادة تعيين</string>
+    <plurals name="library_items_count">
+        <item quantity="zero">لا توجد عناصر</item>
+        <item quantity="one">عنصر واحد</item>
+        <item quantity="two">عنصران</item>
+        <item quantity="few">%1$d عناصر</item>
+        <item quantity="many">%1$d عنصر</item>
+        <item quantity="other">%1$d عنصر</item>
+    </plurals>
 </resources>
