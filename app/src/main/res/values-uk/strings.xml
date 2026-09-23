@@ -2907,4 +2907,37 @@
     <string name="previous_frame">Попередній кадр</string>
     <string name="next_frame">Наступний кадр</string>
     <string name="subtitle_translation_unavailable">Переклад недоступний: показується %1$s</string>
+    <string name="start_radio">Запустити радіо</string>
+    <string name="start_radio_desc">Запустити станцію на основі цієї пісні</string>
+    <plurals name="playlists_count_template">
+        <item quantity="one">%1$d список відтворення</item>
+        <item quantity="few">%1$d списки відтворення</item>
+        <item quantity="many">%1$d списків відтворення</item>
+        <item quantity="other">%1$d списків відтворення</item>
+    </plurals>
+    <plurals name="shorts_count_template">
+        <item quantity="one">%1$d Short</item>
+        <item quantity="few">%1$d Shorts</item>
+        <item quantity="many">%1$d Shorts</item>
+        <item quantity="other">%1$d Shorts</item>
+    </plurals>
+    <plurals name="library_items_count">
+        <item quantity="one">%1$d елемент</item>
+        <item quantity="few">%1$d елементи</item>
+        <item quantity="many">%1$d елементів</item>
+        <item quantity="other">%1$d елементів</item>
+    </plurals>
+    <string name="nav_rail_expand">Розгорнути навігацію</string>
+    <string name="nav_rail_collapse">Згорнути навігацію</string>
+    <string name="nav_rail_state_expanded">Розгорнуто</string>
+    <string name="nav_rail_state_collapsed">Згорнуто</string>
+    <string name="shorts_settings_this_short">Цей Short</string>
+    <string name="content_settings_header_library">Біюліотека</string>
+    <string name="content_settings_library_previews_title">Перегляд бібліотеки</string>
+    <string name="content_settings_library_previews_subtitle">Показувати рядок елементів із можливістю гортання під кожним розділом бібліотеки. Вимкніть, щоб отримати компактний список розділів.</string>
+    <string name="diagnostics_reset_session">Скинути сеанс YouTube</string>
+    <string name="diagnostics_reset_session_confirm_title">Скинути сеанс YouTube?</string>
+    <string name="diagnostics_reset_session_confirm_body">Flow видалить ідентифікатор перегляду, який використовується для перевірки запитів на відтворення, і створить новий. Скористайтеся цим, якщо відео зупиняються приблизно через хвилину або взагалі не відтворюються.\n\nНовий ідентифікатор спочатку не має довіри, тому протягом наступних однієї-двох хвилин ситуація може погіршитися, перш ніж усе стабілізується. Це не вплине на ваші збережені дані.</string>
+    <string name="diagnostics_reset_session_done">Сеанс YouTube скинуто. Відкрийте відео знову, щоб повторити спробу.</string>
+    <string name="reset">Скинути</string>
 </resources>
