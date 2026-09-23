@@ -494,6 +494,16 @@ class MusicBrainEngine
             }
         }
 
+        /** Artwork per artist from the tracks the engine remembers, for recap portraits with no network. */
+        internal suspend fun artistArtwork(): Map<String, String> {
+            ensureInitialized()
+            return mutex.withLock {
+                brain.trackMeta.values
+                    .filter { it.artistKey.isNotEmpty() && it.thumbnail.isNotBlank() }
+                    .associate { it.artistKey to it.thumbnail }
+            }
+        }
+
         /** Counted plays in one month, without copying the ledger. */
         suspend fun monthPlays(monthKey: String): Int {
             ensureInitialized()

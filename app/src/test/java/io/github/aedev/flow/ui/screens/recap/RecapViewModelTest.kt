@@ -2,9 +2,9 @@ package io.github.aedev.flow.ui.screens.recap
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.SearchHistoryRepository
-import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.MusicStatsStorage
+import io.github.aedev.flow.data.stats.RecapImageResolver
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.VideoMonthRecord
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
@@ -35,7 +35,7 @@ class RecapViewModelTest {
     private val videoStats: VideoStatsRecorder = mockk()
     private val musicBrain: MusicBrainEngine = mockk()
     private val searchHistory: SearchHistoryRepository = mockk()
-    private val subscriptions: SubscriptionRepository = mockk()
+    private val images: RecapImageResolver = mockk()
 
     @Before
     fun setUp() {
@@ -47,13 +47,14 @@ class RecapViewModelTest {
         }
         coEvery { musicBrain.listeningStats() } returns MusicStatsStorage.SerializableStats()
         every { searchHistory.isAutoDeleteHistoryEnabledFlow() } returns flowOf(false)
-        every { subscriptions.getAllSubscriptions() } returns flowOf(emptyList())
+        coEvery { images.localImages() } returns emptyMap()
+        coEvery { images.fetchMissing(any()) } returns emptyMap()
     }
 
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel() = RecapViewModel(videoStats, musicBrain, mockk(relaxed = true), searchHistory, subscriptions)
+    private fun viewModel() = RecapViewModel(videoStats, musicBrain, mockk(relaxed = true), searchHistory, images)
 
     @Test
     fun `a period asked for while the ledgers load wins over the newest month`() =

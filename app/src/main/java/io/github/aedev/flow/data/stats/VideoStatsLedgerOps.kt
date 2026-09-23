@@ -15,6 +15,8 @@ data class ViewEvent(
     /** Abandoned early after a real look; named in the recap's "passed on" section. */
     val skipped: Boolean,
     val channelAvatarUrl: String = "",
+    /** More time from a session already sent once; it adds time, not another session. */
+    val continued: Boolean = false,
 )
 
 /** Pure mutations of the video ledger, called under the recorder's lock. No I/O, no Android. */
@@ -32,7 +34,7 @@ object VideoStatsLedgerOps {
         val watched = event.watchedMs.coerceAtLeast(0L)
         val channel = event.channelId.takeIf { it.isNotBlank() }
 
-        month.sessions += 1
+        if (!event.continued) month.sessions += 1
         month.watchedMs += watched
         month.formatMs.add(event.format, watched)
         if (watched > 0L) month.dayMs.add(moment.dayOfMonth, watched)

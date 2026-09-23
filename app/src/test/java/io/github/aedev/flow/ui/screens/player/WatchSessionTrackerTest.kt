@@ -171,6 +171,27 @@ class WatchSessionTrackerTest {
         }
 
     @Test
+    fun `a checkpoint sends the view once and the rest of the time at the end`() =
+        runTest(testDispatcher) {
+            val tracker = tracker()
+            val events = mutableListOf<io.github.aedev.flow.data.stats.ViewEvent>()
+            every { videoStats.onView(capture(events), any()) } just Runs
+
+            tracker.report("v1", positionMs = 0L)
+            clockMs += 10_000L
+            tracker.report("v1", positionMs = 30_000L)
+            tracker.checkpoint()
+            clockMs += 10_000L
+            tracker.report("v1", positionMs = 40_000L)
+            tracker.finalizeActiveSession()
+            advanceUntilIdle()
+
+            assertThat(events.map { it.counted }).containsExactly(true, false).inOrder()
+            assertThat(events.sumOf { it.watchedMs }).isEqualTo(20_000L)
+            assertThat(events.last().continued).isTrue()
+        }
+
+    @Test
     fun `a live session reaches the recap but never the engine`() =
         runTest(testDispatcher) {
             val tracker = tracker()

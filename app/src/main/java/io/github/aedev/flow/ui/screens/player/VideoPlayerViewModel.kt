@@ -583,6 +583,9 @@ class VideoPlayerViewModel
             isLocal = isLocalMediaId(videoId),
         )
 
+        /** The app is going to the background: the recap gets the open session's progress so far. */
+        fun checkpointWatchSession() = watchSessions.checkpoint()
+
         /** Live streams keep no history row; their watching time goes to the recap only. */
         fun trackLivePlayback(
             video: Video,

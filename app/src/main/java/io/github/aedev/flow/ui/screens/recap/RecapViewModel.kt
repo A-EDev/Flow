@@ -5,17 +5,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.SearchHistoryRepository
-import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.ChannelVideoCount
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.MusicStatsStorage
-import io.github.aedev.flow.data.stats.RankedItem
 import io.github.aedev.flow.data.stats.RecapAggregates
+import io.github.aedev.flow.data.stats.RecapImageResolver
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.RecapSummary
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.data.stats.VideoStatsSnapshot
+import io.github.aedev.flow.data.stats.withImages
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,7 +58,7 @@ class RecapViewModel
         private val musicBrain: MusicBrainEngine,
         private val watchHistoryDao: WatchHistoryDao,
         private val searchHistory: SearchHistoryRepository,
-        private val subscriptions: SubscriptionRepository,
+        private val images: RecapImageResolver,
     ) : ViewModel() {
         private val _state = MutableStateFlow(RecapUiState())
         val state: StateFlow<RecapUiState> = _state.asStateFlow()
@@ -66,7 +66,7 @@ class RecapViewModel
         private var video = VideoStatsSnapshot()
         private var music = MusicStatsStorage.SerializableStats()
         private var queriesSince: YearMonth? = null
-        private var subscribedAvatars: Map<String, String> = emptyMap()
+        private var portraits: Map<String, String> = emptyMap()
         private var historyLoaded = false
         private var loaded = false
 
@@ -80,11 +80,7 @@ class RecapViewModel
                     video = runCatching { videoStats.snapshot() }.getOrDefault(VideoStatsSnapshot())
                     music = runCatching { musicBrain.listeningStats() }.getOrDefault(MusicStatsStorage.SerializableStats())
                     queriesSince = searchQueryCutoff()
-                    subscribedAvatars =
-                        runCatching { subscriptions.getAllSubscriptions().first() }
-                            .getOrDefault(emptyList())
-                            .associate { it.channelId to it.channelThumbnail }
-                            .filterValues { it.isNotBlank() }
+                    portraits = runCatching { images.localImages() }.getOrDefault(emptyMap())
                 }
                 val months = RecapAggregates.availableMonths(video, music)
                 val newest = months.firstOrNull()?.let { RecapPeriod.Month(it) } ?: RecapPeriod.Month(YearMonth.now())
@@ -119,10 +115,11 @@ class RecapViewModel
                         withContext(Dispatchers.Default) {
                             RecapAggregates
                                 .summarize(period, video.forSource(source), music.forSource(source), queriesSince)
-                                .withChannelAvatars(subscribedAvatars)
+                                .withImages(portraits)
                         }
                     val history = if (period == RecapPeriod.AllTime && source != RecapSource.MUSIC) channelHistory() else emptyList()
                     _state.update { it.copy(loading = false, period = period, source = source, summary = summary, history = history) }
+                    fillMissingPortraits(summary)
                 }
         }
 
@@ -134,19 +131,12 @@ class RecapViewModel
             }
         }
 
-        /** Channels viewed before avatars were recorded borrow the avatar their subscription keeps. */
-        private fun RecapSummary.withChannelAvatars(avatars: Map<String, String>): RecapSummary {
-            if (avatars.isEmpty()) return this
-
-            fun List<RankedItem>.filled() = map { if (it.imageUrl.isBlank()) it.copy(imageUrl = avatars[it.id].orEmpty()) else it }
-            return copy(
-                video =
-                    video.copy(
-                        topChannels = video.topChannels.filled(),
-                        discoveredChannels = video.discoveredChannels.filled(),
-                        skippedChannels = video.skippedChannels.filled(),
-                    ),
-            )
+        /** Fetches the portraits the shown summary still lacks, then shows them where it still applies. */
+        private suspend fun fillMissingPortraits(summary: RecapSummary) {
+            val found = runCatching { images.fetchMissing(summary) }.getOrDefault(emptyMap())
+            if (found.isEmpty()) return
+            portraits = portraits + found
+            _state.update { state -> state.summary?.let { state.copy(summary = it.withImages(found)) } ?: state }
         }
 
         private fun VideoStatsSnapshot.forSource(source: RecapSource) = if (source == RecapSource.MUSIC) VideoStatsSnapshot() else this

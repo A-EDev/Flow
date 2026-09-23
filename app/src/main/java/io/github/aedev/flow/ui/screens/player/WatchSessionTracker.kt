@@ -51,24 +51,29 @@ internal fun viewEventFor(
     format: ViewFormat,
     watchedMs: Long,
     signal: WatchSignal?,
+    unsentMs: Long = watchedMs,
+    viewAlreadySent: Boolean = false,
+    final: Boolean = true,
 ): ViewEvent? {
-    val counted =
+    val countsAsView =
         when (format) {
             ViewFormat.LIVE -> watchedMs >= LIVE_VIEW_MS
             else -> signal?.type == InteractionType.WATCHED
         }
-    val skipped = format != ViewFormat.LIVE && signal?.type == InteractionType.SKIPPED
-    if (!counted && !skipped && watchedMs <= 0L) return null
+    val counted = countsAsView && !viewAlreadySent
+    val skipped = final && !viewAlreadySent && format != ViewFormat.LIVE && signal?.type == InteractionType.SKIPPED
+    if (!counted && !skipped && unsentMs <= 0L) return null
     return ViewEvent(
         videoId = video.id,
         title = video.title,
         channelId = video.channelId,
         channelName = video.channelName,
         format = format,
-        watchedMs = watchedMs,
+        watchedMs = unsentMs.coerceAtLeast(0L),
         counted = counted,
         skipped = skipped,
         channelAvatarUrl = video.channelThumbnailUrl,
+        continued = unsentMs != watchedMs || viewAlreadySent,
     )
 }
 
@@ -126,6 +131,8 @@ internal class WatchSessionTracker(
         var lastPositionMs: Long,
         var lastWallMs: Long = elapsedRealtime(),
         var watchedMs: Long = 0L,
+        var sentMs: Long = 0L,
+        var viewSent: Boolean = false,
     ) {
         fun advance(positionMs: Long) {
             val wall = elapsedRealtime()
@@ -229,6 +236,14 @@ internal class WatchSessionTracker(
         session = Session(video, maxPositionMs = positionMs, durationMs = 0L, format = ViewFormat.LIVE, lastPositionMs = positionMs)
     }
 
+    /**
+     * Writes what the open session has earned so far to the recap, without ending it: the app is
+     * going to the background and may not come back before the process is gone.
+     */
+    fun checkpoint() {
+        session?.let { recordView(it, final = false) }
+    }
+
     /** Grades whatever session is open — the screen is going away and nothing else will. */
     fun finalizeActiveSession() {
         session?.let(::finalize)
@@ -278,7 +293,7 @@ internal class WatchSessionTracker(
         // Prefer the rich (tags/description) video the screen still holds over the session stub.
         val video = richVideoFor(session.video.id) ?: session.video
         val signal = watchSignalFor(session.maxPositionMs, session.durationMs)
-        viewEventFor(video, session.format, session.watchedMs, signal)?.let { videoStats.onView(it, video) }
+        recordView(session, final = true)
 
         // Shorts played here teach the engine through the Shorts classifier's rules, not these.
         if (session.format != ViewFormat.LONG || signal == null || video.id == lastReportedVideoId) return
@@ -292,6 +307,28 @@ internal class WatchSessionTracker(
             signal.type,
             percentWatched = signal.fractionWatched,
         )
+    }
+
+    /** Sends the recap the time not yet sent, and the view itself once, the first time it counts. */
+    private fun recordView(
+        session: Session,
+        final: Boolean,
+    ) {
+        val video = richVideoFor(session.video.id) ?: session.video
+        val signal = watchSignalFor(session.maxPositionMs, session.durationMs)
+        val event =
+            viewEventFor(
+                video = video,
+                format = session.format,
+                watchedMs = session.watchedMs,
+                signal = signal,
+                unsentMs = session.watchedMs - session.sentMs,
+                viewAlreadySent = session.viewSent,
+                final = final,
+            ) ?: return
+        videoStats.onView(event, video)
+        session.sentMs = session.watchedMs
+        if (event.counted) session.viewSent = true
     }
 
     private fun maybePrewarmRelated(

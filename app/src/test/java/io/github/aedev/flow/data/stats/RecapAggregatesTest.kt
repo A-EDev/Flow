@@ -247,4 +247,37 @@ class RecapAggregatesTest {
                 .imageUrl,
         ).isEqualTo("https://art/t1")
     }
+
+    @Test
+    fun `a month that straddles per-day minutes keeps its older days`() {
+        val month =
+            MusicStatsStorage.SerializableMonth(
+                plays = 6,
+                listenedMs = 460_000L,
+                dayPlays = mapOf(1 to 3, 2 to 1, 23 to 2),
+                dayMs =
+                    mapOf(23 to 60_000L),
+            )
+        val summary = RecapAggregates.summarize(RecapPeriod.Month(september), video(), music(september to month))
+
+        assertThat(summary.music.activity.activeDays).isEqualTo(3)
+        assertThat(summary.music.activity.dayMs[LocalDate.of(2026, 9, 1)]).isEqualTo(300_000L)
+        assertThat(summary.music.activity.dayMs[LocalDate.of(2026, 9, 2)]).isEqualTo(100_000L)
+        assertThat(summary.music.activity.dayMs[LocalDate.of(2026, 9, 23)]).isEqualTo(60_000L)
+    }
+
+    @Test
+    fun `a view count is never listed as an artist`() {
+        val month =
+            MusicStatsStorage.SerializableMonth(
+                plays = 3,
+                artistPlays = mapOf("34m views" to 2, "a1" to 1),
+                artistNames = mapOf("34m views" to "34M views", "a1" to "Real Artist"),
+                discoveredArtists = listOf("34m views", "a1"),
+            )
+        val summary = RecapAggregates.summarize(RecapPeriod.Month(september), video(), music(september to month))
+
+        assertThat(summary.music.topArtists.map { it.name }).containsExactly("Real Artist")
+        assertThat(summary.music.discoveredArtists.map { it.name }).containsExactly("Real Artist")
+    }
 }

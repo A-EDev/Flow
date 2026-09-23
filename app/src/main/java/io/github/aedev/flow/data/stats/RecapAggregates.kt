@@ -23,6 +23,8 @@ internal object RecapAggregates {
     private const val TIME_SAVER_MS = 10 * 60 * 1000L
     private val NightHours = setOf(22, 23, 0, 1, 2, 3)
     private val MorningHours = 5..8
+    private val ViewCountName = Regex("""^[\d.,]+\s?[KMBkmb]?\s+views?$""", RegexOption.IGNORE_CASE)
+    private const val TRACK_ART_SIZE = 544
 
     /** Every month either ledger holds, newest first. */
     fun availableMonths(
@@ -88,7 +90,7 @@ internal object RecapAggregates {
             }
         }
         video.months.forEach { (key, month) -> add(key, month.dayMs) }
-        music.months.forEach { (key, month) -> add(key, month.dayMs.ifEmpty { estimatedDayMs(month) }) }
+        music.months.forEach { (key, month) -> add(key, musicDayMs(month)) }
         return days
     }
 
@@ -101,6 +103,9 @@ internal object RecapAggregates {
                     .minOrNull()
                     ?.let { parsed.dateOrNull(it) }
             }.minOrNull()
+
+    /** Some music results arrive with their view count where the artist belongs ("34M views"). */
+    private fun String.looksLikeViewCount(): Boolean = ViewCountName.matches(trim())
 
     private fun <M> Map<String, M>.inPeriod(period: RecapPeriod): List<Pair<YearMonth, M>> =
         mapNotNull { (key, month) -> LedgerTime.parseMonth(key)?.takeIf(period::contains)?.let { it to month } }
@@ -203,7 +208,12 @@ internal object RecapAggregates {
         fun trackItem(
             id: String,
             count: Int,
-        ) = RankedItem(id, trackTitles[id].orEmpty().ifBlank { id }, count, imageUrl = trackArt[id].orEmpty())
+        ) = RankedItem(
+            id = id,
+            name = trackTitles[id].orEmpty().ifBlank { id },
+            count = count,
+            imageUrl = ThumbnailUrlResolver.resolveMusicThumbnail(id, trackArt[id], TRACK_ART_SIZE),
+        )
 
         fun datedArtists(pick: (MusicStatsStorage.SerializableMonth) -> Map<String, Long>) =
             months
@@ -212,7 +222,7 @@ internal object RecapAggregates {
                 .distinctBy { it.key }
                 .map { artistItem(it.key, 1) }
 
-        val artistPlays = months.sumCounts { it.artistPlays }
+        val artistPlays = months.sumCounts { it.artistPlays }.filterKeys { !artist(it).looksLikeViewCount() }
         return MusicRecap(
             plays = months.sumOf { it.second.plays },
             sessions = months.sumOf { it.second.sessions },
@@ -220,7 +230,7 @@ internal object RecapAggregates {
                 activity(
                     months = months,
                     totalMs = months.sumOf { it.second.listenedMs },
-                    dayMs = { month -> month.dayMs.ifEmpty { estimatedDayMs(month) } },
+                    dayMs = ::musicDayMs,
                     dayCounts = { it.dayPlays },
                     hourCounts = { it.hourPlays },
                 ),
@@ -230,6 +240,7 @@ internal object RecapAggregates {
             discoveredArtists =
                 months
                     .flatMap { it.second.discoveredArtists }
+                    .filterNot { artist(it).looksLikeViewCount() }
                     .toSet()
                     .associateWith { artistPlays[it] ?: 0 }
                     .ranked(TOP_COUNT * 3, ::artistItem),
@@ -240,11 +251,17 @@ internal object RecapAggregates {
         )
     }
 
-    /** Months recorded before minutes were kept per day spread their time over their counted days. */
-    private fun estimatedDayMs(month: MusicStatsStorage.SerializableMonth): Map<Int, Long> {
-        val plays = month.dayPlays.values.sum()
-        if (plays == 0) return emptyMap()
-        return month.dayPlays.mapValues { (_, count) -> month.listenedMs * count / plays }
+    /**
+     * Listening time per day. Days recorded before minutes were kept per day only have play counts,
+     * so the month's time not yet placed on a day is spread over those days by their plays; a month
+     * that straddles the change keeps both kinds of day.
+     */
+    internal fun musicDayMs(month: MusicStatsStorage.SerializableMonth): Map<Int, Long> {
+        val legacyDays = month.dayPlays.filterKeys { it !in month.dayMs }
+        val legacyPlays = legacyDays.values.sum()
+        val unplaced = (month.listenedMs - month.dayMs.values.sum()).coerceAtLeast(0L)
+        if (legacyPlays == 0 || unplaced == 0L) return month.dayMs
+        return month.dayMs + legacyDays.mapValues { (_, count) -> unplaced * count / legacyPlays }
     }
 
     private fun <M> activity(
