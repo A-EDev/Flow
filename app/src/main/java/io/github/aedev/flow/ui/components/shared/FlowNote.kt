@@ -12,7 +12,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.StickyNote2
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -121,7 +120,7 @@ fun FlowNoteEditorDialog(
 ) {
     var value by remember(initialText) { mutableStateOf(TextFieldValue(initialText, TextRange(initialText.length))) }
 
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +35,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.theme.SponsorBlockSegmentPresets
 import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 
@@ -56,7 +56,7 @@ internal fun IntegrationsDialogs(
     when (dialog) {
         IntegrationsDialog.USER_ID -> {
             var input by rememberSaveable { mutableStateOf(userId.orEmpty()) }
-            AlertDialog(
+            FlowAlertDialog(
                 onDismissRequest = onDismiss,
                 title = { Text(stringResource(R.string.sb_user_id_dialog_title)) },
                 text = {
@@ -81,7 +81,7 @@ internal fun IntegrationsDialogs(
         }
 
         IntegrationsDialog.DISCORD_RISK -> {
-            AlertDialog(
+            FlowAlertDialog(
                 onDismissRequest = onDismiss,
                 title = { Text(stringResource(R.string.discord_presence_risk_dialog_title)) },
                 text = { Text(stringResource(R.string.discord_presence_risk_dialog_body)) },
@@ -110,7 +110,7 @@ internal fun SegmentColourDialog(
     onDismiss: () -> Unit,
 ) {
     val label = sponsorCategoryLabelRes(category)?.let { stringResource(it) } ?: category
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.sb_color_picker_title)) },
         text = {

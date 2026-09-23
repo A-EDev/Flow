@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
 
 @Composable
@@ -170,7 +170,7 @@ internal fun PlaylistQueueItem(
     }
 
     if (showRemoveDialog) {
-        AlertDialog(
+        FlowAlertDialog(
             onDismissRequest = { showRemoveDialog = false },
             title = {
                 Text(text = stringResource(R.string.remove_from_queue))

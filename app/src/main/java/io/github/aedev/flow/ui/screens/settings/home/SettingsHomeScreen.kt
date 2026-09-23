@@ -6,7 +6,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +32,7 @@ import io.github.aedev.flow.ui.components.settings.SettingEntry
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowChoice
 import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
@@ -199,7 +199,7 @@ private fun ResetPersonaDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
         title = { Text(stringResource(R.string.settings_reset_brain_title)) },

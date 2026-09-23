@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,6 +43,7 @@ import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.MusicDownloadsList
 import io.github.aedev.flow.ui.components.library.VideosDownloadsList
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.MediaKindSelector
 
@@ -176,7 +176,7 @@ fun DownloadsScreen(
     }
 
     pendingDeletion?.let { deletion ->
-        AlertDialog(
+        FlowAlertDialog(
             onDismissRequest = { pendingDeletion = null },
             title = { Text(stringResource(R.string.delete_download_dialog_title)) },
             text = { Text(stringResource(R.string.delete_download_dialog_text, deletion.title)) },
@@ -206,7 +206,7 @@ fun DownloadsScreen(
     }
 
     if (showRemoveIncompleteDialog) {
-        AlertDialog(
+        FlowAlertDialog(
             onDismissRequest = { showRemoveIncompleteDialog = false },
             title = { Text(stringResource(R.string.remove_incomplete_downloads)) },
             text = {

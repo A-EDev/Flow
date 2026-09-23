@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -31,6 +30,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.switch
 import io.github.aedev.flow.ui.components.settings.toggleGroup
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.screens.settings.appearance.themeVariantLabel
 import io.github.aedev.flow.ui.screens.settings.index.ThemeIndex
@@ -156,7 +156,7 @@ private fun ThemePaletteDialog(
     onDismiss: () -> Unit,
 ) {
     val swatches by viewModel.swatches.collectAsStateWithLifecycle()
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {

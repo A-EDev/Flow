@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -26,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.dlna.DlnaDevice
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 
 /** DLNA / UPnP device-picker dialog shown when the cast button is pressed. */
 @Composable
@@ -38,7 +38,7 @@ internal fun DlnaDevicePickerDialog(
     onStopCasting: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {

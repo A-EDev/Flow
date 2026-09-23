@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.WatchLater
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +54,7 @@ import io.github.aedev.flow.ui.components.library.PlaylistVideoRow
 import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
 import io.github.aedev.flow.ui.components.shared.CollectionTarget
 import io.github.aedev.flow.ui.components.shared.DeleteCollectionDialog
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.MergeIntoCollectionSheet
@@ -365,7 +365,7 @@ fun PlaylistDetailScreen(
     }
 
     if (showDownloadAllDialog) {
-        AlertDialog(
+        FlowAlertDialog(
             onDismissRequest = { showDownloadAllDialog = false },
             icon = { Icon(Icons.Default.Download, contentDescription = null) },
             title = { Text(stringResource(R.string.download_all)) },
@@ -397,7 +397,7 @@ fun PlaylistDetailScreen(
     }
 
     if (showRemoveSelectedDialog) {
-        AlertDialog(
+        FlowAlertDialog(
             onDismissRequest = { showRemoveSelectedDialog = false },
             icon = {
                 Icon(

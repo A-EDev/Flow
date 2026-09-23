@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -31,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import kotlin.math.roundToInt
 
 private val PreviewHeight = 56.dp
@@ -64,7 +64,7 @@ internal fun ColorPickerDialog(
         hexInput = value.toHexArgb()
     }
 
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {

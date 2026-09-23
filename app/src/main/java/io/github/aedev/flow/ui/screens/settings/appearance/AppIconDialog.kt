@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 
 private const val ICON_COLUMNS = 3
 private val IconGridMaxHeight = 320.dp
@@ -55,7 +55,7 @@ internal fun AppIconDialog(
 ) {
     var staged by rememberSaveable(selected) { mutableStateOf(selected) }
 
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings_item_app_icon)) },
         text = {

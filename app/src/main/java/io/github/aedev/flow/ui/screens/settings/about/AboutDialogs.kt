@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.utils.copyPlainText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,7 +48,7 @@ private fun AssetTextDialog(
                 runCatching { read(context) }.onFailure { Log.w(TAG, "Asset could not be read", it) }.getOrNull()
             } ?: failed
     }
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
@@ -123,7 +123,7 @@ internal fun DeviceInfoDialog(onDismiss: () -> Unit) {
                 ),
             ).joinToString("\n")
         }
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { SelectionContainer { Text(text = info, style = MaterialTheme.typography.bodyMedium) } },

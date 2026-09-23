@@ -38,7 +38,6 @@ import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.TrackChanges
 import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -69,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.recommendation.UserBrain
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 
 @Composable
 internal fun PersonalityOverviewSection(
@@ -836,7 +836,7 @@ internal fun ResetProfileDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(

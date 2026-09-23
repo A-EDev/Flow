@@ -7,7 +7,6 @@ import androidx.compose.material.icons.outlined.AutoDelete
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,6 +24,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.choice
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.switch
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowChoice
 import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
 import io.github.aedev.flow.ui.screens.settings.index.HistoryIndex
@@ -129,7 +129,7 @@ internal fun HistorySettingsScreen(
         }
 
         HistoryDialog.CLEAR -> {
-            AlertDialog(
+            FlowAlertDialog(
                 onDismissRequest = { dialog = null },
                 title = { Text(stringResource(R.string.clear_history_dialog_title)) },
                 text = { Text(stringResource(R.string.clear_history_dialog_text)) },

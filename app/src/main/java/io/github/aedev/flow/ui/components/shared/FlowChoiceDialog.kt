@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -77,7 +76,7 @@ fun <T> FlowChoiceDialog(
         if (index > 0) listState.scrollToItem(index)
     }
 
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         modifier = modifier,
         icon = icon?.let { { Icon(imageVector = it, contentDescription = null) } },

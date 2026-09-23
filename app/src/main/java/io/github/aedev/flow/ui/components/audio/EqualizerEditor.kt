@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -49,6 +48,7 @@ import io.github.aedev.flow.data.model.FilterType
 import io.github.aedev.flow.data.model.ParametricEQ
 import io.github.aedev.flow.data.model.ParametricEQBand
 import io.github.aedev.flow.player.audio.AudioEffectsController
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowSwitch
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -190,7 +190,7 @@ private fun SavePresetDialog(
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.action_save_preset)) },
         text = {
