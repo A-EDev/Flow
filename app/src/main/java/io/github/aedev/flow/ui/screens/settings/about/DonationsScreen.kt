@@ -133,6 +133,7 @@ private fun WalletRow(
     onCopy: () -> Unit,
 ) {
     SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
         onClick = onCopy,
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),

@@ -153,6 +153,7 @@ private fun ColorRoleRow(
     onClick: () -> Unit,
 ) {
     SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
         onClick = onClick,
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),

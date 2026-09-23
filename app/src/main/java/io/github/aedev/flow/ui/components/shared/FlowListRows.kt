@@ -70,6 +70,7 @@ fun FlowSelectionRow(
     shape: Shape = RectangleShape,
 ) {
     SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
         selected = selected,
         onClick = onClick,
         shapes = ListItemDefaults.shapes(shape = shape),
@@ -134,6 +135,7 @@ fun FlowNavRow(
         }
 
     SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
         selected = selected,
         onClick = onClick,
         shapes = ListItemDefaults.shapes(shape = shape),
@@ -168,6 +170,7 @@ fun FlowSwitchRow(
     shape: Shape = RectangleShape,
 ) {
     SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
         onClick = { onCheckedChange(!checked) },
         shapes = ListItemDefaults.shapes(shape = shape),
         modifier =

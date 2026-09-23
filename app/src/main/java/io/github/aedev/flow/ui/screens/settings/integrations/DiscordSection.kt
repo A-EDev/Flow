@@ -14,6 +14,7 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
@@ -93,6 +94,7 @@ private fun DiscordAccountRow(
         state.connectionState == DiscordConnectionState.LINKING ||
             state.connectionState == DiscordConnectionState.CONNECTING
     SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         leadingContent = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
