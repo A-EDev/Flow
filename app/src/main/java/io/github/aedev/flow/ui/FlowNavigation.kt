@@ -42,7 +42,6 @@ import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationScreen
 import io.github.aedev.flow.ui.screens.onboarding.OnboardingScreen
-import io.github.aedev.flow.ui.screens.personality.FlowPersonalityScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
@@ -298,7 +297,6 @@ fun NavGraphBuilder.flowAppGraph(
         SettingsHost(
             start = SettingsTarget.decode(backStackEntry.arguments?.getString("target")),
             onExit = { navController.popBackStack() },
-            onOpenPersona = { navController.navigate("personality") },
             onOpenDonations = { navController.navigate("donations") },
         )
     }
@@ -306,13 +304,6 @@ fun NavGraphBuilder.flowAppGraph(
     composable("donations") {
         currentRoute.value = "donations"
         io.github.aedev.flow.ui.screens.settings.about.DonationsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("personality") {
-        currentRoute.value = "personality"
-        FlowPersonalityScreen(
             onNavigateBack = { navController.popBackStack() },
         )
     }

@@ -67,6 +67,8 @@ internal fun DiagnosticsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val session by viewModel.session.collectAsStateWithLifecycle()
     val crashes by viewModel.crashes.collectAsStateWithLifecycle()
+    val engine by viewModel.engine.collectAsStateWithLifecycle()
+    val noQueries = stringResource(R.string.diagnostics_engine_queries_none)
     var tab by rememberSaveable { mutableStateOf(DiagnosticsTab.SESSION) }
     var dialog by rememberSaveable { mutableStateOf<DiagnosticsDialog?>(null) }
 
@@ -117,6 +119,7 @@ internal fun DiagnosticsScreen(
                 onClick = { dialog = DiagnosticsDialog.RESET_SESSION },
             )
         }
+        engine?.let { details -> engineDetails(details, noQueries) }
         item("diagnostics.tabs") {
             FlowConnectedToggleGroup(options = tabs, selected = tab, onSelected = { tab = it })
         }
@@ -229,4 +232,20 @@ private fun DiagnosticsConfirmDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+private fun SettingsListScope.engineDetails(
+    details: EngineDetails,
+    noQueries: String,
+) {
+    group(key = "diagnostics.engine", header = R.string.diagnostics_engine_header) {
+        info(DiagnosticsIndex.engineInteractions, details.interactions.toString())
+        info(DiagnosticsIndex.engineTopics, details.topics.toString())
+        info(DiagnosticsIndex.engineChannels, details.channels.toString())
+        info(DiagnosticsIndex.engineHistory, details.history.toString())
+        info(DiagnosticsIndex.engineFeedMemory, details.feedMemory.toString())
+        info(DiagnosticsIndex.engineSuppressed, details.suppressed.toString())
+        info(DiagnosticsIndex.engineShortsSeen, details.shortsSeen.toString())
+        info(DiagnosticsIndex.engineQueries, details.recentQueries.joinToString("\n").ifEmpty { noQueries })
+    }
 }

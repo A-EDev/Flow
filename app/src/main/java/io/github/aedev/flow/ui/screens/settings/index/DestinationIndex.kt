@@ -32,6 +32,8 @@ internal object DestinationIndex {
     private fun summaryOf(destination: SettingsDestination): Int? =
         when (destination) {
             SettingsDestination.HOME -> null
+            SettingsDestination.TASTE -> R.string.taste_summary
+            SettingsDestination.HIDDEN_CONTENT -> R.string.taste_hidden_summary
             SettingsDestination.APPEARANCE -> R.string.settings_appearance_summary
             SettingsDestination.THEME -> R.string.settings_theme_summary
             SettingsDestination.CUSTOM_THEME -> R.string.settings_custom_theme_summary

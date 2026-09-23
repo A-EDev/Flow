@@ -6,6 +6,7 @@ import io.github.aedev.flow.ui.components.settings.SettingEntry
 internal object SettingsIndex {
     val all: List<SettingEntry> by lazy {
         HomeIndex.all +
+            TasteIndex.all +
             DestinationIndex.all +
             AppearanceIndex.all +
             ThemeIndex.all +

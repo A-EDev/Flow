@@ -72,10 +72,11 @@ class SettingsHomeViewModel
         val updateCheck: StateFlow<UpdateCheckState> = _updateCheck.asStateFlow()
 
         init {
-            loadPersona()
+            refreshPersona()
         }
 
-        private fun loadPersona() {
+        /** Re-reads the persona; the engine exposes no stream, so the list refreshes it when shown. */
+        fun refreshPersona() {
             viewModelScope.launch {
                 _persona.value = runCatching { FlowNeuroEngine.getPersona(FlowNeuroEngine.getBrainSnapshot()) }.getOrNull()
             }
@@ -91,13 +92,6 @@ class SettingsHomeViewModel
 
         fun setDeepFlowSaveToHistory(enabled: Boolean) {
             viewModelScope.launch { playerPreferences.setDeepFlowSaveToHistory(enabled) }
-        }
-
-        fun resetBrain() {
-            viewModelScope.launch {
-                FlowNeuroEngine.resetBrain(context)
-                loadPersona()
-            }
         }
 
         fun checkForUpdates() {

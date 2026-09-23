@@ -3224,4 +3224,53 @@
     </plurals>
     <string name="settings_custom_theme_in_use">In use</string>
     <string name="settings_custom_theme_export_failed">The theme could not be saved</string>
+
+    <!-- Your taste -->
+    <string name="taste_title">Your taste</string>
+    <string name="taste_summary">How Flow sees you, and what shapes your feed</string>
+    <string name="taste_keywords">persona, profile, algorithm, recommendations, interests, brain, engine, control center</string>
+    <string name="taste_card_hint">See how Flow sees you</string>
+    <string name="taste_card_loading">Reading your profile</string>
+    <string name="taste_shape_header">Taste shape</string>
+    <string name="taste_shape_description">Your profile against what you watch at this time of day</string>
+    <string name="taste_interests_header">Interests</string>
+    <string name="taste_interests_footer">Boost a topic to see more of it, or block it to see none of it.</string>
+    <string name="taste_interests_empty">Watch a few videos and your interests show up here</string>
+    <string name="taste_topic_boosted">Boosted</string>
+    <string name="taste_topic_boost">Show more like this</string>
+    <string name="taste_topic_unboost">Stop boosting</string>
+    <string name="taste_topic_block">Block topic</string>
+    <string name="taste_channels_header">Channels it favours</string>
+    <string name="taste_channel_block">Block channel</string>
+    <string name="taste_item_actions">More options for %1$s</string>
+    <string name="taste_music_header">Music taste</string>
+    <string name="taste_music_stage">Learning stage</string>
+    <string name="taste_hidden_title">Hidden from you</string>
+    <string name="taste_hidden_summary">Blocked topics, channels and artists</string>
+    <plurals name="taste_hidden_count">
+        <item quantity="one">%d item hidden</item>
+        <item quantity="other">%d items hidden</item>
+    </plurals>
+    <string name="taste_hidden_none">Nothing hidden</string>
+    <string name="taste_hidden_empty_title">Nothing is hidden</string>
+    <string name="taste_hidden_empty_body">Topics, channels and artists you block show up here.</string>
+    <string name="taste_hidden_topics">Topics</string>
+    <string name="taste_hidden_channels">Channels</string>
+    <string name="taste_hidden_artists">Artists</string>
+    <string name="taste_unblock">Unblock</string>
+    <string name="taste_unblock_item">Unblock %1$s</string>
+    <string name="taste_data_header">Your data</string>
+    <string name="taste_export_video">Export video profile</string>
+    <string name="taste_import_video">Import video profile</string>
+    <string name="taste_reset_video">Reset video profile</string>
+    <string name="taste_export_music">Export music profile</string>
+    <string name="taste_import_music">Import music profile</string>
+    <string name="taste_reset_music">Reset music profile</string>
+    <string name="taste_reset_video_body">This clears what Flow learned from your videos and starts again from zero. Your recap stays.</string>
+    <string name="taste_reset_music_title">Reset music profile?</string>
+    <string name="taste_reset_music_body">This clears what Flow learned from your music and starts again from zero. Your recap stays.</string>
+    <string name="taste_trait_now">Now %1$s</string>
+    <string name="taste_reset_done">Profile reset</string>
+    <string name="diagnostics_engine_header">Engine details</string>
+    <string name="diagnostics_engine_queries_none">None yet</string>
 </resources>

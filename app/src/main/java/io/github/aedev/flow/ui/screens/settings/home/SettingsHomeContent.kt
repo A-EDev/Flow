@@ -27,9 +27,7 @@ internal data class SettingsHomeState(
 
 internal class SettingsHomeActions(
     val onOpen: (SettingsTarget) -> Unit,
-    val onOpenPersona: () -> Unit,
     val onOpenDonations: () -> Unit,
-    val onResetPersona: () -> Unit,
     val onDeepFlowChange: (Boolean) -> Unit,
     val onDurationClick: () -> Unit,
     val onSaveHistoryChange: (Boolean) -> Unit,
@@ -42,7 +40,11 @@ internal fun SettingsListScope.homeContent(
     actions: SettingsHomeActions,
 ) {
     item(HomeIndex.persona.key) {
-        PersonaEntryCard(persona = state.persona, onOpen = actions.onOpenPersona, onReset = actions.onResetPersona)
+        PersonaEntryCard(
+            persona = state.persona,
+            selected = state.selected == SettingsDestination.TASTE,
+            onOpen = { actions.onOpen(SettingsTarget(SettingsDestination.TASTE)) },
+        )
     }
 
     fun SettingsGroupScope.page(destination: SettingsDestination) =
