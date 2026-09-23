@@ -154,6 +154,8 @@ class MusicBrainEngine
                     listenedMs = playedMs,
                     counted = counted,
                     newArtist = counted && wasNewArtist,
+                    skipped = crossed.isEmpty(),
+                    artworkUrl = track.thumbnailUrl,
                 )
             }
             scheduleDebouncedSave()
@@ -401,6 +403,7 @@ class MusicBrainEngine
                 val key = musicArtistKey(artistId, artistName)
                 stampDisplayLocked(key, artistName)
                 MusicBrainLearn.applyDislike(brain, key, System.currentTimeMillis())
+                MusicStatsLedgerOps.recordSaidNo(ledger, System.currentTimeMillis(), key, artistName.trim(), blocked = false)
                 refreshHiddenArtistsLocked()
             }
             scheduleDebouncedSave()
@@ -415,6 +418,7 @@ class MusicBrainEngine
                 val key = musicArtistKey(artistId, artistName)
                 stampDisplayLocked(key, artistName)
                 MusicBrainLearn.blockArtist(brain, key)
+                MusicStatsLedgerOps.recordSaidNo(ledger, System.currentTimeMillis(), key, artistName.trim(), blocked = true)
                 refreshHiddenArtistsLocked()
             }
             scheduleDebouncedSave()
@@ -487,6 +491,31 @@ class MusicBrainEngine
                 isInitialized = true
                 refreshHiddenArtistsLocked()
                 storage.save(brain)
+            }
+        }
+
+        /** Artwork per artist from the tracks the engine remembers, for recap portraits with no network. */
+        internal suspend fun artistArtwork(): Map<String, String> {
+            ensureInitialized()
+            return mutex.withLock {
+                brain.trackMeta.values
+                    .filter { it.artistKey.isNotEmpty() && it.thumbnail.isNotBlank() }
+                    .associate { it.artistKey to it.thumbnail }
+            }
+        }
+
+        /** Counted plays in one month, without copying the ledger. */
+        suspend fun monthPlays(monthKey: String): Int {
+            ensureInitialized()
+            return mutex.withLock { ledger.months[monthKey]?.plays ?: 0 }
+        }
+
+        /** Replaces the listening ledger with a restored one; the brain is untouched. */
+        internal suspend fun restoreListeningStats(stats: MusicStatsStorage.SerializableStats) {
+            ensureInitialized()
+            mutex.withLock {
+                ledger = stats.toLedger()
+                statsStorage.replace(stats)
             }
         }
 

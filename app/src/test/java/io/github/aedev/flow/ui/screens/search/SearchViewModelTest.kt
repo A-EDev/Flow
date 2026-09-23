@@ -30,7 +30,15 @@ class SearchViewModelTest {
     private val suggestions: SearchSuggestionsRepository = mockk(relaxed = true)
     private val context: Context = mockk(relaxed = true)
 
-    private fun viewModel() = SearchViewModel(context, suggestions, ShortsContentFilter(flowOf(true)), ShortsQueueHandoff())
+    private fun viewModel() =
+        SearchViewModel(
+            context,
+            suggestions,
+            ShortsContentFilter(flowOf(true)),
+            ShortsQueueHandoff(),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+        )
 
     @Before
     fun setUp() {

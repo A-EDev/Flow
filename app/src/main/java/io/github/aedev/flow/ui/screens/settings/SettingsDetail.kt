@@ -23,6 +23,8 @@ import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.quality.QualitySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.region.LanguageRegionScreen
+import io.github.aedev.flow.ui.screens.settings.taste.HiddenContentScreen
+import io.github.aedev.flow.ui.screens.settings.taste.TasteScreen
 import io.github.aedev.flow.ui.screens.settings.topics.TopicPreferencesScreen
 import io.github.aedev.flow.ui.screens.settings.wellbeing.WellbeingScreen
 import io.github.aedev.flow.ui.screens.sync.SyncScreen
@@ -36,12 +38,21 @@ internal fun SettingsDetail(
     target: SettingsTarget,
     onBack: (() -> Unit)?,
     onNavigate: (SettingsTarget) -> Unit,
+    onOpenRecap: () -> Unit,
 ) {
     when (target.destination) {
         SettingsDestination.HOME,
         SettingsDestination.APPEARANCE,
         -> {
             AppearanceScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.TASTE -> {
+            TasteScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate, onOpenRecap = onOpenRecap)
+        }
+
+        SettingsDestination.HIDDEN_CONTENT -> {
+            HiddenContentScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.THEME -> {

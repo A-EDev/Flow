@@ -40,8 +40,8 @@ import kotlinx.coroutines.launch
 fun SettingsHost(
     start: SettingsTarget?,
     onExit: () -> Unit,
-    onOpenPersona: () -> Unit,
     onOpenDonations: () -> Unit,
+    onOpenRecap: () -> Unit,
 ) {
     val navigator = rememberListDetailPaneScaffoldNavigator<String>(scaffoldDirective = rememberSettingsScaffoldDirective())
     val scope = rememberCoroutineScope()
@@ -95,7 +95,6 @@ fun SettingsHost(
                 SettingsHomeScreen(
                     selected = if (twoPane) current.destination.root else null,
                     onOpen = ::open,
-                    onOpenPersona = onOpenPersona,
                     onOpenDonations = onOpenDonations,
                     onBack = onExit,
                 )
@@ -114,6 +113,7 @@ fun SettingsHost(
                         target = target,
                         onBack = if (twoPane && stack.size <= 1) null else ::back,
                         onNavigate = ::push,
+                        onOpenRecap = onOpenRecap,
                     )
                 }
             }

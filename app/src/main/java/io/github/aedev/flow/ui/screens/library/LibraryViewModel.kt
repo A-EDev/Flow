@@ -8,19 +8,24 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
+import io.github.aedev.flow.data.stats.RecapPeriod
+import io.github.aedev.flow.data.stats.RecapReadiness
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.ui.components.library.LIBRARY_SHELF_ITEM_LIMIT
 import io.github.aedev.flow.ui.components.library.LibraryMediaItem
 import io.github.aedev.flow.ui.components.library.toLibraryMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
 
@@ -55,8 +60,25 @@ class LibraryViewModel
         musicDownloadManager: MusicDownloadManager,
         shortsContentFilter: ShortsContentFilter,
         playerPreferences: PlayerPreferences,
+        private val recapReadiness: RecapReadiness,
     ) : ViewModel() {
         private val sharing = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L)
+
+        private val _recapReady = MutableStateFlow<RecapPeriod?>(null)
+
+        /** A month or year that just closed with a recap waiting; checked once each time Library is created. */
+        val recapReady: StateFlow<RecapPeriod?> = _recapReady.asStateFlow()
+
+        init {
+            viewModelScope.launch { _recapReady.value = runCatching { recapReadiness.readyPeriod() }.getOrNull() }
+        }
+
+        /** The waiting recap was opened or dismissed; it is not offered again. */
+        fun onRecapHandled() {
+            val period = _recapReady.value ?: return
+            _recapReady.value = null
+            viewModelScope.launch { recapReadiness.markShown(period) }
+        }
 
         private fun <T> Flow<T>.shared(): StateFlow<T?> {
             val upstream: Flow<T?> = this

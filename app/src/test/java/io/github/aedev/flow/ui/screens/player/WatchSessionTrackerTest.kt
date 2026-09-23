@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.stats.ViewFormat
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -42,6 +43,8 @@ class WatchSessionTrackerTest {
     private val viewHistory: ViewHistory = mockk(relaxed = true)
     private val repository: YouTubeRepository = mockk(relaxed = true)
     private val homeFeedCacheRepository: HomeFeedCacheRepository = mockk(relaxed = true)
+    private val videoStats: io.github.aedev.flow.data.stats.VideoStatsRecorder = mockk(relaxed = true)
+    private var clockMs = 0L
     private val trackerScope = CoroutineScope(testDispatcher)
 
     private var relatedLane: List<Video> = emptyList()
@@ -68,11 +71,13 @@ class WatchSessionTrackerTest {
             viewHistory = viewHistory,
             repository = repository,
             homeFeedCacheRepository = homeFeedCacheRepository,
+            videoStats = videoStats,
             scope = trackerScope,
             networkDispatcher = testDispatcher,
             shortsEnabled = { true },
             relatedVideosFor = { relatedLane },
             richVideoFor = { richVideo },
+            elapsedRealtime = { clockMs },
         )
 
     private fun WatchSessionTracker.report(
@@ -116,6 +121,97 @@ class WatchSessionTrackerTest {
         assertThat(signal?.type).isEqualTo(InteractionType.WATCHED)
         assertThat(signal?.fractionWatched).isWithin(TOLERANCE).of(0.2f)
     }
+
+    @Test
+    fun `watched time is the wall clock gap, capped by how far playback moved`() {
+        assertThat(watchedStep(wallDeltaMs = 10_000L, positionDeltaMs = 10_000L)).isEqualTo(10_000L)
+        assertThat(watchedStep(wallDeltaMs = 10_000L, positionDeltaMs = 20_000L)).isEqualTo(10_000L)
+        assertThat(watchedStep(wallDeltaMs = 10_000L, positionDeltaMs = 300_000L)).isEqualTo(10_000L)
+        assertThat(watchedStep(wallDeltaMs = 60_000L, positionDeltaMs = 0L)).isEqualTo(0L)
+        assertThat(watchedStep(wallDeltaMs = 10_000L, positionDeltaMs = -40_000L)).isEqualTo(0L)
+        assertThat(watchedStep(wallDeltaMs = 600_000L, positionDeltaMs = 600_000L)).isEqualTo(30_000L)
+    }
+
+    @Test
+    fun `a watched view counts, a skip is named, a bounce keeps only its time`() {
+        val video = video("v1")
+        val watched = viewEventFor(video, ViewFormat.LONG, 90_000L, watchSignalFor(60_000L, 120_000L))
+        val skipped = viewEventFor(video, ViewFormat.LONG, 12_000L, watchSignalFor(12_000L, 120_000L))
+        val bounce = viewEventFor(video, ViewFormat.LONG, 4_000L, watchSignalFor(4_000L, 120_000L))
+
+        assertThat(watched?.counted).isTrue()
+        assertThat(skipped?.counted).isFalse()
+        assertThat(skipped?.skipped).isTrue()
+        assertThat(bounce?.counted).isFalse()
+        assertThat(bounce?.skipped).isFalse()
+        assertThat(bounce?.watchedMs).isEqualTo(4_000L)
+        assertThat(viewEventFor(video, ViewFormat.LONG, 0L, null)).isNull()
+    }
+
+    @Test
+    fun `a live stream is a view after a minute of watching`() {
+        val video = video("live")
+        assertThat(viewEventFor(video, ViewFormat.LIVE, 59_000L, null)?.counted).isFalse()
+        assertThat(viewEventFor(video, ViewFormat.LIVE, 60_000L, null)?.counted).isTrue()
+    }
+
+    @Test
+    fun `a finished session hands the recap one view`() =
+        runTest(testDispatcher) {
+            val tracker = tracker()
+
+            tracker.report("v1", positionMs = 30_000L)
+            tracker.report("v1", positionMs = 60_000L)
+            tracker.finalizeActiveSession()
+            advanceUntilIdle()
+
+            verify(exactly = 1) {
+                videoStats.onView(match { it.videoId == "v1" && it.counted && it.format == ViewFormat.LONG }, any())
+            }
+        }
+
+    @Test
+    fun `a checkpoint sends the view once and the rest of the time at the end`() =
+        runTest(testDispatcher) {
+            val tracker = tracker()
+            val events = mutableListOf<io.github.aedev.flow.data.stats.ViewEvent>()
+            every { videoStats.onView(capture(events), any()) } just Runs
+
+            tracker.report("v1", positionMs = 0L)
+            clockMs += 10_000L
+            tracker.report("v1", positionMs = 30_000L)
+            tracker.checkpoint()
+            clockMs += 10_000L
+            tracker.report("v1", positionMs = 40_000L)
+            tracker.finalizeActiveSession()
+            advanceUntilIdle()
+
+            assertThat(events.map { it.counted }).containsExactly(true, false).inOrder()
+            assertThat(events.sumOf { it.watchedMs }).isEqualTo(20_000L)
+            assertThat(events.last().continued).isTrue()
+        }
+
+    @Test
+    fun `a live session reaches the recap but never the engine`() =
+        runTest(testDispatcher) {
+            val tracker = tracker()
+
+            tracker.trackLive(video("live"), positionMs = 0L)
+            (1..7).forEach { step ->
+                clockMs += 10_000L
+                tracker.trackLive(video("live"), positionMs = step * 10_000L)
+            }
+            tracker.finalizeActiveSession()
+            advanceUntilIdle()
+
+            verify(exactly = 1) {
+                videoStats.onView(
+                    match { it.videoId == "live" && it.format == ViewFormat.LIVE && it.counted && it.watchedMs == 70_000L },
+                    any(),
+                )
+            }
+            verify(exactly = 0) { FlowNeuroEngine.onVideoInteractionAsync(any(), any(), any(), any()) }
+        }
 
     @Test
     fun `the session is graded once when the next video takes it over`() =

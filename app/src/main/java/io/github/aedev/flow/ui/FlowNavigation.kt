@@ -25,6 +25,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.shorts.queue.openAtVideoId
+import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.musicplayer.MusicPlayerSheetState
@@ -42,11 +43,13 @@ import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationScreen
 import io.github.aedev.flow.ui.screens.onboarding.OnboardingScreen
-import io.github.aedev.flow.ui.screens.personality.FlowPersonalityScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
+import io.github.aedev.flow.ui.screens.recap.RecapRoutes
+import io.github.aedev.flow.ui.screens.recap.RecapScreen
+import io.github.aedev.flow.ui.screens.recap.story.RecapStoryScreen
 import io.github.aedev.flow.ui.screens.search.SearchScreen
 import io.github.aedev.flow.ui.screens.settings.SettingsHost
 import io.github.aedev.flow.ui.screens.shorts.ShortsScreen
@@ -181,6 +184,7 @@ fun NavGraphBuilder.flowAppGraph(
                 io.github.aedev.flow.R.string.library_downloads_label,
             )
         LibraryScreen(
+            onOpenRecap = { period -> navController.navigate(period?.let(RecapRoutes::story) ?: RecapRoutes.stats()) },
             onNavigateToHistory = {
                 navController.navigate("history")
             },
@@ -298,21 +302,46 @@ fun NavGraphBuilder.flowAppGraph(
         SettingsHost(
             start = SettingsTarget.decode(backStackEntry.arguments?.getString("target")),
             onExit = { navController.popBackStack() },
-            onOpenPersona = { navController.navigate("personality") },
             onOpenDonations = { navController.navigate("donations") },
+            onOpenRecap = { navController.navigate(RecapRoutes.stats()) },
         )
+    }
+
+    composable(
+        route = RecapRoutes.STATS,
+        arguments =
+            listOf(
+                navArgument(RecapRoutes.ARG_PERIOD) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+    ) { backStackEntry ->
+        currentRoute.value = "recap"
+        RecapScreen(
+            onBack = { navController.popBackStack() },
+            onPlayStory = { period -> navController.navigate(RecapRoutes.story(period)) },
+            startAt = RecapRoutes.decode(backStackEntry.arguments?.getString(RecapRoutes.ARG_PERIOD)),
+        )
+    }
+
+    composable(
+        route = RecapRoutes.STORY,
+        arguments = listOf(navArgument(RecapRoutes.ARG_PERIOD) { type = NavType.StringType }),
+    ) { backStackEntry ->
+        currentRoute.value = "recap_story"
+        val period = RecapRoutes.decode(backStackEntry.arguments?.getString(RecapRoutes.ARG_PERIOD))
+        if (period == null) {
+            LaunchedEffect(Unit) { navController.popBackStack() }
+        } else {
+            RecapStoryScreen(period = period, onClose = { navController.popBackStack() })
+        }
     }
 
     composable("donations") {
         currentRoute.value = "donations"
         io.github.aedev.flow.ui.screens.settings.about.DonationsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("personality") {
-        currentRoute.value = "personality"
-        FlowPersonalityScreen(
             onNavigateBack = { navController.popBackStack() },
         )
     }

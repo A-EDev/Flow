@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
@@ -51,7 +52,6 @@ private val SearchFieldBottomPadding = 8.dp
 internal fun SettingsHomeScreen(
     selected: SettingsDestination?,
     onOpen: (SettingsTarget) -> Unit,
-    onOpenPersona: () -> Unit,
     onOpenDonations: () -> Unit,
     onBack: () -> Unit,
     viewModel: SettingsHomeViewModel = hiltViewModel(),
@@ -65,10 +65,13 @@ internal fun SettingsHomeScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var highlight by remember { mutableStateOf<String?>(null) }
     var showDurationDialog by rememberSaveable { mutableStateOf(false) }
-    var showResetDialog by rememberSaveable { mutableStateOf(false) }
 
     val checkingLabel = stringResource(R.string.checking_for_updates)
     val searchable = rememberSearchableSettings()
+    LifecycleResumeEffect(selected) {
+        viewModel.refreshPersona()
+        onPauseOrDispose {}
+    }
     val results = remember(query, searchable) { SettingsSearch.search(query, searchable) }
 
     UpdateCheckFeedback(
@@ -81,7 +84,6 @@ internal fun SettingsHomeScreen(
         query = ""
         val page = DestinationIndex.destinationOf(entry)
         when {
-            entry.key == HomeIndex.persona.key -> onOpenPersona()
             entry.key == HomeIndex.support.key -> onOpenDonations()
             entry.key == HomeIndex.checkForUpdates.key -> viewModel.checkForUpdates()
             page != null -> onOpen(SettingsTarget(page))
@@ -123,9 +125,7 @@ internal fun SettingsHomeScreen(
                 actions =
                     SettingsHomeActions(
                         onOpen = onOpen,
-                        onOpenPersona = onOpenPersona,
                         onOpenDonations = onOpenDonations,
-                        onResetPersona = { showResetDialog = true },
                         onDeepFlowChange = viewModel::setDeepFlowEnabled,
                         onDurationClick = { showDurationDialog = true },
                         onSaveHistoryChange = viewModel::setDeepFlowSaveToHistory,
@@ -144,16 +144,6 @@ internal fun SettingsHomeScreen(
             selected = deepFlow.expireHours,
             onSelect = viewModel::setDeepFlowExpireHours,
             onDismiss = { showDurationDialog = false },
-        )
-    }
-
-    if (showResetDialog) {
-        ResetPersonaDialog(
-            onConfirm = {
-                viewModel.resetBrain()
-                showResetDialog = false
-            },
-            onDismiss = { showResetDialog = false },
         )
     }
 
@@ -192,26 +182,4 @@ private fun UpdateCheckFeedback(
             onConsumed()
         }
     }
-}
-
-@Composable
-private fun ResetPersonaDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    FlowAlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Outlined.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-        title = { Text(stringResource(R.string.settings_reset_brain_title)) },
-        text = { Text(stringResource(R.string.settings_reset_brain_body)) },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            ) { Text(stringResource(R.string.settings_reset_everything)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
 }

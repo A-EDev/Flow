@@ -12,8 +12,8 @@ internal object HomeIndex {
     val persona =
         SettingEntry(
             key = "home.persona",
-            title = R.string.flow_control_center,
-            summary = R.string.neural_interest_map_subtitle,
+            title = R.string.taste_title,
+            summary = R.string.taste_summary,
             section = R.string.settings_flow_engine_header,
             destination = home,
         )
@@ -58,5 +58,6 @@ internal object HomeIndex {
             destination = home,
         )
 
-    val all = listOf(persona, deepFlow, deepFlowDuration, deepFlowHistory, checkForUpdates, support)
+    /** The persona card is found through Your taste's own destination entry, not listed twice. */
+    val all = listOf(deepFlow, deepFlowDuration, deepFlowHistory, checkForUpdates, support)
 }

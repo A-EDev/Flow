@@ -6,6 +6,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.recommendation.music.MusicStatsStorage
+import io.github.aedev.flow.data.stats.RecapAggregates
+import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.notification.ReminderManager
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -26,12 +30,30 @@ class WellbeingViewModel
         @ApplicationContext private val context: Context,
         private val viewHistory: ViewHistory,
         private val localData: LocalDataManager,
+        private val videoStats: VideoStatsRecorder,
+        private val musicBrain: MusicBrainEngine,
     ) : SettingsViewModel() {
-        /** Measured once per visit: history only grows while the page is closed, not while it is read. */
+        /**
+         * Measured once per visit. The recap ledgers' real watching time is used once they cover the
+         * whole week; until then the history estimate (last position on the last-watched day) stands in.
+         */
         val summary =
             flow {
-                val records = viewHistory.getAllHistory().first().map { WatchRecord(it.timestamp, it.position) }
-                emit(summarizeWatchTime(records, LocalDate.now(), ZoneId.systemDefault()))
+                val today = LocalDate.now()
+                val video = runCatching { videoStats.snapshot() }.getOrNull()
+                val ledger =
+                    video?.let {
+                        val music = runCatching { musicBrain.listeningStats() }.getOrDefault(MusicStatsStorage.SerializableStats())
+                        val days = RecapAggregates.dailyTime(it, music, today.minusDays((WEEK_DAYS - 1).toLong()), today)
+                        summarizeLedgerTime(days, RecapAggregates.videoLedgerStart(it), today)
+                    }
+                emit(
+                    ledger ?: summarizeWatchTime(
+                        viewHistory.getAllHistory().first().map { WatchRecord(it.timestamp, it.position) },
+                        today,
+                        ZoneId.systemDefault(),
+                    ),
+                )
             }.flowOn(Dispatchers.Default)
                 .asState(null)
 

@@ -73,6 +73,7 @@ internal class VideoPlayerViewModelHarness(
     val liveChatRepository: LiveChatRepository = mockk(relaxed = true)
     val homeFeedCacheRepository: HomeFeedCacheRepository = mockk(relaxed = true)
     val playerManager: EnhancedPlayerManager = mockk(relaxed = true)
+    val videoStats: io.github.aedev.flow.data.stats.VideoStatsRecorder = mockk(relaxed = true)
 
     /**
      * The real use case over the mocked repositories: every engagement assertion in the suite is
@@ -84,6 +85,7 @@ internal class VideoPlayerViewModelHarness(
             subscriptionRepository = subscriptionRepository,
             likedVideosRepository = likedVideosRepository,
             signals = VideoEngagementSignals(context, repository),
+            videoStats = videoStats,
         )
     }
 
@@ -203,6 +205,7 @@ internal class VideoPlayerViewModelHarness(
                     ioDispatcher = testDispatcher,
                 ),
             notesRepository = mockk(relaxed = true),
+            videoStats = videoStats,
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )

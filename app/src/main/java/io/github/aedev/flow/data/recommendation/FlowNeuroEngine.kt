@@ -108,6 +108,11 @@ class FlowNeuroEngine(
 
         suspend fun needsOnboarding(): Boolean = requireInstance().needsOnboarding()
 
+        suspend fun topTopicsFor(
+            video: Video,
+            limit: Int,
+        ): List<String> = requireInstance().topTopicsFor(video, limit)
+
         suspend fun getBrainSnapshot(): UserBrain = requireInstance().getBrainSnapshot()
 
         fun getPersona(brain: UserBrain): FlowPersona = requireInstance().getPersona(brain)
@@ -2433,6 +2438,17 @@ class FlowNeuroEngine(
         }
         return vector
     }
+
+    /** The strongest topics of [video], read without learning anything from it. */
+    suspend fun topTopicsFor(
+        video: Video,
+        limit: Int,
+    ): List<String> =
+        getOrExtractFeatures(video, takeIdfSnapshotSafe())
+            .topics.entries
+            .sortedByDescending { it.value }
+            .take(limit)
+            .map { it.key }
 
     private fun takeIdfSnapshot(): IdfSnapshot =
         IdfSnapshot(

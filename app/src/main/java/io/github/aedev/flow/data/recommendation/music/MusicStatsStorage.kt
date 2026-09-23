@@ -7,35 +7,18 @@
 package io.github.aedev.flow.data.recommendation.music
 
 import android.content.Context
-import android.util.Log
-import androidx.datastore.core.CorruptionException
-import androidx.datastore.core.DataStore
-import androidx.datastore.core.Serializer
-import androidx.datastore.dataStore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withContext
+import io.github.aedev.flow.data.stats.LedgerTime
+import io.github.aedev.flow.data.stats.MonthlyLedgerStore
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
-import java.io.InputStream
-import java.io.OutputStream
 
 /**
- * Persistence for the listening ledger — same typed-DataStore JSON pattern as
- * [MusicBrainStorage], its own file so brain saves and stats saves stay cheap
- * and the brain's sync wire format is untouched.
+ * Persistence for the listening ledger, in its own files so brain saves stay cheap and the brain's
+ * sync wire format is untouched. The original single file is kept as the closed-months file, so a
+ * ledger written by an older version loads unchanged.
  */
 internal class MusicStatsStorage(
-    private val appContext: Context,
+    appContext: Context,
 ) {
-    companion object {
-        private const val TAG = "MusicStatsStorage"
-        private const val FILE_NAME = "flow_music_stats_v1.json"
-
-        private val json = Json { ignoreUnknownKeys = true }
-    }
-
     @Serializable
     data class SerializableMonth(
         val plays: Int = 0,
@@ -49,6 +32,13 @@ internal class MusicStatsStorage(
         val discoveredArtists: List<String> = emptyList(),
         val dayPlays: Map<Int, Int> = emptyMap(),
         val hourPlays: Map<Int, Int> = emptyMap(),
+        val dayMs: Map<Int, Long> = emptyMap(),
+        val trackSkips: Map<String, Int> = emptyMap(),
+        val artistSkips: Map<String, Int> = emptyMap(),
+        val dislikedArtists: Map<String, Long> = emptyMap(),
+        val blockedArtists: Map<String, Long> = emptyMap(),
+        val trackArt: Map<String, String> = emptyMap(),
+        val artistArt: Map<String, String> = emptyMap(),
     )
 
     @Serializable
@@ -57,76 +47,66 @@ internal class MusicStatsStorage(
         val months: Map<String, SerializableMonth> = emptyMap(),
     )
 
-    private object StatsSerializer : Serializer<SerializableStats> {
-        override val defaultValue: SerializableStats = SerializableStats()
+    private val store =
+        MonthlyLedgerStore(
+            appContext = appContext,
+            tag = "MusicStatsStorage",
+            hotFileName = "flow_music_stats_hot_v1.json",
+            coldFileName = "flow_music_stats_v1.json",
+            monthSerializer = SerializableMonth.serializer(),
+        )
 
-        override suspend fun readFrom(input: InputStream): SerializableStats =
-            try {
-                val text = input.readBytes().decodeToString()
-                if (text.isBlank()) defaultValue else json.decodeFromString(text)
-            } catch (e: SerializationException) {
-                throw CorruptionException("Corrupted music stats", e)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to read music stats, starting empty: ${e.message}")
-                defaultValue
-            }
-
-        override suspend fun writeTo(
-            t: SerializableStats,
-            output: OutputStream,
-        ) {
-            output.write(json.encodeToString(SerializableStats.serializer(), t).encodeToByteArray())
-        }
+    suspend fun save(
+        ledger: MusicStatsLedger,
+        nowMs: Long = System.currentTimeMillis(),
+    ) {
+        val currentKey = LedgerTime.at(nowMs).monthKey
+        store.save(
+            currentKey = currentKey,
+            current = ledger.months[currentKey]?.toSerializable(),
+            closedKeys = ledger.months.keys - currentKey,
+            knownKeys = emptySet(),
+        ) { ledger.months.filterKeys { it != currentKey }.mapValues { it.value.toSerializable() } }
     }
 
-    private val Context.musicStatsDataStore: DataStore<SerializableStats> by dataStore(
-        fileName = FILE_NAME,
-        serializer = StatsSerializer,
-        corruptionHandler =
-            androidx.datastore.core.handlers
-                .ReplaceFileCorruptionHandler { SerializableStats() },
-    )
+    suspend fun load(): MusicStatsLedger? {
+        val loaded = store.load()
+        if (loaded.months.isEmpty()) return null
+        return SerializableStats(months = loaded.months).toLedger()
+    }
 
-    suspend fun save(ledger: MusicStatsLedger) =
-        withContext(Dispatchers.IO) {
-            try {
-                appContext.musicStatsDataStore.updateData { ledger.toSerializable() }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to persist music stats", e)
-            }
-        }
-
-    suspend fun load(): MusicStatsLedger? =
-        withContext(Dispatchers.IO) {
-            try {
-                val stored = appContext.musicStatsDataStore.data.first()
-                if (stored.months.isEmpty()) null else stored.toLedger()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load music stats", e)
-                null
-            }
-        }
+    /** Replaces the stored ledger, for a restore. */
+    suspend fun replace(stats: SerializableStats) {
+        store.replace(stats.months, emptySet(), LedgerTime.at(System.currentTimeMillis()).monthKey)
+    }
 }
+
+private fun MonthListening.toSerializable() =
+    MusicStatsStorage.SerializableMonth(
+        plays = plays,
+        sessions = sessions,
+        listenedMs = listenedMs,
+        artistPlays = artistPlays.toMap(),
+        artistNames = artistNames.toMap(),
+        trackPlays = trackPlays.toMap(),
+        trackTitles = trackTitles.toMap(),
+        genrePlays = genrePlays.toMap(),
+        discoveredArtists = discoveredArtists.toList(),
+        dayPlays = dayPlays.toMap(),
+        hourPlays = hourPlays.toMap(),
+        dayMs = dayMs.toMap(),
+        trackSkips = trackSkips.toMap(),
+        artistSkips = artistSkips.toMap(),
+        dislikedArtists = dislikedArtists.toMap(),
+        blockedArtists = blockedArtists.toMap(),
+        trackArt = trackArt.toMap(),
+        artistArt = artistArt.toMap(),
+    )
 
 internal fun MusicStatsLedger.toSerializable(): MusicStatsStorage.SerializableStats =
     MusicStatsStorage.SerializableStats(
         schemaVersion = schemaVersion,
-        months =
-            months.mapValues { (_, m) ->
-                MusicStatsStorage.SerializableMonth(
-                    plays = m.plays,
-                    sessions = m.sessions,
-                    listenedMs = m.listenedMs,
-                    artistPlays = m.artistPlays.toMap(),
-                    artistNames = m.artistNames.toMap(),
-                    trackPlays = m.trackPlays.toMap(),
-                    trackTitles = m.trackTitles.toMap(),
-                    genrePlays = m.genrePlays.toMap(),
-                    discoveredArtists = m.discoveredArtists.toList(),
-                    dayPlays = m.dayPlays.toMap(),
-                    hourPlays = m.hourPlays.toMap(),
-                )
-            },
+        months = months.mapValues { (_, m) -> m.toSerializable() },
     )
 
 internal fun MusicStatsStorage.SerializableStats.toLedger(): MusicStatsLedger {
@@ -146,6 +126,13 @@ internal fun MusicStatsStorage.SerializableStats.toLedger(): MusicStatsLedger {
                 discoveredArtists = HashSet(m.discoveredArtists),
                 dayPlays = HashMap(m.dayPlays),
                 hourPlays = HashMap(m.hourPlays),
+                dayMs = HashMap(m.dayMs),
+                trackSkips = HashMap(m.trackSkips),
+                artistSkips = HashMap(m.artistSkips),
+                dislikedArtists = HashMap(m.dislikedArtists),
+                blockedArtists = HashMap(m.blockedArtists),
+                trackArt = HashMap(m.trackArt),
+                artistArt = HashMap(m.artistArt),
             )
     }
     return ledger

@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.stats.LedgerAction
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
@@ -78,6 +79,7 @@ class QuickActionsViewModel
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
         private val videoDownloadManager: VideoDownloadManager,
         private val engagement: VideoEngagementUseCase,
+        private val videoStats: io.github.aedev.flow.data.stats.VideoStatsRecorder,
         @ApplicationContext private val context: Context,
     ) : ViewModel() {
         val watchLaterIds =
@@ -176,6 +178,7 @@ class QuickActionsViewModel
                         Toast.makeText(context, context.getString(R.string.toast_removed_from_watch_later), Toast.LENGTH_SHORT).show()
                     } else {
                         playlistRepository.addToWatchLater(video)
+                        videoStats.onAction(LedgerAction.SAVE)
                         android.util.Log.d("QuickActionsViewModel", "Added to Watch Later")
                         runCatching {
                             FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.SAVED)
@@ -213,6 +216,7 @@ class QuickActionsViewModel
                         context.getString(io.github.aedev.flow.R.string.channel_metadata_unavailable)
                     }
                     FlowNeuroEngine.blockChannel(context, channelId)
+                    videoStats.onAction(LedgerAction.BLOCK_CHANNEL)
                     FeedInvalidationBus.emit(
                         FeedInvalidationBus.Event.ChannelBlocked(channelId, video.id),
                     )
@@ -244,6 +248,7 @@ class QuickActionsViewModel
             viewModelScope.launch {
                 try {
                     FlowNeuroEngine.markNotInterested(context, video)
+                    videoStats.onAction(LedgerAction.NOT_INTERESTED)
                     FeedInvalidationBus.emit(
                         FeedInvalidationBus.Event.NotInterested(video.id, video.channelId),
                     )
@@ -369,6 +374,7 @@ class QuickActionsViewModel
                     io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
                         .promptStoragePermissionIfNeeded(context)
 
+                    videoStats.onAction(LedgerAction.DOWNLOAD)
                     // Downloading is a high-intent save signal for the engine.
                     runCatching {
                         FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.SAVED)

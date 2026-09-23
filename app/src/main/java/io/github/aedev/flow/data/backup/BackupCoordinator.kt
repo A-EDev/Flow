@@ -8,6 +8,8 @@ import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.stats.RecapBackup
+import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.notification.NotificationHelper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +60,7 @@ class BackupCoordinator
         private val repository: BackupRepository,
         private val musicBrain: MusicBrainEngine,
         private val localDataManager: LocalDataManager,
+        private val videoStats: VideoStatsRecorder,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         private val _operation = MutableStateFlow<BackupOperation>(BackupOperation.Idle)
@@ -95,7 +98,7 @@ class BackupCoordinator
 
         fun exportMaster(uri: Uri) =
             exportTo(R.string.master_backup_export_success, R.string.master_backup_export_failed) {
-                repository.exportMasterBackup(uri, musicBrain = musicBrainBytes())
+                repository.exportMasterBackup(uri, musicBrain = musicBrainBytes(), recap = recapBytes())
             }
 
         /** Writes the automatic backup now, into the chosen folder, and records when it ran. */
@@ -105,9 +108,21 @@ class BackupCoordinator
         ) = run(context.getString(R.string.auto_backup_run_now), notify = false) {
             val result =
                 when (type) {
-                    LocalDataManager.AutoBackupType.APP_DATA -> repository.exportDataToFolder(folder)
-                    LocalDataManager.AutoBackupType.BRAIN -> repository.exportBrainToFolder(folder)
-                    LocalDataManager.AutoBackupType.MASTER -> repository.exportMasterToFolder(folder, musicBrain = musicBrainBytes())
+                    LocalDataManager.AutoBackupType.APP_DATA -> {
+                        repository.exportDataToFolder(folder)
+                    }
+
+                    LocalDataManager.AutoBackupType.BRAIN -> {
+                        repository.exportBrainToFolder(folder)
+                    }
+
+                    LocalDataManager.AutoBackupType.MASTER -> {
+                        repository.exportMasterToFolder(
+                            folder,
+                            musicBrain = musicBrainBytes(),
+                            recap = recapBytes(),
+                        )
+                    }
                 }
             if (result.isSuccess) {
                 localDataManager.setAutoBackupLastRun(System.currentTimeMillis())
@@ -128,8 +143,11 @@ class BackupCoordinator
         fun importMaster(uri: Uri) =
             run(context.getString(R.string.master_backup_title)) {
                 repository
-                    .importMasterBackup(uri) { bytes -> musicBrain.importBrainFromStream(bytes.inputStream()) }
-                    .fold(
+                    .importMasterBackup(
+                        uri,
+                        onMusicBrain = { bytes -> musicBrain.importBrainFromStream(bytes.inputStream()) },
+                        onRecap = ::restoreRecap,
+                    ).fold(
                         onSuccess = { BackupOperation.Succeeded(context.getString(R.string.import_master_backup_success)) },
                         onFailure = { failed(R.string.import_failed_template, it) },
                     )
@@ -310,6 +328,15 @@ class BackupCoordinator
 
         private suspend fun musicBrainBytes(): ByteArray? =
             runCatching { ByteArrayOutputStream().also { musicBrain.exportBrainToStream(it) }.toByteArray() }.getOrNull()
+
+        private suspend fun recapBytes(): ByteArray? =
+            runCatching { RecapBackup(video = videoStats.snapshot(), music = musicBrain.listeningStats()).encode() }.getOrNull()
+
+        private suspend fun restoreRecap(bytes: ByteArray) {
+            val backup = RecapBackup.decode(bytes) ?: return
+            backup.video?.let { videoStats.restore(it) }
+            backup.music?.let { musicBrain.restoreListeningStats(it) }
+        }
 
         private suspend fun writeStream(
             uri: Uri,

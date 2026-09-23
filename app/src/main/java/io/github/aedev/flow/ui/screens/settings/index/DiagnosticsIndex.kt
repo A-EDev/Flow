@@ -35,5 +35,13 @@ internal object DiagnosticsIndex {
         )
     val clearCrashes = entry("clear_crashes", R.string.diagnostics_clear_crashes, R.string.diagnostics_tab_crashes)
 
-    val all = listOf(model, android, appVersion, copy, share, resetSession)
+    val all =
+        listOf(
+            model,
+            android,
+            appVersion,
+            copy,
+            share,
+            resetSession,
+        )
 }

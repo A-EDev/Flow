@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.player
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import io.github.aedev.flow.data.local.CachedHomeVideo
 import io.github.aedev.flow.data.local.HomeFeedCacheRepository
@@ -9,6 +10,9 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.stats.VideoStatsRecorder
+import io.github.aedev.flow.data.stats.ViewEvent
+import io.github.aedev.flow.data.stats.ViewFormat
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CoroutineDispatcher
@@ -24,6 +28,54 @@ private const val MIN_SKIP_SIGNAL_POSITION_MS = 10_000L
 private const val WATCHED_FRACTION = 0.20
 
 private const val RELATED_PREWARM_TIMEOUT_MS = 4_000L
+
+/** Longest gap between two progress reports that still counts as continuous watching. */
+private const val MAX_WATCH_STEP_MS = 30_000L
+
+/** A live stream has no length to grade against; this much watching makes it a view. */
+private const val LIVE_VIEW_MS = 60_000L
+
+/**
+ * Real time spent watching between two progress reports: the wall-clock gap, but never more than
+ * the position actually advanced. A seek forward adds only the elapsed time, a pause adds nothing,
+ * and faster playback counts the minutes the viewer really spent.
+ */
+internal fun watchedStep(
+    wallDeltaMs: Long,
+    positionDeltaMs: Long,
+): Long = minOf(wallDeltaMs.coerceIn(0L, MAX_WATCH_STEP_MS), positionDeltaMs.coerceAtLeast(0L))
+
+/** What a finished session adds to the recap ledger, or null when it left nothing to count. */
+internal fun viewEventFor(
+    video: Video,
+    format: ViewFormat,
+    watchedMs: Long,
+    signal: WatchSignal?,
+    unsentMs: Long = watchedMs,
+    viewAlreadySent: Boolean = false,
+    final: Boolean = true,
+): ViewEvent? {
+    val countsAsView =
+        when (format) {
+            ViewFormat.LIVE -> watchedMs >= LIVE_VIEW_MS
+            else -> signal?.type == InteractionType.WATCHED
+        }
+    val counted = countsAsView && !viewAlreadySent
+    val skipped = final && !viewAlreadySent && format != ViewFormat.LIVE && signal?.type == InteractionType.SKIPPED
+    if (!counted && !skipped && unsentMs <= 0L) return null
+    return ViewEvent(
+        videoId = video.id,
+        title = video.title,
+        channelId = video.channelId,
+        channelName = video.channelName,
+        format = format,
+        watchedMs = unsentMs.coerceAtLeast(0L),
+        counted = counted,
+        skipped = skipped,
+        channelAvatarUrl = video.channelThumbnailUrl,
+        continued = unsentMs != watchedMs || viewAlreadySent,
+    )
+}
 
 /** The terminal learning signal a view earned, with the share of the video it covered. */
 internal class WatchSignal(
@@ -63,17 +115,32 @@ internal class WatchSessionTracker(
     private val viewHistory: ViewHistory,
     private val repository: YouTubeRepository,
     private val homeFeedCacheRepository: HomeFeedCacheRepository,
+    private val videoStats: VideoStatsRecorder,
     private val scope: CoroutineScope,
     private val networkDispatcher: CoroutineDispatcher,
     private val shortsEnabled: () -> Boolean,
     private val relatedVideosFor: (String) -> List<Video>,
     private val richVideoFor: (String) -> Video?,
+    private val elapsedRealtime: () -> Long = SystemClock::elapsedRealtime,
 ) {
-    private class Session(
+    private inner class Session(
         val video: Video,
         var maxPositionMs: Long,
         var durationMs: Long,
-    )
+        val format: ViewFormat,
+        var lastPositionMs: Long,
+        var lastWallMs: Long = elapsedRealtime(),
+        var watchedMs: Long = 0L,
+        var sentMs: Long = 0L,
+        var viewSent: Boolean = false,
+    ) {
+        fun advance(positionMs: Long) {
+            val wall = elapsedRealtime()
+            watchedMs += watchedStep(wall - lastWallMs, positionMs - lastPositionMs)
+            lastWallMs = wall
+            lastPositionMs = positionMs
+        }
+    }
 
     private var session: Session? = null
     private var lastReportedVideoId: String? = null
@@ -120,8 +187,8 @@ internal class WatchSessionTracker(
                 isLocal = isLocal,
             )
         }
-        if (!isLocal && !isShort && durationMs > 0) {
-            track(videoId, positionMs, durationMs, title, thumbnailUrl, channelName, channelId)
+        if (!isLocal && durationMs > 0) {
+            track(videoId, positionMs, durationMs, title, thumbnailUrl, channelName, channelId, isShort)
         }
         maybePrewarmRelated(
             videoId = videoId,
@@ -151,6 +218,32 @@ internal class WatchSessionTracker(
         )
     }
 
+    /**
+     * Live streams write no history row and earn no engine signal, but their watching time still
+     * belongs in the recap. The progress loop reports them here instead of [savePlaybackPosition].
+     */
+    fun trackLive(
+        video: Video,
+        positionMs: Long,
+    ) {
+        if (video.id.startsWith("recovered_")) return
+        val current = session
+        if (current != null && current.video.id == video.id) {
+            current.advance(positionMs)
+            return
+        }
+        current?.let(::finalize)
+        session = Session(video, maxPositionMs = positionMs, durationMs = 0L, format = ViewFormat.LIVE, lastPositionMs = positionMs)
+    }
+
+    /**
+     * Writes what the open session has earned so far to the recap, without ending it: the app is
+     * going to the background and may not come back before the process is gone.
+     */
+    fun checkpoint() {
+        session?.let { recordView(it, final = false) }
+    }
+
     /** Grades whatever session is open — the screen is going away and nothing else will. */
     fun finalizeActiveSession() {
         session?.let(::finalize)
@@ -165,11 +258,13 @@ internal class WatchSessionTracker(
         thumbnailUrl: String,
         channelName: String,
         channelId: String,
+        isShort: Boolean,
     ) {
         val current = session
         if (current != null && current.video.id == videoId) {
             current.maxPositionMs = maxOf(current.maxPositionMs, positionMs)
             current.durationMs = maxOf(current.durationMs, durationMs)
+            current.advance(positionMs)
             return
         }
         current?.let(::finalize)
@@ -185,17 +280,23 @@ internal class WatchSessionTracker(
                         duration = (durationMs / 1000L).toInt(),
                         viewCount = 0,
                         uploadDate = "",
+                        isShort = isShort,
                     ),
                 maxPositionMs = positionMs,
                 durationMs = durationMs,
+                format = if (isShort) ViewFormat.SHORT else ViewFormat.LONG,
+                lastPositionMs = positionMs,
             )
     }
 
     private fun finalize(session: Session) {
         // Prefer the rich (tags/description) video the screen still holds over the session stub.
         val video = richVideoFor(session.video.id) ?: session.video
-        if (video.id == lastReportedVideoId) return
-        val signal = watchSignalFor(session.maxPositionMs, session.durationMs) ?: return
+        val signal = watchSignalFor(session.maxPositionMs, session.durationMs)
+        recordView(session, final = true)
+
+        // Shorts played here teach the engine through the Shorts classifier's rules, not these.
+        if (session.format != ViewFormat.LONG || signal == null || video.id == lastReportedVideoId) return
 
         lastReportedVideoId = video.id
 
@@ -206,6 +307,28 @@ internal class WatchSessionTracker(
             signal.type,
             percentWatched = signal.fractionWatched,
         )
+    }
+
+    /** Sends the recap the time not yet sent, and the view itself once, the first time it counts. */
+    private fun recordView(
+        session: Session,
+        final: Boolean,
+    ) {
+        val video = richVideoFor(session.video.id) ?: session.video
+        val signal = watchSignalFor(session.maxPositionMs, session.durationMs)
+        val event =
+            viewEventFor(
+                video = video,
+                format = session.format,
+                watchedMs = session.watchedMs,
+                signal = signal,
+                unsentMs = session.watchedMs - session.sentMs,
+                viewAlreadySent = session.viewSent,
+                final = final,
+            ) ?: return
+        videoStats.onView(event, video)
+        session.sentMs = session.watchedMs
+        if (event.counted) session.viewSent = true
     }
 
     private fun maybePrewarmRelated(

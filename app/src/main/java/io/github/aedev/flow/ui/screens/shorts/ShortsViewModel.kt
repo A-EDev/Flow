@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.ShortVideo
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
@@ -32,6 +33,10 @@ import io.github.aedev.flow.data.shorts.queue.ShortsQueueController
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueLoaderFactory
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.shorts.queue.openAtVideoId
+import io.github.aedev.flow.data.stats.LedgerAction
+import io.github.aedev.flow.data.stats.VideoStatsRecorder
+import io.github.aedev.flow.data.stats.ViewEvent
+import io.github.aedev.flow.data.stats.ViewFormat
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.VideoCommentSort
 import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
@@ -62,6 +67,7 @@ class ShortsViewModel
         private val viewHistory: ViewHistory,
         private val queueFactory: ShortsQueueLoaderFactory,
         private val playerPreferences: PlayerPreferences,
+        private val videoStats: VideoStatsRecorder,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(ShortsUiState())
         val uiState: StateFlow<ShortsUiState> = _uiState.asStateFlow()
@@ -427,7 +433,14 @@ class ShortsViewModel
         ) {
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 val video = short.toVideo()
-                val signal = ShortWatchClassifier.classifyAbandon(positionMs, durationMs, video.duration) ?: return@launch
+                val signal = ShortWatchClassifier.classifyAbandon(positionMs, durationMs, video.duration)
+                recordShortView(
+                    video,
+                    positionMs,
+                    counted =
+                        signal?.interaction != InteractionType.SKIPPED && positionMs >= ShortWatchClassifier.MIN_SHORT_WATCH_MS,
+                )
+                signal ?: return@launch
                 runCatching {
                     FlowNeuroEngine.onVideoInteraction(video.copy(isShort = true), signal.interaction, percentWatched = signal.percent)
                     FlowNeuroEngine.recordSeenShorts(listOf(video.id))
@@ -443,6 +456,7 @@ class ShortsViewModel
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 val video = short.toVideo()
                 val signal = ShortWatchClassifier.classify(positionMs, durationMs, video.duration)
+                recordShortView(video, signal.position, counted = signal.interaction == InteractionType.WATCHED)
 
                 viewHistory.savePlaybackPosition(
                     videoId = video.id,
@@ -462,6 +476,25 @@ class ShortsViewModel
                 }.onFailure { e -> Log.w(TAG, "Failed to record watched short in FlowNeuro", e) }
             }
         }
+
+        private fun recordShortView(
+            video: Video,
+            watchedMs: Long,
+            counted: Boolean,
+        ) = videoStats.onView(
+            ViewEvent(
+                videoId = video.id,
+                title = video.title,
+                channelId = video.channelId,
+                channelName = video.channelName,
+                format = ViewFormat.SHORT,
+                watchedMs = watchedMs,
+                counted = counted,
+                skipped = !counted,
+                channelAvatarUrl = video.channelThumbnailUrl,
+            ),
+            video.copy(isShort = true),
+        )
 
         fun loadComments(videoId: String) = comments.load(videoId)
 
@@ -507,6 +540,7 @@ class ShortsViewModel
                     val channelId = short.channelId
                     check(channelId.isNotBlank()) { context.getString(R.string.channel_metadata_unavailable) }
                     FlowNeuroEngine.blockChannel(context, channelId)
+                    videoStats.onAction(LedgerAction.BLOCK_CHANNEL)
                     dropChannel(channelId)
                     FeedInvalidationBus.emit(FeedInvalidationBus.Event.ChannelBlocked(channelId, short.id))
                     _snackbarMessage.value = context.getString(R.string.channel_blocked_toast, short.channelName)
@@ -527,6 +561,7 @@ class ShortsViewModel
                 try {
                     val video = short.toVideo()
                     FlowNeuroEngine.markNotInterested(video)
+                    videoStats.onAction(LedgerAction.NOT_INTERESTED)
                     FeedInvalidationBus.emit(FeedInvalidationBus.Event.NotInterested(video.id, video.channelId))
 
                     queue?.remove(short.id)

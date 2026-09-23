@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Settings
@@ -30,6 +31,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsDestination
 internal fun destinationIcon(destination: SettingsDestination): ImageVector =
     when (destination.root) {
         SettingsDestination.HOME -> Icons.Outlined.Settings
+        SettingsDestination.TASTE -> Icons.Outlined.Psychology
         SettingsDestination.APPEARANCE -> Icons.Outlined.Palette
         SettingsDestination.LANGUAGE_REGION -> Icons.Outlined.Language
         SettingsDestination.PLAYBACK -> Icons.Outlined.PlayCircle

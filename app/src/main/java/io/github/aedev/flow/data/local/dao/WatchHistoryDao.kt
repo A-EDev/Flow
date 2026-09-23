@@ -68,6 +68,17 @@ interface WatchHistoryDao {
     @Query("SELECT COUNT(*) FROM watch_history WHERE isMusic = 0 AND isLocal = 0")
     fun getVideoCount(): Flow<Int>
 
+    /** Every channel with a video in history, seeding the recap ledger so they never count as new. */
+    @Query("SELECT DISTINCT channelId FROM watch_history WHERE isMusic = 0 AND isLocal = 0 AND channelId != ''")
+    suspend fun getWatchedChannelIds(): List<String>
+
+    /** Distinct videos per channel, the only per-channel count history can honestly give. */
+    @Query(
+        "SELECT channelId, MAX(channelName) AS channelName, COUNT(*) AS videos FROM watch_history " +
+            "WHERE isMusic = 0 AND isLocal = 0 AND channelId != '' GROUP BY channelId ORDER BY videos DESC LIMIT :limit",
+    )
+    suspend fun getChannelVideoCounts(limit: Int): List<ChannelVideoCount>
+
     /** Counts exactly the rows [getRecentLibraryHistory] draws from, for the Library section row. */
     @Query("SELECT COUNT(*) FROM watch_history WHERE isShort = 0 AND isLocal = 0")
     fun getLibraryHistoryCount(): Flow<Int>
@@ -147,3 +158,10 @@ interface WatchHistoryDao {
     @Query("UPDATE watch_history SET position = duration WHERE videoId = :videoId")
     suspend fun markAsWatched(videoId: String)
 }
+
+/** One row of [WatchHistoryDao.getChannelVideoCounts]. */
+data class ChannelVideoCount(
+    val channelId: String,
+    val channelName: String,
+    val videos: Int,
+)

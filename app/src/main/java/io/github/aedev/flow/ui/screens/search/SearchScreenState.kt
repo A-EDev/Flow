@@ -43,6 +43,7 @@ class SearchScreenState(
     private val shortsEnabledState: State<Boolean>,
     private val feedColumnsState: State<HomeFeedColumns>,
     private val fetchSuggestions: suspend (String) -> List<SearchSuggestion>,
+    private val onHistoryCleared: () -> Unit = {},
 ) {
     var suggestions by mutableStateOf<List<SearchSuggestion>>(emptyList())
         private set
@@ -97,6 +98,7 @@ class SearchScreenState(
 
     fun clearHistory() {
         scope.launch { history.clearSearchHistory() }
+        onHistoryCleared()
     }
 
     fun toggleGridMode() {
@@ -153,6 +155,7 @@ fun rememberSearchState(viewModel: SearchViewModel): SearchScreenState {
                 shortsEnabledState = shortsEnabled,
                 feedColumnsState = feedColumns,
                 fetchSuggestions = viewModel::getSearchSuggestions,
+                onHistoryCleared = viewModel::onSearchHistoryCleared,
             )
         }
 

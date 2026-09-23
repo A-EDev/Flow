@@ -6,7 +6,8 @@
 
 package io.github.aedev.flow.data.recommendation.music
 
-import java.util.Calendar
+import io.github.aedev.flow.data.stats.LedgerTime
+import java.time.ZoneId
 
 /**
  * Per-month listening aggregates — the data a Wrapped-style recap needs but the
@@ -34,6 +35,18 @@ class MonthListening(
     val dayPlays: MutableMap<Int, Int> = HashMap(),
     /** Hour of day (0..23) -> counted plays; feeds the listening clock. */
     val hourPlays: MutableMap<Int, Int> = HashMap(),
+    /** Day of month (1..31) -> listening time, partial sessions included. */
+    val dayMs: MutableMap<Int, Long> = HashMap(),
+    /** Sessions ended before the first milestone after a deliberate listen. */
+    val trackSkips: MutableMap<String, Int> = HashMap(),
+    val artistSkips: MutableMap<String, Int> = HashMap(),
+    /** Artists marked "not interested" this month, with when. */
+    val dislikedArtists: MutableMap<String, Long> = HashMap(),
+    /** Artists blocked this month, with when. */
+    val blockedArtists: MutableMap<String, Long> = HashMap(),
+    /** Artwork URLs seen with a play, for the recap's portraits; never fetched just for it. */
+    val trackArt: MutableMap<String, String> = HashMap(),
+    val artistArt: MutableMap<String, String> = HashMap(),
 )
 
 class MusicStatsLedger {
@@ -47,16 +60,25 @@ object MusicStatsParams {
     const val ARTISTS_PER_MONTH = 250
     const val TRACKS_PER_MONTH = 300
     const val GENRES_PER_MONTH = 50
+    const val SKIPS_PER_MONTH = 150
+    const val SAID_NO_PER_MONTH = 100
+
+    /** A session shorter than this is a mis-tap, not a skip. */
+    const val MIN_SKIP_LISTEN_MS = 5_000L
 }
 
 /** Pure mutation functions, called under the engine mutex — no I/O, no Android. */
 object MusicStatsLedgerOps {
     /** Calendar month key, local time: "2026-08". Sortable lexicographically. */
-    fun monthKey(nowMs: Long): String {
-        val cal = Calendar.getInstance().apply { timeInMillis = nowMs }
-        return "%04d-%02d".format(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1)
-    }
+    fun monthKey(
+        nowMs: Long,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): String = LedgerTime.at(nowMs, zone).monthKey
 
+    /**
+     * One listening session. [skipped] marks a deliberate listen that ended before the first
+     * milestone; it names the track and artist so the recap can say what was passed over.
+     */
     fun record(
         ledger: MusicStatsLedger,
         nowMs: Long,
@@ -68,60 +90,109 @@ object MusicStatsLedgerOps {
         listenedMs: Long,
         counted: Boolean,
         newArtist: Boolean,
+        skipped: Boolean = false,
+        zone: ZoneId = ZoneId.systemDefault(),
+        artworkUrl: String = "",
     ) {
         if (artistKey.isEmpty() || (listenedMs <= 0L && !counted)) return
-        val month = ledger.months.getOrPut(monthKey(nowMs)) { MonthListening() }
+        val moment = LedgerTime.at(nowMs, zone)
+        val month = ledger.months.getOrPut(moment.monthKey) { MonthListening() }
         month.sessions += 1
-        month.listenedMs += listenedMs.coerceAtLeast(0L)
+        val listened = listenedMs.coerceAtLeast(0L)
+        month.listenedMs += listened
+        if (listened > 0L) month.dayMs[moment.dayOfMonth] = (month.dayMs[moment.dayOfMonth] ?: 0L) + listened
+
         if (!counted) {
+            if (skipped && listened >= MusicStatsParams.MIN_SKIP_LISTEN_MS) {
+                month.trackSkips[trackId] = (month.trackSkips[trackId] ?: 0) + 1
+                month.artistSkips[artistKey] = (month.artistSkips[artistKey] ?: 0) + 1
+                nameIn(month, artistKey, artistName, trackId, trackTitle)
+            }
             prune(ledger)
             return
         }
 
         month.plays += 1
         month.artistPlays[artistKey] = (month.artistPlays[artistKey] ?: 0) + 1
-        if (artistName.isNotBlank()) month.artistNames[artistKey] = artistName
         month.trackPlays[trackId] = (month.trackPlays[trackId] ?: 0) + 1
-        if (trackTitle.isNotBlank()) month.trackTitles[trackId] = trackTitle
+        nameIn(month, artistKey, artistName, trackId, trackTitle)
+        if (artworkUrl.isNotBlank()) {
+            month.trackArt[trackId] = artworkUrl
+            month.artistArt[artistKey] = artworkUrl
+        }
         genre?.takeIf { it.isNotBlank() }?.let { month.genrePlays[it] = (month.genrePlays[it] ?: 0) + 1 }
         if (newArtist) month.discoveredArtists.add(artistKey)
-
-        val cal = Calendar.getInstance().apply { timeInMillis = nowMs }
-        val day = cal.get(Calendar.DAY_OF_MONTH)
-        val hour = cal.get(Calendar.HOUR_OF_DAY)
-        month.dayPlays[day] = (month.dayPlays[day] ?: 0) + 1
-        month.hourPlays[hour] = (month.hourPlays[hour] ?: 0) + 1
+        month.dayPlays[moment.dayOfMonth] = (month.dayPlays[moment.dayOfMonth] ?: 0) + 1
+        month.hourPlays[moment.hourOfDay] = (month.hourPlays[moment.hourOfDay] ?: 0) + 1
 
         prune(ledger)
     }
 
+    /** "Not interested" ([blocked] false) or "don't recommend" ([blocked] true) on an artist. */
+    fun recordSaidNo(
+        ledger: MusicStatsLedger,
+        nowMs: Long,
+        artistKey: String,
+        artistName: String,
+        blocked: Boolean,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ) {
+        if (artistKey.isEmpty()) return
+        val month = ledger.months.getOrPut(LedgerTime.at(nowMs, zone).monthKey) { MonthListening() }
+        (if (blocked) month.blockedArtists else month.dislikedArtists)[artistKey] = nowMs
+        if (artistName.isNotBlank()) month.artistNames[artistKey] = artistName
+        prune(ledger)
+    }
+
+    private fun nameIn(
+        month: MonthListening,
+        artistKey: String,
+        artistName: String,
+        trackId: String,
+        trackTitle: String,
+    ) {
+        if (artistName.isNotBlank()) month.artistNames[artistKey] = artistName
+        if (trackTitle.isNotBlank()) month.trackTitles[trackId] = trackTitle
+    }
+
     fun prune(ledger: MusicStatsLedger) {
-        if (ledger.months.size > MusicStatsParams.MONTHS_MAX) {
-            ledger.months.keys
-                .sorted()
-                .take(ledger.months.size - MusicStatsParams.MONTHS_MAX)
-                .forEach { ledger.months.remove(it) }
-        }
+        LedgerTime.capMonths(ledger.months, MusicStatsParams.MONTHS_MAX)
         for (month in ledger.months.values) {
-            capCounts(month.artistPlays, MusicStatsParams.ARTISTS_PER_MONTH, month.artistNames)
-            capCounts(month.trackPlays, MusicStatsParams.TRACKS_PER_MONTH, month.trackTitles)
-            capCounts(month.genrePlays, MusicStatsParams.GENRES_PER_MONTH, names = null)
+            LedgerTime.capWeakest(month.trackSkips, MusicStatsParams.SKIPS_PER_MONTH)
+            LedgerTime.capWeakest(month.artistSkips, MusicStatsParams.SKIPS_PER_MONTH)
+            LedgerTime.capWeakest(month.dislikedArtists, MusicStatsParams.SAID_NO_PER_MONTH)
+            LedgerTime.capWeakest(month.blockedArtists, MusicStatsParams.SAID_NO_PER_MONTH)
+            LedgerTime.capWeakest(month.genrePlays, MusicStatsParams.GENRES_PER_MONTH)
+            capNamed(
+                month.artistPlays,
+                MusicStatsParams.ARTISTS_PER_MONTH,
+                month.artistNames,
+                month.artistSkips,
+                month.dislikedArtists,
+                month.blockedArtists,
+            )
+            capNamed(month.trackPlays, MusicStatsParams.TRACKS_PER_MONTH, month.trackTitles, month.trackSkips)
+            month.trackArt.keys.retainAll(month.trackPlays.keys)
+            month.artistArt.keys.retainAll(month.artistPlays.keys)
         }
     }
 
-    private fun capCounts(
-        counts: MutableMap<String, Int>,
+    /** Caps [plays], dropping a name only when nothing else in the month still refers to it. */
+    private fun capNamed(
+        plays: MutableMap<String, Int>,
         cap: Int,
-        names: MutableMap<String, String>?,
+        names: MutableMap<String, String>,
+        vararg otherUses: Map<String, *>,
     ) {
-        if (counts.size <= cap) return
-        counts.entries
-            .sortedBy { it.value }
-            .take(counts.size - cap)
-            .map { it.key }
-            .forEach { key ->
-                counts.remove(key)
-                names?.remove(key)
-            }
+        if (plays.size <= cap) return
+        val dropped =
+            plays.entries
+                .sortedBy { it.value }
+                .take(plays.size - cap)
+                .map { it.key }
+        dropped.forEach { key ->
+            plays.remove(key)
+            if (otherUses.none { key in it }) names.remove(key)
+        }
     }
 }
