@@ -136,6 +136,10 @@ private enum class HistoryImportFormat {
     JSON,
 }
 
+private const val MASTER_APP_DATA_ENTRY = "app_data.json"
+private const val MASTER_ENGINE_ENTRY = "engine_brain.json"
+private const val MASTER_MUSIC_BRAIN_ENTRY = "music_brain.json"
+
 class BackupRepository(
     private val context: Context,
 ) {
@@ -250,30 +254,54 @@ class BackupRepository(
         }
     }
 
+    private suspend fun buildBackupData(): BackupData =
+        BackupData(
+            viewHistory = viewHistory.getAllHistory().first(),
+            searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
+            subscriptions = subscriptionRepo.getAllSubscriptions().first(),
+            playlists = database.playlistDao().getAllPlaylists().first(),
+            playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
+            videos = database.videoDao().getAllVideos(),
+            subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
+            notes = database.noteDao().getAll(),
+            likedVideos = likedVideosRepo.getAllLikedVideos().first(),
+            contentPreferences = getContentPreferencesBackup(),
+            settings = getMergedSettingsBackup(),
+        )
+
+    /** The master backup: app data, the video engine and, when given, the music engine, in one ZIP. */
+    private fun writeMasterZip(
+        out: java.io.OutputStream,
+        appDataJson: String,
+        brainBytes: ByteArray,
+        musicBrain: ByteArray?,
+    ) {
+        ZipOutputStream(out).use { zip ->
+            zip.putNextEntry(ZipEntry(MASTER_APP_DATA_ENTRY))
+            zip.write(appDataJson.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry(MASTER_ENGINE_ENTRY))
+            zip.write(brainBytes)
+            zip.closeEntry()
+            if (musicBrain != null) {
+                zip.putNextEntry(ZipEntry(MASTER_MUSIC_BRAIN_ENTRY))
+                zip.write(musicBrain)
+                zip.closeEntry()
+            }
+        }
+    }
+
     suspend fun exportData(uri: Uri): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val backupData =
-                    BackupData(
-                        viewHistory = viewHistory.getAllHistory().first(),
-                        searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
-                        subscriptions = subscriptionRepo.getAllSubscriptions().first(),
-                        playlists = database.playlistDao().getAllPlaylists().first(),
-                        playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                        videos = database.videoDao().getAllVideos(),
-                        subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
-                        notes = database.noteDao().getAll(),
-                        likedVideos = likedVideosRepo.getAllLikedVideos().first(),
-                        contentPreferences = getContentPreferencesBackup(),
-                        settings = getMergedSettingsBackup(),
-                    )
+                val backupData = buildBackupData()
 
                 val json = gson.toJson(backupData)
                 context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
                     OutputStreamWriter(outputStream).use { writer ->
                         writer.write(json)
                     }
-                }
+                } ?: return@withContext Result.failure(Exception("Could not open output stream"))
                 Result.success(Unit)
             } catch (e: Exception) {
                 Result.failure(e)
@@ -1989,37 +2017,19 @@ class BackupRepository(
 
     // ── Master Backup (app data + engine brain in one ZIP) ──
 
-    suspend fun exportMasterBackup(uri: Uri): Result<Unit> =
+    suspend fun exportMasterBackup(
+        uri: Uri,
+        musicBrain: ByteArray? = null,
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val backupData =
-                    BackupData(
-                        viewHistory = viewHistory.getAllHistory().first(),
-                        searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
-                        subscriptions = subscriptionRepo.getAllSubscriptions().first(),
-                        playlists = database.playlistDao().getAllPlaylists().first(),
-                        playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                        videos = database.videoDao().getAllVideos(),
-                        subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
-                        notes = database.noteDao().getAll(),
-                        likedVideos = likedVideosRepo.getAllLikedVideos().first(),
-                        contentPreferences = getContentPreferencesBackup(),
-                        settings = getMergedSettingsBackup(),
-                    )
+                val backupData = buildBackupData()
                 val appDataJson = gson.toJson(backupData)
 
                 val brainBytes = exportBrainBytes()
 
                 context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
-                    ZipOutputStream(out).use { zip ->
-                        zip.putNextEntry(ZipEntry("app_data.json"))
-                        zip.write(appDataJson.toByteArray(Charsets.UTF_8))
-                        zip.closeEntry()
-
-                        zip.putNextEntry(ZipEntry("engine_brain.json"))
-                        zip.write(brainBytes)
-                        zip.closeEntry()
-                    }
+                    writeMasterZip(out, appDataJson, brainBytes, musicBrain)
                 } ?: return@withContext Result.failure(Exception("Could not open output stream"))
 
                 Result.success(Unit)
@@ -2028,11 +2038,15 @@ class BackupRepository(
             }
         }
 
-    suspend fun importMasterBackup(uri: Uri): Result<Unit> =
+    suspend fun importMasterBackup(
+        uri: Uri,
+        onMusicBrain: (suspend (ByteArray) -> Unit)? = null,
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 var appDataJson: String? = null
                 var brainBytes: ByteArray? = null
+                var musicBrainBytes: ByteArray? = null
                 var contentPreferences: ContentPreferencesBackup? = null
 
                 context.contentResolver.openInputStream(uri)?.use { raw ->
@@ -2040,8 +2054,9 @@ class BackupRepository(
                         var entry = zip.nextEntry
                         while (entry != null) {
                             when (entry.name) {
-                                "app_data.json" -> appDataJson = zip.readBytes().toString(Charsets.UTF_8)
-                                "engine_brain.json" -> brainBytes = zip.readBytes()
+                                MASTER_APP_DATA_ENTRY -> appDataJson = zip.readBytes().toString(Charsets.UTF_8)
+                                MASTER_ENGINE_ENTRY -> brainBytes = zip.readBytes()
+                                MASTER_MUSIC_BRAIN_ENTRY -> musicBrainBytes = zip.readBytes()
                             }
                             zip.closeEntry()
                             entry = zip.nextEntry
@@ -2064,6 +2079,8 @@ class BackupRepository(
                 brainBytes?.let { bytes ->
                     FlowNeuroEngine.importBrainFromStream(context, bytes.inputStream())
                 }
+
+                musicBrainBytes?.let { bytes -> onMusicBrain?.invoke(bytes) }
 
                 contentPreferences?.let { preferences ->
                     FlowNeuroEngine.restoreContentPreferences(
@@ -2222,20 +2239,7 @@ class BackupRepository(
     suspend fun exportDataToFolder(folderUri: Uri): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val backupData =
-                    BackupData(
-                        viewHistory = viewHistory.getAllHistory().first(),
-                        searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
-                        subscriptions = subscriptionRepo.getAllSubscriptions().first(),
-                        playlists = database.playlistDao().getAllPlaylists().first(),
-                        playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                        videos = database.videoDao().getAllVideos(),
-                        subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
-                        notes = database.noteDao().getAll(),
-                        likedVideos = likedVideosRepo.getAllLikedVideos().first(),
-                        contentPreferences = getContentPreferencesBackup(),
-                        settings = getMergedSettingsBackup(),
-                    )
+                val backupData = buildBackupData()
                 val json = gson.toJson(backupData)
                 writeToFolder(folderUri, "flow_backup.json", "application/json") { out ->
                     out.write(json.toByteArray(Charsets.UTF_8))
@@ -2257,35 +2261,18 @@ class BackupRepository(
             }
         }
 
-    suspend fun exportMasterToFolder(folderUri: Uri): Result<Unit> =
+    suspend fun exportMasterToFolder(
+        folderUri: Uri,
+        musicBrain: ByteArray? = null,
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val backupData =
-                    BackupData(
-                        viewHistory = viewHistory.getAllHistory().first(),
-                        searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
-                        subscriptions = subscriptionRepo.getAllSubscriptions().first(),
-                        playlists = database.playlistDao().getAllPlaylists().first(),
-                        playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                        videos = database.videoDao().getAllVideos(),
-                        subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
-                        notes = database.noteDao().getAll(),
-                        likedVideos = likedVideosRepo.getAllLikedVideos().first(),
-                        contentPreferences = getContentPreferencesBackup(),
-                        settings = getMergedSettingsBackup(),
-                    )
+                val backupData = buildBackupData()
                 val appDataJson = gson.toJson(backupData)
                 val brainBytes = exportBrainBytes()
 
                 writeToFolder(folderUri, "flow_master_backup.zip", "application/zip") { out ->
-                    ZipOutputStream(out).use { zip ->
-                        zip.putNextEntry(ZipEntry("app_data.json"))
-                        zip.write(appDataJson.toByteArray(Charsets.UTF_8))
-                        zip.closeEntry()
-                        zip.putNextEntry(ZipEntry("engine_brain.json"))
-                        zip.write(brainBytes)
-                        zip.closeEntry()
-                    }
+                    writeMasterZip(out, appDataJson, brainBytes, musicBrain)
                 }
             } catch (e: Exception) {
                 Result.failure(e)

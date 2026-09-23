@@ -17,8 +17,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.ui.components.audio.EqualizerEditor
+import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
-import io.github.aedev.flow.ui.screens.settings.SettingsSwitchItem
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -103,19 +103,16 @@ fun AudioSettingsSheet(onDismiss: () -> Unit) {
                     val preferences = remember { PlayerPreferences(context) }
                     val normalizationEnabled by preferences.musicLoudnessNormalizationEnabled.collectAsState(initial = true)
                     val scope = rememberCoroutineScope()
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                    ) {
-                        SettingsSwitchItem(
-                            icon = Icons.Default.GraphicEq,
-                            title = stringResource(R.string.music_normalize_volume_title),
-                            subtitle = stringResource(R.string.music_normalize_volume_desc),
-                            checked = normalizationEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch { preferences.setMusicLoudnessNormalizationEnabled(enabled) }
-                            },
-                        )
-                    }
+                    FlowSwitchRow(
+                        title = stringResource(R.string.music_normalize_volume_title),
+                        supportingText = stringResource(R.string.music_normalize_volume_desc),
+                        checked = normalizationEnabled,
+                        onCheckedChange = { enabled ->
+                            scope.launch { preferences.setMusicLoudnessNormalizationEnabled(enabled) }
+                        },
+                        leadingIcon = Icons.Default.GraphicEq,
+                        shape = CardDefaults.shape,
+                    )
                 }
 
                 // --- Equalizer (shared with the video player) ---

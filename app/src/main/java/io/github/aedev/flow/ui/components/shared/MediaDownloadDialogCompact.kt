@@ -289,7 +289,15 @@ fun MediaDownloadDialogCompact(
             color = AlertDialogDefaults.containerColor,
             tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
-            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
+            Column(
+                modifier =
+                    Modifier.padding(
+                        start = FlowDialogDefaults.ContentPadding,
+                        top = FlowDialogDefaults.ContentPadding,
+                        end = FlowDialogDefaults.ContentPadding,
+                        bottom = FlowDialogDefaults.BottomPadding,
+                    ),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(R.string.download_video),
@@ -411,7 +419,7 @@ fun MediaDownloadDialogCompact(
                     }
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(FlowDialogDefaults.ActionsSpacing))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

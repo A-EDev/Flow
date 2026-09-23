@@ -55,7 +55,6 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -105,6 +104,7 @@ import io.github.aedev.flow.ui.components.FlowMenuGroup
 import io.github.aedev.flow.ui.components.FlowMenuItemData
 import io.github.aedev.flow.ui.components.FlowMenuSectionHeader
 import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import java.util.Locale
 
@@ -887,7 +887,7 @@ internal fun LyricsEditDialog(
     onDismiss: () -> Unit,
 ) {
     var text by remember(initialText) { mutableStateOf(initialText) }
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.lyrics_edit)) },
         text = {

@@ -13,7 +13,6 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -38,6 +37,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
 
@@ -55,7 +55,7 @@ fun RecognitionHistoryScreen(
     var showClearDialog by remember { mutableStateOf(false) }
 
     if (showClearDialog) {
-        AlertDialog(
+        FlowAlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text(stringResource(R.string.recognition_clear_history)) },
             text = { Text(stringResource(R.string.recognition_clear_history_body)) },

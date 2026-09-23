@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowDialogDefaults
 import io.github.aedev.flow.utils.UpdateInfo
 
 @Composable
@@ -170,7 +171,7 @@ fun UpdateDialog(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(FlowDialogDefaults.ContentPadding - FlowDialogDefaults.ActionsSpacing))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

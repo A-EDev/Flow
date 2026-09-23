@@ -44,9 +44,10 @@ import io.github.aedev.flow.ui.components.categories.CategoryTabBar
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
+import io.github.aedev.flow.ui.components.shared.FlowChoice
+import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
-import io.github.aedev.flow.ui.screens.settings.SearchablePickerDialog
-import io.github.aedev.flow.ui.screens.settings.regionPickerOptions
+import io.github.aedev.flow.utils.RegionCatalog
 
 /**
  * Explore: one tab per YouTube destination, each rendering whichever of the three shapes its source
@@ -177,15 +178,12 @@ fun CategoriesScreen(
     }
 
     if (showRegionDialog) {
-        val regionOptions = remember { regionPickerOptions() }
-        SearchablePickerDialog(
+        val regionOptions = remember { RegionCatalog.sorted().map { (code, name) -> FlowChoice(code, name) } }
+        FlowChoiceDialog(
             title = stringResource(R.string.settings_region_dialog_title),
             options = regionOptions,
-            selectedKey = trendingRegion,
-            onSelect = { code ->
-                viewModel.setRegion(code)
-                showRegionDialog = false
-            },
+            selected = trendingRegion,
+            onSelect = viewModel::setRegion,
             onDismiss = { showRegionDialog = false },
             listMaxHeight = RegionDialogMaxHeight,
         )

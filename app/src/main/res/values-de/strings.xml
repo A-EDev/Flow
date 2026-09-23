@@ -327,7 +327,7 @@
     <string name="notif_system_settings_subtitle">Öffnen Sie die Android-Einstellungen, um die Berechtigungen für einzelne Kanäle zu verwalten</string>
     <string name="notif_check_interval_section_header">Feed Zeitplan</string>
     <string name="notif_check_interval">Neue Videos – Überprüfungsintervall</string>
-    <string name="notif_check_interval_subtitle_template">Überprüfen Sie alle %</string>
+    <string name="notif_check_interval_subtitle_template">Überprüfen Sie alle %s</string>
     <string name="notif_check_interval_dialog_title">Prüfintervall</string>
     <string name="notif_check_interval_dialog_body">Wie oft überprüft Flow nach neuen Videos aus Ihren abonnierten Kanälen.</string>
     <string name="notif_interval_15m">15 Minuten</string>
@@ -1571,7 +1571,7 @@
     <string name="section_vibe_vibes">%1$s Stimmungen</string>
     <string name="subtitle_community_playlists">Community-Playlists</string>
     <string name="playlist_author_community">Community-Playlist</string>
-    <string name="playlist_description_community">Eine kuratierte Playlist mit Musik von %1$ aus unserer Community</string>
+    <string name="playlist_description_community">Eine kuratierte Playlist mit Musik von %1$s aus unserer Community</string>
     <string name="radio">Radio</string>
     <string name="template_bass_boost">Bassverstärkung: %1$ddB</string>
     <string name="label_tempo_pitch">Tempo &amp; Tonhöhe</string>

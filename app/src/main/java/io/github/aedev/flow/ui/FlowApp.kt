@@ -50,7 +50,6 @@ import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
-import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 
@@ -59,16 +58,8 @@ import io.github.aedev.flow.ui.theme.ThemeVariant
 fun FlowApp(
     currentTheme: ThemeMode,
     themeVariant: ThemeVariant,
-    customThemePalettes: CustomThemePalettes,
     systemLightThemeMode: ThemeMode,
     systemDarkThemeMode: ThemeMode,
-    systemDarkThemeVariant: ThemeVariant,
-    onThemeChange: (ThemeMode) -> Unit,
-    onThemeVariantChange: (ThemeVariant) -> Unit,
-    onCustomThemePalettesChange: (CustomThemePalettes) -> Unit,
-    onSystemLightThemeChange: (ThemeMode) -> Unit,
-    onSystemDarkThemeChange: (ThemeMode) -> Unit,
-    onSystemDarkThemeVariantChange: (ThemeVariant) -> Unit,
     deeplinkVideoId: String? = null,
     isShort: Boolean = false,
     openMusicPlayerRequest: Int = 0,
@@ -481,18 +472,6 @@ fun FlowApp(
                                         playerViewModel = playerViewModel,
                                         playerUiStateResult = playerUiStateResult,
                                         playerVisibleState = playerVisibleState,
-                                        currentTheme = currentTheme,
-                                        themeVariant = themeVariant,
-                                        customThemePalettes = customThemePalettes,
-                                        systemLightThemeMode = systemLightThemeMode,
-                                        systemDarkThemeMode = systemDarkThemeMode,
-                                        systemDarkThemeVariant = systemDarkThemeVariant,
-                                        onThemeChange = onThemeChange,
-                                        onThemeVariantChange = onThemeVariantChange,
-                                        onCustomThemePalettesChange = onCustomThemePalettesChange,
-                                        onSystemLightThemeChange = onSystemLightThemeChange,
-                                        onSystemDarkThemeChange = onSystemDarkThemeChange,
-                                        onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
                                         disableShortsPlayer = disableShortsPlayer,
                                         defaultStartRoute = defaultStartRoute,
                                         bottomNavOverlayPadding = { bottomNavOverlayHeight.value },

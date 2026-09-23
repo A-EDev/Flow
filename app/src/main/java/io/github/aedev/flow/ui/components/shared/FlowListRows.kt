@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.shared
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -11,16 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,8 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,13 +49,13 @@ private val NavRowTrailingSpacing = 2.dp
 private val SectionHeaderPadding =
     PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 4.dp)
 
-private const val SELECTED_CONTAINER_ALPHA = 0.14f
 private const val DISABLED_CONTENT_ALPHA = 0.4f
 
 /**
- * A single-choice row: the container tint marks the choice, and [Role.RadioButton] is what tells a
- * screen reader this is one option out of a set rather than a plain button.
+ * A single-choice row. [Role.RadioButton] comes from the library's selectable [SegmentedListItem],
+ * which also morphs the row's corners while it is pressed or selected.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FlowSelectionRow(
     title: String,
@@ -62,67 +65,36 @@ fun FlowSelectionRow(
     supportingText: String? = null,
     leadingIcon: ImageVector? = null,
     showSelectedContainer: Boolean = true,
+    enabled: Boolean = true,
     shape: Shape = RectangleShape,
 ) {
-    val supporting = rowSupportingContent(supportingText)
-    val leading = rowLeadingContent(leadingIcon)
-    val trailing: (@Composable () -> Unit)? =
-        if (selected) {
-            {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                )
-            }
-        } else {
-            null
-        }
-
-    ListItem(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .selectable(
-                    selected = selected,
-                    role = Role.RadioButton,
-                    onClick = onClick,
-                ),
-        supportingContent = supporting,
-        leadingContent = leading,
-        trailingContent = trailing,
+    SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
+        selected = selected,
+        onClick = onClick,
         shapes = ListItemDefaults.shapes(shape = shape),
-        colors =
-            ListItemDefaults.colors(
-                containerColor =
-                    if (selected && showSelectedContainer) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = SELECTED_CONTAINER_ALPHA)
-                    } else {
-                        groupedContainerColor(shape)
-                    },
-                contentColor =
-                    if (selected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                trailingContentColor = MaterialTheme.colorScheme.primary,
-                supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-        contentPadding =
-            PaddingValues(
-                horizontal = rowHorizontalPadding(shape),
-                vertical = SelectionRowVerticalPadding,
-            ),
+        modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
+        supportingContent = rowSupportingContent(supportingText),
+        leadingContent = rowLeadingContent(leadingIcon, null),
+        trailingContent =
+            if (selected) {
+                { Icon(imageVector = Icons.Filled.Check, contentDescription = null) }
+            } else {
+                null
+            },
+        colors = rowColors(shape = shape, showSelectedContainer = showSelectedContainer),
+        contentPadding = rowPadding(shape, SelectionRowVerticalPadding),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        Text(text = title)
     }
 }
 
-/** A row that opens another page: an optional current value, then a chevron. */
+/**
+ * A row that opens another page or runs an action: an optional current value, then a chevron.
+ * [selected] marks the page currently open beside a two-pane list.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FlowNavRow(
     title: String,
@@ -130,61 +102,60 @@ fun FlowNavRow(
     modifier: Modifier = Modifier,
     supportingText: String? = null,
     leadingIcon: ImageVector? = null,
+    leadingPainter: Painter? = null,
     trailingText: String? = null,
+    showChevron: Boolean = true,
+    enabled: Boolean = true,
+    selected: Boolean = false,
     shape: Shape = RectangleShape,
 ) {
-    val supporting = rowSupportingContent(supportingText)
-    val leading = rowLeadingContent(leadingIcon)
-
-    ListItem(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-        supportingContent = supporting,
-        leadingContent = leading,
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (!trailingText.isNullOrBlank()) {
-                    Text(
-                        text = trailingText,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(Modifier.width(NavRowTrailingSpacing))
+    val trailing: (@Composable () -> Unit)? =
+        if (showChevron || !trailingText.isNullOrBlank()) {
+            {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!trailingText.isNullOrBlank()) {
+                        Text(
+                            text = trailingText,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    if (showChevron) {
+                        if (!trailingText.isNullOrBlank()) Spacer(Modifier.width(NavRowTrailingSpacing))
+                        Icon(
+                            imageVector = Icons.Filled.ChevronRight,
+                            contentDescription = null,
+                            modifier = Modifier.size(NavRowTrailingIconSize),
+                        )
+                    }
                 }
-                Icon(
-                    imageVector = Icons.Filled.ChevronRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(NavRowTrailingIconSize),
-                )
             }
-        },
+        } else {
+            null
+        }
+
+    SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
+        selected = selected,
+        onClick = onClick,
         shapes = ListItemDefaults.shapes(shape = shape),
-        colors =
-            ListItemDefaults.colors(
-                containerColor = groupedContainerColor(shape),
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                trailingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-        contentPadding =
-            PaddingValues(
-                horizontal = rowHorizontalPadding(shape),
-                vertical = NavRowVerticalPadding,
-            ),
+        modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
+        supportingContent = rowSupportingContent(supportingText),
+        leadingContent = rowLeadingContent(leadingIcon, leadingPainter),
+        trailingContent = trailing,
+        colors = rowColors(shape = shape, showSelectedContainer = true),
+        contentPadding = rowPadding(shape, NavRowVerticalPadding),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        Text(text = title)
     }
 }
 
 /**
  * A row whose whole width toggles its trailing [Switch]. The switch itself is not clickable so the
- * row is a single [Role.Switch] target instead of two competing ones.
+ * row is a single [Role.Switch] target. The library's toggleable overload is not used because it
+ * reports [Role.Checkbox] and tints the whole row while checked, which is a checklist, not a switch.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FlowSwitchRow(
     title: String,
@@ -193,60 +164,35 @@ fun FlowSwitchRow(
     modifier: Modifier = Modifier,
     supportingText: String? = null,
     leadingIcon: ImageVector? = null,
+    leadingPainter: Painter? = null,
     enabled: Boolean = true,
     shape: Shape = RectangleShape,
 ) {
-    val supporting = rowSupportingContent(supportingText)
-    val leading = rowLeadingContent(leadingIcon)
-
-    ListItem(
+    SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
+        onClick = { onCheckedChange(!checked) },
+        shapes = ListItemDefaults.shapes(shape = shape),
         modifier =
             modifier
                 .fillMaxWidth()
-                .toggleable(
-                    value = checked,
-                    enabled = enabled,
-                    role = Role.Switch,
-                    onValueChange = onCheckedChange,
-                ),
+                .semantics {
+                    role = Role.Switch
+                    toggleableState = ToggleableState(checked)
+                },
         enabled = enabled,
-        supportingContent = supporting,
-        leadingContent = leading,
+        supportingContent = rowSupportingContent(supportingText),
+        leadingContent = rowLeadingContent(leadingIcon, leadingPainter),
         trailingContent = {
-            Switch(
+            FlowSwitch(
                 checked = checked,
                 enabled = enabled,
                 onCheckedChange = null,
             )
         },
-        shapes = ListItemDefaults.shapes(shape = shape),
-        colors =
-            ListItemDefaults.colors(
-                containerColor = groupedContainerColor(shape),
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                trailingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledContainerColor = groupedContainerColor(shape),
-                disabledContentColor =
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_CONTENT_ALPHA),
-                disabledLeadingContentColor =
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DISABLED_CONTENT_ALPHA),
-                disabledTrailingContentColor =
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DISABLED_CONTENT_ALPHA),
-                disabledSupportingContentColor =
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DISABLED_CONTENT_ALPHA),
-            ),
-        contentPadding =
-            PaddingValues(
-                horizontal = rowHorizontalPadding(shape),
-                vertical = SwitchRowVerticalPadding,
-            ),
+        colors = rowColors(shape = shape, showSelectedContainer = false),
+        contentPadding = rowPadding(shape, SwitchRowVerticalPadding),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        Text(text = title)
     }
 }
 
@@ -265,24 +211,35 @@ fun FlowSectionHeader(
     )
 }
 
-private fun rowSupportingContent(supportingText: String?): (@Composable () -> Unit)? =
-    supportingText?.let { text ->
-        {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
+private fun rowSupportingContent(supportingText: String?): (@Composable () -> Unit)? = supportingText?.let { text -> { Text(text = text) } }
 
-private fun rowLeadingContent(leadingIcon: ImageVector?): (@Composable () -> Unit)? =
-    leadingIcon?.let { icon ->
-        {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(RowLeadingIconSize),
-            )
+private fun rowLeadingContent(
+    leadingIcon: ImageVector?,
+    leadingPainter: Painter?,
+): (@Composable () -> Unit)? =
+    when {
+        leadingIcon != null -> {
+            {
+                Icon(
+                    imageVector = leadingIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(RowLeadingIconSize),
+                )
+            }
+        }
+
+        leadingPainter != null -> {
+            {
+                Icon(
+                    painter = leadingPainter,
+                    contentDescription = null,
+                    modifier = Modifier.size(RowLeadingIconSize),
+                )
+            }
+        }
+
+        else -> {
+            null
         }
     }
 
@@ -309,8 +266,46 @@ fun flowRowGroupShape(
     count: Int,
 ): Shape = flowSegmentShape(index = index, count = count)
 
+/**
+ * Colours for a row: a grouped row sits on its own container so the segmented group reads as one
+ * surface, an ungrouped row stays transparent on whatever sheet or page holds it.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun rowColors(
+    shape: Shape,
+    showSelectedContainer: Boolean,
+): ListItemColors {
+    val container = groupedContainerColor(shape)
+    val colors = MaterialTheme.colorScheme
+    return ListItemDefaults.segmentedColors(
+        containerColor = container,
+        contentColor = colors.onSurface,
+        leadingContentColor = colors.onSurfaceVariant,
+        trailingContentColor = colors.onSurfaceVariant,
+        supportingContentColor = colors.onSurfaceVariant,
+        disabledContainerColor = container,
+        disabledContentColor = colors.onSurface.copy(alpha = DISABLED_CONTENT_ALPHA),
+        disabledLeadingContentColor = colors.onSurfaceVariant.copy(alpha = DISABLED_CONTENT_ALPHA),
+        disabledTrailingContentColor = colors.onSurfaceVariant.copy(alpha = DISABLED_CONTENT_ALPHA),
+        disabledSupportingContentColor = colors.onSurfaceVariant.copy(alpha = DISABLED_CONTENT_ALPHA),
+        selectedContainerColor = if (showSelectedContainer) colors.secondaryContainer else container,
+        selectedContentColor = if (showSelectedContainer) colors.onSecondaryContainer else colors.onSurface,
+        selectedLeadingContentColor =
+            if (showSelectedContainer) colors.onSecondaryContainer else colors.onSurfaceVariant,
+        selectedTrailingContentColor = if (showSelectedContainer) colors.onSecondaryContainer else colors.primary,
+        selectedSupportingContentColor =
+            if (showSelectedContainer) colors.onSecondaryContainer else colors.onSurfaceVariant,
+    )
+}
+
 @Composable
 private fun groupedContainerColor(shape: Shape): Color =
     if (shape == RectangleShape) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh
 
 private fun rowHorizontalPadding(shape: Shape): Dp = if (shape == RectangleShape) RowHorizontalPadding else GroupedRowHorizontalPadding
+
+private fun rowPadding(
+    shape: Shape,
+    vertical: Dp,
+): PaddingValues = PaddingValues(horizontal = rowHorizontalPadding(shape), vertical = vertical)

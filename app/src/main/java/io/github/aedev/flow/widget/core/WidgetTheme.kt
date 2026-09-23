@@ -2,8 +2,9 @@ package io.github.aedev.flow.widget.core
 
 import android.content.Context
 import androidx.glance.color.ColorProviders
+import io.github.aedev.flow.data.local.CustomThemeCodec
 import io.github.aedev.flow.data.local.LocalDataManager
-import io.github.aedev.flow.ui.theme.CustomThemePalettes
+import io.github.aedev.flow.ui.theme.CustomTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.theme.resolveFlowColorScheme
@@ -16,7 +17,7 @@ import kotlinx.coroutines.flow.map
 data class WidgetThemeSignature(
     val themeMode: ThemeMode,
     val themeVariant: ThemeVariant,
-    val customThemePalettes: CustomThemePalettes,
+    val customTheme: CustomTheme?,
     val systemLightThemeMode: ThemeMode,
     val systemDarkThemeMode: ThemeMode,
     val systemDarkThemeVariant: ThemeVariant,
@@ -25,10 +26,9 @@ data class WidgetThemeSignature(
      * A form of this signature that survives the process, so a launch can tell "the theme is the
      * same as last time" from "this is the first value I have seen".
      *
-     * Built by hand rather than from `hashCode()`: the palettes are keyed by an enum, and
-     * `Enum.hashCode` is identity-based, so a data-class hash of this is stable within one process
-     * and meaningless across two. Roles are sorted by name so map iteration order cannot change it
-     * either.
+     * Built by hand rather than from `hashCode()`, which is identity-based for the enums in it and so
+     * stable within one process but meaningless across two. The custom theme is written in its
+     * exported form, which spells every colour out.
      */
     fun persistedForm(): String =
         buildString {
@@ -37,16 +37,8 @@ data class WidgetThemeSignature(
             append(systemLightThemeMode.name).append('|')
             append(systemDarkThemeMode.name).append('|')
             append(systemDarkThemeVariant.name)
-            listOf(
-                customThemePalettes.light,
-                customThemePalettes.dark,
-                customThemePalettes.amoled,
-            ).forEach { palette ->
-                append('|')
-                palette.values.entries
-                    .sortedBy { it.key.name }
-                    .joinTo(this, separator = ",") { "${it.key.name}=${it.value}" }
-            }
+            append('|')
+            customTheme?.let { append(CustomThemeCodec.encodeOne(it)) }
         }
 }
 
@@ -56,7 +48,7 @@ fun widgetThemeSignatureFlow(context: Context): Flow<WidgetThemeSignature> {
         combine(
             dataManager.themeMode,
             dataManager.themeVariant,
-            dataManager.customThemePalettes,
+            dataManager.activeCustomTheme,
         ) { mode, variant, palettes -> Triple(mode, variant, palettes) },
         combine(
             dataManager.systemLightThemeMode,
@@ -82,7 +74,7 @@ fun widgetColorsFlow(context: Context): Flow<ColorProviders> {
                     isSystemDark = false,
                     themeMode = signature.themeMode,
                     themeVariant = signature.themeVariant,
-                    customThemePalettes = signature.customThemePalettes,
+                    customTheme = signature.customTheme,
                     systemLightThemeMode = signature.systemLightThemeMode,
                     systemDarkThemeMode = signature.systemDarkThemeMode,
                     systemDarkThemeVariant = signature.systemDarkThemeVariant,
@@ -93,7 +85,7 @@ fun widgetColorsFlow(context: Context): Flow<ColorProviders> {
                     isSystemDark = true,
                     themeMode = signature.themeMode,
                     themeVariant = signature.themeVariant,
-                    customThemePalettes = signature.customThemePalettes,
+                    customTheme = signature.customTheme,
                     systemLightThemeMode = signature.systemLightThemeMode,
                     systemDarkThemeMode = signature.systemDarkThemeMode,
                     systemDarkThemeVariant = signature.systemDarkThemeVariant,

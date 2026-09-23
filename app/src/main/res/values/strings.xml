@@ -28,7 +28,7 @@
     </plurals>
     <string name="subscriptions_failed_channels_copy_logs">Copy logs</string>
     <string name="content_settings_channel_group_badge_title">Show group on channel avatars</string>
-    <string name="content_settings_channel_group_badge_subtitle">Label channel and artist avatars with the subscription group they belong to</string>
+    <string name="content_settings_channel_group_badge_subtitle">Label avatars with their subscription group</string>
     <string name="channel_add_to_group">Add to group</string>
     <string name="channel_groups_sheet_title">Channel groups</string>
     <string name="channel_groups_empty">No groups yet</string>
@@ -564,19 +564,19 @@
     <string name="settings_flow_engine_header">Flow Engine</string>
     <string name="settings_active_learning">ACTIVE LEARNING</string>
     <string name="settings_reset_brain_title">Reset Flow Personality?</string>
-    <string name="settings_reset_brain_body">This will completely wipe your \'Flow Brain\' interest profile.\n\n• All learned topics will be forgotten.\n• Personality traits will reset to neutral.\n• Recommendations will return to default.\n\nThis action cannot be undone.</string>
+    <string name="settings_reset_brain_body">This erases your Flow Brain profile.\n\n• Learned topics are forgotten.\n• Personality traits reset.\n• Recommendations go back to default.\n\nThis cannot be undone.</string>
     <string name="settings_reset_everything">Reset Everything</string>
     <string name="settings_analyzing_interactions">Analyzing your interactions...</string>
     <string name="settings_view_analytics">View Analytics</string>
     <!-- Deep Flow Mode -->
     <string name="deep_flow_mode_title">Deep Flow Mode</string>
-    <string name="deep_flow_mode_subtitle">Pause learning — browse without influencing your profile</string>
+    <string name="deep_flow_mode_subtitle">Pause learning while you browse</string>
     <string name="deep_flow_learning_paused">LEARNING PAUSED</string>
     <string name="deep_flow_expires_in">Expires in %s</string>
     <string name="deep_flow_expire_duration_title">Auto-disable after</string>
     <string name="deep_flow_expire_duration_subtitle">Learning resumes automatically after %s</string>
     <string name="deep_flow_save_history_title">Save to watch history</string>
-    <string name="deep_flow_save_history_subtitle">Keep watched videos in history (with progress). The engine still won\'t learn from them. Off = nothing is saved.</string>
+    <string name="deep_flow_save_history_subtitle">Keep watch history without teaching recommendations</string>
     <string name="deep_flow_dialog_title">Pause Duration</string>
     <string name="deep_flow_dialog_body">How long should learning stay paused?</string>
     <string name="deep_flow_enabled_message">Deep Flow enabled</string>
@@ -617,14 +617,14 @@
     <string name="notif_system_settings_subtitle">Open Android settings to manage per-channel permissions</string>
     <string name="notif_check_interval_section_header">Feed Check Schedule</string>
     <string name="notif_master_toggle">Enable notifications</string>
-    <string name="notif_master_toggle_subtitle">Allow Flow to wake up in the background for notification checks and alerts</string>
+    <string name="notif_master_toggle_subtitle">Let Flow check for new videos in the background</string>
     <string name="notif_background_restricted_title">Background checks are restricted</string>
-    <string name="notif_background_restricted_subtitle">Android is blocking Flow from checking for new videos while it is closed, so alerts only arrive when you open the app. Tap to allow unrestricted background activity.</string>
+    <string name="notif_background_restricted_subtitle">Android blocks checks while Flow is closed. Tap to allow background activity.</string>
     <string name="notif_check_interval">New Video Check Interval</string>
     <string name="notif_check_interval_subtitle_template">Check every %s</string>
     <string name="notif_check_interval_disabled">Background notification checks are disabled</string>
     <string name="notif_check_interval_dialog_title">Check Interval</string>
-    <string name="notif_check_interval_dialog_body">How often Flow checks for new videos from your subscribed channels.</string>
+    <string name="notif_check_interval_dialog_body">How often Flow checks your subscriptions for new videos.</string>
     <string name="notif_interval_15m">15 minutes</string>
     <string name="notif_interval_30m">30 minutes</string>
     <string name="notif_interval_1h">1 hour</string>
@@ -744,7 +744,7 @@
     <string name="appearance_system_dark_theme">Dark mode theme</string>
     <!-- App Icon Picker -->
     <string name="app_icon_picker_subtitle">Choose a launcher icon style. The change takes effect immediately and the launcher will briefly refresh.</string>
-    <string name="app_icon_picker_warning">Heads up: switching icons uses an Android system mechanism that may briefly remove the app shortcut from your home screen. Long-press the launcher to add it back if needed.</string>
+    <string name="app_icon_picker_warning">Changing the icon may remove Flow from your home screen for a moment. Add it back from the app drawer if needed.</string>
     <string name="app_icon_apply_toast">Icon updated - your launcher will refresh</string>
     <string name="icon_name_flow_red">Flow Red</string>
     <string name="icon_name_flow_light">Flow Light</string>
@@ -758,7 +758,7 @@
     <!-- Player Appearance -->
     <string name="player_appearance_title">Player Appearance</string>
     <string name="player_appearance_header">Customize Player Controls</string>
-    <string name="player_appearance_style_title"> Music Progress Bar Style</string>
+    <string name="player_appearance_style_title">Music Progress Bar Style</string>
     <string name="player_appearance_style_subtitle">Select the visual style of the seek bar</string>
     <string name="player_background_style_title">Music Player Background</string>
     <string name="player_background_style_blur_gradient">Blur + Gradient</string>
@@ -769,9 +769,9 @@
     <string name="player_appearance_hide_music_artwork_title">Hide music player artwork</string>
     <string name="player_appearance_hide_music_artwork_subtitle">Show the app icon on the extracted artwork color instead</string>
     <string name="player_appearance_haptics_title">Vibration</string>
-    <string name="player_appearance_haptics_subtitle">Small taps when you use the player controls and gestures</string>
+    <string name="player_appearance_haptics_subtitle">Vibrate lightly on player taps and gestures</string>
     <string name="player_appearance_gesture_overlay_title">Gesture overlay style</string>
-    <string name="player_appearance_gesture_overlay_subtitle">How the volume and brightness read-outs are drawn while you swipe</string>
+    <string name="player_appearance_gesture_overlay_subtitle">How volume and brightness show while you swipe</string>
     <string name="gesture_overlay_style_circular">Circular</string>
     <string name="gesture_overlay_style_vertical">Vertical</string>
     <string name="gesture_overlay_style_horizontal">Bar</string>
@@ -782,7 +782,7 @@
     <string name="shorts_player_ui_simple">Simple</string>
     <string name="shorts_player_ui_impressive">Impressive</string>
     <string name="player_appearance_grouped_quality_selector_title">Grouped quality selector</string>
-    <string name="player_appearance_grouped_quality_selector_subtitle">Show one row per resolution with codec choices inside it</string>
+    <string name="player_appearance_grouped_quality_selector_subtitle">One row per resolution, with codecs inside</string>
     <string name="shorts_saved">Short saved</string>
     <string name="shorts_unsaved">Short unsaved</string>
     <string name="shorts_showing_more_like_this">We\'ll show more like this</string>
@@ -801,13 +801,13 @@
     <string name="player_appearance_brightness_gesture_title">Brightness Gesture</string>
     <string name="player_appearance_brightness_gesture_subtitle">Swipe the left edge in fullscreen to adjust brightness</string>
     <string name="player_appearance_remember_brightness_title">Remember Brightness</string>
-    <string name="player_appearance_remember_brightness_subtitle">Reuse your last player brightness level for the next videos</string>
+    <string name="player_appearance_remember_brightness_subtitle">Keep your last brightness for the next video</string>
     <string name="player_appearance_volume_gesture_title">Volume Gesture</string>
     <string name="player_appearance_volume_gesture_subtitle">Swipe the right edge in fullscreen to adjust volume</string>
     <string name="player_appearance_seek_gesture_title">Seek Gesture</string>
-    <string name="player_appearance_seek_gesture_subtitle">Swipe horizontally in fullscreen to scrub through the video</string>
+    <string name="player_appearance_seek_gesture_subtitle">Swipe sideways in fullscreen to seek</string>
     <string name="player_appearance_controls_while_loading_title">Controls While Loading</string>
-    <string name="player_appearance_controls_while_loading_subtitle">Show the player controls before the video finishes loading so you can adjust volume right away</string>
+    <string name="player_appearance_controls_while_loading_subtitle">Show controls before the video finishes loading</string>
     <string name="player_appearance_long_press_speed_title">Long-press Playback Speed</string>
     <string name="player_appearance_long_press_speed_subtitle">Choose the temporary speed used while holding the player</string>
     <string name="player_appearance_long_press_speed_disabled">Disabled</string>
@@ -822,7 +822,7 @@
     <string name="player_nav_btn_subtitle">Show next and previous video buttons on the mini player</string>
     <string name="player_appearance_fullscreen_header">Fullscreen</string>
     <string name="player_adaptive_size_title">Adaptive Player Size</string>
-    <string name="player_adaptive_size_subtitle">Use the video format for player height. Turn off for fixed 16:9.</string>
+    <string name="player_adaptive_size_subtitle">Fit the player to the video. Off keeps it 16:9.</string>
     <string name="player_fullscreen_seekbar_width_title">Fullscreen Seekbar Width</string>
     <string name="player_portrait_seekbar_width_title">Portrait Seekbar Width</string>
     <string name="player_portrait_seekbar_width_spaced">Spaced</string>
@@ -850,61 +850,93 @@
     <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
     <!-- Theme Names & Descriptions -->
     <string name="theme_name_system_default">System Default</string>
-    <string name="theme_desc_system_default">Synchronize with device theme</string>
+    <string name="theme_desc_system_default">Follows your device between light and dark.</string>
     <string name="theme_name_material_you">Material You</string>
-    <string name="theme_desc_material_you">Wallpaper colors on Android 12+</string>
+    <string name="theme_desc_material_you">Colours drawn from your wallpaper on Android 12 and newer.</string>
     <string name="theme_name_pure_light">Pure Light</string>
     <string name="theme_desc_pure_light">Clean &amp; minimal</string>
     <string name="theme_name_mint_fresh">Mint Fresh</string>
-    <string name="theme_desc_mint_fresh">Cool &amp; refreshing</string>
+    <string name="theme_desc_mint_fresh">A light palette with cool, refreshing mint accents.</string>
     <string name="theme_name_rose_petal">Rose Petal</string>
-    <string name="theme_desc_rose_petal">Warm &amp; gentle</string>
+    <string name="theme_desc_rose_petal">A light palette with warm, gentle rose tones.</string>
     <string name="theme_name_sky_blue">Sky Blue</string>
-    <string name="theme_desc_sky_blue">Open &amp; airy</string>
+    <string name="theme_desc_sky_blue">A light, airy palette with open sky blues.</string>
     <string name="theme_name_cream_paper">Cream Paper</string>
-    <string name="theme_desc_cream_paper">Warm &amp; cozy</string>
-    <string name="theme_name_classic_dark">Classic</string>
-    <string name="theme_desc_classic_dark">Flow’s original palette</string>
+    <string name="theme_desc_cream_paper">Warm paper tones for cosy daytime reading.</string>
+    <string name="theme_name_classic_dark">Flow Default</string>
+    <string name="theme_desc_classic_dark">The original Flow palette with the YouTube red accent.</string>
     <string name="theme_name_true_black">True Black</string>
     <string name="theme_desc_true_black">Pure OLED</string>
     <string name="theme_name_monochrome">Monochrome</string>
-    <string name="theme_desc_monochrome">Pure black and white clarity</string>
+    <string name="theme_desc_monochrome">A neutral, distraction-free palette with maximum clarity.</string>
     <string name="theme_name_custom">Custom</string>
-    <string name="theme_desc_custom">Create your own professional palette</string>
+    <string name="theme_desc_custom">Your own palette, with every colour editable.</string>
     <string name="theme_name_midnight">Midnight</string>
-    <string name="theme_desc_midnight">Deep &amp; focused</string>
+    <string name="theme_desc_midnight">Deep, focused blacks for late-night viewing.</string>
     <string name="theme_name_deep_ocean">Deep Ocean</string>
-    <string name="theme_desc_deep_ocean">Calm depths</string>
+    <string name="theme_desc_deep_ocean">Calm blues drawn from deep water.</string>
     <string name="theme_name_forest">Forest</string>
-    <string name="theme_desc_forest">Natural &amp; grounding</string>
+    <string name="theme_desc_forest">Natural greens with grounded surfaces.</string>
     <string name="theme_name_lavender">Lavender</string>
-    <string name="theme_desc_lavender">Soft &amp; dreamy</string>
+    <string name="theme_desc_lavender">Calm violet tones with gentle contrast.</string>
     <string name="theme_name_sunset">Sunset</string>
-    <string name="theme_desc_sunset">Warm &amp; vibrant</string>
+    <string name="theme_desc_sunset">Warm, vibrant oranges for the evening.</string>
     <string name="theme_name_nebula">Nebula</string>
-    <string name="theme_desc_nebula">Cosmic &amp; bold</string>
+    <string name="theme_desc_nebula">Bold cosmic purples with deep surfaces.</string>
     <string name="theme_name_rose_gold">Rose Gold</string>
-    <string name="theme_desc_rose_gold">Elegant &amp; luxe</string>
+    <string name="theme_desc_rose_gold">Elegant rose-gold accents on warm darks.</string>
     <string name="theme_name_arctic">Arctic</string>
-    <string name="theme_desc_arctic">Frozen clarity</string>
+    <string name="theme_desc_arctic">Crisp icy blues with clear contrast.</string>
     <string name="theme_name_mint_night">Mint Night</string>
-    <string name="theme_desc_mint_night">Cool serenity</string>
+    <string name="theme_desc_mint_night">Cool mint accents on a quiet dark base.</string>
     <string name="theme_name_crimson">Crimson</string>
-    <string name="theme_desc_crimson">Bold &amp; powerful</string>
+    <string name="theme_desc_crimson">A bold, powerful red on deep darks.</string>
     <string name="theme_name_cosmic_void">Cosmic Void</string>
-    <string name="theme_desc_cosmic_void">Infinite darkness</string>
+    <string name="theme_desc_cosmic_void">Near-black depths with electric violet.</string>
     <string name="theme_name_solar_flare">Solar Flare</string>
-    <string name="theme_desc_solar_flare">Blazing energy</string>
+    <string name="theme_desc_solar_flare">Blazing golds and ambers on dark gold.</string>
     <string name="theme_name_cyberpunk">Cyberpunk</string>
-    <string name="theme_desc_cyberpunk">Neon future</string>
+    <string name="theme_desc_cyberpunk">Neon magenta and cyan for a future city.</string>
     <string name="theme_name_royal_gold">Royal Gold</string>
-    <string name="theme_desc_royal_gold">Prestigious &amp; rich</string>
-    <string name="theme_name_nordic">Nordic</string>
-    <string name="theme_desc_nordic">Scandinavian calm</string>
+    <string name="theme_desc_royal_gold">Rich, prestigious golds on deep darks.</string>
+    <string name="theme_name_nordic">Nord</string>
+    <string name="theme_desc_nordic">An arctic, north-bluish palette.</string>
     <string name="theme_name_espresso">Espresso</string>
-    <string name="theme_desc_espresso">Rich &amp; warm</string>
+    <string name="theme_desc_espresso">Rich, warm coffee browns.</string>
     <string name="theme_name_gunmetal">Gunmetal</string>
-    <string name="theme_desc_gunmetal">Industrial edge</string>
+    <string name="theme_desc_gunmetal">Industrial greys with a cool metal edge.</string>
+    <string name="theme_name_catppuccin" translatable="false">Catppuccin</string>
+    <string name="theme_name_tako" translatable="false">Tako</string>
+    <string name="theme_name_kanagawa" translatable="false">Kanagawa</string>
+    <string name="theme_name_tokyo_night" translatable="false">Tokyo Night</string>
+    <string name="theme_name_rose_pine" translatable="false">Rosé Pine</string>
+    <string name="theme_name_everforest" translatable="false">Everforest</string>
+    <string name="theme_name_gruvbox" translatable="false">Gruvbox</string>
+    <string name="theme_name_dracula" translatable="false">Dracula</string>
+    <string name="theme_name_solarized" translatable="false">Solarized</string>
+    <string name="theme_name_claude" translatable="false">Claude</string>
+    <string name="theme_name_green_apple">Green Apple</string>
+    <string name="theme_name_yin_yang">Yin &amp; Yang</string>
+    <string name="theme_name_strawberry_daiquiri">Strawberry Daiquiri</string>
+    <string name="theme_name_tide">Tide</string>
+    <string name="theme_name_sage">Sage</string>
+    <string name="theme_name_caffeine">Caffeine</string>
+    <string name="theme_desc_catppuccin">Soothing pastel Latte and Mocha-inspired colors.</string>
+    <string name="theme_desc_green_apple">Fresh green accents with soft organic surfaces.</string>
+    <string name="theme_desc_tako">Mihon-inspired purple with warm companion tones.</string>
+    <string name="theme_desc_yin_yang">Balanced black and white in its purest form.</string>
+    <string name="theme_desc_strawberry_daiquiri">A bright berry palette with soft cream surfaces.</string>
+    <string name="theme_desc_kanagawa">Inky blues and warm lotus tones inspired by Hokusai.</string>
+    <string name="theme_desc_tokyo_night">Calm blue-violet colors drawn from the night city.</string>
+    <string name="theme_desc_rose_pine">Natural pine, rose, and gold-tinted neutrals.</string>
+    <string name="theme_desc_everforest">A soft, low-contrast forest palette.</string>
+    <string name="theme_desc_gruvbox">Warm, earthy retro colors.</string>
+    <string name="theme_desc_dracula">The classic high-contrast purple palette.</string>
+    <string name="theme_desc_solarized">A precision low-glare blue and cyan palette.</string>
+    <string name="theme_desc_tide">Deep slate surfaces with muted teal.</string>
+    <string name="theme_desc_sage">Muted forest green that stays calm and soft.</string>
+    <string name="theme_desc_caffeine">Coffee tones balanced with cream and espresso.</string>
+    <string name="theme_desc_claude">Warm clay accents on paper-like surfaces.</string>
     <!-- Content Settings -->
     <string name="content_settings_title">Content Settings</string>
     <string name="content_settings_header_display">Display</string>
@@ -912,7 +944,7 @@
     <string name="content_settings_home_layout_title">Home Display Mode</string>
     <string name="content_settings_home_layout_subtitle">Choose how videos are displayed on the home screen</string>
     <string name="content_settings_home_columns_title">Cards per row</string>
-    <string name="content_settings_home_columns_subtitle">Auto follows your screen size. Pick a number to keep it fixed.</string>
+    <string name="content_settings_home_columns_subtitle">Auto fits your screen. Pick a number to fix it.</string>
     <string name="content_settings_home_columns_auto">Auto</string>
     <string name="content_settings_layout_grid">Grid</string>
     <string name="content_settings_layout_list">List</string>
@@ -932,9 +964,9 @@
     <!-- Home Feed -->
     <string name="content_settings_header_home_feed">Home Feed</string>
     <string name="content_settings_home_feed_title">Enable Home Feed</string>
-    <string name="content_settings_home_feed_subtitle">Show personalized video recommendations on the home screen</string>
+    <string name="content_settings_home_feed_subtitle">Show recommendations on Home</string>
     <string name="content_settings_home_reselect_refresh_title">Refresh Home when reselected</string>
-    <string name="content_settings_home_reselect_refresh_subtitle">Reload suggestions after scrolling to the top when Home is tapped again</string>
+    <string name="content_settings_home_reselect_refresh_subtitle">Tap Home again at the top to reload it</string>
     <string name="content_settings_home_feed_disabled_title">Home Feed Disabled</string>
     <string name="content_settings_home_feed_disabled_body">Personalized recommendations are turned off. You can re-enable this in Content Settings.</string>
     <!-- Video Player Related Card Style -->
@@ -952,57 +984,57 @@
     <string name="content_settings_title_lines_3">3 lines</string>
     <string name="content_settings_title_lines_unlimited">No limit</string>
     <string name="content_settings_video_card_actions_title">Video card like &amp; dislike buttons</string>
-    <string name="content_settings_video_card_actions_subtitle">Show thumbs up / thumbs down buttons on video cards to quickly tune your recommendations</string>
+    <string name="content_settings_video_card_actions_subtitle">Like and dislike buttons on cards to tune your feed</string>
     <string name="content_settings_video_card_mark_watched_title">Video card mark as watched button</string>
-    <string name="content_settings_video_card_mark_watched_subtitle">Show an eye button on full and compact video cards to quickly mark videos as watched</string>
+    <string name="content_settings_video_card_mark_watched_subtitle">An eye button on cards to mark videos as watched</string>
     <string name="content_settings_show_app_logo_title">Show app logo icon</string>
-    <string name="content_settings_show_app_logo_subtitle">Display the Flow logo icon next to the app name in the home screen top bar</string>
+    <string name="content_settings_show_app_logo_subtitle">Show the Flow logo in the Home top bar</string>
     <string name="content_settings_header_shorts">Shorts</string>
     <string name="content_settings_shorts_content_title">Show Shorts</string>
-    <string name="content_settings_shorts_content_subtitle">Hide every Short across the app. Saved Shorts and watch history are kept, not deleted.</string>
+    <string name="content_settings_shorts_content_subtitle">Hide Shorts everywhere. Saved Shorts and history are kept.</string>
     <string name="content_settings_header_content_components">Content Components</string>
     <string name="content_settings_restored_music_mini_player_title">Show restored music mini player</string>
-    <string name="content_settings_restored_music_mini_player_subtitle">Automatically show your last music session after it is restored</string>
+    <string name="content_settings_restored_music_mini_player_subtitle">Show your last music session after it\'s restored</string>
     <string name="content_settings_hide_watched_home_title">Hide Watched Videos from Home</string>
-    <string name="content_settings_hide_watched_home_subtitle">Filter videos you\'ve already watched from your home feed</string>
+    <string name="content_settings_hide_watched_home_subtitle">Hide videos you\'ve watched from Home</string>
     <string name="content_settings_hide_watched_subscriptions_title">Hide Watched Videos from Subscriptions</string>
-    <string name="content_settings_hide_watched_subscriptions_subtitle">Filter videos you\'ve already watched from your subscriptions</string>
+    <string name="content_settings_hide_watched_subscriptions_subtitle">Hide videos you\'ve watched from Subscriptions</string>
     <string name="content_settings_hide_unplayable_subscriptions_title">Hide Unplayable Videos from Subscriptions</string>
-    <string name="content_settings_hide_unplayable_subscriptions_subtitle">Filter out age-restricted, private, members-only and removed videos after they fail to play</string>
+    <string name="content_settings_hide_unplayable_subscriptions_subtitle">Hide private, removed and restricted videos that fail to play</string>
     <string name="content_settings_watched_threshold_title">Mark as watched when</string>
-    <string name="content_settings_watched_threshold_dialog_body">Choose how much of a video must be played before it counts as watched and gets hidden.</string>
+    <string name="content_settings_watched_threshold_dialog_body">How much of a video you need to watch before it counts as watched.</string>
     <string name="content_settings_watched_threshold_90">90% played</string>
     <string name="content_settings_watched_threshold_95">95% played</string>
     <string name="content_settings_watched_threshold_99">99% played</string>
     <string name="content_settings_watched_threshold_almost">Almost finished (last minute)</string>
     <string name="content_settings_navbar_hide_on_scroll_title">Hide navigation bar on scroll</string>
-    <string name="content_settings_navbar_hide_on_scroll_subtitle">Hide the bottom navigation bar when scrolling down. Turn off to keep it always visible (helps if the animation lags).</string>
+    <string name="content_settings_navbar_hide_on_scroll_subtitle">Hide the navigation bar while scrolling down</string>
     <string name="content_settings_disable_shorts_player_title">Disable Shorts Player</string>
-    <string name="content_settings_disable_shorts_player_subtitle">Play all videos (including YouTube Shorts) in the regular video player</string>
+    <string name="content_settings_disable_shorts_player_subtitle">Play Shorts in the regular video player</string>
     <string name="content_settings_shorts_player_prompt_title">Shorts player suggestion</string>
-    <string name="content_settings_shorts_player_prompt_subtitle">Ask before switching videos under 2 minutes to the Shorts player</string>
+    <string name="content_settings_shorts_player_prompt_subtitle">Ask before opening videos under 2 minutes as Shorts</string>
     <string name="categories_region_picker_desc">Change trending region (current: %1$s)</string>
     <string name="content_settings_header_nav_tabs">Navigation Tabs</string>
     <string name="settings_home_nav_tab_title">Home tab</string>
     <string name="settings_home_nav_tab_subtitle">Show Home in the navigation bar</string>
     <string name="content_settings_comments_enabled_title">Comments</string>
-    <string name="content_settings_comments_enabled_subtitle">Load and show the comments section on the video player screen</string>
+    <string name="content_settings_comments_enabled_subtitle">Show comments under videos</string>
     <string name="content_settings_comments_preview_title">Comments preview</string>
     <string name="content_settings_comments_preview_subtitle">Show the latest comment inside the comments card</string>
     <string name="content_settings_subs_startup_refresh_title">Refresh subscriptions at startup</string>
     <string name="content_settings_subs_startup_refresh_subtitle">Check your subscription feed when the app opens</string>
     <string name="content_settings_subs_show_checked_count_title">Checked video count</string>
-    <string name="content_settings_subs_show_checked_count_subtitle">Show how many videos were checked beside the last refresh time</string>
+    <string name="content_settings_subs_show_checked_count_subtitle">Show how many videos were checked on refresh</string>
     <string name="content_settings_subs_show_videos_title">Subscription videos</string>
     <string name="content_settings_subs_show_videos_subtitle">Show regular videos in the subscription feed</string>
     <string name="content_settings_subs_show_shorts_title">Subscription shorts</string>
     <string name="content_settings_subs_show_shorts_subtitle">Show Shorts in the subscription feed</string>
     <string name="content_settings_subs_show_live_title">Subscription live streams</string>
-    <string name="content_settings_subs_show_live_subtitle">Show live and recently ended streams in the subscription feed</string>
+    <string name="content_settings_subs_show_live_subtitle">Show live and recent streams in the feed</string>
     <string name="content_settings_nav_order_title">Tab order and default</string>
-    <string name="content_settings_nav_order_subtitle">Use arrows to rearrange tabs. Select the default tab with the radio button.</string>
+    <string name="content_settings_nav_order_subtitle">Drag to reorder. Choose the tab Flow opens on.</string>
     <string name="settings_subs_shorts_shelf_title">Subscriptions shorts shelf</string>
-    <string name="settings_subs_shorts_shelf_subtitle">Show the horizontal shorts shelf in the subscription feed grid.</string>
+    <string name="settings_subs_shorts_shelf_subtitle">Show a Shorts shelf in the subscription feed</string>
     <string name="settings_home_shorts_shelf_title">Home screen shorts shelf</string>
     <string name="settings_home_shorts_shelf_subtitle">Show the horizontal shorts shelf on the home screen.</string>
     <string name="settings_shorts_nav_tab_title">Shorts tab in navigation</string>
@@ -1010,10 +1042,10 @@
     <string name="settings_music_nav_tab_title">Music tab in navigation</string>
     <string name="settings_music_nav_tab_subtitle">Show the Music tab in the bottom navigation bar.</string>
     <string name="settings_search_nav_tab_title">Search tab in navigation</string>
-    <string name="settings_search_nav_tab_subtitle">Show a quick-access Search tab in the bottom navigation bar.</string>
+    <string name="settings_search_nav_tab_subtitle">Add a Search tab to the navigation bar</string>
     <string name="nav_search">Search</string>
     <string name="settings_categories_nav_tab_title">Explore tab in navigation</string>
-    <string name="settings_categories_nav_tab_subtitle">Show a Trending &amp; Categories explore tab in the bottom navigation bar.</string>
+    <string name="settings_categories_nav_tab_subtitle">Add a Trending &amp; Categories tab to the navigation bar</string>
     <string name="nav_explore">Explore</string>
     <string name="nav_more">More</string>
     <string name="nav_rail_expand">Expand navigation</string>
@@ -1040,7 +1072,7 @@
     <!-- Player Settings -->
     <string name="player_settings_title">Player Settings</string>
     <string name="proxy_settings_title">Proxy Settings</string>
-    <string name="proxy_settings_description">Configure an optional HTTP or SOCKS5 proxy for remote requests. Local casting and LAN discovery stay direct.</string>
+    <string name="proxy_settings_description">Route remote traffic through an HTTP or SOCKS5 proxy. Casting and local devices stay direct.</string>
     <string name="proxy_settings_enabled">Enable Proxy</string>
     <string name="proxy_settings_enabled_subtitle">Use the configured proxy for remote network traffic</string>
     <string name="proxy_settings_type">Proxy Type</string>
@@ -1048,8 +1080,8 @@
     <string name="proxy_settings_port">Port</string>
     <string name="proxy_settings_username">Username</string>
     <string name="proxy_settings_password">Password</string>
-    <string name="proxy_settings_optional_auth">Leave username and password empty for unauthenticated proxies.</string>
-    <string name="proxy_settings_restart_notice">Active downloads or long-lived playback requests may need a restart before they fully adopt a new proxy route.</string>
+    <string name="proxy_settings_optional_auth">Leave these empty if the proxy has no sign-in.</string>
+    <string name="proxy_settings_restart_notice">Downloads and long streams may need a restart to use the new proxy.</string>
     <string name="proxy_type_http">HTTP</string>
     <string name="proxy_type_socks5">SOCKS5</string>
     <string name="proxy_settings_invalid_host">Enter a proxy host before enabling the proxy.</string>
@@ -1060,9 +1092,9 @@
     <string name="player_settings_shorts_background_play">Shorts Background Play</string>
     <string name="player_settings_shorts_background_play_subtitle">Continue playing Shorts when app is in background</string>
     <string name="player_settings_shorts_pip">Shorts Picture-in-Picture</string>
-    <string name="player_settings_shorts_pip_subtitle">Shrink the current Short into a floating window when you leave the app</string>
+    <string name="player_settings_shorts_pip_subtitle">Keep the Short in a floating window when you leave</string>
     <string name="player_settings_shorts_continue_into_feed">Continue with recommendations</string>
-    <string name="player_settings_shorts_continue_into_feed_subtitle">When a Shorts queue runs out, keep going with recommended Shorts instead of stopping at the end</string>
+    <string name="player_settings_shorts_continue_into_feed_subtitle">Keep playing recommended Shorts when a queue ends</string>
     <string name="player_settings_shorts_playback_mode_title">Shorts Playback Mode</string>
     <string name="player_settings_shorts_playback_mode_loop">Loop (repeat current short)</string>
     <string name="player_settings_shorts_playback_mode_auto_next">Auto Play Next (advance to next short)</string>
@@ -1072,22 +1104,22 @@
         <item quantity="other">Auto-scroll every %1$d seconds</item>
     </plurals>
     <string name="player_settings_shorts_playback_mode_dialog_title">Shorts Playback Mode</string>
-    <string name="player_settings_shorts_playback_mode_dialog_body">Choose how Shorts should behave when the current short finishes playing:</string>
+    <string name="player_settings_shorts_playback_mode_dialog_body">What happens when a Short ends:</string>
     <plurals name="player_settings_shorts_auto_scroll_seconds_template">
         <item quantity="one">%1$d second</item>
         <item quantity="other">%1$d seconds</item>
     </plurals>
     <string name="player_settings_autoplay">Autoplay related videos</string>
-    <string name="player_settings_autoplay_subtitle">When nothing is queued, automatically play a suggested video next</string>
+    <string name="player_settings_autoplay_subtitle">Play a suggested video when nothing is queued</string>
     <string name="player_settings_queue_autoplay">Autoplay queued videos</string>
-    <string name="player_settings_queue_autoplay_subtitle">Automatically play the next video in a playlist or Watch Later queue. When off, you can still skip manually.</string>
+    <string name="player_settings_queue_autoplay_subtitle">Play the next video in a playlist or Watch Later</string>
     <string name="player_settings_autoplay_countdown_title">Autoplay delay</string>
     <string name="player_settings_autoplay_countdown_none">None (switch immediately)</string>
     <plurals name="player_settings_autoplay_countdown_seconds_template">
         <item quantity="one">%1$d second</item>
         <item quantity="other">%1$d seconds</item>
     </plurals>
-    <string name="player_settings_autoplay_countdown_dialog_body">Show a countdown before automatically switching to the next video. During the countdown you can restart the current video, cancel the switch, or play the next one right away.</string>
+    <string name="player_settings_autoplay_countdown_dialog_body">Count down before the next video starts. You can replay, cancel or skip ahead while it runs.</string>
     <string name="autoplay_countdown_up_next">Up next</string>
     <string name="autoplay_countdown_next_video">Next video</string>
     <string name="autoplay_countdown_cancel">Cancel</string>
@@ -1098,7 +1130,7 @@
     <string name="player_settings_remember_speed">Remember Playback Speed</string>
     <string name="player_settings_remember_speed_subtitle">Apply the last used playback speed to videos</string>
     <string name="player_settings_rytd_title">Return YouTube Dislike</string>
-    <string name="player_settings_rytd_subtitle">Fetch dislike counts from the Return YouTube Dislike service</string>
+    <string name="player_settings_rytd_subtitle">Show dislike counts from Return YouTube Dislike</string>
     <string name="player_settings_custom_speeds_title">Custom Playback Speeds</string>
     <string name="player_settings_custom_speeds_subtitle">Set your own speed presets for the player</string>
     <string name="player_settings_custom_speeds_header">Speed Presets</string>
@@ -1119,12 +1151,12 @@
     <string name="player_settings_stable_voice_subtitle">Normalize audio volume for consistent playback</string>
     <string name="player_settings_display">Display</string>
     <string name="player_settings_ambient_mode">Ambient mode</string>
-    <string name="player_settings_ambient_mode_subtitle">Fill the bars around the video with a soft glow of its colors</string>
+    <string name="player_settings_ambient_mode_subtitle">A soft glow of the video\'s colors around it</string>
     <string name="loop_video">Loop video</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Skip sponsored segments</string>
     <string name="player_settings_dearrow">DeArrow</string>
-    <string name="player_settings_dearrow_subtitle">Replace clickbait titles and thumbnails with community alternatives</string>
+    <string name="player_settings_dearrow_subtitle">Swap clickbait titles and thumbnails for community ones</string>
     <string name="dearrow_badge">DeArrow</string>
     <string name="dearrow_badge_toggle">Show DeArrow Badge</string>
     <string name="dearrow_badge_toggle_subtitle">Display a badge on thumbnails corrected by DeArrow</string>
@@ -1141,7 +1173,7 @@
     <string name="sb_user_id_title">SponsorBlock User ID</string>
     <string name="sb_user_id_not_set">Tap to set or generate a user ID</string>
     <string name="sb_user_id_dialog_title">SponsorBlock User ID</string>
-    <string name="sb_user_id_dialog_body">Enter a custom user ID or leave blank to auto-generate one. Your ID is used to track segment submissions.</string>
+    <string name="sb_user_id_dialog_body">Enter your own ID or leave it blank to generate one. It links your segment submissions.</string>
     <string name="sb_user_id_hint">User ID (UUID)</string>
     <string name="sb_color_picker_title">Segment Highlight Color</string>
     <string name="sb_color_reset">Reset to default</string>
@@ -1184,26 +1216,26 @@
     <string name="player_settings_header_video">Video</string>
     <string name="player_settings_header_audio">Audio</string>
     <string name="player_settings_play_during_calls">Play During Calls</string>
-    <string name="player_settings_play_during_calls_subtitle">Continue playback during phone or VoIP calls (e.g. WhatsApp)</string>
+    <string name="player_settings_play_during_calls_subtitle">Keep playing during phone and app calls</string>
     <string name="player_settings_audio_language">Preferred Audio Language</string>
     <string name="player_settings_audio_language_dialog_title">Audio Language</string>
-    <string name="player_settings_audio_language_dialog_body">Select your preferred audio track language. If not available, the original language will be used.</string>
+    <string name="player_settings_audio_language_dialog_body">Your preferred audio language. The original is used when it\'s not available.</string>
     <string name="player_settings_audio_original">Original (Native)</string>
     <string name="player_settings_audio_original_desc">Uses the video\'s native audio track</string>
     <string name="player_settings_subtitle_language">Preferred Subtitle Language</string>
     <string name="player_settings_subtitle_language_dialog_title">Subtitle Language</string>
-    <string name="player_settings_subtitle_language_dialog_body">Captions open in this language when available. If the video has no track in it, Flow uses YouTube\'s translation of an existing track. Picking a caption during playback updates this too.</string>
+    <string name="player_settings_subtitle_language_dialog_body">Captions open in this language when available. Otherwise Flow translates an existing track.</string>
     <string name="player_settings_subtitle_language_none">No preference</string>
     <string name="player_settings_subtitle_language_none_desc">Use the first caption track the video offers</string>
     <string name="player_settings_auto_enable_subtitles">Turn Captions On Automatically</string>
-    <string name="player_settings_auto_enable_subtitles_subtitle">Start every video with captions in your preferred language</string>
+    <string name="player_settings_auto_enable_subtitles_subtitle">Turn on captions in your preferred language</string>
     <string name="player_settings_video_codec">Default Video Codec</string>
     <string name="player_settings_video_codec_dialog_title">Default Video Codec</string>
-    <string name="player_settings_video_codec_dialog_body">Choose which codec is used by default at the selected resolution. This does not change which qualities are listed — you can still pick any codec from the quality selector. H.264 is the most compatible and smoothest on most devices; AV1/VP9 save data at higher resolutions but need more decoding power.</string>
+    <string name="player_settings_video_codec_dialog_body">The codec Flow picks first. You can still choose any codec from the quality menu. H.264 plays smoothest on most devices. AV1 and VP9 use less data but need more power.</string>
     <string name="player_settings_video_codec_auto_desc">Let the app choose (prefers H.264)</string>
     <string name="player_settings_video_codec_fallback">Fallback Codec</string>
     <string name="player_settings_video_codec_fallback_auto">Automatic</string>
-    <string name="player_settings_video_codec_fallback_dialog_body">Codec to use when a video is not available in your preferred codec. Automatic falls back to whatever the app considers most compatible, which is usually H.264.</string>
+    <string name="player_settings_video_codec_fallback_dialog_body">Used when a video isn\'t available in your preferred codec. Automatic usually picks H.264.</string>
     <string name="player_settings_video_codec_fallback_auto_desc">Let the app choose (prefers H.264)</string>
     <!-- Player Gestures -->
     <string name="player_settings_header_gestures">Gestures</string>
@@ -1213,7 +1245,7 @@
         <item quantity="other">%1$d seconds per side double-tap</item>
     </plurals>
     <string name="player_settings_double_tap_seek_dialog_title">Double-Tap Seek Duration</string>
-    <string name="player_settings_double_tap_seek_dialog_body">Choose how many seconds to seek when double-tapping the left or right side of the player.</string>
+    <string name="player_settings_double_tap_seek_dialog_body">How far a double tap on either side jumps.</string>
     <!-- Video and Music Quality Settings -->
     <string name="video_quality_title">Video Quality</string>
     <string name="video_quality_warning">Higher quality uses more data</string>
@@ -1234,18 +1266,18 @@
     <string name="quality_2160p_4k">2160p 4K</string>
     <!-- Buffer Settings -->
     <string name="buffer_settings_title">Buffer Settings</string>
-    <string name="buffer_settings_desc">Configure video buffering behavior to optimize for your network connection.</string>
+    <string name="buffer_settings_desc">Tune video buffering for your connection.</string>
     <string name="buffer_settings_header_profile">Performance Profile</string>
     <string name="buffer_settings_header_custom">Manual Configuration</string>
     <string name="buffer_profile_stable">Stable (Default)</string>
     <string name="buffer_profile_aggressive">Fast Start / Aggressive</string>
     <string name="buffer_profile_datasaver">Data Saver / Low Latency</string>
     <string name="buffer_profile_custom">Custom</string>
-    <string name="buffer_desc_stable">Balanced start time and buffering (15s min, 50s max)</string>
-    <string name="buffer_desc_aggressive">Prioritize quick playback start (10s min, 30s max)</string>
-    <string name="buffer_desc_datasaver">Minimize data usage with smaller buffers (12s min)</string>
+    <string name="buffer_desc_stable">Balanced start time and buffering</string>
+    <string name="buffer_desc_aggressive">Starts playing as soon as possible</string>
+    <string name="buffer_desc_datasaver">Smaller buffers that use less data</string>
     <string name="buffer_profile_custom_desc">Manually configure buffer sizes</string>
-    <string name="buffer_custom_mode_desc">Manually adjust buffer sizes. Higher values prevent stalling but may delay playback start.</string>
+    <string name="buffer_custom_mode_desc">Larger buffers stall less but take longer to start.</string>
     <string name="buffer_switch_to_custom">Switch to \'Custom\' to enable sliders.</string>
     <string name="buffer_label_min">Min Buffer: %1$ds</string>
     <string name="buffer_label_max">Max Buffer: %1$ds</string>
@@ -1253,7 +1285,7 @@
     <string name="buffer_label_rebuffer">Resume after Rebuffer: %1$ds</string>
     <!-- Cache Size Settings -->
     <string name="cache_size_header">Media Cache Size</string>
-    <string name="cache_size_desc">Maximum disk space used to cache video and audio data. Takes effect after restarting the app.</string>
+    <string name="cache_size_desc">Disk space for cached video and audio. Applies after a restart.</string>
     <string name="cache_size_100mb">100 MB</string>
     <string name="cache_size_200mb">200 MB</string>
     <string name="cache_size_500mb">500 MB (Default)</string>
@@ -1293,13 +1325,13 @@
         <item quantity="other">%1$d topics</item>
     </plurals>
     <string name="your_interests_title">Your Interests</string>
-    <string name="your_interests_desc">Topics you\'ve selected help Flow recommend better content. Tap topics below to add or remove them.</string>
+    <string name="your_interests_desc">Pick topics to shape your recommendations.</string>
     <string name="currently_following">Currently Following</string>
     <string name="tap_to_remove">Tap to remove</string>
     <string name="add_topics">Add Topics</string>
     <string name="browse_by_category">Browse by category</string>
     <string name="hidden_content_title">Hidden Content</string>
-    <string name="hidden_content_desc">Videos with these topics won\'t appear in your recommendations. You can also use the \"Not Interested\" button on videos.</string>
+    <string name="hidden_content_desc">Videos about these topics won\'t be recommended. You can also tap Not interested on any video.</string>
     <string name="block_topic_title">Block a Topic</string>
     <string name="enter_keywords_to_hide">Enter keywords to hide</string>
     <string name="block_topic_placeholder">e.g., makeup, fortnite, asmr</string>
@@ -1325,7 +1357,7 @@
     <!-- Time Management Screen -->
     <string name="time_management_title">Time management</string>
     <string name="time_management_subtitle">Track and control your screen time</string>
-    <string name="stats_disclaimer">Stats are based on your watch history across this app. Actual usage may vary.</string>
+    <string name="stats_disclaimer">Based on your watch history in Flow. Actual use may differ.</string>
     <string name="tools_to_manage_time">Tools to manage your time</string>
     <string name="remind_bedtime">Remind me when it\'s bedtime</string>
     <string name="start_time">Start time</string>
@@ -1487,14 +1519,14 @@
     <string name="download_settings_title">Download Settings</string>
     <string name="permissions_header">Permissions</string>
     <string name="files_access_title">Files access</string>
-    <string name="files_access_granted_subtitle">Granted — downloads appear immediately</string>
-    <string name="files_access_denied_subtitle">Not granted — tap to enable for full download listing</string>
+    <string name="files_access_granted_subtitle">Allowed</string>
+    <string name="files_access_denied_subtitle">Tap to allow, so every download is listed</string>
     <string name="media_access_title">Photos &amp; videos access</string>
     <string name="media_access_granted_subtitle">Granted</string>
-    <string name="media_access_denied_subtitle">Not granted — tap to enable</string>
+    <string name="media_access_denied_subtitle">Tap to allow</string>
     <string name="audio_access_title">Music &amp; audio access</string>
     <string name="audio_access_granted_subtitle">Granted</string>
-    <string name="audio_access_denied_subtitle">Not granted — tap to enable</string>
+    <string name="audio_access_denied_subtitle">Tap to allow</string>
     <string name="storage_header">Storage</string>
     <string name="internal_storage_label">Internal Storage</string>
     <string name="free_space_template">%1$s free</string>
@@ -1517,14 +1549,14 @@
         <item quantity="one">%1$d thread per download</item>
         <item quantity="other">%1$d threads per download</item>
     </plurals>
-    <string name="performance_optimization_note">Using more threads can increase speed but may use more battery and heat up the device.</string>
+    <string name="performance_optimization_note">More threads can be faster but use more battery and heat.</string>
     <string name="location_dialog_subtitle">Choose where downloaded files are saved on your device.</string>
     <string name="location_preset_header">Preset Locations</string>
     <string name="location_custom_header">Custom Location</string>
     <string name="location_downloads_label">Downloads / Flow</string>
     <string name="location_movies_label">Movies / Flow</string>
     <string name="location_internal_app_label">Internal App Storage</string>
-    <string name="location_internal_app_desc">Private to the app — files may be deleted if you uninstall</string>
+    <string name="location_internal_app_desc">Private to Flow. Removed if you uninstall.</string>
     <string name="location_custom_saf_label">Browse…</string>
     <string name="location_custom_saf_desc">Pick any folder using the system file picker</string>
     <string name="location_custom_manual_label">Enter path manually</string>
@@ -1542,7 +1574,7 @@
     <!-- Donations Screen -->
     <string name="support_donations_title">Support &amp; Donations</string>
     <string name="support_flow_dev_title">Support Flow Development</string>
-    <string name="support_flow_dev_desc">If you find Flow useful and would like to support its development, you can support it on Patreon or donate via the crypto addresses below. Your support helps keep the project alive!</string>
+    <string name="support_flow_dev_desc">If Flow is useful to you, you can support it on Patreon or with crypto below. Thank you!</string>
     <string name="support_flow_patreon">Support Flow on Patreon</string>
     <string name="thank_you_support_message">Thank you for your support! ❤️</string>
     <string name="address_copied_toast">Address copied to clipboard</string>
@@ -1797,7 +1829,7 @@
     <string name="feedback_artist_blocked">%1$s won\'t be recommended anymore</string>
     <string name="music_prefs_section_title">Music recommendations</string>
     <string name="music_endless_radio_title">Endless radio</string>
-    <string name="music_endless_radio_desc">Keep the queue going with similar songs when it runs out</string>
+    <string name="music_endless_radio_desc">Add similar songs when the queue ends</string>
     <string name="music_content_language_title">Content language</string>
     <string name="music_content_language_follow_app">Follow app language</string>
     <string name="music_content_language_dialog_title">Select content language</string>
@@ -1966,7 +1998,7 @@
     <!-- Shorts Quality Settings -->
     <string name="shorts_quality_settings_title">Shorts Video Quality</string>
     <string name="shorts_quality_settings_subtitle">Quality when watching Shorts</string>
-    <string name="shorts_quality_warning">Higher quality uses more data. Shorts use vertical video streams.</string>
+    <string name="shorts_quality_warning">Higher quality uses more data.</string>
     <string name="shorts_quality_wifi_header">Shorts Wi-Fi Quality</string>
     <string name="shorts_quality_cellular_header">Shorts Cellular Quality</string>
     <!-- Video Queue / Play Next -->
@@ -2024,7 +2056,7 @@
     <string name="library_settings_subtitle">Playback, downloads, appearance and data</string>
     <string name="content_settings_header_library">Library</string>
     <string name="content_settings_library_previews_title">Library previews</string>
-    <string name="content_settings_library_previews_subtitle">Show a scrollable row of items under each Library section. Turn off for a compact list of sections.</string>
+    <string name="content_settings_library_previews_subtitle">Show a row of items under each Library section</string>
     <string name="remove_incomplete_downloads">Remove incomplete downloads</string>
     <plurals name="remove_incomplete_downloads_message">
         <item quantity="one">Remove %1$d paused, failed, or partial download? Completed downloads will not be touched.</item>
@@ -2081,7 +2113,7 @@
     <string name="import_engine_failed">Failed to import engine profile</string>
     <!-- Master Backup -->
     <string name="master_backup_title">Master Backup</string>
-    <string name="master_backup_subtitle">Export brain and app data in one file</string>
+    <string name="master_backup_subtitle">App data, the video engine and the music engine in one file</string>
     <string name="master_backup_export_success">Master backup saved successfully</string>
     <string name="master_backup_export_failed">Failed to export master backup</string>
     <string name="import_master_backup_title">Import Master Backup</string>
@@ -2105,42 +2137,42 @@
     <string name="sync_collection_music_profile">Music taste profile</string>
     <string name="sync_preparing">Preparing…</string>
     <string name="sync_connecting">Connecting…</string>
-    <string name="sync_intro">Sync your library, history, likes, settings and recommendation profile with another device over your local Wi-Fi. Nothing leaves your network.</string>
+    <string name="sync_intro">Sync your library, history, likes and settings with another device over Wi-Fi. Nothing leaves your network.</string>
     <string name="sync_send_to_device">Send to a device</string>
     <string name="sync_receive_from_device">Receive from a device</string>
     <string name="sync_pairing_title">How should the devices pair?</string>
     <string name="sync_show_qr_here">Show a QR code here</string>
     <string name="sync_scan_other_qr">Scan the other device\'s QR</string>
-    <string name="sync_send_show_qr_hint">The other device scans it. Use this if the other device has a camera.</string>
-    <string name="sync_send_scan_hint">Use this to send to a device with no camera (e.g. desktop) that is showing a receive QR code.</string>
-    <string name="sync_receive_scan_hint">Use this if this device has a camera and the other is showing a send QR code.</string>
-    <string name="sync_receive_show_qr_hint">The sender scans it. Use this if this device has no camera or you\'d rather show a QR code.</string>
+    <string name="sync_send_show_qr_hint">The other device scans this code.</string>
+    <string name="sync_send_scan_hint">Send to a device without a camera that shows a receive code.</string>
+    <string name="sync_receive_scan_hint">Use this if the other device is showing a send code.</string>
+    <string name="sync_receive_show_qr_hint">The sender scans this code. Use it if this device has no camera.</string>
     <string name="sync_scan_prompt_receive_code">Point the camera at the other device\'s receive QR code</string>
     <string name="sync_scan_prompt_send_code">Point the camera at the other device\'s send QR code</string>
     <string name="sync_enter_connection_data">Enter connection data manually</string>
-    <string name="sync_enter_connection_data_hint">Paste the connection data copied from the other device when scanning is not possible.</string>
+    <string name="sync_enter_connection_data_hint">Paste the connection data from the other device.</string>
     <string name="sync_connection_data_label">Connection data</string>
     <string name="sync_paste_connection_data">Paste connection data</string>
-    <string name="sync_connection_data_security_note">Connection data contains a temporary encryption key. Share it only with the device you want to sync.</string>
+    <string name="sync_connection_data_security_note">Contains a temporary key. Only share it with the device you are syncing.</string>
     <string name="sync_copy_connection_data">Copy connection data</string>
     <string name="sync_connect">Connect</string>
     <string name="sync_camera_permission_rationale">Camera permission is needed to scan the QR code.</string>
     <string name="sync_grant_camera">Grant camera access</string>
     <string name="sync_choose_what_to_send">Choose what to send</string>
-    <string name="sync_safety_backup_note">A safety backup is taken automatically on the receiving device before anything is merged.</string>
+    <string name="sync_safety_backup_note">The receiving device makes a backup before merging.</string>
     <string name="sync_continue">Continue</string>
     <string name="sync_qr_scan_on_target_sending">Scan this on the device you\'re sending to</string>
     <string name="sync_qr_scan_on_target_receiving">Scan this on the device you\'re receiving from</string>
     <string name="sync_expires_in">Expires in %1$ds</string>
-    <string name="sync_qr_network_note">Both devices must be on the same Wi-Fi (or one device\'s hotspot). You may need to allow Flow through a firewall.</string>
+    <string name="sync_qr_network_note">Both devices must be on the same Wi-Fi or hotspot.</string>
     <string name="sync_qr_advertised_address">This device: %1$s</string>
     <string name="sync_sas_title">Do the verification codes match?</string>
-    <string name="sync_sas_body">Confirm this 6-digit verification code is identical on both devices before continuing.</string>
-    <string name="sync_verification_after_connect">After connecting, compare the verification code shown on both devices before continuing.</string>
+    <string name="sync_sas_body">Make sure both devices show this same 6-digit code.</string>
+    <string name="sync_verification_after_connect">After connecting, check that both devices show the same code.</string>
     <string name="sync_sas_differ">They differ</string>
     <string name="sync_sas_match">They match</string>
     <string name="sync_consent_title">Merge incoming data?</string>
-    <string name="sync_consent_note">A safety backup will be taken before merging, and the merge is conflict-free — nothing is overwritten or double-counted.</string>
+    <string name="sync_consent_note">A backup is made first. Merging never overwrites or duplicates anything.</string>
     <string name="sync_bullet_item">• %1$s</string>
     <string name="sync_decline">Decline</string>
     <string name="sync_merge">Merge</string>
@@ -2287,7 +2319,7 @@
     <string name="player_settings_overlay_pip">Picture-in-Picture Button</string>
     <string name="player_settings_overlay_pip_subtitle">Show PiP button on the video player overlay</string>
     <string name="player_settings_auto_pip_title">Auto Picture-in-Picture</string>
-    <string name="player_settings_auto_pip_subtitle">Automatically enter PiP mode when you leave the app. Turn off to use PiP only via the manual button.</string>
+    <string name="player_settings_auto_pip_subtitle">Switch to picture-in-picture when you leave the app</string>
     <string name="player_settings_overlay_autoplay">Autoplay Toggle</string>
     <string name="player_settings_overlay_autoplay_subtitle">Show autoplay toggle on the video player overlay</string>
     <string name="player_settings_overlay_sleep_timer">Sleep Timer Button</string>
@@ -2297,7 +2329,7 @@
     <string name="player_settings_overlay_speed_indicator">Playback Speed Indicator</string>
     <string name="player_settings_overlay_speed_indicator_subtitle">Show the current speed on the video player overlay</string>
     <string name="player_settings_overlay_comments">Comments Button</string>
-    <string name="player_settings_overlay_comments_subtitle">Show a comments button on the fullscreen player to open comments in a side panel</string>
+    <string name="player_settings_overlay_comments_subtitle">Open comments in a side panel in fullscreen</string>
     <string name="player_action_background">Background</string>
     <string name="player_action_copy_link">Copy link</string>
     <string name="player_action_copy_link_at_time">Copy at time</string>
@@ -2317,13 +2349,13 @@
     <string name="diagnostics_share">Share report</string>
     <string name="diagnostics_clear_crashes">Clear Crash Reports</string>
     <string name="diagnostics_clear_confirm_title">Clear crash reports?</string>
-    <string name="diagnostics_clear_confirm_body">All saved crash reports will be permanently deleted. This cannot be undone.</string>
+    <string name="diagnostics_clear_confirm_body">All saved crash reports will be deleted. This cannot be undone.</string>
     <string name="diagnostics_reset_session">Reset YouTube session</string>
     <string name="diagnostics_reset_session_confirm_title">Reset YouTube session?</string>
-    <string name="diagnostics_reset_session_confirm_body">Flow will discard the browsing identity it uses to verify playback requests and build a new one. Use this if videos stop after about a minute or refuse to play.\n\nA new identity is untrusted at first, so the next minute or two can be worse before it settles. Nothing you have saved is affected.</string>
+    <string name="diagnostics_reset_session_confirm_body">Flow will build a new playback identity. Try this if videos stop after a minute or won\'t play.\n\nPlayback may be rough for a minute or two. Your saved data is not affected.</string>
     <string name="diagnostics_reset_session_done">YouTube session reset. Reopen the video to try again.</string>
     <string name="reset">Reset</string>
-    <string name="diagnostics_no_crashes">No crash reports — great!</string>
+    <string name="diagnostics_no_crashes">No crash reports</string>
     <string name="diagnostics_no_session_logs">No warnings or errors in this session.</string>
     <string name="diagnostics_loading">Reading logs…</string>
     <string name="diagnostics_copied">Report copied to clipboard</string>
@@ -2455,7 +2487,7 @@
     <string name="datetime_mode_header">Time display</string>
     <string name="datetime_format_header">Exact date format</string>
     <string name="datetime_overrides_header">Per-section overrides</string>
-    <string name="datetime_overrides_note">Override the time display for specific places. \"Default\" follows the setting above.</string>
+    <string name="datetime_overrides_note">Change the format for specific places. Default follows the setting above.</string>
     <string name="datetime_sample_relative">7 months ago</string>
     <string name="datetime_mode_relative">Relative time (e.g. 7 months ago)</string>
     <string name="datetime_mode_exact">Exact date</string>
@@ -2471,7 +2503,7 @@
     <string name="datetime_override_both">Both</string>
     <!-- Volume boost (#491) -->
     <string name="player_appearance_volume_boost_title">Allow extra volume boost</string>
-    <string name="player_appearance_volume_boost_subtitle">When off, the volume swipe gesture stops at the maximum system volume. Turn on to make audio even louder.</string>
+    <string name="player_appearance_volume_boost_subtitle">Let the volume swipe go past the system maximum</string>
     <!-- Shorts playback speed (#496) -->
     <string name="shorts_playback_speed">Playback speed</string>
     <string name="speed_normal">Normal</string>
@@ -2517,15 +2549,15 @@
     <string name="discord_presence_disconnect">Disconnect and unlink</string>
     <string name="discord_presence_unlink_action">Unlink</string>
     <string name="discord_presence_retry">Retry connection</string>
-    <string name="discord_presence_description">Show what you are playing in Flow as your Discord Rich Presence.</string>
+    <string name="discord_presence_description">Show what you play as your Discord status.</string>
     <string name="discord_presence_connection_section">Connection</string>
     <string name="discord_presence_account">Discord account</string>
     <string name="discord_presence_privacy_section">Privacy and account risk</string>
     <string name="discord_presence_privacy_title">Privacy</string>
-    <string name="discord_presence_privacy_body">When enabled, Flow shares the playing video, Short, live stream, or song title, creator or artist, artwork, and playback timing with Discord. The setting is off by default. Your Discord session token is encrypted with Android Keystore and never added to app logs.</string>
-    <string name="discord_presence_gateway_warning">Flow uses an unofficial self-bot connection with your Discord account token, not OAuth. This violates Discord\'s Terms of Service and can lead to account suspension or termination. Unsupported clients may also trigger token-leak alerts, password resets, CAPTCHAs, or phone-verification locks.</string>
+    <string name="discord_presence_privacy_body">Flow shares the title, creator, artwork and progress of what you play. Off by default. Your Discord token is encrypted and never logged.</string>
+    <string name="discord_presence_gateway_warning">This signs in with your Discord token instead of an official login. It breaks Discord\'s Terms of Service and can get your account limited or banned.</string>
     <string name="discord_presence_risk_dialog_title">Accept Discord account risk?</string>
-    <string name="discord_presence_risk_dialog_body">Connecting signs in through Discord and gives Flow your Discord account token. Flow stores it with Android Keystore encryption and sends it only to Discord, but this unofficial self-bot method violates Discord\'s Terms of Service. Discord may suspend or terminate your account, require a password reset, show CAPTCHAs, or lock the account behind phone verification.</string>
+    <string name="discord_presence_risk_dialog_body">Connecting gives Flow your Discord token. It stays encrypted on this device and is only sent to Discord. This method breaks Discord\'s Terms of Service, so your account could be limited or banned.</string>
     <string name="discord_presence_risk_accept">I understand, connect</string>
     <string name="discord_error_not_initialized">Discord Rich Presence has not initialized.</string>
     <string name="discord_error_enable_before_connect">Enable Discord Rich Presence before connecting an account.</string>
@@ -2551,7 +2583,7 @@
     <string name="settings_item_interface_mode_subtitle">Choose automatic, mobile, or TV layout</string>
     <string name="interface_mode_title">Interface mode</string>
     <string name="interface_mode_automatic">Automatic</string>
-    <string name="interface_mode_automatic_summary">Use the TV layout on television devices and the mobile layout elsewhere</string>
+    <string name="interface_mode_automatic_summary">TV layout on TVs, mobile layout everywhere else</string>
     <string name="interface_mode_mobile">Mobile</string>
     <string name="interface_mode_mobile_summary">Always use the phone and tablet interface</string>
     <string name="interface_mode_tv">TV</string>
@@ -2886,8 +2918,8 @@
     <string name="fallback_playing">Playing…</string>
     <string name="empty_saved_shorts">No saved shorts yet</string>
     <string name="settings_search_no_results">No settings found for "%1$s"</string>
-    <string name="settings_lyrics_provider_order_description">Providers are tried in order. The first one that returns lyrics wins.</string>
-    <string name="import_running_background">You can navigate away — the import continues in the background.</string>
+    <string name="settings_lyrics_provider_order_description">Tried from top to bottom. Drag to reorder.</string>
+    <string name="import_running_background">You can leave this screen. The import keeps running.</string>
     <string name="donations_cryptocurrency">CRYPTOCURRENCY</string>
     <string name="import_no_history_entries">No watch-history entries found in file</string>
     <string name="import_no_videos">No videos found in playlist file</string>
@@ -2924,4 +2956,272 @@
         <item quantity="one">%1$d chapter</item>
         <item quantity="other">%1$d chapters</item>
     </plurals>
+    <!-- Settings (M3E revamp) -->
+    <string name="settings_navigation_bar_title">Navigation bar</string>
+    <string name="settings_language_region_title">Language &amp; region</string>
+    <string name="settings_playback_title">Player &amp; playback</string>
+    <string name="settings_content_title">Feeds &amp; content</string>
+    <string name="settings_topics_title">Interests &amp; blocked topics</string>
+    <string name="settings_integrations_title">Integrations</string>
+    <string name="settings_backup_title">Backup &amp; restore</string>
+    <string name="settings_history_title">History &amp; privacy</string>
+    <string name="settings_downloads_title">Downloads &amp; storage</string>
+    <string name="settings_network_title">Network</string>
+    <string name="settings_wellbeing_title">Wellbeing</string>
+    <string name="settings_group_look">Look &amp; feel</string>
+    <string name="settings_group_watching">Watching</string>
+    <string name="settings_group_data">Your data</string>
+    <string name="settings_group_system">System</string>
+    <string name="settings_appearance_summary">Theme, app icon, layout and navigation bar</string>
+    <string name="settings_language_region_summary">App language, content language and country</string>
+    <string name="settings_playback_summary">Autoplay, gestures, captions and player buttons</string>
+    <string name="settings_quality_summary">Video, Shorts and music quality</string>
+    <string name="settings_content_summary">Home, subscriptions, Shorts and notes</string>
+    <string name="settings_topics_summary">Topics you follow and topics you hide</string>
+    <string name="settings_integrations_summary">SponsorBlock, DeArrow, dislikes and more</string>
+    <string name="settings_backup_summary">Export, import and automatic backups</string>
+    <string name="settings_history_summary">Search history and suggestions</string>
+    <string name="settings_downloads_summary">Download locations, defaults and media cache</string>
+    <string name="settings_network_summary">Proxy for remote traffic</string>
+    <string name="settings_wellbeing_summary">Watch time and break reminders</string>
+    <string name="settings_about_summary">Version, licence and links</string>
+    <string name="settings_theme_summary">Palette and light or dark style</string>
+    <string name="settings_navigation_bar_summary">Tabs, their order and the default tab</string>
+    <string name="settings_player_appearance_summary">Seek bar, backgrounds and mini player</string>
+    <string name="settings_custom_theme_summary">Make, import and share your own themes</string>
+    <string name="settings_section_style">Style</string>
+    <string name="settings_section_layout">Layout</string>
+    <string name="settings_section_video_cards">Video cards</string>
+    <string name="settings_section_more">More</string>
+    <string name="settings_music_artwork_size_title">Music artwork size</string>
+    <string name="settings_music_artwork_size_summary">Size of album art and cards on music pages</string>
+    <string name="settings_section_tabs">Tabs</string>
+    <string name="settings_section_tab_order">Order and default tab</string>
+    <string name="settings_theme_follow_system">Follow system</string>
+    <string name="settings_theme_follow_system_summary">Match your device\'s light or dark mode</string>
+    <string name="settings_theme_palettes">Palettes</string>
+    <string name="settings_theme_edit_custom">Edit custom theme</string>
+    <string name="settings_keywords_theme">dark mode, night mode, light mode, colours, palette, accent</string>
+    <string name="settings_keywords_style">dark mode, night mode, light mode, amoled, pure black, oled</string>
+    <string name="settings_keywords_app_icon">launcher, home screen icon, logo</string>
+    <string name="settings_keywords_interface_mode">tv, television, leanback, tablet layout</string>
+    <string name="settings_keywords_nav_bar">bottom bar, tabs, navigation rail</string>
+    <string name="settings_apply">Apply</string>
+    <string name="settings_custom_theme_saved">Custom theme saved</string>
+    <string name="settings_custom_theme_use">Use it</string>
+    <string name="settings_custom_theme_editing">Palette to edit</string>
+    <string name="settings_custom_group_surfaces">Background and surfaces</string>
+    <string name="settings_custom_group_outline">Outline and scrim</string>
+    <string name="settings_color_hex">Hex colour</string>
+    <string name="settings_value_pair">%1$s · %2$s</string>
+    <string name="settings_shorts_tab_disabled_summary">Shorts are turned off in Feeds &amp; content</string>
+    <string name="settings_section_seek_bar">Seek bar</string>
+    <string name="settings_section_music_player">Music player</string>
+    <string name="settings_section_video_player">Video player</string>
+    <string name="settings_section_mini_player">Mini player</string>
+    <string name="settings_seekbar_custom_width">Custom width</string>
+    <string name="settings_content_language_summary">Language of titles, trending and recommendations</string>
+    <string name="settings_content_country_summary">Country used for trending, charts and recommendations</string>
+    <string name="settings_keywords_region">trending region, country, location, charts</string>
+    <string name="settings_keywords_language">locale, translation, titles</string>
+    <string name="settings_section_speed">Speed</string>
+    <string name="settings_section_player_buttons">Player buttons</string>
+    <string name="settings_section_pip">Picture-in-picture and mini player</string>
+    <string name="settings_section_language_captions">Language and captions</string>
+    <string name="settings_section_watch_page">Watch page</string>
+    <string name="settings_section_shorts_player">Shorts player</string>
+    <string name="settings_section_music">Music</string>
+    <string name="settings_section_advanced">Advanced</string>
+    <string name="settings_keywords_autoplay">next video, up next, continuous play</string>
+    <string name="settings_keywords_captions">subtitles, cc, closed captions</string>
+    <string name="settings_keywords_gestures">swipe, double tap, touch</string>
+    <string name="settings_speed_preset_hint">e.g. 1.35</string>
+    <string name="settings_speed_preset_add">Add preset</string>
+    <string name="settings_buffer_min">Minimum buffer</string>
+    <string name="settings_buffer_max">Maximum buffer</string>
+    <string name="settings_buffer_start">Buffer before playback starts</string>
+    <string name="settings_buffer_rebuffer">Buffer after a stall</string>
+    <string name="settings_buffer_profiles">Profile</string>
+    <string name="settings_buffer_range">%1$s s to %2$s s</string>
+    <string name="settings_seconds_value">%1$s s</string>
+    <string name="settings_quality_tab_video">Video</string>
+    <string name="settings_quality_tab_shorts">Shorts</string>
+    <string name="settings_quality_tab_music">Music</string>
+    <string name="settings_quality_wifi">On Wi-Fi</string>
+    <string name="settings_quality_mobile">On mobile data</string>
+    <string name="settings_section_resolution">Resolution</string>
+    <string name="settings_section_codec">Codec</string>
+    <string name="settings_music_quality_auto_summary">High on Wi-Fi, medium on mobile data</string>
+    <string name="settings_keywords_quality">resolution, 1080p, 4k, hd, data usage</string>
+    <string name="settings_keywords_codec">h264, avc, vp9, av1, hardware decoding</string>
+    <string name="settings_quality_preferred_codec">Preferred codec</string>
+    <string name="settings_section_home">Home</string>
+    <string name="settings_section_subscriptions">Subscriptions</string>
+    <string name="settings_section_watched">Watched videos</string>
+    <string name="settings_section_sharing">Sharing</string>
+    <string name="settings_keywords_hide_watched">seen, already watched, filter</string>
+    <string-array name="settings_block_suggestions">
+        <item>ASMR</item>
+        <item>Unboxing</item>
+        <item>Reaction</item>
+        <item>Vlogs</item>
+        <item>News</item>
+        <item>Politics</item>
+        <item>Gaming</item>
+        <item>Clickbait</item>
+        <item>Drama</item>
+        <item>Gossip</item>
+        <item>Challenge</item>
+        <item>Family vlog</item>
+    </string-array>
+    <string name="settings_topics_tab_interests">Interests</string>
+    <string name="settings_topics_tab_blocked">Blocked</string>
+    <string name="settings_topics_your_topics">Your topics</string>
+    <string name="settings_keywords_topics">interests, not interested, hide, block, mute, recommendations</string>
+    <string name="settings_keywords_sponsorblock">skip sponsors, ads, segments, intro, outro</string>
+    <string name="settings_keywords_dearrow">clickbait, titles, thumbnails</string>
+    <string name="settings_keywords_discord">rich presence, now playing, status</string>
+    <string name="settings_segment_colour">Colour for %1$s</string>
+    <string name="settings_truncated">%1$s…</string>
+    <string name="settings_backup_exporting">Exporting…</string>
+    <string name="settings_backup_tab_export">Export</string>
+    <string name="settings_backup_tab_import">Import</string>
+    <string name="settings_backup_tab_auto">Automatic</string>
+    <string name="settings_backup_full">Full backup</string>
+    <string name="settings_backup_individual">Individual exports</string>
+    <string name="settings_backup_restore_flow">Restore from Flow</string>
+    <string name="settings_backup_source_youtube">YouTube and Google Takeout</string>
+    <string name="settings_backup_source_newpipe">NewPipe</string>
+    <string name="settings_backup_source_libretube">LibreTube</string>
+    <string name="settings_backup_source_freetube">FreeTube</string>
+    <string name="settings_backup_source_metrolist">Metrolist</string>
+    <string name="settings_backup_one_copy">Each backup replaces the previous one in the folder.</string>
+    <string name="settings_backup_needs_folder">Choose a folder first</string>
+    <string name="settings_keywords_backup">export, import, restore, migrate, transfer, takeout, newpipe, libretube, freetube</string>
+    <string name="settings_quick_download_quality">Quick download quality</string>
+    <string name="settings_quick_download_quality_summary">Used when you download straight from a video card</string>
+    <string name="settings_section_download_defaults">Download defaults</string>
+    <string name="settings_section_storage_access">Storage access</string>
+    <string name="settings_storage_access_summary">Also lets Local media list files saved by other apps</string>
+    <string name="settings_storage_usage">%1$s free of %2$s</string>
+    <string name="settings_location_default">Default</string>
+    <string name="settings_music_folder_label">Music / Flow</string>
+    <string name="settings_keywords_downloads">save offline, folder, storage, sd card</string>
+    <string name="settings_section_notification_types">Notify me about</string>
+    <string name="settings_keywords_notifications">alerts, push, new uploads, background checks</string>
+    <string name="settings_section_proxy_server">Server</string>
+    <string name="settings_section_proxy_sign_in">Sign-in</string>
+    <string name="settings_keywords_network">proxy, socks, http, vpn, connection</string>
+    <string name="settings_show_password">Show password</string>
+    <string name="settings_hide_password">Hide password</string>
+    <string name="settings_proxy_unsaved">You have unsaved changes</string>
+    <string name="settings_keywords_history">recent searches, privacy, forget, delete, autocomplete</string>
+    <string name="settings_keywords_wellbeing">screen time, digital wellbeing, sleep, bedtime, break, watch time, usage</string>
+    <string name="settings_sleep_window_summary">Sleep window: %1$s</string>
+    <string name="settings_notification_permission_needed">Allow notifications to get reminders</string>
+    <string name="settings_watch_time_week_total">%1$s this week</string>
+    <string name="settings_section_this_device">This device</string>
+    <string name="settings_section_report">Report</string>
+    <string name="settings_diagnostics_model">Model</string>
+    <string name="settings_diagnostics_android">Android version</string>
+    <string name="settings_diagnostics_android_value">Android %1$s (SDK %2$d)</string>
+    <string name="settings_diagnostics_app_version">App version</string>
+    <string name="settings_diagnostics_copy_summary">Device details, warnings and crash reports</string>
+    <string name="settings_diagnostics_share_summary">Send the report to another app</string>
+    <string name="settings_diagnostics_reset_summary">Try this if videos stop or won\'t play</string>
+    <string name="settings_keywords_diagnostics">logs, crash, bug report, debug, support, logcat</string>
+    <string name="donation_currency_bitcoin" translatable="false">Bitcoin</string>
+    <string name="donation_currency_ethereum" translatable="false">Ethereum</string>
+    <string name="donation_currency_solana" translatable="false">Solana</string>
+    <string name="donation_currency_usdt" translatable="false">USDT (TRC-20)</string>
+    <string name="donation_currency_monero" translatable="false">Monero</string>
+    <string name="settings_keywords_about">version, license, open source, github, reddit, contact, changelog</string>
+    <string name="settings_changelog_version">Version %1$s</string>
+    <string name="settings_changelog_installed">Installed</string>
+    <string name="settings_changelog_prerelease">Pre-release</string>
+    <string name="settings_changelog_all_releases">All releases on GitHub</string>
+    <string name="settings_changelog_expand">Show changes</string>
+    <string name="settings_changelog_collapse">Hide changes</string>
+    <string name="settings_creator_role">Creator and developer of Flow</string>
+    <string name="device_info_section_device">Device</string>
+    <string name="device_info_section_system">System</string>
+    <string name="device_info_section_display">Display</string>
+    <string name="device_info_section_media">Video decoding</string>
+    <string name="device_info_section_app">App</string>
+    <string name="device_info_model">Model</string>
+    <string name="device_info_brand">Brand</string>
+    <string name="device_info_codename">Codename</string>
+    <string name="device_info_chipset">Chipset</string>
+    <string name="device_info_abis">CPU architectures</string>
+    <string name="device_info_memory">Memory</string>
+    <string name="device_info_storage">Storage</string>
+    <string name="device_info_android">Android</string>
+    <string name="device_info_android_value">%1$s (SDK %2$d)</string>
+    <string name="device_info_security_patch">Security patch</string>
+    <string name="device_info_build">Build</string>
+    <string name="device_info_kernel">Kernel</string>
+    <string name="device_info_resolution">Resolution</string>
+    <string name="device_info_resolution_value">%1$d × %2$d</string>
+    <string name="device_info_density">Density</string>
+    <string name="device_info_density_value">%1$d dpi</string>
+    <string name="device_info_refresh_rate">Refresh rate</string>
+    <string name="device_info_refresh_rate_value">%1$d Hz</string>
+    <string name="device_info_hdr">HDR</string>
+    <string name="device_info_supported">Supported</string>
+    <string name="device_info_not_supported">Not supported</string>
+    <string name="device_info_hardware">Hardware</string>
+    <string name="device_info_software">Software only</string>
+    <string name="device_info_version">Version</string>
+    <string name="device_info_build_type">Build type</string>
+    <string name="device_info_installer">Installed from</string>
+    <string name="device_info_package">Package</string>
+    <string name="codec_name_hevc" translatable="false">HEVC</string>
+    <string name="settings_color_hex_opaque_hint">Hex format: #RRGGBB</string>
+    <string name="settings_custom_themes_title">Custom themes</string>
+    <string name="settings_custom_theme_editor_title">Edit theme</string>
+    <string name="settings_custom_theme_default_name">My theme</string>
+    <string name="settings_custom_theme_create">Create theme</string>
+    <string name="settings_custom_theme_import">Import</string>
+    <string name="settings_custom_theme_export">Export to file</string>
+    <string name="settings_custom_theme_export_all">Export all</string>
+    <string name="settings_custom_theme_share">Share</string>
+    <string name="settings_custom_theme_duplicate">Duplicate</string>
+    <string name="settings_custom_theme_rename">Rename</string>
+    <string name="settings_custom_theme_delete">Delete</string>
+    <string name="settings_custom_theme_delete_title">Delete %1$s?</string>
+    <string name="settings_custom_theme_delete_body">This can\'t be undone.</string>
+    <string name="settings_custom_theme_name">Theme name</string>
+    <string name="settings_custom_theme_start_from">Start from</string>
+    <string name="settings_custom_theme_count">%1$d of %2$d themes</string>
+    <string name="settings_custom_theme_empty">No custom themes yet</string>
+    <string name="settings_custom_theme_empty_body">Start from any palette, or import one made in Flow Desktop.</string>
+    <string name="settings_custom_theme_import_failed">No valid themes in that file</string>
+    <string name="settings_custom_theme_limit">You can keep up to %1$d themes</string>
+    <string name="settings_custom_theme_exported">Theme exported</string>
+    <string name="settings_custom_theme_card_description">Your own light, dark and AMOLED palette</string>
+    <string name="settings_custom_theme_more">More options</string>
+    <string name="settings_custom_theme_copy_name">%1$s copy</string>
+    <string name="settings_theme_roles_accents">Accents</string>
+    <string name="settings_theme_roles_text">Text and lines</string>
+    <string name="settings_theme_roles_status">Status</string>
+    <string name="settings_theme_role_primary">Primary accent</string>
+    <string name="settings_theme_role_on_primary">Text on primary</string>
+    <string name="settings_theme_role_secondary">Secondary accent</string>
+    <string name="settings_theme_role_background">App background</string>
+    <string name="settings_theme_role_surface">Surface</string>
+    <string name="settings_theme_role_surface_low">Low surface</string>
+    <string name="settings_theme_role_surface_container">Container surface</string>
+    <string name="settings_theme_role_surface_high">High surface</string>
+    <string name="settings_theme_role_surface_highest">Highest surface</string>
+    <string name="settings_theme_role_text">Primary text</string>
+    <string name="settings_theme_role_muted_text">Muted text</string>
+    <string name="settings_theme_role_outline">Outline</string>
+    <string name="settings_theme_role_error">Error</string>
+    <string name="settings_keywords_custom_themes">custom theme, palette, colours, colors, import, export, share, desktop</string>
+    <plurals name="settings_custom_theme_imported">
+        <item quantity="one">%1$d theme imported</item>
+        <item quantity="other">%1$d themes imported</item>
+    </plurals>
+    <string name="settings_custom_theme_in_use">In use</string>
+    <string name="settings_custom_theme_export_failed">The theme could not be saved</string>
 </resources>

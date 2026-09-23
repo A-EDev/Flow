@@ -9,13 +9,14 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 
 @Composable
 fun TrackInfoDialog(
     track: MusicTrack,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.track_details)) },
         text = {

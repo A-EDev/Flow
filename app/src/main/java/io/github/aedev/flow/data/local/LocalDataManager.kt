@@ -6,10 +6,11 @@ import androidx.datastore.preferences.core.*
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.theme.CustomThemePalettes
+import io.github.aedev.flow.ui.theme.CustomTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.theme.canonicalFamily
@@ -66,6 +67,9 @@ class LocalDataManager
 
             private val CUSTOM_THEME_COLORS = stringPreferencesKey("custom_theme_colors")
             private val CUSTOM_THEME_PALETTES = stringPreferencesKey("custom_theme_palettes_v2")
+            private val CUSTOM_THEMES = stringPreferencesKey("custom_themes")
+            private val ACTIVE_CUSTOM_THEME = stringPreferencesKey("custom_theme_id")
+            private const val LEGACY_CUSTOM_THEME_ID = "custom-android-legacy"
             private val THEME_VARIANT = stringPreferencesKey("theme_variant")
             private val SYSTEM_LIGHT_THEME_MODE = stringPreferencesKey("system_light_theme_mode")
             private val SYSTEM_DARK_THEME_MODE = stringPreferencesKey("system_dark_theme_mode")
@@ -108,7 +112,7 @@ class LocalDataManager
             context.dataStore.data.map { prefs ->
                 parseThemeVariant(
                     raw = prefs[THEME_VARIANT],
-                    fallback = parseLegacyThemeMode(prefs[THEME_MODE], ThemeMode.SYSTEM).defaultVariant(),
+                    fallback = ThemeMode.storedDefaultVariant(prefs[THEME_MODE]) ?: ThemeVariant.DARK,
                 )
             }
 
@@ -142,9 +146,7 @@ class LocalDataManager
             context.dataStore.data.map { prefs ->
                 parseThemeVariant(
                     prefs[SYSTEM_DARK_THEME_VARIANT],
-                    parseLegacyThemeMode(prefs[SYSTEM_DARK_THEME_MODE], ThemeMode.DARK)
-                        .defaultVariant()
-                        .let { if (it == ThemeVariant.LIGHT) ThemeVariant.DARK else it },
+                    systemDarkFallbackVariant(prefs[SYSTEM_DARK_THEME_MODE]),
                 )
             }
 
@@ -152,18 +154,15 @@ class LocalDataManager
             context.dataStore.edit { prefs -> prefs[SYSTEM_DARK_THEME_VARIANT] = variant.name }
         }
 
+        /** A stored theme name as today's mode: retired palettes land on their successor, unknown names on [fallback]. */
         private fun parseThemeMode(
             raw: String?,
             fallback: ThemeMode,
-        ): ThemeMode = parseLegacyThemeMode(raw, fallback).canonicalFamily()
+        ): ThemeMode = (ThemeMode.fromStored(raw) ?: fallback).canonicalFamily()
 
-        private fun parseLegacyThemeMode(
-            raw: String?,
-            fallback: ThemeMode,
-        ): ThemeMode =
-            runCatching {
-                raw?.let(ThemeMode::valueOf) ?: fallback
-            }.getOrDefault(fallback)
+        /** The dark slot never falls back to a light style. */
+        private fun systemDarkFallbackVariant(raw: String?): ThemeVariant =
+            (ThemeMode.storedDefaultVariant(raw) ?: ThemeVariant.DARK).let { if (it == ThemeVariant.LIGHT) ThemeVariant.DARK else it }
 
         private fun parseThemeVariant(
             raw: String?,
@@ -173,18 +172,84 @@ class LocalDataManager
                 raw?.let(ThemeVariant::valueOf) ?: fallback
             }.getOrDefault(fallback)
 
-        val customThemePalettes: Flow<CustomThemePalettes> =
+        /**
+         * The user's custom themes. Before this list existed there was one custom palette per style;
+         * it is read once as a theme named "My theme" until the list is first written.
+         */
+        val customThemes: Flow<List<CustomTheme>> =
+            context.dataStore.data.map { prefs -> readCustomThemes(prefs) }
+
+        /** The custom theme the CUSTOM mode shows: the selected one, or the first when none is selected. */
+        val activeCustomTheme: Flow<CustomTheme?> =
             context.dataStore.data.map { prefs ->
-                decodeCustomThemePalettes(
-                    raw = prefs[CUSTOM_THEME_PALETTES],
-                    legacyRaw = prefs[CUSTOM_THEME_COLORS],
-                )
+                val themes = readCustomThemes(prefs)
+                themes.firstOrNull { it.id == prefs[ACTIVE_CUSTOM_THEME] } ?: themes.firstOrNull()
             }
 
-        suspend fun setCustomThemePalettes(palettes: CustomThemePalettes) {
+        /** Adds [theme], or replaces the one with its id. */
+        suspend fun saveCustomTheme(theme: CustomTheme) {
             context.dataStore.edit { prefs ->
-                prefs[CUSTOM_THEME_PALETTES] = encodeCustomThemePalettes(palettes)
+                val themes = readCustomThemes(prefs)
+                val updated =
+                    if (themes.any { it.id == theme.id }) {
+                        themes.map { if (it.id == theme.id) theme else it }
+                    } else {
+                        (themes + theme).take(CustomTheme.MAX_COUNT)
+                    }
+                prefs[CUSTOM_THEMES] = CustomThemeCodec.encodeList(updated)
             }
+        }
+
+        suspend fun deleteCustomTheme(id: String) {
+            context.dataStore.edit { prefs ->
+                val remaining = readCustomThemes(prefs).filterNot { it.id == id }
+                prefs[CUSTOM_THEMES] = CustomThemeCodec.encodeList(remaining)
+                if (prefs[ACTIVE_CUSTOM_THEME] == id) prefs.remove(ACTIVE_CUSTOM_THEME)
+                if (remaining.isEmpty() && prefs[THEME_MODE] == ThemeMode.CUSTOM.name) prefs[THEME_MODE] = ThemeMode.DARK.name
+            }
+        }
+
+        suspend fun setActiveCustomTheme(id: String) {
+            context.dataStore.edit { prefs -> prefs[ACTIVE_CUSTOM_THEME] = id }
+        }
+
+        /** Selects [id] and switches the app to it in [variant]. */
+        suspend fun useCustomTheme(
+            id: String,
+            variant: ThemeVariant,
+        ) {
+            context.dataStore.edit { prefs ->
+                prefs[ACTIVE_CUSTOM_THEME] = id
+                prefs[THEME_MODE] = ThemeMode.CUSTOM.name
+                prefs[THEME_VARIANT] = variant.name
+            }
+        }
+
+        /**
+         * Adds [imported] to the list, giving a new id to any that clashes with an existing theme,
+         * up to the limit. Returns how many were added.
+         */
+        suspend fun importCustomThemes(
+            imported: List<CustomTheme>,
+            newId: () -> String,
+        ): Int {
+            var added = 0
+            context.dataStore.edit { prefs ->
+                val themes = readCustomThemes(prefs).toMutableList()
+                imported.forEach { theme ->
+                    if (themes.size >= CustomTheme.MAX_COUNT) return@forEach
+                    themes += if (themes.any { it.id == theme.id }) theme.copy(id = newId()) else theme
+                    added++
+                }
+                prefs[CUSTOM_THEMES] = CustomThemeCodec.encodeList(themes)
+            }
+            return added
+        }
+
+        private fun readCustomThemes(prefs: Preferences): List<CustomTheme> {
+            prefs[CUSTOM_THEMES]?.let { return CustomThemeCodec.decode(it) }
+            val legacy = decodeLegacyCustomPalettes(prefs[CUSTOM_THEME_PALETTES], prefs[CUSTOM_THEME_COLORS]) ?: return emptyList()
+            return listOf(legacyCustomTheme(legacy, LEGACY_CUSTOM_THEME_ID, context.getString(R.string.settings_custom_theme_default_name)))
         }
 
         // Subscriptions
@@ -432,6 +497,7 @@ class LocalDataManager
                 val name = key.name
                 if (name == "theme_mode" || name == "theme_variant" || name == "accent_color" ||
                     name == "custom_theme_colors" || name == "custom_theme_palettes_v2" ||
+                    name == "custom_themes" || name == "custom_theme_id" ||
                     name == "system_light_theme_mode" || name == "system_dark_theme_mode" ||
                     name == "system_dark_theme_variant" ||
                     name == "bedtime_reminder" || name == "break_reminder" ||
@@ -447,62 +513,42 @@ class LocalDataManager
                 }
             }
 
-            val storedThemeMode = parseLegacyThemeMode(prefs[THEME_MODE], ThemeMode.SYSTEM)
-            strings[THEME_MODE.name] = storedThemeMode.canonicalFamily().name
+            strings[THEME_MODE.name] = parseThemeMode(prefs[THEME_MODE], ThemeMode.SYSTEM).name
             strings[THEME_VARIANT.name] =
                 parseThemeVariant(
                     prefs[THEME_VARIANT],
-                    storedThemeMode.defaultVariant(),
+                    ThemeMode.storedDefaultVariant(prefs[THEME_MODE]) ?: ThemeVariant.DARK,
                 ).name
-
-            val storedSystemLightMode = parseLegacyThemeMode(prefs[SYSTEM_LIGHT_THEME_MODE], ThemeMode.DARK)
-            strings[SYSTEM_LIGHT_THEME_MODE.name] = storedSystemLightMode.canonicalFamily().name
-
-            val storedSystemDarkMode = parseLegacyThemeMode(prefs[SYSTEM_DARK_THEME_MODE], ThemeMode.DARK)
-            strings[SYSTEM_DARK_THEME_MODE.name] = storedSystemDarkMode.canonicalFamily().name
+            strings[SYSTEM_LIGHT_THEME_MODE.name] = parseThemeMode(prefs[SYSTEM_LIGHT_THEME_MODE], ThemeMode.DARK).name
+            strings[SYSTEM_DARK_THEME_MODE.name] = parseThemeMode(prefs[SYSTEM_DARK_THEME_MODE], ThemeMode.DARK).name
             strings[SYSTEM_DARK_THEME_VARIANT.name] =
-                parseThemeVariant(
-                    prefs[SYSTEM_DARK_THEME_VARIANT],
-                    storedSystemDarkMode.defaultVariant().let {
-                        if (it == ThemeVariant.LIGHT) ThemeVariant.DARK else it
-                    },
-                ).name
+                parseThemeVariant(prefs[SYSTEM_DARK_THEME_VARIANT], systemDarkFallbackVariant(prefs[SYSTEM_DARK_THEME_MODE])).name
+            strings[CUSTOM_THEMES.name] = CustomThemeCodec.encodeList(readCustomThemes(prefs))
             return SettingsBackup(strings, booleans, ints, floats, longs)
         }
 
         suspend fun restoreData(backup: SettingsBackup) {
             context.dataStore.edit { prefs ->
-                val restoredThemeMode =
-                    backup.strings["theme_mode"]
-                        ?.let { raw -> runCatching { ThemeMode.valueOf(raw) }.getOrNull() }
+                val restoredThemeMode = ThemeMode.fromStored(backup.strings["theme_mode"])
                 restoredThemeMode?.let { mode ->
                     prefs[THEME_MODE] = mode.canonicalFamily().name
-                    prefs[THEME_VARIANT] = backup.strings["theme_variant"]
-                        ?.let { raw -> runCatching { ThemeVariant.valueOf(raw) }.getOrNull() }
-                        ?.name
-                        ?: mode.defaultVariant().name
+                    prefs[THEME_VARIANT] =
+                        parseThemeVariant(
+                            backup.strings["theme_variant"],
+                            ThemeMode.storedDefaultVariant(backup.strings["theme_mode"]) ?: ThemeVariant.DARK,
+                        ).name
                 }
-
-                val restoredSystemLightMode =
-                    backup.strings["system_light_theme_mode"]
-                        ?.let { raw -> runCatching { ThemeMode.valueOf(raw) }.getOrNull() }
-                restoredSystemLightMode?.let { mode ->
+                ThemeMode.fromStored(backup.strings["system_light_theme_mode"])?.let { mode ->
                     prefs[SYSTEM_LIGHT_THEME_MODE] = mode.canonicalFamily().name
                 }
-
-                val restoredSystemDarkMode =
-                    backup.strings["system_dark_theme_mode"]
-                        ?.let { raw -> runCatching { ThemeMode.valueOf(raw) }.getOrNull() }
+                val restoredSystemDarkMode = ThemeMode.fromStored(backup.strings["system_dark_theme_mode"])
                 restoredSystemDarkMode?.let { mode ->
                     prefs[SYSTEM_DARK_THEME_MODE] = mode.canonicalFamily().name
-                    val fallbackVariant =
-                        mode.defaultVariant().let {
-                            if (it == ThemeVariant.LIGHT) ThemeVariant.DARK else it
-                        }
-                    prefs[SYSTEM_DARK_THEME_VARIANT] = backup.strings["system_dark_theme_variant"]
-                        ?.let { raw -> runCatching { ThemeVariant.valueOf(raw) }.getOrNull() }
-                        ?.name
-                        ?: fallbackVariant.name
+                    prefs[SYSTEM_DARK_THEME_VARIANT] =
+                        parseThemeVariant(
+                            backup.strings["system_dark_theme_variant"],
+                            systemDarkFallbackVariant(backup.strings["system_dark_theme_mode"]),
+                        ).name
                 }
 
                 if (restoredThemeMode == null) {
@@ -516,9 +562,12 @@ class LocalDataManager
                         ?.let { prefs[SYSTEM_DARK_THEME_VARIANT] = it.name }
                 }
 
-                listOf("accent_color", "custom_theme_colors", "custom_theme_palettes_v2").forEach { key ->
-                    backup.strings[key]?.let { prefs[stringPreferencesKey(key)] = it }
+                backup.strings["accent_color"]?.let { prefs[ACCENT_COLOR] = it }
+                restoredCustomThemes(backup)?.let { restored ->
+                    val merged = (readCustomThemes(prefs).filterNot { current -> restored.any { it.id == current.id } } + restored)
+                    prefs[CUSTOM_THEMES] = CustomThemeCodec.encodeList(merged.take(CustomTheme.MAX_COUNT))
                 }
+                backup.strings["custom_theme_id"]?.let { prefs[ACTIVE_CUSTOM_THEME] = it }
                 backup.booleans.forEach { (k, v) ->
                     if (k == "bedtime_reminder" || k == "break_reminder") {
                         prefs[
@@ -536,6 +585,15 @@ class LocalDataManager
                     }
                 }
             }
+        }
+
+        /** The custom themes a backup carries: the list, or an older backup's single palette as one theme. */
+        private fun restoredCustomThemes(backup: SettingsBackup): List<CustomTheme>? {
+            backup.strings["custom_themes"]?.let { return CustomThemeCodec.decode(it) }
+            val legacy =
+                decodeLegacyCustomPalettes(backup.strings["custom_theme_palettes_v2"], backup.strings["custom_theme_colors"])
+                    ?: return null
+            return listOf(legacyCustomTheme(legacy, LEGACY_CUSTOM_THEME_ID, context.getString(R.string.settings_custom_theme_default_name)))
         }
 
         val autoBackupLastRun: Flow<Long> =

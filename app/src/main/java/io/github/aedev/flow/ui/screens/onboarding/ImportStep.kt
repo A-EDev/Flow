@@ -36,12 +36,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.screens.settings.ImportProgressBanner
-import io.github.aedev.flow.ui.screens.settings.ImportViewModel
+import io.github.aedev.flow.data.backup.BackupOperation
+import io.github.aedev.flow.ui.components.shared.FlowProgressBanner
 
 @Composable
 internal fun ImportStep(
-    importState: ImportViewModel.State,
+    importOperation: BackupOperation,
     onImportFlowBackup: () -> Unit,
     onImportMasterBackup: () -> Unit,
     onImportEngineData: () -> Unit,
@@ -56,20 +56,29 @@ internal fun ImportStep(
     onImportLibreTubePlaylists: () -> Unit,
     onImportYouTubeTakeout: () -> Unit,
     onImportYouTubePlaylist: () -> Unit,
-    onImportYouTubeMusicPlaylist: () -> Unit
+    onImportYouTubeMusicPlaylist: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
             StepHeader(
                 title = stringResource(R.string.onboarding_import_title),
-                subtitle = stringResource(R.string.onboarding_import_subtitle)
+                subtitle = stringResource(R.string.onboarding_import_subtitle),
             )
         }
-        item { ImportProgressBanner(importState) }
+        (importOperation as? BackupOperation.Running)?.let { running ->
+            item {
+                FlowProgressBanner(
+                    headline = running.headline,
+                    current = running.current,
+                    total = running.total,
+                    note = stringResource(R.string.import_running_background),
+                )
+            }
+        }
 
         item { ImportSectionLabel(stringResource(R.string.onboarding_backup_restore_section)) }
         item {
@@ -78,7 +87,7 @@ internal fun ImportStep(
                 title = stringResource(R.string.import_flow_backup_item_title),
                 description = stringResource(R.string.import_flow_backup_desc),
                 iconTint = MaterialTheme.colorScheme.primary,
-                onClick = onImportFlowBackup
+                onClick = onImportFlowBackup,
             )
         }
         item {
@@ -87,7 +96,7 @@ internal fun ImportStep(
                 title = stringResource(R.string.import_engine_data),
                 description = stringResource(R.string.import_engine_data_desc),
                 iconTint = MaterialTheme.colorScheme.primary,
-                onClick = onImportEngineData
+                onClick = onImportEngineData,
             )
         }
         item {
@@ -96,10 +105,9 @@ internal fun ImportStep(
                 title = stringResource(R.string.import_master_backup_title),
                 description = stringResource(R.string.import_master_backup_desc),
                 iconTint = MaterialTheme.colorScheme.primary,
-                onClick = onImportMasterBackup
+                onClick = onImportMasterBackup,
             )
         }
-        
 
         item { ImportSectionLabel(stringResource(R.string.import_subscriptions_section_title)) }
         item {
@@ -107,7 +115,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_newpipe),
                 title = stringResource(R.string.import_from_newpipe),
                 description = stringResource(R.string.import_from_newpipe_desc),
-                onClick = onImportNewPipe
+                onClick = onImportNewPipe,
             )
         }
         item {
@@ -115,7 +123,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_youtube),
                 title = stringResource(R.string.import_from_youtube),
                 description = stringResource(R.string.import_from_youtube_desc),
-                onClick = onImportYouTube
+                onClick = onImportYouTube,
             )
         }
         item {
@@ -123,7 +131,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_libretube),
                 title = stringResource(R.string.import_from_libretube),
                 description = stringResource(R.string.import_from_libretube_desc),
-                onClick = onImportLibreTube
+                onClick = onImportLibreTube,
             )
         }
 
@@ -133,7 +141,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_youtube),
                 title = stringResource(R.string.import_yt_takeout_all),
                 description = stringResource(R.string.import_yt_takeout_all_desc),
-                onClick = onImportYouTubeTakeout
+                onClick = onImportYouTubeTakeout,
             )
         }
         item {
@@ -141,7 +149,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_youtube),
                 title = stringResource(R.string.import_yt_watch_history),
                 description = stringResource(R.string.import_yt_watch_history_desc),
-                onClick = onImportYouTubeHistory
+                onClick = onImportYouTubeHistory,
             )
         }
         item {
@@ -150,7 +158,7 @@ internal fun ImportStep(
                 title = stringResource(R.string.import_freetube_history),
                 description = stringResource(R.string.import_freetube_history_desc),
                 iconTint = MaterialTheme.colorScheme.primary,
-                onClick = onImportFreeTubeHistory
+                onClick = onImportFreeTubeHistory,
             )
         }
         item {
@@ -158,7 +166,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_newpipe),
                 title = stringResource(R.string.import_newpipe_history),
                 description = stringResource(R.string.import_newpipe_history_desc),
-                onClick = onImportNewPipeHistory
+                onClick = onImportNewPipeHistory,
             )
         }
 
@@ -168,7 +176,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_newpipe),
                 title = stringResource(R.string.import_newpipe_playlists),
                 description = stringResource(R.string.import_newpipe_playlists_desc),
-                onClick = onImportNewPipePlaylists
+                onClick = onImportNewPipePlaylists,
             )
         }
         item {
@@ -176,7 +184,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_libretube),
                 title = stringResource(R.string.import_libretube_playlists),
                 description = stringResource(R.string.import_libretube_playlists_desc),
-                onClick = onImportLibreTubePlaylists
+                onClick = onImportLibreTubePlaylists,
             )
         }
         item {
@@ -184,7 +192,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_youtube),
                 title = stringResource(R.string.import_yt_playlist),
                 description = stringResource(R.string.import_yt_playlist_desc),
-                onClick = onImportYouTubePlaylist
+                onClick = onImportYouTubePlaylist,
             )
         }
 
@@ -194,7 +202,7 @@ internal fun ImportStep(
                 painter = painterResource(id = R.drawable.ic_metrolist),
                 title = stringResource(R.string.import_from_metrolist),
                 description = stringResource(R.string.import_from_metrolist_desc),
-                onClick = onImportMetrolist
+                onClick = onImportMetrolist,
             )
         }
         item {
@@ -203,7 +211,7 @@ internal fun ImportStep(
                 title = stringResource(R.string.import_yt_music_playlist),
                 description = stringResource(R.string.import_yt_music_playlist_desc),
                 iconTint = MaterialTheme.colorScheme.primary,
-                onClick = onImportYouTubeMusicPlaylist
+                onClick = onImportYouTubeMusicPlaylist,
             )
         }
 
@@ -218,7 +226,7 @@ private fun ImportSectionLabel(title: String) {
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
     )
 }
 
@@ -228,31 +236,31 @@ private fun ImportCard(
     title: String,
     description: String,
     iconTint: Color = Color.Unspecified,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 1.dp
+        tonalElevation = 1.dp,
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(44.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         painter = painter,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
-                        tint = iconTint
+                        tint = iconTint,
                     )
                 }
             }
@@ -261,23 +269,24 @@ private fun ImportCard(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 18.sp
+                    lineHeight = 18.sp,
                 )
             }
             Icon(
                 Icons.Outlined.FileDownload,
                 contentDescription = null,
-                modifier = Modifier
-                    .size(18.dp)
-                    .alpha(0.45f),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                modifier =
+                    Modifier
+                        .size(18.dp)
+                        .alpha(0.45f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

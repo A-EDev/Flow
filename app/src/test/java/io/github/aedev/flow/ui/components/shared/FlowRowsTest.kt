@@ -126,7 +126,7 @@ class FlowRowsTest {
         }
 
         rule.onNodeWithText("English").assertExists()
-        assertThat(rowHeight()).isEqualTo(TWO_LINE_ROW_HEIGHT)
+        assertThat(rowHeight()).isAtLeast(TWO_LINE_ROW_HEIGHT)
     }
 
     @Test
@@ -288,7 +288,7 @@ class FlowRowsTest {
         /** Material 3's one-line list item minimum; it overrides the row's own content padding. */
         val ONE_LINE_ROW_HEIGHT = 56.dp
 
-        /** Material 3's two-line list item minimum. */
+        /** Material 3's two-line list item minimum; a segmented item grows past it with its padding. */
         val TWO_LINE_ROW_HEIGHT = 72.dp
     }
 }

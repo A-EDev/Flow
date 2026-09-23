@@ -60,7 +60,13 @@ fun MediaDownloadDialog(
             tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier =
+                    Modifier.padding(
+                        start = FlowDialogDefaults.ContentPadding,
+                        top = FlowDialogDefaults.ContentPadding,
+                        end = FlowDialogDefaults.ContentPadding,
+                        bottom = FlowDialogDefaults.BottomPadding,
+                    ),
             ) {
                 Text(
                     text = stringResource(R.string.download_video),
@@ -314,7 +320,7 @@ fun MediaDownloadDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(FlowDialogDefaults.ActionsSpacing))
 
                 TextButton(
                     onClick = onDismiss,

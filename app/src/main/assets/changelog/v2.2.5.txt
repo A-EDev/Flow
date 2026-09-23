@@ -38,6 +38,8 @@ NEW FEATURES
 - Device pairing can now be completed by entering connection details by hand when a QR scan is not practical
 - Shorts run on the native InnerTube client with a rebuilt reel page and settings sheet, and a new feed engine that blends chains related to reels you liked, saved or watched with fresh discovery, exploration and subscriptions — endless, unrepeated and one reel per channel at a time
 - Shorts now honour your blocked channels and topics on every reel, "Don't show this channel" joins the reel sheet, and the ad creatives YouTube slips into the reel feed are dropped
+- Settings rebuilt on Material 3 Expressive: grouped rows, a search that finds any option, and a two-pane layout on tablets and foldables
+- Themes now match Flow Desktop, Monochrome gets a true black AMOLED style, and you can keep several named custom themes and move them between both apps with import and export
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
@@ -54,6 +56,7 @@ IMPROVEMENTS
 - The transcript now stays where you leave it: scrolling no longer drags you back to the spoken line, a Sync to video pill returns you when you want it, the lines are grouped under their chapter headings, and the transcript can be read in any caption language the video carries
 - Transcript lines can be long-pressed, selected and copied, and the player stays tappable while the transcript is open
 - Every bottom sheet now separates its title from its contents with the same divider
+- Device sync, dialogs and the About page were redesigned to match, with a changelog sheet, fuller device info, and switches that show a check or a cross
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -65,6 +68,7 @@ FIXES AND STABILITY
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
 - Fix the music feed crashing after an update: release builds could mis-read the artist lists stored inside history, queues, playlists and downloads — stored tracks are now repaired on read, with no clean install needed
 - Fix custom themes losing their colours in release builds
+- Fix Notification settings crashing in German, the System theme ignoring dark mode when an app language was set, and Material You colours drifting from the wallpaper
 - Fix listened songs never reaching the music engine when playback was stopped, the queue replaced, or the track shipped without a duration
 - Fix watch progress on normal videos never reaching your recommendation brain, so it learned almost nothing from what you actually watched
 - Fix a watched video losing its recorded length when reopened, which silently erased its progress bar

@@ -53,6 +53,7 @@ object FlowSheetHeaderDefaults {
  * @param closeButtonSize fixed size for the close button, or null to leave it at the `IconButton`
  *   default.
  * @param dividerAlpha alpha for the `outlineVariant` divider, or null for a header with no divider.
+ * @param showDragHandle false inside a `ModalBottomSheet`, which already draws its own handle.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,16 +69,19 @@ fun FlowSheetHeader(
     closeButtonSize: Dp? = FlowSheetHeaderDefaults.CloseButtonSize,
     dividerAlpha: Float? = FlowSheetHeaderDefaults.DividerAlpha,
     actions: @Composable RowScope.() -> Unit = {},
+    showDragHandle: Boolean = true,
 ) {
     Column(modifier = modifier) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            BottomSheetDefaults.DragHandle()
+        if (showDragHandle) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                BottomSheetDefaults.DragHandle()
+            }
         }
 
         Row(

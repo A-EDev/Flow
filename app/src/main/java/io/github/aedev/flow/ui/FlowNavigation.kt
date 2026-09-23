@@ -28,6 +28,7 @@ import io.github.aedev.flow.data.shorts.queue.openAtVideoId
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.musicplayer.MusicPlayerSheetState
+import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.screens.channel.ChannelScreen
 import io.github.aedev.flow.ui.screens.history.HistoryScreen
@@ -47,13 +48,9 @@ import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.search.SearchScreen
-import io.github.aedev.flow.ui.screens.settings.ImportDataScreen
-import io.github.aedev.flow.ui.screens.settings.SettingsScreen
+import io.github.aedev.flow.ui.screens.settings.SettingsHost
 import io.github.aedev.flow.ui.screens.shorts.ShortsScreen
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsScreen
-import io.github.aedev.flow.ui.theme.CustomThemePalettes
-import io.github.aedev.flow.ui.theme.ThemeMode
-import io.github.aedev.flow.ui.theme.ThemeVariant
 
 @UnstableApi
 fun NavGraphBuilder.flowAppGraph(
@@ -65,18 +62,6 @@ fun NavGraphBuilder.flowAppGraph(
     playerViewModel: VideoPlayerViewModel,
     playerUiStateResult: State<VideoPlayerUiState>,
     playerVisibleState: MutableState<Boolean>,
-    currentTheme: ThemeMode,
-    themeVariant: ThemeVariant,
-    customThemePalettes: CustomThemePalettes,
-    systemLightThemeMode: ThemeMode,
-    systemDarkThemeMode: ThemeMode,
-    systemDarkThemeVariant: ThemeVariant,
-    onThemeChange: (ThemeMode) -> Unit,
-    onThemeVariantChange: (ThemeVariant) -> Unit,
-    onCustomThemePalettesChange: (CustomThemePalettes) -> Unit,
-    onSystemLightThemeChange: (ThemeMode) -> Unit,
-    onSystemDarkThemeChange: (ThemeMode) -> Unit,
-    onSystemDarkThemeVariantChange: (ThemeVariant) -> Unit,
     disableShortsPlayer: Boolean = false,
     defaultStartRoute: String = "home",
     /**
@@ -298,216 +283,29 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
-    composable("settings") {
+    composable(
+        route = "settings?target={target}",
+        arguments =
+            listOf(
+                navArgument("target") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+    ) { backStackEntry ->
         currentRoute.value = "settings"
-        SettingsScreen(
-            currentTheme = currentTheme,
-            onNavigateBack = { navController.popBackStack() },
-            onNavigateToAppearance = { navController.navigate("settings/appearance") },
-            onNavigateToPlayerAppearance = { navController.navigate("settings/player_appearance") },
-            onNavigateToDonations = { navController.navigate("donations") },
-            onNavigateToPersonality = { navController.navigate("personality") },
-            onNavigateToDownloads = { navController.navigate("settings/downloads") },
-            onNavigateToTimeManagement = { navController.navigate("settings/time_management") },
-            onNavigateToImport = { navController.navigate("settings/import") },
-            onNavigateToPlayerSettings = { navController.navigate("settings/player") },
-            onNavigateToProxySettings = { navController.navigate("settings/proxy") },
-            onNavigateToVideoQuality = { navController.navigate("settings/video_quality") },
-            onNavigateToShortsQuality = { navController.navigate("settings/shorts_quality") },
-            onNavigateToContentSettings = { navController.navigate("settings/content") },
-            onNavigateToDateTimeSettings = { navController.navigate("settings/datetime") },
-            onNavigateToBufferSettings = { navController.navigate("settings/buffer") },
-            onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
-            onNavigateToAbout = { navController.navigate("settings/about") },
-            onNavigateToUserPreferences = { navController.navigate("settings/user_preferences") },
-            onNavigateToNotifications = { navController.navigate("settings/notifications") },
-            onNavigateToAppIconPicker = { navController.navigate("settings/app_icon") },
-            onNavigateToDiagnostics = { navController.navigate("settings/diagnostics") },
-            onNavigateToAutoBackup = { navController.navigate("settings/auto_backup") },
-            onNavigateToSyncDevices = { navController.navigate("settings/sync_devices") },
-            onNavigateToExport = { navController.navigate("settings/export") },
-            onNavigateToSponsorBlockSettings = { navController.navigate("settings/sponsorblock") },
-            onNavigateToDiscordSettings = { navController.navigate("settings/discord") },
-        )
-    }
-
-    composable("settings/discord") {
-        currentRoute.value = "settings/discord"
-        io.github.aedev.flow.ui.screens.settings.DiscordSettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/auto_backup") {
-        currentRoute.value = "settings/auto_backup"
-        io.github.aedev.flow.ui.screens.settings.AutoBackupSettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/sync_devices") {
-        currentRoute.value = "settings/sync_devices"
-        io.github.aedev.flow.ui.screens.sync.SyncScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/export") {
-        currentRoute.value = "settings/export"
-        io.github.aedev.flow.ui.screens.settings.ExportDataScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/user_preferences") {
-        currentRoute.value = "settings/user_preferences"
-        io.github.aedev.flow.ui.screens.settings.UserPreferencesScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/player") {
-        currentRoute.value = "settings/player"
-        io.github.aedev.flow.ui.screens.settings.PlayerSettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/proxy") {
-        currentRoute.value = "settings/proxy"
-        io.github.aedev.flow.ui.screens.settings.ProxySettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/sponsorblock") {
-        currentRoute.value = "settings/sponsorblock"
-        io.github.aedev.flow.ui.screens.settings.SponsorBlockSettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/buffer") {
-        currentRoute.value = "settings/buffer"
-        io.github.aedev.flow.ui.screens.settings.BufferSettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/search_history") {
-        currentRoute.value = "settings/search_history"
-        io.github.aedev.flow.ui.screens.settings.SearchHistorySettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/video_quality") {
-        currentRoute.value = "settings/video_quality"
-        io.github.aedev.flow.ui.screens.settings.VideoQualitySettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/shorts_quality") {
-        currentRoute.value = "settings/shorts_quality"
-        io.github.aedev.flow.ui.screens.settings.ShortsVideoQualitySettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/content") {
-        currentRoute.value = "settings/content"
-        io.github.aedev.flow.ui.screens.settings.ContentSettingsScreen(
-            onBackClick = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/datetime") {
-        currentRoute.value = "settings/datetime"
-        io.github.aedev.flow.ui.screens.settings.DateTimeSettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/import") {
-        currentRoute.value = "settings/import"
-        ImportDataScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/time_management") {
-        currentRoute.value = "settings/time_management"
-        io.github.aedev.flow.ui.screens.settings.TimeManagementScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/about") {
-        currentRoute.value = "settings/about"
-        io.github.aedev.flow.ui.screens.settings.AboutScreen(
-            onNavigateBack = { navController.popBackStack() },
-            onNavigateToDonations = { navController.navigate("donations") },
-        )
-    }
-
-    composable("settings/appearance") {
-        currentRoute.value = "settings/appearance"
-        io.github.aedev.flow.ui.screens.settings.AppearanceScreen(
-            currentTheme = currentTheme,
-            themeVariant = themeVariant,
-            customThemePalettes = customThemePalettes,
-            systemLightThemeMode = systemLightThemeMode,
-            systemDarkThemeMode = systemDarkThemeMode,
-            systemDarkThemeVariant = systemDarkThemeVariant,
-            onThemeChange = onThemeChange,
-            onThemeVariantChange = onThemeVariantChange,
-            onCustomThemePalettesChange = onCustomThemePalettesChange,
-            onSystemLightThemeChange = onSystemLightThemeChange,
-            onSystemDarkThemeChange = onSystemDarkThemeChange,
-            onSystemDarkThemeVariantChange = onSystemDarkThemeVariantChange,
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/player_appearance") {
-        currentRoute.value = "settings/player_appearance"
-        io.github.aedev.flow.ui.screens.settings.PlayerAppearanceScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/downloads") {
-        currentRoute.value = "settings/downloads"
-        io.github.aedev.flow.ui.screens.settings.DownloadSettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/notifications") {
-        currentRoute.value = "settings/notifications"
-        io.github.aedev.flow.ui.screens.settings.NotificationSettingsScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/app_icon") {
-        currentRoute.value = "settings/app_icon"
-        io.github.aedev.flow.ui.screens.settings.AppIconPickerScreen(
-            onNavigateBack = { navController.popBackStack() },
-        )
-    }
-
-    composable("settings/diagnostics") {
-        currentRoute.value = "settings/diagnostics"
-        io.github.aedev.flow.ui.screens.settings.DiagnosticsScreen(
-            onNavigateBack = { navController.popBackStack() },
+        SettingsHost(
+            start = SettingsTarget.decode(backStackEntry.arguments?.getString("target")),
+            onExit = { navController.popBackStack() },
+            onOpenPersona = { navController.navigate("personality") },
+            onOpenDonations = { navController.navigate("donations") },
         )
     }
 
     composable("donations") {
         currentRoute.value = "donations"
-        io.github.aedev.flow.ui.screens.settings.DonationsScreen(
+        io.github.aedev.flow.ui.screens.settings.about.DonationsScreen(
             onNavigateBack = { navController.popBackStack() },
         )
     }

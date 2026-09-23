@@ -39,7 +39,8 @@ Flow-desktop/
 .kotlin/
 
 # Local engine diagnostics (real exported brains - personal data, never commit)
-diagnostics/
+/diagnostics/
+/app/diagnostics/
 
 # Captured InnerTube explore payloads: megabytes of response, regenerated locally by
 # notes/innertube-video-responses/trim_explore_fixtures.py rather than tracked.

@@ -12,11 +12,14 @@ import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
 import io.github.aedev.flow.utils.DateFormatStyle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 internal fun resolveMigratedHideWatchedPreference(
     splitValue: Boolean?,
@@ -34,6 +37,12 @@ const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
 private const val MAX_UNPLAYABLE_VIDEO_IDS = 300
+
+/**
+ * Preferences that never leave the device in a backup: the proxy password, and SponsorBlock's
+ * submission id, which is a private identity for the user's votes and segments.
+ */
+private val BackupExcludedKeys = setOf("proxy_password", "sb_user_id")
 
 private fun String?.decodeUnplayableIds(): Set<String> =
     if (isNullOrBlank()) emptySet() else splitToSequence('\n').filter { it.isNotBlank() }.toCollection(LinkedHashSet())
@@ -86,7 +95,6 @@ class PlayerPreferences(
 
         // Download settings
         val DOWNLOAD_THREADS = intPreferencesKey("download_threads")
-        val PARALLEL_DOWNLOAD_ENABLED = booleanPreferencesKey("parallel_download_enabled")
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val DEFAULT_DOWNLOAD_CODEC = stringPreferencesKey("default_download_codec")
@@ -2503,18 +2511,6 @@ class PlayerPreferences(
         }
     }
 
-    val parallelDownloadEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.PARALLEL_DOWNLOAD_ENABLED] ?: true
-            }
-
-    suspend fun setParallelDownloadEnabled(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PARALLEL_DOWNLOAD_ENABLED] = enabled
-        }
-    }
-
     val downloadOverWifiOnly: Flow<Boolean> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
@@ -2645,18 +2641,6 @@ class PlayerPreferences(
         }
     }
 
-    val proxyPassword: Flow<String> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.PROXY_PASSWORD].orEmpty()
-            }
-
-    suspend fun setProxyPassword(password: String) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PROXY_PASSWORD] = password
-        }
-    }
-
     val proxyConfig: Flow<AppProxyConfig> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
@@ -2666,13 +2650,14 @@ class PlayerPreferences(
                     host = preferences[Keys.PROXY_HOST].orEmpty(),
                     port = preferences[Keys.PROXY_PORT] ?: 8080,
                     username = preferences[Keys.PROXY_USERNAME].orEmpty(),
-                    password = preferences[Keys.PROXY_PASSWORD].orEmpty(),
+                    password = KeystoreSecretBox.open(preferences[Keys.PROXY_PASSWORD]),
                 )
-            }
+            }.flowOn(Dispatchers.IO)
 
     suspend fun getProxyConfig(): AppProxyConfig = proxyConfig.first()
 
     suspend fun setProxyConfig(config: AppProxyConfig) {
+        val sealed = withContext(Dispatchers.IO) { KeystoreSecretBox.seal(config.password) }
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PROXY_ENABLED] = config.enabled
             preferences[Keys.PROXY_TYPE] = config.type.storageValue
@@ -2682,7 +2667,7 @@ class PlayerPreferences(
             if (config.password.isEmpty()) {
                 preferences.remove(Keys.PROXY_PASSWORD)
             } else {
-                preferences[Keys.PROXY_PASSWORD] = config.password
+                preferences[Keys.PROXY_PASSWORD] = sealed
             }
         }
     }
@@ -2960,7 +2945,7 @@ class PlayerPreferences(
         val longs = mutableMapOf<String, Long>()
 
         prefs.asMap().forEach { (key, value) ->
-            if (key.name == "proxy_password") return@forEach
+            if (key.name in BackupExcludedKeys) return@forEach
             when (value) {
                 is String -> strings[key.name] = value
                 is Boolean -> booleans[key.name] = value
@@ -2975,7 +2960,7 @@ class PlayerPreferences(
     suspend fun restoreData(backup: SettingsBackup) {
         context.playerPreferencesDataStore.edit { prefs ->
             backup.strings.forEach { (k, v) ->
-                if (k != "proxy_password") {
+                if (k !in BackupExcludedKeys) {
                     prefs[stringPreferencesKey(k)] = v
                 }
             }
@@ -3075,6 +3060,14 @@ enum class MusicAudioQuality(
     MEDIUM("Medium"),
     LOW("Low"),
     ;
+
+    /** The quality to actually stream: Auto picks High on Wi-Fi and Medium on mobile data, like video does. */
+    fun resolve(onWifi: Boolean): MusicAudioQuality =
+        when {
+            this != AUTO -> this
+            onWifi -> HIGH
+            else -> MEDIUM
+        }
 
     companion object {
         fun fromString(label: String): MusicAudioQuality = values().find { it.label == label } ?: AUTO

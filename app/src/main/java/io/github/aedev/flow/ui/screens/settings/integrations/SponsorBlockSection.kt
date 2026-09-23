@@ -1,0 +1,148 @@
+package io.github.aedev.flow.ui.screens.settings.integrations
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.ui.components.settings.SettingsListScope
+import io.github.aedev.flow.ui.components.settings.switch
+import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.screens.settings.index.IntegrationsIndex
+import io.github.aedev.flow.ui.theme.defaultSponsorBlockColor
+import io.github.aedev.flow.utils.sponsorCategoryLabelRes
+
+private val SwatchSize = 24.dp
+private val SwatchBorder = 1.dp
+private const val USER_ID_PREVIEW_LENGTH = 8
+
+internal fun SettingsListScope.sponsorBlockSection(
+    viewModel: IntegrationsViewModel,
+    enabled: Boolean,
+    submitButton: Boolean,
+    userId: String?,
+    segments: Map<String, SegmentSetting>,
+    onEditUserId: () -> Unit,
+    onPickColour: (String) -> Unit,
+) {
+    group(key = "integrations.sponsorblock.group", header = R.string.player_settings_sponsorblock) {
+        switch(IntegrationsIndex.sponsorBlock, viewModel.sponsorBlock, viewModel::setSponsorBlock, iconRes = R.drawable.ic_block)
+        switch(IntegrationsIndex.contribute, viewModel.submitButton, viewModel::setSubmitButton, enabled = enabled)
+        if (submitButton) {
+            row(IntegrationsIndex.userId.key) { shape ->
+                FlowNavRow(
+                    title = stringResource(IntegrationsIndex.userId.title),
+                    supportingText =
+                        userId?.let { stringResource(R.string.settings_truncated, it.take(USER_ID_PREVIEW_LENGTH)) }
+                            ?: stringResource(R.string.sb_user_id_not_set),
+                    enabled = enabled,
+                    onClick = onEditUserId,
+                    shape = shape,
+                )
+            }
+        }
+    }
+    if (enabled) {
+        group(key = IntegrationsIndex.segments.key, header = R.string.sb_segments_header) {
+            SponsorBlockCategories.forEach { category ->
+                row("integrations.segment.$category") { shape ->
+                    SegmentRow(
+                        category = category,
+                        setting = segments[category],
+                        shape = shape,
+                        onActionSelected = { viewModel.setSegmentAction(category, it) },
+                        onPickColour = { onPickColour(category) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * One segment category: its colour on the seek bar (tap to change) and what the player does when it
+ * reaches one (tap the row or the action to choose).
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SegmentRow(
+    category: String,
+    setting: SegmentSetting?,
+    shape: Shape,
+    onActionSelected: (SponsorBlockAction) -> Unit,
+    onPickColour: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    val label = sponsorCategoryLabelRes(category)?.let { stringResource(it) } ?: category
+    val colour = setting?.colorArgb?.let(::Color) ?: defaultSponsorBlockColor(category)
+    val action = setting?.action ?: SponsorBlockAction.SKIP
+
+    SegmentedListItem(
+        verticalAlignment = Alignment.CenterVertically,
+        onClick = { menuOpen = true },
+        shapes = ListItemDefaults.shapes(shape = shape),
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        leadingContent = {
+            IconButton(onClick = onPickColour) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(SwatchSize)
+                            .clip(CircleShape)
+                            .background(colour)
+                            .border(SwatchBorder, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                )
+            }
+        },
+        trailingContent = {
+            Box {
+                TextButton(onClick = { menuOpen = true }) { Text(sponsorActionLabel(action)) }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    SponsorBlockAction.entries.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(sponsorActionLabel(option)) },
+                            onClick = {
+                                onActionSelected(option)
+                                menuOpen = false
+                            },
+                        )
+                    }
+                }
+            }
+        },
+    ) {
+        Text(label)
+    }
+}
+
+@Composable
+internal fun sponsorActionLabel(action: SponsorBlockAction): String =
+    when (action) {
+        SponsorBlockAction.SKIP -> stringResource(R.string.sb_action_skip)
+        SponsorBlockAction.MUTE -> stringResource(R.string.sb_action_mute)
+        SponsorBlockAction.SHOW_TOAST -> stringResource(R.string.sb_action_show_toast)
+        SponsorBlockAction.IGNORE -> stringResource(R.string.sb_action_ignore)
+    }

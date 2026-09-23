@@ -32,3 +32,31 @@ fun defaultSponsorBlockColor(category: String): Color =
         "music_offtopic" -> SponsorBlockMusicOffTopic
         else -> SponsorBlockSponsor
     }
+
+/** The colours offered when the user picks their own colour for a segment category. */
+val SponsorBlockSegmentPresets: List<Color> =
+    listOf(
+        Color(0xFF00D400),
+        Color(0xFFFFFF00),
+        Color(0xFF0000FF),
+        Color(0xFFFF0000),
+        Color(0xFFFF7700),
+        Color(0xFFFF69B4),
+        Color(0xFF7700FF),
+        Color(0xFF00FFFF),
+        Color(0xFFFFFFFF),
+        Color(0xFF008080),
+        Color(0xFF3F51B5),
+        Color(0xFFFFC107),
+        Color(0xFFCDDC39),
+        Color(0xFF673AB7),
+        Color(0xFFFF5722),
+        Color(0xFFE91E63),
+        Color(0xFF006400),
+        Color(0xFF8B4513),
+        Color(0xFF808080),
+        Color(0xFFC0C0C0),
+        Color(0xFFFFD700),
+        Color(0xFF40E0D0),
+        Color(0xFF4B0082),
+    )
