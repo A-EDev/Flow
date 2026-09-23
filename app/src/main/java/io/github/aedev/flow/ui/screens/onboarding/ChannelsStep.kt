@@ -51,23 +51,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.utils.formatSubscriberCount
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.channel.ChannelInfoItem
 
 @Composable
 internal fun ChannelsStep(
     searchQuery: String,
-    searchResults: List<ChannelSearchResult>,
+    searchResults: List<Channel>,
     isSearching: Boolean,
-    subscribedInSession: Set<String>,
+    isSubscribed: (String) -> Boolean,
+    subscribedCount: Int,
     onQueryChange: (String) -> Unit,
-    onSubscribeToggle: (ChannelSearchResult) -> Unit,
+    onSubscribeToggle: (Channel) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -138,22 +135,22 @@ internal fun ChannelsStep(
                 }
             }
 
-            items(searchResults, key = { it.channelId }) { result ->
+            items(searchResults, key = { it.id }) { result ->
                 ChannelResultRow(
                     result = result,
-                    isSubscribed = subscribedInSession.contains(result.channelId),
+                    isSubscribed = isSubscribed(result.id),
                     onToggle = { onSubscribeToggle(result) },
                 )
             }
 
-            if (subscribedInSession.isNotEmpty()) {
+            if (subscribedCount > 0) {
                 item {
                     Text(
                         text =
                             pluralStringResource(
                                 R.plurals.onboarding_channels_added_count,
-                                subscribedInSession.size,
-                                subscribedInSession.size,
+                                subscribedCount,
+                                subscribedCount,
                             ),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
@@ -201,7 +198,7 @@ private fun ChannelsPlaceholder(
 
 @Composable
 private fun ChannelResultRow(
-    result: ChannelSearchResult,
+    result: Channel,
     isSubscribed: Boolean,
     onToggle: () -> Unit,
 ) {
@@ -252,7 +249,7 @@ private fun ChannelResultRow(
         AnimatedContent(
             targetState = isSubscribed,
             transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) },
-            label = "sub_btn_${result.channelId}",
+            label = "sub_btn_${result.id}",
         ) { subscribed ->
             if (subscribed) {
                 FilledTonalButton(
@@ -284,50 +281,3 @@ private fun ChannelResultRow(
         }
     }
 }
-
-internal suspend fun searchChannels(query: String): List<ChannelSearchResult> =
-    withContext(Dispatchers.IO) {
-        try {
-            val extractor = ServiceList.YouTube.getSearchExtractor(query, listOf("channels"), null)
-            extractor.fetchPage()
-            extractor.initialPage.items
-                .filterIsInstance<ChannelInfoItem>()
-                .mapNotNull { item ->
-                    val channelId =
-                        try {
-                            val url = item.url
-                            when {
-                                url.contains("/channel/") -> {
-                                    url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
-                                }
-
-                                url.contains("/@") -> {
-                                    url.substringAfter("/@").substringBefore("/").substringBefore("?")
-                                }
-
-                                else -> {
-                                    url.substringAfterLast("/").substringBefore("?")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            ""
-                        }
-
-                    if (channelId.isEmpty() || item.name.isNullOrEmpty()) return@mapNotNull null
-
-                    ChannelSearchResult(
-                        channelId = channelId,
-                        name = item.name ?: "",
-                        thumbnailUrl =
-                            item.thumbnails
-                                .sortedByDescending { it.height }
-                                .firstOrNull()
-                                ?.url ?: "",
-                        subscriberCount = item.subscriberCount,
-                    )
-                }.distinctByNonBlankKey(ChannelSearchResult::channelId)
-                .take(15)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }

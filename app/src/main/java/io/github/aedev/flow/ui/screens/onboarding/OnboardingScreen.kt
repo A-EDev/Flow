@@ -1,6 +1,6 @@
 package io.github.aedev.flow.ui.screens.onboarding
 
-import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -12,7 +12,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -22,64 +21,38 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.backup.BackupOperation
 import io.github.aedev.flow.data.backup.ImportKind
-import io.github.aedev.flow.data.local.ChannelSubscription
-import io.github.aedev.flow.data.local.SubscriptionRepository
-import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OnboardingScreen(onComplete: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+fun OnboardingScreen(
+    onComplete: () -> Unit,
+    viewModel: OnboardingViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val importOperation by viewModel.importOperation.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
-
-    val subscriptionRepo = remember { SubscriptionRepository.getInstance(context) }
-    val importViewModel: OnboardingImportViewModel = hiltViewModel()
-
-    var currentStep by remember { mutableStateOf(OnboardingStep.INTERESTS) }
-
-    var selectedTopics by remember { mutableStateOf<Set<String>>(emptySet()) }
-
-    var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<ChannelSearchResult>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
-    var subscribedInSession by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var searchJob by remember { mutableStateOf<Job?>(null) }
-
-    var importMessage by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val importOperation by importViewModel.operation.collectAsStateWithLifecycle()
+    LaunchedEffect(state.completed) { if (state.completed) onComplete() }
+    BackHandler(enabled = state.step.index > 0) { viewModel.back() }
+
     LaunchedEffect(importOperation) {
-        importMessage =
+        val message =
             when (val operation = importOperation) {
                 is BackupOperation.Succeeded -> operation.message
                 is BackupOperation.Failed -> operation.message
                 else -> return@LaunchedEffect
             }
-        importViewModel.dismiss()
-    }
-
-    LaunchedEffect(importMessage) {
-        importMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            importMessage = null
-        }
+        viewModel.dismissImport()
+        snackbarHostState.showSnackbar(message)
     }
 
     var pendingImport by rememberSaveable { mutableStateOf<ImportKind?>(null) }
@@ -87,7 +60,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             val kind = pendingImport
             pendingImport = null
-            if (uri != null && kind != null) importViewModel.start(kind, uri)
+            if (uri != null && kind != null) viewModel.startImport(kind, uri)
         }
 
     fun pick(kind: ImportKind) {
@@ -95,44 +68,26 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         importPicker.launch(kind.mimeTypes)
     }
 
-    fun finish() {
-        scope.launch {
-            FlowNeuroEngine.completeOnboarding(context, selectedTopics)
-            onComplete()
-        }
-    }
-
-    fun advance() {
-        val next = OnboardingStep.entries.getOrNull(currentStep.index + 1)
-        if (next != null) currentStep = next else finish()
-    }
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = { StepIndicatorBar(currentStep = currentStep) },
+        topBar = { StepIndicatorBar(currentStep = state.step) },
         bottomBar = {
             OnboardingBottomBar(
-                isFirstStep = currentStep == OnboardingStep.INTERESTS,
-                isLastStep = currentStep == OnboardingStep.IMPORT,
-                canAdvance =
-                    when (currentStep) {
-                        OnboardingStep.INTERESTS -> selectedTopics.size >= MIN_TOPICS
-                        else -> true
-                    },
-                onBack = {
-                    OnboardingStep.entries.getOrNull(currentStep.index - 1)?.let { currentStep = it }
-                },
+                isFirstStep = state.step.index == 0,
+                isLastStep = state.step == OnboardingStep.entries.last(),
+                canAdvance = state.canAdvance,
+                onBack = { viewModel.back() },
                 onNext = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    advance()
+                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    viewModel.next()
                 },
-                onSkip = { advance() },
+                onSkip = { viewModel.next() },
             )
         },
     ) { innerPadding ->
         AnimatedContent(
-            targetState = currentStep,
+            targetState = state.step,
             transitionSpec = {
                 val forward = targetState.index > initialState.index
                 val enter =
@@ -158,59 +113,26 @@ fun OnboardingScreen(onComplete: () -> Unit) {
             when (step) {
                 OnboardingStep.INTERESTS -> {
                     InterestsStep(
-                        selectedTopics = selectedTopics,
+                        selectedTopics = state.topics,
                         onTopicToggle = { topic ->
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            selectedTopics =
-                                if (selectedTopics.contains(topic)) {
-                                    selectedTopics - topic
-                                } else {
-                                    selectedTopics + topic
-                                }
+                            val selecting = topic !in state.topics
+                            haptic.performHapticFeedback(if (selecting) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                            viewModel.toggleTopic(topic)
                         },
                     )
                 }
 
                 OnboardingStep.CHANNELS -> {
                     ChannelsStep(
-                        searchQuery = searchQuery,
-                        searchResults = searchResults,
-                        isSearching = isSearching,
-                        subscribedInSession = subscribedInSession,
-                        onQueryChange = { q ->
-                            searchQuery = q
-                            searchJob?.cancel()
-                            if (q.isBlank()) {
-                                searchResults = emptyList()
-                                isSearching = false
-                                return@ChannelsStep
-                            }
-                            searchJob =
-                                scope.launch {
-                                    delay(400)
-                                    isSearching = true
-                                    searchResults = searchChannels(q)
-                                    isSearching = false
-                                }
-                        },
-                        onSubscribeToggle = { result ->
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            scope.launch {
-                                if (subscribedInSession.contains(result.channelId)) {
-                                    subscriptionRepo.unsubscribe(result.channelId)
-                                    subscribedInSession = subscribedInSession - result.channelId
-                                } else {
-                                    subscriptionRepo.subscribe(
-                                        ChannelSubscription(
-                                            channelId = result.channelId,
-                                            channelName = result.name,
-                                            channelThumbnail = result.thumbnailUrl,
-                                            subscribedAt = System.currentTimeMillis(),
-                                        ),
-                                    )
-                                    subscribedInSession = subscribedInSession + result.channelId
-                                }
-                            }
+                        searchQuery = state.query,
+                        searchResults = state.results,
+                        isSearching = state.searching,
+                        isSubscribed = state::isSubscribed,
+                        subscribedCount = state.subscribed.size,
+                        onQueryChange = viewModel::search,
+                        onSubscribeToggle = { channel ->
+                            haptic.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                            viewModel.toggleSubscription(channel)
                         },
                     )
                 }
