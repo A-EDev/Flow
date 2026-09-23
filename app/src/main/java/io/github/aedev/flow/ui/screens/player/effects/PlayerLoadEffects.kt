@@ -148,9 +148,14 @@ internal fun SubscriptionAndLikeEffect(
 }
 
 @Composable
-internal fun SponsorSkipEffect(context: Context) {
+internal fun SponsorSkipEffect(
+    context: Context,
+    onSkipped: (category: String, skippedMs: Long) -> Unit,
+) {
+    val currentOnSkipped by rememberUpdatedState(onSkipped)
     LaunchedEffect(Unit) {
         EnhancedPlayerManager.getInstance().skipEvent.collect { segment ->
+            currentOnSkipped(segment.category, ((segment.endTime - segment.startTime) * 1000).toLong())
             Toast.makeText(context, context.getString(R.string.ui_skipped_segment, segment.category), Toast.LENGTH_SHORT).show()
         }
     }

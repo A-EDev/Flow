@@ -154,6 +154,7 @@ class MusicBrainEngine
                     listenedMs = playedMs,
                     counted = counted,
                     newArtist = counted && wasNewArtist,
+                    skipped = crossed.isEmpty(),
                 )
             }
             scheduleDebouncedSave()
@@ -401,6 +402,7 @@ class MusicBrainEngine
                 val key = musicArtistKey(artistId, artistName)
                 stampDisplayLocked(key, artistName)
                 MusicBrainLearn.applyDislike(brain, key, System.currentTimeMillis())
+                MusicStatsLedgerOps.recordSaidNo(ledger, System.currentTimeMillis(), key, artistName.trim(), blocked = false)
                 refreshHiddenArtistsLocked()
             }
             scheduleDebouncedSave()
@@ -415,6 +417,7 @@ class MusicBrainEngine
                 val key = musicArtistKey(artistId, artistName)
                 stampDisplayLocked(key, artistName)
                 MusicBrainLearn.blockArtist(brain, key)
+                MusicStatsLedgerOps.recordSaidNo(ledger, System.currentTimeMillis(), key, artistName.trim(), blocked = true)
                 refreshHiddenArtistsLocked()
             }
             scheduleDebouncedSave()
@@ -487,6 +490,15 @@ class MusicBrainEngine
                 isInitialized = true
                 refreshHiddenArtistsLocked()
                 storage.save(brain)
+            }
+        }
+
+        /** Replaces the listening ledger with a restored one; the brain is untouched. */
+        internal suspend fun restoreListeningStats(stats: MusicStatsStorage.SerializableStats) {
+            ensureInitialized()
+            mutex.withLock {
+                ledger = stats.toLedger()
+                statsStorage.replace(stats)
             }
         }
 

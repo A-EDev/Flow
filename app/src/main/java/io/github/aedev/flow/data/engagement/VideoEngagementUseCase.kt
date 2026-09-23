@@ -7,6 +7,9 @@ import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.InteractionType
+import io.github.aedev.flow.data.stats.DislikedVideo
+import io.github.aedev.flow.data.stats.LedgerAction
+import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -42,6 +45,7 @@ class VideoEngagementUseCase
         private val subscriptionRepository: SubscriptionRepository,
         private val likedVideosRepository: LikedVideosRepository,
         private val signals: VideoEngagementSignals,
+        private val videoStats: VideoStatsRecorder,
     ) {
         fun subscriptionState(channelId: String): Flow<Boolean> = subscriptionRepository.isSubscribed(channelId)
 
@@ -141,6 +145,7 @@ class VideoEngagementUseCase
                 ),
             )
             onApplied()
+            videoStats.onAction(LedgerAction.LIKE)
             if (signalVideo == null) return
             try {
                 signals.videoInteraction(signalVideo, InteractionType.LIKED)
@@ -156,6 +161,14 @@ class VideoEngagementUseCase
         ) {
             likedVideosRepository.dislikeVideo(videoId)
             onApplied()
+            videoStats.onDislike(
+                DislikedVideo(
+                    videoId = videoId,
+                    title = signalVideo?.title.orEmpty(),
+                    channelName = signalVideo?.channelName.orEmpty(),
+                    at = System.currentTimeMillis(),
+                ),
+            )
             if (signalVideo == null) return
             try {
                 signals.videoInteraction(signalVideo, InteractionType.DISLIKED)
@@ -164,5 +177,8 @@ class VideoEngagementUseCase
             }
         }
 
-        suspend fun removeLike(videoId: String) = likedVideosRepository.removeLikeState(videoId)
+        suspend fun removeLike(videoId: String) {
+            likedVideosRepository.removeLikeState(videoId)
+            videoStats.onDislikeRemoved(videoId)
+        }
     }

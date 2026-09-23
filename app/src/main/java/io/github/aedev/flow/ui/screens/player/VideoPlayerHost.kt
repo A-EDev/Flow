@@ -363,7 +363,7 @@ fun VideoPlayerHost(
         showShortsPlayerPrompt = prefs.showShortsPlayerPrompt,
     )
 
-    SponsorSkipEffect(context)
+    SponsorSkipEffect(context, onSkipped = playerViewModel::onSponsorSegmentSkipped)
 
     SubtitleLoadErrorEffect(
         context = context,

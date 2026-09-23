@@ -139,6 +139,7 @@ private enum class HistoryImportFormat {
 private const val MASTER_APP_DATA_ENTRY = "app_data.json"
 private const val MASTER_ENGINE_ENTRY = "engine_brain.json"
 private const val MASTER_MUSIC_BRAIN_ENTRY = "music_brain.json"
+private const val MASTER_RECAP_ENTRY = "recap_stats.json"
 
 class BackupRepository(
     private val context: Context,
@@ -275,6 +276,7 @@ class BackupRepository(
         appDataJson: String,
         brainBytes: ByteArray,
         musicBrain: ByteArray?,
+        recap: ByteArray?,
     ) {
         ZipOutputStream(out).use { zip ->
             zip.putNextEntry(ZipEntry(MASTER_APP_DATA_ENTRY))
@@ -286,6 +288,11 @@ class BackupRepository(
             if (musicBrain != null) {
                 zip.putNextEntry(ZipEntry(MASTER_MUSIC_BRAIN_ENTRY))
                 zip.write(musicBrain)
+                zip.closeEntry()
+            }
+            if (recap != null) {
+                zip.putNextEntry(ZipEntry(MASTER_RECAP_ENTRY))
+                zip.write(recap)
                 zip.closeEntry()
             }
         }
@@ -2020,6 +2027,7 @@ class BackupRepository(
     suspend fun exportMasterBackup(
         uri: Uri,
         musicBrain: ByteArray? = null,
+        recap: ByteArray? = null,
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
@@ -2029,7 +2037,7 @@ class BackupRepository(
                 val brainBytes = exportBrainBytes()
 
                 context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
-                    writeMasterZip(out, appDataJson, brainBytes, musicBrain)
+                    writeMasterZip(out, appDataJson, brainBytes, musicBrain, recap)
                 } ?: return@withContext Result.failure(Exception("Could not open output stream"))
 
                 Result.success(Unit)
@@ -2041,12 +2049,14 @@ class BackupRepository(
     suspend fun importMasterBackup(
         uri: Uri,
         onMusicBrain: (suspend (ByteArray) -> Unit)? = null,
+        onRecap: (suspend (ByteArray) -> Unit)? = null,
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
                 var appDataJson: String? = null
                 var brainBytes: ByteArray? = null
                 var musicBrainBytes: ByteArray? = null
+                var recapBytes: ByteArray? = null
                 var contentPreferences: ContentPreferencesBackup? = null
 
                 context.contentResolver.openInputStream(uri)?.use { raw ->
@@ -2057,6 +2067,7 @@ class BackupRepository(
                                 MASTER_APP_DATA_ENTRY -> appDataJson = zip.readBytes().toString(Charsets.UTF_8)
                                 MASTER_ENGINE_ENTRY -> brainBytes = zip.readBytes()
                                 MASTER_MUSIC_BRAIN_ENTRY -> musicBrainBytes = zip.readBytes()
+                                MASTER_RECAP_ENTRY -> recapBytes = zip.readBytes()
                             }
                             zip.closeEntry()
                             entry = zip.nextEntry
@@ -2081,6 +2092,7 @@ class BackupRepository(
                 }
 
                 musicBrainBytes?.let { bytes -> onMusicBrain?.invoke(bytes) }
+                recapBytes?.let { bytes -> onRecap?.invoke(bytes) }
 
                 contentPreferences?.let { preferences ->
                     FlowNeuroEngine.restoreContentPreferences(
@@ -2264,6 +2276,7 @@ class BackupRepository(
     suspend fun exportMasterToFolder(
         folderUri: Uri,
         musicBrain: ByteArray? = null,
+        recap: ByteArray? = null,
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
@@ -2272,7 +2285,7 @@ class BackupRepository(
                 val brainBytes = exportBrainBytes()
 
                 writeToFolder(folderUri, "flow_master_backup.zip", "application/zip") { out ->
-                    writeMasterZip(out, appDataJson, brainBytes, musicBrain)
+                    writeMasterZip(out, appDataJson, brainBytes, musicBrain, recap)
                 }
             } catch (e: Exception) {
                 Result.failure(e)
