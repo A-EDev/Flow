@@ -184,7 +184,6 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val scope = rememberCoroutineScope()
             var themeMode by remember { mutableStateOf(ThemeMode.SYSTEM) }
             var themeVariant by remember { mutableStateOf(ThemeVariant.DARK) }
             var customThemePalettes by remember { mutableStateOf(CustomThemePalettes()) }
@@ -379,46 +378,8 @@ class MainActivity : ComponentActivity() {
                                         FlowApp(
                                             currentTheme = themeMode,
                                             themeVariant = themeVariant,
-                                            customThemePalettes = customThemePalettes,
                                             systemLightThemeMode = systemLightThemeMode,
                                             systemDarkThemeMode = systemDarkThemeMode,
-                                            systemDarkThemeVariant = systemDarkThemeVariant,
-                                            onThemeChange = { newTheme ->
-                                                themeMode = newTheme
-                                                scope.launch {
-                                                    dataManager.setThemeMode(newTheme)
-                                                }
-                                            },
-                                            onThemeVariantChange = { variant ->
-                                                themeVariant = variant
-                                                scope.launch {
-                                                    dataManager.setThemeVariant(variant)
-                                                }
-                                            },
-                                            onCustomThemePalettesChange = { palettes ->
-                                                customThemePalettes = palettes
-                                                scope.launch {
-                                                    dataManager.setCustomThemePalettes(palettes)
-                                                }
-                                            },
-                                            onSystemLightThemeChange = { newTheme ->
-                                                systemLightThemeMode = newTheme
-                                                scope.launch {
-                                                    dataManager.setSystemLightThemeMode(newTheme)
-                                                }
-                                            },
-                                            onSystemDarkThemeChange = { newTheme ->
-                                                systemDarkThemeMode = newTheme
-                                                scope.launch {
-                                                    dataManager.setSystemDarkThemeMode(newTheme)
-                                                }
-                                            },
-                                            onSystemDarkThemeVariantChange = { variant ->
-                                                systemDarkThemeVariant = variant
-                                                scope.launch {
-                                                    dataManager.setSystemDarkThemeVariant(variant)
-                                                }
-                                            },
                                             deeplinkVideoId = deeplinkVideoId,
                                             isShort = isDeeplinkShort,
                                             openMusicPlayerRequest = openMusicPlayerRequest,

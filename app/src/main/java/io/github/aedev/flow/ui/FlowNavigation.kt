@@ -51,9 +51,6 @@ import io.github.aedev.flow.ui.screens.search.SearchScreen
 import io.github.aedev.flow.ui.screens.settings.SettingsHost
 import io.github.aedev.flow.ui.screens.shorts.ShortsScreen
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsScreen
-import io.github.aedev.flow.ui.theme.CustomThemePalettes
-import io.github.aedev.flow.ui.theme.ThemeMode
-import io.github.aedev.flow.ui.theme.ThemeVariant
 
 @UnstableApi
 fun NavGraphBuilder.flowAppGraph(
@@ -65,18 +62,6 @@ fun NavGraphBuilder.flowAppGraph(
     playerViewModel: VideoPlayerViewModel,
     playerUiStateResult: State<VideoPlayerUiState>,
     playerVisibleState: MutableState<Boolean>,
-    currentTheme: ThemeMode,
-    themeVariant: ThemeVariant,
-    customThemePalettes: CustomThemePalettes,
-    systemLightThemeMode: ThemeMode,
-    systemDarkThemeMode: ThemeMode,
-    systemDarkThemeVariant: ThemeVariant,
-    onThemeChange: (ThemeMode) -> Unit,
-    onThemeVariantChange: (ThemeVariant) -> Unit,
-    onCustomThemePalettesChange: (CustomThemePalettes) -> Unit,
-    onSystemLightThemeChange: (ThemeMode) -> Unit,
-    onSystemDarkThemeChange: (ThemeMode) -> Unit,
-    onSystemDarkThemeVariantChange: (ThemeVariant) -> Unit,
     disableShortsPlayer: Boolean = false,
     defaultStartRoute: String = "home",
     /**
