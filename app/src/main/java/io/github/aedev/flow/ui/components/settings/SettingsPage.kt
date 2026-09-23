@@ -76,7 +76,7 @@ fun SettingsPage(
     Scaffold(
         modifier = modifier,
         contentWindowInsets = WindowInsets(0.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             FlowTopBar(
                 title = title,
