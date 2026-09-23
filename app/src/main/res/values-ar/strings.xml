@@ -2378,11 +2378,11 @@
         <item quantity="other">تحديث %1$d من %2$d قناة</item>
     </plurals>
     <plurals name="subscriptions_last_refreshed_template">
-        <item quantity="one">آخر تحديث %1$s - %2$d فيديو تم فحصه</item>
-        <item quantity="two">آخر تحديث %1$s - %2$d فيديو تم فحصه</item>
-        <item quantity="few">آخر تحديث %1$s - %2$d فيديوهات تم فحصها</item>
-        <item quantity="many">آخر تحديث %1$s - %2$d فيديو تم فحصه</item>
-        <item quantity="other">آخر تحديث %1$s - %2$d فيديو تم فحصه</item>
+        <item quantity="one">آخر تحديث %1$s - تم فحص %2$d فيديو</item>
+        <item quantity="two">آخر تحديث %1$s - تم فحص %2$d فيديو</item>
+        <item quantity="few">آخر تحديث %1$s - تم فحص %2$d فيديوهات</item>
+        <item quantity="many">آخر تحديث %1$s - تم فحص %2$d فيديو</item>
+        <item quantity="other">آخر تحديث %1$s - تم فحص %2$d فيديو</item>
     </plurals>
     <string name="streamed_date_template">تم البث %1$s</string>
     <plurals name="download_all_confirmation">
@@ -2976,4 +2976,5 @@
     <string name="category_fashion">الموضة</string>
     <string name="categories_shelf_see_all">عرض الكل</string>
     <string name="categories_shelf_back">العودة إلى كل الأقسام</string>
+    <string name="shorts_settings_this_short">هذا المقطع القصير</string>
 </resources>

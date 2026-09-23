@@ -894,7 +894,7 @@
     <string name="download_settings_title">Configuración de descargas</string>
     <string name="import_yt_playlist_failed_template">No se pudo importar la lista de reproducción: %1$s</string>
     <string name="internal_storage_label">Almacenamiento interno</string>
-    <string name="free_space_template">%1$s gratis</string>
+    <string name="free_space_template">%1$s libre</string>
     <string name="total_space_template">Total: %1$s</string>
     <string name="location_label">Ubicación</string>
     <string name="internal_app_storage_label">Almacenamiento interno de aplicaciones</string>
