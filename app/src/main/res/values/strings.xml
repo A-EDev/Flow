@@ -1697,6 +1697,12 @@
     <string name="onboarding_step_import">Import</string>
     <string name="onboarding_import_source_flow">Flow backup</string>
     <string name="onboarding_import_source_youtube">YouTube</string>
+    <string name="onboarding_import_footnote">Everything here is optional. Settings has the same imports.</string>
+    <string name="onboarding_import_done">Imported</string>
+    <plurals name="onboarding_import_count">
+        <item quantity="one">%d import</item>
+        <item quantity="other">%d imports</item>
+    </plurals>
     <string name="onboarding_imported_count">Imported %1$d %2$s</string>
     <string name="onboarding_imported">%1$s imported</string>
     <string name="onboarding_btn_skip">Skip</string>

@@ -217,23 +217,10 @@ private fun SharedTransitionScope.StepContent(
             OnboardingStep.IMPORT -> {
                 ImportStep(
                     hero = hero,
-                    contentPadding = StepPadding,
                     importOperation = importOperation,
-                    onImportFlowBackup = { onPick(ImportKind.FLOW_BACKUP) },
-                    onImportMasterBackup = { onPick(ImportKind.MASTER) },
-                    onImportEngineData = { onPick(ImportKind.ENGINE) },
-                    onImportNewPipe = { onPick(ImportKind.NEWPIPE_SUBSCRIPTIONS) },
-                    onImportYouTube = { onPick(ImportKind.YOUTUBE_SUBSCRIPTIONS) },
-                    onImportYouTubeHistory = { onPick(ImportKind.YOUTUBE_HISTORY) },
-                    onImportFreeTubeHistory = { onPick(ImportKind.FREETUBE_HISTORY) },
-                    onImportNewPipeHistory = { onPick(ImportKind.NEWPIPE_HISTORY) },
-                    onImportLibreTube = { onPick(ImportKind.LIBRETUBE_SUBSCRIPTIONS) },
-                    onImportMetrolist = { onPick(ImportKind.METROLIST) },
-                    onImportNewPipePlaylists = { onPick(ImportKind.NEWPIPE_PLAYLISTS) },
-                    onImportLibreTubePlaylists = { onPick(ImportKind.LIBRETUBE_PLAYLISTS) },
-                    onImportYouTubeTakeout = { onPick(ImportKind.TAKEOUT) },
-                    onImportYouTubePlaylist = { onPick(ImportKind.YOUTUBE_PLAYLIST) },
-                    onImportYouTubeMusicPlaylist = { onPick(ImportKind.YOUTUBE_MUSIC_PLAYLIST) },
+                    importedSources = state.importedSources,
+                    onImport = onPick,
+                    contentPadding = StepPadding,
                 )
             }
 

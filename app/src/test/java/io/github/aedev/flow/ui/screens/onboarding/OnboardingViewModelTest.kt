@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.backup.BackupCoordinator
 import io.github.aedev.flow.data.backup.BackupOperation
+import io.github.aedev.flow.data.backup.ImportKind
+import io.github.aedev.flow.data.backup.ImportSource
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Channel
@@ -34,6 +36,7 @@ class OnboardingViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val subscriptions: SubscriptionRepository = mockk(relaxed = true)
     private val backup: BackupCoordinator = mockk(relaxed = true)
+    private val operation = MutableStateFlow<BackupOperation>(BackupOperation.Idle)
     private val channelSearch: ChannelSearch = mockk()
     private val completer: OnboardingCompleter = mockk()
     private val preferences: PlayerPreferences = mockk(relaxed = true)
@@ -42,7 +45,7 @@ class OnboardingViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        every { backup.operation } returns MutableStateFlow(BackupOperation.Idle)
+        every { backup.operation } returns operation
         coEvery { channelSearch.search(any()) } returns listOf(channel)
         coEvery { completer.complete(any()) } returns Unit
         every { preferences.notifNewVideosEnabled } returns flowOf(true)
@@ -123,5 +126,22 @@ class OnboardingViewModelTest {
 
             coVerify(exactly = 1) { completer.complete(setOf("Jazz")) }
             assertThat(viewModel.state.value.completed).isTrue()
+        }
+
+    @Test
+    fun `a finished import marks the app it came from, a failed one does not`() =
+        runTest(dispatcher) {
+            val viewModel = viewModel()
+            runCurrent()
+
+            viewModel.startImport(ImportKind.NEWPIPE_HISTORY, mockk())
+            operation.value = BackupOperation.Failed("no")
+            runCurrent()
+            assertThat(viewModel.state.value.importedSources).isEmpty()
+
+            viewModel.startImport(ImportKind.NEWPIPE_SUBSCRIPTIONS, mockk())
+            operation.value = BackupOperation.Succeeded("ok")
+            runCurrent()
+            assertThat(viewModel.state.value.importedSources).containsExactly(ImportSource.NEWPIPE)
         }
 }
