@@ -23,11 +23,20 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 
-private val DialogPadding = 24.dp
-private val DialogBottomPadding = 16.dp
 private val HeaderSpacing = 16.dp
-private val ContentToActionsSpacing = 8.dp
 private val ButtonSpacing = 8.dp
+
+/** The spacing every Flow dialog shares, including the ones that lay out their own content. */
+object FlowDialogDefaults {
+    /** Around the dialog's content, on every side but the bottom. */
+    val ContentPadding = 24.dp
+
+    /** Below the row of actions, whose buttons already carry their own touch padding. */
+    val BottomPadding = 16.dp
+
+    /** Between the content and the row of actions. */
+    val ActionsSpacing = 8.dp
+}
 
 /**
  * The app's alert dialog: Material 3's `AlertDialog`, the same slots, tokens and button order, with
@@ -58,10 +67,10 @@ fun FlowAlertDialog(
             Column(
                 modifier =
                     Modifier.padding(
-                        start = DialogPadding,
-                        top = DialogPadding,
-                        end = DialogPadding,
-                        bottom = DialogBottomPadding,
+                        start = FlowDialogDefaults.ContentPadding,
+                        top = FlowDialogDefaults.ContentPadding,
+                        end = FlowDialogDefaults.ContentPadding,
+                        bottom = FlowDialogDefaults.BottomPadding,
                     ),
             ) {
                 icon?.let {
@@ -83,7 +92,7 @@ fun FlowAlertDialog(
                         Box(
                             Modifier
                                 .weight(weight = 1f, fill = false)
-                                .padding(bottom = ContentToActionsSpacing)
+                                .padding(bottom = FlowDialogDefaults.ActionsSpacing)
                                 .align(Alignment.Start),
                         ) { it() }
                     }
