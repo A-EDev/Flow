@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.backup.BackupOperation
 import io.github.aedev.flow.data.backup.ImportKind
 import io.github.aedev.flow.data.backup.ImportSource
 import io.github.aedev.flow.data.local.ChannelSubscription
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.paging.ChannelSearch
@@ -17,8 +18,10 @@ import io.github.aedev.flow.data.recommendation.OnboardingCompleter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
@@ -47,11 +50,15 @@ class OnboardingViewModel
         private val backup: BackupCoordinator,
         private val channelSearch: ChannelSearch,
         private val completer: OnboardingCompleter,
+        private val preferences: PlayerPreferences,
     ) : ViewModel() {
         private val _state = MutableStateFlow(restore())
         val state: StateFlow<OnboardingUiState> = _state.asStateFlow()
 
         val importOperation: StateFlow<BackupOperation> = backup.operation
+
+        val newVideoAlerts: StateFlow<Boolean> =
+            preferences.notifNewVideosEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
         private var searchJob: Job? = null
         private var completion: Job? = null
@@ -141,6 +148,10 @@ class OnboardingViewModel
         ) {
             edit { state -> state.copy(notifying = if (enabled) state.notifying + channelId else state.notifying - channelId) }
             viewModelScope.launch { subscriptions.updateNotificationState(channelId, enabled) }
+        }
+
+        fun setNewVideoAlerts(enabled: Boolean) {
+            viewModelScope.launch { preferences.setNotifNewVideosEnabled(enabled) }
         }
 
         fun startImport(

@@ -41,6 +41,8 @@ import io.github.aedev.flow.ui.components.shared.FlowProgressBanner
 
 @Composable
 internal fun ImportStep(
+    hero: HeroSlot,
+    contentPadding: PaddingValues,
     importOperation: BackupOperation,
     onImportFlowBackup: () -> Unit,
     onImportMasterBackup: () -> Unit,
@@ -58,17 +60,14 @@ internal fun ImportStep(
     onImportYouTubePlaylist: () -> Unit,
     onImportYouTubeMusicPlaylist: () -> Unit,
 ) {
+    val title = stringResource(R.string.onboarding_import_title)
+    val subtitle = stringResource(R.string.onboarding_import_subtitle)
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item {
-            StepHeader(
-                title = stringResource(R.string.onboarding_import_title),
-                subtitle = stringResource(R.string.onboarding_import_subtitle),
-            )
-        }
+        stepHeader(hero = hero, title = title, subtitle = subtitle)
         (importOperation as? BackupOperation.Running)?.let { running ->
             item {
                 FlowProgressBanner(

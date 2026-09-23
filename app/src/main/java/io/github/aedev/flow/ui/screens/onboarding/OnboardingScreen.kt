@@ -4,13 +4,21 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.BoundsTransform
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -25,15 +33,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.backup.BackupOperation
 import io.github.aedev.flow.data.backup.ImportKind
+
+private const val HERO_KEY = "onboarding-hero"
+private val StepPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
 
 @Composable
 fun OnboardingScreen(
@@ -42,8 +54,10 @@ fun OnboardingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val importOperation by viewModel.importOperation.collectAsStateWithLifecycle()
+    val newVideoAlerts by viewModel.newVideoAlerts.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var interestsRevealed by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.completed) { if (state.completed) onComplete() }
     BackHandler(enabled = state.step.index > 0) { viewModel.back() }
@@ -72,103 +86,171 @@ fun OnboardingScreen(
         importPicker.launch(kind.mimeTypes)
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = { StepIndicatorBar(currentStep = state.step) },
-        bottomBar = {
-            OnboardingBottomBar(
-                isFirstStep = state.step.index == 0,
-                isLastStep = state.step == OnboardingStep.entries.last(),
-                canAdvance = state.canAdvance,
-                onBack = { viewModel.back() },
-                onNext = {
-                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                    viewModel.next()
-                },
-                onSkip = { viewModel.next() },
-            )
-        },
-    ) { innerPadding ->
-        AnimatedContent(
-            targetState = state.step,
-            transitionSpec = {
-                val forward = targetState.index > initialState.index
-                val enter =
-                    if (forward) {
-                        slideInHorizontally(tween(300)) { it / 4 } + fadeIn(tween(250))
-                    } else {
-                        slideInHorizontally(tween(300)) { -it / 4 } + fadeIn(tween(250))
-                    }
-                val exit =
-                    if (forward) {
-                        slideOutHorizontally(tween(250)) { -it / 4 } + fadeOut(tween(200))
-                    } else {
-                        slideOutHorizontally(tween(250)) { it / 4 } + fadeOut(tween(200))
-                    }
-                enter togetherWith exit
+    // The step the backdrop and hero last settled on; a new step morphs out of it.
+    var shownStep by remember { mutableStateOf(state.step) }
+    var backdropFrom by remember { mutableStateOf(state.step) }
+    val backdrop = remember { Animatable(1f) }
+    val backdropSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    val heroFrom = shownStep
+    LaunchedEffect(state.step) {
+        if (state.step == shownStep) return@LaunchedEffect
+        backdropFrom = shownStep
+        shownStep = state.step
+        backdrop.snapTo(0f)
+        backdrop.animateTo(1f, backdropSpec)
+    }
+
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Spacer(
+            Modifier
+                .fillMaxSize()
+                .onboardingBackdrop(backdropFrom, shownStep, MaterialTheme.colorScheme.surfaceContainer) { backdrop.value },
+        )
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0.dp),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = { OnboardingTopBar(step = state.step, onSkip = viewModel::next) },
+            bottomBar = {
+                OnboardingBottomBar(
+                    state = state,
+                    onBack = { viewModel.back() },
+                    onNext = {
+                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        viewModel.next()
+                    },
+                    onRestore = { viewModel.goTo(OnboardingStep.IMPORT) },
+                )
             },
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            label = "step_content",
-        ) { step ->
-            when (step) {
-                OnboardingStep.INTERESTS -> {
-                    InterestsStep(
-                        selectedTopics = state.topics,
-                        onTopicToggle = { topic ->
-                            val selecting = topic !in state.topics
-                            haptic.performHapticFeedback(if (selecting) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
-                            viewModel.toggleTopic(topic)
-                        },
-                    )
-                }
-
-                OnboardingStep.CHANNELS -> {
-                    ChannelsStep(
-                        state = state,
-                        onQueryChange = viewModel::search,
-                        onSubscribeToggle = { channel ->
-                            val subscribing = !state.isSubscribed(channel.id)
-                            haptic.performHapticFeedback(if (subscribing) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
-                            viewModel.toggleSubscription(channel)
-                        },
-                        onNotificationsChange = viewModel::setChannelNotifications,
-                        header = {
-                            item(key = "header") {
-                                StepHeader(
-                                    title = stringResource(R.string.onboarding_channels_title),
-                                    subtitle = stringResource(R.string.onboarding_channels_subtitle),
-                                )
-                            }
-                        },
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-                    )
-                }
-
-                OnboardingStep.IMPORT -> {
-                    ImportStep(
-                        importOperation = importOperation,
-                        onImportFlowBackup = { pick(ImportKind.FLOW_BACKUP) },
-                        onImportMasterBackup = { pick(ImportKind.MASTER) },
-                        onImportEngineData = { pick(ImportKind.ENGINE) },
-                        onImportNewPipe = { pick(ImportKind.NEWPIPE_SUBSCRIPTIONS) },
-                        onImportYouTube = { pick(ImportKind.YOUTUBE_SUBSCRIPTIONS) },
-                        onImportYouTubeHistory = { pick(ImportKind.YOUTUBE_HISTORY) },
-                        onImportFreeTubeHistory = { pick(ImportKind.FREETUBE_HISTORY) },
-                        onImportNewPipeHistory = { pick(ImportKind.NEWPIPE_HISTORY) },
-                        onImportLibreTube = { pick(ImportKind.LIBRETUBE_SUBSCRIPTIONS) },
-                        onImportMetrolist = { pick(ImportKind.METROLIST) },
-                        onImportNewPipePlaylists = { pick(ImportKind.NEWPIPE_PLAYLISTS) },
-                        onImportLibreTubePlaylists = { pick(ImportKind.LIBRETUBE_PLAYLISTS) },
-                        onImportYouTubeTakeout = { pick(ImportKind.TAKEOUT) },
-                        onImportYouTubePlaylist = { pick(ImportKind.YOUTUBE_PLAYLIST) },
-                        onImportYouTubeMusicPlaylist = { pick(ImportKind.YOUTUBE_MUSIC_PLAYLIST) },
-                    )
-                }
+        ) { innerPadding ->
+            SharedTransitionLayout(Modifier.fillMaxSize().padding(innerPadding)) {
+                StepContent(
+                    state = state,
+                    heroFrom = heroFrom,
+                    importOperation = importOperation,
+                    newVideoAlerts = newVideoAlerts,
+                    interestsRevealed = interestsRevealed,
+                    onInterestsRevealed = { interestsRevealed = true },
+                    viewModel = viewModel,
+                    onPick = ::pick,
+                    onTopicToggle = { topic ->
+                        val selecting = topic !in state.topics
+                        haptic.performHapticFeedback(if (selecting) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                        viewModel.toggleTopic(topic)
+                    },
+                )
             }
         }
     }
 }
+
+@Composable
+private fun SharedTransitionScope.StepContent(
+    state: OnboardingUiState,
+    heroFrom: OnboardingStep,
+    importOperation: BackupOperation,
+    newVideoAlerts: Boolean,
+    interestsRevealed: Boolean,
+    onInterestsRevealed: () -> Unit,
+    viewModel: OnboardingViewModel,
+    onPick: (ImportKind) -> Unit,
+    onTopicToggle: (String) -> Unit,
+) {
+    val slide = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+    val fade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val bounds = MaterialTheme.motionScheme.slowSpatialSpec<Rect>()
+    AnimatedContent(
+        targetState = state.step,
+        transitionSpec = {
+            val direction = if (targetState.index > initialState.index) 1 else -1
+            (slideInHorizontally(slide) { direction * it / 4 } + fadeIn(fade)) togetherWith
+                (slideOutHorizontally(slide) { -direction * it / 4 } + fadeOut(fade))
+        },
+        modifier = Modifier.fillMaxSize(),
+        label = "onboardingStep",
+    ) { step ->
+        val hero: HeroSlot = { size ->
+            OnboardingHero(
+                step = step,
+                fromStep = heroFrom,
+                size = size,
+                petals = (state.topics.size.toFloat() / MIN_TOPICS).coerceAtMost(1f),
+                modifier = heroModifier(this@AnimatedContent, BoundsTransform { _, _ -> bounds }),
+            )
+        }
+        when (step) {
+            OnboardingStep.WELCOME -> {
+                WelcomeStep(hero = hero, contentPadding = StepPadding)
+            }
+
+            OnboardingStep.INTERESTS -> {
+                InterestsStep(
+                    selectedTopics = state.topics,
+                    onTopicToggle = onTopicToggle,
+                    hero = hero,
+                    revealed = interestsRevealed,
+                    onRevealed = onInterestsRevealed,
+                    contentPadding = StepPadding,
+                )
+            }
+
+            OnboardingStep.CHANNELS -> {
+                ChannelsStep(
+                    state = state,
+                    onQueryChange = viewModel::search,
+                    onSubscribeToggle = viewModel::toggleSubscription,
+                    onNotificationsChange = viewModel::setChannelNotifications,
+                    hero = hero,
+                    contentPadding = StepPadding,
+                )
+            }
+
+            OnboardingStep.ALERTS -> {
+                AlertsStep(
+                    hero = hero,
+                    newVideoAlerts = newVideoAlerts,
+                    onNewVideoAlertsChange = viewModel::setNewVideoAlerts,
+                    contentPadding = StepPadding,
+                )
+            }
+
+            OnboardingStep.IMPORT -> {
+                ImportStep(
+                    hero = hero,
+                    contentPadding = StepPadding,
+                    importOperation = importOperation,
+                    onImportFlowBackup = { onPick(ImportKind.FLOW_BACKUP) },
+                    onImportMasterBackup = { onPick(ImportKind.MASTER) },
+                    onImportEngineData = { onPick(ImportKind.ENGINE) },
+                    onImportNewPipe = { onPick(ImportKind.NEWPIPE_SUBSCRIPTIONS) },
+                    onImportYouTube = { onPick(ImportKind.YOUTUBE_SUBSCRIPTIONS) },
+                    onImportYouTubeHistory = { onPick(ImportKind.YOUTUBE_HISTORY) },
+                    onImportFreeTubeHistory = { onPick(ImportKind.FREETUBE_HISTORY) },
+                    onImportNewPipeHistory = { onPick(ImportKind.NEWPIPE_HISTORY) },
+                    onImportLibreTube = { onPick(ImportKind.LIBRETUBE_SUBSCRIPTIONS) },
+                    onImportMetrolist = { onPick(ImportKind.METROLIST) },
+                    onImportNewPipePlaylists = { onPick(ImportKind.NEWPIPE_PLAYLISTS) },
+                    onImportLibreTubePlaylists = { onPick(ImportKind.LIBRETUBE_PLAYLISTS) },
+                    onImportYouTubeTakeout = { onPick(ImportKind.TAKEOUT) },
+                    onImportYouTubePlaylist = { onPick(ImportKind.YOUTUBE_PLAYLIST) },
+                    onImportYouTubeMusicPlaylist = { onPick(ImportKind.YOUTUBE_MUSIC_PLAYLIST) },
+                )
+            }
+
+            OnboardingStep.READY -> {
+                ReadyStep(state = state, hero = hero, onEdit = viewModel::goTo, contentPadding = StepPadding)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SharedTransitionScope.heroModifier(
+    scope: AnimatedContentScope,
+    bounds: BoundsTransform,
+): Modifier =
+    Modifier.sharedElement(
+        sharedContentState = rememberSharedContentState(HERO_KEY),
+        animatedVisibilityScope = scope,
+        boundsTransform = bounds,
+    )

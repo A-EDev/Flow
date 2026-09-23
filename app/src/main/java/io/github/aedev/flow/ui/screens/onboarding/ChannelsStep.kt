@@ -62,15 +62,17 @@ internal fun ChannelsStep(
     onQueryChange: (String) -> Unit,
     onSubscribeToggle: (Channel) -> Unit,
     onNotificationsChange: (String, Boolean) -> Unit,
-    header: LazyListScope.() -> Unit,
+    hero: HeroSlot,
     contentPadding: PaddingValues,
 ) {
     val focusManager = LocalFocusManager.current
+    val title = stringResource(R.string.onboarding_channels_title)
+    val subtitle = stringResource(R.string.onboarding_channels_subtitle)
     LazyColumn(
         modifier = Modifier.fillMaxSize().dismissKeyboardOnPress { focusManager.clearFocus() },
         contentPadding = contentPadding,
     ) {
-        header()
+        stepHeader(hero = hero, title = title, subtitle = subtitle)
         item(key = "search") {
             FlowSearchField(
                 query = state.query,

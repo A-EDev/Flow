@@ -9,15 +9,25 @@ import io.github.aedev.flow.data.model.Channel
 internal const val MIN_TOPICS = 3
 internal const val STAGGER_DELAY_MS = 50L
 
+/** The setup steps in order. Welcome and Ready bookend the four steps the progress bar counts. */
 enum class OnboardingStep(
-    @StringRes val labelRes: Int,
+    @StringRes val labelRes: Int?,
 ) {
+    WELCOME(null),
     INTERESTS(R.string.onboarding_step_interests),
     CHANNELS(R.string.onboarding_step_channels),
+    ALERTS(R.string.onboarding_step_alerts),
     IMPORT(R.string.onboarding_step_import),
+    READY(null),
     ;
 
     val index: Int get() = ordinal
+
+    val showsProgress: Boolean get() = labelRes != null
+
+    companion object {
+        val progressSteps: List<OnboardingStep> = entries.filter { it.showsProgress }
+    }
 }
 
 @Immutable
@@ -32,7 +42,9 @@ data class OnboardingUiState(
     val importedSources: Set<ImportSource> = emptySet(),
     val completed: Boolean = false,
 ) {
-    val canAdvance: Boolean get() = step != OnboardingStep.INTERESTS || topics.size >= MIN_TOPICS
+    val topicsLeft: Int get() = (MIN_TOPICS - topics.size).coerceAtLeast(0)
+
+    val canAdvance: Boolean get() = step != OnboardingStep.INTERESTS || topicsLeft == 0
 
     fun isSubscribed(channelId: String): Boolean = subscribed.any { it.id == channelId }
 }

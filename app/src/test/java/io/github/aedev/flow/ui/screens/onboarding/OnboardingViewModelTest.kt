@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.backup.BackupCoordinator
 import io.github.aedev.flow.data.backup.BackupOperation
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.paging.ChannelSearch
@@ -16,6 +17,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -34,6 +36,7 @@ class OnboardingViewModelTest {
     private val backup: BackupCoordinator = mockk(relaxed = true)
     private val channelSearch: ChannelSearch = mockk()
     private val completer: OnboardingCompleter = mockk()
+    private val preferences: PlayerPreferences = mockk(relaxed = true)
     private val channel = Channel(id = "UCabc", name = "Circuit Bench", thumbnailUrl = "https://t", subscriberCount = 10)
 
     @Before
@@ -42,13 +45,14 @@ class OnboardingViewModelTest {
         every { backup.operation } returns MutableStateFlow(BackupOperation.Idle)
         coEvery { channelSearch.search(any()) } returns listOf(channel)
         coEvery { completer.complete(any()) } returns Unit
+        every { preferences.notifNewVideosEnabled } returns flowOf(true)
     }
 
     @After
     fun tearDown() = Dispatchers.resetMain()
 
     private fun viewModel(saved: SavedStateHandle = SavedStateHandle()) =
-        OnboardingViewModel(saved, subscriptions, backup, channelSearch, completer)
+        OnboardingViewModel(saved, subscriptions, backup, channelSearch, completer, preferences)
 
     @Test
     fun `a recreated screen resumes on the same step with the same choices`() =
