@@ -92,7 +92,6 @@ class PlayerPreferences(
 
         // Download settings
         val DOWNLOAD_THREADS = intPreferencesKey("download_threads")
-        val PARALLEL_DOWNLOAD_ENABLED = booleanPreferencesKey("parallel_download_enabled")
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val DEFAULT_DOWNLOAD_CODEC = stringPreferencesKey("default_download_codec")
@@ -2506,18 +2505,6 @@ class PlayerPreferences(
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.LAST_DOWNLOAD_TYPE] = "AUDIO"
             preferences[Keys.LAST_DOWNLOAD_AUDIO_LABEL] = audioLabel
-        }
-    }
-
-    val parallelDownloadEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.PARALLEL_DOWNLOAD_ENABLED] ?: true
-            }
-
-    suspend fun setParallelDownloadEnabled(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PARALLEL_DOWNLOAD_ENABLED] = enabled
         }
     }
 

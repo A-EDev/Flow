@@ -11,6 +11,7 @@ import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemeScre
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.ThemeScreen
 import io.github.aedev.flow.ui.screens.settings.backup.BackupScreen
 import io.github.aedev.flow.ui.screens.settings.content.ContentSettingsScreen
+import io.github.aedev.flow.ui.screens.settings.downloads.DownloadSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.integrations.IntegrationsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.PlaybackSettingsScreen
@@ -66,7 +67,7 @@ internal fun SettingsDetail(
 
         SettingsDestination.HISTORY -> SearchHistorySettingsScreen(onNavigateBack = back)
 
-        SettingsDestination.DOWNLOADS -> DownloadSettingsScreen(onNavigateBack = back)
+        SettingsDestination.DOWNLOADS -> DownloadSettingsScreen(onBack = onBack, highlight = target.highlight)
 
         SettingsDestination.NOTIFICATIONS -> NotificationSettingsScreen(onNavigateBack = back)
 

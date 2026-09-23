@@ -229,8 +229,3 @@ private fun QualityPickerDialog(
         }
     }
 }
-
-/** Codec names are product names and stay as they are; only "automatic" is translated. */
-@Composable
-private fun codecLabel(codec: VideoCodec): String =
-    if (codec == VideoCodec.AUTO) stringResource(R.string.player_settings_video_codec_fallback_auto) else codec.label

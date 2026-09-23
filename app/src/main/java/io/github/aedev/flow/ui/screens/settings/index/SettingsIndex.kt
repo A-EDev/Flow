@@ -20,6 +20,7 @@ internal object SettingsIndex {
             ContentIndex.all +
             TopicsIndex.all +
             IntegrationsIndex.all +
-            BackupIndex.all
+            BackupIndex.all +
+            DownloadsIndex.all
     }
 }

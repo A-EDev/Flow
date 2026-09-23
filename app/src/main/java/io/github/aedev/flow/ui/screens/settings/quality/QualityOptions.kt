@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui.screens.settings.quality
 
 import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.VideoCodec
@@ -56,3 +58,8 @@ internal fun fallbackAfterPreferredChange(
     preferred: VideoCodec,
     fallback: VideoCodec,
 ): VideoCodec = if (fallback == preferred) VideoCodec.AUTO else fallback
+
+/** Codec names are product names and stay as they are; only "automatic" is translated. */
+@Composable
+internal fun codecLabel(codec: VideoCodec): String =
+    if (codec == VideoCodec.AUTO) stringResource(R.string.player_settings_video_codec_fallback_auto) else codec.label
