@@ -8,7 +8,8 @@ import io.github.aedev.flow.ui.screens.settings.appearance.AppearanceScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.DateTimeScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.NavigationBarScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.player.PlayerAppearanceScreen
-import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemeScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemeEditorScreen
+import io.github.aedev.flow.ui.screens.settings.appearance.theme.CustomThemesScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.theme.ThemeScreen
 import io.github.aedev.flow.ui.screens.settings.backup.BackupScreen
 import io.github.aedev.flow.ui.screens.settings.content.ContentSettingsScreen
@@ -39,48 +40,100 @@ internal fun SettingsDetail(
     when (target.destination) {
         SettingsDestination.HOME,
         SettingsDestination.APPEARANCE,
-        -> AppearanceScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        -> {
+            AppearanceScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
 
-        SettingsDestination.THEME -> ThemeScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        SettingsDestination.THEME -> {
+            ThemeScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
 
-        SettingsDestination.CUSTOM_THEME -> CustomThemeScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.CUSTOM_THEME -> {
+            CustomThemesScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
 
-        SettingsDestination.NAVIGATION_BAR -> NavigationBarScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.CUSTOM_THEME_EDIT -> {
+            CustomThemeEditorScreen(
+                themeId = target.tab,
+                onBack = onBack,
+                highlight = target.highlight,
+            )
+        }
 
-        SettingsDestination.CONTENT -> ContentSettingsScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.NAVIGATION_BAR -> {
+            NavigationBarScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.DATE_TIME -> DateTimeScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.CONTENT -> {
+            ContentSettingsScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.PLAYER_APPEARANCE -> PlayerAppearanceScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.DATE_TIME -> {
+            DateTimeScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.LANGUAGE_REGION -> LanguageRegionScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.PLAYER_APPEARANCE -> {
+            PlayerAppearanceScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.PLAYBACK -> PlaybackSettingsScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        SettingsDestination.LANGUAGE_REGION -> {
+            LanguageRegionScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.BUFFER -> BufferSettingsScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.PLAYBACK -> {
+            PlaybackSettingsScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
 
-        SettingsDestination.QUALITY -> QualitySettingsScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
+        SettingsDestination.BUFFER -> {
+            BufferSettingsScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.TOPICS -> TopicPreferencesScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
+        SettingsDestination.QUALITY -> {
+            QualitySettingsScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
+        }
 
-        SettingsDestination.INTEGRATIONS -> IntegrationsScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.TOPICS -> {
+            TopicPreferencesScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
+        }
 
-        SettingsDestination.BACKUP -> BackupScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
+        SettingsDestination.INTEGRATIONS -> {
+            IntegrationsScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.SYNC -> SyncScreen(onBack = onBack)
+        SettingsDestination.BACKUP -> {
+            BackupScreen(onBack = onBack, highlight = target.highlight, tab = target.tab)
+        }
 
-        SettingsDestination.HISTORY -> HistorySettingsScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.SYNC -> {
+            SyncScreen(onBack = onBack)
+        }
 
-        SettingsDestination.DOWNLOADS -> DownloadSettingsScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.HISTORY -> {
+            HistorySettingsScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.NOTIFICATIONS -> NotificationSettingsScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.DOWNLOADS -> {
+            DownloadSettingsScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.NETWORK -> NetworkSettingsScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.NOTIFICATIONS -> {
+            NotificationSettingsScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.WELLBEING -> WellbeingScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.NETWORK -> {
+            NetworkSettingsScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.ABOUT -> AboutScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.WELLBEING -> {
+            WellbeingScreen(onBack = onBack, highlight = target.highlight)
+        }
 
-        SettingsDestination.DIAGNOSTICS -> DiagnosticsScreen(onBack = onBack, highlight = target.highlight)
+        SettingsDestination.ABOUT -> {
+            AboutScreen(onBack = onBack, highlight = target.highlight)
+        }
+
+        SettingsDestination.DIAGNOSTICS -> {
+            DiagnosticsScreen(onBack = onBack, highlight = target.highlight)
+        }
     }
 }

@@ -1,88 +1,86 @@
 package io.github.aedev.flow.ui.screens.settings.appearance.theme
 
 import androidx.annotation.StringRes
+import androidx.compose.ui.graphics.Color
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.theme.CustomColorRole
+import io.github.aedev.flow.ui.theme.PaletteColors
 
-/** A labelled run of related colour roles on the custom theme page. */
-internal data class CustomRoleGroup(
+/** One editable role of a custom theme: its label, and how to read and replace it. */
+internal class ThemeRole(
     val key: String,
-    @StringRes val titleRes: Int,
-    val roles: List<Pair<CustomColorRole, Int>>,
+    @StringRes val labelRes: Int,
+    val read: (PaletteColors) -> Color,
+    val write: (PaletteColors, Color) -> PaletteColors,
 )
 
-internal val CustomRoleGroups =
+/** A labelled run of related roles on the editor. */
+internal class ThemeRoleGroup(
+    val key: String,
+    @StringRes val titleRes: Int,
+    val roles: List<ThemeRole>,
+)
+
+/** The thirteen roles Flow Desktop's editor offers, in the same groups a reader looks for them. */
+internal val ThemeRoleGroups =
     listOf(
-        CustomRoleGroup(
-            "primary",
-            R.string.appearance_role_primary,
+        ThemeRoleGroup(
+            "accents",
+            R.string.settings_theme_roles_accents,
             listOf(
-                CustomColorRole.PRIMARY to R.string.appearance_role_primary,
-                CustomColorRole.ON_PRIMARY to R.string.appearance_role_on_primary,
-                CustomColorRole.PRIMARY_CONTAINER to R.string.appearance_role_primary_container,
-                CustomColorRole.ON_PRIMARY_CONTAINER to R.string.appearance_role_on_primary_container,
-                CustomColorRole.INVERSE_PRIMARY to R.string.appearance_role_inverse_primary,
+                ThemeRole("primary", R.string.settings_theme_role_primary, { it.primary }, { c, v -> c.copy(primary = v) }),
+                ThemeRole("on_primary", R.string.settings_theme_role_on_primary, { it.onPrimary }, { c, v -> c.copy(onPrimary = v) }),
+                ThemeRole("secondary", R.string.settings_theme_role_secondary, { it.secondary }, { c, v -> c.copy(secondary = v) }),
             ),
         ),
-        CustomRoleGroup(
-            "secondary",
-            R.string.appearance_role_secondary,
-            listOf(
-                CustomColorRole.SECONDARY to R.string.appearance_role_secondary,
-                CustomColorRole.ON_SECONDARY to R.string.appearance_role_on_secondary,
-                CustomColorRole.SECONDARY_CONTAINER to R.string.appearance_role_secondary_container,
-                CustomColorRole.ON_SECONDARY_CONTAINER to R.string.appearance_role_on_secondary_container,
-            ),
-        ),
-        CustomRoleGroup(
-            "tertiary",
-            R.string.appearance_role_tertiary,
-            listOf(
-                CustomColorRole.TERTIARY to R.string.appearance_role_tertiary,
-                CustomColorRole.ON_TERTIARY to R.string.appearance_role_on_tertiary,
-                CustomColorRole.TERTIARY_CONTAINER to R.string.appearance_role_tertiary_container,
-                CustomColorRole.ON_TERTIARY_CONTAINER to R.string.appearance_role_on_tertiary_container,
-            ),
-        ),
-        CustomRoleGroup(
+        ThemeRoleGroup(
             "surfaces",
             R.string.settings_custom_group_surfaces,
             listOf(
-                CustomColorRole.BACKGROUND to R.string.appearance_role_background,
-                CustomColorRole.ON_BACKGROUND to R.string.appearance_role_on_background,
-                CustomColorRole.SURFACE to R.string.appearance_role_surface,
-                CustomColorRole.ON_SURFACE to R.string.appearance_role_on_surface,
-                CustomColorRole.SURFACE_VARIANT to R.string.appearance_role_surface_variant,
-                CustomColorRole.ON_SURFACE_VARIANT to R.string.appearance_role_on_surface_variant,
-                CustomColorRole.SURFACE_TINT to R.string.appearance_role_surface_tint,
-                CustomColorRole.INVERSE_SURFACE to R.string.appearance_role_inverse_surface,
-                CustomColorRole.INVERSE_ON_SURFACE to R.string.appearance_role_inverse_on_surface,
-                CustomColorRole.SURFACE_BRIGHT to R.string.appearance_role_surface_bright,
-                CustomColorRole.SURFACE_DIM to R.string.appearance_role_surface_dim,
-                CustomColorRole.SURFACE_CONTAINER_LOWEST to R.string.appearance_role_surface_container_lowest,
-                CustomColorRole.SURFACE_CONTAINER_LOW to R.string.appearance_role_surface_container_low,
-                CustomColorRole.SURFACE_CONTAINER to R.string.appearance_role_surface_container,
-                CustomColorRole.SURFACE_CONTAINER_HIGH to R.string.appearance_role_surface_container_high,
-                CustomColorRole.SURFACE_CONTAINER_HIGHEST to R.string.appearance_role_surface_container_highest,
+                ThemeRole("background", R.string.settings_theme_role_background, { it.background }, { c, v -> c.copy(background = v) }),
+                ThemeRole("surface", R.string.settings_theme_role_surface, { it.surface }, { c, v -> c.copy(surface = v) }),
+                ThemeRole(
+                    "surface_low",
+                    R.string.settings_theme_role_surface_low,
+                    { it.surfaceContainerLow },
+                    { c, v -> c.copy(surfaceContainerLow = v) },
+                ),
+                ThemeRole(
+                    "surface_container",
+                    R.string.settings_theme_role_surface_container,
+                    { it.surfaceContainer },
+                    { c, v -> c.copy(surfaceContainer = v) },
+                ),
+                ThemeRole(
+                    "surface_high",
+                    R.string.settings_theme_role_surface_high,
+                    { it.surfaceContainerHigh },
+                    { c, v -> c.copy(surfaceContainerHigh = v) },
+                ),
+                ThemeRole(
+                    "surface_highest",
+                    R.string.settings_theme_role_surface_highest,
+                    { it.surfaceContainerHighest },
+                    { c, v -> c.copy(surfaceContainerHighest = v) },
+                ),
             ),
         ),
-        CustomRoleGroup(
-            "error",
-            R.string.appearance_role_error,
+        ThemeRoleGroup(
+            "text",
+            R.string.settings_theme_roles_text,
             listOf(
-                CustomColorRole.ERROR to R.string.appearance_role_error,
-                CustomColorRole.ON_ERROR to R.string.appearance_role_on_error,
-                CustomColorRole.ERROR_CONTAINER to R.string.appearance_role_error_container,
-                CustomColorRole.ON_ERROR_CONTAINER to R.string.appearance_role_on_error_container,
+                ThemeRole("text", R.string.settings_theme_role_text, { it.onSurface }, { c, v -> c.copy(onSurface = v) }),
+                ThemeRole(
+                    "muted_text",
+                    R.string.settings_theme_role_muted_text,
+                    { it.onSurfaceVariant },
+                    { c, v -> c.copy(onSurfaceVariant = v) },
+                ),
+                ThemeRole("outline", R.string.settings_theme_role_outline, { it.outline }, { c, v -> c.copy(outline = v) }),
             ),
         ),
-        CustomRoleGroup(
-            "outline",
-            R.string.settings_custom_group_outline,
-            listOf(
-                CustomColorRole.OUTLINE to R.string.appearance_role_outline,
-                CustomColorRole.OUTLINE_VARIANT to R.string.appearance_role_outline_variant,
-                CustomColorRole.SCRIM to R.string.appearance_role_scrim,
-            ),
+        ThemeRoleGroup(
+            "status",
+            R.string.settings_theme_roles_status,
+            listOf(ThemeRole("error", R.string.settings_theme_role_error, { it.error }, { c, v -> c.copy(error = v) })),
         ),
     )

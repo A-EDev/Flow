@@ -25,6 +25,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,8 +38,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.ui.theme.ThemeCatalogEntry
-import io.github.aedev.flow.ui.theme.ThemeMode
 
 private val CardPadding = 16.dp
 private val CardSpacing = 16.dp
@@ -60,7 +60,8 @@ private val BorderWidth = 1.dp
  */
 @Composable
 internal fun ThemeCard(
-    entry: ThemeCatalogEntry,
+    name: String,
+    description: String,
     swatch: ThemeSwatch?,
     selected: Boolean,
     onClick: () -> Unit,
@@ -95,7 +96,7 @@ internal fun ThemeCard(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = stringResource(entry.nameRes),
+                        text = name,
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -111,7 +112,7 @@ internal fun ThemeCard(
                     }
                 }
                 Text(
-                    text = stringResource(entry.descriptionRes),
+                    text = description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.onSurfaceVariant,
                     maxLines = 2,
@@ -128,7 +129,7 @@ internal fun ThemeCard(
  * component, so this is drawn from boxes; every colour comes from the resolved scheme.
  */
 @Composable
-private fun ThemeSwatchTile(swatch: ThemeSwatch?) {
+internal fun ThemeSwatchTile(swatch: ThemeSwatch?) {
     val colors = MaterialTheme.colorScheme
     Box(
         modifier =
@@ -158,40 +159,49 @@ private fun SwatchPill(color: Color) {
     )
 }
 
+/** One card in a [ThemeCardGrid]: a built-in palette or a custom theme. */
+@Immutable
+internal data class ThemeCardItem(
+    val key: String,
+    val name: String,
+    val description: String,
+    val swatch: ThemeSwatch?,
+    val selected: Boolean,
+    val onClick: () -> Unit,
+    val trailing: (@Composable () -> Unit)? = null,
+)
+
 /**
  * Theme cards in as many columns as the space allows — one on a phone, two in a tablet's detail
  * pane — measured from the space itself, not the window, since a pane is narrower than its window.
  */
 @Composable
-internal fun ThemeCardGrid(
-    palettes: List<ThemeCatalogEntry>,
-    swatches: Map<ThemeMode, ThemeSwatch>,
-    selected: ThemeMode?,
-    onSelect: (ThemeMode) -> Unit,
-    trailing: (ThemeMode) -> (@Composable () -> Unit)?,
-) {
+internal fun ThemeCardGrid(items: List<ThemeCardItem>) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val columns = ((maxWidth + GridSpacing) / (MinCardWidth + GridSpacing)).toInt().coerceAtLeast(1)
         Column(verticalArrangement = Arrangement.spacedBy(GridSpacing)) {
-            palettes.chunked(columns).forEach { rowEntries ->
+            items.chunked(columns).forEach { rowItems ->
                 Row(
                     modifier = Modifier.height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(GridSpacing),
                 ) {
-                    rowEntries.forEach { entry ->
-                        ThemeCard(
-                            entry = entry,
-                            swatch = swatches[entry.mode],
-                            selected = entry.mode == selected,
-                            onClick = { onSelect(entry.mode) },
-                            trailing = trailing(entry.mode),
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                        )
+                    rowItems.forEach { item ->
+                        key(item.key) {
+                            ThemeCard(
+                                name = item.name,
+                                description = item.description,
+                                swatch = item.swatch,
+                                selected = item.selected,
+                                onClick = item.onClick,
+                                trailing = item.trailing,
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                            )
+                        }
                     }
-                    repeat(columns - rowEntries.size) { Spacer(Modifier.weight(1f)) }
+                    repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
             Spacer(Modifier.height(GridSpacing))

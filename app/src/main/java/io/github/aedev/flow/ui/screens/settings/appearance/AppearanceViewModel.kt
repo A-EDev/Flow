@@ -34,6 +34,7 @@ class AppearanceViewModel
     ) : SettingsViewModel() {
         val themeMode = localDataManager.themeMode.asState(ThemeMode.SYSTEM)
         val themeVariant = localDataManager.themeVariant.asState(ThemeVariant.DARK)
+        val customThemeName = localDataManager.activeCustomTheme.map { it?.name }.asState(null)
         val interfaceMode = uiModePreferences.mode.asState(AppUiMode.AUTOMATIC)
 
         val homeViewMode = preferences.homeViewMode.asState(HomeViewMode.GRID)

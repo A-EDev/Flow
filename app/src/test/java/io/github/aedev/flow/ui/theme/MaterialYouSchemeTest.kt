@@ -22,7 +22,7 @@ class MaterialYouSchemeTest {
             isSystemDark = variant != ThemeVariant.LIGHT,
             themeMode = ThemeMode.MATERIAL_YOU,
             themeVariant = variant,
-            customThemePalettes = CustomThemePalettes(),
+            customTheme = null,
             systemLightThemeMode = ThemeMode.DARK,
             systemDarkThemeMode = ThemeMode.DARK,
             systemDarkThemeVariant = ThemeVariant.DARK,
@@ -42,6 +42,6 @@ class MaterialYouSchemeTest {
         assertEquals(dynamic.secondaryContainer, amoled.secondaryContainer)
         assertEquals(dynamic.tertiary, amoled.tertiary)
         assertEquals(Color.Black, amoled.background)
-        assertEquals(Color.Black, amoled.surface)
+        assertEquals(Color(0xFF080808), amoled.surface)
     }
 }

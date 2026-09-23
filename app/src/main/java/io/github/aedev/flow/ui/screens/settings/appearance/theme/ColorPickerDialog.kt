@@ -40,14 +40,19 @@ private const val MAX_HUE = 360f
 private const val MAX_CHANNEL = 255f
 private const val DARK_TEXT_LUMINANCE = 0.5f
 
-/** Edits one colour role: type a hex value, or dial it in by hue, saturation, brightness and alpha. */
+/**
+ * Edits one colour role: type a hex value, or dial it in by hue, saturation, brightness and alpha.
+ * With [allowAlpha] off the colour stays opaque, as the themes Flow Desktop exchanges require.
+ */
 @Composable
 internal fun ColorPickerDialog(
     title: String,
     initialArgb: Long,
     onDismiss: () -> Unit,
     onApply: (Long) -> Unit,
+    allowAlpha: Boolean = true,
 ) {
+    val hexOf: (Long) -> String = if (allowAlpha) Long::toHexArgb else Long::toHexRgb
     val initialHsv =
         remember(initialArgb) {
             FloatArray(3).also { android.graphics.Color.colorToHSV(initialArgb.toInt(), it) }
@@ -55,13 +60,15 @@ internal fun ColorPickerDialog(
     var hue by remember(initialArgb) { mutableFloatStateOf(initialHsv[0]) }
     var saturation by remember(initialArgb) { mutableFloatStateOf(initialHsv[1]) }
     var brightness by remember(initialArgb) { mutableFloatStateOf(initialHsv[2]) }
-    var alpha by remember(initialArgb) { mutableFloatStateOf(android.graphics.Color.alpha(initialArgb.toInt()) / MAX_CHANNEL) }
+    var alpha by remember(initialArgb) {
+        mutableFloatStateOf(if (allowAlpha) android.graphics.Color.alpha(initialArgb.toInt()) / MAX_CHANNEL else 1f)
+    }
     val argb = hsvaToArgb(hue, saturation, brightness, alpha)
-    var hexInput by remember(initialArgb) { mutableStateOf(initialArgb.toHexArgb()) }
+    var hexInput by remember(initialArgb) { mutableStateOf(hexOf(initialArgb)) }
     val hexValid = parseHexColor(hexInput) != null
 
     fun syncHex(value: Long) {
-        hexInput = value.toHexArgb()
+        hexInput = hexOf(value)
     }
 
     FlowAlertDialog(
@@ -84,7 +91,7 @@ internal fun ColorPickerDialog(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = argb.toHexArgb(),
+                        text = hexOf(argb),
                         style = MaterialTheme.typography.labelLarge,
                         color = if (preview.luminance() > DARK_TEXT_LUMINANCE) Color.Black else Color.White,
                     )
@@ -98,11 +105,17 @@ internal fun ColorPickerDialog(
                             hue = hsv[0]
                             saturation = hsv[1]
                             brightness = hsv[2]
-                            alpha = android.graphics.Color.alpha(parsed.toInt()) / MAX_CHANNEL
+                            if (allowAlpha) alpha = android.graphics.Color.alpha(parsed.toInt()) / MAX_CHANNEL
                         }
                     },
                     label = { Text(stringResource(R.string.settings_color_hex)) },
-                    supportingText = { Text(stringResource(R.string.appearance_customizer_format_hint)) },
+                    supportingText = {
+                        Text(
+                            stringResource(
+                                if (allowAlpha) R.string.appearance_customizer_format_hint else R.string.settings_color_hex_opaque_hint,
+                            ),
+                        )
+                    },
                     isError = !hexValid,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
@@ -120,9 +133,11 @@ internal fun ColorPickerDialog(
                     brightness = it
                     syncHex(hsvaToArgb(hue, saturation, brightness, alpha))
                 }
-                ColorSlider(R.string.appearance_color_alpha, alpha, 0f..1f) {
-                    alpha = it
-                    syncHex(hsvaToArgb(hue, saturation, brightness, alpha))
+                if (allowAlpha) {
+                    ColorSlider(R.string.appearance_color_alpha, alpha, 0f..1f) {
+                        alpha = it
+                        syncHex(hsvaToArgb(hue, saturation, brightness, alpha))
+                    }
                 }
             }
         },

@@ -209,15 +209,38 @@ internal object ThemeIndex {
 }
 
 internal object CustomThemeIndex {
+    private fun list(
+        key: String,
+        title: Int,
+        summary: Int? = null,
+    ) = SettingEntry(
+        key = "custom_themes.$key",
+        title = title,
+        summary = summary,
+        keywords = R.string.settings_keywords_custom_themes,
+        destination = SettingsDestination.CUSTOM_THEME,
+    )
+
+    val create = list("create", R.string.settings_custom_theme_create, R.string.settings_custom_theme_start_from)
+    val import = list("import", R.string.settings_custom_theme_import, R.string.settings_custom_theme_empty_body)
+
+    val name =
+        SettingEntry(
+            key = "custom_theme.name",
+            title = R.string.settings_custom_theme_name,
+            keywords = R.string.settings_keywords_custom_themes,
+            destination = SettingsDestination.CUSTOM_THEME_EDIT,
+        )
     val variant =
         SettingEntry(
             key = "custom_theme.variant",
             title = R.string.settings_custom_theme_editing,
-            keywords = R.string.settings_keywords_theme,
-            destination = SettingsDestination.CUSTOM_THEME,
+            keywords = R.string.settings_keywords_custom_themes,
+            destination = SettingsDestination.CUSTOM_THEME_EDIT,
         )
 
-    val all = listOf(variant)
+    /** Only the list is searchable: the editor needs a theme to open. */
+    val all = listOf(create, import)
 }
 
 internal object DateTimeIndex {

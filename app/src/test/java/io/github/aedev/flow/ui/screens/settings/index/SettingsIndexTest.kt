@@ -19,9 +19,9 @@ class SettingsIndexTest {
     }
 
     @Test
-    fun `every page has an entry`() {
+    fun `every page but the custom theme editor has an entry`() {
         val pages = all.mapNotNull(DestinationIndex::destinationOf).toSet()
-        assertEquals(SettingsDestination.entries.toSet() - SettingsDestination.HOME, pages)
+        assertEquals(SettingsDestination.entries.toSet() - SettingsDestination.HOME - SettingsDestination.CUSTOM_THEME_EDIT, pages)
     }
 
     @Test

@@ -863,14 +863,14 @@
     <string name="theme_desc_sky_blue">A light, airy palette with open sky blues.</string>
     <string name="theme_name_cream_paper">Cream Paper</string>
     <string name="theme_desc_cream_paper">Warm paper tones for cosy daytime reading.</string>
-    <string name="theme_name_classic_dark">Classic</string>
-    <string name="theme_desc_classic_dark">The original Flow palette with its red accent.</string>
+    <string name="theme_name_classic_dark">Flow Default</string>
+    <string name="theme_desc_classic_dark">The original Flow palette with the YouTube red accent.</string>
     <string name="theme_name_true_black">True Black</string>
     <string name="theme_desc_true_black">Pure OLED</string>
     <string name="theme_name_monochrome">Monochrome</string>
-    <string name="theme_desc_monochrome">Pure black and white with nothing to distract.</string>
+    <string name="theme_desc_monochrome">A neutral, distraction-free palette with maximum clarity.</string>
     <string name="theme_name_custom">Custom</string>
-    <string name="theme_desc_custom">Your own palette, with every colour role editable.</string>
+    <string name="theme_desc_custom">Your own palette, with every colour editable.</string>
     <string name="theme_name_midnight">Midnight</string>
     <string name="theme_desc_midnight">Deep, focused blacks for late-night viewing.</string>
     <string name="theme_name_deep_ocean">Deep Ocean</string>
@@ -878,7 +878,7 @@
     <string name="theme_name_forest">Forest</string>
     <string name="theme_desc_forest">Natural greens with grounded surfaces.</string>
     <string name="theme_name_lavender">Lavender</string>
-    <string name="theme_desc_lavender">Soft violet tones with gentle contrast.</string>
+    <string name="theme_desc_lavender">Calm violet tones with gentle contrast.</string>
     <string name="theme_name_sunset">Sunset</string>
     <string name="theme_desc_sunset">Warm, vibrant oranges for the evening.</string>
     <string name="theme_name_nebula">Nebula</string>
@@ -899,12 +899,44 @@
     <string name="theme_desc_cyberpunk">Neon magenta and cyan for a future city.</string>
     <string name="theme_name_royal_gold">Royal Gold</string>
     <string name="theme_desc_royal_gold">Rich, prestigious golds on deep darks.</string>
-    <string name="theme_name_nordic">Nordic</string>
-    <string name="theme_desc_nordic">Calm Scandinavian blues and greys.</string>
+    <string name="theme_name_nordic">Nord</string>
+    <string name="theme_desc_nordic">An arctic, north-bluish palette.</string>
     <string name="theme_name_espresso">Espresso</string>
     <string name="theme_desc_espresso">Rich, warm coffee browns.</string>
     <string name="theme_name_gunmetal">Gunmetal</string>
     <string name="theme_desc_gunmetal">Industrial greys with a cool metal edge.</string>
+    <string name="theme_name_catppuccin" translatable="false">Catppuccin</string>
+    <string name="theme_name_tako" translatable="false">Tako</string>
+    <string name="theme_name_kanagawa" translatable="false">Kanagawa</string>
+    <string name="theme_name_tokyo_night" translatable="false">Tokyo Night</string>
+    <string name="theme_name_rose_pine" translatable="false">Rosé Pine</string>
+    <string name="theme_name_everforest" translatable="false">Everforest</string>
+    <string name="theme_name_gruvbox" translatable="false">Gruvbox</string>
+    <string name="theme_name_dracula" translatable="false">Dracula</string>
+    <string name="theme_name_solarized" translatable="false">Solarized</string>
+    <string name="theme_name_claude" translatable="false">Claude</string>
+    <string name="theme_name_green_apple">Green Apple</string>
+    <string name="theme_name_yin_yang">Yin &amp; Yang</string>
+    <string name="theme_name_strawberry_daiquiri">Strawberry Daiquiri</string>
+    <string name="theme_name_tide">Tide</string>
+    <string name="theme_name_sage">Sage</string>
+    <string name="theme_name_caffeine">Caffeine</string>
+    <string name="theme_desc_catppuccin">Soothing pastel Latte and Mocha-inspired colors.</string>
+    <string name="theme_desc_green_apple">Fresh green accents with soft organic surfaces.</string>
+    <string name="theme_desc_tako">Mihon-inspired purple with warm companion tones.</string>
+    <string name="theme_desc_yin_yang">Balanced black and white in its purest form.</string>
+    <string name="theme_desc_strawberry_daiquiri">A bright berry palette with soft cream surfaces.</string>
+    <string name="theme_desc_kanagawa">Inky blues and warm lotus tones inspired by Hokusai.</string>
+    <string name="theme_desc_tokyo_night">Calm blue-violet colors drawn from the night city.</string>
+    <string name="theme_desc_rose_pine">Natural pine, rose, and gold-tinted neutrals.</string>
+    <string name="theme_desc_everforest">A soft, low-contrast forest palette.</string>
+    <string name="theme_desc_gruvbox">Warm, earthy retro colors.</string>
+    <string name="theme_desc_dracula">The classic high-contrast purple palette.</string>
+    <string name="theme_desc_solarized">A precision low-glare blue and cyan palette.</string>
+    <string name="theme_desc_tide">Deep slate surfaces with muted teal.</string>
+    <string name="theme_desc_sage">Muted forest green that stays calm and soft.</string>
+    <string name="theme_desc_caffeine">Coffee tones balanced with cream and espresso.</string>
+    <string name="theme_desc_claude">Warm clay accents on paper-like surfaces.</string>
     <!-- Content Settings -->
     <string name="content_settings_title">Content Settings</string>
     <string name="content_settings_header_display">Display</string>
@@ -2956,7 +2988,7 @@
     <string name="settings_theme_summary">Palette and light or dark style</string>
     <string name="settings_navigation_bar_summary">Tabs, their order and the default tab</string>
     <string name="settings_player_appearance_summary">Seek bar, backgrounds and mini player</string>
-    <string name="settings_custom_theme_summary">Every colour role of your own palette</string>
+    <string name="settings_custom_theme_summary">Make, import and share your own themes</string>
     <string name="settings_section_style">Style</string>
     <string name="settings_section_layout">Layout</string>
     <string name="settings_section_video_cards">Video cards</string>
@@ -3144,4 +3176,52 @@
     <string name="device_info_installer">Installed from</string>
     <string name="device_info_package">Package</string>
     <string name="codec_name_hevc" translatable="false">HEVC</string>
+    <string name="settings_color_hex_opaque_hint">Hex format: #RRGGBB</string>
+    <string name="settings_custom_themes_title">Custom themes</string>
+    <string name="settings_custom_theme_editor_title">Edit theme</string>
+    <string name="settings_custom_theme_default_name">My theme</string>
+    <string name="settings_custom_theme_create">Create theme</string>
+    <string name="settings_custom_theme_import">Import</string>
+    <string name="settings_custom_theme_export">Export to file</string>
+    <string name="settings_custom_theme_export_all">Export all</string>
+    <string name="settings_custom_theme_share">Share</string>
+    <string name="settings_custom_theme_duplicate">Duplicate</string>
+    <string name="settings_custom_theme_rename">Rename</string>
+    <string name="settings_custom_theme_delete">Delete</string>
+    <string name="settings_custom_theme_delete_title">Delete %1$s?</string>
+    <string name="settings_custom_theme_delete_body">This can\'t be undone.</string>
+    <string name="settings_custom_theme_name">Theme name</string>
+    <string name="settings_custom_theme_start_from">Start from</string>
+    <string name="settings_custom_theme_count">%1$d of %2$d themes</string>
+    <string name="settings_custom_theme_empty">No custom themes yet</string>
+    <string name="settings_custom_theme_empty_body">Start from any palette, or import one made in Flow Desktop.</string>
+    <string name="settings_custom_theme_import_failed">No valid themes in that file</string>
+    <string name="settings_custom_theme_limit">You can keep up to %1$d themes</string>
+    <string name="settings_custom_theme_exported">Theme exported</string>
+    <string name="settings_custom_theme_card_description">Your own light, dark and AMOLED palette</string>
+    <string name="settings_custom_theme_more">More options</string>
+    <string name="settings_custom_theme_copy_name">%1$s copy</string>
+    <string name="settings_theme_roles_accents">Accents</string>
+    <string name="settings_theme_roles_text">Text and lines</string>
+    <string name="settings_theme_roles_status">Status</string>
+    <string name="settings_theme_role_primary">Primary accent</string>
+    <string name="settings_theme_role_on_primary">Text on primary</string>
+    <string name="settings_theme_role_secondary">Secondary accent</string>
+    <string name="settings_theme_role_background">App background</string>
+    <string name="settings_theme_role_surface">Surface</string>
+    <string name="settings_theme_role_surface_low">Low surface</string>
+    <string name="settings_theme_role_surface_container">Container surface</string>
+    <string name="settings_theme_role_surface_high">High surface</string>
+    <string name="settings_theme_role_surface_highest">Highest surface</string>
+    <string name="settings_theme_role_text">Primary text</string>
+    <string name="settings_theme_role_muted_text">Muted text</string>
+    <string name="settings_theme_role_outline">Outline</string>
+    <string name="settings_theme_role_error">Error</string>
+    <string name="settings_keywords_custom_themes">custom theme, palette, colours, colors, import, export, share, desktop</string>
+    <plurals name="settings_custom_theme_imported">
+        <item quantity="one">%1$d theme imported</item>
+        <item quantity="other">%1$d themes imported</item>
+    </plurals>
+    <string name="settings_custom_theme_in_use">In use</string>
+    <string name="settings_custom_theme_export_failed">The theme could not be saved</string>
 </resources>

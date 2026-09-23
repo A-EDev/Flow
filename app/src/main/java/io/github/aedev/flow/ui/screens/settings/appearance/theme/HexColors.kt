@@ -30,3 +30,8 @@ internal fun parseHexColor(input: String): Long? {
 }
 
 internal fun Long.toHexArgb(): String = "#%08X".format(this and ARGB_MASK)
+
+/** `#RRGGBB`, the colour without its alpha. */
+internal fun Long.toHexRgb(): String = "#%06X".format(this and RGB_MASK)
+
+private const val RGB_MASK = 0xFFFFFFL

@@ -47,6 +47,7 @@ internal fun AppearanceScreen(
 ) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val themeVariant by viewModel.themeVariant.collectAsStateWithLifecycle()
+    val customThemeName by viewModel.customThemeName.collectAsStateWithLifecycle()
     val interfaceMode by viewModel.interfaceMode.collectAsStateWithLifecycle()
     val appIcon by viewModel.appIcon.collectAsStateWithLifecycle()
     val homeViewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
@@ -70,7 +71,7 @@ internal fun AppearanceScreen(
         } else {
             stringResource(
                 R.string.settings_value_pair,
-                stringResource(ThemeCatalog.nameRes(themeMode)),
+                customThemeName.takeIf { themeMode == ThemeMode.CUSTOM } ?: stringResource(ThemeCatalog.nameRes(themeMode)),
                 stringResource(themeVariantLabel(themeVariant)),
             )
         }
