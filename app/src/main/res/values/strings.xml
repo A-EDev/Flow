@@ -1685,6 +1685,7 @@
     <string name="onboarding_channels_subscribers">%1$s subscribers</string>
     <string name="onboarding_channels_subscribed">Subscribed</string>
     <string name="onboarding_channels_subscribe">Subscribe</string>
+    <string name="onboarding_channels_results_header">Channels</string>
     <string name="onboarding_import_title">Import your data</string>
     <string name="onboarding_import_subtitle">Bring your subscriptions and history from other apps. Everything is optional.</string>
     <string name="onboarding_backup_restore_section">Backup &amp; Restore</string>

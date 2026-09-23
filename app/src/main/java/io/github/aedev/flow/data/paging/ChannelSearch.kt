@@ -1,45 +1,37 @@
 package io.github.aedev.flow.data.paging
 
+import io.github.aedev.flow.data.local.ContentType
+import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
+import io.github.aedev.flow.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.channel.ChannelInfoItem
 import javax.inject.Inject
 
 private const val MAX_RESULTS = 15
+private const val CHANNEL_ID_PREFIX = "UC"
 
-/** One page of channels matching a query, for pickers that only ever need the first page. */
+/**
+ * The first page of channels matching a query, from the same InnerTube search the Search tab runs.
+ * Only `UC…` ids come back: a handle is not a browse id, and a subscription stored under one never
+ * gets a feed.
+ */
 class ChannelSearch
     @Inject
     constructor() {
         suspend fun search(query: String): List<Channel> =
             withContext(Dispatchers.IO) {
-                runCatching {
-                    val extractor = ServiceList.YouTube.getSearchExtractor(query, listOf("channels"), null)
-                    extractor.fetchPage()
-                    extractor.initialPage.items
-                        .filterIsInstance<ChannelInfoItem>()
-                        .mapNotNull { item -> item.toChannel() }
-                        .distinctByNonBlankKey(Channel::id)
-                        .take(MAX_RESULTS)
-                }.getOrDefault(emptyList())
+                YouTube
+                    .videoSearch(query, SearchFilter(contentType = ContentType.CHANNELS).toSearchParams())
+                    .map { page ->
+                        page
+                            .toResultItems(shortsEnabled = false)
+                            .filterIsInstance<SearchResultItem.ChannelResult>()
+                            .map { it.channel }
+                    }.getOrDefault(emptyList())
+                    .filter { it.id.startsWith(CHANNEL_ID_PREFIX) }
+                    .distinctByNonBlankKey(Channel::id)
+                    .take(MAX_RESULTS)
             }
-
-        private fun ChannelInfoItem.toChannel(): Channel? {
-            val id =
-                when {
-                    url.contains("/channel/") -> url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
-                    url.contains("/@") -> url.substringAfter("/@").substringBefore("/").substringBefore("?")
-                    else -> url.substringAfterLast("/").substringBefore("?")
-                }
-            if (id.isEmpty() || name.isNullOrEmpty()) return null
-            return Channel(
-                id = id,
-                name = name,
-                thumbnailUrl = thumbnails.maxByOrNull { it.height }?.url.orEmpty(),
-                subscriberCount = subscriberCount,
-            )
-        }
     }

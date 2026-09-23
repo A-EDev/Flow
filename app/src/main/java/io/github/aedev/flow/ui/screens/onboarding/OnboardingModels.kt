@@ -28,6 +28,7 @@ data class OnboardingUiState(
     val results: List<Channel> = emptyList(),
     val searching: Boolean = false,
     val subscribed: List<Channel> = emptyList(),
+    val notifying: Set<String> = emptySet(),
     val importedSources: Set<ImportSource> = emptySet(),
     val completed: Boolean = false,
 ) {

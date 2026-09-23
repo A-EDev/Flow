@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -26,8 +27,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.backup.BackupOperation
 import io.github.aedev.flow.data.backup.ImportKind
 
@@ -124,16 +128,23 @@ fun OnboardingScreen(
 
                 OnboardingStep.CHANNELS -> {
                     ChannelsStep(
-                        searchQuery = state.query,
-                        searchResults = state.results,
-                        isSearching = state.searching,
-                        isSubscribed = state::isSubscribed,
-                        subscribedCount = state.subscribed.size,
+                        state = state,
                         onQueryChange = viewModel::search,
                         onSubscribeToggle = { channel ->
-                            haptic.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                            val subscribing = !state.isSubscribed(channel.id)
+                            haptic.performHapticFeedback(if (subscribing) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
                             viewModel.toggleSubscription(channel)
                         },
+                        onNotificationsChange = viewModel::setChannelNotifications,
+                        header = {
+                            item(key = "header") {
+                                StepHeader(
+                                    title = stringResource(R.string.onboarding_channels_title),
+                                    subtitle = stringResource(R.string.onboarding_channels_subtitle),
+                                )
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
                     )
                 }
 

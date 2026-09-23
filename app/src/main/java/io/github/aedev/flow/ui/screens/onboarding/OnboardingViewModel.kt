@@ -32,6 +32,7 @@ private const val KEY_SUB_IDS = "subscribedIds"
 private const val KEY_SUB_NAMES = "subscribedNames"
 private const val KEY_SUB_THUMBS = "subscribedThumbs"
 private const val KEY_IMPORTED = "importedSources"
+private const val KEY_NOTIFYING = "notifying"
 
 /**
  * First-run setup. Everything a person picks is kept in [SavedStateHandle], so a recreated
@@ -116,6 +117,7 @@ class OnboardingViewModel
                         } else {
                             state.subscribed + channel
                         },
+                    notifying = state.notifying - channel.id,
                 )
             }
             viewModelScope.launch {
@@ -131,6 +133,14 @@ class OnboardingViewModel
                     )
                 }
             }
+        }
+
+        fun setChannelNotifications(
+            channelId: String,
+            enabled: Boolean,
+        ) {
+            edit { state -> state.copy(notifying = if (enabled) state.notifying + channelId else state.notifying - channelId) }
+            viewModelScope.launch { subscriptions.updateNotificationState(channelId, enabled) }
         }
 
         fun startImport(
@@ -162,6 +172,7 @@ class OnboardingViewModel
             savedState[KEY_SUB_NAMES] = ArrayList(state.subscribed.map { it.name })
             savedState[KEY_SUB_THUMBS] = ArrayList(state.subscribed.map { it.thumbnailUrl })
             savedState[KEY_IMPORTED] = ArrayList(state.importedSources.map { it.name })
+            savedState[KEY_NOTIFYING] = ArrayList(state.notifying)
         }
 
         private fun restore(): OnboardingUiState {
@@ -185,6 +196,7 @@ class OnboardingViewModel
                             subscriberCount = -1L,
                         )
                     },
+                notifying = savedState.get<ArrayList<String>>(KEY_NOTIFYING).orEmpty().toSet(),
                 importedSources =
                     savedState
                         .get<ArrayList<String>>(KEY_IMPORTED)
