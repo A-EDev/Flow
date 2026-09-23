@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.backup.ExportKind
 import io.github.aedev.flow.data.backup.ImportKind
+import io.github.aedev.flow.data.backup.ImportSource
 import io.github.aedev.flow.data.local.LocalDataManager.AutoBackupFrequency
 import io.github.aedev.flow.data.local.LocalDataManager.AutoBackupType
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
@@ -43,9 +44,9 @@ internal fun SettingsListScope.exportPage(onExport: (ExportKind) -> Unit) {
 }
 
 internal fun SettingsListScope.importPage(onImport: (ImportKind) -> Unit) {
-    ImportSections.forEachIndexed { index, (header, kinds) ->
-        group(key = "backup.import.section.$index", header = header) {
-            kinds.forEach { kind -> nav(BackupIndex.importEntry(kind), onClick = { onImport(kind) }, showChevron = false) }
+    ImportSource.entries.forEachIndexed { index, source ->
+        group(key = "backup.import.section.$index", header = source.titleRes) {
+            source.kinds.forEach { kind -> nav(BackupIndex.importEntry(kind), onClick = { onImport(kind) }, showChevron = false) }
         }
     }
 }

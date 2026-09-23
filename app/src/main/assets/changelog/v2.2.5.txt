@@ -42,6 +42,7 @@ NEW FEATURES
 - Themes now match Flow Desktop, Monochrome gets a true black AMOLED style, and you can keep several named custom themes and move them between both apps with import and export
 - Flow Recap: a private, on-device record of your watching and listening, with a stats page of charts for any month, year or all time, covering your top channels, videos, artists, tracks and topics, streaks and your daily clock
 - A monthly and yearly Recap story that plays itself, with morphing Material shapes, artwork-tinted pages and channel and artist portraits, plus a shareable poster image
+- Onboarding rebuilt on Material 3 Expressive: a welcome step with the Flow logo, one morphing shape that follows you through every step, an alerts step that asks for notifications in context, imports grouped by the app you are moving from, and two panes on tablets and foldables
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
@@ -60,6 +61,7 @@ IMPROVEMENTS
 - Every bottom sheet now separates its title from its contents with the same divider
 - Device sync, dialogs and the About page were redesigned to match, with a changelog sheet, fuller device info, and switches that show a check or a cross
 - Digital wellbeing reads your watch time from the Recap ledgers once they cover a full week
+- Notifications rebuilt with grouped rows: new items stay marked for the whole visit, older ones show their real date, a swipe removes one with Undo, and Clear all asks first
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -69,6 +71,7 @@ PERFORMANCE
 
 FIXES AND STABILITY
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
+- Fix onboarding subscribing to some channels under their handle instead of their id, which left them without a feed, and system back leaving setup instead of going to the previous step
 - Fix the music feed crashing after an update: release builds could mis-read the artist lists stored inside history, queues, playlists and downloads — stored tracks are now repaired on read, with no clean install needed
 - Fix custom themes losing their colours in release builds
 - Fix Notification settings crashing in German, the System theme ignoring dark mode when an app language was set, and Material You colours drifting from the wallpaper

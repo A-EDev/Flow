@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.stats.RecapSummary
+import io.github.aedev.flow.ui.components.shared.FlowMorphingPortrait
 import io.github.aedev.flow.ui.components.stats.spentTimeLabel
 import io.github.aedev.flow.ui.screens.recap.labels
 import io.github.aedev.flow.ui.screens.recap.readable
@@ -81,9 +82,9 @@ internal fun StoryShareCard(
             )
             Text(periodLabel, style = MaterialTheme.typography.headlineMedium, color = ink, fontWeight = FontWeight.Black)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                channel?.let { MorphingPortrait(it.imageUrl, it.name, PortraitSize, tint.raised, tint.onContainer) }
+                channel?.let { FlowMorphingPortrait(it.imageUrl, it.name, PortraitSize, tint.raised, tint.onContainer) }
                 artist?.let {
-                    MorphingPortrait(
+                    FlowMorphingPortrait(
                         imageUrl = it.imageUrl,
                         fallback = it.name,
                         diameter = PortraitSize,

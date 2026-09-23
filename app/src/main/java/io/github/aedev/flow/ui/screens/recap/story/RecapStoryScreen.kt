@@ -40,11 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -66,6 +62,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.RecapSummary
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.drawSegmentedProgress
 import io.github.aedev.flow.ui.components.stats.spentTimeLabel
 import io.github.aedev.flow.ui.screens.recap.RecapSource
 import io.github.aedev.flow.ui.screens.recap.RecapViewModel
@@ -244,17 +241,12 @@ private fun StoryHeader(
                 .weight(1f)
                 .height(IndicatorHeight)
                 .semantics { contentDescription = pageLabel }
-                .drawBehind {
-                    val gap = IndicatorGap.toPx()
-                    val width = (size.width - gap * (pageCount - 1)) / pageCount
-                    val radius = CornerRadius(size.height / 2f)
-                    repeat(pageCount) { index ->
-                        val x = index * (width + gap)
-                        drawRoundRect(color.copy(alpha = TRACK_ALPHA), Offset(x, 0f), Size(width, size.height), radius)
-                        val fill = pageClock(pager, index, autoplay)
-                        if (fill > 0f) drawRoundRect(color, Offset(x, 0f), Size(width * fill, size.height), radius)
-                    }
-                },
+                .drawSegmentedProgress(
+                    count = pageCount,
+                    color = color,
+                    trackColor = color.copy(alpha = TRACK_ALPHA),
+                    gap = IndicatorGap,
+                ) { index -> pageClock(pager, index, autoplay) },
         )
         IconButton(onClick = onClose, colors = IconButtonDefaults.iconButtonColors(contentColor = color)) {
             Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.recap_story_close))

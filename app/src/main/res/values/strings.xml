@@ -553,6 +553,17 @@
     <string name="time_today">Today</string>
     <string name="time_yesterday">Yesterday</string>
     <string name="time_earlier">Earlier</string>
+    <string name="notifications_group_new">New</string>
+    <string name="notifications_group_last_week">Last 7 days</string>
+    <string name="notifications_meta">%1$s · %2$s</string>
+    <string name="notifications_removed">Notification removed</string>
+    <string name="notifications_open_settings">Notification settings</string>
+    <string name="notifications_clear_title">Clear all notifications?</string>
+    <plurals name="notifications_clear_body">
+        <item quantity="one">This removes %d notification. You can\'t undo this.</item>
+        <item quantity="other">This removes %d notifications. You can\'t undo this.</item>
+    </plurals>
+    <string name="notifications_clear_confirm">Clear all</string>
     <!-- Notifications Screen -->
     <string name="clear_all_notifications">Clear all notifications</string>
     <string name="delete">Delete</string>
@@ -1674,6 +1685,7 @@
     <string name="onboarding_channels_subscribers">%1$s subscribers</string>
     <string name="onboarding_channels_subscribed">Subscribed</string>
     <string name="onboarding_channels_subscribe">Subscribe</string>
+    <string name="onboarding_channels_results_header">Channels</string>
     <string name="onboarding_import_title">Import your data</string>
     <string name="onboarding_import_subtitle">Bring your subscriptions and history from other apps. Everything is optional.</string>
     <string name="onboarding_backup_restore_section">Backup &amp; Restore</string>
@@ -1683,6 +1695,14 @@
     <string name="onboarding_step_interests">Interests</string>
     <string name="onboarding_step_channels">Channels</string>
     <string name="onboarding_step_import">Import</string>
+    <string name="onboarding_import_source_flow">Flow backup</string>
+    <string name="onboarding_import_source_youtube">YouTube</string>
+    <string name="onboarding_import_footnote">Everything here is optional. Settings has the same imports.</string>
+    <string name="onboarding_import_done">Imported</string>
+    <plurals name="onboarding_import_count">
+        <item quantity="one">%d import</item>
+        <item quantity="other">%d imports</item>
+    </plurals>
     <string name="onboarding_imported_count">Imported %1$d %2$s</string>
     <string name="onboarding_imported">%1$s imported</string>
     <string name="onboarding_btn_skip">Skip</string>
@@ -1690,6 +1710,41 @@
     <string name="btn_skip_for_now">Skip for now</string>
     <string name="onboarding_btn_continue">Continue</string>
     <string name="onboarding_btn_back">Back</string>
+    <string name="onboarding_step_alerts">Alerts</string>
+    <string name="onboarding_progress">Step %1$d of %2$d</string>
+    <string name="onboarding_restore_backup">Restore a backup</string>
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_start_watching">Start watching</string>
+    <plurals name="onboarding_pick_more">
+        <item quantity="one">Pick %d more</item>
+        <item quantity="other">Pick %d more</item>
+    </plurals>
+    <string name="onboarding_welcome_title">Make Flow yours</string>
+    <string name="onboarding_welcome_subtitle">Videos and music around what you love. Setup takes a minute.</string>
+    <string name="onboarding_alerts_title">Never miss an upload</string>
+    <string name="onboarding_alerts_subtitle">Get a heads up when your channels post.</string>
+    <string name="onboarding_alerts_allow">Allow notifications</string>
+    <string name="onboarding_alerts_allow_summary">Android asks you once</string>
+    <string name="onboarding_alerts_allowed">Allowed</string>
+    <string name="onboarding_alerts_new_videos">New video alerts</string>
+    <string name="onboarding_alerts_new_videos_summary">From channels you subscribe to</string>
+    <string name="onboarding_alerts_background">Check in the background</string>
+    <string name="onboarding_alerts_background_summary">Lets alerts arrive on time</string>
+    <string name="onboarding_alerts_footnote">You can change these any time in Settings.</string>
+    <string name="onboarding_ready_title">You\'re all set</string>
+    <string name="onboarding_ready_subtitle">Your feed is ready. It gets sharper as you watch.</string>
+    <plurals name="onboarding_ready_interests">
+        <item quantity="one">%d interest</item>
+        <item quantity="other">%d interests</item>
+    </plurals>
+    <plurals name="onboarding_ready_channels">
+        <item quantity="one">%d channel</item>
+        <item quantity="other">%d channels</item>
+    </plurals>
+    <plurals name="onboarding_ready_imports">
+        <item quantity="one">%d import</item>
+        <item quantity="other">%d imports</item>
+    </plurals>
     <string name="cd_collapse_category">Collapse</string>
     <string name="cd_expand_category">Expand</string>
     <!-- Categories -->

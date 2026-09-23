@@ -1,342 +1,185 @@
 package io.github.aedev.flow.ui.screens.notifications
 
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.NotificationEntity
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import java.text.SimpleDateFormat
-import java.util.*
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
+import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
+import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
+import io.github.aedev.flow.ui.components.shared.flowSegmentShape
+import kotlinx.coroutines.launch
+import java.time.ZoneId
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private val GroupPadding = 12.dp
+private val ListBottomPadding = 32.dp
+
 @Composable
 fun NotificationScreen(
     onBackClick: () -> Unit,
     onNotificationClick: (String) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: NotificationViewModel = hiltViewModel(),
 ) {
-    val notifications by viewModel.notifications.collectAsState()
-    val context = LocalContext.current
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+    val newIds by viewModel.newIds.collectAsStateWithLifecycle()
+    val zone = remember { ZoneId.systemDefault() }
+    val today = rememberToday(zone)
+    val sections = remember(notifications, newIds, today) { groupNotifications(notifications, newIds, today, zone) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
+    val removedMessage = stringResource(R.string.notifications_removed)
+    val undoLabel = stringResource(R.string.undo)
 
-    LaunchedEffect(Unit) {
-        viewModel.markAllAsRead()
-    }
+    LaunchedEffect(Unit) { viewModel.openInbox() }
 
-    val groupedNotifications =
-        remember(notifications, context) {
-            notifications.groupBy { entity ->
-                val calendar = Calendar.getInstance()
-                val now = calendar.timeInMillis
-                val itemTime = entity.timestamp
-
-                val diff = now - itemTime
-                val days = (diff / (1000 * 60 * 60 * 24)).toInt()
-
-                when {
-                    days == 0 -> context.getString(R.string.time_today)
-                    days == 1 -> context.getString(R.string.time_yesterday)
-                    else -> context.getString(R.string.time_earlier)
-                }
-            }
-        }
-
-    // Removed Scaffold completely. Using pure Column for absolute control.
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-    ) {
-        FlowTopBar(
-            title = stringResource(R.string.notifications),
-            onBack = onBackClick,
-            actions = {
-                if (notifications.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.clearAll() }) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteSweep,
-                            contentDescription = stringResource(R.string.clear_all_notifications),
-                        )
-                    }
-                }
-            },
-        )
-
-        if (notifications.isEmpty()) {
-            EmptyNotificationsState(modifier = Modifier.weight(1f))
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 32.dp),
-            ) {
-                groupedNotifications.forEach { (header, items) ->
-                    stickyHeader {
-                        NotificationHeader(header)
-                    }
-
-                    items(
-                        items = items,
-                        key = { it.id }, // Keys ensure beautiful swipe animations
-                    ) { notification ->
-                        SwipeToDismissNotification(
-                            notification = notification,
-                            onDismiss = { viewModel.deleteNotification(notification) },
-                            onClick = { onNotificationClick(notification.videoId) },
-                        )
-                    }
-                }
-            }
+    fun remove(item: NotificationEntity) {
+        viewModel.deleteNotification(item)
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val result = snackbarHostState.showSnackbar(removedMessage, undoLabel, duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete()
         }
     }
-}
 
-@Composable
-private fun NotificationHeader(title: String) {
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f)) // Slight transparency for sticky effect
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SwipeToDismissNotification(
-    notification: NotificationEntity,
-    onDismiss: () -> Unit,
-    onClick: () -> Unit,
-) {
-    val dismissState =
-        rememberSwipeToDismissBoxState(
-            confirmValueChange = {
-                if (it == SwipeToDismissBoxValue.EndToStart) {
-                    onDismiss()
-                    true
-                } else {
-                    false
-                }
-            },
-        )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromEndToStart = true,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
-            val color =
-                when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error
-                    else -> Color.Transparent
-                }
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(color) // Edge-to-edge flat red color to match the item
-                        .padding(end = 24.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = stringResource(R.string.delete),
-                    tint = MaterialTheme.colorScheme.onError,
-                )
-            }
-        },
-        content = {
-            NotificationItem(
-                notification = notification,
-                onClick = onClick,
-                onDismiss = onDismiss,
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            FlowTopBar(
+                title = stringResource(R.string.notifications),
+                onBack = onBackClick,
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.notifications_open_settings))
+                    }
+                    if (notifications.isNotEmpty()) {
+                        IconButton(onClick = { confirmClear = true }) {
+                            Icon(Icons.Outlined.DeleteSweep, contentDescription = stringResource(R.string.clear_all_notifications))
+                        }
+                    }
+                },
             )
+        },
+    ) { padding ->
+        if (sections.isEmpty()) {
+            EmptyInbox(onOpenSettings, Modifier.padding(padding))
+            return@Scaffold
+        }
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier.widthIn(max = FlowMaxContentWidth).fillMaxWidth(),
+                contentPadding = PaddingValues(start = GroupPadding, end = GroupPadding, bottom = ListBottomPadding),
+            ) {
+                sections.forEach { section ->
+                    item(key = section.bucket, contentType = "header") {
+                        FlowSectionHeader(stringResource(section.bucket.titleRes))
+                    }
+                    itemsIndexed(section.items, key = { _, item -> item.id }, contentType = { _, _ -> "row" }) { index, item ->
+                        NotificationRow(
+                            notification = item,
+                            isNew = section.bucket == NotificationBucket.NEW,
+                            time = notificationTime(item.timestamp, today, zone).label(),
+                            shape = flowSegmentShape(index, section.items.size),
+                            onClick = { onNotificationClick(item.videoId) },
+                            onDismiss = { remove(item) },
+                            modifier = Modifier.animateItem().padding(bottom = FlowSegmentedGap),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (confirmClear) {
+        ClearAllDialog(
+            count = notifications.size,
+            onConfirm = {
+                confirmClear = false
+                viewModel.clearAll()
+            },
+            onDismiss = { confirmClear = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun EmptyInbox(
+    onOpenSettings: () -> Unit,
+    modifier: Modifier,
+) {
+    FlowEmptyState(
+        title = stringResource(R.string.peace_and_quiet),
+        subtitle = stringResource(R.string.notifications_empty_body),
+        icon = Icons.Outlined.NotificationsNone,
+        modifier = modifier,
+        action = {
+            FilledTonalButton(onClick = onOpenSettings, shapes = ButtonDefaults.shapes()) {
+                Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.padding(end = ButtonDefaults.IconSpacing))
+                Text(stringResource(R.string.notifications_open_settings))
+            }
         },
     )
 }
 
 @Composable
-private fun NotificationItem(
-    notification: NotificationEntity,
-    onClick: () -> Unit,
+private fun ClearAllDialog(
+    count: Int,
+    onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-    val isUnread = !notification.isRead
-
-    // Instead of Card, we use a raw Row. It is perfectly optimized for LazyColumn.
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                // Subtle background tint for unread items
-                .background(
-                    if (isUnread) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                    } else {
-                        MaterialTheme.colorScheme.background
-                    },
-                ).clickable(onClick = onClick)
-                .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        // Thumbnail Section (Clean 16:9 ratio)
-        Box(
-            modifier =
-                Modifier
-                    .width(130.dp)
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            AsyncImage(
-                model = notification.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        }
-
-        // Text Content Section
-        Column(
-            modifier = Modifier.weight(1f),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-            ) {
-                Text(
-                    text = notification.title,
-                    style =
-                        MaterialTheme.typography.bodyMedium.copy(
-                            lineHeight = 18.sp,
-                            fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal,
-                        ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-
-                // Subtle, perfectly aligned close button
-                IconButton(
-                    onClick = onDismiss,
-                    modifier =
-                        Modifier
-                            .size(24.dp)
-                            .offset(x = 4.dp, y = (-4).dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = stringResource(R.string.dismiss),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "${notification.channelName} • ${timeFormat.format(Date(notification.timestamp))}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-
-                // Tiny blue dot indicator moved to the far right for cleaner alignment
-                if (isUnread) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyNotificationsState(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.NotificationsNone,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = stringResource(R.string.peace_and_quiet),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = stringResource(R.string.notifications_empty_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
+    FlowAlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.DeleteSweep, contentDescription = null) },
+        title = { Text(stringResource(R.string.notifications_clear_title)) },
+        text = { Text(pluralStringResource(R.plurals.notifications_clear_body, count, count)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.notifications_clear_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
