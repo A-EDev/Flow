@@ -24,7 +24,7 @@ NEW FEATURES
 - Daily Mixes cluster the artists you listen to together and open as full playlist pages you can play, shuffle and save
 - Endless music radio: similar songs are appended as the queue runs low, and the up-next list stays stable instead of changing every song
 - Tell the music engine what you don't want: "Not interested" softens an artist for two weeks, "Don't recommend" blocks them everywhere, both reversible
-- The Flow Control Center now shows your music taste — top artists, listening rhythm, discovery appetite, genres and blocked-artist management — and the whole profile syncs between devices and exports to a file
+- The Flow Control Center is now Your taste, rebuilt on the settings layout with your video and music taste, engine details, a Hidden from you page for everything you blocked, and profiles that sync between devices and export to a file
 - Artist pages show your own history with that artist: play count, liked status, most-played tracks, and which "fans also like" artists are already in your rotation
 - New On Repeat home-screen widget puts the songs you keep replaying one tap away
 - The engine learns genres and moods from what you play, and keeps a private monthly listening ledger on your device — minutes, plays, discoveries and your listening clock — which never leaves the device
@@ -40,6 +40,8 @@ NEW FEATURES
 - Shorts now honour your blocked channels and topics on every reel, "Don't show this channel" joins the reel sheet, and the ad creatives YouTube slips into the reel feed are dropped
 - Settings rebuilt on Material 3 Expressive: grouped rows, a search that finds any option, and a two-pane layout on tablets and foldables
 - Themes now match Flow Desktop, Monochrome gets a true black AMOLED style, and you can keep several named custom themes and move them between both apps with import and export
+- Flow Recap: a private, on-device record of your watching and listening, with a stats page of charts for any month, year or all time, covering your top channels, videos, artists, tracks and topics, streaks and your daily clock
+- A monthly and yearly Recap story that plays itself, with morphing Material shapes, artwork-tinted pages and channel and artist portraits, plus a shareable poster image
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
@@ -57,6 +59,7 @@ IMPROVEMENTS
 - Transcript lines can be long-pressed, selected and copied, and the player stays tappable while the transcript is open
 - Every bottom sheet now separates its title from its contents with the same divider
 - Device sync, dialogs and the About page were redesigned to match, with a changelog sheet, fuller device info, and switches that show a check or a cross
+- Digital wellbeing reads your watch time from the Recap ledgers once they cover a full week
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
