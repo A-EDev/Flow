@@ -36,8 +36,8 @@ import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
-import io.github.aedev.flow.ui.components.shared.card.CompactVideoCard
-import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 
 /**
  * Every channel tab's list, whatever it holds.
@@ -118,16 +118,16 @@ internal fun ChannelTabItems(
                 when (val item = pagingItems[index]) {
                     is FeedItem.VideoItem -> {
                         if (gridCards) {
-                            VideoCardFullWidth(
+                            MediaVideoCard(
                                 video = item.video,
-                                showChannelAvatar = false,
-                                showChannelName = false,
+                                showChannel = false,
                                 onClick = { onVideoClick(item.video) },
                             )
                         } else {
-                            CompactVideoCard(
+                            MediaVideoCard(
                                 video = item.video,
-                                showChannelName = false,
+                                layout = VideoCardLayout.Row,
+                                showChannel = false,
                                 onClick = { onVideoClick(item.video) },
                             )
                         }

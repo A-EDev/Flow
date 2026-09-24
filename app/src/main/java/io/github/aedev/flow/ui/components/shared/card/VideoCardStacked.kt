@@ -43,15 +43,15 @@ import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.ui.theme.extendedColors
 
+/** The thumbnail across the full width with the details beneath: feeds and grids. */
 @Composable
-fun VideoCardFullWidth(
+internal fun VideoCardStacked(
     video: Video,
-    modifier: Modifier = Modifier,
-    useInternalPadding: Boolean = true,
-    showChannelAvatar: Boolean = true,
-    showChannelName: Boolean = true,
     onClick: () -> Unit,
-    onChannelClick: ((String) -> Unit)? = null,
+    onChannelClick: ((String) -> Unit)?,
+    showChannel: Boolean,
+    useInternalPadding: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val state = rememberVideoCardState(video)
     val cardPreferences = LocalVideoCardPreferences.current
@@ -100,7 +100,7 @@ fun VideoCardFullWidth(
                     .padding(vertical = 12.dp, horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (showChannelAvatar) {
+            if (showChannel) {
                 ChannelAvatarStack(
                     urls = state.avatarUrls,
                     contentDescription = state.channelName,
@@ -136,7 +136,7 @@ fun VideoCardFullWidth(
                             video = video,
                             isUpcoming = video.isUpcoming,
                             channelName = state.channelName,
-                            includeChannel = showChannelName,
+                            includeChannel = showChannel,
                         ),
                     style = MaterialTheme.typography.bodySmall,
                     color =

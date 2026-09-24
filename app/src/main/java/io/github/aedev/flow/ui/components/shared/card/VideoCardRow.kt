@@ -44,21 +44,15 @@ import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.ui.theme.extendedColors
 
-/** The width every existing caller renders, so [thumbnailWidth] only ever widens it deliberately. */
-val CompactVideoCardThumbnailWidth = 168.dp
-
-/**
- * A horizontal Video Card optimized for side panes (tablets/foldables) or lists.
- * Image on Left, Info on Right.
- */
+/** Thumbnail on the left, details on the right: lists, side panes and search rows. */
 @Composable
-fun CompactVideoCard(
+internal fun VideoCardRow(
     video: Video,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onChannelClick: ((String) -> Unit)? = null,
-    showChannelName: Boolean = true,
-    thumbnailWidth: Dp = CompactVideoCardThumbnailWidth,
+    onChannelClick: ((String) -> Unit)?,
+    showChannel: Boolean,
+    thumbnailWidth: Dp,
+    modifier: Modifier = Modifier,
 ) {
     val state = rememberVideoCardState(video)
     val cardPreferences = LocalVideoCardPreferences.current
@@ -120,7 +114,7 @@ fun CompactVideoCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            if (showChannelName) {
+            if (showChannel) {
                 Text(
                     text = state.channelName,
                     style = MaterialTheme.typography.bodySmall,

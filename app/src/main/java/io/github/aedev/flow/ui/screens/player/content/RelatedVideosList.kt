@@ -12,8 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.shared.card.CompactVideoCard
-import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 
 /**
  * Related videos content for LazyListScope.
@@ -32,15 +32,16 @@ internal fun LazyListScope.relatedVideosContent(
         val relatedVideo = relatedVideos[index]
         when (cardStyle) {
             PlayerRelatedCardStyle.COMPACT -> {
-                CompactVideoCard(
+                MediaVideoCard(
                     video = relatedVideo,
+                    layout = VideoCardLayout.Row,
                     onClick = { onVideoClick(relatedVideo) },
                     onChannelClick = onChannelClick,
                 )
             }
 
             PlayerRelatedCardStyle.FULL_WIDTH -> {
-                VideoCardFullWidth(
+                MediaVideoCard(
                     video = relatedVideo,
                     onClick = { onVideoClick(relatedVideo) },
                     onChannelClick = onChannelClick,
@@ -75,15 +76,16 @@ internal fun LazyListScope.relatedVideosGridContent(
                 Box(modifier = Modifier.weight(1f)) {
                     when (cardStyle) {
                         PlayerRelatedCardStyle.COMPACT -> {
-                            CompactVideoCard(
+                            MediaVideoCard(
                                 video = video,
+                                layout = VideoCardLayout.Row,
                                 onClick = { onVideoClick(video) },
                                 onChannelClick = onChannelClick,
                             )
                         }
 
                         PlayerRelatedCardStyle.FULL_WIDTH -> {
-                            VideoCardFullWidth(
+                            MediaVideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) },
                                 onChannelClick = onChannelClick,
