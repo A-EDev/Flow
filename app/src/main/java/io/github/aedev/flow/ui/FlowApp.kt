@@ -33,6 +33,7 @@ import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.donation.DonationPromptHost
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationChrome
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationDefaults
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.layout.navigation.NavigationVisibility
 import io.github.aedev.flow.ui.components.layout.navigation.flowUsesNavigationRail
 import io.github.aedev.flow.ui.components.layout.navigation.rememberFlowNavigationScrollState
@@ -191,6 +192,13 @@ fun FlowApp(
         var keepMiniOnQueueAutoAdvance by remember { mutableStateOf(false) }
 
         val musicPlayerSheetState = rememberMusicPlayerSheetState()
+        val mediaNavigator =
+            remember(navController, playerSheetState, musicPlayerSheetState) {
+                FlowMediaNavigator(navController) {
+                    if (playerSheetState.currentValue == PlayerSheetValue.Expanded) playerSheetState.collapse()
+                    if (musicPlayerSheetState.isExpanded) musicPlayerSheetState.collapse()
+                }
+            }
 
         val activeVideo = playerUiState.cachedVideo
 
@@ -459,27 +467,29 @@ fun FlowApp(
                                 onOpenNotifications = { navController.navigate("notifications") },
                                 onOpenSettings = { navController.navigate("settings") },
                             ) {
-                                NavHost(
-                                    navController = navController,
-                                    startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
-                                    enterTransition = FlowNavTransitions.enter,
-                                    exitTransition = FlowNavTransitions.exit,
-                                    popEnterTransition = FlowNavTransitions.popEnter,
-                                    popExitTransition = FlowNavTransitions.popExit,
-                                ) {
-                                    flowAppGraph(
+                                CompositionLocalProvider(LocalMediaNavigator provides mediaNavigator) {
+                                    NavHost(
                                         navController = navController,
-                                        currentRoute = currentRoute,
-                                        playerSheetState = playerSheetState,
-                                        musicPlayerSheetState = musicPlayerSheetState,
-                                        homeViewModel = homeViewModel,
-                                        playerViewModel = playerViewModel,
-                                        playerUiStateResult = playerUiStateResult,
-                                        playerVisibleState = playerVisibleState,
-                                        disableShortsPlayer = disableShortsPlayer,
-                                        defaultStartRoute = defaultStartRoute,
-                                        bottomNavOverlayPadding = { bottomNavOverlayHeight.value },
-                                    )
+                                        startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
+                                        enterTransition = FlowNavTransitions.enter,
+                                        exitTransition = FlowNavTransitions.exit,
+                                        popEnterTransition = FlowNavTransitions.popEnter,
+                                        popExitTransition = FlowNavTransitions.popExit,
+                                    ) {
+                                        flowAppGraph(
+                                            navController = navController,
+                                            currentRoute = currentRoute,
+                                            playerSheetState = playerSheetState,
+                                            musicPlayerSheetState = musicPlayerSheetState,
+                                            homeViewModel = homeViewModel,
+                                            playerViewModel = playerViewModel,
+                                            playerUiStateResult = playerUiStateResult,
+                                            playerVisibleState = playerVisibleState,
+                                            disableShortsPlayer = disableShortsPlayer,
+                                            defaultStartRoute = defaultStartRoute,
+                                            bottomNavOverlayPadding = { bottomNavOverlayHeight.value },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -506,60 +516,53 @@ fun FlowApp(
         // The video overlay takes the settled target, not the animated value: it only uses the
         // padding to pick the mini player's resting bounds, and an animated Dp parameter
         // recomposed the whole overlay on every frame of the nav bar animation.
-        VideoPlayerHost(
-            video = activeVideo,
-            isVisible = playerVisible && !isShortsPlayerRoute,
-            playerSheetState = playerSheetState,
-            bottomPadding = bottomPaddingTarget.coerceAtLeast(0.dp),
-            startInset = if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp,
-            miniPlayerScale = miniPlayerScale,
-            miniPlayerShowSkipControls = miniPlayerShowSkipControls,
-            miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
-            onClose = {
-                playerVisible = false
-                if (playerUiState.isRestoredSession) {
-                    playerViewModel.dismissContinueWatching()
-                }
-                playerViewModel.clearVideo()
-            },
-            onMinimize = {
-                playerSheetState.snapTo(PlayerSheetValue.Collapsed)
-                GlobalPlayerState.hideMiniPlayer()
-                playerVisible = false
-            },
-            onNavigateToChannel = { channelArg ->
-                playerSheetState.collapse()
-                navController.navigateToYoutubeChannel(channelArg)
-            },
-            onNavigateToShorts = { videoId ->
-                playerSheetState.collapse()
-                navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
-            },
-        )
-
-        // ===== GLOBAL MUSIC PLAYER OVERLAY =====
-        if (currentMusicTrack != null &&
-            !suppressMusicMiniAfterVideo &&
-            playerUiState.cachedVideo == null
-        ) {
-            UnifiedMusicPlayerSheet(
-                state = musicPlayerSheetState,
-                containerHeight = with(density) { screenHeightPx.toDp() },
-                bottomPadding = animatedBottomPadding,
-                track = currentMusicTrack!!,
-                onDismiss = {
-                    EnhancedMusicPlayerManager.stop()
-                    EnhancedMusicPlayerManager.clearCurrentTrack()
+        CompositionLocalProvider(LocalMediaNavigator provides mediaNavigator) {
+            VideoPlayerHost(
+                video = activeVideo,
+                isVisible = playerVisible && !isShortsPlayerRoute,
+                playerSheetState = playerSheetState,
+                bottomPadding = bottomPaddingTarget.coerceAtLeast(0.dp),
+                startInset = if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp,
+                miniPlayerScale = miniPlayerScale,
+                miniPlayerShowSkipControls = miniPlayerShowSkipControls,
+                miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
+                onClose = {
+                    playerVisible = false
+                    if (playerUiState.isRestoredSession) {
+                        playerViewModel.dismissContinueWatching()
+                    }
+                    playerViewModel.clearVideo()
                 },
-                onArtistClick = { channelId ->
-                    musicPlayerSheetState.collapse()
-                    navController.navigate("artist/${android.net.Uri.encode(channelId)}")
+                onMinimize = {
+                    playerSheetState.snapTo(PlayerSheetValue.Collapsed)
+                    GlobalPlayerState.hideMiniPlayer()
+                    playerVisible = false
                 },
-                onAlbumClick = { albumId ->
-                    musicPlayerSheetState.collapse()
-                    navController.navigate("musicPlaylist/${android.net.Uri.encode(albumId)}")
+                onNavigateToChannel = mediaNavigator::openChannel,
+                onNavigateToShorts = { videoId ->
+                    playerSheetState.collapse()
+                    navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
                 },
             )
+
+            // ===== GLOBAL MUSIC PLAYER OVERLAY =====
+            if (currentMusicTrack != null &&
+                !suppressMusicMiniAfterVideo &&
+                playerUiState.cachedVideo == null
+            ) {
+                UnifiedMusicPlayerSheet(
+                    state = musicPlayerSheetState,
+                    containerHeight = with(density) { screenHeightPx.toDp() },
+                    bottomPadding = animatedBottomPadding,
+                    track = currentMusicTrack!!,
+                    onDismiss = {
+                        EnhancedMusicPlayerManager.stop()
+                        EnhancedMusicPlayerManager.clearCurrentTrack()
+                    },
+                    onArtistClick = mediaNavigator::openArtist,
+                    onAlbumClick = mediaNavigator::openAlbum,
+                )
+            }
         }
 
         androidx.compose.material3.SnackbarHost(

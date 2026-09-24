@@ -818,7 +818,7 @@ fun NavGraphBuilder.flowAppGraph(
     }
 
     // Artist Page
-    composable("artist/{channelId}") { backStackEntry ->
+    composable(MUSIC_ARTIST_ROUTE_PATTERN) { backStackEntry ->
         val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
         val musicViewModel: MusicViewModel =
             io.github.aedev.flow.ui.screens.music
@@ -925,7 +925,7 @@ fun NavGraphBuilder.flowAppGraph(
     }
 
     // Music Playlist Page
-    composable("musicPlaylist/{playlistId}") { backStackEntry ->
+    composable(MUSIC_PLAYLIST_ROUTE_PATTERN) { backStackEntry ->
         val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
         val musicViewModel: MusicViewModel =
             io.github.aedev.flow.ui.screens.music
