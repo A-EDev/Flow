@@ -30,8 +30,12 @@ import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.update.AppRelease
+import io.github.aedev.flow.data.update.UpdateAnnouncement
+import io.github.aedev.flow.data.update.UpdateRepository
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
@@ -56,7 +60,6 @@ import io.github.aedev.flow.ui.youtubeChannelDeepLinkRoute
 import io.github.aedev.flow.updater.ApkUpdateHelper
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
-import io.github.aedev.flow.utils.UpdateInfo
 import io.github.aedev.flow.utils.UpdateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -78,8 +81,8 @@ class MainActivity : ComponentActivity() {
     private val _isDeeplinkShort = mutableStateOf(false)
     val isDeeplinkShort: State<Boolean> = _isDeeplinkShort
 
-    private val _pendingUpdateInfo = mutableStateOf<UpdateInfo?>(null)
-    val pendingUpdateInfo: State<UpdateInfo?> = _pendingUpdateInfo
+    private val _pendingUpdate = mutableStateOf<AppRelease?>(null)
+    val pendingUpdate: State<AppRelease?> = _pendingUpdate
 
     private val _openMusicPlayerRequest = mutableIntStateOf(0)
     val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
@@ -89,6 +92,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
+
+    @Inject
+    lateinit var updateRepository: UpdateRepository
 
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
@@ -230,20 +236,11 @@ class MainActivity : ComponentActivity() {
                 return@setContent
             }
 
-            var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+            var updateInfo by remember { mutableStateOf<AppRelease?>(null) }
 
-            // Check for updates ONCE on launch — skip debug/foss builds, enforce 24h cooldown
             LaunchedEffect(Unit) {
                 if (BuildConfig.DEBUG || !BuildConfig.UPDATER_ENABLED) return@LaunchedEffect
-                val lastCheck = dataManager.lastUpdateCheck.first()
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastCheck < 24 * 60 * 60 * 1000L) return@LaunchedEffect
-
-                val info = UpdateManager.checkForUpdate(BuildConfig.VERSION_NAME)
-                dataManager.setLastUpdateCheck(currentTime)
-                if (info != null && info.isNewer) {
-                    updateInfo = info
-                }
+                updateInfo = updateRepository.releaseToAnnounce(UpdateAnnouncement.LAUNCH_PAGE)
             }
 
             // Load theme preference and keep it reactive
@@ -303,7 +300,7 @@ class MainActivity : ComponentActivity() {
                         updateInfo = updateInfo!!,
                         onDismiss = { updateInfo = null },
                         onUpdate = {
-                            UpdateManager.triggerDownload(context, updateInfo!!.downloadUrl)
+                            UpdateManager.triggerDownload(context, updateInfo!!.apk?.url ?: updateInfo!!.pageUrl)
                             updateInfo = null
                         },
                     )
@@ -311,7 +308,7 @@ class MainActivity : ComponentActivity() {
 
                 // Handle update from notification (github flavor only)
                 if (BuildConfig.UPDATER_ENABLED) {
-                    val pendingUpdate by this@MainActivity.pendingUpdateInfo
+                    val pendingUpdate by this@MainActivity.pendingUpdate
                     LaunchedEffect(pendingUpdate) {
                         if (pendingUpdate != null) {
                             updateInfo = pendingUpdate
@@ -421,6 +418,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
+        if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_UPDATE, false)) {
+            intent.removeExtra(NotificationHelper.EXTRA_OPEN_UPDATE)
+            lifecycleScope.launch {
+                _pendingUpdate.value = updateRepository.latest.value ?: runCatching { updateRepository.fetch() }.getOrNull()
+            }
+            return
+        }
         val data = intent.data
         val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
 
@@ -497,14 +501,6 @@ class MainActivity : ComponentActivity() {
         if (videoId != null) {
             _deeplinkVideoId.value = videoId
             intent.putExtra("deeplink_video_id", videoId)
-        }
-
-        // Check for Update Notification extras
-        if (intent.hasExtra("EXTRA_UPDATE_VERSION")) {
-            val version = intent.getStringExtra("EXTRA_UPDATE_VERSION") ?: ""
-            val changelog = intent.getStringExtra("EXTRA_UPDATE_CHANGELOG") ?: ""
-            val url = intent.getStringExtra("EXTRA_UPDATE_URL") ?: ""
-            _pendingUpdateInfo.value = UpdateInfo(version, changelog, url, true)
         }
     }
 

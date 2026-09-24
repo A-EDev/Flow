@@ -30,20 +30,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.update.AppRelease
 import io.github.aedev.flow.ui.components.shared.FlowDialogDefaults
-import io.github.aedev.flow.utils.UpdateInfo
 
 @Composable
 fun UpdateDialog(
-    updateInfo: UpdateInfo,
+    updateInfo: AppRelease,
     onDismiss: () -> Unit,
     onUpdate: () -> Unit,
 ) {
     val context = LocalContext.current
 
     val displayedChangelog =
-        remember(updateInfo.changelog, updateInfo.version) {
-            if (updateInfo.version.contains("1.4.0") || updateInfo.changelog.isBlank()) {
+        remember(updateInfo.notes, updateInfo.version) {
+            if (updateInfo.version.contains("1.4.0") || updateInfo.notes.isBlank()) {
                 try {
                     val filename = if (updateInfo.version.startsWith("v")) updateInfo.version else "v${updateInfo.version}"
                     try {
@@ -66,14 +66,14 @@ fun UpdateDialog(
                                 .bufferedReader()
                                 .use { it.readText() }
                         } else {
-                            updateInfo.changelog
+                            updateInfo.notes
                         }
                     }
                 } catch (e: Exception) {
-                    updateInfo.changelog
+                    updateInfo.notes
                 }
             } else {
-                updateInfo.changelog
+                updateInfo.notes
             }
         }
 

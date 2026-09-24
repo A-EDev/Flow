@@ -150,10 +150,10 @@ internal fun SettingsHomeScreen(
     val available = updateCheck as? UpdateCheckState.Available
     if (BuildConfig.UPDATER_ENABLED && available != null) {
         UpdateDialog(
-            updateInfo = available.info,
+            updateInfo = available.release,
             onDismiss = viewModel::consumeUpdateCheck,
             onUpdate = {
-                UpdateManager.triggerDownload(context, available.info.downloadUrl)
+                UpdateManager.triggerDownload(context, available.release.apk?.url ?: available.release.pageUrl)
                 viewModel.consumeUpdateCheck()
             },
         )

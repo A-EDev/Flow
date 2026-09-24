@@ -42,6 +42,9 @@ class LocalDataManager
             private val BACKGROUND_PLAY = stringPreferencesKey("background_play")
             private val TRENDING_REGION = stringPreferencesKey("trending_region")
             private val LAST_UPDATE_CHECK = stringPreferencesKey("last_update_check")
+            private val UPDATE_SKIPPED_VERSION = stringPreferencesKey("update_skipped_version")
+            private val UPDATE_PROMPTED_VERSION = stringPreferencesKey("update_prompted_version")
+            private val UPDATE_NOTIFIED_VERSION = stringPreferencesKey("update_notified_version")
             private val BEDTIME_REMINDER =
                 androidx.datastore.preferences.core
                     .booleanPreferencesKey("bedtime_reminder")
@@ -94,6 +97,24 @@ class LocalDataManager
             context.dataStore.edit { prefs ->
                 prefs[LAST_UPDATE_CHECK] = timestamp.toString()
             }
+        }
+
+        val skippedUpdateVersion: Flow<String?> = context.dataStore.data.map { it[UPDATE_SKIPPED_VERSION] }
+
+        suspend fun setSkippedUpdateVersion(version: String) {
+            context.dataStore.edit { it[UPDATE_SKIPPED_VERSION] = version }
+        }
+
+        val promptedUpdateVersion: Flow<String?> = context.dataStore.data.map { it[UPDATE_PROMPTED_VERSION] }
+
+        suspend fun setPromptedUpdateVersion(version: String) {
+            context.dataStore.edit { it[UPDATE_PROMPTED_VERSION] = version }
+        }
+
+        val notifiedUpdateVersion: Flow<String?> = context.dataStore.data.map { it[UPDATE_NOTIFIED_VERSION] }
+
+        suspend fun setNotifiedUpdateVersion(version: String) {
+            context.dataStore.edit { it[UPDATE_NOTIFIED_VERSION] = version }
         }
 
         // Theme Settings
