@@ -2978,6 +2978,24 @@
     <string name="error_remote_playback">Remote playback error. Please try again.</string>
     <string name="error_playback_permission_denied">Playback permission denied. Please try again.</string>
     <string name="error_local_file_missing">This file is no longer on your device</string>
+    <string name="downloads_search_hint">Search downloads</string>
+    <plurals name="delete_downloads_dialog_text">
+        <item quantity="one">Delete %1$d download from this device?</item>
+        <item quantity="other">Delete %1$d downloads from this device?</item>
+    </plurals>
+    <string name="downloads_sort_newest">Newest</string>
+    <string name="downloads_sort_oldest">Oldest</string>
+    <string name="downloads_sort_largest">Largest</string>
+    <string name="downloads_sort_title">Title</string>
+    <string name="downloads_sort_channel">Channel</string>
+    <string name="downloads_storage_used">%1$s in Flow</string>
+    <string name="downloads_storage_free">%1$s free</string>
+    <string name="downloads_storage_videos">Videos %1$s</string>
+    <string name="downloads_storage_music">Music %1$s</string>
+    <string name="downloads_section_in_progress">In progress</string>
+    <string name="downloads_section_downloaded">Downloaded</string>
+    <string name="download_bytes_progress">%1$s of %2$s</string>
+    <string name="downloads_no_results">No downloads match %1$s</string>
     <string name="playlist_type_builtin">Built-in playlist</string>
     <string name="playlist_type_yours">Your playlist</string>
     <string name="playlist_type_saved">Saved from YouTube</string>

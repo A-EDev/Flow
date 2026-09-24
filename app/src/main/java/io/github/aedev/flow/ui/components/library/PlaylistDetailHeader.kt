@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -55,14 +54,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.shared.FlowDropdownFilterChip
 import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
 
 private val HeaderPadding: Dp = 16.dp
@@ -312,30 +308,12 @@ internal fun PlaylistSortChip(
     onSelected: (PlaylistSortOrder) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var open by remember { mutableStateOf(false) }
-    Box(modifier = modifier) {
-        FlowDropdownFilterChip(
-            label = stringResource(selected.labelRes),
-            selected = selected != PlaylistSortOrder.MANUAL,
-            onClick = { open = true },
-        )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(option.labelRes)) },
-                    trailingIcon =
-                        if (option == selected) {
-                            { Icon(Icons.Filled.Check, contentDescription = null) }
-                        } else {
-                            null
-                        },
-                    modifier = Modifier.semantics { this.selected = option == selected },
-                    onClick = {
-                        open = false
-                        onSelected(option)
-                    },
-                )
-            }
-        }
-    }
+    LibrarySortChip(
+        options = options,
+        selected = selected,
+        default = PlaylistSortOrder.MANUAL,
+        label = { stringResource(it.labelRes) },
+        onSelected = onSelected,
+        modifier = modifier,
+    )
 }

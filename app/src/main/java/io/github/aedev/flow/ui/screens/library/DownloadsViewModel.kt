@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.library
 
 import android.content.Context
+import android.os.StatFs
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -8,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.music.DownloadedTrack
+import io.github.aedev.flow.data.video.DownloadProgressUpdate
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
 
@@ -27,81 +30,104 @@ class DownloadsViewModel
     constructor(
         private val videoDownloadManager: VideoDownloadManager,
         private val musicDownloadManager: MusicDownloadManager,
-        @ApplicationContext private val appContext: Context,
+        @param:ApplicationContext private val appContext: Context,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(DownloadsUiState())
         val uiState: StateFlow<DownloadsUiState> = _uiState.asStateFlow()
 
         // Hidden from the lists while their deletion runs; each id drops out once the row is gone.
         private val pendingDeleteIds = MutableStateFlow<Set<String>>(emptySet())
+        private val allVideos = MutableStateFlow<List<DownloadedVideo>>(emptyList())
+        private val allTracks = MutableStateFlow<List<DownloadedTrack>>(emptyList())
+        private val query = MutableStateFlow("")
+        private val sort = MutableStateFlow(DownloadSort.NEWEST)
 
         init {
             observeDownloads()
             if (!videoDownloadManager.hasScannedThisSession) rescan()
         }
 
+        fun setQuery(value: String) {
+            query.value = value
+            _uiState.update { it.copy(query = value) }
+        }
+
+        fun setSort(value: DownloadSort) {
+            sort.value = value
+            _uiState.update { it.copy(sort = value) }
+        }
+
         private fun observeDownloads() {
             viewModelScope.launch {
-                combine(
-                    musicDownloadManager.downloadedTracks,
-                    pendingDeleteIds,
-                ) { tracks, pending ->
+                combine(musicDownloadManager.downloadedTracks, pendingDeleteIds) { tracks, pending ->
                     tracks.filter { it.track.videoId !in pending }
-                }.collect { tracks ->
-                    _uiState.update { it.copy(downloadedMusic = tracks) }
-                }
+                }.collect { allTracks.value = it }
             }
-
             viewModelScope.launch {
-                combine(
-                    videoDownloadManager.downloadedVideos,
-                    pendingDeleteIds,
-                ) { videos, pending ->
+                combine(videoDownloadManager.downloadedVideos, pendingDeleteIds) { videos, pending ->
                     videos.filter { it.video.id !in pending }
-                }.collect { videos ->
-                    _uiState.update { it.copy(downloadedVideos = videos) }
-                }
+                }.collect { allVideos.value = it }
             }
-
             viewModelScope.launch {
-                combine(
-                    videoDownloadManager.allDownloads,
-                    pendingDeleteIds,
-                ) { downloads, pending ->
-                    pendingDeleteIds.update { ids -> ids.intersect(downloads.mapTo(HashSet()) { it.download.videoId }) }
-                    downloads.filter { download ->
-                        download.download.videoId !in pending && download.overallStatus != DownloadItemStatus.COMPLETED
-                    }
-                }.collect { incomplete ->
-                    _uiState.update { state ->
-                        val activeIds = incomplete.mapTo(HashSet()) { it.download.videoId }
-                        state.copy(
-                            incompleteVideoDownloads = incomplete.filterNot { it.isAudioOnly },
-                            incompleteMusicDownloads = incomplete.filter { it.isAudioOnly },
-                            mergingVideoIds = state.mergingVideoIds.intersect(activeIds),
-                            downloadProgressMap = state.downloadProgressMap.filterKeys { it in activeIds },
+                combine(allVideos, allTracks, query, sort) { videos, tracks, text, order ->
+                    ShownDownloads(
+                        videos = videos.filterAndSort(text, order),
+                        tracks = tracks.filterAndSortTracks(text, order),
+                        videoCount = videos.size,
+                        musicCount = tracks.size,
+                    )
+                }.collect { shown ->
+                    _uiState.update {
+                        it.copy(
+                            downloadedVideos = shown.videos,
+                            downloadedMusic = shown.tracks,
+                            totalVideoCount = shown.videoCount,
+                            totalMusicCount = shown.musicCount,
                         )
                     }
                 }
             }
-
+            viewModelScope.launch {
+                combine(allVideos, allTracks) { videos, tracks -> videos.sumOf { it.fileSize } to tracks.sumOf { it.fileSize } }
+                    .collect { (videoBytes, musicBytes) ->
+                        val free = withContext(Dispatchers.IO) { freeBytes() }
+                        _uiState.update { it.copy(storage = DownloadStorage(videoBytes, musicBytes, free)) }
+                    }
+            }
+            viewModelScope.launch {
+                combine(videoDownloadManager.allDownloads, pendingDeleteIds) { downloads, pending -> downloads to pending }
+                    .collect { (downloads, pending) ->
+                        val present = downloads.mapTo(HashSet()) { it.download.videoId }
+                        if (!present.containsAll(pending)) pendingDeleteIds.update { it.intersect(present) }
+                        val incomplete =
+                            downloads.filter { it.download.videoId !in pending && it.overallStatus != DownloadItemStatus.COMPLETED }
+                        _uiState.update { state ->
+                            val activeIds = incomplete.mapTo(HashSet()) { it.download.videoId }
+                            state.copy(
+                                incompleteVideoDownloads = incomplete.filterNot { it.isAudioOnly },
+                                incompleteMusicDownloads = incomplete.filter { it.isAudioOnly },
+                                mergingVideoIds = state.mergingVideoIds.intersect(activeIds),
+                                progress = state.progress.filterKeys { it in activeIds },
+                            )
+                        }
+                    }
+            }
             viewModelScope.launch {
                 videoDownloadManager.progressUpdates.collect { update ->
                     _uiState.update { state ->
-                        val newMerging =
-                            if (update.isMerging) {
-                                state.mergingVideoIds + update.videoId
-                            } else {
-                                state.mergingVideoIds - update.videoId
-                            }
                         state.copy(
-                            downloadProgressMap = state.downloadProgressMap + (update.videoId to update.progress),
-                            mergingVideoIds = newMerging,
+                            progress = state.progress + (update.videoId to update),
+                            mergingVideoIds =
+                                if (update.isMerging) state.mergingVideoIds + update.videoId else state.mergingVideoIds - update.videoId,
                         )
                     }
                 }
             }
         }
+
+        private fun freeBytes(): Long =
+            runCatching { StatFs((appContext.getExternalFilesDir(null) ?: appContext.filesDir).path).availableBytes }
+                .getOrDefault(0L)
 
         /**
          * A finished download is deleted here; one still running is cancelled through the service,
@@ -121,30 +147,24 @@ class DownloadsViewModel
 
         fun deleteMusicDownload(videoId: String) {
             pendingDeleteIds.update { it + videoId }
-            viewModelScope.launch(Dispatchers.IO) {
-                musicDownloadManager.deleteDownload(videoId)
-                pendingDeleteIds.update { it - videoId }
-            }
+            viewModelScope.launch { musicDownloadManager.deleteDownload(videoId) }
         }
 
-        fun pauseVideoDownload(videoId: String) {
-            FlowDownloadService.pauseDownload(appContext, videoId)
+        fun deleteDownloads(ids: Set<String>) {
+            val musicIds = allTracks.value.mapTo(HashSet()) { it.track.videoId }
+            ids.forEach { id -> if (id in musicIds) deleteMusicDownload(id) else deleteVideoDownload(id) }
         }
 
-        fun resumeVideoDownload(videoId: String) {
-            FlowDownloadService.resumeDownload(appContext, videoId)
-        }
+        fun pauseVideoDownload(videoId: String) = FlowDownloadService.pauseDownload(appContext, videoId)
 
-        fun retryVideoDownload(videoId: String) {
-            FlowDownloadService.retryDownload(appContext, videoId)
-        }
+        fun resumeVideoDownload(videoId: String) = FlowDownloadService.resumeDownload(appContext, videoId)
 
-        /** Cancels what [kind] shows as incomplete; the service deletes each once it has stopped. */
+        fun retryVideoDownload(videoId: String) = FlowDownloadService.retryDownload(appContext, videoId)
+
+        /** Cancels the incomplete downloads of one tab; the service deletes each once it has stopped. */
         fun removeIncompleteDownloads(audioOnly: Boolean) {
             val state = _uiState.value
-            val ids =
-                (if (audioOnly) state.incompleteMusicDownloads else state.incompleteVideoDownloads)
-                    .map { it.download.videoId }
+            val ids = (if (audioOnly) state.incompleteMusicDownloads else state.incompleteVideoDownloads).map { it.download.videoId }
             if (ids.isEmpty()) return
             pendingDeleteIds.update { it + ids }
             ids.forEach { videoId -> FlowDownloadService.cancelDownload(appContext, videoId) }
@@ -157,15 +177,26 @@ class DownloadsViewModel
                 _uiState.update { it.copy(isScanning = false) }
             }
         }
+
+        private data class ShownDownloads(
+            val videos: List<DownloadedVideo>,
+            val tracks: List<DownloadedTrack>,
+            val videoCount: Int,
+            val musicCount: Int,
+        )
     }
 
 data class DownloadsUiState(
     val downloadedVideos: List<DownloadedVideo> = emptyList(),
+    val downloadedMusic: List<DownloadedTrack> = emptyList(),
+    val totalVideoCount: Int = 0,
+    val totalMusicCount: Int = 0,
     val incompleteVideoDownloads: List<DownloadWithItems> = emptyList(),
     val incompleteMusicDownloads: List<DownloadWithItems> = emptyList(),
-    val downloadedMusic: List<DownloadedTrack> = emptyList(),
-    val downloadProgressMap: Map<String, Float> = emptyMap(),
+    val progress: Map<String, DownloadProgressUpdate> = emptyMap(),
     val mergingVideoIds: Set<String> = emptySet(),
-    val isLoading: Boolean = false,
+    val storage: DownloadStorage = DownloadStorage(),
+    val query: String = "",
+    val sort: DownloadSort = DownloadSort.NEWEST,
     val isScanning: Boolean = false,
 )

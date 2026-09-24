@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
@@ -113,6 +114,14 @@ fun Modifier.dismissKeyboardOnPress(onPress: () -> Unit): Modifier =
     }
 
 fun LazyItemScope.animateMediaListItem(): Modifier =
+    Modifier.animateItem(
+        fadeInSpec = tween(ITEM_FADE_IN_MILLIS, easing = EaseOutCubic),
+        fadeOutSpec = tween(ITEM_FADE_OUT_MILLIS, easing = EaseInCubic),
+        placementSpec = spring(dampingRatio = ITEM_PLACEMENT_DAMPING, stiffness = Spring.StiffnessLow),
+    )
+
+/** [animateMediaListItem] for an item of a lazy grid. */
+fun LazyGridItemScope.animateMediaGridItem(): Modifier =
     Modifier.animateItem(
         fadeInSpec = tween(ITEM_FADE_IN_MILLIS, easing = EaseOutCubic),
         fadeOutSpec = tween(ITEM_FADE_OUT_MILLIS, easing = EaseInCubic),

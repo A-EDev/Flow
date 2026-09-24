@@ -1,15 +1,20 @@
 package io.github.aedev.flow.ui.screens.library
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -20,7 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -33,13 +40,21 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.library.ActiveDownloadActions
+import io.github.aedev.flow.ui.components.library.DownloadsStorageCard
+import io.github.aedev.flow.ui.components.library.LibrarySelection
+import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
+import io.github.aedev.flow.ui.components.library.LibrarySortChip
 import io.github.aedev.flow.ui.components.library.MusicDownloadsList
+import io.github.aedev.flow.ui.components.library.SelectionAction
 import io.github.aedev.flow.ui.components.library.VideosDownloadsList
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
+import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.MediaKindSelector
+import io.github.aedev.flow.ui.components.shared.flowGridColumns
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadsScreen(
     onBackClick: () -> Unit,
@@ -50,33 +65,76 @@ fun DownloadsScreen(
     viewModel: DownloadsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var selectedKind by remember { mutableStateOf(MediaKind.Videos) }
-    var showRemoveIncompleteDialog by remember { mutableStateOf(false) }
+    var selectedKind by rememberSaveable { mutableStateOf(MediaKind.Videos) }
     var pendingDeletion by remember { mutableStateOf<PendingDeletion?>(null) }
+    var removeIncompleteOf by remember { mutableStateOf<MediaKind?>(null) }
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val haptic = LocalHapticFeedback.current
+    val exitSelection = {
+        selectionMode = false
+        selectedIds = emptySet()
+    }
+    val shownIds =
+        if (selectedKind ==
+            MediaKind.Videos
+        ) {
+            uiState.downloadedVideos.map { it.video.id }
+        } else {
+            uiState.downloadedMusic.map { it.track.videoId }
+        }
+
+    BackHandler(enabled = selectionMode) { exitSelection() }
+
+    val selection =
+        LibrarySelection(selectionMode, selectedIds) { id ->
+            selectedIds =
+                if (id in selectedIds) selectedIds - id else selectedIds + id
+        }
+    val activeActions =
+        ActiveDownloadActions(
+            onPause = viewModel::pauseVideoDownload,
+            onResume = viewModel::resumeVideoDownload,
+            onRetry = viewModel::retryVideoDownload,
+            onCancel = { id, title -> pendingDeletion = PendingDeletion(setOf(id), title) },
+            onCancelAll = { removeIncompleteOf = selectedKind },
+        )
+    val listHeader: @Composable () -> Unit = {
+        Column {
+            DownloadsStorageCard(uiState.storage.videoBytes, uiState.storage.musicBytes, uiState.storage.freeBytes)
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                LibrarySortChip(
+                    options = DownloadSort.entries,
+                    selected = uiState.sort,
+                    default = DownloadSort.NEWEST,
+                    label = { stringResource(it.labelRes) },
+                    onSelected = viewModel::setSort,
+                )
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             FlowTopBar(
-                title = stringResource(R.string.downloads_title),
-                onBack = onBackClick,
+                title =
+                    if (selectionMode) {
+                        pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size)
+                    } else {
+                        stringResource(R.string.downloads_title)
+                    },
+                onBack = if (selectionMode) exitSelection else onBackClick,
                 actions = {
-                    val incompleteCount =
-                        if (selectedKind ==
-                            MediaKind.Videos
-                        ) {
-                            uiState.incompleteVideoDownloads.size
-                        } else {
-                            uiState.incompleteMusicDownloads.size
+                    if (selectionMode) {
+                        IconButton(onClick = { selectedIds = if (selectedIds.size == shownIds.size) emptySet() else shownIds.toSet() }) {
+                            Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.select_all))
                         }
-                    if (incompleteCount > 0) {
-                        IconButton(onClick = { showRemoveIncompleteDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = stringResource(R.string.remove_incomplete_downloads),
-                            )
+                    } else if (shownIds.isNotEmpty()) {
+                        IconButton(onClick = { selectionMode = true }) {
+                            Icon(Icons.Default.Checklist, contentDescription = stringResource(R.string.select_videos))
                         }
                     }
                 },
@@ -84,144 +142,151 @@ fun DownloadsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-        ) {
-            MediaKindSelector(
-                options = MediaKind.entries,
-                selected = selectedKind,
-                onSelected = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    selectedKind = it
-                },
-                label = { stringResource(it.labelRes) },
-                icon = { it.icon },
-            )
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            Column(Modifier.fillMaxSize()) {
+                FlowSearchField(
+                    query = uiState.query,
+                    onQueryChange = viewModel::setQuery,
+                    placeholder = stringResource(R.string.downloads_search_hint),
+                    onClear = { viewModel.setQuery("") },
+                    modifier = Modifier.padding(horizontal = 16.dp).widthIn(max = FlowMaxContentWidth).fillMaxWidth(),
+                )
+                MediaKindSelector(
+                    options = MediaKind.entries,
+                    selected = selectedKind,
+                    onSelected = {
+                        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        exitSelection()
+                        selectedKind = it
+                    },
+                    label = { stringResource(it.labelRes) },
+                    icon = { it.icon },
+                    modifier = Modifier.widthIn(max = FlowMaxContentWidth),
+                )
+                val videoColumns = flowGridColumns(compact = 1, medium = 2, expanded = 3)
+                val musicColumns = flowGridColumns(compact = 1, medium = 1, expanded = 2)
+                Crossfade(
+                    targetState = selectedKind,
+                    animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                    label = "downloads_kind",
+                    modifier = Modifier.weight(1f),
+                ) { kind ->
+                    when (kind) {
+                        MediaKind.Videos -> {
+                            VideosDownloadsList(
+                                header = listHeader,
+                                videos = uiState.downloadedVideos,
+                                totalCount = uiState.totalVideoCount,
+                                incomplete = uiState.incompleteVideoDownloads,
+                                progress = uiState.progress,
+                                mergingIds = uiState.mergingVideoIds,
+                                columns = videoColumns,
+                                query = uiState.query,
+                                selection = selection,
+                                activeActions = activeActions,
+                                isRefreshing = uiState.isScanning,
+                                onRefresh = viewModel::rescan,
+                                onVideoClick = onVideoClick,
+                                onDelete = { id, title -> pendingDeletion = PendingDeletion(setOf(id), title) },
+                                onHomeClick = onHomeClick,
+                            )
+                        }
 
-            Crossfade(
-                targetState = selectedKind,
-                animationSpec = tween(250, easing = EaseOutCubic),
-                label = "downloads_kind_crossfade",
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-            ) { kind ->
-                when (kind) {
-                    MediaKind.Videos -> {
-                        VideosDownloadsList(
-                            videos = uiState.downloadedVideos,
-                            incompleteDownloads = uiState.incompleteVideoDownloads,
-                            progressMap = uiState.downloadProgressMap,
-                            mergingVideoIds = uiState.mergingVideoIds,
-                            isRefreshing = uiState.isScanning,
-                            onRefresh = { viewModel.rescan() },
-                            onVideoClick = onVideoClick,
-                            onDeleteClick = { id, title ->
-                                pendingDeletion = PendingDeletion(id, title, MediaKind.Videos)
-                            },
-                            onPauseClick = { viewModel.pauseVideoDownload(it) },
-                            onResumeClick = { viewModel.resumeVideoDownload(it) },
-                            onRetryClick = { viewModel.retryVideoDownload(it) },
-                            onHomeClick = onHomeClick,
-                        )
-                    }
-
-                    MediaKind.Music -> {
-                        MusicDownloadsList(
-                            tracks = uiState.downloadedMusic,
-                            incompleteDownloads = uiState.incompleteMusicDownloads,
-                            progressMap = uiState.downloadProgressMap,
-                            onPauseClick = { viewModel.pauseVideoDownload(it) },
-                            onResumeClick = { viewModel.resumeVideoDownload(it) },
-                            onRetryClick = { viewModel.retryVideoDownload(it) },
-                            onCancelClick = { id, title -> pendingDeletion = PendingDeletion(id, title, MediaKind.Videos) },
-                            isRefreshing = uiState.isScanning,
-                            onRefresh = { viewModel.rescan() },
-                            onMusicClick = onMusicClick,
-                            onDeleteClick = { id, title ->
-                                pendingDeletion = PendingDeletion(id, title, MediaKind.Music)
-                            },
-                            onHomeClick = onHomeClick,
-                        )
+                        MediaKind.Music -> {
+                            MusicDownloadsList(
+                                header = listHeader,
+                                tracks = uiState.downloadedMusic,
+                                totalCount = uiState.totalMusicCount,
+                                incomplete = uiState.incompleteMusicDownloads,
+                                progress = uiState.progress,
+                                columns = musicColumns,
+                                query = uiState.query,
+                                selection = selection,
+                                activeActions = activeActions,
+                                isRefreshing = uiState.isScanning,
+                                onRefresh = viewModel::rescan,
+                                onMusicClick = onMusicClick,
+                                onHomeClick = onHomeClick,
+                            )
+                        }
                     }
                 }
             }
+            LibrarySelectionToolbar(
+                visible = selectionMode && selectedIds.isNotEmpty(),
+                summary = pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size),
+                actions =
+                    listOf(
+                        SelectionAction(Icons.Outlined.Delete, stringResource(R.string.action_delete), destructive = true) {
+                            pendingDeletion = PendingDeletion(selectedIds, title = null)
+                        },
+                    ),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 
     pendingDeletion?.let { deletion ->
-        FlowAlertDialog(
-            onDismissRequest = { pendingDeletion = null },
-            title = { Text(stringResource(R.string.delete_download_dialog_title)) },
-            text = { Text(stringResource(R.string.delete_download_dialog_text, deletion.title)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        when (deletion.kind) {
-                            MediaKind.Videos -> viewModel.deleteVideoDownload(deletion.id)
-                            MediaKind.Music -> viewModel.deleteMusicDownload(deletion.id)
-                        }
-                        pendingDeletion = null
-                    },
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeletion = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
+        DeleteDownloadsDialog(
+            deletion = deletion,
+            onDismiss = { pendingDeletion = null },
+            onConfirm = {
+                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                viewModel.deleteDownloads(deletion.ids)
+                pendingDeletion = null
+                exitSelection()
             },
         )
     }
 
-    if (showRemoveIncompleteDialog) {
+    removeIncompleteOf?.let { kind ->
+        val count = if (kind == MediaKind.Videos) uiState.incompleteVideoDownloads.size else uiState.incompleteMusicDownloads.size
         FlowAlertDialog(
-            onDismissRequest = { showRemoveIncompleteDialog = false },
+            onDismissRequest = { removeIncompleteOf = null },
             title = { Text(stringResource(R.string.remove_incomplete_downloads)) },
-            text = {
-                Text(
-                    pluralStringResource(
-                        R.plurals.remove_incomplete_downloads_message,
-                        incompleteCount(uiState, selectedKind),
-                        incompleteCount(uiState, selectedKind),
-                    ),
-                )
-            },
+            text = { Text(pluralStringResource(R.plurals.remove_incomplete_downloads_message, count, count)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showRemoveIncompleteDialog = false
-                        viewModel.removeIncompleteDownloads(audioOnly = selectedKind == MediaKind.Music)
+                        viewModel.removeIncompleteDownloads(audioOnly = kind == MediaKind.Music)
+                        removeIncompleteOf = null
                     },
-                ) {
-                    Text(stringResource(R.string.remove))
-                }
+                ) { Text(stringResource(R.string.remove)) }
             },
-            dismissButton = {
-                TextButton(onClick = { showRemoveIncompleteDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
+            dismissButton = { TextButton(onClick = { removeIncompleteOf = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
 
-private fun incompleteCount(
-    state: DownloadsUiState,
-    kind: MediaKind,
-): Int = if (kind == MediaKind.Videos) state.incompleteVideoDownloads.size else state.incompleteMusicDownloads.size
+@Composable
+private fun DeleteDownloadsDialog(
+    deletion: PendingDeletion,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    FlowAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.delete_download_dialog_title)) },
+        text = {
+            Text(
+                if (deletion.title != null) {
+                    stringResource(R.string.delete_download_dialog_text, deletion.title)
+                } else {
+                    pluralStringResource(R.plurals.delete_downloads_dialog_text, deletion.ids.size, deletion.ids.size)
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(text = stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
 
+/** What a confirmed delete removes: one download named by [title], or a selection. */
 private data class PendingDeletion(
-    val id: String,
-    val title: String,
-    val kind: MediaKind,
+    val ids: Set<String>,
+    val title: String?,
 )
