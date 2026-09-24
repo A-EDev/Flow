@@ -559,8 +559,6 @@ fun FlowApp(
                         EnhancedMusicPlayerManager.stop()
                         EnhancedMusicPlayerManager.clearCurrentTrack()
                     },
-                    onArtistClick = mediaNavigator::openArtist,
-                    onAlbumClick = mediaNavigator::openAlbum,
                 )
             }
         }

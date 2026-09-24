@@ -96,8 +96,6 @@ fun UnifiedMusicPlayerSheet(
     bottomPadding: Dp,
     track: MusicTrack,
     onDismiss: () -> Unit,
-    onArtistClick: (String) -> Unit,
-    onAlbumClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -513,8 +511,6 @@ fun UnifiedMusicPlayerSheet(
                             palette = palette,
                             backgroundStyle = backgroundStyle,
                             hideArtwork = hideArtwork,
-                            onArtistClick = onArtistClick,
-                            onAlbumClick = onAlbumClick,
                         )
                     }
                 }

@@ -134,16 +134,6 @@ fun EnhancedMusicScreen(
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onViewArtist = { channelId ->
-                if (channelId.isNotEmpty()) {
-                    onArtistClick(channelId)
-                }
-            },
-            onViewAlbum = { albumId ->
-                if (albumId.isNotEmpty()) {
-                    onAlbumClick(albumId)
-                }
-            },
             onShare = {
                 val shareIntent =
                     Intent(Intent.ACTION_SEND).apply {

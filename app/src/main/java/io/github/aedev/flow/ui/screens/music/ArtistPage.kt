@@ -95,22 +95,6 @@ fun ArtistPage(
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onViewArtist = {
-                if (selectedTrack!!.channelId.isNotEmpty()) {
-                    onArtistClick(selectedTrack!!.channelId)
-                }
-            },
-            onViewAlbum = {
-                selectedTrack!!.albumId?.let { albumId ->
-                    onAlbumClick(
-                        MusicPlaylist(
-                            id = albumId,
-                            title = selectedTrack!!.album ?: context.getString(R.string.album_label),
-                            thumbnailUrl = "",
-                        ),
-                    )
-                }
-            },
             onShare = {
                 val shareIntent =
                     Intent(Intent.ACTION_SEND).apply {

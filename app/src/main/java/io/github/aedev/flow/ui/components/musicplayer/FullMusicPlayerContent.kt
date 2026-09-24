@@ -91,6 +91,7 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.service.Media3MusicService
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
@@ -111,8 +112,6 @@ internal fun FullMusicPlayerContent(
     palette: MediaPalette,
     backgroundStyle: MusicPlayerBackgroundStyle,
     hideArtwork: Boolean,
-    onArtistClick: (String) -> Unit,
-    onAlbumClick: (String) -> Unit,
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -121,11 +120,11 @@ internal fun FullMusicPlayerContent(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val colorScheme = MaterialTheme.colorScheme
+    val navigator = LocalMediaNavigator.current
 
     val thumbnailUrl = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
-    var showInfoDialog by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
     var previewDirection by remember { mutableStateOf<SkipDirection?>(null) }
     val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
@@ -197,16 +196,6 @@ internal fun FullMusicPlayerContent(
         MusicQuickActionsSheet(
             track = uiState.currentTrack!!,
             onDismiss = { showMoreOptions = false },
-            onViewArtist = { channelId ->
-                if (channelId.isNotEmpty()) {
-                    onArtistClick(channelId)
-                }
-            },
-            onViewAlbum = { albumId ->
-                if (albumId.isNotEmpty()) {
-                    onAlbumClick(albumId)
-                }
-            },
             onShare = {
                 val shareIntent =
                     Intent(Intent.ACTION_SEND).apply {
@@ -224,7 +213,6 @@ internal fun FullMusicPlayerContent(
                     }
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             },
-            onInfoClick = { showInfoDialog = true },
             onAudioEffectsClick = { showAudioSettings = true },
             onSleepTimerClick = { showSleepTimer = true },
             showPlaylistDialogs = false,
@@ -234,13 +222,6 @@ internal fun FullMusicPlayerContent(
     if (showAudioSettings) {
         AudioSettingsSheet(
             onDismiss = { showAudioSettings = false },
-        )
-    }
-
-    if (showInfoDialog && uiState.currentTrack != null) {
-        TrackInfoDialog(
-            track = uiState.currentTrack!!,
-            onDismiss = { showInfoDialog = false },
         )
     }
 
@@ -540,7 +521,7 @@ internal fun FullMusicPlayerContent(
                                     uiState.currentTrack
                                         ?.channelId
                                         ?.takeIf { it.isNotEmpty() }
-                                        ?.let { onArtistClick(it) }
+                                        ?.let(navigator::openArtist)
                                 },
                         )
                     }

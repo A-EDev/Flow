@@ -158,12 +158,6 @@ fun MusicSearchScreen(
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onViewArtist = {
-                if (selectedTrack!!.channelId.isNotEmpty()) {
-                    onArtistClick(selectedTrack!!.channelId)
-                }
-            },
-            onViewAlbum = {},
             onShare = {
                 val shareIntent =
                     Intent(Intent.ACTION_SEND).apply {

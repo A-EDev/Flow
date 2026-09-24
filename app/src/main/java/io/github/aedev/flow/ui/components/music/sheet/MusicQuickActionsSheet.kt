@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.*
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
@@ -51,16 +52,14 @@ import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 fun MusicQuickActionsSheet(
     track: MusicTrack,
     onDismiss: () -> Unit,
-    onViewArtist: (String) -> Unit = {},
-    onViewAlbum: (String) -> Unit = {},
     onShare: () -> Unit = {},
-    onInfoClick: () -> Unit = {},
-    onAudioEffectsClick: () -> Unit = {},
-    onSleepTimerClick: () -> Unit = {},
+    onAudioEffectsClick: (() -> Unit)? = null,
+    onSleepTimerClick: (() -> Unit)? = null,
     showPlaylistDialogs: Boolean = true,
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val navigator = LocalMediaNavigator.current
     val uiState by viewModel.uiState.collectAsState()
     var showMediaInfo by remember { mutableStateOf(false) }
     var showArtistSelection by remember { mutableStateOf(false) }
@@ -100,7 +99,8 @@ fun MusicQuickActionsSheet(
         ArtistSelectionDialog(
             artists = track.artists ?: emptyList(),
             onArtistSelected = { channelId ->
-                onViewArtist(channelId)
+                navigator.openArtist(channelId)
+                onDismiss()
             },
             onDismiss = { showArtistSelection = false },
         )
@@ -210,22 +210,26 @@ fun MusicQuickActionsSheet(
                                     onDismiss()
                                 },
                             ),
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Default.GraphicEq, null) },
-                                title = { Text(stringResource(R.string.audio_effects)) },
-                                onClick = {
-                                    onAudioEffectsClick()
-                                    onDismiss()
-                                },
-                            ),
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.Bedtime, null) },
-                                title = { Text(stringResource(R.string.sleep_timer)) },
-                                onClick = {
-                                    onSleepTimerClick()
-                                    onDismiss()
-                                },
-                            ),
+                            onAudioEffectsClick?.let { onClick ->
+                                FlowMenuItemData(
+                                    icon = { Icon(Icons.Default.GraphicEq, null) },
+                                    title = { Text(stringResource(R.string.audio_effects)) },
+                                    onClick = {
+                                        onClick()
+                                        onDismiss()
+                                    },
+                                )
+                            },
+                            onSleepTimerClick?.let { onClick ->
+                                FlowMenuItemData(
+                                    icon = { Icon(Icons.Outlined.Bedtime, null) },
+                                    title = { Text(stringResource(R.string.sleep_timer)) },
+                                    onClick = {
+                                        onClick()
+                                        onDismiss()
+                                    },
+                                )
+                            },
                         ),
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
@@ -301,7 +305,7 @@ fun MusicQuickActionsSheet(
                                         } else {
                                             val artistId = track.artists?.firstOrNull()?.id ?: track.channelId
                                             if (artistId?.isNotEmpty() == true) {
-                                                onViewArtist(artistId)
+                                                navigator.openArtist(artistId)
                                                 onDismiss()
                                             }
                                         }
@@ -316,7 +320,7 @@ fun MusicQuickActionsSheet(
                                     title = { Text(stringResource(R.string.view_album)) },
                                     description = { Text(track.album) },
                                     onClick = {
-                                        onViewAlbum(track.albumId.orEmpty())
+                                        navigator.openAlbum(track.albumId.orEmpty())
                                         onDismiss()
                                     },
                                 )

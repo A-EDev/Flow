@@ -183,10 +183,6 @@ fun PlaylistPage(
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onViewArtist = {
-                if (selectedTrack!!.channelId.isNotEmpty()) onArtistClick(selectedTrack!!.channelId)
-            },
-            onViewAlbum = {},
             onShare = {
                 val intent =
                     Intent(Intent.ACTION_SEND).apply {

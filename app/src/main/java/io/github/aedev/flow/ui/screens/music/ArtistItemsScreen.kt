@@ -76,8 +76,6 @@ fun ArtistItemsScreen(
         MusicQuickActionsSheet(
             track = track,
             onDismiss = { selectedTrack = null },
-            onViewArtist = { artistId -> if (artistId.isNotEmpty()) onArtistClick(artistId) },
-            onViewAlbum = { albumId -> if (albumId.isNotEmpty()) onAlbumClick(albumId) },
             onShare = {
                 val shareIntent =
                     Intent(Intent.ACTION_SEND).apply {
