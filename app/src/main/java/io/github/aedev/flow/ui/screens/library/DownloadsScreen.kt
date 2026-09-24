@@ -154,6 +154,7 @@ fun DownloadsScreen(
                             },
                             onPauseClick = { viewModel.pauseVideoDownload(it) },
                             onResumeClick = { viewModel.resumeVideoDownload(it) },
+                            onRetryClick = { viewModel.retryVideoDownload(it) },
                             onHomeClick = onHomeClick,
                         )
                     }

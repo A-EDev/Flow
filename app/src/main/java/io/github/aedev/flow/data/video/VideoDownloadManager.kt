@@ -461,6 +461,18 @@ class VideoDownloadManager
                     ?.takeIf { File(it).exists() }
             }
 
+        /**
+         * Removes [videoId]'s row and partial files before returning, unlike [deleteDownload], so a
+         * retry that writes to the same paths can't have its new file deleted behind it.
+         */
+        suspend fun discardForRetry(videoId: String) =
+            withContext(Dispatchers.IO) {
+                val download = downloadDao.getDownloadWithItems(videoId) ?: return@withContext
+                val filePaths = download.items.flatMap { artifactPathsFor(it.filePath) }.distinct()
+                downloadDao.deleteDownload(videoId)
+                filePaths.forEach { deleteFileFromDisk(it) }
+            }
+
         /** Delete download and its files from disk.
          *
          * Based on NewPipe's deletion order:

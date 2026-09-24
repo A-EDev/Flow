@@ -28,6 +28,7 @@ import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
 import io.github.aedev.flow.data.video.DownloadProgressUpdate
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
@@ -71,6 +72,9 @@ class FlowDownloadService : Service() {
     @Inject
     lateinit var offlineSubtitleStore: OfflineSubtitleStore
 
+    @Inject
+    lateinit var backgroundQueuer: BackgroundDownloadQueuer
+
     private val gson = Gson()
 
     private val activeMissions = ConcurrentHashMap<String, FlowDownloadMission>()
@@ -104,10 +108,14 @@ class FlowDownloadService : Service() {
         private const val FOREGROUND_NOTIFICATION_ID = 724
         private const val MAX_CONCURRENT_DOWNLOADS = 3
 
+        // Progress changes are shown in whole percent; the notification may not update faster anyway.
+        private const val PROGRESS_INTERVAL_MS = 1_000L
+
         const val ACTION_START_DOWNLOAD = "io.github.aedev.flow.START_DOWNLOAD"
         const val ACTION_PAUSE_DOWNLOAD = "io.github.aedev.flow.PAUSE_DOWNLOAD"
         const val ACTION_RESUME_DOWNLOAD = "io.github.aedev.flow.RESUME_DOWNLOAD"
         const val ACTION_CANCEL_DOWNLOAD = "io.github.aedev.flow.CANCEL_DOWNLOAD"
+        const val ACTION_RETRY_DOWNLOAD = "io.github.aedev.flow.RETRY_DOWNLOAD"
 
         /** Audio-only download mode flag — if set, only download audio stream */
         const val EXTRA_AUDIO_ONLY = "audio_only"
@@ -261,6 +269,18 @@ class FlowDownloadService : Service() {
             context.startService(intent)
         }
 
+        fun retryDownload(
+            context: Context,
+            videoId: String,
+        ) {
+            val intent =
+                Intent(context, FlowDownloadService::class.java).apply {
+                    action = ACTION_RETRY_DOWNLOAD
+                    putExtra("video_id", videoId)
+                }
+            context.startService(intent)
+        }
+
         fun cancelDownload(
             context: Context,
             videoId: String,
@@ -398,8 +418,45 @@ class FlowDownloadService : Service() {
                 Log.d(TAG, "onStartCommand: Handling CANCEL_DOWNLOAD for $videoId")
                 videoId?.let { handleCancel(it) }
             }
+
+            ACTION_RETRY_DOWNLOAD -> {
+                Log.d(TAG, "onStartCommand: Handling RETRY_DOWNLOAD for $videoId")
+                videoId?.let { requeue(it) }
+            }
         }
         return START_NOT_STICKY
+    }
+
+    /** Android 15 caps data-sync services at six hours a day; pause rather than be stopped mid-write. */
+    override fun onTimeout(
+        startId: Int,
+        fgsType: Int,
+    ) {
+        Log.w(TAG, "onTimeout: pausing ${activeMissions.size} download(s)")
+        activeMissions.keys.forEach(::handlePause)
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+        stopSelf()
+    }
+
+    /**
+     * Starts [videoId] over with fresh stream URLs. A failed download's links have usually expired,
+     * and a download the service no longer holds (the app was closed) cannot be continued.
+     */
+    private fun requeue(videoId: String) {
+        pendingDownloadStarts.incrementAndGet()
+        serviceScope.launch {
+            try {
+                val download = downloadManager.getDownloadWithItems(videoId) ?: return@launch
+                val video = downloadManager.toDownloadedVideo(download).video.copy(isMusic = download.isAudioOnly)
+                activeMissions.remove(videoId)
+                downloadManager.discardForRetry(videoId)
+                val outcome = backgroundQueuer.queue(video, replaceExisting = true)
+                Log.d(TAG, "requeue: $videoId -> $outcome")
+            } finally {
+                pendingDownloadStarts.decrementAndGet()
+                stopServiceIfIdle()
+            }
+        }
     }
 
     // ===== Download Lifecycle =====
@@ -681,7 +738,7 @@ class FlowDownloadService : Service() {
                             )
                         }
                         updateNotification(mission, videoId)
-                        delay(250L)
+                        delay(PROGRESS_INTERVAL_MS)
                     }
                 }
 
@@ -1122,7 +1179,11 @@ class FlowDownloadService : Service() {
     private fun handlePause(videoId: String) {
         val mission =
             activeMissions[videoId] ?: run {
-                Log.w(TAG, "handlePause: No active mission for $videoId")
+                Log.w(TAG, "handlePause: No active mission for $videoId; marking it failed so it can be retried")
+                serviceScope.launch {
+                    updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
+                    stopServiceIfIdle()
+                }
                 return
             }
         if (mission.status != MissionStatus.RUNNING) {
@@ -1154,12 +1215,14 @@ class FlowDownloadService : Service() {
         }
 
         updateNotification(mission, videoId)
+        stopServiceIfIdle()
     }
 
     private fun handleResume(videoId: String) {
         val mission =
             activeMissions[videoId] ?: run {
-                Log.w(TAG, "handleResume: No mission found for $videoId — cannot resume")
+                Log.w(TAG, "handleResume: No mission for $videoId; starting it over")
+                requeue(videoId)
                 return
             }
         if (mission.status != MissionStatus.PAUSED) {
@@ -1626,10 +1689,17 @@ class FlowDownloadService : Service() {
 
     private fun stopServiceIfIdle() {
         mainHandler.post {
-            if (activeMissions.isEmpty() && pendingDownloadStarts.get() == 0) {
+            if (pendingDownloadStarts.get() != 0) return@post
+            if (activeMissions.isEmpty()) {
                 lastForegroundSummary = null
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
                 stopSelf()
+            } else if (activeMissions.values.none { it.status == MissionStatus.RUNNING || it.status == MissionStatus.PENDING }) {
+                // Only paused downloads left: nothing is transferring, so the service leaves the
+                // foreground and keeps their notifications. If the system then stops it, Resume
+                // starts the download over.
+                lastForegroundSummary = null
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
             }
         }
     }

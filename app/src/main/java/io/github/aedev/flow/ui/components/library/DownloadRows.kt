@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.ButtonDefaults
@@ -124,16 +125,17 @@ internal fun ActiveDownloadRow(
     isMerging: Boolean,
     onPauseClick: () -> Unit,
     onResumeClick: () -> Unit,
+    onRetryClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val progress = (progressMap[download.download.videoId] ?: download.progress).coerceIn(0f, 1f)
     val percent = (progress * 100).toInt()
     val isPaused = download.overallStatus == DownloadItemStatus.PAUSED
-    val canControl =
-        !isMerging &&
-            download.overallStatus != DownloadItemStatus.FAILED &&
-            download.overallStatus != DownloadItemStatus.CANCELLED
+    val stopped =
+        download.overallStatus == DownloadItemStatus.FAILED ||
+            download.overallStatus == DownloadItemStatus.CANCELLED
+    val canControl = !isMerging && !stopped
 
     val status =
         when {
@@ -172,6 +174,13 @@ internal fun ActiveDownloadRow(
         subtitle = download.download.uploader,
         supporting = status,
         trailing = {
+            if (stopped) {
+                MediaRowAction(
+                    icon = Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.retry),
+                    onClick = onRetryClick,
+                )
+            }
             if (canControl) {
                 MediaRowAction(
                     icon = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
@@ -292,6 +301,7 @@ internal fun VideosDownloadsList(
     onDeleteClick: (String, String) -> Unit,
     onPauseClick: (String) -> Unit,
     onResumeClick: (String) -> Unit,
+    onRetryClick: (String) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -328,6 +338,7 @@ internal fun VideosDownloadsList(
                             isMerging = download.download.videoId in mergingVideoIds,
                             onPauseClick = { onPauseClick(download.download.videoId) },
                             onResumeClick = { onResumeClick(download.download.videoId) },
+                            onRetryClick = { onRetryClick(download.download.videoId) },
                             onDeleteClick = {
                                 onDeleteClick(download.download.videoId, download.download.title)
                             },
