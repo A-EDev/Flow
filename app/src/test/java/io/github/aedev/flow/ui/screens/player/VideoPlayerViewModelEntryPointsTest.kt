@@ -165,6 +165,22 @@ class VideoPlayerViewModelEntryPointsTest {
         }
 
     @Test
+    fun `syncing with a local video that is already playing keeps its state`() =
+        runTest {
+            val viewModel = newViewModel()
+            val video = video("local_1")
+            viewModel.playLocalVideo(video, "content://media/external/video/1")
+            advanceUntilIdle()
+
+            viewModel.syncWithCurrentPlayerVideo(video)
+
+            val synced = viewModel.uiState.value
+            assertThat(synced.isLoading).isFalse()
+            assertThat(synced.localFilePath).isEqualTo("content://media/external/video/1")
+            assertThat(synced.localFileVideoId).isEqualTo("local_1")
+        }
+
+    @Test
     fun `startBackgroundPlayback resetDismissState and showVideoPlayer flip the sheet flags in order`() =
         runTest {
             val viewModel = newViewModel()

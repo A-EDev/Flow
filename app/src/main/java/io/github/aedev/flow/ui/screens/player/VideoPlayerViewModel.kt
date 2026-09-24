@@ -313,7 +313,7 @@ class VideoPlayerViewModel
             val state = _uiState.value
             val alreadySynced =
                 state.cachedVideo?.id == video.id &&
-                    (state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty())
+                    (state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty() || state.localFileVideoId == video.id)
             if (alreadySynced) return
 
             if (upcomingPremiere.applyCountdown(video)) {
@@ -414,6 +414,11 @@ class VideoPlayerViewModel
             val videoId = _uiState.value.cachedVideo?.id ?: return
             Log.d("VideoPlayerViewModel", "Retrying video load for $videoId")
             if (upcomingPremiere.applyCountdown(_uiState.value.cachedVideo ?: return)) {
+                return
+            }
+            val deviceFileUri = LocalMediaIds.videoUri(videoId)
+            if (deviceFileUri != null) {
+                playLocalVideo(_uiState.value.cachedVideo ?: return, deviceFileUri.toString())
                 return
             }
             recovery.onPlaybackRequested()

@@ -2977,6 +2977,7 @@
     <string name="error_all_stream_sources_failed">Unable to play this video. All stream sources returned errors.</string>
     <string name="error_remote_playback">Remote playback error. Please try again.</string>
     <string name="error_playback_permission_denied">Playback permission denied. Please try again.</string>
+    <string name="error_local_file_missing">This file is no longer on your device</string>
     <string name="error_insecure_stream_blocked">Insecure stream blocked by device policy.</string>
     <string name="error_expiring_stream_urls">Unable to play - stream URLs keep expiring.</string>
     <string name="error_playback_device">Playback device error: %1$s</string>

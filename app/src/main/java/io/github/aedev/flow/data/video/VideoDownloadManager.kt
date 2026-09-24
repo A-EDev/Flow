@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -322,12 +323,15 @@ class VideoDownloadManager
          */
         val downloadedVideos: Flow<List<DownloadedVideo>>
             get() =
-                allDownloads.map { list ->
-                    list
-                        .filter { dwi ->
-                            dwi.overallStatus == DownloadItemStatus.COMPLETED && !dwi.isAudioOnly
-                        }.map { toDownloadedVideo(it) }
-                }
+                allDownloads
+                    .map { list ->
+                        list
+                            .filter { dwi ->
+                                dwi.overallStatus == DownloadItemStatus.COMPLETED &&
+                                    !dwi.isAudioOnly &&
+                                    dwi.primaryFilePath?.let { File(it).exists() } == true
+                            }.map { toDownloadedVideo(it) }
+                    }.flowOn(Dispatchers.IO)
 
         /** Save a new download with its items */
         suspend fun saveDownload(

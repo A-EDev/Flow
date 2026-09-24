@@ -559,6 +559,7 @@ class EnhancedPlayerManager private constructor() {
                 onReloadStream = { position, reason -> reloadCurrentStream(position, reason) },
                 onQualityDowngrade = { attemptQualityDowngrade() },
                 onPlaybackShutdown = { onPlaybackShutdown() },
+                isPlayingDeviceFile = { currentLocalFilePath != null },
                 onStreamExpired = { scope.launch { _streamExpiredEvent.emit(Unit) } },
                 onPlaybackAbandoned = { scope.launch { _playbackAbandonedEvent.emit(Unit) } },
                 onGatedCodecFallback = { position -> qualityManager?.fallbackToAlternateCodec(position) ?: false },
