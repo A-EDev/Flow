@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
@@ -17,6 +18,8 @@ import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsB
 /**
  * A library entry as a row. Long press opens the item's menu, where [removeLabel] runs
  * [onRemove] as the screen's own remove, beside the inline [action] that does the same.
+ * Files on the device get no online menu: its rows would write a local id into history,
+ * likes and sync as if it were a YouTube video.
  */
 @Composable
 internal fun LibraryMediaListRow(
@@ -34,6 +37,7 @@ internal fun LibraryMediaListRow(
     durationSeconds: Int? = null,
     action: @Composable () -> Unit,
 ) {
+    val isLocal = LocalMediaIds.isLocal(track.videoId)
     if (isMusic) {
         val musicMenus = LocalMusicMenus.current
         MusicTrackItem(
@@ -42,7 +46,7 @@ internal fun LibraryMediaListRow(
             modifier = modifier,
             showMenu = false,
             trailingContent = { action() },
-            onLongClick = { musicMenus.openSong(track) },
+            onLongClick = if (isLocal) null else ({ musicMenus.openSong(track) }),
         )
     } else {
         var showMenu by remember { mutableStateOf(false) }
@@ -51,7 +55,7 @@ internal fun LibraryMediaListRow(
             modifier = modifier,
             subtitle = subtitle,
             onClick = onVideoClick,
-            onLongClick = { showMenu = true },
+            onLongClick = if (isLocal) null else ({ showMenu = true }),
             trailing = { action() },
         ) {
             MediaThumbnail(
