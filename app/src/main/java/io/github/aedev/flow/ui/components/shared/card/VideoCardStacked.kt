@@ -103,20 +103,26 @@ internal fun VideoCardStacked(
                 MembersOnlyLabel(video)
             }
 
-            VideoCardMoreButton(state = state, alignTo = 12.dp)
+            VideoCardSideActions(
+                state = state,
+                showWatched = cardPreferences.markWatchedEnabled,
+                onWatched = actions.onWatched,
+                alignTo = 12.dp,
+                sideBySide = true,
+            )
         }
 
-        VideoCardFeedback(
-            state = state,
-            showRating = cardPreferences.actionsEnabled,
-            showWatched = cardPreferences.markWatchedEnabled,
-            actions = actions,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .padding(bottom = 12.dp),
-        )
+        if (cardPreferences.actionsEnabled) {
+            VideoCardFeedback(
+                state = state,
+                actions = actions,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = VideoCardDefaults.Inset)
+                        .padding(bottom = VideoCardDefaults.Inset),
+            )
+        }
     }
 
     VideoCardSheets(state = state, onChannelClick = onChannelClick)

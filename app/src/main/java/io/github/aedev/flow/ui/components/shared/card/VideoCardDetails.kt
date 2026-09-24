@@ -4,14 +4,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -112,23 +117,52 @@ internal fun Modifier.videoCardChannelClickable(
 }
 
 /**
- * The quick actions button at the full 48 dp target. It is pulled up by [alignTo] so its icon sits on
- * the title's first line instead of below it.
+ * The ⋮ button and, when that setting is on, the watched toggle, both at the full 48 dp target.
+ * A row stacks them beside its thumbnail's height; a stacked card sets them side by side so they
+ * never make its text taller. [alignTo] pulls them up so the icons sit on the title's first line.
  */
 @Composable
-internal fun VideoCardMoreButton(
+internal fun VideoCardSideActions(
     state: VideoCardState,
+    showWatched: Boolean,
+    onWatched: (Video) -> Unit,
     alignTo: Dp,
+    sideBySide: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    IconButton(
-        onClick = { state.sheets.showQuickActions = true },
-        modifier = modifier.offset(y = -alignTo),
-    ) {
-        Icon(
-            imageVector = Icons.Default.MoreVert,
-            contentDescription = stringResource(R.string.more_options),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    val watched: @Composable () -> Unit = {
+        if (showWatched) {
+            val isWatched = state.isWatched
+            IconToggleButton(
+                checked = isWatched,
+                onCheckedChange = { if (!isWatched) onWatched(state.video) },
+            ) {
+                Icon(
+                    imageVector = if (isWatched) Icons.Filled.Visibility else Icons.Outlined.Visibility,
+                    contentDescription = stringResource(R.string.mark_as_watched),
+                    tint = if (isWatched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    val more: @Composable () -> Unit = {
+        IconButton(onClick = { state.sheets.showQuickActions = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    if (sideBySide) {
+        Row(modifier = modifier.offset(y = -alignTo)) {
+            watched()
+            more()
+        }
+    } else {
+        Column(modifier = modifier.offset(y = -alignTo)) {
+            more()
+            watched()
+        }
     }
 }

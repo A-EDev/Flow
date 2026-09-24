@@ -5,24 +5,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 
@@ -108,22 +99,13 @@ internal fun VideoCardRow(
             MembersOnlyLabel(video)
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            VideoCardMoreButton(state = state, alignTo = 14.dp)
-            if (cardPreferences.markWatchedEnabled) {
-                IconToggleButton(
-                    checked = state.isWatched,
-                    onCheckedChange = { if (!state.isWatched) actions.onWatched(video) },
-                    modifier = Modifier.offset(y = (-14).dp),
-                ) {
-                    Icon(
-                        imageVector = if (state.isWatched) Icons.Filled.Visibility else Icons.Outlined.Visibility,
-                        contentDescription = stringResource(R.string.mark_as_watched),
-                        tint = if (state.isWatched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
+        VideoCardSideActions(
+            state = state,
+            showWatched = cardPreferences.markWatchedEnabled,
+            onWatched = actions.onWatched,
+            alignTo = 14.dp,
+            sideBySide = false,
+        )
     }
 
     VideoCardSheets(state = state, onChannelClick = onChannelClick)
