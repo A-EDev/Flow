@@ -41,6 +41,9 @@ import io.github.aedev.flow.ui.components.layout.navigation.resolveDefaultFlowTa
 import io.github.aedev.flow.ui.components.layout.navigation.visibleFlowTabs
 import io.github.aedev.flow.ui.components.layout.topbar.ProvideFlowGlobalActions
 import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
+import io.github.aedev.flow.ui.components.music.sheet.MusicMenuSheets
+import io.github.aedev.flow.ui.components.music.sheet.rememberMusicMenus
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpacer
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerHeight
 import io.github.aedev.flow.ui.components.musicplayer.UnifiedMusicPlayerSheet
@@ -192,6 +195,7 @@ fun FlowApp(
         var keepMiniOnQueueAutoAdvance by remember { mutableStateOf(false) }
 
         val musicPlayerSheetState = rememberMusicPlayerSheetState()
+        val musicMenus = rememberMusicMenus()
         val mediaNavigator =
             remember(navController, playerSheetState, musicPlayerSheetState) {
                 FlowMediaNavigator(navController) {
@@ -467,7 +471,7 @@ fun FlowApp(
                                 onOpenNotifications = { navController.navigate("notifications") },
                                 onOpenSettings = { navController.navigate("settings") },
                             ) {
-                                CompositionLocalProvider(LocalMediaNavigator provides mediaNavigator) {
+                                CompositionLocalProvider(LocalMediaNavigator provides mediaNavigator, LocalMusicMenus provides musicMenus) {
                                     NavHost(
                                         navController = navController,
                                         startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
@@ -516,7 +520,7 @@ fun FlowApp(
         // The video overlay takes the settled target, not the animated value: it only uses the
         // padding to pick the mini player's resting bounds, and an animated Dp parameter
         // recomposed the whole overlay on every frame of the nav bar animation.
-        CompositionLocalProvider(LocalMediaNavigator provides mediaNavigator) {
+        CompositionLocalProvider(LocalMediaNavigator provides mediaNavigator, LocalMusicMenus provides musicMenus) {
             VideoPlayerHost(
                 video = activeVideo,
                 isVisible = playerVisible && !isShortsPlayerRoute,
@@ -561,6 +565,8 @@ fun FlowApp(
                     },
                 )
             }
+
+            MusicMenuSheets(musicMenus)
         }
 
         androidx.compose.material3.SnackbarHost(

@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.music
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -58,7 +56,7 @@ import io.github.aedev.flow.ui.components.music.detail.PlaylistTopBar
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
-import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.shared.CollectionTarget
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
@@ -92,7 +90,6 @@ fun PlaylistPage(
     playlistsViewModel: MusicPlaylistsViewModel = hiltViewModel(),
 ) {
     val scrollState = rememberLazyListState()
-    val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val haptics = LocalHapticFeedback.current
@@ -176,32 +173,7 @@ fun PlaylistPage(
         if (reachedBottom && playlistDetails.continuation != null) onLoadMore()
     }
 
-    var showBottomSheet by remember { mutableStateOf(false) }
-    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-
-    if (showBottomSheet && selectedTrack != null) {
-        MusicQuickActionsSheet(
-            track = selectedTrack!!,
-            onDismiss = { showBottomSheet = false },
-            onShare = {
-                val intent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            context.getString(
-                                R.string.share_message_template,
-                                selectedTrack!!.title,
-                                selectedTrack!!.artist,
-                                selectedTrack!!.videoId,
-                            ),
-                        )
-                    }
-                context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_song)))
-            },
-        )
-    }
+    val musicMenus = LocalMusicMenus.current
 
     val showCollapsedTopBarTitle by remember {
         derivedStateOf { scrollState.firstVisibleItemIndex > 0 }
@@ -419,10 +391,7 @@ fun PlaylistPage(
                                         } else {
                                             null
                                         },
-                                    onMenuClick = {
-                                        selectedTrack = track
-                                        showBottomSheet = true
-                                    },
+                                    onMenuClick = { musicMenus.openSong(track) },
                                 )
                             }
                         }

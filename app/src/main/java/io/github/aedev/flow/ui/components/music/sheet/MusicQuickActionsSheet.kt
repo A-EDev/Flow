@@ -50,13 +50,13 @@ import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 fun MusicQuickActionsSheet(
     track: MusicTrack,
     onDismiss: () -> Unit,
-    onShare: () -> Unit = {},
     onAudioEffectsClick: (() -> Unit)? = null,
     onSleepTimerClick: (() -> Unit)? = null,
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navigator = LocalMediaNavigator.current
+    val shareSong = rememberSongShareAction()
     val uiState by viewModel.uiState.collectAsState()
     var showMediaInfo by remember { mutableStateOf(false) }
     var showSaveSheet by remember { mutableStateOf(false) }
@@ -146,7 +146,7 @@ fun MusicQuickActionsSheet(
                                 icon = { Icon(Icons.Outlined.Share, null) },
                                 text = stringResource(R.string.share),
                                 onClick = {
-                                    onShare()
+                                    shareSong(track)
                                     onDismiss()
                                 },
                             ),

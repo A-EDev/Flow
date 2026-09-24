@@ -43,6 +43,7 @@ import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.ui.components.*
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -112,10 +113,10 @@ fun YTItem.toCollectionActionItem(): MusicCollectionActionItem? =
 fun MusicCollectionQuickActionsSheet(
     item: MusicCollectionActionItem,
     onDismiss: () -> Unit,
-    onOpen: () -> Unit,
     viewModel: MusicCollectionActionsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val navigator = LocalMediaNavigator.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -186,7 +187,7 @@ fun MusicCollectionQuickActionsSheet(
                             icon = { Icon(Icons.Outlined.OpenInNew, null) },
                             title = { Text(stringResource(R.string.open)) },
                             onClick = {
-                                onOpen()
+                                if (item.isAlbum) navigator.openAlbum(item.id) else navigator.openMusicPlaylist(item.id)
                                 onDismiss()
                             },
                         ),

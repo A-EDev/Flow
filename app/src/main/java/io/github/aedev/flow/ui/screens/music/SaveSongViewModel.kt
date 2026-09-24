@@ -53,12 +53,10 @@ class SaveSongViewModel
         val savedIds: StateFlow<Set<String>> = _savedIds.asStateFlow()
 
         private val membershipLoaded = MutableStateFlow(false)
-        private var loadedVideoId: String? = null
 
         fun loadMembership(videoId: String) {
-            if (loadedVideoId == videoId) return
-            loadedVideoId = videoId
             membershipLoaded.value = false
+            _savedIds.value = emptySet()
             viewModelScope.launch {
                 _savedIds.value = repository.getPlaylistIdsForVideo(videoId).toSet()
                 membershipLoaded.value = true

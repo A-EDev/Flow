@@ -181,23 +181,6 @@ internal fun FullMusicPlayerContent(
         MusicQuickActionsSheet(
             track = uiState.currentTrack!!,
             onDismiss = { showMoreOptions = false },
-            onShare = {
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, uiState.currentTrack!!.title)
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            context.getString(
-                                R.string.share_message_template,
-                                uiState.currentTrack!!.title,
-                                uiState.currentTrack!!.artist,
-                                uiState.currentTrack!!.videoId,
-                            ),
-                        )
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            },
             onAudioEffectsClick = { showAudioSettings = true },
             onSleepTimerClick = { showSleepTimer = true },
         )
