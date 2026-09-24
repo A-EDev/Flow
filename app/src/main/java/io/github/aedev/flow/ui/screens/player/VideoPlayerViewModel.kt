@@ -264,6 +264,10 @@ class VideoPlayerViewModel
                 .onEach(::onPlayerStateChanged)
                 .launchIn(viewModelScope)
 
+            playerManager.playbackCompletedEvent
+                .onEach(watchSessions::markCompleted)
+                .launchIn(viewModelScope)
+
             presence.restoreLastWatchedSession()
 
             FeedInvalidationBus.events
@@ -571,17 +575,20 @@ class VideoPlayerViewModel
             channelName: String = "",
             channelId: String = "",
             isShort: Boolean = false,
-        ) = watchSessions.savePlaybackPosition(
-            videoId = videoId,
-            positionMs = position,
-            durationMs = duration,
-            title = title,
-            thumbnailUrl = thumbnailUrl,
-            channelName = channelName,
-            channelId = channelId,
-            isShort = isShort,
-            isLocal = isLocalMediaId(videoId),
-        )
+        ) {
+            if (!positionBelongsTo(videoId, playerManager.playerState.value.currentVideoId)) return
+            watchSessions.savePlaybackPosition(
+                videoId = videoId,
+                positionMs = position,
+                durationMs = duration,
+                title = title,
+                thumbnailUrl = thumbnailUrl,
+                channelName = channelName,
+                channelId = channelId,
+                isShort = isShort,
+                isLocal = isLocalMediaId(videoId),
+            )
+        }
 
         /** The app is going to the background: the recap gets the open session's progress so far. */
         fun checkpointWatchSession() = watchSessions.checkpoint()

@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.data.stats.ViewEvent
 import io.github.aedev.flow.data.stats.ViewFormat
 import io.github.aedev.flow.player.PlayerRelatedVideosPolicy
+import io.github.aedev.flow.player.state.PlaybackCompletion
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -101,6 +102,16 @@ internal fun watchSignalFor(
     val type = if (fraction >= WATCHED_FRACTION) InteractionType.WATCHED else InteractionType.SKIPPED
     return WatchSignal(type, fraction.toFloat())
 }
+
+/**
+ * The screen's position belongs to [videoId] only while the player still holds it. Autoplay swaps
+ * the player to the next video a moment before the screen follows, and a save in that gap would
+ * write the next video's position over this one's, emptying a finished video's progress bar.
+ */
+internal fun positionBelongsTo(
+    videoId: String,
+    playerVideoId: String?,
+): Boolean = playerVideoId == null || playerVideoId == videoId
 
 /**
  * Everything a view leaves behind: the history row, the resume position, the one terminal signal
@@ -197,6 +208,10 @@ internal class WatchSessionTracker(
             isShort = isShort,
             isLocal = isLocal,
         )
+    }
+
+    fun markCompleted(completion: PlaybackCompletion) {
+        scope.launch { viewHistory.markCompleted(completion.videoId, completion.durationMs) }
     }
 
     /** Persists a resume point without opening or grading a session; the error recovery path. */
