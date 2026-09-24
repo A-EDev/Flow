@@ -581,7 +581,7 @@
     <!-- Écran des Dons -->
     <string name="support_donations_title">Soutien et dons</string>
     <string name="support_flow_dev_title">Soutenir le développement de Flow</string>
-    <string name="support_flow_dev_desc">Si vous trouvez Flow utile et souhaitez soutenir son développement, vous pouvez le faire sur Patreon ou faire un don via les adresses de cryptomonnaie ci-dessous. Votre soutien contribue à la pérennité du projet !</string>
+    <string name="support_flow_dev_desc">Si vous trouvez Flow utile et souhaitez soutenir son développement, vous pouvez le faire sur Patreon ou faire un don via les adresses de cryptomonnaie ci-dessous. Votre soutien contribue à la pérennité du projet !</string>
     <string name="thank_you_support_message">Merci pour votre soutien ! ❤️</string>
     <string name="address_copied_toast">Adresse copiée dans le presse-papiers</string>
     <string name="donation_address_clip_label">Adresse de Don</string>
@@ -915,7 +915,7 @@
     <string name="appearance_role_secondary">Secondaire</string>
     <string name="appearance_role_tertiary">Tertiaire</string>
     <string name="app_icon_picker_subtitle">Choisissez un style d\'icône pour le lanceur. La modification prend effet immédiatement et le lanceur s\'actualise brièvement.</string>
-    <string name="app_icon_picker_warning">Attention : la modification des icônes fait appel à un mécanisme du système Android qui peut temporairement faire disparaître le raccourci de l\'application de votre écran d\'accueil. Appuyez longuement sur le lanceur d\'applications pour le rajouter si nécessaire.</string>
+    <string name="app_icon_picker_warning">Attention : la modification des icônes fait appel à un mécanisme du système Android qui peut temporairement faire disparaître le raccourci de l\'application de votre écran d\'accueil. Appuyez longuement sur le lanceur d\'applications pour le rajouter si nécessaire.</string>
     <string name="content_settings_explore_region_picker_title">Sélection rapide de la région dans Explorer</string>
     <string name="content_settings_explore_region_picker_subtitle">Afficher une icône représentant un globe terrestre dans la barre supérieure de l\'écran « Explorer » pour changer instantanément la région en vogue.</string>
     <string name="categories_region_picker_desc">Changer la région en vogue (actuellement : %1$s)</string>
@@ -1066,7 +1066,7 @@
     <string name="player_settings_shorts_playback_mode_loop">Boucle (répéter le passage actuel)</string>
     <string name="player_settings_shorts_playback_mode_auto_next">Lecture automatique du suivant (passer au court métrage suivant)</string>
     <string name="player_settings_shorts_playback_mode_dialog_title">Mode de lecture des courts métrages</string>
-    <string name="player_settings_shorts_playback_mode_dialog_body">Choisissez comment les Shorts doivent se comporter une fois la lecture du Shorts en cours terminée :</string>
+    <string name="player_settings_shorts_playback_mode_dialog_body">Choisissez comment les Shorts doivent se comporter une fois la lecture du Shorts en cours terminée :</string>
     <string name="player_settings_remember_speed">Mémoriser la vitesse de lecture</string>
     <string name="player_settings_remember_speed_subtitle">Appliquer la dernière vitesse de lecture utilisée aux vidéos</string>
     <string name="player_settings_custom_speeds_add">Ajouter un préréglage</string>
@@ -1221,7 +1221,7 @@
     <string name="diagnostics_clear_crashes">Effacer les rapports d\'incident</string>
     <string name="diagnostics_clear_confirm_title">Effacer les rapports d\'incident ?</string>
     <string name="diagnostics_clear_confirm_body">Tous les rapports d\'incident enregistrés seront définitivement supprimés. Cette action est irréversible.</string>
-    <string name="diagnostics_no_crashes">Aucun rapport d\'incident — super !</string>
+    <string name="diagnostics_no_crashes">Aucun rapport d\'incident — super !</string>
     <string name="diagnostics_no_session_logs">Aucun avertissement ni aucune erreur n\'ont été signalés au cours de cette session.</string>
     <string name="diagnostics_loading">Lecture des journaux…</string>
     <string name="diagnostics_copied">Le rapport a été copié dans le presse-papiers</string>
@@ -1638,7 +1638,7 @@
     <string name="player_appearance_long_press_speed_disabled">Désactivé</string>
     <string name="player_settings_video_codec">Codec vidéo par défaut</string>
     <string name="player_settings_video_codec_dialog_title">Codec vidéo par défaut</string>
-    <string name="player_settings_video_codec_dialog_body">Choisissez le codec à utiliser par défaut pour la résolution sélectionnée. Cela ne modifie pas les options de qualité proposées : vous pouvez toujours choisir n\'importe quel codec dans le sélecteur de qualité. Le H.264 est le plus compatible et offre la meilleure fluidité sur la plupart des appareils ; les codecs AV1/VP9 permettent de réduire la taille des fichiers aux résolutions élevées, mais nécessitent une puissance de décodage plus importante.</string>
+    <string name="player_settings_video_codec_dialog_body">Choisissez le codec à utiliser par défaut pour la résolution sélectionnée. Cela ne modifie pas les options de qualité proposées : vous pouvez toujours choisir n\'importe quel codec dans le sélecteur de qualité. Le H.264 est le plus compatible et offre la meilleure fluidité sur la plupart des appareils ; les codecs AV1/VP9 permettent de réduire la taille des fichiers aux résolutions élevées, mais nécessitent une puissance de décodage plus importante.</string>
     <string name="player_settings_video_codec_auto_desc">Laisser l\'application choisir (H.264 de préférence)</string>
     <string name="subscriptions_last_refreshed_time_only_template">Dernière mise à jour : %1$s</string>
     <string name="live_chat">Chat en direct</string>
@@ -1743,7 +1743,7 @@
     <string name="sync_sas_differ">Ils diffèrent</string>
     <string name="sync_sas_match">Ils correspondent</string>
     <string name="sync_consent_title">Fusionner les données entrantes ?</string>
-    <string name="sync_consent_note">Une sauvegarde de sécurité sera effectuée avant la fusion, et celle-ci se fera sans conflit : aucun élément ne sera écrasé ni compté deux fois.</string>
+    <string name="sync_consent_note">Une sauvegarde de sécurité sera effectuée avant la fusion, et celle-ci se fera sans conflit : aucun élément ne sera écrasé ni compté deux fois.</string>
     <string name="sync_bullet_item">• %1$s</string>
     <string name="sync_decline">Baisse</string>
     <string name="sync_progress_fraction">%1$d / %2$d</string>
@@ -2296,7 +2296,7 @@
     <string name="remove_from_queue">Retirer de la file d\'attente</string>
     <string name="remove_from_queue_confirmation">Êtes-vous sûr de vouloir supprimer cette vidéo de la file d\'attente ?</string>
     <string name="reorder_queue_item">Réorganiser un élément de la file d\'attente</string>
-    <string name="notif_background_restricted_subtitle">Android empêche Flow de vérifier la présence de nouvelles vidéos lorsque l\'application est fermée ; les notifications ne s\'affichent donc que lorsque vous ouvrez l\'application. Appuyez ici pour autoriser l\'activité en arrière-plan sans restriction.</string>
+    <string name="notif_background_restricted_subtitle">Android empêche Flow de vérifier la présence de nouvelles vidéos lorsque l\'application est fermée ; les notifications ne s\'affichent donc que lorsque vous ouvrez l\'application. Appuyez ici pour autoriser l\'activité en arrière-plan sans restriction.</string>
     <string name="notif_background_restricted_title">Les vérifications d\'antécédents sont soumises à des restrictions</string>
     <plurals name="subscriptions_failed_channels_title">
         <item quantity="one">Impossible de charger la chaîne %d</item>
@@ -2315,7 +2315,7 @@
     <string name="empty_saved_shorts">Aucun court métrage enregistré pour l\'instant</string>
     <string name="settings_search_no_results">Aucun paramètre trouvé pour %1$s</string>
     <string name="settings_lyrics_provider_order_description">Les fournisseurs sont testés les uns après les autres. Le premier qui renvoie les paroles remporte la mise.</string>
-    <string name="import_running_background">Vous pouvez quitter cette page : l\'importation se poursuit en arrière-plan.</string>
+    <string name="import_running_background">Vous pouvez quitter cette page : l\'importation se poursuit en arrière-plan.</string>
     <string name="donations_cryptocurrency">CRYPTOMONNAIE</string>
     <string name="import_no_history_entries">Aucune entrée d\'historique de surveillance n\'a été trouvée dans le fichier</string>
     <string name="import_no_videos">Aucune vidéo n\'a été trouvée dans le fichier de la playlist</string>
