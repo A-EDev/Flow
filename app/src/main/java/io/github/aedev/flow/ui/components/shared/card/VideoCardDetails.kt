@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -106,15 +107,12 @@ internal fun Modifier.videoCardClickable(
 
 /** The channel as a tap target: the avatar on a stacked card, the name on a row. */
 @Composable
-internal fun Modifier.videoCardChannelClickable(
-    state: VideoCardState,
-    onChannelClick: ((String) -> Unit)?,
-): Modifier {
-    if (onChannelClick == null) return this
+internal fun Modifier.videoCardChannelClickable(state: VideoCardState): Modifier {
+    val navigator = LocalMediaNavigator.current
     return clickable(
         role = Role.Button,
         onClickLabel = stringResource(R.string.go_to_channel),
-    ) { state.openChannel(onChannelClick) }
+    ) { state.openChannel(navigator) }
 }
 
 /**

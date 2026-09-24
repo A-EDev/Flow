@@ -81,7 +81,6 @@ fun SearchResults(
                         video = item.video,
                         layout = if (plan.isListCard(index)) VideoCardLayout.Row else VideoCardLayout.Stacked,
                         onClick = { actions.onVideoClick(item.video) },
-                        onChannelClick = { actions.onChannelClick(item.video.asChannel(it)) },
                         thumbnailWidth = plan.listThumbnailWidth,
                     )
                 }

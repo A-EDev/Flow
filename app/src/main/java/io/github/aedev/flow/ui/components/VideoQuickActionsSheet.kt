@@ -65,6 +65,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.CollaboratorsBottomSheet
 import io.github.aedev.flow.ui.components.shared.card.collaboratorItems
 import io.github.aedev.flow.ui.components.shared.card.isWatchedProgress
@@ -83,7 +84,7 @@ fun VideoQuickActionsBottomSheet(
     onShare: (() -> Unit)? = null,
     onDownload: (() -> Unit)? = null,
     onNotInterested: () -> Unit = {},
-    onChannelClick: ((String) -> Unit)? = null,
+    showChannel: Boolean = true,
     onRemoveFromCollection: (() -> Unit)? = null,
     removeFromCollectionLabel: String? = null,
     viewModel: QuickActionsViewModel = hiltViewModel(),
@@ -113,7 +114,6 @@ fun VideoQuickActionsBottomSheet(
     if (showCollaborators) {
         CollaboratorsBottomSheet(
             collaborators = collaboratorItems,
-            onChannelClick = onChannelClick,
             onDismiss = {
                 showCollaborators = false
                 onDismiss()
@@ -165,6 +165,7 @@ fun VideoQuickActionsBottomSheet(
     }
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    val navigator = LocalMediaNavigator.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -285,56 +286,58 @@ fun VideoQuickActionsBottomSheet(
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
             // Playback Queue Group — Play Next, Add to queue
-            item {
-                Text(
-                    text = stringResource(R.string.playback_header),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                )
-                FlowMenuGroup(
-                    items =
-                        listOf(
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.QueueMusic, null) },
-                                title = { Text(stringResource(R.string.play_next_video)) },
-                                description = { Text(stringResource(R.string.play_next_video_desc)) },
-                                onClick = {
-                                    viewModel.playVideoNext(video)
-                                    android.widget.Toast
-                                        .makeText(
-                                            context,
-                                            context.getString(R.string.play_next_toast),
-                                            android.widget.Toast.LENGTH_SHORT,
-                                        ).show()
-                                    onDismiss()
-                                },
+            if (!video.isShort) {
+                item {
+                    Text(
+                        text = stringResource(R.string.playback_header),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    )
+                    FlowMenuGroup(
+                        items =
+                            listOf(
+                                FlowMenuItemData(
+                                    icon = { Icon(Icons.Outlined.QueueMusic, null) },
+                                    title = { Text(stringResource(R.string.play_next_video)) },
+                                    description = { Text(stringResource(R.string.play_next_video_desc)) },
+                                    onClick = {
+                                        viewModel.playVideoNext(video)
+                                        android.widget.Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.play_next_toast),
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
+                                        onDismiss()
+                                    },
+                                ),
+                                FlowMenuItemData(
+                                    icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
+                                    title = { Text(stringResource(R.string.add_video_to_queue)) },
+                                    description = { Text(stringResource(R.string.add_video_to_queue_desc)) },
+                                    onClick = {
+                                        viewModel.addVideoToQueue(video)
+                                        android.widget.Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.added_to_queue_toast),
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
+                                        onDismiss()
+                                    },
+                                ),
                             ),
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
-                                title = { Text(stringResource(R.string.add_video_to_queue)) },
-                                description = { Text(stringResource(R.string.add_video_to_queue_desc)) },
-                                onClick = {
-                                    viewModel.addVideoToQueue(video)
-                                    android.widget.Toast
-                                        .makeText(
-                                            context,
-                                            context.getString(R.string.added_to_queue_toast),
-                                            android.widget.Toast.LENGTH_SHORT,
-                                        ).show()
-                                    onDismiss()
-                                },
-                            ),
-                        ),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+
+                item { Spacer(modifier = Modifier.height(4.dp)) }
             }
 
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
             // Channel Group — Go to channel, Subscribe
-            if (video.channelId.isNotBlank()) {
+            if (showChannel && video.channelId.isNotBlank()) {
                 item {
                     Text(
                         text = stringResource(R.string.section_channel),
@@ -353,7 +356,7 @@ fun VideoQuickActionsBottomSheet(
                                         if (collaboratorItems.size > 1) {
                                             showCollaborators = true
                                         } else {
-                                            onChannelClick?.invoke(video.channelId)
+                                            navigator.openChannel(video.channelId)
                                             onDismiss()
                                         }
                                     },

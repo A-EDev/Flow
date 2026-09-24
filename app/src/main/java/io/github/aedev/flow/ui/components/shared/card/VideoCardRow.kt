@@ -22,7 +22,6 @@ import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 internal fun VideoCardRow(
     video: Video,
     onClick: () -> Unit,
-    onChannelClick: ((String) -> Unit)?,
     showChannel: Boolean,
     thumbnailWidth: Dp,
     modifier: Modifier = Modifier,
@@ -74,7 +73,7 @@ internal fun VideoCardRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.videoCardChannelClickable(state, onChannelClick),
+                    modifier = Modifier.videoCardChannelClickable(state),
                 )
             }
 
@@ -107,5 +106,5 @@ internal fun VideoCardRow(
         )
     }
 
-    VideoCardSheets(state = state, onChannelClick = onChannelClick)
+    VideoCardSheets(state = state, showChannel = showChannel)
 }

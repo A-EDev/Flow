@@ -63,7 +63,6 @@ data class FeedShelfActions(
     val onVideoClick: (Video) -> Unit,
     val onShortClick: (String) -> Unit = {},
     val onPlaylistClick: (String) -> Unit = {},
-    val onChannelClick: (String) -> Unit = {},
     val onSectionMore: (FeedShelf) -> Unit = {},
     val canOpenSection: (FeedShelf) -> Boolean = { false },
     val subscribedChannelIds: Set<String> = emptySet(),

@@ -122,10 +122,6 @@ fun SubscriptionsScreen(
         remember(sortedChannels) {
             quickAccessOrder(sortedChannels).take(QUICK_ACCESS_CHANNEL_LIMIT)
         }
-    val openVideoChannel: (String) -> Unit =
-        remember(uiState.subscribedChannels, onChannelClick) {
-            { channelRef -> onChannelClick(resolveChannel(uiState.subscribedChannels, channelRef)) }
-        }
     val videos = uiState.recentVideos
 
     LaunchedEffect(feedGridState, videos, isManagingSubs) {
@@ -269,7 +265,6 @@ fun SubscriptionsScreen(
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
                         onChannelClick = onChannelClick,
-                        onVideoChannelClick = openVideoChannel,
                         onViewAllClick = { isManagingSubs = true },
                         onGroupSelected = viewModel::selectGroup,
                         onManageGroups = { showGroupsDialog = true },

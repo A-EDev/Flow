@@ -26,16 +26,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.components.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollaboratorsBottomSheet(
     collaborators: List<VideoCollaborator>,
-    onChannelClick: ((String) -> Unit)?,
     onDismiss: () -> Unit,
     viewModel: QuickActionsViewModel = hiltViewModel(),
 ) {
     val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsState()
+    val navigator = LocalMediaNavigator.current
     val collaboratorChannelIds =
         remember(collaborators) {
             collaborators.map { it.channelId }.filter { it.isNotBlank() }.distinct()
@@ -62,7 +63,7 @@ fun CollaboratorsBottomSheet(
             )
 
             collaborators.forEach { collaborator ->
-                val canOpenChannel = onChannelClick != null && collaborator.channelId.isNotBlank()
+                val canOpenChannel = collaborator.channelId.isNotBlank()
                 val isSubscribed = subscribedChannelIds.contains(collaborator.channelId)
                 Row(
                     modifier =
@@ -85,7 +86,7 @@ fun CollaboratorsBottomSheet(
                                     if (canOpenChannel) {
                                         Modifier.clickable {
                                             onDismiss()
-                                            onChannelClick?.invoke(collaborator.channelId)
+                                            navigator.openChannel(collaborator.channelId)
                                         }
                                     } else {
                                         Modifier

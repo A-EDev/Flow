@@ -66,7 +66,6 @@ internal fun SubscriptionsFeedContent(
     onVideoClick: (Video) -> Unit,
     onShortClick: (ShortsQueueSource) -> Unit,
     onChannelClick: (Channel) -> Unit,
-    onVideoChannelClick: (String) -> Unit,
     onViewAllClick: () -> Unit,
     onGroupSelected: (String?) -> Unit,
     onManageGroups: () -> Unit,
@@ -201,7 +200,6 @@ internal fun SubscriptionsFeedContent(
                         MediaVideoCard(
                             video = video,
                             onClick = { onVideoClick(video) },
-                            onChannelClick = onVideoChannelClick,
                             useInternalPadding = false,
                         )
                     } else {
@@ -209,7 +207,6 @@ internal fun SubscriptionsFeedContent(
                             video = video,
                             layout = VideoCardLayout.Row,
                             onClick = { onVideoClick(video) },
-                            onChannelClick = onVideoChannelClick,
                         )
                     }
                 }

@@ -169,7 +169,6 @@ internal fun VideoInfoContent(
         },
         onNotificationChange = { enabled -> viewModel.setNotificationEnabled(video.channelId, enabled) },
         onChannelClick = { onChannelClick(video.channelId) },
-        onCollaboratorClick = onChannelClick,
         onSaveClick = { showAddToPlaylistDialog = true },
         onShareClick = { shareVideoAction(video.id, resolvedVideoTitle) },
         onDownloadClick = { screenState.open(PlayerSheet.Download) },

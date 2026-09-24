@@ -33,7 +33,6 @@ internal fun CategoryPagedGrid(
     feedLayout: FeedGridLayout,
     isListView: Boolean,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -97,7 +96,6 @@ internal fun CategoryPagedGrid(
                         video = video,
                         layout = if (plan.isListCard(index)) VideoCardLayout.Row else VideoCardLayout.Stacked,
                         onClick = { onVideoClick(video) },
-                        onChannelClick = onChannelClick,
                         thumbnailWidth = plan.listThumbnailWidth,
                     )
                 }
@@ -134,7 +132,6 @@ internal fun CategoryChartGrid(
     feedLayout: FeedGridLayout,
     isListView: Boolean,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val plan =
@@ -165,7 +162,6 @@ internal fun CategoryChartGrid(
                 video = video,
                 layout = if (plan.isListCard(index)) VideoCardLayout.Row else VideoCardLayout.Stacked,
                 onClick = { onVideoClick(video) },
-                onChannelClick = onChannelClick,
                 thumbnailWidth = plan.listThumbnailWidth,
             )
         }

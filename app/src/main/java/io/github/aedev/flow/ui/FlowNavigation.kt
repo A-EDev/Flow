@@ -107,9 +107,6 @@ fun NavGraphBuilder.flowAppGraph(
             onSearchClick = {
                 navController.navigate("search")
             },
-            onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
-            },
             onNavigateToHistory = {
                 navController.navigate("history")
             },
@@ -285,9 +282,6 @@ fun NavGraphBuilder.flowAppGraph(
         io.github.aedev.flow.ui.screens.categories.CategoriesScreen(
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) { navController.navigateToPlayer(it.id) }
-            },
-            onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
             },
             onShortClick = { videoId ->
                 navController.openShortsOrPlayer(ShortsQueueSource.SeededFeed(videoId), disableShortsPlayer)
@@ -500,9 +494,6 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onPlayPlaylist = { videos, index ->
                 playerViewModel.playPlaylist(videos, index, "Playlist")
-            },
-            onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
             },
         )
     }

@@ -26,17 +26,15 @@ internal fun CategoryShelfPage(
     columnPreference: HomeFeedColumns,
     onVideoClick: (Video) -> Unit,
     onShortClick: (String) -> Unit,
-    onChannelClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onShelfOpen: (FeedShelf) -> Unit,
 ) {
     val actions =
-        remember(onVideoClick, onShortClick, onChannelClick, onPlaylistClick, onShelfOpen) {
+        remember(onVideoClick, onShortClick, onPlaylistClick, onShelfOpen) {
             FeedShelfActions(
                 onVideoClick = onVideoClick,
                 onShortClick = onShortClick,
                 onPlaylistClick = onPlaylistClick,
-                onChannelClick = onChannelClick,
                 onSectionMore = onShelfOpen,
                 canOpenSection = { it.moreParams != null },
             )

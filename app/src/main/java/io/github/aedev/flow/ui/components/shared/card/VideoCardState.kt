@@ -21,6 +21,7 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.components.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -196,11 +197,11 @@ internal class VideoCardState(
     val isWatched: Boolean get() = isWatchedProgress(watchProgress)
 
     /** A collaboration opens the list of its channels; a single channel opens directly. */
-    fun openChannel(onChannelClick: ((String) -> Unit)?) {
+    fun openChannel(navigator: MediaNavigator) {
         if (collaborators.size > 1) {
             sheets.showCollaborators = true
         } else {
-            onChannelClick?.invoke(video.channelId)
+            navigator.openChannel(video.channelId)
         }
     }
 }

@@ -106,7 +106,6 @@ internal fun PlayerBottomSheetsContainer(
                 screenState.closeSheet()
                 Toast.makeText(context, context.getString(R.string.video_marked_not_interested), Toast.LENGTH_SHORT).show()
             },
-            onChannelClick = onNavigateToChannel,
         )
     }
 

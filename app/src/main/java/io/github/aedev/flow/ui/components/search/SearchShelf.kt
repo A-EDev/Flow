@@ -68,7 +68,7 @@ fun SearchShelf(
             }
 
             SearchShelfKind.VIDEOS -> {
-                VideoStrip(shelf, asThumbnailRows, thumbnailWidth, onVideoClick, onChannelClick)
+                VideoStrip(shelf, asThumbnailRows, thumbnailWidth, onVideoClick)
             }
 
             SearchShelfKind.POSTS -> {
@@ -96,7 +96,6 @@ private fun VideoStrip(
     asThumbnailRows: Boolean,
     thumbnailWidth: Dp,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
 ) {
     var expanded by rememberSaveable(shelf.id) { mutableStateOf(false) }
     val collapsedCount = shelf.collapsedItemCount ?: shelf.videos.size
@@ -110,7 +109,6 @@ private fun VideoStrip(
             video = video,
             layout = if (asThumbnailRows) VideoCardLayout.Row else VideoCardLayout.Stacked,
             onClick = { onVideoClick(video) },
-            onChannelClick = onChannelClick,
             thumbnailWidth = thumbnailWidth,
         )
     }

@@ -69,7 +69,6 @@ fun PlaylistDetailScreen(
     onVideoClick: (Video) -> Unit,
     onPlayPlaylist: (List<Video>, Int) -> Unit,
     modifier: Modifier = Modifier,
-    onChannelClick: ((String) -> Unit)? = null,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -299,7 +298,6 @@ fun PlaylistDetailScreen(
                                 showDragHandle = canReorder,
                                 showAddedDate = isUserCreatedPlaylist,
                                 isWatchLater = uiState.isWatchLater,
-                                onChannelClick = onChannelClick,
                                 onRemove = { viewModel.removeVideo(video.id) },
                                 onClick = {
                                     if (selectionMode) {

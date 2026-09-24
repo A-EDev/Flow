@@ -487,7 +487,6 @@ internal fun PlaylistVideoRow(
     showDragHandle: Boolean,
     showAddedDate: Boolean,
     isWatchLater: Boolean,
-    onChannelClick: ((String) -> Unit)?,
     onRemove: () -> Unit,
     onClick: () -> Unit,
 ) {
@@ -556,7 +555,6 @@ internal fun PlaylistVideoRow(
     if (showQuickActions) {
         VideoQuickActionsBottomSheet(
             video = video,
-            onChannelClick = onChannelClick,
             onRemoveFromCollection = if (canModify) onRemove else null,
             removeFromCollectionLabel =
                 if (canModify) {

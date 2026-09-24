@@ -7,13 +7,13 @@ import io.github.aedev.flow.ui.components.shared.CollaboratorsBottomSheet
 @Composable
 internal fun VideoCardSheets(
     state: VideoCardState,
-    onChannelClick: ((String) -> Unit)?,
+    showChannel: Boolean,
 ) {
     val sheets = state.sheets
     if (sheets.showQuickActions) {
         VideoQuickActionsBottomSheet(
             video = state.video,
-            onChannelClick = onChannelClick,
+            showChannel = showChannel,
             onDismiss = { sheets.showQuickActions = false },
         )
     }
@@ -21,7 +21,6 @@ internal fun VideoCardSheets(
     if (sheets.showCollaborators) {
         CollaboratorsBottomSheet(
             collaborators = state.collaborators,
-            onChannelClick = onChannelClick,
             onDismiss = { sheets.showCollaborators = false },
         )
     }

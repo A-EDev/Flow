@@ -24,7 +24,6 @@ import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 internal fun VideoCardStacked(
     video: Video,
     onClick: () -> Unit,
-    onChannelClick: ((String) -> Unit)?,
     showChannel: Boolean,
     useInternalPadding: Boolean,
     modifier: Modifier = Modifier,
@@ -65,7 +64,7 @@ internal fun VideoCardStacked(
                         Modifier
                             .minimumInteractiveComponentSize()
                             .clip(CircleShape)
-                            .videoCardChannelClickable(state, onChannelClick),
+                            .videoCardChannelClickable(state),
                 )
             }
 
@@ -126,5 +125,5 @@ internal fun VideoCardStacked(
         }
     }
 
-    VideoCardSheets(state = state, onChannelClick = onChannelClick)
+    VideoCardSheets(state = state, showChannel = showChannel)
 }

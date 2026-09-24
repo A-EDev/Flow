@@ -309,7 +309,6 @@ internal fun ChannelContent(
                                 onVideoClick = onVideoClick,
                                 onShortClick = onShortClick,
                                 onPlaylistClick = onPlaylistClick,
-                                onChannelClick = onChannelClick,
                                 canOpenSection = { section -> sectionTarget(section, visibleTabs) != null },
                                 subscribedChannelIds = subscribedChannelIds,
                                 onSubscribeChannel = onSubscribeChannel,

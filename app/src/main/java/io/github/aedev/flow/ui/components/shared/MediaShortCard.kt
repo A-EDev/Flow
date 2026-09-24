@@ -111,7 +111,6 @@ fun MediaShortCard(
     if (showQuickActions) {
         VideoQuickActionsBottomSheet(
             video = video,
-            onChannelClick = null,
             onDismiss = { showQuickActions = false },
         )
     }

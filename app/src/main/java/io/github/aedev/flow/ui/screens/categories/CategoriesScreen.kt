@@ -56,7 +56,6 @@ import io.github.aedev.flow.utils.RegionCatalog
 @Composable
 fun CategoriesScreen(
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit = {},
     onShortClick: (String) -> Unit = {},
     onPlaylistClick: (String) -> Unit = {},
     viewModel: CategoriesViewModel = hiltViewModel(),
@@ -143,7 +142,6 @@ fun CategoriesScreen(
                             feedLayout = feedLayout,
                             isListView = uiState.isListView,
                             onVideoClick = onVideoClick,
-                            onChannelClick = onChannelClick,
                         )
                     }
 
@@ -154,7 +152,6 @@ fun CategoriesScreen(
                             feedLayout = feedLayout,
                             isListView = uiState.isListView,
                             onVideoClick = onVideoClick,
-                            onChannelClick = onChannelClick,
                             onPlaylistClick = onPlaylistClick,
                         )
                     }
@@ -167,7 +164,6 @@ fun CategoriesScreen(
                             columnPreference = columnPreference,
                             onVideoClick = onVideoClick,
                             onShortClick = onShortClick,
-                            onChannelClick = onChannelClick,
                             onPlaylistClick = onPlaylistClick,
                             onShelfOpen = viewModel::openShelf,
                         )
