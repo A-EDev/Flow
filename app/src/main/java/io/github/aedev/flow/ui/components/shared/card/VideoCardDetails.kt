@@ -1,20 +1,35 @@
 package io.github.aedev.flow.ui.components.shared.card
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 
@@ -58,6 +73,62 @@ internal fun MembersOnlyLabel(video: Video) {
             color = MaterialTheme.extendedColors.success,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * The whole card opens the video, and a long press opens its quick actions. TalkBack announces the
+ * long press by name, since the gesture alone is undiscoverable.
+ */
+@Composable
+internal fun Modifier.videoCardClickable(
+    state: VideoCardState,
+    onClick: () -> Unit,
+): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    return pressScale(interactionSource)
+        .combinedClickable(
+            interactionSource = interactionSource,
+            indication = ripple(),
+            onClickLabel = null,
+            onLongClickLabel = stringResource(R.string.more_options),
+            onLongClick = { state.sheets.showQuickActions = true },
+            onClick = onClick,
+        )
+}
+
+/** The channel as a tap target: the avatar on a stacked card, the name on a row. */
+@Composable
+internal fun Modifier.videoCardChannelClickable(
+    state: VideoCardState,
+    onChannelClick: ((String) -> Unit)?,
+): Modifier {
+    if (onChannelClick == null) return this
+    return clickable(
+        role = Role.Button,
+        onClickLabel = stringResource(R.string.go_to_channel),
+    ) { state.openChannel(onChannelClick) }
+}
+
+/**
+ * The quick actions button at the full 48 dp target. It is pulled up by [alignTo] so its icon sits on
+ * the title's first line instead of below it.
+ */
+@Composable
+internal fun VideoCardMoreButton(
+    state: VideoCardState,
+    alignTo: Dp,
+    modifier: Modifier = Modifier,
+) {
+    IconButton(
+        onClick = { state.sheets.showQuickActions = true },
+        modifier = modifier.offset(y = -alignTo),
+    ) {
+        Icon(
+            imageVector = Icons.Default.MoreVert,
+            contentDescription = stringResource(R.string.more_options),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

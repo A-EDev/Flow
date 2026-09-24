@@ -1,34 +1,22 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-
 package io.github.aedev.flow.ui.components.shared.card
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarStack
-import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 
 /** The thumbnail across the full width with the details beneath: feeds and grids. */
@@ -45,18 +33,12 @@ internal fun VideoCardStacked(
     val cardPreferences = LocalVideoCardPreferences.current
     val actions = LocalVideoCardActions.current
 
-    val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
-                .pressScale(interactionSource)
-                .combinedClickable(
-                    interactionSource = interactionSource,
-                    indication = androidx.compose.material3.ripple(),
-                    onLongClick = { state.sheets.showQuickActions = true },
-                    onClick = onClick,
-                ).then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier),
+                .videoCardClickable(state, onClick)
+                .then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier),
     ) {
         VideoCardThumbnail(
             state = state,
@@ -65,12 +47,14 @@ internal fun VideoCardStacked(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        // The avatar's 48 dp target overhangs its 40 dp image by 4 dp, so the row gives those 4 dp back
+        // and the avatar still lines up where it always has.
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp, horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(start = if (showChannel) 8.dp else 12.dp, top = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (showChannel) 8.dp else 12.dp),
         ) {
             if (showChannel) {
                 ChannelAvatarStack(
@@ -78,11 +62,10 @@ internal fun VideoCardStacked(
                     contentDescription = state.channelName,
                     avatarSize = 40.dp,
                     modifier =
-                        if (onChannelClick != null) {
-                            Modifier.clickable { state.openChannel(onChannelClick) }
-                        } else {
-                            Modifier
-                        },
+                        Modifier
+                            .minimumInteractiveComponentSize()
+                            .clip(CircleShape)
+                            .videoCardChannelClickable(state, onChannelClick),
                 )
             }
 
@@ -115,27 +98,12 @@ internal fun VideoCardStacked(
                         },
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier =
-                        if (onChannelClick != null) {
-                            Modifier.clickable { state.openChannel(onChannelClick) }
-                        } else {
-                            Modifier
-                        },
                 )
 
                 MembersOnlyLabel(video)
             }
 
-            IconButton(
-                onClick = { state.sheets.showQuickActions = true },
-                modifier = Modifier.size(24.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.more_options),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            VideoCardMoreButton(state = state, alignTo = 12.dp)
         }
 
         VideoCardFeedback(
