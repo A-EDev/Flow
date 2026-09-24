@@ -638,6 +638,11 @@ class VideoDownloadManager
             return "${safeTitle}_$quality.$extension"
         }
 
+        /** Set once a scan has run in this process; the Downloads screen scans again only on pull to refresh. */
+        @Volatile
+        var hasScannedThisSession: Boolean = false
+            private set
+
         /**
          * Scans all known download directories for video/audio files that are not tracked in the
          * database (e.g. after a database wipe) and re-inserts them as completed downloads so they
@@ -647,6 +652,7 @@ class VideoDownloadManager
          */
         suspend fun scanAndRecoverDownloads() =
             withContext(Dispatchers.IO) {
+                hasScannedThisSession = true
                 try {
                     val dirsToScan =
                         buildList {

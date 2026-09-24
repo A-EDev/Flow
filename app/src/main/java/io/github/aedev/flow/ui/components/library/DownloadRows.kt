@@ -375,6 +375,12 @@ internal fun VideosDownloadsList(
 @Composable
 internal fun MusicDownloadsList(
     tracks: List<DownloadedTrack>,
+    incompleteDownloads: List<DownloadWithItems>,
+    progressMap: Map<String, Float>,
+    onPauseClick: (String) -> Unit,
+    onResumeClick: (String) -> Unit,
+    onRetryClick: (String) -> Unit,
+    onCancelClick: (String, String) -> Unit,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onMusicClick: (List<DownloadedTrack>, Int) -> Unit,
@@ -389,7 +395,7 @@ internal fun MusicDownloadsList(
         state = pullState,
         modifier = modifier.fillMaxSize(),
     ) {
-        if (tracks.isEmpty()) {
+        if (tracks.isEmpty() && incompleteDownloads.isEmpty()) {
             DownloadsEmptyState(kind = MediaKind.Music, onHomeClick = onHomeClick)
         } else {
             LazyColumn(
@@ -397,6 +403,22 @@ internal fun MusicDownloadsList(
                 contentPadding = ListContentPadding,
                 verticalArrangement = Arrangement.spacedBy(ListItemSpacing),
             ) {
+                items(
+                    items = incompleteDownloads,
+                    key = { "active_${it.download.videoId}" },
+                    contentType = { "active" },
+                ) { download ->
+                    ActiveDownloadRow(
+                        download = download,
+                        progressMap = progressMap,
+                        isMerging = false,
+                        onPauseClick = { onPauseClick(download.download.videoId) },
+                        onResumeClick = { onResumeClick(download.download.videoId) },
+                        onRetryClick = { onRetryClick(download.download.videoId) },
+                        onDeleteClick = { onCancelClick(download.download.videoId, download.download.title) },
+                        modifier = animateMediaListItem(),
+                    )
+                }
                 itemsIndexed(
                     items = tracks,
                     key = { _, track -> track.track.videoId },

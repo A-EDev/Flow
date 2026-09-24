@@ -1,10 +1,5 @@
 package io.github.aedev.flow.ui.screens.library
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.tween
@@ -22,19 +17,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
@@ -62,35 +54,6 @@ fun DownloadsScreen(
     var showRemoveIncompleteDialog by remember { mutableStateOf(false) }
     var pendingDeletion by remember { mutableStateOf<PendingDeletion?>(null) }
     val haptic = LocalHapticFeedback.current
-    val context = LocalContext.current
-
-    val permissionsToRequest =
-        remember {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
-            } else {
-                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-        }
-
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions(),
-        ) { results ->
-            if (results.values.any { it }) viewModel.rescan()
-        }
-
-    LaunchedEffect(Unit) {
-        val anyMissing =
-            permissionsToRequest.any { perm ->
-                ContextCompat.checkSelfPermission(context, perm) != PackageManager.PERMISSION_GRANTED
-            }
-        if (anyMissing) {
-            permissionLauncher.launch(permissionsToRequest)
-        } else {
-            viewModel.rescan()
-        }
-    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -100,7 +63,15 @@ fun DownloadsScreen(
                 title = stringResource(R.string.downloads_title),
                 onBack = onBackClick,
                 actions = {
-                    if (uiState.incompleteDownloadCount > 0) {
+                    val incompleteCount =
+                        if (selectedKind ==
+                            MediaKind.Videos
+                        ) {
+                            uiState.incompleteVideoDownloads.size
+                        } else {
+                            uiState.incompleteMusicDownloads.size
+                        }
+                    if (incompleteCount > 0) {
                         IconButton(onClick = { showRemoveIncompleteDialog = true }) {
                             Icon(
                                 imageVector = Icons.Outlined.Delete,
@@ -162,6 +133,12 @@ fun DownloadsScreen(
                     MediaKind.Music -> {
                         MusicDownloadsList(
                             tracks = uiState.downloadedMusic,
+                            incompleteDownloads = uiState.incompleteMusicDownloads,
+                            progressMap = uiState.downloadProgressMap,
+                            onPauseClick = { viewModel.pauseVideoDownload(it) },
+                            onResumeClick = { viewModel.resumeVideoDownload(it) },
+                            onRetryClick = { viewModel.retryVideoDownload(it) },
+                            onCancelClick = { id, title -> pendingDeletion = PendingDeletion(id, title, MediaKind.Videos) },
                             isRefreshing = uiState.isScanning,
                             onRefresh = { viewModel.rescan() },
                             onMusicClick = onMusicClick,
@@ -214,8 +191,8 @@ fun DownloadsScreen(
                 Text(
                     pluralStringResource(
                         R.plurals.remove_incomplete_downloads_message,
-                        uiState.incompleteDownloadCount,
-                        uiState.incompleteDownloadCount,
+                        incompleteCount(uiState, selectedKind),
+                        incompleteCount(uiState, selectedKind),
                     ),
                 )
             },
@@ -223,7 +200,7 @@ fun DownloadsScreen(
                 TextButton(
                     onClick = {
                         showRemoveIncompleteDialog = false
-                        viewModel.removeIncompleteDownloads()
+                        viewModel.removeIncompleteDownloads(audioOnly = selectedKind == MediaKind.Music)
                     },
                 ) {
                     Text(stringResource(R.string.remove))
@@ -237,6 +214,11 @@ fun DownloadsScreen(
         )
     }
 }
+
+private fun incompleteCount(
+    state: DownloadsUiState,
+    kind: MediaKind,
+): Int = if (kind == MediaKind.Videos) state.incompleteVideoDownloads.size else state.incompleteMusicDownloads.size
 
 private data class PendingDeletion(
     val id: String,
