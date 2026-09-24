@@ -24,13 +24,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
-import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
-import io.github.aedev.flow.data.update.AppRelease
-import io.github.aedev.flow.data.update.UpdateAnnouncement
-import io.github.aedev.flow.data.update.UpdateRepository
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.platform.AppUiMode
@@ -43,10 +39,10 @@ import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.components.ProvideVideoCardState
-import io.github.aedev.flow.ui.components.UpdateDialog
 import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.components.shared.ProvideDateDisplaySettings
 import io.github.aedev.flow.ui.screens.CrashReporterScreen
+import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.theme.CustomTheme
 import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
@@ -56,13 +52,11 @@ import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import io.github.aedev.flow.ui.youtubeChannelDeepLinkRoute
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
-import io.github.aedev.flow.utils.UpdateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 private const val PORTRAIT_REEL_ASPECT_RATIO = 9f / 16f
@@ -75,9 +69,6 @@ class MainActivity : ComponentActivity() {
     private val _isDeeplinkShort = mutableStateOf(false)
     val isDeeplinkShort: State<Boolean> = _isDeeplinkShort
 
-    private val _pendingUpdate = mutableStateOf<AppRelease?>(null)
-    val pendingUpdate: State<AppRelease?> = _pendingUpdate
-
     private val _openMusicPlayerRequest = mutableIntStateOf(0)
     val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
 
@@ -86,9 +77,6 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
-
-    @Inject
-    lateinit var updateRepository: UpdateRepository
 
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
@@ -225,13 +213,6 @@ class MainActivity : ComponentActivity() {
                 return@setContent
             }
 
-            var updateInfo by remember { mutableStateOf<AppRelease?>(null) }
-
-            LaunchedEffect(Unit) {
-                if (BuildConfig.DEBUG || !BuildConfig.UPDATER_ENABLED) return@LaunchedEffect
-                updateInfo = updateRepository.releaseToAnnounce(UpdateAnnouncement.LAUNCH_PAGE)
-            }
-
             // Load theme preference and keep it reactive
             LaunchedEffect(Unit) {
                 dataManager.themeMode.collect { mode ->
@@ -283,28 +264,6 @@ class MainActivity : ComponentActivity() {
                 systemDarkThemeMode = systemDarkThemeMode,
                 systemDarkThemeVariant = systemDarkThemeVariant,
             ) {
-                // Show Dialog Overlay if update exists (github flavor only)
-                if (BuildConfig.UPDATER_ENABLED && updateInfo != null) {
-                    UpdateDialog(
-                        updateInfo = updateInfo!!,
-                        onDismiss = { updateInfo = null },
-                        onUpdate = {
-                            UpdateManager.triggerDownload(context, updateInfo!!.apk?.url ?: updateInfo!!.pageUrl)
-                            updateInfo = null
-                        },
-                    )
-                }
-
-                // Handle update from notification (github flavor only)
-                if (BuildConfig.UPDATER_ENABLED) {
-                    val pendingUpdate by this@MainActivity.pendingUpdate
-                    LaunchedEffect(pendingUpdate) {
-                        if (pendingUpdate != null) {
-                            updateInfo = pendingUpdate
-                        }
-                    }
-                }
-
                 // Date preferences: five DataStore flows used to be opened per video card,
                 // metadata line, info section, description sheet and info dialog.
                 ProvideWindowSizeClass {
@@ -409,9 +368,7 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent) {
         if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_UPDATE, false)) {
             intent.removeExtra(NotificationHelper.EXTRA_OPEN_UPDATE)
-            lifecycleScope.launch {
-                _pendingUpdate.value = updateRepository.latest.value ?: runCatching { updateRepository.fetch() }.getOrNull()
-            }
+            _pendingRoute.value = UPDATE_ROUTE
             return
         }
         val data = intent.data

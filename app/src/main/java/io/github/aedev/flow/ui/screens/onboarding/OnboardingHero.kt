@@ -5,7 +5,6 @@ package io.github.aedev.flow.ui.screens.onboarding
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -29,12 +28,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
-import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowLogo
 import io.github.aedev.flow.ui.components.shared.drawMorph
 import kotlinx.coroutines.flow.first
 
@@ -46,7 +44,6 @@ private const val BACKDROP_NEAR = 0.95f
 private const val BACKDROP_FAR = 0.7f
 private const val BACKDROP_TURN_NEAR = 40f
 private const val BACKDROP_TURN_FAR = -30f
-private const val LOGO_ASPECT = 48f / 36f
 
 private fun heroShape(step: OnboardingStep): RoundedPolygon =
     when (step) {
@@ -143,25 +140,6 @@ private fun HeroMark(step: OnboardingStep) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.fillMaxWidth(HERO_ICON_SHARE).aspectRatio(1f))
     } else {
         FlowLogo(Modifier.fillMaxWidth(LOGO_SHARE))
-    }
-}
-
-/** The app's badge, drawn in theme colours so it follows every palette. */
-@Composable
-internal fun FlowLogo(modifier: Modifier = Modifier) {
-    Box(modifier.aspectRatio(LOGO_ASPECT)) {
-        Icon(
-            painter = painterResource(R.drawable.ic_flow_badge_shape),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Icon(
-            painter = painterResource(R.drawable.ic_flow_badge_glyph),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.fillMaxSize(),
-        )
     }
 }
 

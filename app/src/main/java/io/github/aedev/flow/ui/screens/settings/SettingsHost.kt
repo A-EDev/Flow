@@ -42,6 +42,7 @@ fun SettingsHost(
     onExit: () -> Unit,
     onOpenDonations: () -> Unit,
     onOpenRecap: () -> Unit,
+    onOpenUpdate: () -> Unit,
 ) {
     val navigator = rememberListDetailPaneScaffoldNavigator<String>(scaffoldDirective = rememberSettingsScaffoldDirective())
     val scope = rememberCoroutineScope()
@@ -96,6 +97,7 @@ fun SettingsHost(
                     selected = if (twoPane) current.destination.root else null,
                     onOpen = ::open,
                     onOpenDonations = onOpenDonations,
+                    onOpenUpdate = onOpenUpdate,
                     onBack = onExit,
                 )
             }

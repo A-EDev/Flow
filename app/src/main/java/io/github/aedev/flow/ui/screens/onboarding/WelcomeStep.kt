@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.RoundedPolygon
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowLogo
 import io.github.aedev.flow.ui.components.shared.FlowPopIn
 
 internal val HeroStageSize = 300.dp

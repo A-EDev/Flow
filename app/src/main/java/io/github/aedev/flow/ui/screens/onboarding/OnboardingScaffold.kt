@@ -7,13 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -33,7 +30,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -41,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowActionButton
 import io.github.aedev.flow.ui.components.shared.drawSegmentedProgress
 
 /** Draws the current step's hero at the given size; the screen builds it so it can be shared between steps. */
@@ -132,7 +129,7 @@ internal fun OnboardingBottomBar(
             TextButton(onClick = onRestore, modifier = Modifier.heightIn(min = ButtonDefaults.MediumContainerHeight)) {
                 Text(stringResource(R.string.onboarding_restore_backup))
             }
-            PrimaryButton(
+            FlowActionButton(
                 stringResource(R.string.onboarding_get_started),
                 onNext,
                 Modifier.weight(1f),
@@ -149,7 +146,7 @@ internal fun OnboardingBottomBar(
         }
         when {
             state.step == OnboardingStep.READY -> {
-                PrimaryButton(
+                FlowActionButton(
                     stringResource(R.string.onboarding_start_watching),
                     onNext,
                     Modifier.weight(1f),
@@ -158,7 +155,7 @@ internal fun OnboardingBottomBar(
             }
 
             !state.canAdvance -> {
-                PrimaryButton(
+                FlowActionButton(
                     text = pluralStringResource(R.plurals.onboarding_pick_more, state.topicsLeft, state.topicsLeft),
                     onClick = onNext,
                     modifier = Modifier.weight(1f),
@@ -167,7 +164,7 @@ internal fun OnboardingBottomBar(
             }
 
             else -> {
-                PrimaryButton(
+                FlowActionButton(
                     stringResource(R.string.onboarding_btn_continue),
                     onNext,
                     Modifier.weight(1f),
@@ -176,40 +173,6 @@ internal fun OnboardingBottomBar(
             }
         }
     }
-}
-
-@Composable
-private fun PrimaryButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    leading: ImageVector? = null,
-    trailing: ImageVector? = null,
-) {
-    val height = ButtonDefaults.MediumContainerHeight
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        shapes = ButtonDefaults.shapesFor(height),
-        contentPadding = ButtonDefaults.contentPaddingFor(height, leading != null, trailing != null),
-        modifier = modifier.heightIn(min = height),
-    ) {
-        leading?.let { ButtonIcon(it, height, trailing = false) }
-        Text(text, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-        trailing?.let { ButtonIcon(it, height, trailing = true) }
-    }
-}
-
-@Composable
-private fun ButtonIcon(
-    icon: ImageVector,
-    height: Dp,
-    trailing: Boolean,
-) {
-    if (trailing) Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
-    Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.iconSizeFor(height)))
-    if (!trailing) Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
 }
 
 /** The hero, title and subtitle at the top of a step's list. */
