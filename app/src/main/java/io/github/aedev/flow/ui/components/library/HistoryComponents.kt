@@ -306,10 +306,13 @@ internal fun HistoryEntryRow(
 
     LibraryMediaListRow(
         track = track,
+        video = remember(entry) { entry.toVideo() },
         isMusic = entry.isMusic,
         title = entry.title.ifBlank { entry.videoId },
         onVideoClick = { onVideoClick(track) },
         onMusicClick = { onMusicClick(track, musicQueue) },
+        removeLabel = removeLabel,
+        onRemove = { onRemove(entry) },
         modifier = modifier,
         subtitle = entry.channelName.takeIf { it.isNotBlank() },
         thumbnailUrl = entry.thumbnailUrl,

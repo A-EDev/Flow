@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Delete
@@ -27,6 +28,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +48,7 @@ import io.github.aedev.flow.ui.components.library.DownloadsEmptyState
 import io.github.aedev.flow.ui.components.library.DownloadsSectionHeader
 import io.github.aedev.flow.ui.components.library.MusicDownloadRow
 import io.github.aedev.flow.ui.components.library.VideoDownloadRow
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.shared.ArtworkThumbnail
 import io.github.aedev.flow.ui.components.shared.ExplicitBadge
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
@@ -54,6 +58,7 @@ import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.animateMediaListItem
+import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 
 private val ProgressBarHeight: Dp = 3.dp
 private val SectionHeaderPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
@@ -81,16 +86,23 @@ internal fun VideoDownloadRow(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showMenu by remember { mutableStateOf(false) }
     MediaRow(
         title = video.video.title,
         modifier = modifier,
         subtitle = video.video.channelName,
         onClick = onClick,
+        onLongClick = { showMenu = true },
         trailing = {
             MediaRowAction(
                 icon = Icons.Outlined.Delete,
                 contentDescription = stringResource(R.string.cd_delete_download, video.video.title),
                 onClick = onDeleteClick,
+            )
+            MediaRowAction(
+                icon = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+                onClick = { showMenu = true },
             )
         },
     ) {
@@ -98,6 +110,14 @@ internal fun VideoDownloadRow(
             videoId = video.video.id,
             thumbnailUrl = video.video.thumbnailUrl,
             durationSeconds = video.video.duration,
+        )
+    }
+    if (showMenu) {
+        VideoQuickActionsBottomSheet(
+            video = video.video,
+            onDismiss = { showMenu = false },
+            onRemoveFromCollection = onDeleteClick,
+            removeFromCollectionLabel = stringResource(R.string.delete),
         )
     }
 }
@@ -199,12 +219,14 @@ internal fun MusicDownloadRow(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val musicMenus = LocalMusicMenus.current
     MediaRow(
         title = downloadedTrack.track.title,
         modifier = modifier,
         subtitle = downloadedTrack.track.artist,
         titleMaxLines = 1,
         onClick = onClick,
+        onLongClick = { musicMenus.openSong(downloadedTrack.track) },
         subtitleLeading =
             if (downloadedTrack.track.isExplicit == true) {
                 { ExplicitBadge(modifier = Modifier.padding(end = 4.dp)) }
@@ -216,6 +238,11 @@ internal fun MusicDownloadRow(
                 icon = Icons.Outlined.Delete,
                 contentDescription = stringResource(R.string.cd_delete_download, downloadedTrack.track.title),
                 onClick = onDeleteClick,
+            )
+            MediaRowAction(
+                icon = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+                onClick = { musicMenus.openSong(downloadedTrack.track) },
             )
         },
     ) {
