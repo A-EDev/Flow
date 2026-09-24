@@ -2494,7 +2494,7 @@
     <string name="music_content_language_dialog_title">Seleziona lingua dei contenuti</string>
     <string name="subscriptions_failed_channels_copy_logs">Copia log</string>
     <string name="content_settings_channel_group_badge_title">Mostra gruppo negli avatar del canale</string>
-    <string name="content_settings_channel_group_badge_subtitle">Etichetta gli avatar di canali e artisti con il gruppo di iscrizione di cui fanno parte</string>
+    <string name="content_settings_channel_group_badge_subtitle">Etichetta gli avatar con il loro gruppo di iscrizione</string>
     <string name="channel_add_to_group">Aggiungi a un gruppo</string>
     <string name="channel_groups_sheet_title">Gruppi di canale</string>
     <string name="channel_groups_empty">Nessun gruppo presente</string>
@@ -2637,4 +2637,27 @@
     <string name="search_channel_go_to">Vai al canale</string>
     <string name="duration_under_3">Sotto i 3 minuti</string>
     <string name="duration_3_20">3-20 min</string>
+    <string name="start_radio">Avvia radio</string>
+    <string name="start_radio_desc">Riproduci una stazione basata su questo brano</string>
+    <plurals name="playlists_count_template">
+        <item quantity="one">%1$d playlist</item>
+        <item quantity="many">%1$d playlist</item>
+        <item quantity="other">%1$d playlist</item>
+    </plurals>
+    <plurals name="shorts_count_template">
+        <item quantity="one">%1$d Short</item>
+        <item quantity="many">%1$d Shorts</item>
+        <item quantity="other">%1$d Shorts</item>
+    </plurals>
+    <plurals name="library_items_count">
+        <item quantity="one">%1$d elemento</item>
+        <item quantity="many">%1$d elementi</item>
+        <item quantity="other">%1$d elementi</item>
+    </plurals>
+    <string name="notifications_group_new">Nuovo</string>
+    <string name="notifications_group_last_week">Ultimi 7 giorni</string>
+    <string name="notifications_meta">%1$s · %2$s</string>
+    <string name="notifications_removed">Notifica rimossa</string>
+    <string name="notifications_open_settings">Impostazioni di notifica</string>
+    <string name="notifications_clear_title">Cancellare tutte le notifiche?</string>
 </resources>
