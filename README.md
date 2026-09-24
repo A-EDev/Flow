@@ -93,6 +93,7 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 - Persistent mini player across the app
 - Synchronized lyrics display
 - Fetches tracks from YouTube Music
+- Playback speed control for music playback
 
 ### Recommendations (FlowNeuro Engine)
 - Runs 100% on-device — no server, no telemetry, no account needed
