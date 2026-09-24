@@ -14,6 +14,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -29,6 +30,7 @@ import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.notification.NotificationHelper
+import io.github.aedev.flow.platform.AppIconController
 import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
@@ -46,6 +48,7 @@ import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.startup.FlowTheme
 import io.github.aedev.flow.ui.startup.SplashController
 import io.github.aedev.flow.ui.startup.ThemeSettings
+import io.github.aedev.flow.ui.startup.splashTone
 import io.github.aedev.flow.ui.startup.themeSettings
 import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.tv.FlowTvApp
@@ -78,6 +81,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
+
+    @Inject
+    lateinit var appIconController: AppIconController
 
     private val splashController = SplashController(this)
 
@@ -210,6 +216,9 @@ class MainActivity : ComponentActivity() {
             }
 
             FlowTheme(theme) {
+                val splashTone = splashTone(MaterialTheme.colorScheme.background)
+                LaunchedEffect(splashTone) { splashController.rememberTheme(splashTone, appIconController.activeSuffix()) }
+
                 // Date preferences: five DataStore flows used to be opened per video card,
                 // metadata line, info section, description sheet and info dialog.
                 ProvideWindowSizeClass {

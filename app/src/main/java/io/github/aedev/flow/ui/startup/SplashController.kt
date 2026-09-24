@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.startup
 
 import android.app.Activity
+import android.os.Build
 import android.os.SystemClock
 import android.view.animation.AnimationUtils
 import androidx.core.splashscreen.SplashScreen
@@ -25,6 +26,16 @@ class SplashController(
     fun install(splash: SplashScreen) {
         splash.setKeepOnScreenCondition { !themeReady && SystemClock.uptimeMillis() - startedAt < MAX_HOLD_MS }
         splash.setOnExitAnimationListener(::animateExit)
+    }
+
+    /** Opens the next launch on [tone] with the art of [iconSuffix]; Android 13 and later only. */
+    fun rememberTheme(
+        tone: SplashTone,
+        iconSuffix: String,
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            activity.splashScreen.setSplashScreenTheme(splashThemeFor(iconSuffix, tone))
+        }
     }
 
     private fun animateExit(provider: SplashScreenViewProvider) {

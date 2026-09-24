@@ -15,5 +15,9 @@
     <color name="icon_bg_flow_play">#FFFFFF</color>
     <color name="icon_bg_material_sky">#D7E3FF</color>
     <color name="icon_bg_material_mint">#C7E8D4</color>
+    <color name="splash_background">#FFFFFF</color>
+    <color name="splash_background_light">#FFFFFF</color>
+    <color name="splash_background_dark">#0F0F0F</color>
+    <color name="splash_background_black">#000000</color>
 </resources>
 
