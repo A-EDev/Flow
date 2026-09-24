@@ -2895,6 +2895,9 @@
     </plurals>
     <string name="notification_update_available">Update Available: %1$s</string>
     <string name="notification_tap_to_update">Tap to update to the latest version.</string>
+    <string name="update_downloading_notification">Downloading Flow %1$s</string>
+    <string name="update_ready_notification">Flow %1$s is ready</string>
+    <string name="update_ready_notification_text">Verified. Tap to install.</string>
     <string name="notification_watch_later_reminder">Watch Later Reminder</string>
     <string name="notification_video_live">Video is live</string>
     <string name="notification_channel_live">%1$s is now live: %2$s</string>
