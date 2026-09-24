@@ -104,6 +104,20 @@ class ViewHistory private constructor(
         )
     }
 
+    /**
+     * Records that [videoId] played to its end. Its card then shows a full bar until the next
+     * playback of it starts over from the beginning and saves new progress.
+     */
+    suspend fun markCompleted(
+        videoId: String,
+        durationMs: Long,
+    ) {
+        if (durationMs <= 0L) return
+        val prefs = PlayerPreferences(context)
+        if (prefs.isDeepFlowCurrentlyActive() && !prefs.isDeepFlowSaveToHistoryEnabled()) return
+        dao.markCompleted(videoId, durationMs)
+    }
+
     suspend fun getSavedPosition(videoId: String): Long = dao.getPosition(videoId) ?: 0L
 
     /**

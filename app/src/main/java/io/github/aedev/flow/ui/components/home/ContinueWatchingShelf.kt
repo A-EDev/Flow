@@ -35,10 +35,10 @@ import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.data.model.hasLikelyCollaborationByline
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
-import io.github.aedev.flow.ui.components.rememberCollaboratorChannelDisplayName
 import io.github.aedev.flow.ui.components.shared.MediaTextBadge
 import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.components.shared.WatchProgressBar
+import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorChannelDisplayName
 import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
 

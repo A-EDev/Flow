@@ -17,9 +17,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.CompactVideoCard
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 
 @Composable
 internal fun ChannelSearchResults(
@@ -82,16 +82,16 @@ internal fun ChannelSearchResults(
                 ) { index ->
                     val video = uiState.searchResults[index]
                     if (isGridView) {
-                        VideoCardFullWidth(
+                        MediaVideoCard(
                             video = video,
-                            showChannelAvatar = false,
-                            showChannelName = false,
+                            showChannel = false,
                             onClick = { onVideoClick(video) },
                         )
                     } else {
-                        CompactVideoCard(
+                        MediaVideoCard(
                             video = video,
-                            showChannelName = false,
+                            layout = VideoCardLayout.Row,
+                            showChannel = false,
                             onClick = { onVideoClick(video) },
                         )
                     }

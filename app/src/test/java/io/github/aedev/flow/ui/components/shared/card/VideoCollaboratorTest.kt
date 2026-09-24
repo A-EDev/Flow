@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared.card
 
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
@@ -12,7 +12,7 @@ class VideoCollaboratorTest {
         listOf(
             "Retro gaming with deadfred",
             "Binging with Babish",
-            "Dungeons and Dragons"
+            "Dungeons and Dragons",
         ).forEach { channelName ->
             assertTrue(video(channelName = channelName).collaboratorItems().isEmpty())
         }
@@ -20,17 +20,18 @@ class VideoCollaboratorTest {
 
     @Test
     fun verifiedCollaboratorMetadataCreatesCollaboratorList() {
-        val collaborators = listOf(
-            VideoCollaborator(name = "First", channelId = "UC-first"),
-            VideoCollaborator(name = "Second", channelId = "UC-second")
-        )
+        val collaborators =
+            listOf(
+                VideoCollaborator(name = "First", channelId = "UC-first"),
+                VideoCollaborator(name = "Second", channelId = "UC-second"),
+            )
 
         assertEquals(collaborators, video(collaborators = collaborators).collaboratorItems())
     }
 
     private fun video(
         channelName: String = "Channel",
-        collaborators: List<VideoCollaborator> = emptyList()
+        collaborators: List<VideoCollaborator> = emptyList(),
     ) = Video(
         id = "video-id",
         title = "Video",
@@ -40,6 +41,6 @@ class VideoCollaboratorTest {
         duration = 60,
         viewCount = 0,
         uploadDate = "",
-        collaborators = collaborators
+        collaborators = collaborators,
     )
 }

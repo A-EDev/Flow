@@ -21,7 +21,8 @@ import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
-import io.github.aedev.flow.ui.components.shared.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
 /** A destination shelf's "see all", paged. */
@@ -94,7 +95,7 @@ internal fun CategoryPagedGrid(
                     val video = item.gridVideo()
                     MediaVideoCard(
                         video = video,
-                        asThumbnailRow = plan.isListCard(index),
+                        layout = if (plan.isListCard(index)) VideoCardLayout.Row else VideoCardLayout.Stacked,
                         onClick = { onVideoClick(video) },
                         onChannelClick = onChannelClick,
                         thumbnailWidth = plan.listThumbnailWidth,
@@ -162,7 +163,7 @@ internal fun CategoryChartGrid(
         ) { index, video ->
             MediaVideoCard(
                 video = video,
-                asThumbnailRow = plan.isListCard(index),
+                layout = if (plan.isListCard(index)) VideoCardLayout.Row else VideoCardLayout.Stacked,
                 onClick = { onVideoClick(video) },
                 onChannelClick = onChannelClick,
                 thumbnailWidth = plan.listThumbnailWidth,

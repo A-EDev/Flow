@@ -14,9 +14,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
-import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
-import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
-import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardHorizontal
+import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
+import io.github.aedev.flow.ui.components.shared.card.VideoCardSkeleton
 
 private const val SHIMMER_CARD_COUNT = 12
 
@@ -51,13 +50,10 @@ internal fun HomeFeedShimmer(
         userScrollEnabled = false,
     ) {
         items(SHIMMER_CARD_COUNT) {
-            if (isListView) {
-                ShimmerVideoCardHorizontal()
-            } else if (layoutConfig.columns == 1) {
-                ShimmerVideoCardFullWidth()
-            } else {
-                ShimmerGridVideoCard()
-            }
+            VideoCardSkeleton(
+                layout = if (isListView) VideoCardLayout.Row else VideoCardLayout.Stacked,
+                useInternalPadding = false,
+            )
         }
     }
 }

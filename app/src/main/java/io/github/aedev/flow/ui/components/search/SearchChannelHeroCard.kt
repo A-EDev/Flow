@@ -35,11 +35,11 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
 import io.github.aedev.flow.ui.components.shared.MediaArtworkTint
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
 import io.github.aedev.flow.ui.components.shared.rememberMediaArtworkTint
 import io.github.aedev.flow.utils.formatSubscriberCount
 
@@ -242,11 +242,10 @@ private fun LatestStrip(
             horizontalArrangement = Arrangement.spacedBy(StripSpacing),
         ) {
             items(videos, key = { it.id }) { video ->
-                VideoCardFullWidth(
+                MediaVideoCard(
                     video = video,
                     useInternalPadding = false,
-                    showChannelAvatar = false,
-                    showChannelName = false,
+                    showChannel = false,
                     onClick = { onVideoClick(video) },
                     modifier = Modifier.width(cardWidth),
                 )

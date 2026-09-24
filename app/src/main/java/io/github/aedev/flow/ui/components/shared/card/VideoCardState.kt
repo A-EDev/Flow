@@ -1,5 +1,6 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared.card
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -9,13 +10,18 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.ViewHistory
-import kotlinx.coroutines.flow.StateFlow
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.ui.components.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -75,28 +81,47 @@ fun rememberWatchProgress(videoId: String): Float? {
     return progress.value
 }
 
-@Composable
-fun rememberIsWatched(
-    videoId: String,
-    watchedVideoIds: StateFlow<Set<String>>,
-    watchProgress: Float?,
-): Boolean {
-    val watchedIds = watchedVideoIds.collectAsStateWithLifecycle()
-    val isMarkedWatched by remember(watchedIds, videoId) {
-        derivedStateOf { videoId in watchedIds.value }
-    }
-    return isMarkedWatched || (watchProgress ?: 0f) >= WATCHED_PROGRESS_THRESHOLD
-}
-
 internal const val WATCHED_PROGRESS_THRESHOLD = 0.90f
 
 /**
+ * Whether a card should read as watched. Marking a video watched writes a history entry at its full
+ * length, so the progress store is the one answer for every screen.
+ */
+internal fun isWatchedProgress(watchProgress: Float?): Boolean = (watchProgress ?: 0f) >= WATCHED_PROGRESS_THRESHOLD
+
+/** The feedback a card sends without opening its sheet. */
+@Stable
+class VideoCardActions(
+    val onInterested: (Video) -> Unit,
+    val onNotInterested: (Video) -> Unit,
+    val onWatched: (Video) -> Unit,
+) {
+    internal companion object {
+        val None = VideoCardActions({}, {}, {})
+    }
+}
+
+val LocalVideoCardActions = staticCompositionLocalOf { VideoCardActions.None }
+
+/**
  * Installs the shared card state. Must wrap any tree that renders video cards; without it cards
- * fall back to defaults (settings off, no progress bars).
+ * fall back to defaults (settings off, no progress bars, actions that do nothing). Installed once at
+ * the activity root, so [quickActions] is the activity's instance and no card looks one up itself.
  */
 @Composable
-fun ProvideVideoCardState(content: @Composable () -> Unit) {
+fun ProvideVideoCardState(
+    quickActions: QuickActionsViewModel = hiltViewModel(),
+    content: @Composable () -> Unit,
+) {
     val context = LocalContext.current
+    val actions =
+        remember(quickActions) {
+            VideoCardActions(
+                onInterested = quickActions::markAsInteresting,
+                onNotInterested = quickActions::markNotInterested,
+                onWatched = quickActions::markAsWatched,
+            )
+        }
 
     val preferencesFlow =
         remember(context) {
@@ -127,6 +152,7 @@ fun ProvideVideoCardState(content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalVideoCardPreferences provides preferences,
         LocalVideoWatchProgress provides progressStore,
+        LocalVideoCardActions provides actions,
         content = content,
     )
 }
@@ -144,3 +170,58 @@ internal fun List<VideoHistoryEntry>.toWatchProgressMap(): Map<String, Float> =
             }
         }
     }
+
+/** Which of a card's sheets is open. Kept apart from [VideoCardState] so a new title or progress value never closes one. */
+@Stable
+internal class VideoCardSheetState {
+    var showQuickActions by mutableStateOf(false)
+    var showCollaborators by mutableStateOf(false)
+}
+
+/** Everything a card shows about [video], resolved once for every card layout. */
+@Stable
+internal class VideoCardState(
+    val video: Video,
+    val title: String,
+    val thumbnailUrl: String,
+    val showDeArrowBadge: Boolean,
+    val channelName: String,
+    val collaborators: List<VideoCollaborator>,
+    val watchProgress: Float?,
+    val showReminderBadge: Boolean,
+    val sheets: VideoCardSheetState,
+) {
+    val avatarUrls: List<String> get() = video.channelAvatarUrls(collaborators)
+
+    val isWatched: Boolean get() = isWatchedProgress(watchProgress)
+
+    /** A collaboration opens the list of its channels; a single channel opens directly. */
+    fun openChannel(onChannelClick: ((String) -> Unit)?) {
+        if (collaborators.size > 1) {
+            sheets.showCollaborators = true
+        } else {
+            onChannelClick?.invoke(video.channelId)
+        }
+    }
+}
+
+@Composable
+internal fun rememberVideoCardState(video: Video): VideoCardState {
+    val preferences = LocalVideoCardPreferences.current
+    val deArrow = rememberDeArrowResult(video.id, preferences.deArrowEnabled)
+    val collaborators = rememberCollaboratorItems(video)
+    val channelName = rememberCollaboratorChannelDisplayName(video.channelName, collaborators)
+    val watchProgress = rememberWatchProgress(video.id)
+    val sheets = remember { VideoCardSheetState() }
+    return VideoCardState(
+        video = video,
+        title = deArrow?.title ?: video.title,
+        thumbnailUrl = deArrow?.thumbnailUrl ?: video.thumbnailUrl,
+        showDeArrowBadge = deArrow != null && preferences.deArrowBadgeEnabled,
+        channelName = channelName,
+        collaborators = collaborators,
+        watchProgress = watchProgress,
+        showReminderBadge = video.isUpcoming && video.id in preferences.upcomingReminderIds,
+        sheets = sheets,
+    )
+}

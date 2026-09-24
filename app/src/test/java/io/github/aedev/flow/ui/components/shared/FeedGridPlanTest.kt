@@ -4,9 +4,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
-import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.feedGridLayoutFor
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import org.junit.Test
 
 /**
@@ -108,7 +108,7 @@ class FeedGridPlanTest {
 
     @Test
     fun `a compact thumbnail keeps its fixed width, a wide one matches a grid column`() {
-        assertThat(plan(360.dp).listThumbnailWidth).isEqualTo(CompactVideoCardThumbnailWidth)
+        assertThat(plan(360.dp).listThumbnailWidth).isEqualTo(VideoCardDefaults.RowThumbnailWidth)
 
         val wide = plan(1200.dp)
         assertThat(wide.listThumbnailWidth).isEqualTo(feedGridLayoutFor(1200.dp, maxAutoColumns = FEED_MAX_AUTO_COLUMNS).cardWidth)

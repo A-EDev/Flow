@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.stats.ViewFormat
+import io.github.aedev.flow.player.state.PlaybackCompletion
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -330,5 +331,29 @@ class WatchSessionTrackerTest {
                 viewCount = 1L,
                 uploadDate = "2026-01-01",
             )
+    }
+
+    @Test
+    fun `a video that played to its end is recorded at its full length`() =
+        runTest {
+            tracker().markCompleted(PlaybackCompletion(videoId = "done", durationMs = 61_000L))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { viewHistory.markCompleted("done", 61_000L) }
+        }
+
+    @Test
+    fun `a position belongs to the video the player still holds`() {
+        assertThat(positionBelongsTo(videoId = "a", playerVideoId = "a")).isTrue()
+    }
+
+    @Test
+    fun `after autoplay moves on the old video's position is not its own`() {
+        assertThat(positionBelongsTo(videoId = "a", playerVideoId = "b")).isFalse()
+    }
+
+    @Test
+    fun `a closed player no longer holds any video, so the last position still saves`() {
+        assertThat(positionBelongsTo(videoId = "a", playerVideoId = null)).isTrue()
     }
 }

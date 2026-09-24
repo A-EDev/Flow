@@ -9,8 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.components.FeedGridLayout
-import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
-import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.card.VideoCardSkeleton
 
 /** Placeholder cards in the layout the results will land in, so the first page does not jump. */
 @Composable
@@ -34,7 +33,7 @@ fun SearchResultsShimmer(
         verticalArrangement = Arrangement.spacedBy(if (compactList) 0.dp else feedLayout.cardSpacing),
     ) {
         items(PLACEHOLDER_KEYS, key = { it }, contentType = { "shimmer" }) {
-            if (compactList) ShimmerVideoCardFullWidth() else ShimmerGridVideoCard()
+            VideoCardSkeleton()
         }
     }
 }

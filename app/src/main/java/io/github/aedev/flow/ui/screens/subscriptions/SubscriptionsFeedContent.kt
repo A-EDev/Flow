@@ -37,12 +37,12 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
-import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
+import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 
 private val GroupRowHorizontalPadding = 12.dp
 private val GroupRowVerticalPadding = 8.dp
@@ -198,15 +198,16 @@ internal fun SubscriptionsFeedContent(
 
                 items(videos, key = { it.id }) { video ->
                     if (state.isFullWidthView) {
-                        VideoCardFullWidth(
+                        MediaVideoCard(
                             video = video,
                             onClick = { onVideoClick(video) },
                             onChannelClick = onVideoChannelClick,
                             useInternalPadding = false,
                         )
                     } else {
-                        VideoCardHorizontal(
+                        MediaVideoCard(
                             video = video,
+                            layout = VideoCardLayout.Row,
                             onClick = { onVideoClick(video) },
                             onChannelClick = onVideoChannelClick,
                         )

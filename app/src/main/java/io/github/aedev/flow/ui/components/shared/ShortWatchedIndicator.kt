@@ -15,8 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.WATCHED_PROGRESS_THRESHOLD
-import io.github.aedev.flow.ui.components.rememberWatchProgress
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoWatchProgress
+import io.github.aedev.flow.ui.components.shared.card.WATCHED_PROGRESS_THRESHOLD
+import io.github.aedev.flow.ui.components.shared.card.rememberWatchProgress
 import io.github.aedev.flow.ui.theme.ArtworkScrimContent
 import io.github.aedev.flow.ui.theme.artworkScrim
 

@@ -56,7 +56,6 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.VideoDescriptionChannel
 import io.github.aedev.flow.innertube.pages.VideoDescriptionFactoid
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight

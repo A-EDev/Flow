@@ -56,6 +56,13 @@ interface WatchHistoryDao {
     @Query("SELECT * FROM watch_history WHERE videoId = :videoId")
     fun getEntry(videoId: String): Flow<WatchHistoryEntity?>
 
+    /** Only touches a row that already exists, so a finished video keeps its title and timestamp. */
+    @Query("UPDATE watch_history SET position = :durationMs, duration = :durationMs WHERE videoId = :videoId")
+    suspend fun markCompleted(
+        videoId: String,
+        durationMs: Long,
+    )
+
     @Query("SELECT position FROM watch_history WHERE videoId = :videoId")
     suspend fun getPosition(videoId: String): Long?
 
