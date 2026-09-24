@@ -48,6 +48,7 @@ import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpace
 import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerHeight
 import io.github.aedev.flow.ui.components.musicplayer.UnifiedMusicPlayerSheet
 import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPlayerSheetState
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
@@ -567,6 +568,7 @@ fun FlowApp(
             }
 
             MusicMenuSheets(musicMenus)
+            QuickActionsHost(snackbarHostState)
         }
 
         androidx.compose.material3.SnackbarHost(

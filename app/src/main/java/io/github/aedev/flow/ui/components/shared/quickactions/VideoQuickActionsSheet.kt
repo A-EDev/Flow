@@ -87,7 +87,6 @@ fun VideoQuickActionsBottomSheet(
     onDismiss: () -> Unit,
     onWatchLater: (() -> Unit)? = null,
     onShare: (() -> Unit)? = null,
-    onDownload: (() -> Unit)? = null,
     onNotInterested: () -> Unit = {},
     showChannel: Boolean = true,
     onRemoveFromCollection: (() -> Unit)? = null,
@@ -554,13 +553,7 @@ fun VideoQuickActionsBottomSheet(
                                         )
                                     },
                                     onClick = {
-                                        if (!isDownloaded) {
-                                            if (onDownload != null) {
-                                                onDownload()
-                                            } else {
-                                                viewModel.downloadVideo(video)
-                                            }
-                                        }
+                                        if (!isDownloaded) viewModel.requestDownload(video)
                                         onDismiss()
                                     },
                                 ),

@@ -232,9 +232,10 @@
     <string name="not_interested">Not interested</string>
     <string name="not_interested_toast">Got it! You\'ll see less content like this.</string>
     <string name="quick_actions_error_template">Error: %1$s</string>
+    <string name="quick_action_failed">That didn\'t work. Try again.</string>
     <string name="details_metadata">Details &amp; Metadata</string>
     <string name="mark_as_watched">Mark as watched</string>
-    <string name="mark_as_watched_toast">Marked as watched — your recommendations will improve!</string>
+    <string name="mark_as_watched_toast">Marked as watched</string>
     <string name="i_like_this">I want more like this</string>
     <string name="i_like_this_toast">Got it! You\'ll see more content like this.</string>
     <string name="go_to_channel">Go to channel</string>
