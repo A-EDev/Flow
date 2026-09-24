@@ -69,6 +69,11 @@ IMPROVEMENTS
 - Quick action menus for videos, songs, albums and playlists rebuilt on Material 3 Expressive: they open half way and expand as you drag, show the channel or artist with its avatars, and put details and collaborators on pages of the same sheet
 - Menu actions confirm on a snackbar with Undo for Watch later, subscriptions and hidden channels, and downloading from a card opens the same quality picker as the player
 - Album and playlist menus can play, shuffle or start a radio, and History, Liked, Continue watching and Downloads open the menu on a long press
+- The playlist page is rebuilt on Material 3 Expressive with a big artwork header that names the owner, length and kind of playlist, and on tablets and unfolded foldables the header sits beside the list as on Flow Desktop
+- YouTube playlists open on their first page right away and load the rest as it arrives, each sort order is remembered per playlist, and removing videos can be undone
+- Downloads shows the space it uses and what is free, can be searched, sorted and selected, lists the quality, size and date of every download, and shows videos in a grid on wide screens
+- Local media is now a full offline library: search, sort, filters for length, quality, orientation and what you haven't watched, folders side by side on tablets, a grid view, Continue watching, New marks, Play all and Shuffle, and a file menu to queue, share, inspect or delete files
+- Local media works with Android 14's "Select photos and videos", updates itself when files change, and lets you choose in Settings what it hides
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -77,6 +82,7 @@ PERFORMANCE
 - Feed ranking noise scales with your actual scores instead of drowning them when the feed was stale
 - Flow opens as soon as its first screen is ready instead of holding every launch behind a two second splash, and on Android 13 and later the splash matches your theme and app icon
 - Loading placeholders now take the exact shape of the cards they stand in for, so the feed no longer jumps when it arrives, and they no longer redraw the whole layout on every frame
+- A YouTube playlist is fetched once instead of twice in full on every open, Local media no longer rescans the device on every visit, and download progress updates once a second instead of four times
 
 FIXES AND STABILITY
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
@@ -89,6 +95,11 @@ FIXES AND STABILITY
 - Fix a watched video losing its recorded length when reopened, which silently erased its progress bar
 - Fix a finished video's progress bar disappearing when autoplay moved on to the next one: it now stays full until you watch the video again
 - Fix song menu entries that did nothing on most music screens, picking one of several artists opening the first one, and the song playlist picker not showing which playlists already hold the song
+- Fix videos picked from a playlist, Watch Later or Downloads always starting from the beginning, and finished local files reopening at their last second
+- Fix a queue of downloads streaming its next video instead of playing the file, and downloads fetching SponsorBlock and captions again on every play
+- Fix local files reaching YouTube services: Like, Subscribe and Download no longer appear for them, their history stays local, and they no longer sync as liked videos
+- Fix a missing local file loading forever, local songs failing after the app restarts, and videos removed from a saved YouTube playlist coming back
+- Fix paused downloads that could not be resumed after the app restarted, failed downloads that could only be deleted, music downloads in progress being hidden, and Download all stopping when you left the page
 - Fix topic-pair learning deleting every learned connection the moment it was created, and mature brains being unable to pick up new interests no matter how much you watched them
 - Fix videos dated "3 days ago" being treated as seconds old, and related videos being stamped with the current time, which let stale uploads crowd out genuinely new ones
 - Fix junk words like "right" leaking into your learned interests, and a liked video failing to teach the brain when its details could not load
