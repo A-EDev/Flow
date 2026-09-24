@@ -104,7 +104,6 @@ internal fun VideoCardRow(
             showWatched = cardPreferences.markWatchedEnabled,
             onWatched = actions.onWatched,
             alignTo = 14.dp,
-            sideBySide = false,
         )
     }
 

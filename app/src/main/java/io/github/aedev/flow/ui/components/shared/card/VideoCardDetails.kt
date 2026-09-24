@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
@@ -117,9 +118,9 @@ internal fun Modifier.videoCardChannelClickable(
 }
 
 /**
- * The ⋮ button and, when that setting is on, the watched toggle, both at the full 48 dp target.
- * A row stacks them beside its thumbnail's height; a stacked card sets them side by side so they
- * never make its text taller. [alignTo] pulls them up so the icons sit on the title's first line.
+ * The ⋮ button and, on a row whose thumbnail leaves the height for it, the watched toggle beneath,
+ * both at the full 48 dp target. [alignTo] pulls them up so the ⋮ icon sits on the title's first line.
+ * A stacked card keeps its watched toggle in the feedback group instead, so its text keeps the width.
  */
 @Composable
 internal fun VideoCardSideActions(
@@ -127,10 +128,16 @@ internal fun VideoCardSideActions(
     showWatched: Boolean,
     onWatched: (Video) -> Unit,
     alignTo: Dp,
-    sideBySide: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val watched: @Composable () -> Unit = {
+    Column(modifier = modifier.offset(y = -alignTo)) {
+        IconButton(onClick = { state.sheets.showQuickActions = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (showWatched) {
             val isWatched = state.isWatched
             IconToggleButton(
@@ -143,26 +150,6 @@ internal fun VideoCardSideActions(
                     tint = if (isWatched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-    }
-    val more: @Composable () -> Unit = {
-        IconButton(onClick = { state.sheets.showQuickActions = true }) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = stringResource(R.string.more_options),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-    if (sideBySide) {
-        Row(modifier = modifier.offset(y = -alignTo)) {
-            watched()
-            more()
-        }
-    } else {
-        Column(modifier = modifier.offset(y = -alignTo)) {
-            more()
-            watched()
         }
     }
 }

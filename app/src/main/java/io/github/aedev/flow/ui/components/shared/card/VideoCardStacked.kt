@@ -105,16 +105,17 @@ internal fun VideoCardStacked(
 
             VideoCardSideActions(
                 state = state,
-                showWatched = cardPreferences.markWatchedEnabled,
+                showWatched = false,
                 onWatched = actions.onWatched,
                 alignTo = 12.dp,
-                sideBySide = true,
             )
         }
 
-        if (cardPreferences.actionsEnabled) {
+        if (cardPreferences.actionsEnabled || cardPreferences.markWatchedEnabled) {
             VideoCardFeedback(
                 state = state,
+                showRating = cardPreferences.actionsEnabled,
+                showWatched = cardPreferences.markWatchedEnabled,
                 actions = actions,
                 modifier =
                     Modifier
