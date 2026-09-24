@@ -1,26 +1,21 @@
 package io.github.aedev.flow.ui.components.library
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.shared.MediaRow
-import io.github.aedev.flow.ui.components.shared.MediaRowAction
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 
 /**
- * A library entry as a row. Long press and ⋮ open the item's menu, where [removeLabel] runs
+ * A library entry as a row. Long press opens the item's menu, where [removeLabel] runs
  * [onRemove] as the screen's own remove, beside the inline [action] that does the same.
  */
 @Composable
@@ -45,9 +40,9 @@ internal fun LibraryMediaListRow(
             track = track,
             onClick = onMusicClick,
             modifier = modifier,
+            showMenu = false,
             trailingContent = { action() },
             onLongClick = { musicMenus.openSong(track) },
-            onMenuClick = { musicMenus.openSong(track) },
         )
     } else {
         var showMenu by remember { mutableStateOf(false) }
@@ -57,14 +52,7 @@ internal fun LibraryMediaListRow(
             subtitle = subtitle,
             onClick = onVideoClick,
             onLongClick = { showMenu = true },
-            trailing = {
-                action()
-                MediaRowAction(
-                    icon = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.more_options),
-                    onClick = { showMenu = true },
-                )
-            },
+            trailing = { action() },
         ) {
             MediaThumbnail(
                 videoId = track.videoId,

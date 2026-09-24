@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Delete
@@ -99,11 +98,6 @@ internal fun VideoDownloadRow(
                 contentDescription = stringResource(R.string.cd_delete_download, video.video.title),
                 onClick = onDeleteClick,
             )
-            MediaRowAction(
-                icon = Icons.Default.MoreVert,
-                contentDescription = stringResource(R.string.more_options),
-                onClick = { showMenu = true },
-            )
         },
     ) {
         MediaThumbnail(
@@ -118,6 +112,7 @@ internal fun VideoDownloadRow(
             onDismiss = { showMenu = false },
             onRemoveFromCollection = onDeleteClick,
             removeFromCollectionLabel = stringResource(R.string.delete),
+            removeFromCollectionIcon = Icons.Outlined.Delete,
         )
     }
 }
@@ -238,11 +233,6 @@ internal fun MusicDownloadRow(
                 icon = Icons.Outlined.Delete,
                 contentDescription = stringResource(R.string.cd_delete_download, downloadedTrack.track.title),
                 onClick = onDeleteClick,
-            )
-            MediaRowAction(
-                icon = Icons.Default.MoreVert,
-                contentDescription = stringResource(R.string.more_options),
-                onClick = { musicMenus.openSong(downloadedTrack.track) },
             )
         },
     ) {

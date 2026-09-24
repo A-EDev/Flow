@@ -59,7 +59,8 @@ private enum class VideoMenuPage { Actions, Details, Collaborators, Save }
 /**
  * A video's menu. [title] and [thumbnailUrl] are what the card shows, so a DeArrow title stays the
  * same in the menu. [showChannel] is false where the screen already is the channel. A playlist that
- * can drop the video passes [onRemoveFromCollection] with its [removeFromCollectionLabel].
+ * can drop the video passes [onRemoveFromCollection] with its [removeFromCollectionLabel] and icon;
+ * it is the last row of the Options group.
  */
 @Composable
 fun VideoQuickActionsBottomSheet(
@@ -70,6 +71,7 @@ fun VideoQuickActionsBottomSheet(
     showChannel: Boolean = true,
     onRemoveFromCollection: (() -> Unit)? = null,
     removeFromCollectionLabel: String? = null,
+    removeFromCollectionIcon: ImageVector = Icons.Outlined.PlaylistRemove,
     viewModel: QuickActionsViewModel = sharedQuickActionsViewModel(),
 ) {
     var page by rememberSaveable(video.id) { mutableStateOf(VideoMenuPage.Actions) }
@@ -125,31 +127,19 @@ fun VideoQuickActionsBottomSheet(
                     )
                 }
                 QuickActionsGroup(title = stringResource(R.string.section_algorithm), rows = feedRows(video, viewModel, onDismiss))
+                val removeRow =
+                    if (onRemoveFromCollection != null && removeFromCollectionLabel != null) {
+                        actionRow("remove", removeFromCollectionIcon, removeFromCollectionLabel, destructive = true) {
+                            onRemoveFromCollection()
+                            onDismiss()
+                        }
+                    } else {
+                        null
+                    }
                 QuickActionsGroup(
                     title = stringResource(R.string.section_options),
-                    rows = moreRows(video, viewModel, onDismiss) { page = VideoMenuPage.Details },
+                    rows = moreRows(video, viewModel, onDismiss) { page = VideoMenuPage.Details } + listOfNotNull(removeRow),
                 )
-                if (onRemoveFromCollection != null && removeFromCollectionLabel != null) {
-                    QuickActionsGroup(
-                        title = null,
-                        rows =
-                            listOf(
-                                QuickActionRow("remove") { shape ->
-                                    FlowNavRow(
-                                        title = removeFromCollectionLabel,
-                                        leadingIcon = Icons.Outlined.PlaylistRemove,
-                                        onClick = {
-                                            onRemoveFromCollection()
-                                            onDismiss()
-                                        },
-                                        showChevron = false,
-                                        destructive = true,
-                                        shape = shape,
-                                    )
-                                },
-                            ),
-                    )
-                }
             }
         }
     }
