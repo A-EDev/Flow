@@ -17,11 +17,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
-import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import io.github.aedev.flow.ui.components.home.ContinueWatchingShelf
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
+import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.card.VideoCardHorizontal
 
 private const val FEED_FOOTER_MIN_VIDEOS = 100
 

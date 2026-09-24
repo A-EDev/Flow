@@ -39,7 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.videoplayer.controls.PlayerPillIconButton
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
 import io.github.aedev.flow.ui.theme.PlayerScrimPanel

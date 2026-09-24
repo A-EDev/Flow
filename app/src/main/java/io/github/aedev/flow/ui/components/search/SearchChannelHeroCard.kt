@@ -35,11 +35,11 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
 import io.github.aedev.flow.ui.components.shared.MediaArtworkTint
+import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.shared.rememberMediaArtworkTint
 import io.github.aedev.flow.utils.formatSubscriberCount
 

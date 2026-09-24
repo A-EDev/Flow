@@ -4,9 +4,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
-import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.feedGridLayoutFor
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCardThumbnailWidth
 import org.junit.Test
 
 /**

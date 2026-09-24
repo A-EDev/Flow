@@ -40,9 +40,9 @@ import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.ui.FlowApp
-import io.github.aedev.flow.ui.components.ProvideVideoCardState
 import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.components.shared.ProvideDateDisplaySettings
+import io.github.aedev.flow.ui.components.shared.card.ProvideVideoCardState
 import io.github.aedev.flow.ui.screens.crash.CrashReportScreen
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.startup.FlowTheme

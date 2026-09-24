@@ -12,8 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.CompactVideoCard
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
 
 /**
  * Related videos content for LazyListScope.

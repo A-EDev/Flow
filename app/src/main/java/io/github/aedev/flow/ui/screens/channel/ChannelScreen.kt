@@ -93,9 +93,9 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.channel.ChannelBanner
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
 import io.github.aedev.flow.ui.components.shared.CollectionSheetEntry
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter

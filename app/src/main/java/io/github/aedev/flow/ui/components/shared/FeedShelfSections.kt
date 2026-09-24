@@ -49,14 +49,14 @@ import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelfStyle
-import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.feedCardsFormGrid
 import io.github.aedev.flow.ui.components.feedShelfPreviewCount
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
 
 /** Every callback a shelf page needs, threaded through one object rather than a dozen parameters. */
 data class FeedShelfActions(

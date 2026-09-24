@@ -33,9 +33,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.paging.SearchShelfKind
-import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
 import io.github.aedev.flow.ui.components.shared.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCardThumbnailWidth
 
 /**
  * One of the strips YouTube interleaves between search results: a creator's latest uploads, an

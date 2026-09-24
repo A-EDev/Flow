@@ -4,9 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.CompactVideoCard
-import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCard
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCardThumbnailWidth
+import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
 
 /**
  * One video, in whichever of the app's two card shapes the row can carry.

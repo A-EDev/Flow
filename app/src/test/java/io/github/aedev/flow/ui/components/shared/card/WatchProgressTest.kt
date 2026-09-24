@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared.card
 
 import android.app.Application
 import androidx.compose.material3.MaterialTheme

@@ -8,9 +8,9 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.ui.components.CompactVideoCardThumbnailWidth
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.partialRowIndices
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCardThumbnailWidth
 
 /**
  * The per-index decisions a vertical feed grid makes once its [FeedGridLayout] and its item list are

@@ -17,9 +17,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.CompactVideoCard
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
 
 @Composable
 internal fun ChannelSearchResults(

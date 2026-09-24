@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
 import io.github.aedev.flow.innertube.pages.renderer.PostAttachment
-import io.github.aedev.flow.ui.components.ChannelAvatarImage
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 
 /**
  * One community post in the search strip, shaped like YouTube's: a fixed-width outlined card with

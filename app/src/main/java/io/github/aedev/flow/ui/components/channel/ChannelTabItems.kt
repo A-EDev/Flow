@@ -27,10 +27,8 @@ import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
-import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.PlaylistCard
-import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.feedCardsFormGrid
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
@@ -38,6 +36,8 @@ import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
+import io.github.aedev.flow.ui.components.shared.card.CompactVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardFullWidth
 
 /**
  * Every channel tab's list, whatever it holds.
