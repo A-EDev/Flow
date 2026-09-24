@@ -205,6 +205,12 @@ class QuickActionsViewModel
                 }
         }
 
+        /** Confirms something the menu did without the ViewModel, such as a copy on an Android that shows no confirmation. */
+        fun announce(
+            text: Int,
+            arg: String? = null,
+        ) = emit(text, arg)
+
         fun dismissDownload() {
             _pendingDownload.value = null
         }
@@ -229,12 +235,13 @@ class QuickActionsViewModel
             }
         }
 
-        /** Avatars for up to three channels, in one bounded round; the repository caches each one. */
-        suspend fun channelAvatars(channelIds: List<String>): List<String> {
+        /** Avatars for up to three channels, keyed by id, in one bounded round; the repository caches each one. */
+        suspend fun channelAvatars(channelIds: List<String>): Map<String, String> {
             val ids = channelIds.filter { it.isNotBlank() }.distinct().take(MAX_AVATARS)
             return ids
-                .map { id -> viewModelScope.async { runCatching { repository.fetchChannelAvatarById(id) }.getOrDefault("") } }
+                .map { id -> viewModelScope.async { id to runCatching { repository.fetchChannelAvatarById(id) }.getOrDefault("") } }
                 .awaitAll()
+                .toMap()
         }
 
         private suspend fun runAction(block: suspend () -> Unit) {

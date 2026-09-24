@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
@@ -105,6 +106,7 @@ fun ChannelAvatarStack(
     contentDescription: String?,
     avatarSize: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
+    ringColor: Color = MaterialTheme.colorScheme.background,
 ) {
     val avatarUrls = urls.ifEmpty { listOf("") }.take(3)
     val primaryUrl = avatarUrls.first()
@@ -134,7 +136,7 @@ fun ChannelAvatarStack(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .border(
                             width = 1.5.dp,
-                            color = MaterialTheme.colorScheme.background,
+                            color = ringColor,
                             shape = CircleShape,
                         ),
             )
@@ -152,7 +154,7 @@ fun ChannelAvatarStack(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .border(
                             width = 1.5.dp,
-                            color = MaterialTheme.colorScheme.background,
+                            color = ringColor,
                             shape = CircleShape,
                         ),
             )
@@ -172,7 +174,7 @@ fun ChannelAvatarStack(
                             Modifier
                                 .border(
                                     width = 1.5.dp,
-                                    color = MaterialTheme.colorScheme.background,
+                                    color = ringColor,
                                     shape = CircleShape,
                                 )
                         } else {

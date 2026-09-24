@@ -13,6 +13,8 @@ internal fun VideoCardSheets(
     if (sheets.showQuickActions) {
         VideoQuickActionsBottomSheet(
             video = state.video,
+            title = state.title,
+            thumbnailUrl = state.thumbnailUrl,
             showChannel = showChannel,
             onDismiss = { sheets.showQuickActions = false },
         )

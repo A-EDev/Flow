@@ -1,609 +1,395 @@
 package io.github.aedev.flow.ui.components.shared.quickactions
 
 import android.content.ClipData
-import android.content.ClipboardManager
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import android.os.Build
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material.icons.outlined.Block
-import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.PlaylistRemove
-import androidx.compose.material.icons.outlined.QueueMusic
+import androidx.compose.material.icons.outlined.QueuePlayNext
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WatchLater
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
-import io.github.aedev.flow.data.model.needsCollaboratorResolution
-import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
-import io.github.aedev.flow.ui.components.AddToPlaylistDialog
-import io.github.aedev.flow.ui.components.FlowAction
-import io.github.aedev.flow.ui.components.FlowActionGrid
-import io.github.aedev.flow.ui.components.FlowMenuGroup
-import io.github.aedev.flow.ui.components.FlowMenuItemData
-import io.github.aedev.flow.ui.components.MediaInfoDialog
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
-import io.github.aedev.flow.ui.components.shared.CollaboratorsBottomSheet
-import io.github.aedev.flow.ui.components.shared.card.collaboratorItems
+import io.github.aedev.flow.ui.components.shared.ChannelAvatarStack
+import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
+import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
+import io.github.aedev.flow.ui.components.shared.MediaThumbnail
+import io.github.aedev.flow.ui.components.shared.SaveVideoSheet
+import io.github.aedev.flow.ui.components.shared.card.channelAvatarUrls
 import io.github.aedev.flow.ui.components.shared.card.isWatchedProgress
 import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorChannelDisplayName
+import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorItems
 import io.github.aedev.flow.ui.components.shared.card.rememberWatchProgress
-import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.shared.collaboratorRows
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.utils.youtubeWatchUrl
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+private enum class VideoMenuPage { Actions, Details, Collaborators, Save }
+
+/**
+ * A video's menu. [title] and [thumbnailUrl] are what the card shows, so a DeArrow title stays the
+ * same in the menu. [showChannel] is false where the screen already is the channel. A playlist that
+ * can drop the video passes [onRemoveFromCollection] with its [removeFromCollectionLabel].
+ */
 @Composable
 fun VideoQuickActionsBottomSheet(
     video: Video,
     onDismiss: () -> Unit,
-    onWatchLater: (() -> Unit)? = null,
-    onShare: (() -> Unit)? = null,
-    onNotInterested: () -> Unit = {},
+    title: String = video.title,
+    thumbnailUrl: String = video.thumbnailUrl,
     showChannel: Boolean = true,
     onRemoveFromCollection: (() -> Unit)? = null,
     removeFromCollectionLabel: String? = null,
     viewModel: QuickActionsViewModel = sharedQuickActionsViewModel(),
 ) {
-    var showCollaborators by remember { mutableStateOf(false) }
-    val needsCollaboratorResolution = video.needsCollaboratorResolution()
-    val resolvedCollaborators by produceState<List<VideoCollaborator>>(
-        initialValue = emptyList(),
-        key1 = video.id,
-        key2 = video.collaborators,
-        key3 = needsCollaboratorResolution,
-    ) {
-        value =
-            if (needsCollaboratorResolution) {
-                VideoCollaboratorResolver.resolve(video.id)
-            } else {
-                emptyList()
+    var page by rememberSaveable(video.id) { mutableStateOf(VideoMenuPage.Actions) }
+    val collaborators = rememberCollaboratorItems(video)
+    val toActions = { page = VideoMenuPage.Actions }
+
+    when (page) {
+        VideoMenuPage.Save -> {
+            SaveVideoSheet(video = video, onDismiss = onDismiss)
+        }
+
+        VideoMenuPage.Details -> {
+            QuickActionsSheet(onDismiss = onDismiss, onBack = toActions) {
+                QuickActionsPageHeader(title = stringResource(R.string.details_metadata), onBack = toActions, onClose = onDismiss)
+                MediaDetailsPage(subject = video.toDetailsSubject(title))
             }
-    }
-    val collaboratorItems =
-        remember(video, resolvedCollaborators) {
-            video.collaboratorItems(resolvedCollaborators)
-        }
-    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
-    val shareVideoAction = rememberVideoShareAction()
-
-    if (showCollaborators) {
-        CollaboratorsBottomSheet(
-            collaborators = collaboratorItems,
-            onDismiss = {
-                showCollaborators = false
-                onDismiss()
-            },
-        )
-        return
-    }
-
-    val watchLaterIds by viewModel.watchLaterIds.collectAsState()
-    val isInWatchLater = remember(watchLaterIds, video.id) { watchLaterIds.contains(video.id) }
-
-    val isWatched = isWatchedProgress(rememberWatchProgress(video.id))
-
-    val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsState()
-    val isSubscribed =
-        remember(subscribedChannelIds, video.channelId) {
-            subscribedChannelIds.contains(video.channelId)
         }
 
-    val downloadedVideoIds by viewModel.downloadedVideoIds.collectAsState()
-    val isDownloaded = remember(downloadedVideoIds, video.id) { downloadedVideoIds.contains(video.id) }
-
-    // Load subscription state when sheet opens
-    LaunchedEffect(video.channelId) {
-        if (video.channelId.isNotBlank()) {
-            viewModel.loadSubscriptionState(video.channelId)
+        VideoMenuPage.Collaborators -> {
+            QuickActionsSheet(onDismiss = onDismiss, onBack = toActions) {
+                QuickActionsPageHeader(title = stringResource(R.string.collaborators), onBack = toActions, onClose = onDismiss)
+                QuickActionsGroup(title = null, rows = collaboratorRows(collaborators, onOpened = onDismiss, viewModel = viewModel))
+            }
         }
-    }
 
-    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
-    var showMediaInfo by remember { mutableStateOf(false) }
-
-    // Dialogs
-    if (showAddToPlaylistDialog) {
-        AddToPlaylistDialog(
-            video = video,
-            onDismiss = {
-                showAddToPlaylistDialog = false
-                onDismiss()
-            },
-        )
-    }
-
-    if (showMediaInfo) {
-        MediaInfoDialog(
-            video = video,
-            onDismiss = { showMediaInfo = false },
-        )
-    }
-
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val navigator = LocalMediaNavigator.current
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberFlowSheetState(),
-    ) {
-        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-        val maxHeight = configuration.screenHeightDp.dp * 0.65f
-
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight)
-                    .padding(bottom = 24.dp),
-        ) {
-            // Video info header
-            item {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+        VideoMenuPage.Actions -> {
+            QuickActionsSheet(onDismiss = onDismiss) {
+                QuickActionsHeader(
+                    title = title,
+                    subtitle = rememberCollaboratorChannelDisplayName(video.channelName, collaborators),
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .width(120.dp)
-                                .aspectRatio(16f / 9f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                    ) {
-                        AsyncImage(
-                            model = video.thumbnailUrl,
-                            contentDescription = null,
-                            modifier = Modifier.matchParentSize(),
-                            contentScale = ContentScale.Crop,
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = video.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = displayChannelName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                HorizontalDivider()
-            }
-
-            // Action Grid — Save, Watch Later, Share
-            item {
-                FlowActionGrid(
-                    actions =
-                        listOf(
-                            FlowAction(
-                                icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
-                                text = stringResource(R.string.save_to_playlist),
-                                onClick = { showAddToPlaylistDialog = true },
-                            ),
-                            FlowAction(
-                                icon = {
-                                    Icon(
-                                        if (isInWatchLater) Icons.Default.WatchLater else Icons.Outlined.WatchLater,
-                                        null,
-                                        tint =
-                                            if (isInWatchLater) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                    )
-                                },
-                                text =
-                                    if (isInWatchLater) {
-                                        stringResource(R.string.watch_later_unsave)
-                                    } else {
-                                        stringResource(R.string.watch_later)
-                                    },
-                                onClick = {
-                                    if (onWatchLater != null) {
-                                        onWatchLater()
-                                        onDismiss()
-                                    } else {
-                                        viewModel.toggleWatchLater(video)
-                                    }
-                                },
-                            ),
-                            FlowAction(
-                                icon = { Icon(Icons.Outlined.Share, null) },
-                                text = stringResource(R.string.share),
-                                onClick = {
-                                    if (onShare != null) {
-                                        onShare()
-                                    } else {
-                                        shareVideoAction(video.id, video.title)
-                                    }
-                                    onDismiss()
-                                },
-                            ),
-                        ),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
-            // Playback Queue Group — Play Next, Add to queue
-            if (!video.isShort) {
-                item {
-                    Text(
-                        text = stringResource(R.string.playback_header),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    MediaThumbnail(
+                        videoId = video.id,
+                        thumbnailUrl = thumbnailUrl,
+                        width = QuickActionsDefaults.VideoArtworkWidth,
+                        shape = MaterialTheme.shapes.medium,
+                        showWatchProgress = true,
                     )
-                    FlowMenuGroup(
-                        items =
+                }
+                VideoPrimaryActions(video, viewModel, onSave = { page = VideoMenuPage.Save }, onDismiss = onDismiss)
+                if (!video.isShort) {
+                    QuickActionsGroup(title = stringResource(R.string.playback_header), rows = playbackRows(video, viewModel, onDismiss))
+                }
+                if (showChannel && video.channelId.isNotBlank()) {
+                    QuickActionsGroup(
+                        title = stringResource(R.string.section_channel),
+                        rows =
                             listOf(
-                                FlowMenuItemData(
-                                    icon = { Icon(Icons.Outlined.QueueMusic, null) },
-                                    title = { Text(stringResource(R.string.play_next_video)) },
-                                    description = { Text(stringResource(R.string.play_next_video_desc)) },
-                                    onClick = {
-                                        viewModel.playVideoNext(video)
-                                        android.widget.Toast
-                                            .makeText(
-                                                context,
-                                                context.getString(R.string.play_next_toast),
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            ).show()
-                                        onDismiss()
-                                    },
-                                ),
-                                FlowMenuItemData(
-                                    icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
-                                    title = { Text(stringResource(R.string.add_video_to_queue)) },
-                                    description = { Text(stringResource(R.string.add_video_to_queue_desc)) },
-                                    onClick = {
-                                        viewModel.addVideoToQueue(video)
-                                        android.widget.Toast
-                                            .makeText(
-                                                context,
-                                                context.getString(R.string.added_to_queue_toast),
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            ).show()
-                                        onDismiss()
-                                    },
-                                ),
+                                channelRow(video, collaborators, viewModel, onDismiss) {
+                                    page = VideoMenuPage.Collaborators
+                                },
                             ),
-                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
-
-                item { Spacer(modifier = Modifier.height(4.dp)) }
-            }
-
-            // Channel Group — Go to channel, Subscribe
-            if (showChannel && video.channelId.isNotBlank()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.section_channel),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                    )
-                    FlowMenuGroup(
-                        items =
+                QuickActionsGroup(title = stringResource(R.string.section_algorithm), rows = feedRows(video, viewModel, onDismiss))
+                QuickActionsGroup(
+                    title = stringResource(R.string.section_options),
+                    rows = moreRows(video, viewModel, onDismiss) { page = VideoMenuPage.Details },
+                )
+                if (onRemoveFromCollection != null && removeFromCollectionLabel != null) {
+                    QuickActionsGroup(
+                        title = null,
+                        rows =
                             listOf(
-                                FlowMenuItemData(
-                                    icon = { Icon(Icons.Outlined.VideoLibrary, null) },
-                                    title = { Text(stringResource(R.string.go_to_channel)) },
-                                    onClick = {
-                                        if (collaboratorItems.size > 1) {
-                                            showCollaborators = true
-                                        } else {
-                                            navigator.openChannel(video.channelId)
-                                            onDismiss()
-                                        }
-                                    },
-                                ),
-                                FlowMenuItemData(
-                                    icon = {
-                                        Icon(
-                                            if (isSubscribed) Icons.Filled.NotificationsActive else Icons.Outlined.NotificationsNone,
-                                            null,
-                                            tint =
-                                                if (isSubscribed) {
-                                                    MaterialTheme.colorScheme.primary
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                                },
-                                        )
-                                    },
-                                    title = {
-                                        Text(
-                                            if (isSubscribed) {
-                                                stringResource(R.string.subscribed)
-                                            } else {
-                                                stringResource(R.string.subscribe)
-                                            },
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.toggleSubscription(
-                                            channelId = video.channelId,
-                                            channelName = video.channelName,
-                                            channelThumbnail = video.channelThumbnailUrl,
-                                        )
-                                    },
-                                ),
-                            ),
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-
-                item { Spacer(modifier = Modifier.height(4.dp)) }
-            }
-
-            // Algorithm Group — Mark as watched, I like this, Not interested
-            item {
-                Text(
-                    text = stringResource(R.string.section_algorithm),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                )
-                FlowMenuGroup(
-                    items =
-                        listOf(
-                            FlowMenuItemData(
-                                icon = {
-                                    Icon(
-                                        if (isWatched) Icons.Filled.CheckCircle else Icons.Outlined.Visibility,
-                                        null,
-                                        tint =
-                                            if (isWatched) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                    )
-                                },
-                                title = { Text(stringResource(R.string.mark_as_watched)) },
-                                onClick = {
-                                    viewModel.markAsWatched(video)
-                                },
-                            ),
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.ThumbUp, null) },
-                                title = { Text(stringResource(R.string.i_like_this)) },
-                                onClick = {
-                                    viewModel.markAsInteresting(video)
-                                    onDismiss()
-                                },
-                            ),
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.ThumbDown, null) },
-                                title = { Text(stringResource(R.string.not_interested)) },
-                                onClick = {
-                                    viewModel.markNotInterested(video)
-                                    onNotInterested()
-                                    onDismiss()
-                                },
-                            ),
-                            FlowMenuItemData(
-                                icon = {
-                                    Icon(
-                                        Icons.Outlined.Block,
-                                        null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                    )
-                                },
-                                title = {
-                                    Text(
-                                        stringResource(R.string.dont_show_channel),
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                },
-                                description = { Text(stringResource(R.string.dont_show_channel_desc)) },
-                                onClick = {
-                                    viewModel.blockChannel(video)
-                                    onDismiss()
-                                },
-                            ),
-                        ),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
-            // Utility Group — Copy links, Download, Details
-            item {
-                Text(
-                    text = stringResource(R.string.section_options),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                )
-                FlowMenuGroup(
-                    items =
-                        buildList {
-                            add(
-                                FlowMenuItemData(
-                                    icon = { Icon(Icons.Rounded.ContentCopy, null) },
-                                    title = { Text(stringResource(R.string.copy_video_link)) },
-                                    onClick = {
-                                        val videoUrl = youtubeWatchUrl(video.id)
-                                        val clipboard = context.getSystemService(ClipboardManager::class.java)
-                                        clipboard?.setPrimaryClip(ClipData.newPlainText("video_link", videoUrl))
-                                        android.widget.Toast
-                                            .makeText(
-                                                context,
-                                                context.getString(R.string.link_copied),
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            ).show()
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-
-                            if (video.channelId.isNotBlank()) {
-                                add(
-                                    FlowMenuItemData(
-                                        icon = { Icon(Icons.Rounded.ContentCopy, null) },
-                                        title = { Text(stringResource(R.string.copy_channel_link)) },
+                                QuickActionRow("remove") { shape ->
+                                    FlowNavRow(
+                                        title = removeFromCollectionLabel,
+                                        leadingIcon = Icons.Outlined.PlaylistRemove,
                                         onClick = {
-                                            val channelUrl = "https://www.youtube.com/channel/${video.channelId}"
-                                            val clipboard = context.getSystemService(ClipboardManager::class.java)
-                                            clipboard?.setPrimaryClip(ClipData.newPlainText("channel_link", channelUrl))
-                                            android.widget.Toast
-                                                .makeText(
-                                                    context,
-                                                    context.getString(R.string.link_copied),
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
+                                            onRemoveFromCollection()
                                             onDismiss()
                                         },
-                                    ),
-                                )
-                            }
-
-                            add(
-                                FlowMenuItemData(
-                                    icon = {
-                                        Icon(
-                                            if (isDownloaded) Icons.Outlined.CheckCircle else Icons.Outlined.Download,
-                                            null,
-                                            tint =
-                                                if (isDownloaded) {
-                                                    MaterialTheme.colorScheme.primary
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                                },
-                                        )
-                                    },
-                                    title = {
-                                        Text(
-                                            if (isDownloaded) {
-                                                stringResource(R.string.downloaded)
-                                            } else {
-                                                stringResource(R.string.download)
-                                            },
-                                        )
-                                    },
-                                    onClick = {
-                                        if (!isDownloaded) viewModel.requestDownload(video)
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-
-                            add(
-                                FlowMenuItemData(
-                                    icon = { Icon(Icons.Outlined.Info, null) },
-                                    title = { Text(stringResource(R.string.details_metadata)) },
-                                    onClick = {
-                                        showMediaInfo = true
-                                    },
-                                ),
-                            )
-                        },
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            }
-
-            // Destructive Group — Remove from this playlist / Watch Later (contextual)
-            if (onRemoveFromCollection != null && removeFromCollectionLabel != null) {
-                item { Spacer(modifier = Modifier.height(4.dp)) }
-                item {
-                    FlowMenuGroup(
-                        items =
-                            listOf(
-                                FlowMenuItemData(
-                                    icon = {
-                                        Icon(
-                                            Icons.Outlined.PlaylistRemove,
-                                            null,
-                                            tint = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    title = {
-                                        Text(
-                                            removeFromCollectionLabel,
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    onClick = {
-                                        onRemoveFromCollection()
-                                        onDismiss()
-                                    },
-                                ),
+                                        showChevron = false,
+                                        destructive = true,
+                                        shape = shape,
+                                    )
+                                },
                             ),
-                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
             }
         }
     }
 }
+
+@Composable
+private fun VideoPrimaryActions(
+    video: Video,
+    viewModel: QuickActionsViewModel,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val watchLaterIds by viewModel.watchLaterIds.collectAsStateWithLifecycle()
+    val share = rememberVideoShareAction()
+    QuickActionsPrimaryGroup(
+        listOf(
+            QuickPrimaryAction(icon = Icons.AutoMirrored.Outlined.PlaylistAdd, label = stringResource(R.string.save), onClick = onSave),
+            QuickPrimaryAction(
+                icon = Icons.Outlined.WatchLater,
+                checkedIcon = Icons.Filled.WatchLater,
+                label = stringResource(R.string.watch_later),
+                checked = video.id in watchLaterIds,
+                onClick = { viewModel.toggleWatchLater(video) },
+            ),
+            QuickPrimaryAction(
+                icon = Icons.Outlined.Share,
+                label = stringResource(R.string.share),
+                onClick = {
+                    share(video.id, video.title)
+                    onDismiss()
+                },
+            ),
+        ),
+    )
+}
+
+@Composable
+private fun playbackRows(
+    video: Video,
+    viewModel: QuickActionsViewModel,
+    onDismiss: () -> Unit,
+): List<QuickActionRow> =
+    listOf(
+        actionRow(
+            "play_next",
+            Icons.Outlined.QueuePlayNext,
+            stringResource(R.string.play_next_video),
+            stringResource(R.string.play_next_video_desc),
+        ) {
+            viewModel.playVideoNext(video)
+            onDismiss()
+        },
+        actionRow(
+            "add_to_queue",
+            Icons.AutoMirrored.Outlined.PlaylistAdd,
+            stringResource(R.string.add_video_to_queue),
+            stringResource(R.string.add_video_to_queue_desc),
+        ) {
+            viewModel.addVideoToQueue(video)
+            onDismiss()
+        },
+    )
+
+/** The channel as one row, avatars stacked like the card's for a collaboration, with its subscribe button. */
+@Composable
+private fun channelRow(
+    video: Video,
+    collaborators: List<VideoCollaborator>,
+    viewModel: QuickActionsViewModel,
+    onDismiss: () -> Unit,
+    onOpenCollaborators: () -> Unit,
+): QuickActionRow {
+    val channelLabel = rememberCollaboratorChannelDisplayName(video.channelName, collaborators)
+    val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsStateWithLifecycle()
+    val navigator = LocalMediaNavigator.current
+    val isCollaboration = collaborators.size > 1
+    val ringColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    LaunchedEffect(video.channelId) { viewModel.loadSubscriptionState(video.channelId) }
+
+    return QuickActionRow("channel") { shape ->
+        FlowNavRow(
+            title = channelLabel,
+            onClick = {
+                if (isCollaboration) {
+                    onOpenCollaborators()
+                } else {
+                    navigator.openChannel(video.channelId)
+                    onDismiss()
+                }
+            },
+            shape = shape,
+            leadingContent = {
+                ChannelAvatarStack(
+                    urls = video.channelAvatarUrls(collaborators),
+                    contentDescription = null,
+                    avatarSize = QuickActionsDefaults.AvatarSize,
+                    ringColor = ringColor,
+                )
+            },
+            trailingContent =
+                if (isCollaboration) {
+                    { Icon(imageVector = Icons.Outlined.ChevronRight, contentDescription = null) }
+                } else {
+                    {
+                        val toggle = { viewModel.toggleSubscription(video.channelId, video.channelName, video.channelThumbnailUrl) }
+                        FlowSubscribeButton(
+                            isSubscribed = video.channelId in subscribedChannelIds,
+                            onSubscribeClick = toggle,
+                            onUnsubscribeClick = toggle,
+                            size = FlowSubscribeButtonSize.Compact,
+                        )
+                    }
+                },
+        )
+    }
+}
+
+@Composable
+private fun feedRows(
+    video: Video,
+    viewModel: QuickActionsViewModel,
+    onDismiss: () -> Unit,
+): List<QuickActionRow> {
+    val haptics = LocalHapticFeedback.current
+    val isWatched = isWatchedProgress(rememberWatchProgress(video.id))
+    val watchedLabel = stringResource(R.string.quick_action_watched)
+    return listOf(
+        actionRow("interested", Icons.Outlined.ThumbUp, stringResource(R.string.i_like_this)) {
+            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            viewModel.markAsInteresting(video)
+            onDismiss()
+        },
+        actionRow("not_interested", Icons.Outlined.ThumbDown, stringResource(R.string.not_interested)) {
+            haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            viewModel.markNotInterested(video)
+            onDismiss()
+        },
+        QuickActionRow("watched") { shape ->
+            FlowNavRow(
+                title = if (isWatched) watchedLabel else stringResource(R.string.mark_as_watched),
+                leadingIcon = if (isWatched) Icons.Filled.CheckCircle else Icons.Outlined.Visibility,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                    viewModel.markAsWatched(video)
+                    onDismiss()
+                },
+                enabled = !isWatched,
+                showChevron = false,
+                stateDescription = if (isWatched) watchedLabel else null,
+                shape = shape,
+            )
+        },
+        actionRow(
+            key = "block",
+            icon = Icons.Outlined.Block,
+            title = stringResource(R.string.dont_show_channel),
+            supporting = stringResource(R.string.dont_show_channel_desc),
+            destructive = true,
+        ) {
+            viewModel.blockChannel(video)
+            onDismiss()
+        },
+    )
+}
+
+@Composable
+private fun moreRows(
+    video: Video,
+    viewModel: QuickActionsViewModel,
+    onDismiss: () -> Unit,
+    onOpenDetails: () -> Unit,
+): List<QuickActionRow> {
+    val downloadedIds by viewModel.downloadedVideoIds.collectAsStateWithLifecycle()
+    val isDownloaded = video.id in downloadedIds
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val downloadedLabel = stringResource(R.string.downloaded)
+    return listOf(
+        QuickActionRow("download") { shape ->
+            FlowNavRow(
+                title = if (isDownloaded) downloadedLabel else stringResource(R.string.download),
+                leadingIcon = if (isDownloaded) Icons.Filled.CheckCircle else Icons.Outlined.Download,
+                onClick = {
+                    viewModel.requestDownload(video)
+                    onDismiss()
+                },
+                enabled = !isDownloaded,
+                showChevron = false,
+                stateDescription = if (isDownloaded) downloadedLabel else null,
+                shape = shape,
+            )
+        },
+        actionRow("copy_link", Icons.Outlined.ContentCopy, stringResource(R.string.copy_video_link)) {
+            scope.launch {
+                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(video.title, youtubeWatchUrl(video.id))))
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) viewModel.announce(R.string.link_copied)
+                onDismiss()
+            }
+        },
+        QuickActionRow("details") { shape ->
+            FlowNavRow(
+                title = stringResource(R.string.details_metadata),
+                leadingIcon = Icons.Outlined.Info,
+                onClick = onOpenDetails,
+                shape = shape,
+            )
+        },
+    )
+}
+
+/** A row that runs an action and closes the menu, so it carries no chevron. */
+internal fun actionRow(
+    key: String,
+    icon: ImageVector,
+    title: String,
+    supporting: String? = null,
+    destructive: Boolean = false,
+    onClick: () -> Unit,
+): QuickActionRow =
+    QuickActionRow(key) { shape ->
+        FlowNavRow(
+            title = title,
+            supportingText = supporting,
+            leadingIcon = icon,
+            onClick = onClick,
+            showChevron = false,
+            destructive = destructive,
+            shape = shape,
+        )
+    }
+
+private fun Video.toDetailsSubject(displayTitle: String) =
+    MediaDetailsSubject(
+        videoId = id,
+        title = displayTitle,
+        author = channelName,
+        channelId = channelId,
+        viewCount = viewCount,
+        likeCount = likeCount,
+        uploadDate = uploadDate,
+        timestamp = timestamp,
+        durationSeconds = duration,
+    )

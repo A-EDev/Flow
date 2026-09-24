@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
@@ -16,15 +16,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
-import io.github.aedev.flow.ui.components.shared.CollectionSheetEntry
-import io.github.aedev.flow.ui.components.shared.SaveToCollectionSheet
 
 @Composable
-fun AddToPlaylistDialog(
+fun SaveVideoSheet(
     video: Video,
     onDismiss: () -> Unit,
-    viewModel: AddToPlaylistViewModel = hiltViewModel(),
+    viewModel: SaveVideoViewModel = hiltViewModel(),
 ) {
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val watchLaterVideos by viewModel.watchLaterVideos.collectAsStateWithLifecycle()

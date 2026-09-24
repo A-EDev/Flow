@@ -13,6 +13,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -61,12 +62,7 @@ fun <T> FlowConnectedToggleGroup(
                     haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                     onSelected(option.value)
                 },
-                shapes =
-                    when (index) {
-                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                        options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                    },
+                shapes = connectedButtonShapes(index = index, count = options.size),
                 contentPadding = ContentPadding,
                 modifier = Modifier.weight(1f),
             ) {
@@ -88,3 +84,16 @@ fun <T> FlowConnectedToggleGroup(
         }
     }
 }
+
+/** The shapes of button [index] of [count] in a connected group: rounded outer ends, small inner corners. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun connectedButtonShapes(
+    index: Int,
+    count: Int,
+): ToggleButtonShapes =
+    when (index) {
+        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+        count - 1 -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+    }

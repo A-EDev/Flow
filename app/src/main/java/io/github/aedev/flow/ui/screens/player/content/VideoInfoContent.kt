@@ -18,8 +18,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
+import io.github.aedev.flow.ui.components.shared.SaveVideoSheet
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
@@ -81,7 +81,7 @@ internal fun VideoInfoContent(
         .collectAsStateWithLifecycle(initialValue = false)
 
     if (showAddToPlaylistDialog) {
-        AddToPlaylistDialog(
+        SaveVideoSheet(
             video = dialogVideo,
             onDismiss = { showAddToPlaylistDialog = false },
         )
