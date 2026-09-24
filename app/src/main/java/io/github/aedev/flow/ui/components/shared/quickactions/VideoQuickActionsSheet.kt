@@ -24,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -78,27 +80,29 @@ fun VideoQuickActionsBottomSheet(
     val collaborators = rememberCollaboratorItems(video)
     val toActions = { page = VideoMenuPage.Actions }
 
-    when (page) {
-        VideoMenuPage.Save -> {
-            SaveVideoSheet(video = video, onDismiss = onDismiss)
-        }
+    if (page == VideoMenuPage.Save) {
+        SaveVideoSheet(video = video, onDismiss = onDismiss)
+        return
+    }
 
-        VideoMenuPage.Details -> {
-            QuickActionsSheet(onDismiss = onDismiss, onBack = toActions) {
-                QuickActionsPageHeader(title = stringResource(R.string.details_metadata), onBack = toActions, onClose = onDismiss)
+    QuickActionsSheet(
+        onDismiss = onDismiss,
+        page = page,
+        onBack = if (page == VideoMenuPage.Actions) null else toActions,
+    ) { sheet ->
+        val close = sheet::close
+        when (page) {
+            VideoMenuPage.Details -> {
+                QuickActionsPageHeader(title = stringResource(R.string.details_metadata), onBack = toActions, onClose = close)
                 MediaDetailsPage(subject = video.toDetailsSubject(title))
             }
-        }
 
-        VideoMenuPage.Collaborators -> {
-            QuickActionsSheet(onDismiss = onDismiss, onBack = toActions) {
-                QuickActionsPageHeader(title = stringResource(R.string.collaborators), onBack = toActions, onClose = onDismiss)
-                QuickActionsGroup(title = null, rows = collaboratorRows(collaborators, onOpened = onDismiss, viewModel = viewModel))
+            VideoMenuPage.Collaborators -> {
+                QuickActionsPageHeader(title = stringResource(R.string.collaborators), onBack = toActions, onClose = close)
+                QuickActionsGroup(title = null, rows = collaboratorRows(collaborators, onOpened = close, viewModel = viewModel))
             }
-        }
 
-        VideoMenuPage.Actions -> {
-            QuickActionsSheet(onDismiss = onDismiss) {
+            else -> {
                 QuickActionsHeader(
                     title = title,
                     subtitle = rememberCollaboratorChannelDisplayName(video.channelName, collaborators),
@@ -111,34 +115,34 @@ fun VideoQuickActionsBottomSheet(
                         showWatchProgress = true,
                     )
                 }
-                VideoPrimaryActions(video, viewModel, onSave = { page = VideoMenuPage.Save }, onDismiss = onDismiss)
+                VideoPrimaryActions(video, viewModel, onSave = { sheet.hideThen { page = VideoMenuPage.Save } }, onDismiss = close)
                 if (!video.isShort) {
-                    QuickActionsGroup(title = stringResource(R.string.playback_header), rows = playbackRows(video, viewModel, onDismiss))
+                    QuickActionsGroup(title = stringResource(R.string.playback_header), rows = playbackRows(video, viewModel, close))
                 }
                 if (showChannel && video.channelId.isNotBlank()) {
                     QuickActionsGroup(
                         title = stringResource(R.string.section_channel),
                         rows =
                             listOf(
-                                channelRow(video, collaborators, viewModel, onDismiss) {
+                                channelRow(video, collaborators, viewModel, close) {
                                     page = VideoMenuPage.Collaborators
                                 },
                             ),
                     )
                 }
-                QuickActionsGroup(title = stringResource(R.string.section_algorithm), rows = feedRows(video, viewModel, onDismiss))
+                QuickActionsGroup(title = stringResource(R.string.section_algorithm), rows = feedRows(video, viewModel, close))
                 val removeRow =
                     if (onRemoveFromCollection != null && removeFromCollectionLabel != null) {
                         actionRow("remove", removeFromCollectionIcon, removeFromCollectionLabel, destructive = true) {
                             onRemoveFromCollection()
-                            onDismiss()
+                            close()
                         }
                     } else {
                         null
                     }
                 QuickActionsGroup(
                     title = stringResource(R.string.section_options),
-                    rows = moreRows(video, viewModel, onDismiss) { page = VideoMenuPage.Details } + listOfNotNull(removeRow),
+                    rows = moreRows(video, viewModel, close) { page = VideoMenuPage.Details } + listOfNotNull(removeRow),
                 )
             }
         }
@@ -218,6 +222,15 @@ private fun channelRow(
     val isCollaboration = collaborators.size > 1
     val ringColor = MaterialTheme.colorScheme.surfaceContainerHigh
     LaunchedEffect(video.channelId) { viewModel.loadSubscriptionState(video.channelId) }
+    val knownAvatars = remember(video, collaborators) { video.channelAvatarUrls(collaborators) }
+    // History, Liked and Downloads rows carry no avatar, so those look the channel up by id; the
+    // repository caches each one.
+    val avatars by produceState(knownAvatars, knownAvatars) {
+        if (knownAvatars.isNotEmpty()) return@produceState
+        val channelIds = if (isCollaboration) collaborators.map { it.channelId } else listOf(video.channelId)
+        val fetched = viewModel.channelAvatars(channelIds)
+        value = channelIds.mapNotNull { fetched[it]?.takeIf(String::isNotBlank) }
+    }
 
     return QuickActionRow("channel") { shape ->
         FlowNavRow(
@@ -233,7 +246,7 @@ private fun channelRow(
             shape = shape,
             leadingContent = {
                 ChannelAvatarStack(
-                    urls = video.channelAvatarUrls(collaborators),
+                    urls = avatars,
                     contentDescription = null,
                     avatarSize = QuickActionsDefaults.AvatarSize,
                     ringColor = ringColor,

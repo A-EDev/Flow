@@ -74,14 +74,20 @@ fun MusicQuickActionsSheet(
         value = quickActions.channelAvatars(artists.mapNotNull { it.id })
     }
 
-    when (page) {
-        SongMenuPage.Save -> {
-            SaveSongSheet(track = track, onDismiss = onDismiss)
-        }
+    if (page == SongMenuPage.Save) {
+        SaveSongSheet(track = track, onDismiss = onDismiss)
+        return
+    }
 
-        SongMenuPage.Details -> {
-            QuickActionsSheet(onDismiss = onDismiss, onBack = toActions) {
-                QuickActionsPageHeader(title = stringResource(R.string.details_metadata), onBack = toActions, onClose = onDismiss)
+    QuickActionsSheet(
+        onDismiss = onDismiss,
+        page = page,
+        onBack = if (page == SongMenuPage.Actions) null else toActions,
+    ) { sheet ->
+        val close = sheet::close
+        when (page) {
+            SongMenuPage.Details -> {
+                QuickActionsPageHeader(title = stringResource(R.string.details_metadata), onBack = toActions, onClose = close)
                 MediaDetailsPage(
                     subject =
                         MediaDetailsSubject(
@@ -95,17 +101,13 @@ fun MusicQuickActionsSheet(
                         ),
                 )
             }
-        }
 
-        SongMenuPage.Artists -> {
-            QuickActionsSheet(onDismiss = onDismiss, onBack = toActions) {
-                QuickActionsPageHeader(title = stringResource(R.string.quick_action_artists), onBack = toActions, onClose = onDismiss)
-                QuickActionsGroup(title = null, rows = artists.map { artistRow(it, listOfNotNull(avatars[it.id]), onDismiss) })
+            SongMenuPage.Artists -> {
+                QuickActionsPageHeader(title = stringResource(R.string.quick_action_artists), onBack = toActions, onClose = close)
+                QuickActionsGroup(title = null, rows = artists.map { artistRow(it, listOfNotNull(avatars[it.id]), close) })
             }
-        }
 
-        SongMenuPage.Actions -> {
-            QuickActionsSheet(onDismiss = onDismiss) {
+            else -> {
                 QuickActionsHeader(title = track.title, subtitle = track.artist) {
                     ArtworkThumbnail(
                         thumbnailUrl = track.listThumbnailUrl,
@@ -113,10 +115,10 @@ fun MusicQuickActionsSheet(
                         placeholder = Icons.Default.MusicNote,
                     )
                 }
-                SongPrimaryActions(track, viewModel, onSave = { page = SongMenuPage.Save }, onDismiss = onDismiss)
+                SongPrimaryActions(track, viewModel, onSave = { sheet.hideThen { page = SongMenuPage.Save } }, onDismiss = close)
                 QuickActionsGroup(
                     title = stringResource(R.string.playback_header),
-                    rows = playbackRows(track, viewModel, onAudioEffectsClick, onSleepTimerClick, onDismiss),
+                    rows = playbackRows(track, viewModel, onAudioEffectsClick, onSleepTimerClick, close),
                 )
                 QuickActionsGroup(
                     title = stringResource(R.string.quick_action_go_to),
@@ -126,12 +128,12 @@ fun MusicQuickActionsSheet(
                             artists = artists,
                             avatars = artists.mapNotNull { avatars[it.id] },
                             onOpenArtists = { page = SongMenuPage.Artists },
-                            onDismiss = onDismiss,
+                            onDismiss = close,
                         ),
                 )
                 QuickActionsGroup(
                     title = stringResource(R.string.recommendations_header),
-                    rows = feedbackRows(track, viewModel, quickActions, onDismiss),
+                    rows = feedbackRows(track, viewModel, quickActions, close),
                 )
                 QuickActionsGroup(
                     title = stringResource(R.string.more_header),

@@ -517,12 +517,14 @@ internal fun LyricsActionsSheet(
     onAdjustSync: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    fun run(action: () -> Unit): () -> Unit =
-        {
-            onDismiss()
-            action()
-        }
-    QuickActionsSheet(onDismiss = onDismiss) {
+    QuickActionsSheet(onDismiss = onDismiss) { sheet ->
+        fun run(action: () -> Unit): () -> Unit =
+            {
+                sheet.hideThen {
+                    onDismiss()
+                    action()
+                }
+            }
         QuickActionsGroup(
             title = null,
             rows =
@@ -600,6 +602,7 @@ internal fun LyricsActionsSheet(
                 onClick = { onAlignChange(LYRICS_ALIGN_RIGHT) },
             )
         }
+        Spacer(modifier = Modifier.height(12.dp))
         QuickActionsGroup(
             title = null,
             rows =

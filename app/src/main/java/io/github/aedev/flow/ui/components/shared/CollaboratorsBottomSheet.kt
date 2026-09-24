@@ -24,10 +24,10 @@ fun CollaboratorsBottomSheet(
     onDismiss: () -> Unit,
     viewModel: QuickActionsViewModel = sharedQuickActionsViewModel(),
 ) {
-    QuickActionsSheet(onDismiss = onDismiss) {
+    QuickActionsSheet(onDismiss = onDismiss) { sheet ->
         QuickActionsGroup(
             title = stringResource(R.string.collaborators),
-            rows = collaboratorRows(collaborators = collaborators, onOpened = onDismiss, viewModel = viewModel),
+            rows = collaboratorRows(collaborators = collaborators, onOpened = sheet::close, viewModel = viewModel),
         )
     }
 }

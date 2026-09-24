@@ -52,14 +52,14 @@ fun MusicCollectionQuickActionsSheet(
     LaunchedEffect(item.id) { viewModel.loadSaved(item.id) }
     val announce: (Int) -> Unit = { quickActions.announce(it) }
 
-    fun play(mode: CollectionPlayMode) {
-        viewModel.play(item, mode, announce) { first, queue, asRadio ->
-            player.loadAndPlayTrack(first, queue, sourceName = item.title, asRadio = asRadio)
+    QuickActionsSheet(onDismiss = onDismiss) { sheet ->
+        fun play(mode: CollectionPlayMode) {
+            viewModel.play(item, mode, announce) { first, queue, asRadio ->
+                player.loadAndPlayTrack(first, queue, sourceName = item.title, asRadio = asRadio)
+            }
+            sheet.close()
         }
-        onDismiss()
-    }
 
-    QuickActionsSheet(onDismiss = onDismiss) {
         QuickActionsHeader(title = item.title, subtitle = item.subtitle) {
             ArtworkThumbnail(
                 thumbnailUrl = item.thumbnailUrl,
@@ -103,7 +103,7 @@ fun MusicCollectionQuickActionsSheet(
                     },
                     actionRow("share", Icons.Outlined.Share, stringResource(R.string.share)) {
                         context.shareCollection(item)
-                        onDismiss()
+                        sheet.close()
                     },
                     QuickActionRow("open") { shape ->
                         FlowNavRow(
@@ -111,7 +111,7 @@ fun MusicCollectionQuickActionsSheet(
                             leadingIcon = Icons.AutoMirrored.Outlined.OpenInNew,
                             onClick = {
                                 if (item.isAlbum) navigator.openAlbum(item.id) else navigator.openMusicPlaylist(item.id)
-                                onDismiss()
+                                sheet.close()
                             },
                             shape = shape,
                         )

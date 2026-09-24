@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.shared.quickactions
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
@@ -27,7 +27,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TonalToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -46,6 +51,7 @@ import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
 import io.github.aedev.flow.ui.components.shared.flowRowGroupShape
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
+import kotlinx.coroutines.launch
 
 /** The values every quick actions sheet shares. */
 object QuickActionsDefaults {
@@ -68,30 +74,65 @@ object QuickActionsDefaults {
 }
 
 /**
- * A media item's menu: an M3 modal sheet whose content scrolls. On a page ([onBack] set) back
- * returns to the menu instead of closing it, so the sheet never stacks a second sheet on itself.
+ * Closes a [QuickActionsSheet] the way a drag does: the sheet animates out first. [close] then
+ * reports the dismissal; [hideThen] hands off to something else, such as a second sheet.
+ */
+@Stable
+class QuickActionsSheetController internal constructor(
+    private val hideThen: (after: () -> Unit) -> Unit,
+    private val onDismiss: () -> Unit,
+) {
+    fun close() = hideThen(onDismiss)
+
+    fun hideThen(after: () -> Unit) = hideThen.invoke(after)
+}
+
+/**
+ * A media item's menu: an M3 modal sheet that opens half way when its content is taller than half
+ * the screen and expands as it is dragged or scrolled up. Every way out animates the sheet away.
+ * [page] names the page on show, so switching pages keeps one sheet and resets its scroll; on a page
+ * ([onBack] set) back returns to the menu instead of closing it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuickActionsSheet(
     onDismiss: () -> Unit,
+    page: Any? = null,
     onBack: (() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable ColumnScope.(QuickActionsSheetController) -> Unit,
 ) {
+    val sheetState = rememberFlowSheetState(skipPartiallyExpanded = false)
+    val scope = rememberCoroutineScope()
+    val latestOnDismiss by rememberUpdatedState(onDismiss)
+    val controller =
+        remember(sheetState, scope) {
+            QuickActionsSheetController(
+                hideThen = { after -> scope.launch { sheetState.hide() }.invokeOnCompletion { after() } },
+                onDismiss = { latestOnDismiss() },
+            )
+        }
+    val scrollState = remember(page) { ScrollState(initial = 0) }
+    val properties = remember(onBack == null) { ModalBottomSheetProperties(shouldDismissOnBackPress = onBack == null) }
+
+    // One lambda for the sheet's lifetime: its hosts (the music player, the shell) recompose often, and
+    // a new dismiss callback each time makes the dialog window re-apply its parameters mid-animation.
+    val dismissRequest = remember { { latestOnDismiss() } }
+
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberFlowSheetState(),
-        properties = ModalBottomSheetProperties(shouldDismissOnBackPress = onBack == null),
+        onDismissRequest = dismissRequest,
+        sheetState = sheetState,
+        properties = properties,
     ) {
         BackHandler(enabled = onBack != null) { onBack?.invoke() }
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(bottom = QuickActionsDefaults.BottomPadding),
-            content = content,
-        )
+        ) {
+            content(controller)
+        }
     }
 }
 
