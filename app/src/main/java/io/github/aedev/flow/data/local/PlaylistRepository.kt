@@ -327,6 +327,16 @@ class PlaylistRepository
             playlistDao.updatePlaylistThumbnail(playlistId, newThumb)
         }
 
+        /** Removes [videoIds] and returns what [restorePlaylistVideos] needs to put them back. */
+        suspend fun takeVideosFromPlaylist(
+            playlistId: String,
+            videoIds: Collection<String>,
+        ): List<PlaylistVideoCrossRef> = playlistDao.takePlaylistVideos(playlistId, videoIds.toList())
+
+        suspend fun restorePlaylistVideos(entries: List<PlaylistVideoCrossRef>) {
+            if (entries.isNotEmpty()) playlistDao.restorePlaylistVideos(entries)
+        }
+
         suspend fun reorderVideosInPlaylist(
             playlistId: String,
             orderedVideoIds: List<String>,

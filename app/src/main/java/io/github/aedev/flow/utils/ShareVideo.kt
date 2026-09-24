@@ -41,6 +41,21 @@ fun shareVideoIntent(
     return Intent.createChooser(shareIntent, context.getString(R.string.share_video))
 }
 
+/** Shares a YouTube playlist's link, with its [title] as the subject. */
+fun sharePlaylist(
+    context: Context,
+    playlistId: String,
+    title: String,
+) {
+    val send =
+        Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, title)
+            putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/playlist?list=$playlistId")
+        }
+    context.startActivity(Intent.createChooser(send, context.getString(R.string.share)))
+}
+
 fun shareVideo(
     context: Context,
     videoId: String,

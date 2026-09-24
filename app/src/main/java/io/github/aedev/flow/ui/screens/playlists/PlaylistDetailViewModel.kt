@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
 import io.github.aedev.flow.data.video.DownloadBatch
 import io.github.aedev.flow.ui.components.library.PlaylistSortOrder
 import io.github.aedev.flow.ui.components.library.sortedForPlaylist
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -53,6 +54,7 @@ data class PlaylistUiMessage(
     @param:PluralsRes val pluralRes: Int = 0,
     val count: Int = 0,
     val args: List<Any> = emptyList(),
+    val undo: QuickActionUndo? = null,
 )
 
 data class PlaylistDetailUiState(
@@ -84,7 +86,7 @@ class PlaylistDetailViewModel
         private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
-        private val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
+        val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
         private val sharing = SharingStarted.WhileSubscribed(stopTimeoutMillis = SHARING_TIMEOUT_MS)
         private val attemptedEnrichment = HashSet<String>()
         private val enrichSemaphore = Semaphore(1)
@@ -176,16 +178,21 @@ class PlaylistDetailViewModel
             }
         }
 
-        fun removeVideo(videoId: String) {
-            viewModelScope.launch {
-                repository.removeVideoFromPlaylist(playlistId, videoId)
-            }
-        }
+        fun removeVideo(videoId: String) = removeVideos(setOf(videoId))
 
         fun removeVideos(videoIds: Set<String>) {
             if (videoIds.isEmpty()) return
             viewModelScope.launch {
-                videoIds.forEach { repository.removeVideoFromPlaylist(playlistId, it) }
+                val removed = repository.takeVideosFromPlaylist(playlistId, videoIds)
+                if (removed.isEmpty()) return@launch
+                _messages.send(
+                    PlaylistUiMessage(
+                        pluralRes = R.plurals.playlist_videos_removed,
+                        count = removed.size,
+                        args = listOf(removed.size),
+                        undo = QuickActionUndo.PlaylistRemoval(removed),
+                    ),
+                )
             }
         }
 

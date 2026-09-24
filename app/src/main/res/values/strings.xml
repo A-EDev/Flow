@@ -2978,6 +2978,13 @@
     <string name="error_remote_playback">Remote playback error. Please try again.</string>
     <string name="error_playback_permission_denied">Playback permission denied. Please try again.</string>
     <string name="error_local_file_missing">This file is no longer on your device</string>
+    <string name="playlist_type_builtin">Built-in playlist</string>
+    <string name="playlist_type_yours">Your playlist</string>
+    <string name="playlist_type_saved">Saved from YouTube</string>
+    <plurals name="playlist_videos_removed">
+        <item quantity="one">Removed %1$d video</item>
+        <item quantity="other">Removed %1$d videos</item>
+    </plurals>
     <string name="error_insecure_stream_blocked">Insecure stream blocked by device policy.</string>
     <string name="error_expiring_stream_urls">Unable to play - stream URLs keep expiring.</string>
     <string name="error_playback_device">Playback device error: %1$s</string>

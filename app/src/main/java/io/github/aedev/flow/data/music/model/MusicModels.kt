@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.music.model
 
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.serialization.Serializable
 
@@ -11,6 +12,18 @@ enum class MusicItemType { SONG, ALBUM, PLAYLIST, ARTIST }
  * to the music brain as listen-context provenance.
  */
 const val MUSIC_GENRE_SOURCE_PREFIX = "genre:"
+
+/** A song listed as a video (a YouTube Music playlist, a queued download) as the music player's track. */
+fun Video.toMusicTrack(): MusicTrack =
+    MusicTrack(
+        videoId = id,
+        title = title,
+        artist = channelName,
+        thumbnailUrl = thumbnailUrl,
+        duration = duration,
+        views = viewCount.coerceAtLeast(0),
+        channelId = channelId,
+    )
 
 @Serializable
 data class MusicTrack(

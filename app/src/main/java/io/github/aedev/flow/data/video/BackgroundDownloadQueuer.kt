@@ -7,7 +7,7 @@ import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadManager
-import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.VideoCodecUtils
@@ -144,16 +144,7 @@ class BackgroundDownloadQueuer
 
         private suspend fun queueSong(video: Video): QueueOutcome {
             if (musicDownloadManager.isDownloaded(video.id)) return QueueOutcome.ALREADY_PRESENT
-            val track =
-                MusicTrack(
-                    videoId = video.id,
-                    title = video.title,
-                    artist = video.channelName,
-                    thumbnailUrl = video.thumbnailUrl,
-                    duration = video.duration,
-                    channelId = video.channelId,
-                )
-            return if (musicDownloadManager.downloadTrack(track).isSuccess) QueueOutcome.QUEUED else QueueOutcome.UNAVAILABLE
+            return if (musicDownloadManager.downloadTrack(video.toMusicTrack()).isSuccess) QueueOutcome.QUEUED else QueueOutcome.UNAVAILABLE
         }
 
         private suspend fun choose(options: VideoDownloadOptions): Choice? {

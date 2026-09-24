@@ -23,6 +23,7 @@ import androidx.navigation.navDeepLink
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.data.shorts.queue.openAtVideoId
 import io.github.aedev.flow.data.stats.RecapPeriod
@@ -483,19 +484,19 @@ fun NavGraphBuilder.flowAppGraph(
     // Playlist Detail Screen
     composable("playlist/{playlistId}") { _ ->
         currentRoute.value = "playlist"
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
         PlaylistDetailScreen(
-            // playlistId is handled by ViewModel via SavedStateHandle
-            // playlistRepository is injected by Hilt
             onNavigateBack = { navController.popBackStack() },
-            onVideoClick = { video ->
-                if (video.isMusic) {
-                    navController.navigate("musicPlayer/${video.id}")
-                } else {
-                    navController.openVideoOrShorts(video, disableShortsPlayer) { navController.navigateToPlayer(it.id) }
-                }
-            },
             onPlayPlaylist = { videos, index, shuffle ->
-                playerViewModel.playPlaylist(videos, index, "Playlist", shuffle)
+                val start = videos[index]
+                if (start.isMusic) {
+                    // A YouTube Music playlist plays in the music player, like any other song list.
+                    val tracks = videos.filter { it.isMusic }.map { it.toMusicTrack() }
+                    musicPlayerViewModel.loadAndPlayTrack(start.toMusicTrack(), tracks, "Playlist")
+                    navController.navigate("musicPlayer/${start.id}")
+                } else {
+                    playerViewModel.playPlaylist(videos, index, "Playlist", shuffle)
+                }
             },
         )
     }

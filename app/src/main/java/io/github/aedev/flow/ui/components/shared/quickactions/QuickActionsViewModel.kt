@@ -46,7 +46,7 @@ class QuickActionsViewModel
     @Inject
     constructor(
         private val repository: YouTubeRepository,
-        playlistRepository: PlaylistRepository,
+        private val playlistRepository: PlaylistRepository,
         videoDownloadManager: VideoDownloadManager,
         private val engagement: VideoEngagementUseCase,
         private val feedback: VideoFeedbackUseCase,
@@ -211,6 +211,14 @@ class QuickActionsViewModel
             arg: String? = null,
         ) = emit(text, arg)
 
+        /** Shows a message a screen already resolved, for wording this menu doesn't own. */
+        fun announce(
+            text: String,
+            undo: QuickActionUndo? = null,
+        ) {
+            _messages.tryEmit(QuickActionMessage(plainText = text, undo = undo))
+        }
+
         fun dismissDownload() {
             _pendingDownload.value = null
         }
@@ -229,6 +237,10 @@ class QuickActionsViewModel
 
                         is QuickActionUndo.Subscription -> {
                             setSubscription(undo.channelId, undo.channelName, undo.channelThumbnail, undo.subscribed, announce = false)
+                        }
+
+                        is QuickActionUndo.PlaylistRemoval -> {
+                            playlistRepository.restorePlaylistVideos(undo.entries)
                         }
                     }
                 }

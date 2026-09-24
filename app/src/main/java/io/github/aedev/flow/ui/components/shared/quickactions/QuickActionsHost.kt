@@ -59,7 +59,10 @@ fun QuickActionsHost(
     LaunchedEffect(snackbarHostState, viewModel) {
         viewModel.messages.collectLatest { message ->
             snackbarHostState.currentSnackbarData?.dismiss()
-            val text = message.arg?.let { context.getString(message.text, it) } ?: context.getString(message.text)
+            val text =
+                message.plainText
+                    ?: message.arg?.let { context.getString(message.text, it) }
+                    ?: context.getString(message.text)
             val undo = message.undo
             val result =
                 snackbarHostState.showSnackbar(

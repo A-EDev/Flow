@@ -89,6 +89,33 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylistVideoCrossRef(crossRef: PlaylistVideoCrossRef)
 
+    @Query("SELECT * FROM playlist_video_cross_ref WHERE playlistId = :playlistId AND videoId IN (:videoIds)")
+    suspend fun getCrossRefs(
+        playlistId: String,
+        videoIds: List<String>,
+    ): List<PlaylistVideoCrossRef>
+
+    /** Removes [videoIds] as one change and returns their entries, so the removal can be undone. */
+    @Transaction
+    suspend fun takePlaylistVideos(
+        playlistId: String,
+        videoIds: List<String>,
+    ): List<PlaylistVideoCrossRef> {
+        val taken = getCrossRefs(playlistId, videoIds)
+        taken.forEach { removeVideoFromPlaylist(playlistId, it.videoId) }
+        updatePlaylistThumbnail(playlistId, getFirstVideoThumbnail(playlistId).orEmpty())
+        return taken
+    }
+
+    /** Puts entries back where they were, with their original position and date added. */
+    @Transaction
+    suspend fun restorePlaylistVideos(entries: List<PlaylistVideoCrossRef>) {
+        entries.forEach { insertPlaylistVideoCrossRef(it) }
+        entries.map { it.playlistId }.distinct().forEach { playlistId ->
+            updatePlaylistThumbnail(playlistId, getFirstVideoThumbnail(playlistId).orEmpty())
+        }
+    }
+
     /** Applies a whole new order at once, so no intermediate order with duplicate positions is emitted. */
     @Transaction
     suspend fun reorderPlaylistVideos(
