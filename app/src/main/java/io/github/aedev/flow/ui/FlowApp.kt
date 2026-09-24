@@ -483,6 +483,7 @@ fun FlowApp(
                                     ) {
                                         flowAppGraph(
                                             navController = navController,
+                                            mediaNavigator = mediaNavigator,
                                             currentRoute = currentRoute,
                                             playerSheetState = playerSheetState,
                                             musicPlayerSheetState = musicPlayerSheetState,
