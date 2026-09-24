@@ -48,7 +48,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.VideoCodec
+import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
+import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.settings.choice
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.slider
@@ -57,6 +59,7 @@ import io.github.aedev.flow.ui.components.settings.toggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowChoice
 import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
+import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 import io.github.aedev.flow.ui.screens.settings.index.DownloadsIndex
 import io.github.aedev.flow.ui.screens.settings.quality.VideoQualities
 import io.github.aedev.flow.ui.screens.settings.quality.codecLabel
@@ -73,6 +76,7 @@ private val CacheSizes = listOf(100, 200, 500, 0)
 internal fun DownloadSettingsScreen(
     onBack: (() -> Unit)?,
     highlight: String?,
+    onNavigate: (SettingsTarget) -> Unit,
     viewModel: DownloadSettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -159,6 +163,13 @@ internal fun DownloadSettingsScreen(
             choice(DownloadsIndex.codec, onClick = { picker = DownloadPicker.CODEC }) { codecLabel(codec) }
             toggleGroup(DownloadsIndex.menuStyle, menuStyles, menuStyle, viewModel::setMenuStyle)
             switch(DownloadsIndex.wifiOnly, viewModel.wifiOnly, viewModel::setWifiOnly)
+        }
+        group(key = "downloads.library", header = R.string.local_section_library) {
+            nav(
+                DestinationIndex.entry(SettingsDestination.LOCAL_MEDIA),
+                icon = Icons.Outlined.PermMedia,
+                onClick = { onNavigate(SettingsTarget(SettingsDestination.LOCAL_MEDIA)) },
+            )
         }
         group(key = "downloads.performance", header = R.string.performance_header, footer = R.string.performance_optimization_note) {
             slider(

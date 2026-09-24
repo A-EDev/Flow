@@ -98,10 +98,22 @@ fun MediaDetailsPage(
 ) {
     LaunchedEffect(subject.videoId) { viewModel.load(subject) }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val details = mediaDetailLines(subject, state)
+    MediaDetailRows(details = mediaDetailLines(subject, state), quickActions = quickActions)
+    if (state.isLoading) {
+        Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+            FlowLoadingIndicator()
+        }
+    }
+}
+
+/** Facts as rows of a details page, each copying its value when tapped. */
+@Composable
+fun MediaDetailRows(
+    details: List<Pair<String, String>>,
+    quickActions: QuickActionsViewModel = sharedQuickActionsViewModel(),
+) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-
     QuickActionsGroup(
         title = null,
         rows =
@@ -124,11 +136,6 @@ fun MediaDetailsPage(
                 }
             },
     )
-    if (state.isLoading) {
-        Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-            FlowLoadingIndicator()
-        }
-    }
 }
 
 @Composable

@@ -29,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.library.LibraryPanes
 import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
 import io.github.aedev.flow.ui.components.library.PlaylistDetailTopBar
 import io.github.aedev.flow.ui.components.library.PlaylistHeader
@@ -37,6 +38,7 @@ import io.github.aedev.flow.ui.components.library.PlaylistHeaderPane
 import io.github.aedev.flow.ui.components.library.PlaylistSortChip
 import io.github.aedev.flow.ui.components.library.PlaylistSortOrder
 import io.github.aedev.flow.ui.components.library.SelectionAction
+import io.github.aedev.flow.ui.components.library.rememberLibraryPaneState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
@@ -63,8 +65,8 @@ fun PlaylistDetailScreen(
     var selectionMode by remember { mutableStateOf(false) }
     var displayVideos by remember { mutableStateOf(sortedVideos) }
     val listState = rememberLazyListState()
-    val panes = rememberPlaylistPaneState()
-    val twoPane = panes.showsHeaderPane
+    val panes = rememberLibraryPaneState()
+    val twoPane = panes.showsSidePane
 
     val isUserCreated = uiState.isLocalPlaylist && !uiState.isSaved
     val canReorder = isUserCreated && sortOrder == PlaylistSortOrder.MANUAL
@@ -176,10 +178,14 @@ fun PlaylistDetailScreen(
                             header = header,
                         )
                     }
-                    PlaylistDetailPanes(
+                    LibraryPanes(
                         panes = panes,
-                        artworkUrl = headerState.thumbnailUrl,
-                        headerPane = { PlaylistHeaderPane(state = headerState, actions = headerActions) },
+                        sidePaneWidth = HeaderPaneWidth,
+                        sidePane = {
+                            PlaylistHeaderSurface(
+                                headerState.thumbnailUrl,
+                            ) { PlaylistHeaderPane(state = headerState, actions = headerActions) }
+                        },
                         mainPane = {
                             if (twoPane) {
                                 Column {

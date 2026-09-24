@@ -29,6 +29,8 @@
     <uses-permission
         android:name="android.permission.READ_MEDIA_AUDIO"
         android:minSdkVersion="33" />
+    <!-- Android 14+: lets the local library work when the viewer picks "Select photos and videos" -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- Optional: allows saving downloads to public Movies/Music folders (survives app uninstall) -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Required for DLNA/UPnP SSDP device discovery (FOSS casting, no Google services) -->

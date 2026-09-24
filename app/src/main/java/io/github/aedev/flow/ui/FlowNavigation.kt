@@ -21,6 +21,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
+import io.github.aedev.flow.data.localmedia.toMusicTrack
+import io.github.aedev.flow.data.localmedia.toVideo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.toMusicTrack
@@ -392,28 +395,20 @@ fun NavGraphBuilder.flowAppGraph(
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
         HistoryScreen(
             onVideoClick = { track ->
-                val localId = track.videoId.removePrefix("local_").toLongOrNull()
-                if (track.videoId.startsWith("local_") && localId != null) {
-                    val uri =
-                        android.content.ContentUris
-                            .withAppendedId(
-                                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                                localId,
-                            ).toString()
+                val deviceFile = LocalMediaIds.videoUri(track.videoId)
+                if (deviceFile != null) {
                     val video =
                         io.github.aedev.flow.data.model.Video(
                             id = track.videoId,
                             title = track.title,
                             channelName = track.artist,
-                            channelId = "local",
-                            thumbnailUrl = uri,
+                            channelId = "",
+                            thumbnailUrl = deviceFile.toString(),
                             duration = track.duration,
                             viewCount = 0,
                             uploadDate = "",
-                            description = "",
                         )
-                    playerViewModel.playLocalVideo(video, uri)
-                    GlobalPlayerState.setCurrentVideo(video)
+                    playerViewModel.playLocalVideo(video, deviceFile.toString())
                 } else {
                     navController.navigateToPlayer(track.videoId)
                 }
@@ -422,23 +417,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.openShortsOrPlayer(source, disableShortsPlayer)
             },
             onMusicClick = { track, queue ->
-                if (track.videoId.startsWith("local_")) {
-                    val localTracks = queue.filter { it.videoId.startsWith("local_") }.ifEmpty { listOf(track) }
-                    val localUris =
-                        localTracks
-                            .mapNotNull { t ->
-                                t.videoId.removePrefix("local_").toLongOrNull()?.let { id ->
-                                    t.videoId to
-                                        android.content.ContentUris.withAppendedId(
-                                            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                                            id,
-                                        )
-                                }
-                            }.toMap()
-                    musicPlayerViewModel.playLocalMusic(track, localTracks, localUris)
-                } else {
-                    musicPlayerViewModel.loadAndPlayTrack(track, queue, "History")
-                }
+                musicPlayerViewModel.loadAndPlayTrack(track, queue, "History")
                 val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
                 val encodedTitle = android.net.Uri.encode(track.title)
                 val encodedArtist = android.net.Uri.encode(track.artist)
@@ -546,58 +525,27 @@ fun NavGraphBuilder.flowAppGraph(
     }
     composable("localMedia") {
         currentRoute.value = "localMedia"
-
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
-
+        val localTitle =
+            androidx.compose.ui.res
+                .stringResource(io.github.aedev.flow.R.string.local_media_title)
         io.github.aedev.flow.ui.screens.library.LocalMediaScreen(
             onBackClick = { navController.popBackStack() },
-            onVideoClick = { item ->
-                val video =
-                    io.github.aedev.flow.data.model.Video(
-                        id =
-                            io.github.aedev.flow.ui.screens.library.LocalMediaViewModel
-                                .localMediaId(item),
-                        title = item.title,
-                        channelName = item.subtitle.ifBlank { "Local video" },
-                        channelId = "local",
-                        thumbnailUrl = item.contentUri,
-                        duration = (item.durationMs / 1000).toInt(),
-                        viewCount = 0,
-                        uploadDate = "",
-                        description = "",
-                    )
-                playerViewModel.playLocalVideo(video, item.contentUri)
-                GlobalPlayerState.setCurrentVideo(video)
+            onPlayVideos = { items, index, shuffle ->
+                playerViewModel.playPlaylist(items.map { it.toVideo() }, index, localTitle, shuffle)
             },
-            onMusicClick = { items, index ->
-                val tracks =
-                    items.map { item ->
-                        MusicTrack(
-                            videoId =
-                                io.github.aedev.flow.ui.screens.library.LocalMediaViewModel
-                                    .localMediaId(item),
-                            title = item.title,
-                            artist = item.subtitle.ifBlank { "Local audio" },
-                            thumbnailUrl = item.artworkUri ?: "",
-                            duration = (item.durationMs / 1000).toInt(),
-                        )
-                    }
-                val localUris =
-                    items.associate { item ->
-                        io.github.aedev.flow.ui.screens.library.LocalMediaViewModel
-                            .localMediaId(item) to
-                            android.net.Uri.parse(item.contentUri)
-                    }
-                val selected = tracks[index]
-                musicPlayerViewModel.playLocalMusic(selected, tracks, localUris)
-
-                val encodedTitle = android.net.Uri.encode(selected.title)
-                val encodedArtist = android.net.Uri.encode(selected.artist)
-                val encodedUrl = android.net.Uri.encode(selected.thumbnailUrl)
-                navController.navigate("musicPlayer/${selected.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            onPlayMusic = { items, index, shuffle ->
+                val tracks = items.map { it.toMusicTrack() }.let { if (shuffle) it.shuffled() else it }
+                val start = if (shuffle) tracks.first() else tracks[index]
+                musicPlayerViewModel.loadAndPlayTrack(start, tracks, localTitle)
+                navController.navigate("musicPlayer/${start.videoId}")
+            },
+            onOpenSettings = {
+                navController.navigate("settings?target=${SettingsTarget(SettingsDestination.LOCAL_MEDIA).encode()}")
             },
         )
     }
+
     composable("music") {
         currentRoute.value = "music"
 
