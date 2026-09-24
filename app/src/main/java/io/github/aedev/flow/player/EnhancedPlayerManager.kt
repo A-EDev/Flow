@@ -2861,7 +2861,9 @@ class EnhancedPlayerManager private constructor() {
         autoNextLog("switchToAudioOnly")
         audioOnlyMode.enter()
         setVideoTracksDisabled(true)
-        p.setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
+        p.setWakeMode(
+            if (currentLocalFilePath != null) androidx.media3.common.C.WAKE_MODE_LOCAL else androidx.media3.common.C.WAKE_MODE_NETWORK,
+        )
         resumePlaybackIfStalled(p)
         preload.schedule()
     }

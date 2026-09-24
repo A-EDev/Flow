@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.local.entity.NoteEntity
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainStorage
@@ -87,7 +88,11 @@ class SyncDataAccess
         // --- likes (export is liked-only; apply handles all 3 states) ---
 
         suspend fun readLikes(node: String): List<CanonicalLike> =
-            likedVideos.getAllLikedVideos().first().map { LikesMapper.likedToCanonical(it, node) }
+            likedVideos
+                .getAllLikedVideos()
+                .first()
+                .filterNot { LocalMediaIds.isLocal(it.videoId) }
+                .map { LikesMapper.likedToCanonical(it, node) }
 
         suspend fun writeLikes(merged: List<CanonicalLike>) {
             for (like in merged) {

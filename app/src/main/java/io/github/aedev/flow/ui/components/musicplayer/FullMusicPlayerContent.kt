@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.min
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
@@ -494,15 +495,17 @@ internal fun FullMusicPlayerContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                if (!LocalMediaIds.isLocal(uiState.currentTrack?.videoId)) {
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                PlayerMainActionButtons(
-                    isLiked = uiState.isLiked,
-                    isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
-                    onLikeClick = { viewModel.toggleLike() },
-                    onDownloadClick = { viewModel.downloadTrack() },
-                    onAddToPlaylist = { showSaveSheet = true },
-                )
+                    PlayerMainActionButtons(
+                        isLiked = uiState.isLiked,
+                        isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
+                        onLikeClick = { viewModel.toggleLike() },
+                        onDownloadClick = { viewModel.downloadTrack() },
+                        onAddToPlaylist = { showSaveSheet = true },
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

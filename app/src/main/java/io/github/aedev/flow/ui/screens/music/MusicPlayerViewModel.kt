@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.data.lyrics.LyricsHelper
@@ -26,6 +27,7 @@ import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -142,6 +144,10 @@ class MusicPlayerViewModel
                             checkIfFavorite(it.videoId)
                             fetchLyrics(it.videoId, it.artist, it.title, it.duration, it.album)
                             fetchRelatedContent(it.videoId)
+                        } else {
+                            favoriteJob?.cancel()
+                            _uiState.update { state -> state.copy(isLiked = false) }
+                            EnhancedMusicPlayerManager.setLiked(false)
                         }
                     }
                 }
@@ -197,14 +203,18 @@ class MusicPlayerViewModel
             }
         }
 
+        private var favoriteJob: Job? = null
+
         private fun checkIfFavorite(videoId: String) {
-            viewModelScope.launch {
-                likedVideosRepository.getLikeState(videoId).collect { state ->
-                    val isLiked = state == "LIKED"
-                    _uiState.update { it.copy(isLiked = isLiked) }
-                    EnhancedMusicPlayerManager.setLiked(isLiked)
+            favoriteJob?.cancel()
+            favoriteJob =
+                viewModelScope.launch {
+                    likedVideosRepository.getLikeState(videoId).collect { state ->
+                        val isLiked = state == "LIKED"
+                        _uiState.update { it.copy(isLiked = isLiked) }
+                        EnhancedMusicPlayerManager.setLiked(isLiked)
+                    }
                 }
-            }
         }
 
         fun playLocalMusic(
@@ -249,7 +259,7 @@ class MusicPlayerViewModel
                 }
         }
 
-        private fun isLocalMediaId(id: String?): Boolean = id?.startsWith("local_") == true
+        private fun isLocalMediaId(id: String?): Boolean = LocalMediaIds.isLocal(id)
 
         fun loadAndPlayTrack(
             track: MusicTrack,
@@ -257,6 +267,11 @@ class MusicPlayerViewModel
             sourceName: String? = null,
             asRadio: Boolean = false,
         ) {
+            if (isLocalMediaId(track.videoId)) {
+                val localUris = (queue + track).mapNotNull { t -> LocalMediaIds.audioUri(t.videoId)?.let { t.videoId to it } }.toMap()
+                playLocalMusic(track, queue.filter { isLocalMediaId(it.videoId) }, localUris)
+                return
+            }
             loadTrackJob?.cancel()
             // Genre-scoped surfaces tag their source; the genre becomes listen
             // context for this queue and is stripped from the display label.
@@ -559,6 +574,7 @@ class MusicPlayerViewModel
 
         fun toggleLike() {
             val currentTrack = _uiState.value.currentTrack ?: return
+            if (isLocalMediaId(currentTrack.videoId)) return
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)

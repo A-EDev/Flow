@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.*
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -190,7 +191,7 @@ class VideoPlayerViewModel
 
         private fun isPlaybackLoadCurrent(token: Long): Boolean = playbackLoadToken == token
 
-        private fun isLocalMediaId(id: String?): Boolean = id?.startsWith("local_") == true
+        private fun isLocalMediaId(id: String?): Boolean = LocalMediaIds.isLocal(id)
 
         private fun cancelActivePlaybackLoad(invalidateToken: Boolean = false) {
             if (invalidateToken) {

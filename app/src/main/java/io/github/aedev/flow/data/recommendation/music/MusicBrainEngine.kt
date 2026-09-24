@@ -10,6 +10,7 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicArtist
 import io.github.aedev.flow.data.music.model.MusicPlaylist
@@ -46,7 +47,6 @@ class MusicBrainEngine
         companion object {
             private const val TAG = "MusicBrainEngine"
             private const val SAVE_DEBOUNCE_MS = 5000L
-            private const val LOCAL_MEDIA_PREFIX = "local_"
         }
 
         private val storage = MusicBrainStorage(appContext)
@@ -112,7 +112,7 @@ class MusicBrainEngine
             genre: String? = null,
             playedMs: Long = 0L,
         ) {
-            if (track.videoId.isBlank() || track.videoId.startsWith(LOCAL_MEDIA_PREFIX)) return
+            if (track.videoId.isBlank() || LocalMediaIds.isLocal(track.videoId)) return
             val pct = playedFraction.coerceIn(0.0, 1.0)
             if (playerPreferences.isDeepFlowCurrentlyActive()) return
             ensureInitialized()
@@ -183,7 +183,7 @@ class MusicBrainEngine
 
         /** An explicit like counts as a full play regardless of progress and floors the score at 0.8. */
         suspend fun onExplicitLike(track: MusicTrack) {
-            if (track.videoId.isBlank() || track.videoId.startsWith(LOCAL_MEDIA_PREFIX)) return
+            if (track.videoId.isBlank() || LocalMediaIds.isLocal(track.videoId)) return
             if (playerPreferences.isDeepFlowCurrentlyActive()) return
             ensureInitialized()
 

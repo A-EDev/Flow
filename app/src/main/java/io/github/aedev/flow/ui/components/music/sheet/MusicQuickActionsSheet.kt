@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicArtist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
@@ -115,11 +116,16 @@ fun MusicQuickActionsSheet(
                         placeholder = Icons.Default.MusicNote,
                     )
                 }
-                SongPrimaryActions(track, viewModel, onSave = { sheet.hideThen { page = SongMenuPage.Save } }, onDismiss = close)
+                val isDeviceFile = LocalMediaIds.isLocal(track.videoId)
+                if (!isDeviceFile) {
+                    SongPrimaryActions(track, viewModel, onSave = { sheet.hideThen { page = SongMenuPage.Save } }, onDismiss = close)
+                }
                 QuickActionsGroup(
                     title = stringResource(R.string.playback_header),
                     rows = playbackRows(track, viewModel, onAudioEffectsClick, onSleepTimerClick, close),
                 )
+                // A file on the device has no artist page, feed or online details to offer.
+                if (isDeviceFile) return@QuickActionsSheet
                 QuickActionsGroup(
                     title = stringResource(R.string.quick_action_go_to),
                     rows =
