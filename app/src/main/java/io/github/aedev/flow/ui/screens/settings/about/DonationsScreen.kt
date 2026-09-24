@@ -31,30 +31,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.donation.CryptoWallet
+import io.github.aedev.flow.ui.components.donation.DonationWallets
+import io.github.aedev.flow.ui.components.donation.PATREON_URL
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.utils.copyPlainText
 import kotlinx.coroutines.launch
-
-private const val PATREON_URL = "https://patreon.com/A_EDev"
-
-private class CryptoWallet(
-    val name: Int,
-    val ticker: String,
-    val address: String,
-)
-
-private val Wallets =
-    listOf(
-        CryptoWallet(R.string.donation_currency_bitcoin, "BTC", "bc1qgmkkxxvzvsymtpfazqfl93jw6k4jgy0xmrtnv8"),
-        CryptoWallet(R.string.donation_currency_ethereum, "ETH", "0xfbac6f464fec7fe458e318971a42ba45b305b70e"),
-        CryptoWallet(R.string.donation_currency_solana, "SOL", "7b3SLgiVPb8qQUvERSPGRWoFoiGEDvkFuY98M1GEngug"),
-        CryptoWallet(R.string.donation_currency_usdt, "USDT", "TRz7VDrTWwCLCfQmYBEJakqcZgbFNWfUMP"),
-        CryptoWallet(
-            R.string.donation_currency_monero,
-            "XMR",
-            "8AgaxZnpEvT8VXJpczpL7BQejwSEw97saJmKYqq4zKErbe9bkYSwUhJ813msPPbdYhF11oz4N7tfEj4Zi6k27fKD83ca1if",
-        ),
-    )
 
 private val HeaderPadding = 24.dp
 private val HeaderSpacing = 12.dp
@@ -110,7 +92,7 @@ fun DonationsScreen(onNavigateBack: () -> Unit) {
             }
         }
         group(key = "donations.crypto", header = R.string.donations_cryptocurrency, footer = R.string.thank_you_support_message) {
-            Wallets.forEach { wallet ->
+            DonationWallets.forEach { wallet ->
                 row("donations.${wallet.ticker}") { shape ->
                     WalletRow(wallet, shape, clipLabel) {
                         scope.launch {

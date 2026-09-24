@@ -1592,7 +1592,8 @@
     <string name="donation_address_clip_label">Donation Address</string>
     <!-- One-time support prompt -->
     <string name="donation_prompt_title">Enjoying Flow?</string>
-    <string name="donation_prompt_message">Flow is free, open-source, and built without ads or trackers. If it has earned a place on your device, please consider supporting its development — it genuinely helps keep the project alive.</string>
+    <string name="donation_prompt_message">Flow is free, open source and ad-free. If it earned a spot on your phone, a little support keeps it going.</string>
+    <string name="donation_method_patreon" translatable="false">Patreon</string>
     <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
     <string name="donation_prompt_support">Support development</string>
     <string name="donation_prompt_later">Maybe later</string>
