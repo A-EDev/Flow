@@ -4,7 +4,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.LocalCopySource
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Qualifier
@@ -26,7 +28,10 @@ annotation class IoDispatcher
 @InstallIn(SingletonComponent::class)
 object PlayerManagerModule {
     @Provides
-    fun provideEnhancedPlayerManager(): EnhancedPlayerManager = EnhancedPlayerManager.getInstance()
+    fun provideEnhancedPlayerManager(videoDownloadManager: VideoDownloadManager): EnhancedPlayerManager =
+        EnhancedPlayerManager.getInstance().also {
+            it.localCopySource = LocalCopySource(videoDownloadManager::localCopyPath)
+        }
 
     @Provides
     @NetworkIoDispatcher

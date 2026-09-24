@@ -447,6 +447,16 @@ class VideoDownloadManager
         /** Get download with items */
         suspend fun getDownloadWithItems(videoId: String): DownloadWithItems? = downloadDao.getDownloadWithItems(videoId)
 
+        /** Path of the finished video download of [videoId] when its file is still on disk. */
+        suspend fun localCopyPath(videoId: String): String? =
+            withContext(Dispatchers.IO) {
+                downloadDao
+                    .getDownloadWithItems(videoId)
+                    ?.takeIf { it.overallStatus == DownloadItemStatus.COMPLETED && !it.isAudioOnly }
+                    ?.primaryFilePath
+                    ?.takeIf { File(it).exists() }
+            }
+
         /** Delete download and its files from disk.
          *
          * Based on NewPipe's deletion order:

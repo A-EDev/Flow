@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -259,16 +260,13 @@ internal class PlaybackSessionApplier(
         scope.launch(networkDispatcher) {
             try {
                 val segments = sponsorBlockRepository.getSegments(videoId)
-                if (segments.isNotEmpty()) {
-                    videoDownloadManager.saveSponsorBlockData(
-                        videoId,
-                        sponsorBlockRepository.serializeSegments(segments),
-                    )
-                    Log.d(TAG, "Backfilled ${segments.size} SB segments for $videoId")
-                    uiState.update { it.copy(offlineSponsorBlockSegments = segments) }
-                } else {
-                    Log.d(TAG, "No SB segments available for $videoId (backfill)")
-                }
+                // An empty list is stored too, so a video with no segments isn't asked about again.
+                videoDownloadManager.saveSponsorBlockData(
+                    videoId,
+                    sponsorBlockRepository.serializeSegments(segments),
+                )
+                Log.d(TAG, "Backfilled ${segments.size} SB segments for $videoId")
+                if (segments.isNotEmpty()) uiState.update { it.copy(offlineSponsorBlockSegments = segments) }
             } catch (e: Exception) {
                 Log.w(TAG, "SB backfill failed for $videoId", e)
             }
@@ -498,8 +496,9 @@ internal class PlaybackSessionApplier(
     }
 
     private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
+        if (LocalMediaIds.isLocal(videoId)) return emptyList()
         val stored = offlineSubtitleStore.load(videoId)
-        if (stored.isEmpty() && NetworkState.isOnline(context)) {
+        if (stored.isEmpty() && !offlineSubtitleStore.isResolved(videoId) && NetworkState.isOnline(context)) {
             scope.launch(networkDispatcher) {
                 offlineSubtitleStore.saveForVideo(videoId)
             }

@@ -28,6 +28,7 @@ import androidx.media3.session.MediaSession
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.local.VideoQuality
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -190,6 +191,10 @@ class EnhancedPlayerManager private constructor() {
     // Application context
     private var appContext: Context? = null
 
+    /** Set by the DI graph; null until then, when queue advance streams as before. */
+    @Volatile
+    var localCopySource: LocalCopySource? = null
+
     // Coroutine scope
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -211,6 +216,7 @@ class EnhancedPlayerManager private constructor() {
             isLooping = { _playerState.value.isLooping },
             isLiveStream = { currentIsLiveStream },
             resolveStreams = { video, ctx -> resolveStreamsForVideo(video, ctx) },
+            hasLocalCopy = { video -> localCopySource?.localCopyPath(video.id) != null },
             buildMediaSource = { resolved, ctx ->
                 mediaLoader?.buildPreloadMediaSource(
                     context = ctx,
@@ -908,12 +914,12 @@ class EnhancedPlayerManager private constructor() {
             )
         startPlaybackTracker()
 
-        // Apply SponsorBlock: use offline-saved segments if present, otherwise fall back to API.
+        // Stored segments win even when empty (looked up, none found); a device file has none to look up.
         sponsorBlockHandler?.reset()
-        if (!savedSegments.isNullOrEmpty()) {
-            sponsorBlockHandler?.loadSegmentsFromList(videoId, savedSegments)
-        } else {
-            sponsorBlockHandler?.loadSegments(videoId)
+        when {
+            savedSegments != null -> sponsorBlockHandler?.loadSegmentsFromList(videoId, savedSegments)
+            LocalMediaIds.isLocal(videoId) -> Unit
+            else -> sponsorBlockHandler?.loadSegments(videoId)
         }
 
         loadMediaInternal(
@@ -1703,6 +1709,28 @@ class EnhancedPlayerManager private constructor() {
                             hasEnded = false,
                             error = null,
                         )
+
+                    val localCopyPath = localCopySource?.localCopyPath(video.id)
+                    if (localCopyPath != null) {
+                        if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "local-copy")) {
+                            return@launch
+                        }
+                        setAutoplayCandidates(sourceVideoId = video.id, videos = emptyList(), enabled = autoplayEnabled)
+                        playLocalFile(
+                            videoId = video.id,
+                            filePath = localCopyPath,
+                            savedSegments = null,
+                            preservePosition = null,
+                            subtitles = emptyList(),
+                        )
+                        if (resumeInAudioOnly) {
+                            audioOnlyMode.applyStreams(true)
+                            setVideoTracksDisabled(true)
+                        }
+                        play()
+                        autoNextLog("playVideoFromServiceLayer played download video=${video.id} reason=$reason")
+                        return@launch
+                    }
 
                     val extractionDeferred =
                         async(Dispatchers.IO) {
