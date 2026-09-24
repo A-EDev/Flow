@@ -161,7 +161,7 @@ internal fun relaxedVideoPlayerViewModel(
 }
 
 /**
- * Stands in for the Hilt-injected activity so `hiltViewModel()` inside video cards resolves to a
+ * Stands in for the Hilt-injected activity so `hiltViewModel()` for the quick actions resolves to a
  * relaxed mock instead of trying to construct a real ViewModel through the default factory.
  */
 internal class StubViewModelStoreOwner :
@@ -169,7 +169,6 @@ internal class StubViewModelStoreOwner :
     HasDefaultViewModelProviderFactory {
     private val quickActions =
         mockk<QuickActionsViewModel>(relaxed = true).also {
-            every { it.watchedVideoIds } returns MutableStateFlow(emptySet())
             every { it.subscribedChannelIds } returns MutableStateFlow(emptySet())
         }
 

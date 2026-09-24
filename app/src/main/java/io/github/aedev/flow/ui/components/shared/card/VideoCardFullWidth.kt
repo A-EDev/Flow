@@ -35,10 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.QuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarStack
 import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
@@ -57,8 +55,7 @@ fun VideoCardFullWidth(
 ) {
     val state = rememberVideoCardState(video)
     val cardPreferences = LocalVideoCardPreferences.current
-    val quickActionsVmFW: QuickActionsViewModel = hiltViewModel()
-    val isWatchedFW = rememberIsWatched(video.id, quickActionsVmFW.watchedVideoIds, state.watchProgress)
+    val actions = LocalVideoCardActions.current
 
     val interactionSource = remember { MutableInteractionSource() }
     Column(
@@ -194,7 +191,7 @@ fun VideoCardFullWidth(
                                 Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { quickActionsVmFW.markAsInteresting(video) }
+                                    .clickable { actions.onInterested(video) }
                                     .padding(horizontal = 8.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
@@ -217,7 +214,7 @@ fun VideoCardFullWidth(
                                 Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { quickActionsVmFW.markNotInterested(video) }
+                                    .clickable { actions.onNotInterested(video) }
                                     .padding(horizontal = 8.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
@@ -240,7 +237,7 @@ fun VideoCardFullWidth(
 
                 if (cardPreferences.markWatchedEnabled) {
                     val watchedTint =
-                        if (isWatchedFW) {
+                        if (state.isWatched) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -252,7 +249,7 @@ fun VideoCardFullWidth(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    if (!isWatchedFW) quickActionsVmFW.markAsWatched(video)
+                                    if (!state.isWatched) actions.onWatched(video)
                                 }.padding(horizontal = 8.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,

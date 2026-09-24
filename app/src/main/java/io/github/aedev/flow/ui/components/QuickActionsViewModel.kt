@@ -87,10 +87,6 @@ class QuickActionsViewModel
                 .getWatchLaterIdsFlow()
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-        /** In-memory set of video IDs manually marked as watched this session */
-        private val _watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
-        val watchedVideoIds = _watchedVideoIds.asStateFlow()
-
         /** Per-video subscription state cache: channelId -> Boolean */
         private val _subscribedChannelIds = MutableStateFlow<Set<String>>(emptySet())
         val subscribedChannelIds = _subscribedChannelIds.asStateFlow()
@@ -300,7 +296,6 @@ class QuickActionsViewModel
                         isShort = video.isShort,
                     )
 
-                    _watchedVideoIds.update { it + video.id }
                     FeedInvalidationBus.emit(FeedInvalidationBus.Event.MarkedWatched(video.id))
                     Toast
                         .makeText(

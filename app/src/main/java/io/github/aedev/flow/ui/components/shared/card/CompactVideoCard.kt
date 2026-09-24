@@ -38,10 +38,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.QuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.pressScale
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -64,8 +62,7 @@ fun CompactVideoCard(
 ) {
     val state = rememberVideoCardState(video)
     val cardPreferences = LocalVideoCardPreferences.current
-    val quickActionsVmCompact: QuickActionsViewModel = hiltViewModel()
-    val isWatchedCompact = rememberIsWatched(video.id, quickActionsVmCompact.watchedVideoIds, state.watchProgress)
+    val actions = LocalVideoCardActions.current
     // A negative count is the older "no count reported" sentinel; a row that declares itself
     // upcoming counts too. The badge and the metadata line read the same answer.
     val isUpcomingRow = video.isUpcoming || video.viewCount < 0L
@@ -181,14 +178,14 @@ fun CompactVideoCard(
             if (cardPreferences.markWatchedEnabled) {
                 IconButton(
                     onClick = {
-                        if (!isWatchedCompact) quickActionsVmCompact.markAsWatched(video)
+                        if (!state.isWatched) actions.onWatched(video)
                     },
                     modifier = Modifier.size(24.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Visibility,
                         contentDescription = stringResource(R.string.mark_as_watched),
-                        tint = if (isWatchedCompact) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                        tint = if (state.isWatched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(16.dp),
                     )
                 }

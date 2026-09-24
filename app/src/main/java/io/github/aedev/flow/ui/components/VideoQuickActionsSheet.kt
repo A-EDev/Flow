@@ -67,7 +67,9 @@ import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
 import io.github.aedev.flow.ui.components.shared.CollaboratorsBottomSheet
 import io.github.aedev.flow.ui.components.shared.card.collaboratorItems
+import io.github.aedev.flow.ui.components.shared.card.isWatchedProgress
 import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorChannelDisplayName
+import io.github.aedev.flow.ui.components.shared.card.rememberWatchProgress
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.utils.youtubeWatchUrl
@@ -123,8 +125,7 @@ fun VideoQuickActionsBottomSheet(
     val watchLaterIds by viewModel.watchLaterIds.collectAsState()
     val isInWatchLater = remember(watchLaterIds, video.id) { watchLaterIds.contains(video.id) }
 
-    val watchedVideoIds by viewModel.watchedVideoIds.collectAsState()
-    val isWatched = remember(watchedVideoIds, video.id) { watchedVideoIds.contains(video.id) }
+    val isWatched = isWatchedProgress(rememberWatchProgress(video.id))
 
     val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsState()
     val isSubscribed =

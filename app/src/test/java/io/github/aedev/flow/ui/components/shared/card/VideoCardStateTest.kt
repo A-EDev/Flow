@@ -69,4 +69,22 @@ class VideoCardStateTest {
     fun `an empty history produces an empty map`() {
         assertThat(emptyList<VideoHistoryEntry>().toWatchProgressMap()).isEmpty()
     }
+
+    @Test
+    fun `a video marked watched reads as watched from its history entry alone`() {
+        val progress = listOf(entry("a", position = 1_000, duration = 1_000)).toWatchProgressMap()["a"]
+
+        assertThat(isWatchedProgress(progress)).isTrue()
+    }
+
+    @Test
+    fun `watched starts at ninety percent`() {
+        assertThat(isWatchedProgress(0.89f)).isFalse()
+        assertThat(isWatchedProgress(0.90f)).isTrue()
+    }
+
+    @Test
+    fun `no progress is not watched`() {
+        assertThat(isWatchedProgress(null)).isFalse()
+    }
 }
