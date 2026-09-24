@@ -46,7 +46,6 @@ import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.OnTabReselected
 import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
-import io.github.aedev.flow.ui.components.QuickActionsViewModel
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.search.SearchFilterBar
@@ -60,6 +59,8 @@ import io.github.aedev.flow.ui.components.search.SearchTopBar
 import io.github.aedev.flow.ui.components.search.SearchTopBarActions
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.utils.videoIdFromUrl
 
 /**
@@ -82,7 +83,7 @@ fun SearchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val state = rememberSearchState(viewModel)
 
-    val quickActions: QuickActionsViewModel = hiltViewModel()
+    val quickActions: QuickActionsViewModel = sharedQuickActionsViewModel()
     val subscribedIds by quickActions.subscribedChannelIds.collectAsStateWithLifecycle()
     val pagingItems = viewModel.searchResults.collectAsLazyPagingItems()
     val gridState = rememberLazyGridState()

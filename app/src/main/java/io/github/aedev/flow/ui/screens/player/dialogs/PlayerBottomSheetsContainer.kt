@@ -59,7 +59,6 @@ internal fun PlayerBottomSheetsContainer(
     hostedInSidePanel: Boolean = false,
     onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
-
     val visibleComments = commentsUiState.visibleComments(screenState)
 
     val handleSeek: (Long) -> Unit =

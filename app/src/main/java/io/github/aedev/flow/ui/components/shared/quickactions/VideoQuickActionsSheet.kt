@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared.quickactions
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -58,13 +58,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.repository.VideoCollaboratorResolver
+import io.github.aedev.flow.ui.components.AddToPlaylistDialog
+import io.github.aedev.flow.ui.components.FlowAction
+import io.github.aedev.flow.ui.components.FlowActionGrid
+import io.github.aedev.flow.ui.components.FlowMenuGroup
+import io.github.aedev.flow.ui.components.FlowMenuItemData
+import io.github.aedev.flow.ui.components.MediaInfoDialog
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.CollaboratorsBottomSheet
 import io.github.aedev.flow.ui.components.shared.card.collaboratorItems
@@ -87,7 +92,7 @@ fun VideoQuickActionsBottomSheet(
     showChannel: Boolean = true,
     onRemoveFromCollection: (() -> Unit)? = null,
     removeFromCollectionLabel: String? = null,
-    viewModel: QuickActionsViewModel = hiltViewModel(),
+    viewModel: QuickActionsViewModel = sharedQuickActionsViewModel(),
 ) {
     var showCollaborators by remember { mutableStateOf(false) }
     val needsCollaboratorResolution = video.needsCollaboratorResolution()

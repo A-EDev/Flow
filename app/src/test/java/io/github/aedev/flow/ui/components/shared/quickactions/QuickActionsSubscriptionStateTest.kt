@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared.quickactions
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase

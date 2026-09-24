@@ -22,18 +22,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.VideoCollaborator
-import io.github.aedev.flow.ui.components.QuickActionsViewModel
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollaboratorsBottomSheet(
     collaborators: List<VideoCollaborator>,
     onDismiss: () -> Unit,
-    viewModel: QuickActionsViewModel = hiltViewModel(),
+    viewModel: QuickActionsViewModel = sharedQuickActionsViewModel(),
 ) {
     val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsState()
     val navigator = LocalMediaNavigator.current

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared.quickactions
 
 import android.content.Context
 import android.widget.Toast
@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
@@ -24,11 +25,8 @@ import io.github.aedev.flow.player.stream.AudioStreamSelector
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -39,36 +37,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import org.schabi.newpipe.extractor.stream.VideoStream as NPVideoStream
-
-/**
- * Lightweight singleton event bus for feed-visible state changes.
- * Emitted by QuickActionsViewModel, observed by HomeViewModel / ShortsViewModel
- * to instantly strip blocked/disliked content from the cached feed.
- */
-object FeedInvalidationBus {
-    sealed class Event {
-        data class ChannelBlocked(
-            val channelId: String,
-            val videoId: String,
-        ) : Event()
-
-        data class NotInterested(
-            val videoId: String,
-            val channelId: String,
-        ) : Event()
-
-        data class MarkedWatched(
-            val videoId: String,
-        ) : Event()
-    }
-
-    private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 8)
-    val events: SharedFlow<Event> = _events.asSharedFlow()
-
-    fun emit(event: Event) {
-        _events.tryEmit(event)
-    }
-}
 
 @HiltViewModel
 class QuickActionsViewModel
