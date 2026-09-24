@@ -17,7 +17,6 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.data.lyrics.LyricsHelper
-import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.YouTubeMusicService
@@ -40,7 +39,6 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
-import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.abs
 
@@ -53,7 +51,6 @@ class MusicPlayerViewModel
         private val downloadManager: DownloadManager,
         private val likedVideosRepository: LikedVideosRepository,
         private val viewHistory: ViewHistory,
-        private val localPlaylistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
         private val musicBrain: MusicBrainEngine,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicPlayerUiState())
@@ -196,24 +193,6 @@ class MusicPlayerViewModel
             viewModelScope.launch {
                 EnhancedMusicPlayerManager.radioLoading.collect { loading ->
                     _uiState.update { it.copy(isRadioLoading = loading) }
-                }
-            }
-
-            viewModelScope.launch {
-                localPlaylistRepository.getMusicPlaylistsFlow().collect { playlistInfos ->
-                    val playlists =
-                        playlistInfos.map { info ->
-                            io.github.aedev.flow.data.music.Playlist(
-                                id = info.id,
-                                name = info.name,
-                                description = info.description,
-                                tracks = emptyList(),
-                                createdAt = info.createdAt,
-                                thumbnailUrl = info.thumbnailUrl,
-                                customTrackCount = info.videoCount,
-                            )
-                        }
-                    _uiState.update { it.copy(playlists = playlists) }
                 }
             }
         }
@@ -628,52 +607,6 @@ class MusicPlayerViewModel
             }
         }
 
-        fun addToPlaylist(
-            playlistId: String,
-            track: MusicTrack? = null,
-        ) {
-            val trackToAdd = track ?: _uiState.value.currentTrack ?: return
-
-            viewModelScope.launch {
-                val video =
-                    Video(
-                        id = trackToAdd.videoId,
-                        title = trackToAdd.title,
-                        channelName = trackToAdd.artist,
-                        channelId = trackToAdd.channelId,
-                        thumbnailUrl = trackToAdd.thumbnailUrl,
-                        duration = trackToAdd.duration,
-                        viewCount = 0,
-                        uploadDate = "",
-                        timestamp = System.currentTimeMillis(),
-                        description = trackToAdd.album,
-                        isMusic = true,
-                    )
-                localPlaylistRepository.addVideoToPlaylist(playlistId, video)
-                Toast.makeText(context, context.getString(R.string.added_to_playlist_toast), Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        fun createPlaylist(
-            name: String,
-            description: String = "",
-            track: MusicTrack? = null,
-        ) {
-            viewModelScope.launch {
-                val id = UUID.randomUUID().toString()
-                localPlaylistRepository.createPlaylist(id, name, description, false, isMusic = true)
-                track?.let { addToPlaylist(id, it) }
-            }
-        }
-
-        fun showAddToPlaylistDialog(show: Boolean) {
-            _uiState.update { it.copy(showAddToPlaylistDialog = show) }
-        }
-
-        fun showCreatePlaylistDialog(show: Boolean) {
-            _uiState.update { it.copy(showCreatePlaylistDialog = show) }
-        }
-
         fun playNext(track: MusicTrack) {
             EnhancedMusicPlayerManager.playNext(track)
             EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
@@ -940,9 +873,6 @@ data class MusicPlayerUiState(
     val isLiked: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val playlists: List<io.github.aedev.flow.data.music.Playlist> = emptyList(),
-    val showAddToPlaylistDialog: Boolean = false,
-    val showCreatePlaylistDialog: Boolean = false,
     val lyrics: String? = null,
     val syncedLyrics: List<LyricsEntry> = emptyList(),
     val isLyricsLoading: Boolean = false,

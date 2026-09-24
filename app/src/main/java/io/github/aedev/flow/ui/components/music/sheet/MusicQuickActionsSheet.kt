@@ -41,8 +41,6 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
-import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
-import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
@@ -55,35 +53,21 @@ fun MusicQuickActionsSheet(
     onShare: () -> Unit = {},
     onAudioEffectsClick: (() -> Unit)? = null,
     onSleepTimerClick: (() -> Unit)? = null,
-    showPlaylistDialogs: Boolean = true,
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navigator = LocalMediaNavigator.current
     val uiState by viewModel.uiState.collectAsState()
     var showMediaInfo by remember { mutableStateOf(false) }
+    var showSaveSheet by remember { mutableStateOf(false) }
     var showArtistSelection by remember { mutableStateOf(false) }
 
-    // Dialogs
-    if (showPlaylistDialogs && uiState.showCreatePlaylistDialog) {
-        CreatePlaylistDialog(
-            onDismiss = { viewModel.showCreatePlaylistDialog(false) },
-            onConfirm = { name, desc ->
-                viewModel.createPlaylist(name, desc, track)
-            },
-        )
-    }
-
-    if (showPlaylistDialogs && uiState.showAddToPlaylistDialog) {
-        AddToPlaylistDialog(
-            playlists = uiState.playlists,
-            onDismiss = { viewModel.showAddToPlaylistDialog(false) },
-            onSelectPlaylist = { playlistId ->
-                viewModel.addToPlaylist(playlistId, track)
-            },
-            onCreateNew = {
-                viewModel.showAddToPlaylistDialog(false)
-                viewModel.showCreatePlaylistDialog(true)
+    if (showSaveSheet) {
+        SaveSongSheet(
+            track = track,
+            onDismiss = {
+                showSaveSheet = false
+                onDismiss()
             },
         )
     }
@@ -136,7 +120,7 @@ fun MusicQuickActionsSheet(
                             FlowAction(
                                 icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
                                 text = stringResource(R.string.add_to_playlist),
-                                onClick = { viewModel.showAddToPlaylistDialog(true) },
+                                onClick = { showSaveSheet = true },
                             ),
                             FlowAction(
                                 icon = {

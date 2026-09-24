@@ -92,9 +92,8 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.service.Media3MusicService
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
-import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
-import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.SaveSongSheet
 import io.github.aedev.flow.ui.components.shared.MediaPalette
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
@@ -124,6 +123,7 @@ internal fun FullMusicPlayerContent(
 
     val thumbnailUrl = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl
     var showMoreOptions by remember { mutableStateOf(false) }
+    var showSaveSheet by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
     var previewDirection by remember { mutableStateOf<SkipDirection?>(null) }
@@ -169,26 +169,11 @@ internal fun FullMusicPlayerContent(
     var showQueueSheet by remember { mutableStateOf(false) }
     var showLyricsSheet by remember { mutableStateOf(false) }
 
-    if (uiState.showCreatePlaylistDialog) {
-        CreatePlaylistDialog(
-            onDismiss = { viewModel.showCreatePlaylistDialog(false) },
-            onConfirm = { name, desc ->
-                viewModel.createPlaylist(name, desc, uiState.currentTrack)
-            },
-        )
-    }
-
-    if (uiState.showAddToPlaylistDialog) {
-        AddToPlaylistDialog(
-            playlists = uiState.playlists,
-            onDismiss = { viewModel.showAddToPlaylistDialog(false) },
-            onSelectPlaylist = { playlistId ->
-                viewModel.addToPlaylist(playlistId)
-            },
-            onCreateNew = {
-                viewModel.showAddToPlaylistDialog(false)
-                viewModel.showCreatePlaylistDialog(true)
-            },
+    val saveTrack = uiState.currentTrack
+    if (showSaveSheet && saveTrack != null) {
+        SaveSongSheet(
+            track = saveTrack,
+            onDismiss = { showSaveSheet = false },
         )
     }
 
@@ -215,7 +200,6 @@ internal fun FullMusicPlayerContent(
             },
             onAudioEffectsClick = { showAudioSettings = true },
             onSleepTimerClick = { showSleepTimer = true },
-            showPlaylistDialogs = false,
         )
     }
 
@@ -534,7 +518,7 @@ internal fun FullMusicPlayerContent(
                     isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
                     onLikeClick = { viewModel.toggleLike() },
                     onDownloadClick = { viewModel.downloadTrack() },
-                    onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
+                    onAddToPlaylist = { showSaveSheet = true },
                 )
             }
 
