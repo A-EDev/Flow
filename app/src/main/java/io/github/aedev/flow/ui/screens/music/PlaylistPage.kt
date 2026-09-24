@@ -57,6 +57,7 @@ import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
+import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 import io.github.aedev.flow.ui.components.shared.CollectionTarget
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
@@ -402,7 +403,7 @@ fun PlaylistPage(
                                     collections = playlistDetails.otherVersions,
                                     keyNamespace = "other_versions",
                                     onCollectionClick = { onCollectionClick(it.id) },
-                                    onCollectionMenu = {},
+                                    onCollectionMenu = { musicMenus.openCollection(it.toCollectionActionItem(isAlbum = true)) },
                                 )
                             }
                         }
