@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.ui.startup.LaunchPrompts
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,7 @@ class DonationPromptViewModel
     @Inject
     constructor(
         private val preferences: PlayerPreferences,
+        private val prompts: LaunchPrompts,
     ) : ViewModel() {
         private var evaluated = false
         private val _visible = MutableStateFlow(false)
@@ -30,6 +32,7 @@ class DonationPromptViewModel
             evaluated = true
             viewModelScope.launch {
                 delay(SHOW_DELAY_MS)
+                if (!prompts.donationMayShow()) return@launch
                 val now = System.currentTimeMillis()
                 val decision =
                     DonationSchedule.decide(
