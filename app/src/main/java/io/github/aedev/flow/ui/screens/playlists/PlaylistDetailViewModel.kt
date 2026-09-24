@@ -18,16 +18,12 @@ import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.repository.RemotePlaylistPage
 import io.github.aedev.flow.data.repository.YouTubePlaylistRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
-import io.github.aedev.flow.data.video.downloader.FlowDownloadService
-import io.github.aedev.flow.player.quality.QualityManager
-import io.github.aedev.flow.player.stream.AudioStreamSelector
+import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
+import io.github.aedev.flow.data.video.DownloadBatch
 import io.github.aedev.flow.ui.components.library.PlaylistSortOrder
 import io.github.aedev.flow.ui.components.library.sortedForPlaylist
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +31,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -43,18 +40,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
-import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.VideoStream
 import javax.inject.Inject
 
 private const val ENRICHMENT_STUB_LIMIT = 50
 private const val ENRICHMENT_CHUNK_SIZE = 5
 private const val ENRICHMENT_CHUNK_DELAY_MS = 300L
-private const val DOWNLOAD_CONCURRENCY = 2
-private const val OFFLINE_QUALITY_CAP = 720
 private const val SHARING_TIMEOUT_MS = 5_000L
 
 data class PlaylistUiMessage(
@@ -89,6 +79,7 @@ class PlaylistDetailViewModel
         private val youTubeRepository: YouTubeRepository,
         private val playlistRepository: YouTubePlaylistRepository,
         private val playerPreferences: PlayerPreferences,
+        private val downloadQueuer: BackgroundDownloadQueuer,
         private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
@@ -119,17 +110,30 @@ class PlaylistDetailViewModel
                 .getUserCreatedVideoPlaylistsFlow()
                 .stateIn(viewModelScope, sharing, emptyList())
 
-        private val _isDownloadingPlaylist = MutableStateFlow(false)
-        val isDownloadingPlaylist: StateFlow<Boolean> = _isDownloadingPlaylist.asStateFlow()
-
-        private val _playlistDownloadProgress = MutableStateFlow(0f)
-        val playlistDownloadProgress: StateFlow<Float> = _playlistDownloadProgress.asStateFlow()
-
-        private val _currentDownloadingTitle = MutableStateFlow<String?>(null)
-        val currentDownloadingTitle: StateFlow<String?> = _currentDownloadingTitle.asStateFlow()
+        /** The running or just-finished "Download all" for this playlist. */
+        val downloadBatch: StateFlow<DownloadBatch?> =
+            downloadQueuer.batches
+                .map { it[playlistId] }
+                .stateIn(viewModelScope, sharing, null)
 
         init {
             loadPlaylist()
+            viewModelScope.launch {
+                downloadQueuer.batches
+                    .map { it[playlistId] }
+                    .filterNotNull()
+                    .filter { it.isFinished }
+                    .collect { batch ->
+                        _messages.send(
+                            if (batch.queued > 0) {
+                                PlaylistUiMessage(stringRes = R.string.playlist_downloads_queued, args = listOf(batch.queued, batch.total))
+                            } else {
+                                PlaylistUiMessage(stringRes = R.string.playlist_download_queue_empty)
+                            },
+                        )
+                        downloadQueuer.clearBatch(playlistId)
+                    }
+            }
         }
 
         fun setSortOrder(order: PlaylistSortOrder) {
@@ -221,92 +225,17 @@ class PlaylistDetailViewModel
         }
 
         fun downloadPlaylist() {
-            if (_isDownloadingPlaylist.value) return
-
+            val videos = _uiState.value.videos
+            if (videos.isEmpty()) {
+                viewModelScope.launch { _messages.send(PlaylistUiMessage(stringRes = R.string.ui_playlist_empty)) }
+                return
+            }
             viewModelScope.launch {
-                val videos = _uiState.value.videos
-                if (videos.isEmpty()) {
-                    _messages.send(PlaylistUiMessage(stringRes = R.string.ui_playlist_empty))
-                    return@launch
-                }
-
-                _isDownloadingPlaylist.value = true
-                _playlistDownloadProgress.value = 0f
                 _messages.send(
-                    PlaylistUiMessage(
-                        pluralRes = R.plurals.ui_downloading_videos,
-                        count = videos.size,
-                        args = listOf(videos.size),
-                    ),
-                )
-
-                val preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first()
-                val semaphore = Semaphore(DOWNLOAD_CONCURRENCY)
-                var processed = 0
-                var queued = 0
-
-                videos
-                    .map { video ->
-                        async(PerformanceDispatcher.networkIO) {
-                            semaphore.withPermit {
-                                _currentDownloadingTitle.value = video.title
-                                val started = queueDownload(video, preferredAudioLanguage)
-                                processed++
-                                _playlistDownloadProgress.value = processed.toFloat() / videos.size
-                                started
-                            }
-                        }
-                    }.awaitAll()
-                    .forEach { if (it) queued++ }
-
-                _messages.send(
-                    if (queued > 0) {
-                        PlaylistUiMessage(
-                            stringRes = R.string.playlist_downloads_queued,
-                            args = listOf(queued, videos.size),
-                        )
-                    } else {
-                        PlaylistUiMessage(stringRes = R.string.playlist_download_queue_empty)
-                    },
-                )
-
-                _isDownloadingPlaylist.value = false
-                _currentDownloadingTitle.value = null
-                _playlistDownloadProgress.value = 0f
-            }
-        }
-
-        private suspend fun queueDownload(
-            video: Video,
-            preferredAudioLanguage: String,
-        ): Boolean {
-            val streamInfo =
-                try {
-                    youTubeRepository.getVideoStreamInfo(video.id)
-                } catch (_: Exception) {
-                    null
-                } ?: return false
-
-            val selection = selectOfflineStreams(streamInfo, preferredAudioLanguage) ?: return false
-            val fullVideo =
-                video.copy(
-                    thumbnailUrl =
-                        video.thumbnailUrl.ifBlank {
-                            streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: ""
-                        },
-                )
-
-            withContext(Dispatchers.Main) {
-                FlowDownloadService.startDownload(
-                    context = context,
-                    video = fullVideo,
-                    url = selection.videoUrl,
-                    quality = selection.qualityLabel,
-                    audioUrl = selection.audioUrl,
-                    videoCodec = selection.videoCodec,
+                    PlaylistUiMessage(pluralRes = R.plurals.ui_downloading_videos, count = videos.size, args = listOf(videos.size)),
                 )
             }
-            return true
+            downloadQueuer.queueAll(playlistId, videos)
         }
 
         private fun loadPlaylist() {
@@ -504,66 +433,3 @@ private fun io.github.aedev.flow.data.music.model.MusicTrack.toPlaylistVideo(): 
         uploadDate = "",
         isMusic = true,
     )
-
-private data class OfflineStreamSelection(
-    val videoUrl: String,
-    val audioUrl: String?,
-    val qualityLabel: String,
-    val videoCodec: String?,
-)
-
-private fun selectOfflineStreams(
-    streamInfo: StreamInfo,
-    preferredAudioLanguage: String,
-): OfflineStreamSelection? {
-    val videoOnlyStreams = streamInfo.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-    val combinedStreams = streamInfo.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-    val audioStreams = streamInfo.audioStreams ?: emptyList()
-
-    val bestVideoOnly =
-        videoOnlyStreams
-            .filter { it.isMp4() && it.qualityHeight() <= OFFLINE_QUALITY_CAP }
-            .maxByOrNull { it.qualityHeight() }
-            ?: videoOnlyStreams.filter { it.isMp4() }.maxByOrNull { it.qualityHeight() }
-
-    val selected =
-        bestVideoOnly
-            ?: combinedStreams.filter { it.isMp4() }.maxByOrNull { it.qualityHeight() }
-            ?: (videoOnlyStreams + combinedStreams).maxByOrNull { it.qualityHeight() }
-            ?: return null
-
-    val videoUrl = selected.content ?: selected.url ?: return null
-    val audioUrl =
-        if (selected in videoOnlyStreams) {
-            val audio =
-                AudioStreamSelector.selectPreferredAudioStream(
-                    streams = audioStreams,
-                    preferredAudioLanguage = preferredAudioLanguage,
-                    compatibilityFilter = AudioStream::isAacCompatible,
-                )
-            audio?.content ?: audio?.url
-        } else {
-            null
-        }
-
-    return OfflineStreamSelection(
-        videoUrl = videoUrl,
-        audioUrl = audioUrl,
-        qualityLabel = "${selected.qualityHeight()}p",
-        videoCodec = VideoPlayerUtils.codecKeyFromStream(selected),
-    )
-}
-
-private fun VideoStream.isMp4(): Boolean {
-    val mime = (format?.mimeType ?: "").lowercase()
-    val name = (format?.name ?: "").lowercase()
-    return mime.contains("mp4") || name.contains("mp4") || name.contains("mpeg")
-}
-
-private fun AudioStream.isAacCompatible(): Boolean {
-    val mime = (format?.mimeType ?: "").lowercase()
-    val name = (format?.name ?: "").lowercase()
-    return !name.contains("opus") && !name.contains("webm") && !mime.contains("opus") && !mime.contains("webm")
-}
-
-private fun VideoStream.qualityHeight(): Int = QualityManager.normalizeQualityHeight(VideoPlayerUtils.qualityHeightFromStream(this))

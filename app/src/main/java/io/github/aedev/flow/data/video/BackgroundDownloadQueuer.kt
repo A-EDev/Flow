@@ -11,11 +11,38 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import io.github.aedev.flow.utils.PerformanceDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** A "Download all" in progress: how many of [total] videos have been looked at so far. */
+data class DownloadBatch(
+    val collectionId: String,
+    val total: Int,
+    val processed: Int = 0,
+    val queued: Int = 0,
+    val skipped: Int = 0,
+) {
+    val isFinished: Boolean get() = processed >= total
+
+    fun record(outcome: QueueOutcome): DownloadBatch =
+        copy(
+            processed = processed + 1,
+            queued = queued + if (outcome == QueueOutcome.QUEUED) 1 else 0,
+            skipped = skipped + if (outcome == QueueOutcome.ALREADY_PRESENT) 1 else 0,
+        )
+}
 
 /** What happened to one video handed to [BackgroundDownloadQueuer.queue]. */
 enum class QueueOutcome {
@@ -38,6 +65,54 @@ class BackgroundDownloadQueuer
         private val musicDownloadManager: DownloadManager,
         private val preferences: PlayerPreferences,
     ) {
+        // Outlives the screen that asked, so leaving a playlist doesn't drop the rest of its videos.
+        private val scope = CoroutineScope(SupervisorJob() + PerformanceDispatcher.networkIO)
+
+        private val _batches = MutableStateFlow<Map<String, DownloadBatch>>(emptyMap())
+        val batches: StateFlow<Map<String, DownloadBatch>> = _batches.asStateFlow()
+
+        /**
+         * Queues every video of a collection in the background, [BATCH_WORKERS] lookups at a time, skipping
+         * what is already downloaded or downloading. A second request for a running batch is ignored.
+         */
+        fun queueAll(
+            collectionId: String,
+            videos: List<Video>,
+        ) {
+            val unique = videos.distinctBy { it.id }
+            if (unique.isEmpty()) return
+            val started = DownloadBatch(collectionId, total = unique.size)
+            var accepted = false
+            _batches.update { batches ->
+                if (batches[collectionId]?.isFinished == false) {
+                    batches
+                } else {
+                    accepted = true
+                    batches + (collectionId to started)
+                }
+            }
+            if (!accepted) return
+            val pending = Channel<Video>(Channel.UNLIMITED)
+            unique.forEach(pending::trySend)
+            pending.close()
+            repeat(BATCH_WORKERS) {
+                scope.launch {
+                    for (video in pending) {
+                        val outcome = runCatching { queue(video) }.getOrDefault(QueueOutcome.UNAVAILABLE)
+                        _batches.update { batches ->
+                            val batch = batches[collectionId] ?: return@update batches
+                            batches + (collectionId to batch.record(outcome))
+                        }
+                    }
+                }
+            }
+        }
+
+        /** Forgets a finished batch once its result has been shown. */
+        fun clearBatch(collectionId: String) {
+            _batches.update { batches -> if (batches[collectionId]?.isFinished == true) batches - collectionId else batches }
+        }
+
         /**
          * Queues [video]. Songs go through the music library's downloader so they show under Music.
          * With [replaceExisting], a failed or stalled download of the same video is started over.
@@ -120,6 +195,10 @@ class BackgroundDownloadQueuer
                 )
             }
             return null
+        }
+
+        private companion object {
+            const val BATCH_WORKERS = 2
         }
 
         private data class Choice(

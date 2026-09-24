@@ -73,9 +73,7 @@ fun PlaylistDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val sortedVideos by viewModel.sortedVideos.collectAsStateWithLifecycle()
-    val isDownloadingPlaylist by viewModel.isDownloadingPlaylist.collectAsStateWithLifecycle()
-    val playlistDownloadProgress by viewModel.playlistDownloadProgress.collectAsStateWithLifecycle()
-    val currentDownloadingTitle by viewModel.currentDownloadingTitle.collectAsStateWithLifecycle()
+    val downloadBatch by viewModel.downloadBatch.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val mergeTargets by viewModel.userCreatedPlaylists.collectAsStateWithLifecycle()
 
@@ -231,9 +229,9 @@ fun PlaylistDetailScreen(
                                     if (shuffled.isNotEmpty()) onPlayPlaylist(shuffled, 0)
                                 },
                                 onDownloadAll = { showDownloadAllDialog = true },
-                                isDownloading = isDownloadingPlaylist,
-                                downloadProgress = playlistDownloadProgress,
-                                currentDownloadingTitle = currentDownloadingTitle,
+                                isDownloading = downloadBatch?.isFinished == false,
+                                downloadProgress = downloadBatch?.let { it.processed.toFloat() / it.total } ?: 0f,
+                                currentDownloadingTitle = null,
                             )
                             PlaylistSortButton(
                                 sortOrder = sortOrder,
