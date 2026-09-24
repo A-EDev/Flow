@@ -7,22 +7,19 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
-import androidx.compose.material3.adaptive.layout.PaneScaffoldDirective
-import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
 import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneScaffold
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import io.github.aedev.flow.ui.components.layout.rememberFlowPaneScaffoldDirective
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.screens.settings.home.SettingsHomeScreen
@@ -44,7 +41,7 @@ fun SettingsHost(
     onOpenRecap: () -> Unit,
     onOpenUpdate: () -> Unit,
 ) {
-    val navigator = rememberListDetailPaneScaffoldNavigator<String>(scaffoldDirective = rememberSettingsScaffoldDirective())
+    val navigator = rememberListDetailPaneScaffoldNavigator<String>(scaffoldDirective = rememberFlowPaneScaffoldDirective())
     val scope = rememberCoroutineScope()
     var stack by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var startConsumed by rememberSaveable { mutableStateOf(false) }
@@ -123,26 +120,4 @@ fun SettingsHost(
     )
 
     BackHandler(enabled = stack.size > 1) { stack = stack.dropLast(1) }
-}
-
-/**
- * The default directive with auto-focus off. On every navigation the scaffold would otherwise
- * request focus on the destination pane, which lands on its first text field and opens the keyboard.
- */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
-@Composable
-private fun rememberSettingsScaffoldDirective(): PaneScaffoldDirective {
-    val defaults = calculatePaneScaffoldDirective(currentWindowAdaptiveInfoV2())
-    return remember(defaults) {
-        PaneScaffoldDirective(
-            maxHorizontalPartitions = defaults.maxHorizontalPartitions,
-            horizontalPartitionSpacerSize = defaults.horizontalPartitionSpacerSize,
-            maxVerticalPartitions = defaults.maxVerticalPartitions,
-            verticalPartitionSpacerSize = defaults.verticalPartitionSpacerSize,
-            defaultPanePreferredWidth = defaults.defaultPanePreferredWidth,
-            defaultPanePreferredHeight = defaults.defaultPanePreferredHeight,
-            excludedBounds = defaults.excludedBounds,
-            shouldAutoFocusCurrentDestination = false,
-        )
-    }
 }

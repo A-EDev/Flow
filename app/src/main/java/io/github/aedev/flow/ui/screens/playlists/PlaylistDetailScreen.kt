@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.playlists
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -32,6 +33,7 @@ import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
 import io.github.aedev.flow.ui.components.library.PlaylistDetailTopBar
 import io.github.aedev.flow.ui.components.library.PlaylistHeader
 import io.github.aedev.flow.ui.components.library.PlaylistHeaderActions
+import io.github.aedev.flow.ui.components.library.PlaylistHeaderPane
 import io.github.aedev.flow.ui.components.library.PlaylistSortChip
 import io.github.aedev.flow.ui.components.library.PlaylistSortOrder
 import io.github.aedev.flow.ui.components.library.SelectionAction
@@ -61,6 +63,8 @@ fun PlaylistDetailScreen(
     var selectionMode by remember { mutableStateOf(false) }
     var displayVideos by remember { mutableStateOf(sortedVideos) }
     val listState = rememberLazyListState()
+    val panes = rememberPlaylistPaneState()
+    val twoPane = panes.showsHeaderPane
 
     val isUserCreated = uiState.isLocalPlaylist && !uiState.isSaved
     val canReorder = isUserCreated && sortOrder == PlaylistSortOrder.MANUAL
@@ -74,7 +78,7 @@ fun PlaylistDetailScreen(
     val reorderState =
         rememberReorderableLazyListState(
             listState = listState,
-            itemIndexOffset = 1,
+            itemIndexOffset = if (twoPane) 0 else 1,
             onMove = { from, to -> displayVideos = displayVideos.toMutableList().apply { add(to, removeAt(from)) } },
             onDragStopped = { viewModel.reorderVideos(displayVideos.map { it.id }) },
         )
@@ -113,7 +117,7 @@ fun PlaylistDetailScreen(
         topBar = {
             PlaylistDetailTopBar(
                 title = uiState.playlistName,
-                showTitle = showCollapsedTitle || selectionMode,
+                showTitle = (showCollapsedTitle && !twoPane) || selectionMode,
                 inSelectionMode = selectionMode,
                 selectedCount = selectedIds.size,
                 allSelected = selectedIds.size == displayVideos.size && displayVideos.isNotEmpty(),
@@ -139,40 +143,52 @@ fun PlaylistDetailScreen(
                 }
 
                 else -> {
-                    PlaylistDetailList(
-                        videos = displayVideos,
-                        mode =
-                            PlaylistListMode(
-                                canReorder = canReorder,
-                                canModify = canModify,
-                                selectionMode = selectionMode,
-                                selectedIds = selectedIds,
-                                showAddedDate = isUserCreated,
-                                isWatchLater = uiState.isWatchLater,
-                            ),
-                        isLoadingMore = uiState.isLoadingMore,
-                        listState = listState,
-                        reorderState = reorderState,
-                        onVideoClick = { index, video ->
-                            if (selectionMode) {
-                                selectedIds = if (video.id in selectedIds) selectedIds - video.id else selectedIds + video.id
+                    val sortChip: @Composable () -> Unit = {
+                        PlaylistSortChip(
+                            options = PlaylistSortOrder.availableFor(uiState.isLocalPlaylist),
+                            selected = sortOrder,
+                            onSelected = viewModel::setSortOrder,
+                        )
+                    }
+                    val list: @Composable (header: (@Composable () -> Unit)?) -> Unit = { header ->
+                        PlaylistDetailList(
+                            videos = displayVideos,
+                            mode =
+                                PlaylistListMode(
+                                    canReorder = canReorder,
+                                    canModify = canModify,
+                                    selectionMode = selectionMode,
+                                    selectedIds = selectedIds,
+                                    showAddedDate = isUserCreated,
+                                    isWatchLater = uiState.isWatchLater,
+                                ),
+                            isLoadingMore = uiState.isLoadingMore,
+                            listState = listState,
+                            reorderState = reorderState,
+                            onVideoClick = { index, video ->
+                                if (selectionMode) {
+                                    selectedIds = if (video.id in selectedIds) selectedIds - video.id else selectedIds + video.id
+                                } else {
+                                    onPlayPlaylist(displayVideos, index, false)
+                                }
+                            },
+                            onRemove = { viewModel.removeVideo(it.id) },
+                            header = header,
+                        )
+                    }
+                    PlaylistDetailPanes(
+                        panes = panes,
+                        artworkUrl = headerState.thumbnailUrl,
+                        headerPane = { PlaylistHeaderPane(state = headerState, actions = headerActions) },
+                        mainPane = {
+                            if (twoPane) {
+                                Column {
+                                    Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { sortChip() }
+                                    list(null)
+                                }
                             } else {
-                                onPlayPlaylist(displayVideos, index, false)
+                                list { PlaylistHeader(state = headerState, actions = headerActions, sortChip = sortChip) }
                             }
-                        },
-                        onRemove = { viewModel.removeVideo(it.id) },
-                        header = {
-                            PlaylistHeader(
-                                state = headerState,
-                                actions = headerActions,
-                                sortChip = {
-                                    PlaylistSortChip(
-                                        options = PlaylistSortOrder.availableFor(uiState.isLocalPlaylist),
-                                        selected = sortOrder,
-                                        onSelected = viewModel::setSortOrder,
-                                    )
-                                },
-                            )
                         },
                     )
                 }
