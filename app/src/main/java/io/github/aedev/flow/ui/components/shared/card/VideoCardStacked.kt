@@ -3,21 +3,17 @@
 package io.github.aedev.flow.ui.components.shared.card
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.ThumbDown
@@ -39,9 +35,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarStack
 import io.github.aedev.flow.ui.components.shared.pressScale
-import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
-import io.github.aedev.flow.ui.theme.extendedColors
 
 /** The thumbnail across the full width with the details beneath: feeds and grids. */
 @Composable
@@ -70,29 +64,13 @@ internal fun VideoCardStacked(
                     onClick = onClick,
                 ).then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier),
     ) {
-        // Thumbnail with duration
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .thumbnailGradientOverlay(),
-        ) {
-            VideoCardThumbnailOverlays(
-                video = video,
-                displayTitle = state.title,
-                displayThumbnailUrl = state.thumbnailUrl,
-                watchProgress = state.watchProgress,
-                isUpcoming = video.isUpcoming,
-                badgePadding = 8.dp,
-                showReminderBadge = state.showReminderBadge,
-                showDeArrowBadge = state.showDeArrowBadge,
-            )
-        }
+        VideoCardThumbnail(
+            state = state,
+            isUpcoming = video.isUpcoming,
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.fillMaxWidth(),
+        )
 
-        // Video info section
         Row(
             modifier =
                 Modifier
@@ -114,18 +92,14 @@ internal fun VideoCardStacked(
                 )
             }
 
-            // Video details
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = state.title,
-                    style =
-                        MaterialTheme.typography.bodyLarge.copy(
-                            lineHeight = MaterialTheme.typography.bodyLarge.fontSize * 1.12f,
-                        ),
-                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -143,7 +117,7 @@ internal fun VideoCardStacked(
                         if (video.isUpcoming) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.extendedColors.textSecondary
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -158,7 +132,6 @@ internal fun VideoCardStacked(
                 MembersOnlyLabel(video)
             }
 
-            // More options button
             IconButton(
                 onClick = { state.sheets.showQuickActions = true },
                 modifier = Modifier.size(24.dp),
@@ -166,12 +139,11 @@ internal fun VideoCardStacked(
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.more_options),
-                    tint = MaterialTheme.colorScheme.onBackground,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        // Video card quick actions (like/dislike/mark watched)
         if (cardPreferences.actionsEnabled || cardPreferences.markWatchedEnabled) {
             Column(
                 modifier =
@@ -179,7 +151,7 @@ internal fun VideoCardStacked(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
                         .padding(bottom = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 if (cardPreferences.actionsEnabled) {
                     Row(
@@ -190,7 +162,7 @@ internal fun VideoCardStacked(
                             modifier =
                                 Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(MaterialTheme.shapes.small)
                                     .clickable { actions.onInterested(video) }
                                     .padding(horizontal = 8.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.Center,
@@ -213,7 +185,7 @@ internal fun VideoCardStacked(
                             modifier =
                                 Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(MaterialTheme.shapes.small)
                                     .clickable { actions.onNotInterested(video) }
                                     .padding(horizontal = 8.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.Center,
@@ -247,7 +219,7 @@ internal fun VideoCardStacked(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(MaterialTheme.shapes.small)
                                 .clickable {
                                     if (!state.isWatched) actions.onWatched(video)
                                 }.padding(horizontal = 8.dp, vertical = 8.dp),
