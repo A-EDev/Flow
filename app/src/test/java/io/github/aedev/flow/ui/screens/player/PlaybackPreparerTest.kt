@@ -53,7 +53,7 @@ class PlaybackPreparerTest {
         every { NetworkState.isOnWifi(any()) } returns true
 
         every { playerManager.isPreparedForPlayback(any()) } returns false
-        every { playerManager.isCurrentQueueVideo(any()) } returns false
+        every { playerManager.isReachedByQueueAdvance(any()) } returns false
         every { playerPreferences.rememberPlaybackSpeed } returns flowOf(false)
         every { playerPreferences.playbackSpeed } returns flowOf(1f)
         every { playerPreferences.autoplayEnabled } returns flowOf(true)
@@ -397,6 +397,7 @@ class PlaybackPreparerTest {
                 localFilePath = "/movies/clip.mp4",
                 offlineSegments = null,
                 savedPosition = 12_000L,
+                durationMs = 60_000L,
                 subtitles = emptyList(),
                 isCurrent = { true },
             )
@@ -422,6 +423,7 @@ class PlaybackPreparerTest {
                 localFilePath = "/movies/clip.mp4",
                 offlineSegments = null,
                 savedPosition = 12_000L,
+                durationMs = 60_000L,
                 subtitles = emptyList(),
                 isCurrent = { false },
             )

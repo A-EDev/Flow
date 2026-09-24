@@ -168,6 +168,11 @@ internal class PlaybackSessionApplier(
             localFilePath = localFilePath,
             offlineSegments = offlineSegments,
             savedPosition = savedPosition ?: viewHistory.getPlaybackPosition(load.videoId).first(),
+            durationMs =
+                uiState.value.cachedVideo
+                    ?.takeIf { it.id == load.videoId }
+                    ?.duration
+                    ?.times(1000L) ?: 0L,
             subtitles = offlineSubtitlesFor(load.videoId),
             isCurrent = { isLoadCurrent(load.token) },
         )

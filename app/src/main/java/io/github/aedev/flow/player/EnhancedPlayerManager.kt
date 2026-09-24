@@ -1377,7 +1377,8 @@ class EnhancedPlayerManager private constructor() {
 
     fun hasPrevious(): Boolean = queue.hasPrevious || (player?.currentPosition ?: 0) > 3000
 
-    fun isCurrentQueueVideo(videoId: String): Boolean = queue.isCurrent(videoId)
+    /** True when the queue advanced to [videoId]; such items start from the beginning instead of resuming. */
+    fun isReachedByQueueAdvance(videoId: String): Boolean = queue.isReachedByAdvance(videoId)
 
     /**
      * Insert [video] immediately after the current position (Play Next).

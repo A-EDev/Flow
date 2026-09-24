@@ -48,6 +48,9 @@ internal class PlaybackQueueController {
     var shuffleEnabled: Boolean = false
         private set
 
+    /** The video picked when the queue was set; cleared once playback moves to another item. */
+    private var pickedVideoId: String? = null
+
     private val items: List<Video>
         get() = _videos.value
 
@@ -72,6 +75,9 @@ internal class PlaybackQueueController {
     fun videoAt(index: Int): Video? = items.getOrNull(index)
 
     fun isCurrent(videoId: String): Boolean = currentVideo?.id == videoId
+
+    /** Whether [videoId] is current because the queue moved to it, rather than because it was picked. */
+    fun isReachedByAdvance(videoId: String): Boolean = isCurrent(videoId) && videoId != pickedVideoId
 
     fun nextIndex(): Int? =
         PlaylistQueueOrder.nextIndex(
@@ -102,6 +108,7 @@ internal class PlaybackQueueController {
             }
         this.title = title
         publish(ordered.items, if (videos.isEmpty()) -1 else ordered.currentIndex)
+        pickedVideoId = currentVideo?.id
         return currentVideo
     }
 
@@ -112,6 +119,7 @@ internal class PlaybackQueueController {
      */
     fun moveTo(index: Int): Video? {
         val video = items.getOrNull(index) ?: return null
+        if (index != currentIndex) pickedVideoId = null
         _currentIndex.value = index
         return video
     }
@@ -213,6 +221,7 @@ internal class PlaybackQueueController {
         title = null
         loopEnabled = false
         shuffleEnabled = false
+        pickedVideoId = null
         publish(emptyList(), currentIndex = -1)
     }
 

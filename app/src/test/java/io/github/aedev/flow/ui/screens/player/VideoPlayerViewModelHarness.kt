@@ -111,7 +111,7 @@ internal class VideoPlayerViewModelHarness(
         every { playerManager.queueVideos } returns queueVideos
         every { playerManager.getPlayer() } returns null
         every { playerManager.isPreparedForPlayback(any()) } returns false
-        every { playerManager.isCurrentQueueVideo(any()) } returns false
+        every { playerManager.isReachedByQueueAdvance(any()) } returns false
 
         // Reset the real singleton before spying it so the reset is not a recorded call.
         GlobalPlayerState.setCurrentVideo(null)
