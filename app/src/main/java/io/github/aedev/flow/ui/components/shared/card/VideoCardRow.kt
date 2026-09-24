@@ -48,7 +48,11 @@ internal fun VideoCardRow(
             modifier
                 .fillMaxWidth()
                 .videoCardClickable(state, onClick)
-                .padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
+                .padding(
+                    start = VideoCardDefaults.Inset,
+                    top = VideoCardDefaults.RowVerticalPadding,
+                    bottom = VideoCardDefaults.RowVerticalPadding,
+                ),
     ) {
         VideoCardThumbnail(
             state = state,
@@ -57,7 +61,7 @@ internal fun VideoCardRow(
             width = thumbnailWidth,
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(VideoCardDefaults.Inset))
 
         Column(
             modifier = Modifier.weight(1f),

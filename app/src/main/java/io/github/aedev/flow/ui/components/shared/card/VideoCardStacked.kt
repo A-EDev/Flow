@@ -38,7 +38,7 @@ internal fun VideoCardStacked(
             modifier
                 .fillMaxWidth()
                 .videoCardClickable(state, onClick)
-                .then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier),
+                .then(if (useInternalPadding) Modifier.padding(horizontal = VideoCardDefaults.Inset) else Modifier),
     ) {
         VideoCardThumbnail(
             state = state,
@@ -60,7 +60,7 @@ internal fun VideoCardStacked(
                 ChannelAvatarStack(
                     urls = state.avatarUrls,
                     contentDescription = state.channelName,
-                    avatarSize = 40.dp,
+                    avatarSize = VideoCardDefaults.AvatarSize,
                     modifier =
                         Modifier
                             .minimumInteractiveComponentSize()

@@ -9,8 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.components.FeedGridLayout
-import io.github.aedev.flow.ui.components.shared.ShimmerGridVideoCard
-import io.github.aedev.flow.ui.components.shared.ShimmerVideoCardFullWidth
+import io.github.aedev.flow.ui.components.shared.card.VideoCardSkeleton
 
 /** Placeholder cards in the layout the content will land in, so the first page does not jump. */
 @Composable
@@ -36,7 +35,7 @@ internal fun CategoryShimmer(
         userScrollEnabled = false,
     ) {
         items(PLACEHOLDER_KEYS, key = { it }, contentType = { "shimmer" }) {
-            if (compactList) ShimmerVideoCardFullWidth() else ShimmerGridVideoCard()
+            VideoCardSkeleton()
         }
     }
 }

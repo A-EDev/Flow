@@ -17,6 +17,13 @@ enum class VideoCardLayout {
 object VideoCardDefaults {
     /** One grid column on a phone; callers widen it to line a row up with the grid above. */
     val RowThumbnailWidth: Dp = 168.dp
+
+    /** The card's side inset, and the gap between its thumbnail, avatar and text. */
+    val Inset: Dp = 12.dp
+
+    val AvatarSize: Dp = 40.dp
+
+    val RowVerticalPadding: Dp = 8.dp
 }
 
 /**
