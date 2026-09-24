@@ -20,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -44,9 +43,7 @@ import io.github.aedev.flow.ui.components.music.item.MusicCollectionRow
 import io.github.aedev.flow.ui.components.music.search.MusicSearchBar
 import io.github.aedev.flow.ui.components.music.search.SearchFilterChips
 import io.github.aedev.flow.ui.components.music.search.SearchSuggestionRow
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
-import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
@@ -87,24 +84,17 @@ fun MusicSearchScreen(
         }
     }
 
-    var showBottomSheet by remember { mutableStateOf(false) }
-    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-    var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
+    val musicMenus = LocalMusicMenus.current
 
     fun dismissSearchInput() {
         keyboardController?.hide()
         focusManager.clearFocus(force = true)
     }
 
-    fun showTrackActions(track: MusicTrack) {
-        selectedTrack = track
-        showBottomSheet = true
-    }
-
     fun menuActionFor(item: YTItem): (() -> Unit)? =
         when (item) {
-            is SongItem -> ({ showTrackActions(convertSongToMusicTrack(item)) })
-            is AlbumItem, is PlaylistItem -> ({ item.toCollectionActionItem()?.let { selectedCollection = it } })
+            is SongItem -> ({ musicMenus.openSong(convertSongToMusicTrack(item)) })
+            is AlbumItem, is PlaylistItem -> ({ item.toCollectionActionItem()?.let(musicMenus::openCollection) })
             else -> null
         }
 
@@ -152,51 +142,6 @@ fun MusicSearchScreen(
                 onTrackClick(queue.first(), queue, source)
             }
         }
-    }
-
-    if (showBottomSheet && selectedTrack != null) {
-        MusicQuickActionsSheet(
-            track = selectedTrack!!,
-            onDismiss = { showBottomSheet = false },
-            onViewArtist = {
-                if (selectedTrack!!.channelId.isNotEmpty()) {
-                    onArtistClick(selectedTrack!!.channelId)
-                }
-            },
-            onViewAlbum = {},
-            onShare = {
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            context.getString(
-                                R.string.share_message_template,
-                                selectedTrack!!.title,
-                                selectedTrack!!.artist,
-                                selectedTrack!!.videoId,
-                            ),
-                        )
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            },
-        )
-    }
-
-    selectedCollection?.let { collection ->
-        MusicCollectionQuickActionsSheet(
-            item = collection,
-            onDismiss = { selectedCollection = null },
-            onOpen = {
-                dismissSearchInput()
-                if (collection.isAlbum) {
-                    onAlbumClick(collection.id)
-                } else {
-                    onPlaylistClick(collection.id)
-                }
-            },
-        )
     }
 
     val voiceSearchLauncher =

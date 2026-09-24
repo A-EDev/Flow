@@ -31,8 +31,6 @@ class MusicCollectionActionItemMappingTest {
         assertThat(album.subtitle).isEqualTo("Flow")
         assertThat(album.thumbnailUrl).isEqualTo("thumb")
         assertThat(album.isAlbum).isTrue()
-        assertThat(album.trackCount).isEqualTo(12)
-        assertThat(album.description).isEqualTo("Flow")
         assertThat(list.isAlbum).isFalse()
         assertThat(album.shareUrl).contains("browse/PL1")
         assertThat(list.shareUrl).contains("list=PL1")
@@ -56,7 +54,6 @@ class MusicCollectionActionItemMappingTest {
         assertThat(action).isNotNull()
         assertThat(action!!.isAlbum).isTrue()
         assertThat(action.subtitle).isEqualTo("Someone")
-        assertThat(action.description).isEqualTo("2024")
     }
 
     @Test

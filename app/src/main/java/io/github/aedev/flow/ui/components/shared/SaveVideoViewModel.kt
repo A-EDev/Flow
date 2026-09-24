@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,7 +20,7 @@ import javax.inject.Inject
 private const val SHARING_TIMEOUT_MS = 5_000L
 
 @HiltViewModel
-class AddToPlaylistViewModel
+class SaveVideoViewModel
     @Inject
     constructor(
         private val repository: PlaylistRepository,

@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.music
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -45,9 +44,7 @@ import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.MusicArtistShelf
 import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
 import io.github.aedev.flow.ui.components.music.section.MusicShelf
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
-import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.flowSegmentShape
@@ -81,72 +78,8 @@ fun ArtistPage(
         derivedStateOf { scrollState.firstVisibleItemIndex > 0 }
     }
 
-    var showBottomSheet by remember { mutableStateOf(false) }
-    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-    var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
     var descriptionExpanded by remember { mutableStateOf(false) }
-
-    fun showTrackMenu(track: MusicTrack) {
-        selectedTrack = track
-        showBottomSheet = true
-    }
-
-    if (showBottomSheet && selectedTrack != null) {
-        MusicQuickActionsSheet(
-            track = selectedTrack!!,
-            onDismiss = { showBottomSheet = false },
-            onViewArtist = {
-                if (selectedTrack!!.channelId.isNotEmpty()) {
-                    onArtistClick(selectedTrack!!.channelId)
-                }
-            },
-            onViewAlbum = {
-                selectedTrack!!.albumId?.let { albumId ->
-                    onAlbumClick(
-                        MusicPlaylist(
-                            id = albumId,
-                            title = selectedTrack!!.album ?: context.getString(R.string.album_label),
-                            thumbnailUrl = "",
-                        ),
-                    )
-                }
-            },
-            onShare = {
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            context.getString(
-                                R.string.share_message_template,
-                                selectedTrack!!.title,
-                                selectedTrack!!.artist,
-                                selectedTrack!!.videoId,
-                            ),
-                        )
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            },
-        )
-    }
-
-    selectedCollection?.let { collection ->
-        MusicCollectionQuickActionsSheet(
-            item = collection,
-            onDismiss = { selectedCollection = null },
-            onOpen = {
-                onAlbumClick(
-                    MusicPlaylist(
-                        id = collection.id,
-                        title = collection.title,
-                        thumbnailUrl = collection.thumbnailUrl.orEmpty(),
-                        author = collection.subtitle,
-                    ),
-                )
-            },
-        )
-    }
+    val musicMenus = LocalMusicMenus.current
 
     val pageScheme = rememberMusicCollectionColorScheme(artistDetails.thumbnailUrl.ifEmpty { artistDetails.bannerUrl })
 
@@ -227,7 +160,7 @@ fun ArtistPage(
                         queue = artistDetails.topTracks,
                         downloadedTrackIds = downloadedTrackIds,
                         onTrackClick = onTrackClick,
-                        onTrackMenu = ::showTrackMenu,
+                        onTrackMenu = musicMenus::openSong,
                     )
                 }
 
@@ -244,7 +177,7 @@ fun ArtistPage(
                         queue = insights.topTracks,
                         downloadedTrackIds = downloadedTrackIds,
                         onTrackClick = onTrackClick,
-                        onTrackMenu = ::showTrackMenu,
+                        onTrackMenu = musicMenus::openSong,
                     )
                 }
 
@@ -255,7 +188,7 @@ fun ArtistPage(
                             collections = artistDetails.singles,
                             keyNamespace = "singles",
                             onCollectionClick = onAlbumClick,
-                            onCollectionMenu = { selectedCollection = it.toCollectionActionItem(isAlbum = true) },
+                            onCollectionMenu = { musicMenus.openCollection(it.toCollectionActionItem(isAlbum = true)) },
                             action = seeAllAction(artistDetails.singlesBrowseId, artistDetails.singlesParams, onSeeAllClick),
                             collectionSubtitle = { it.collectionSubtitle(showAuthor = false) },
                         )
@@ -269,7 +202,7 @@ fun ArtistPage(
                             collections = artistDetails.albums,
                             keyNamespace = "albums",
                             onCollectionClick = onAlbumClick,
-                            onCollectionMenu = { selectedCollection = it.toCollectionActionItem(isAlbum = true) },
+                            onCollectionMenu = { musicMenus.openCollection(it.toCollectionActionItem(isAlbum = true)) },
                             action = seeAllAction(artistDetails.albumsBrowseId, artistDetails.albumsParams, onSeeAllClick),
                             collectionSubtitle = { it.collectionSubtitle(showAuthor = false) },
                         )
@@ -303,7 +236,7 @@ fun ArtistPage(
                             collections = artistDetails.featuredOn,
                             keyNamespace = "featured_on",
                             onCollectionClick = onAlbumClick,
-                            onCollectionMenu = { selectedCollection = it.toCollectionActionItem(isAlbum = false) },
+                            onCollectionMenu = { musicMenus.openCollection(it.toCollectionActionItem(isAlbum = false)) },
                             collectionSubtitle = { it.collectionSubtitle(showAuthor = true) },
                         )
                     }

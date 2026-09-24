@@ -32,7 +32,6 @@ internal fun HomeFeedGrid(
     isListView: Boolean,
     gridState: LazyGridState,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
     onEnrichChannelMetadata: (Video) -> Unit,
     onContinueWatchingClick: (VideoHistoryEntry) -> Unit,
     onContinueWatchingRemove: (String) -> Unit,
@@ -67,7 +66,6 @@ internal fun HomeFeedGrid(
                 videos = videos.take(insertShortsAfter),
                 isListView = isListView,
                 onVideoClick = onVideoClick,
-                onChannelClick = onChannelClick,
                 onEnrichChannelMetadata = onEnrichChannelMetadata,
             )
 
@@ -108,7 +106,6 @@ internal fun HomeFeedGrid(
                 videos = videos.drop(insertShortsAfter),
                 isListView = isListView,
                 onVideoClick = onVideoClick,
-                onChannelClick = onChannelClick,
                 onEnrichChannelMetadata = onEnrichChannelMetadata,
             )
         }
@@ -140,7 +137,6 @@ private fun LazyGridScope.feedVideos(
     videos: List<Video>,
     isListView: Boolean,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
     onEnrichChannelMetadata: (Video) -> Unit,
 ) {
     items(
@@ -151,7 +147,6 @@ private fun LazyGridScope.feedVideos(
             video = video,
             isListView = isListView,
             onVideoClick = onVideoClick,
-            onChannelClick = onChannelClick,
             onEnrichChannelMetadata = onEnrichChannelMetadata,
         )
     }
@@ -162,7 +157,6 @@ private fun LazyGridItemScope.HomeFeedVideoItem(
     video: Video,
     isListView: Boolean,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
     onEnrichChannelMetadata: (Video) -> Unit,
 ) {
     LaunchedEffect(video.id, video.channelId, video.channelThumbnailUrl) {
@@ -173,14 +167,12 @@ private fun LazyGridItemScope.HomeFeedVideoItem(
             video = video,
             layout = VideoCardLayout.Row,
             onClick = { onVideoClick(video) },
-            onChannelClick = onChannelClick,
             modifier = Modifier.testTag("home_video_card"),
         )
     } else {
         MediaVideoCard(
             video = video,
             onClick = { onVideoClick(video) },
-            onChannelClick = onChannelClick,
             useInternalPadding = false,
             modifier = Modifier.testTag("home_video_card"),
         )

@@ -30,7 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
+import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.formatViewCount
 
@@ -111,7 +111,6 @@ fun MediaShortCard(
     if (showQuickActions) {
         VideoQuickActionsBottomSheet(
             video = video,
-            onChannelClick = null,
             onDismiss = { showQuickActions = false },
         )
     }

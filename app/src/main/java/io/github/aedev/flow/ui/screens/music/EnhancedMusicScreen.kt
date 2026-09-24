@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.music
 
-import android.content.Intent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,12 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -45,9 +42,7 @@ import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
 import io.github.aedev.flow.ui.components.music.section.HomeSectionType
 import io.github.aedev.flow.ui.components.music.section.musicHomeFeed
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionActionItem
-import io.github.aedev.flow.ui.components.music.sheet.MusicCollectionQuickActionsSheet
-import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.components.shared.MusicScreenShimmerLoading
@@ -78,7 +73,6 @@ fun EnhancedMusicScreen(
     viewModel: MusicViewModel = sharedMusicViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val musicListState = rememberLazyListState()
     val quickPicksGridState = rememberLazyGridState()
 
@@ -126,50 +120,7 @@ fun EnhancedMusicScreen(
                 viewModel.refresh()
             }
     }
-    var showBottomSheet by remember { mutableStateOf(false) }
-    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-    var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
-
-    if (showBottomSheet && selectedTrack != null) {
-        MusicQuickActionsSheet(
-            track = selectedTrack!!,
-            onDismiss = { showBottomSheet = false },
-            onViewArtist = { channelId ->
-                if (channelId.isNotEmpty()) {
-                    onArtistClick(channelId)
-                }
-            },
-            onViewAlbum = { albumId ->
-                if (albumId.isNotEmpty()) {
-                    onAlbumClick(albumId)
-                }
-            },
-            onShare = {
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                        val text =
-                            context.getString(
-                                R.string.share_message_template,
-                                selectedTrack!!.title,
-                                selectedTrack!!.artist,
-                                selectedTrack!!.videoId,
-                            )
-                        putExtra(Intent.EXTRA_TEXT, text)
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            },
-        )
-    }
-
-    selectedCollection?.let { collection ->
-        MusicCollectionQuickActionsSheet(
-            item = collection,
-            onDismiss = { selectedCollection = null },
-            onOpen = { onAlbumClick(collection.id) },
-        )
-    }
+    val musicMenus = LocalMusicMenus.current
 
     val bottomChrome = bottomNavOverlayPadding() + LocalMusicMiniPlayerInset.current
     val fabLift =
@@ -268,11 +219,8 @@ fun EnhancedMusicScreen(
                                 onAlbumClick = onAlbumClick,
                                 onMoodsClick = onMoodsClick,
                                 onChipToggle = { viewModel.setHomeChip(it) },
-                                onTrackMenu = { track ->
-                                    selectedTrack = track
-                                    showBottomSheet = true
-                                },
-                                onCollectionMenu = { collection -> selectedCollection = collection },
+                                onTrackMenu = musicMenus::openSong,
+                                onCollectionMenu = musicMenus::openCollection,
                                 onLoadMore = { viewModel.loadMoreHomeContent() },
                             )
                         }

@@ -91,9 +91,9 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.service.Media3MusicService
-import io.github.aedev.flow.ui.components.music.sheet.AddToPlaylistDialog
-import io.github.aedev.flow.ui.components.music.sheet.CreatePlaylistDialog
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.music.sheet.SaveSongSheet
 import io.github.aedev.flow.ui.components.shared.MediaPalette
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
@@ -111,8 +111,6 @@ internal fun FullMusicPlayerContent(
     palette: MediaPalette,
     backgroundStyle: MusicPlayerBackgroundStyle,
     hideArtwork: Boolean,
-    onArtistClick: (String) -> Unit,
-    onAlbumClick: (String) -> Unit,
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -121,11 +119,12 @@ internal fun FullMusicPlayerContent(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val colorScheme = MaterialTheme.colorScheme
+    val navigator = LocalMediaNavigator.current
 
     val thumbnailUrl = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl
     var showMoreOptions by remember { mutableStateOf(false) }
+    var showSaveSheet by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
-    var showInfoDialog by remember { mutableStateOf(false) }
     var showSleepTimer by remember { mutableStateOf(false) }
     var previewDirection by remember { mutableStateOf<SkipDirection?>(null) }
     val musicPlayer by EnhancedMusicPlayerManager.playerInstance.collectAsState()
@@ -170,26 +169,11 @@ internal fun FullMusicPlayerContent(
     var showQueueSheet by remember { mutableStateOf(false) }
     var showLyricsSheet by remember { mutableStateOf(false) }
 
-    if (uiState.showCreatePlaylistDialog) {
-        CreatePlaylistDialog(
-            onDismiss = { viewModel.showCreatePlaylistDialog(false) },
-            onConfirm = { name, desc ->
-                viewModel.createPlaylist(name, desc, uiState.currentTrack)
-            },
-        )
-    }
-
-    if (uiState.showAddToPlaylistDialog) {
-        AddToPlaylistDialog(
-            playlists = uiState.playlists,
-            onDismiss = { viewModel.showAddToPlaylistDialog(false) },
-            onSelectPlaylist = { playlistId ->
-                viewModel.addToPlaylist(playlistId)
-            },
-            onCreateNew = {
-                viewModel.showAddToPlaylistDialog(false)
-                viewModel.showCreatePlaylistDialog(true)
-            },
+    val saveTrack = uiState.currentTrack
+    if (showSaveSheet && saveTrack != null) {
+        SaveSongSheet(
+            track = saveTrack,
+            onDismiss = { showSaveSheet = false },
         )
     }
 
@@ -197,50 +181,14 @@ internal fun FullMusicPlayerContent(
         MusicQuickActionsSheet(
             track = uiState.currentTrack!!,
             onDismiss = { showMoreOptions = false },
-            onViewArtist = { channelId ->
-                if (channelId.isNotEmpty()) {
-                    onArtistClick(channelId)
-                }
-            },
-            onViewAlbum = { albumId ->
-                if (albumId.isNotEmpty()) {
-                    onAlbumClick(albumId)
-                }
-            },
-            onShare = {
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, uiState.currentTrack!!.title)
-                        putExtra(
-                            Intent.EXTRA_TEXT,
-                            context.getString(
-                                R.string.share_message_template,
-                                uiState.currentTrack!!.title,
-                                uiState.currentTrack!!.artist,
-                                uiState.currentTrack!!.videoId,
-                            ),
-                        )
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
-            },
-            onInfoClick = { showInfoDialog = true },
             onAudioEffectsClick = { showAudioSettings = true },
             onSleepTimerClick = { showSleepTimer = true },
-            showPlaylistDialogs = false,
         )
     }
 
     if (showAudioSettings) {
         AudioSettingsSheet(
             onDismiss = { showAudioSettings = false },
-        )
-    }
-
-    if (showInfoDialog && uiState.currentTrack != null) {
-        TrackInfoDialog(
-            track = uiState.currentTrack!!,
-            onDismiss = { showInfoDialog = false },
         )
     }
 
@@ -540,7 +488,7 @@ internal fun FullMusicPlayerContent(
                                     uiState.currentTrack
                                         ?.channelId
                                         ?.takeIf { it.isNotEmpty() }
-                                        ?.let { onArtistClick(it) }
+                                        ?.let(navigator::openArtist)
                                 },
                         )
                     }
@@ -553,7 +501,7 @@ internal fun FullMusicPlayerContent(
                     isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
                     onLikeClick = { viewModel.toggleLike() },
                     onDownloadClick = { viewModel.downloadTrack() },
-                    onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
+                    onAddToPlaylist = { showSaveSheet = true },
                 )
             }
 

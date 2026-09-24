@@ -595,8 +595,8 @@ private fun LazyListScope.similarTo(
                 keyNamespace = "more_from_${section.seedId}",
                 subtitle = section.label,
                 action = section.seedId?.let { seedId -> MusicSectionAction.Navigate { onArtistClick(seedId) } },
-                onTrackClick = {},
-                onTrackMenu = {},
+                onTrackClick = { onSongClick(it, section.tracks.filterNot { track -> track.isCollection }, section.title) },
+                onTrackMenu = onTrackMenu,
                 onCollectionClick = { onAlbumClick(it.videoId) },
                 onCollectionMenu = onCollectionMenu,
             )

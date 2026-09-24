@@ -21,7 +21,6 @@ import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 internal fun LazyListScope.relatedVideosContent(
     relatedVideos: List<Video>,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
     cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH,
 ) {
     // Video items
@@ -36,7 +35,6 @@ internal fun LazyListScope.relatedVideosContent(
                     video = relatedVideo,
                     layout = VideoCardLayout.Row,
                     onClick = { onVideoClick(relatedVideo) },
-                    onChannelClick = onChannelClick,
                 )
             }
 
@@ -44,7 +42,6 @@ internal fun LazyListScope.relatedVideosContent(
                 MediaVideoCard(
                     video = relatedVideo,
                     onClick = { onVideoClick(relatedVideo) },
-                    onChannelClick = onChannelClick,
                 )
             }
         }
@@ -58,7 +55,6 @@ internal fun LazyListScope.relatedVideosGridContent(
     relatedVideos: List<Video>,
     columns: Int,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (String) -> Unit,
     cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH,
 ) {
     val chunkedVideos = relatedVideos.chunked(columns)
@@ -80,7 +76,6 @@ internal fun LazyListScope.relatedVideosGridContent(
                                 video = video,
                                 layout = VideoCardLayout.Row,
                                 onClick = { onVideoClick(video) },
-                                onChannelClick = onChannelClick,
                             )
                         }
 
@@ -88,7 +83,6 @@ internal fun LazyListScope.relatedVideosGridContent(
                             MediaVideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) },
-                                onChannelClick = onChannelClick,
                             )
                         }
                     }

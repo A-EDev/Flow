@@ -1,9 +1,9 @@
 package io.github.aedev.flow.ui.screens.player.state
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.state.EnhancedPlayerState
-import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.mockk.mockk
 import org.junit.Test
 

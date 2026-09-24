@@ -2,239 +2,124 @@ package io.github.aedev.flow.ui.components.music.sheet
 
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Album
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import coil3.compose.AsyncImage
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.PlaylistRepository
-import io.github.aedev.flow.data.music.model.MusicPlaylist
-import io.github.aedev.flow.innertube.models.AlbumItem
-import io.github.aedev.flow.innertube.models.PlaylistItem
-import io.github.aedev.flow.innertube.models.YTItem
-import io.github.aedev.flow.ui.components.*
-import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import javax.inject.Inject
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
+import io.github.aedev.flow.ui.components.shared.ArtworkThumbnail
+import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionRow
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsDefaults
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsGroup
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHeader
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsPrimaryGroup
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsSheet
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickPrimaryAction
+import io.github.aedev.flow.ui.components.shared.quickactions.actionRow
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.ui.screens.music.CollectionPlayMode
+import io.github.aedev.flow.ui.screens.music.MusicCollectionActionsViewModel
+import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
+import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 
-data class MusicCollectionActionItem(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val thumbnailUrl: String?,
-    val description: String = subtitle,
-    val isAlbum: Boolean = false,
-    val trackCount: Int = 0,
-) {
-    val shareUrl: String
-        get() =
-            if (isAlbum) {
-                "https://music.youtube.com/browse/$id"
-            } else {
-                "https://music.youtube.com/playlist?list=$id"
-            }
-}
-
-fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
-    MusicCollectionActionItem(
-        id = id,
-        title = title,
-        subtitle = author,
-        thumbnailUrl = thumbnailUrl,
-        description = author,
-        isAlbum = isAlbum,
-        trackCount = trackCount,
-    )
-
-fun YTItem.toCollectionActionItem(): MusicCollectionActionItem? =
-    when (this) {
-        is AlbumItem -> {
-            MusicCollectionActionItem(
-                id = id,
-                title = title,
-                subtitle = artists?.joinToString { it.name }.orEmpty(),
-                thumbnailUrl = thumbnail,
-                description = year?.toString().orEmpty(),
-                isAlbum = true,
-            )
-        }
-
-        is PlaylistItem -> {
-            MusicCollectionActionItem(
-                id = id,
-                title = title,
-                subtitle = author?.name.orEmpty(),
-                thumbnailUrl = thumbnail,
-                description = author?.name.orEmpty(),
-                isAlbum = false,
-            )
-        }
-
-        else -> {
-            null
-        }
-    }
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+/** An album or playlist's menu: play, shuffle or start a radio from it, keep it, share it or open it. */
 @Composable
 fun MusicCollectionQuickActionsSheet(
     item: MusicCollectionActionItem,
     onDismiss: () -> Unit,
-    onOpen: () -> Unit,
     viewModel: MusicCollectionActionsViewModel = hiltViewModel(),
+    player: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
+    quickActions: QuickActionsViewModel = sharedQuickActionsViewModel(),
 ) {
     val context = LocalContext.current
+    val navigator = LocalMediaNavigator.current
+    val isSaved by viewModel.isSaved.collectAsStateWithLifecycle()
+    LaunchedEffect(item.id) { viewModel.loadSaved(item.id) }
+    val announce: (Int) -> Unit = { quickActions.announce(it) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberFlowSheetState(),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-        ) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AsyncImage(
-                    model = item.thumbnailUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .size(56.dp)
-                            .clip(MaterialTheme.shapes.small),
-                )
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.titleMediumEmphasized,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = item.subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+    QuickActionsSheet(onDismiss = onDismiss) { sheet ->
+        fun play(mode: CollectionPlayMode) {
+            viewModel.play(item, mode, announce) { first, queue, asRadio ->
+                player.loadAndPlayTrack(first, queue, sourceName = item.title, asRadio = asRadio)
             }
+            sheet.close()
+        }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-            FlowMenuGroup(
-                items =
-                    listOf(
-                        FlowMenuItemData(
-                            icon = { Icon(Icons.Outlined.BookmarkBorder, null) },
-                            title = { Text(stringResource(R.string.add_to_library)) },
-                            onClick = {
-                                viewModel.saveToLibrary(item)
-                                onDismiss()
-                            },
-                        ),
-                        FlowMenuItemData(
-                            icon = { Icon(Icons.Outlined.Share, null) },
-                            title = { Text(stringResource(R.string.share)) },
-                            onClick = {
-                                context.shareCollection(item)
-                                onDismiss()
-                            },
-                        ),
-                        FlowMenuItemData(
-                            icon = { Icon(Icons.Outlined.OpenInNew, null) },
-                            title = { Text(stringResource(R.string.open)) },
-                            onClick = {
-                                onOpen()
-                                onDismiss()
-                            },
-                        ),
-                    ),
-                modifier = Modifier.padding(horizontal = 16.dp),
+        QuickActionsHeader(title = item.title, subtitle = item.subtitle) {
+            ArtworkThumbnail(
+                thumbnailUrl = item.thumbnailUrl,
+                size = QuickActionsDefaults.SquareArtworkSize,
+                placeholder = Icons.Outlined.Album,
             )
         }
+        QuickActionsPrimaryGroup(
+            listOf(
+                QuickPrimaryAction(
+                    icon = Icons.Filled.PlayArrow,
+                    label = stringResource(R.string.play),
+                    onClick = { play(CollectionPlayMode.Play) },
+                ),
+                QuickPrimaryAction(
+                    icon = Icons.Outlined.Shuffle,
+                    label = stringResource(R.string.shuffle),
+                    onClick = { play(CollectionPlayMode.Shuffle) },
+                ),
+                QuickPrimaryAction(
+                    icon = Icons.Outlined.Radio,
+                    label = stringResource(R.string.start_radio),
+                    onClick = { play(CollectionPlayMode.Radio) },
+                ),
+            ),
+        )
+        val savedLabel = stringResource(R.string.saved_to_library)
+        QuickActionsGroup(
+            title = null,
+            rows =
+                listOf(
+                    QuickActionRow("library") { shape ->
+                        FlowNavRow(
+                            title = if (isSaved) savedLabel else stringResource(R.string.add_to_library),
+                            leadingIcon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            onClick = { viewModel.toggleSaved(item, announce) },
+                            showChevron = false,
+                            stateDescription = if (isSaved) savedLabel else null,
+                            shape = shape,
+                        )
+                    },
+                    actionRow("share", Icons.Outlined.Share, stringResource(R.string.share)) {
+                        context.shareCollection(item)
+                        sheet.close()
+                    },
+                    QuickActionRow("open") { shape ->
+                        FlowNavRow(
+                            title = stringResource(R.string.open),
+                            leadingIcon = Icons.AutoMirrored.Outlined.OpenInNew,
+                            onClick = {
+                                if (item.isAlbum) navigator.openAlbum(item.id) else navigator.openMusicPlaylist(item.id)
+                                sheet.close()
+                            },
+                            shape = shape,
+                        )
+                    },
+                ),
+        )
     }
 }
-
-/**
- * The description a saved collection gets: its song count when known, otherwise whatever the
- * source offered, formatted from resources so nothing English is written into the database.
- */
-private fun MusicCollectionActionItem.savedDescription(context: Context): String =
-    if (trackCount > 0) {
-        context.resources.getQuantityString(R.plurals.songs_count_template, trackCount, trackCount)
-    } else {
-        description
-    }
-
-@HiltViewModel
-class MusicCollectionActionsViewModel
-    @Inject
-    constructor(
-        @ApplicationContext private val context: Context,
-        private val playlistRepository: PlaylistRepository,
-    ) : ViewModel() {
-        fun saveToLibrary(item: MusicCollectionActionItem) {
-            viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    playlistRepository.saveExternalMusicPlaylist(
-                        id = item.id,
-                        name = item.title,
-                        description = item.savedDescription(context),
-                        thumbnailUrl = item.thumbnailUrl.orEmpty(),
-                    )
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, context.getString(R.string.saved_to_library), Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, context.getString(R.string.failed_to_save_to_library), Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
-    }
 
 private fun Context.shareCollection(item: MusicCollectionActionItem) {
     val shareIntent =

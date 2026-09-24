@@ -232,9 +232,13 @@
     <string name="not_interested">Not interested</string>
     <string name="not_interested_toast">Got it! You\'ll see less content like this.</string>
     <string name="quick_actions_error_template">Error: %1$s</string>
-    <string name="details_metadata">Details &amp; Metadata</string>
+    <string name="quick_action_watched">Watched</string>
+    <string name="quick_action_go_to">Go to</string>
+    <string name="quick_action_artists">Artists</string>
+    <string name="quick_action_failed">That didn\'t work. Try again.</string>
+    <string name="details_metadata">Details</string>
     <string name="mark_as_watched">Mark as watched</string>
-    <string name="mark_as_watched_toast">Marked as watched — your recommendations will improve!</string>
+    <string name="mark_as_watched_toast">Marked as watched</string>
     <string name="i_like_this">I want more like this</string>
     <string name="i_like_this_toast">Got it! You\'ll see more content like this.</string>
     <string name="go_to_channel">Go to channel</string>
@@ -345,7 +349,7 @@
     <string name="start_radio">Start radio</string>
     <string name="start_radio_desc">Play a station based on this song</string>
     <string name="play_next">Play next</string>
-    <string name="play_next_desc">Add to start of queue</string>
+    <string name="play_next_desc">Plays after the current song</string>
     <string name="add_to_queue">Add to queue</string>
     <string name="add_to_queue_desc">Add to end of queue</string>
     <string name="similar_content">Similar Content</string>
@@ -1212,7 +1216,7 @@
     <string name="sb_submit_error">Failed to submit segment. Please try again.</string>
     <!-- Bottom sheet section labels -->
     <string name="section_channel">Channel</string>
-    <string name="section_algorithm">Algorithm</string>
+    <string name="section_algorithm">Your feed</string>
     <string name="section_options">Options</string>
     <!-- Channel blocking -->
     <string name="dont_show_channel">Don’t show this channel</string>
@@ -2058,9 +2062,9 @@
     <string name="shorts_quality_wifi_header">Shorts Wi-Fi Quality</string>
     <string name="shorts_quality_cellular_header">Shorts Cellular Quality</string>
     <!-- Video Queue / Play Next -->
-    <string name="play_next_video">Play Next</string>
-    <string name="play_next_video_desc">Insert at start of video queue</string>
-    <string name="add_video_to_queue">Add to Queue</string>
+    <string name="play_next_video">Play next</string>
+    <string name="play_next_video_desc">Plays after the current video</string>
+    <string name="add_video_to_queue">Add to queue</string>
     <string name="add_video_to_queue_desc">Add to end of video queue</string>
     <string name="added_to_queue_toast">Added to queue</string>
     <string name="play_next_toast">Will play next</string>

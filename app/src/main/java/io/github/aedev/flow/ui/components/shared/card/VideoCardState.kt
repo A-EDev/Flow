@@ -13,15 +13,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
-import io.github.aedev.flow.ui.components.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.rememberDeArrowResult
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -110,7 +111,7 @@ val LocalVideoCardActions = staticCompositionLocalOf { VideoCardActions.None }
  */
 @Composable
 fun ProvideVideoCardState(
-    quickActions: QuickActionsViewModel = hiltViewModel(),
+    quickActions: QuickActionsViewModel = sharedQuickActionsViewModel(),
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -196,11 +197,11 @@ internal class VideoCardState(
     val isWatched: Boolean get() = isWatchedProgress(watchProgress)
 
     /** A collaboration opens the list of its channels; a single channel opens directly. */
-    fun openChannel(onChannelClick: ((String) -> Unit)?) {
+    fun openChannel(navigator: MediaNavigator) {
         if (collaborators.size > 1) {
             sheets.showCollaborators = true
         } else {
-            onChannelClick?.invoke(video.channelId)
+            navigator.openChannel(video.channelId)
         }
     }
 }

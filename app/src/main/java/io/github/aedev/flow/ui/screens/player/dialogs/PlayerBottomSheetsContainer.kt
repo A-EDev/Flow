@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material3.Icon
@@ -23,11 +22,9 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
-import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
-import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
@@ -62,8 +59,6 @@ internal fun PlayerBottomSheetsContainer(
     hostedInSidePanel: Boolean = false,
     onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
-    val shareVideoAction = rememberVideoShareAction()
-
     val visibleComments = commentsUiState.visibleComments(screenState)
 
     val handleSeek: (Long) -> Unit =
@@ -88,26 +83,6 @@ internal fun PlayerBottomSheetsContainer(
             )
             (context as? android.app.Activity)?.finishAndRemoveTask()
         }
-    }
-
-    // Quick actions sheet
-    if (screenState.activeSheet == PlayerSheet.QuickActions) {
-        VideoQuickActionsBottomSheet(
-            video = completeVideo,
-            onDismiss = { screenState.closeSheet() },
-            onShare = {
-                screenState.closeSheet()
-                shareVideoAction(completeVideo.id, completeVideo.title)
-            },
-            onDownload = {
-                screenState.open(PlayerSheet.Download)
-            },
-            onNotInterested = {
-                screenState.closeSheet()
-                Toast.makeText(context, context.getString(R.string.video_marked_not_interested), Toast.LENGTH_SHORT).show()
-            },
-            onChannelClick = onNavigateToChannel,
-        )
     }
 
     // Comments Bottom Sheet

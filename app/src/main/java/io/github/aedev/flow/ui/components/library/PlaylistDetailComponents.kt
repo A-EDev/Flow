@@ -69,12 +69,12 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
+import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
@@ -487,7 +487,6 @@ internal fun PlaylistVideoRow(
     showDragHandle: Boolean,
     showAddedDate: Boolean,
     isWatchLater: Boolean,
-    onChannelClick: ((String) -> Unit)?,
     onRemove: () -> Unit,
     onClick: () -> Unit,
 ) {
@@ -556,7 +555,6 @@ internal fun PlaylistVideoRow(
     if (showQuickActions) {
         VideoQuickActionsBottomSheet(
             video = video,
-            onChannelClick = onChannelClick,
             onRemoveFromCollection = if (canModify) onRemove else null,
             removeFromCollectionLabel =
                 if (canModify) {

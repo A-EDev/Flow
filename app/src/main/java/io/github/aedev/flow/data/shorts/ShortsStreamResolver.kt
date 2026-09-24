@@ -8,6 +8,9 @@ import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor.VideoExtractionResult
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import io.github.aedev.flow.player.stream.durationMs
+import io.github.aedev.flow.player.stream.playableAudioFormats
+import io.github.aedev.flow.player.stream.playableVideoFormats
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -217,17 +220,6 @@ class ShortsStreamResolver internal constructor(
             viewCount = viewCount?.toLongOrNull(),
             durationMs = durationMs,
         )
-
-    private fun VideoExtractionResult.durationMs(): Long? =
-        playerResponse.videoDetails
-            ?.lengthSeconds
-            ?.toLongOrNull()
-            ?.takeIf { it > 0 }
-            ?.times(1_000L)
-
-    private fun VideoExtractionResult.playableVideoFormats() = videoFormats.filter { !it.url.isNullOrBlank() }
-
-    private fun VideoExtractionResult.playableAudioFormats() = audioFormats.filter { !it.url.isNullOrBlank() }
 
     private companion object {
         const val TAG = "ShortsStreamResolver"

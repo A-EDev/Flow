@@ -40,7 +40,6 @@ fun MediaVideoCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     layout: VideoCardLayout = VideoCardLayout.Stacked,
-    onChannelClick: ((String) -> Unit)? = null,
     showChannel: Boolean = true,
     useInternalPadding: Boolean = true,
     thumbnailWidth: Dp = VideoCardDefaults.RowThumbnailWidth,
@@ -50,7 +49,6 @@ fun MediaVideoCard(
             VideoCardStacked(
                 video = video,
                 onClick = onClick,
-                onChannelClick = onChannelClick,
                 showChannel = showChannel,
                 useInternalPadding = useInternalPadding,
                 modifier = modifier,
@@ -61,7 +59,6 @@ fun MediaVideoCard(
             VideoCardRow(
                 video = video,
                 onClick = onClick,
-                onChannelClick = onChannelClick,
                 showChannel = showChannel,
                 thumbnailWidth = thumbnailWidth,
                 modifier = modifier,

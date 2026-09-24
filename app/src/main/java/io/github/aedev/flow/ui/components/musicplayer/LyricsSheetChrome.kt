@@ -100,11 +100,13 @@ import io.github.aedev.flow.data.local.LYRICS_ALIGN_LEFT
 import io.github.aedev.flow.data.local.LYRICS_ALIGN_RIGHT
 import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
-import io.github.aedev.flow.ui.components.FlowMenuGroup
-import io.github.aedev.flow.ui.components.FlowMenuItemData
-import io.github.aedev.flow.ui.components.FlowMenuSectionHeader
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionRow
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsGroup
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsSheet
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import java.util.Locale
 
@@ -500,7 +502,6 @@ private fun RowScope.OffsetStepSegment(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LyricsActionsSheet(
     hasLyrics: Boolean,
@@ -516,157 +517,121 @@ internal fun LyricsActionsSheet(
     onAdjustSync: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberFlowSheetState(),
-    ) {
-        Column(
+    QuickActionsSheet(onDismiss = onDismiss) { sheet ->
+        fun run(action: () -> Unit): () -> Unit =
+            {
+                sheet.hideThen {
+                    onDismiss()
+                    action()
+                }
+            }
+        QuickActionsGroup(
+            title = null,
+            rows =
+                buildList {
+                    add(
+                        lyricsRow(
+                            key = "refresh",
+                            icon = Icons.Outlined.Refresh,
+                            title = stringResource(R.string.refresh_lyrics),
+                            supporting =
+                                providerName.takeIf { it.isNotBlank() }?.let {
+                                    stringResource(
+                                        R.string.lyrics_current_source,
+                                        it,
+                                    )
+                                },
+                            onClick = run(onRefresh),
+                        ),
+                    )
+                    add(
+                        lyricsRow(
+                            "source",
+                            Icons.Outlined.TravelExplore,
+                            stringResource(R.string.lyrics_choose_source),
+                            onClick = run(onChooseSource),
+                        ),
+                    )
+                    if (hasLyrics) {
+                        add(lyricsRow("edit", Icons.Outlined.Edit, stringResource(R.string.lyrics_edit), onClick = run(onEdit)))
+                        add(lyricsRow("copy", Icons.Outlined.ContentCopy, stringResource(R.string.lyrics_copy), onClick = run(onCopy)))
+                        add(lyricsRow("save", Icons.Outlined.SaveAlt, stringResource(R.string.lyrics_save_file), onClick = run(onSaveFile)))
+                    }
+                },
+        )
+        FlowSectionHeader(stringResource(R.string.lyrics_display_header))
+        Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .height(44.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            val sourceDescription: (@Composable () -> Unit)? =
-                providerName.takeIf { it.isNotBlank() }?.let { name ->
-                    { Text(stringResource(R.string.lyrics_current_source, name)) }
-                }
-            FlowMenuGroup(
-                items =
-                    buildList {
-                        add(
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.Refresh, contentDescription = null) },
-                                title = { Text(stringResource(R.string.refresh_lyrics)) },
-                                description = sourceDescription,
-                                onClick = {
-                                    onDismiss()
-                                    onRefresh()
-                                },
-                            ),
-                        )
-                        add(
-                            FlowMenuItemData(
-                                icon = { Icon(Icons.Outlined.TravelExplore, contentDescription = null) },
-                                title = { Text(stringResource(R.string.lyrics_choose_source)) },
-                                onClick = {
-                                    onDismiss()
-                                    onChooseSource()
-                                },
-                            ),
-                        )
-                        if (hasLyrics) {
-                            add(
-                                FlowMenuItemData(
-                                    icon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
-                                    title = { Text(stringResource(R.string.lyrics_edit)) },
-                                    onClick = {
-                                        onDismiss()
-                                        onEdit()
-                                    },
-                                ),
-                            )
-                            add(
-                                FlowMenuItemData(
-                                    icon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
-                                    title = { Text(stringResource(R.string.lyrics_copy)) },
-                                    onClick = {
-                                        onDismiss()
-                                        onCopy()
-                                    },
-                                ),
-                            )
-                            add(
-                                FlowMenuItemData(
-                                    icon = { Icon(Icons.Outlined.SaveAlt, contentDescription = null) },
-                                    title = { Text(stringResource(R.string.lyrics_save_file)) },
-                                    onClick = {
-                                        onDismiss()
-                                        onSaveFile()
-                                    },
-                                ),
-                            )
-                        }
-                    },
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            FlowMenuSectionHeader(stringResource(R.string.lyrics_display_header))
-
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(44.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                LyricsAlignToggleButton(
-                    checked = alignPref == LYRICS_ALIGN_LEFT,
-                    icon = Icons.Outlined.FormatAlignLeft,
-                    contentDescription = stringResource(R.string.lyrics_align_left),
-                    uncheckedShape =
-                        RoundedCornerShape(
-                            topStart = 22.dp,
-                            bottomStart = 22.dp,
-                            topEnd = 8.dp,
-                            bottomEnd = 8.dp,
-                        ),
-                    onClick = { onAlignChange(LYRICS_ALIGN_LEFT) },
-                )
-                LyricsAlignToggleButton(
-                    checked = alignPref == LYRICS_ALIGN_CENTER,
-                    icon = Icons.Outlined.FormatAlignCenter,
-                    contentDescription = stringResource(R.string.lyrics_align_center),
-                    uncheckedShape = RoundedCornerShape(8.dp),
-                    onClick = { onAlignChange(LYRICS_ALIGN_CENTER) },
-                )
-                LyricsAlignToggleButton(
-                    checked = alignPref == LYRICS_ALIGN_RIGHT,
-                    icon = Icons.Outlined.FormatAlignRight,
-                    contentDescription = stringResource(R.string.lyrics_align_right),
-                    uncheckedShape =
-                        RoundedCornerShape(
-                            topStart = 8.dp,
-                            bottomStart = 8.dp,
-                            topEnd = 22.dp,
-                            bottomEnd = 22.dp,
-                        ),
-                    onClick = { onAlignChange(LYRICS_ALIGN_RIGHT) },
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            val offsetDescription: (@Composable () -> Unit)? =
-                syncOffsetMs.takeIf { it != 0L }?.let { offset ->
-                    {
-                        Text(
-                            stringResource(
-                                R.string.lyrics_sync_offset_value,
-                                String.format(Locale.US, "%+.1f", offset / 1000f),
-                            ),
-                        )
-                    }
-                }
-            FlowMenuGroup(
-                items =
-                    listOf(
-                        FlowMenuItemData(
-                            icon = { Icon(Icons.Outlined.Timer, contentDescription = null) },
-                            title = { Text(stringResource(R.string.lyrics_adjust_sync)) },
-                            description = offsetDescription,
-                            onClick = {
-                                onDismiss()
-                                onAdjustSync()
-                            },
-                        ),
+            LyricsAlignToggleButton(
+                checked = alignPref == LYRICS_ALIGN_LEFT,
+                icon = Icons.Outlined.FormatAlignLeft,
+                contentDescription = stringResource(R.string.lyrics_align_left),
+                uncheckedShape =
+                    RoundedCornerShape(
+                        topStart = 22.dp,
+                        bottomStart = 22.dp,
+                        topEnd = 8.dp,
+                        bottomEnd = 8.dp,
                     ),
-                modifier = Modifier.padding(horizontal = 16.dp),
+                onClick = { onAlignChange(LYRICS_ALIGN_LEFT) },
+            )
+            LyricsAlignToggleButton(
+                checked = alignPref == LYRICS_ALIGN_CENTER,
+                icon = Icons.Outlined.FormatAlignCenter,
+                contentDescription = stringResource(R.string.lyrics_align_center),
+                uncheckedShape = RoundedCornerShape(8.dp),
+                onClick = { onAlignChange(LYRICS_ALIGN_CENTER) },
+            )
+            LyricsAlignToggleButton(
+                checked = alignPref == LYRICS_ALIGN_RIGHT,
+                icon = Icons.Outlined.FormatAlignRight,
+                contentDescription = stringResource(R.string.lyrics_align_right),
+                uncheckedShape =
+                    RoundedCornerShape(
+                        topStart = 8.dp,
+                        bottomStart = 8.dp,
+                        topEnd = 22.dp,
+                        bottomEnd = 22.dp,
+                    ),
+                onClick = { onAlignChange(LYRICS_ALIGN_RIGHT) },
             )
         }
+        Spacer(modifier = Modifier.height(12.dp))
+        QuickActionsGroup(
+            title = null,
+            rows =
+                listOf(
+                    lyricsRow(
+                        key = "sync",
+                        icon = Icons.Outlined.Timer,
+                        title = stringResource(R.string.lyrics_adjust_sync),
+                        supporting =
+                            syncOffsetMs.takeIf { it != 0L }?.let { offset ->
+                                stringResource(R.string.lyrics_sync_offset_value, String.format(Locale.US, "%+.1f", offset / 1000f))
+                            },
+                        onClick = run(onAdjustSync),
+                    ),
+                ),
+        )
     }
 }
+
+private fun lyricsRow(
+    key: String,
+    icon: ImageVector,
+    title: String,
+    supporting: String? = null,
+    onClick: () -> Unit,
+): QuickActionRow =
+    QuickActionRow(key) { shape ->
+        FlowNavRow(title = title, supportingText = supporting, leadingIcon = icon, onClick = onClick, showChevron = false, shape = shape)
+    }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

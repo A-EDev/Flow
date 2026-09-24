@@ -58,7 +58,6 @@ internal fun VideoInfoSection(
     onUnsubscribeClick: () -> Unit = {},
     onNotificationChange: (Boolean) -> Unit = {},
     onChannelClick: () -> Unit,
-    onCollaboratorClick: (String) -> Unit = {},
     onLikeClick: () -> Unit,
     onDislikeClick: () -> Unit,
     onShareClick: () -> Unit,
@@ -268,7 +267,6 @@ internal fun VideoInfoSection(
     if (showCollaborators) {
         CollaboratorsBottomSheet(
             collaborators = collaborators,
-            onChannelClick = onCollaboratorClick,
             onDismiss = { showCollaborators = false },
         )
     }

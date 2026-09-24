@@ -28,6 +28,7 @@ import io.github.aedev.flow.data.shorts.queue.openAtVideoId
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.musicplayer.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
@@ -61,6 +62,7 @@ import io.github.aedev.flow.ui.screens.update.UpdateScreen
 @UnstableApi
 fun NavGraphBuilder.flowAppGraph(
     navController: NavHostController,
+    mediaNavigator: MediaNavigator,
     currentRoute: MutableState<String>,
     playerSheetState: PlayerDraggableState,
     musicPlayerSheetState: MusicPlayerSheetState,
@@ -106,9 +108,6 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onSearchClick = {
                 navController.navigate("search")
-            },
-            onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
             },
             onNavigateToHistory = {
                 navController.navigate("history")
@@ -160,7 +159,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.popBackStack()
             },
             onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
+                mediaNavigator.openChannel(channelId)
             },
         )
     }
@@ -179,9 +178,9 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onChannelClick = { channel ->
                 if (channel.isMusic && channel.id.isNotBlank()) {
-                    navController.navigate("artist/${channel.id}")
+                    mediaNavigator.openArtist(channel.id)
                 } else {
-                    navController.navigateToYoutubeChannel(channel.url.ifBlank { channel.id })
+                    mediaNavigator.openChannel(channel.url.ifBlank { channel.id })
                 }
             },
         )
@@ -234,7 +233,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("playlist/$playlistId")
             },
             onMusicPlaylistClick = { playlistId ->
-                navController.navigate("musicPlaylist/$playlistId")
+                mediaNavigator.openMusicPlaylist(playlistId)
             },
             onDownloadedVideoClick = { videos, index ->
                 val videoList = videos.map { it.video }
@@ -269,7 +268,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.openShortsOrPlayer(source, disableShortsPlayer)
             },
             onChannelClick = { channel ->
-                navController.navigateToYoutubeChannel(channel.url.ifBlank { channel.id })
+                mediaNavigator.openChannel(channel.url.ifBlank { channel.id })
             },
             onPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
@@ -285,9 +284,6 @@ fun NavGraphBuilder.flowAppGraph(
         io.github.aedev.flow.ui.screens.categories.CategoriesScreen(
             onVideoClick = { video ->
                 navController.openVideoOrShorts(video, disableShortsPlayer) { navController.navigateToPlayer(it.id) }
-            },
-            onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
             },
             onShortClick = { videoId ->
                 navController.openShortsOrPlayer(ShortsQueueSource.SeededFeed(videoId), disableShortsPlayer)
@@ -374,7 +370,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.openVideoOrShorts(video, disableShortsPlayer) { navController.navigateToPlayer(it.id) }
             },
             onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
+                mediaNavigator.openChannel(channelId)
             },
             onShortClick = { videoId, sortIndex ->
                 navController.openShortsOrPlayer(
@@ -479,7 +475,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("playlist/${playlist.id}")
             },
             onMusicPlaylistClick = { playlist ->
-                navController.navigate("musicPlaylist/${playlist.id}")
+                mediaNavigator.openMusicPlaylist(playlist.id)
             },
         )
     }
@@ -500,9 +496,6 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onPlayPlaylist = { videos, index ->
                 playerViewModel.playPlaylist(videos, index, "Playlist")
-            },
-            onChannelClick = { channelId ->
-                navController.navigateToYoutubeChannel(channelId)
             },
         )
     }
@@ -624,7 +617,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigateToPlayer(track.videoId)
             },
             onArtistClick = { channelId ->
-                navController.navigate("artist/$channelId")
+                mediaNavigator.openArtist(channelId)
             },
             onSearchClick = {
                 navController.navigate("musicSearch")
@@ -633,7 +626,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("musicRecognize")
             },
             onAlbumClick = { albumId ->
-                navController.navigate("musicPlaylist/$albumId")
+                mediaNavigator.openAlbum(albumId)
             },
             onMoodsClick = { item ->
                 if (item != null) {
@@ -686,13 +679,13 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
             },
             onAlbumClick = { albumId ->
-                navController.navigate("musicPlaylist/$albumId")
+                mediaNavigator.openAlbum(albumId)
             },
             onArtistClick = { channelId ->
-                navController.navigate("artist/$channelId")
+                mediaNavigator.openArtist(channelId)
             },
             onPlaylistClick = { playlistId ->
-                navController.navigate("musicPlaylist/$playlistId")
+                mediaNavigator.openMusicPlaylist(playlistId)
             },
         )
     }
@@ -806,19 +799,19 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
             },
             onAlbumClick = { albumId ->
-                navController.navigate("musicPlaylist/$albumId")
+                mediaNavigator.openAlbum(albumId)
             },
             onArtistClick = { channelId ->
-                navController.navigate("artist/$channelId")
+                mediaNavigator.openArtist(channelId)
             },
             onPlaylistClick = { playlistId ->
-                navController.navigate("musicPlaylist/$playlistId")
+                mediaNavigator.openMusicPlaylist(playlistId)
             },
         )
     }
 
     // Artist Page
-    composable("artist/{channelId}") { backStackEntry ->
+    composable(MUSIC_ARTIST_ROUTE_PATTERN) { backStackEntry ->
         val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
         val musicViewModel: MusicViewModel =
             io.github.aedev.flow.ui.screens.music
@@ -852,10 +845,10 @@ fun NavGraphBuilder.flowAppGraph(
                         )
                     },
                     onAlbumClick = { album ->
-                        navController.navigate("musicPlaylist/${album.id}")
+                        mediaNavigator.openAlbum(album.id)
                     },
                     onArtistClick = { id ->
-                        navController.navigate("artist/$id")
+                        mediaNavigator.openArtist(id)
                     },
                     onFollowClick = {
                         musicViewModel.toggleFollowArtist(details)
@@ -913,19 +906,19 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
             },
             onAlbumClick = { albumId ->
-                navController.navigate("musicPlaylist/$albumId")
+                mediaNavigator.openAlbum(albumId)
             },
             onArtistClick = { id ->
-                navController.navigate("artist/$id")
+                mediaNavigator.openArtist(id)
             },
             onPlaylistClick = { playlistId ->
-                navController.navigate("musicPlaylist/$playlistId")
+                mediaNavigator.openMusicPlaylist(playlistId)
             },
         )
     }
 
     // Music Playlist Page
-    composable("musicPlaylist/{playlistId}") { backStackEntry ->
+    composable(MUSIC_PLAYLIST_ROUTE_PATTERN) { backStackEntry ->
         val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
         val musicViewModel: MusicViewModel =
             io.github.aedev.flow.ui.screens.music
@@ -976,9 +969,9 @@ fun NavGraphBuilder.flowAppGraph(
                         )
                     },
                     onArtistClick = { channelId ->
-                        navController.navigate("artist/$channelId")
+                        mediaNavigator.openArtist(channelId)
                     },
-                    onCollectionClick = { navController.navigate("musicPlaylist/$it") },
+                    onCollectionClick = { mediaNavigator.openMusicPlaylist(it) },
                     onLoadMore = { musicViewModel.loadMorePlaylistTracks() },
                     isUserPlaylist = isUserPlaylist,
                     isSaved = isSaved,

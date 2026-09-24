@@ -202,7 +202,6 @@ internal fun PlayerDetailSideColumn(
                     relatedVideosContent(
                         relatedVideos = uiState.relatedVideos,
                         onVideoClick = onVideoClick,
-                        onChannelClick = onChannelClick,
                         cardStyle = relatedCardStyle,
                     )
                 }

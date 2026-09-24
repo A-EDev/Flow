@@ -444,28 +444,7 @@ class MusicPlaylistsViewModel
         fun savePlaylistToLibrary(details: PlaylistDetails) {
             viewModelScope.launch {
                 try {
-                    playlistRepository.saveExternalMusicPlaylist(
-                        id = details.id,
-                        name = details.title,
-                        description = details.description ?: "",
-                        thumbnailUrl = details.thumbnailUrl,
-                    )
-                    playlistRepository.addVideosToPlaylist(
-                        details.id,
-                        details.tracks.map { track ->
-                            Video(
-                                id = track.videoId,
-                                title = track.title,
-                                channelName = track.artist,
-                                channelId = track.channelId,
-                                thumbnailUrl = track.thumbnailUrl,
-                                duration = track.duration,
-                                viewCount = track.views,
-                                uploadDate = "",
-                                isMusic = true,
-                            )
-                        },
-                    )
+                    playlistRepository.saveMusicCollection(details)
                     _isSavedPlaylist.value = true
                     Toast.makeText(context, context.getString(R.string.toast_saved_playlist_to_music_library), Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {

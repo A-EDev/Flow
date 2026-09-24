@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
@@ -92,7 +93,10 @@ fun FlowSelectionRow(
 
 /**
  * A row that opens another page or runs an action: an optional current value, then a chevron.
- * [selected] marks the page currently open beside a two-pane list.
+ * [selected] marks the page currently open beside a two-pane list. [leadingContent] and
+ * [trailingContent] replace the icon and the value-and-chevron with any content, such as an avatar
+ * or a button; [destructive] draws the title and icon in the error colour; [stateDescription] tells
+ * TalkBack the row's current state, for an action that toggles.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -108,9 +112,15 @@ fun FlowNavRow(
     enabled: Boolean = true,
     selected: Boolean = false,
     shape: Shape = RectangleShape,
+    leadingContent: (@Composable () -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+    destructive: Boolean = false,
+    stateDescription: String? = null,
 ) {
     val trailing: (@Composable () -> Unit)? =
-        if (showChevron || !trailingText.isNullOrBlank()) {
+        if (trailingContent != null) {
+            trailingContent
+        } else if (showChevron || !trailingText.isNullOrBlank()) {
             {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (!trailingText.isNullOrBlank()) {
@@ -138,12 +148,15 @@ fun FlowNavRow(
         selected = selected,
         onClick = onClick,
         shapes = ListItemDefaults.shapes(shape = shape),
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(if (stateDescription != null) Modifier.semantics { this.stateDescription = stateDescription } else Modifier),
         enabled = enabled,
         supportingContent = rowSupportingContent(supportingText),
-        leadingContent = rowLeadingContent(leadingIcon, leadingPainter),
+        leadingContent = leadingContent ?: rowLeadingContent(leadingIcon, leadingPainter),
         trailingContent = trailing,
-        colors = rowColors(shape = shape, showSelectedContainer = true),
+        colors = rowColors(shape = shape, showSelectedContainer = true, destructive = destructive),
         contentPadding = rowPadding(shape, NavRowVerticalPadding),
     ) {
         Text(text = title)
@@ -275,13 +288,14 @@ fun flowRowGroupShape(
 private fun rowColors(
     shape: Shape,
     showSelectedContainer: Boolean,
+    destructive: Boolean = false,
 ): ListItemColors {
     val container = groupedContainerColor(shape)
     val colors = MaterialTheme.colorScheme
     return ListItemDefaults.segmentedColors(
         containerColor = container,
-        contentColor = colors.onSurface,
-        leadingContentColor = colors.onSurfaceVariant,
+        contentColor = if (destructive) colors.error else colors.onSurface,
+        leadingContentColor = if (destructive) colors.error else colors.onSurfaceVariant,
         trailingContentColor = colors.onSurfaceVariant,
         supportingContentColor = colors.onSurfaceVariant,
         disabledContainerColor = container,

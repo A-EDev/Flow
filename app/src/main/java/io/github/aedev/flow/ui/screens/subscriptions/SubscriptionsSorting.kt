@@ -40,21 +40,3 @@ internal fun sortSubscriptions(
  */
 internal fun quickAccessOrder(channels: List<Channel>): List<Channel> =
     (channels.filterNot { it.isMusic } + channels.filter { it.isMusic }).distinctBy(Channel::id)
-
-/**
- * The feed refers to a channel by id, url, or a url that merely ends with the id, so a lookup that
- * fails still has to produce something navigable.
- */
-internal fun resolveChannel(
-    channels: List<Channel>,
-    channelRef: String,
-): Channel =
-    channels.firstOrNull { channel ->
-        channel.id == channelRef || channel.url == channelRef || channelRef.endsWith(channel.id)
-    } ?: Channel(
-        id = channelRef.substringAfterLast('/'),
-        name = "",
-        thumbnailUrl = "",
-        subscriberCount = 0L,
-        url = channelRef,
-    )
