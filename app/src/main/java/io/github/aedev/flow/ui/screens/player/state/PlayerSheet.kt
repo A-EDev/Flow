@@ -24,8 +24,6 @@ internal sealed interface PlayerSheet {
 
     data object Dlna : PlayerSheet
 
-    data object QuickActions : PlayerSheet
-
     /** [fullscreen] picks the landscape side panel over the bottom sheet. */
     data class Comments(
         val fullscreen: Boolean = false,

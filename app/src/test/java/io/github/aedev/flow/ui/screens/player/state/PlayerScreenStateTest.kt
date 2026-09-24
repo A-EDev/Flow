@@ -104,7 +104,7 @@ class PlayerScreenStateTest {
     private val dismissMediaSheetsClears = setOf("activeSheet")
 
     /**
-     * The eighteen-flag state deliberately left the sleep timer, download, cast and quick-action
+     * The eighteen-flag state deliberately left the sleep timer, download and cast
      * dialogs standing through a dismissal. One exclusive [PlayerSheet] cannot express that carve
      * out, so they close with everything else now.
      */
@@ -113,7 +113,6 @@ class PlayerScreenStateTest {
             PlayerSheet.SleepTimer,
             PlayerSheet.Download,
             PlayerSheet.Dlna,
-            PlayerSheet.QuickActions,
         )
 
     /** Every snapshot-backed property except the wall-clock timestamp, keyed by name. */
