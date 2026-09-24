@@ -355,9 +355,16 @@ class VideoPlayerViewModel
             video: Video,
             contentUri: String,
         ) {
-            val loadToken = nextPlaybackLoadToken()
             takeOverPlayback()
+            prepareDeviceFile(video, contentUri)
+        }
 
+        /** Plays a file on the device, keeping whatever queue it belongs to. */
+        private fun prepareDeviceFile(
+            video: Video,
+            contentUri: String,
+        ) {
+            val loadToken = nextPlaybackLoadToken()
             _uiState.value = _uiState.value.startLocalPlaybackOf(video, contentUri)
             GlobalPlayerState.setCurrentVideo(video)
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
@@ -503,7 +510,10 @@ class VideoPlayerViewModel
         ) {
             notes.observe(videoId)
             if (isLocalMediaId(videoId)) {
-                Log.d("VideoPlayerViewModel", "loadVideoInfo: $videoId is a local file — skipping all network loading")
+                // A device file never touches the network; a queue of them arrives here one by one.
+                val uri = LocalMediaIds.videoUri(videoId) ?: return
+                val video = _uiState.value.cachedVideo?.takeIf { it.id == videoId } ?: return
+                prepareDeviceFile(video, uri.toString())
                 return
             }
             val currentState = _uiState.value

@@ -4,6 +4,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.LocalCopySource
@@ -30,7 +31,10 @@ object PlayerManagerModule {
     @Provides
     fun provideEnhancedPlayerManager(videoDownloadManager: VideoDownloadManager): EnhancedPlayerManager =
         EnhancedPlayerManager.getInstance().also {
-            it.localCopySource = LocalCopySource(videoDownloadManager::localCopyPath)
+            it.localCopySource =
+                LocalCopySource { videoId ->
+                    LocalMediaIds.videoUri(videoId)?.toString() ?: videoDownloadManager.localCopyPath(videoId)
+                }
         }
 
     @Provides
