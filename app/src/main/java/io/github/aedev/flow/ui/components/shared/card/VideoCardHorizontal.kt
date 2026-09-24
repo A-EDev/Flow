@@ -14,24 +14,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.shared.pressScale
-import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.ui.theme.extendedColors
 
@@ -43,25 +37,7 @@ fun VideoCardHorizontal(
     showChannelName: Boolean = true,
     onClick: () -> Unit,
 ) {
-    val dateSettings = rememberDateDisplaySettings()
-    val cardPreferences = LocalVideoCardPreferences.current
-    val deArrowResult = rememberDeArrowResult(video.id, cardPreferences.deArrowEnabled)
-    val displayTitle = deArrowResult?.title ?: video.title
-    val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
-    val upcomingReminderIds = cardPreferences.upcomingReminderIds
-    val watchProgress = rememberWatchProgress(video.id)
-
-    var showQuickActions by remember { mutableStateOf(false) }
-    var showCollaborators by remember { mutableStateOf(false) }
-    val collaboratorItems = rememberCollaboratorItems(video)
-    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
-    val openChannelOrCollaborators = {
-        if (collaboratorItems.size > 1) {
-            showCollaborators = true
-        } else {
-            onChannelClick?.invoke(video.channelId)
-        }
-    }
+    val state = rememberVideoCardState(video)
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier =
@@ -71,7 +47,7 @@ fun VideoCardHorizontal(
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = androidx.compose.material3.ripple(),
-                    onLongClick = { showQuickActions = true },
+                    onLongClick = { state.sheets.showQuickActions = true },
                     onClick = onClick,
                 ).padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -86,12 +62,12 @@ fun VideoCardHorizontal(
         ) {
             VideoCardThumbnailOverlays(
                 video = video,
-                displayTitle = displayTitle,
-                displayThumbnailUrl = displayThumbnailUrl,
-                watchProgress = watchProgress,
+                displayTitle = state.title,
+                displayThumbnailUrl = state.thumbnailUrl,
+                watchProgress = state.watchProgress,
                 isUpcoming = video.isUpcoming,
                 badgePadding = 6.dp,
-                showReminderBadge = video.isUpcoming && video.id in upcomingReminderIds,
+                showReminderBadge = state.showReminderBadge,
             )
         }
 
@@ -100,7 +76,7 @@ fun VideoCardHorizontal(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = displayTitle,
+                text = state.title,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
@@ -110,14 +86,14 @@ fun VideoCardHorizontal(
             Column {
                 if (showChannelName) {
                     Text(
-                        text = displayChannelName,
+                        text = state.channelName,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.extendedColors.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier =
                             if (onChannelClick != null) {
-                                Modifier.clickable { openChannelOrCollaborators() }
+                                Modifier.clickable { state.openChannel(onChannelClick) }
                             } else {
                                 Modifier
                             },
@@ -129,7 +105,7 @@ fun VideoCardHorizontal(
                         videoMetadataLine(
                             video = video,
                             isUpcoming = video.isUpcoming,
-                            channelName = displayChannelName,
+                            channelName = state.channelName,
                         ),
                     style = MaterialTheme.typography.bodySmall,
                     color =
@@ -145,13 +121,5 @@ fun VideoCardHorizontal(
         }
     }
 
-    VideoCardSheets(
-        video = video,
-        collaborators = collaboratorItems,
-        showQuickActions = showQuickActions,
-        showCollaborators = showCollaborators,
-        onChannelClick = onChannelClick,
-        onDismissQuickActions = { showQuickActions = false },
-        onDismissCollaborators = { showCollaborators = false },
-    )
+    VideoCardSheets(state = state, onChannelClick = onChannelClick)
 }

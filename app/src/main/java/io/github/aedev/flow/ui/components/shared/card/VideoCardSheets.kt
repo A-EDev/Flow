@@ -1,34 +1,28 @@
 package io.github.aedev.flow.ui.components.shared.card
 
 import androidx.compose.runtime.Composable
-import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.CollaboratorsBottomSheet
 
 @Composable
 internal fun VideoCardSheets(
-    video: Video,
-    collaborators: List<VideoCollaborator>,
-    showQuickActions: Boolean,
-    showCollaborators: Boolean,
+    state: VideoCardState,
     onChannelClick: ((String) -> Unit)?,
-    onDismissQuickActions: () -> Unit,
-    onDismissCollaborators: () -> Unit,
 ) {
-    if (showQuickActions) {
+    val sheets = state.sheets
+    if (sheets.showQuickActions) {
         VideoQuickActionsBottomSheet(
-            video = video,
+            video = state.video,
             onChannelClick = onChannelClick,
-            onDismiss = onDismissQuickActions,
+            onDismiss = { sheets.showQuickActions = false },
         )
     }
 
-    if (showCollaborators) {
+    if (sheets.showCollaborators) {
         CollaboratorsBottomSheet(
-            collaborators = collaborators,
+            collaborators = state.collaborators,
             onChannelClick = onChannelClick,
-            onDismiss = onDismissCollaborators,
+            onDismiss = { sheets.showCollaborators = false },
         )
     }
 }

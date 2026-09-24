@@ -28,10 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,10 +39,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.QuickActionsViewModel
-import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarStack
 import io.github.aedev.flow.ui.components.shared.pressScale
-import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.thumbnailGradientOverlay
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -59,33 +54,11 @@ fun VideoCardFullWidth(
     showChannelName: Boolean = true,
     onClick: () -> Unit,
     onChannelClick: ((String) -> Unit)? = null,
-    onMoreClick: () -> Unit = {},
 ) {
-    var showQuickActions by remember { mutableStateOf(false) }
-    var showCollaborators by remember { mutableStateOf(false) }
-    val collaboratorItems = rememberCollaboratorItems(video)
-    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
-    val openChannelOrCollaborators = {
-        if (collaboratorItems.size > 1) {
-            showCollaborators = true
-        } else {
-            onChannelClick?.invoke(video.channelId)
-        }
-    }
-    val dateSettings = rememberDateDisplaySettings()
-    val watchProgress = rememberWatchProgress(video.id)
-
-    // DeArrow: replace clickbait titles and thumbnails if enabled
+    val state = rememberVideoCardState(video)
     val cardPreferences = LocalVideoCardPreferences.current
-    val deArrowBadgeEnabledFullWidth = cardPreferences.deArrowBadgeEnabled
-    val deArrowResultFullWidth = rememberDeArrowResult(video.id, cardPreferences.deArrowEnabled)
-    val displayTitle = deArrowResultFullWidth?.title ?: video.title
-    val displayThumbnailUrl = deArrowResultFullWidth?.thumbnailUrl ?: video.thumbnailUrl
-    val videoCardActionsEnabledFW = cardPreferences.actionsEnabled
-    val videoCardMarkWatchedEnabledFW = cardPreferences.markWatchedEnabled
-    val upcomingReminderIds = cardPreferences.upcomingReminderIds
     val quickActionsVmFW: QuickActionsViewModel = hiltViewModel()
-    val isWatchedFW = rememberIsWatched(video.id, quickActionsVmFW.watchedVideoIds, watchProgress)
+    val isWatchedFW = rememberIsWatched(video.id, quickActionsVmFW.watchedVideoIds, state.watchProgress)
 
     val interactionSource = remember { MutableInteractionSource() }
     Column(
@@ -96,7 +69,7 @@ fun VideoCardFullWidth(
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = androidx.compose.material3.ripple(),
-                    onLongClick = { showQuickActions = true },
+                    onLongClick = { state.sheets.showQuickActions = true },
                     onClick = onClick,
                 ).then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier),
     ) {
@@ -112,13 +85,13 @@ fun VideoCardFullWidth(
         ) {
             VideoCardThumbnailOverlays(
                 video = video,
-                displayTitle = displayTitle,
-                displayThumbnailUrl = displayThumbnailUrl,
-                watchProgress = watchProgress,
+                displayTitle = state.title,
+                displayThumbnailUrl = state.thumbnailUrl,
+                watchProgress = state.watchProgress,
                 isUpcoming = video.isUpcoming,
                 badgePadding = 8.dp,
-                showReminderBadge = video.isUpcoming && video.id in upcomingReminderIds,
-                showDeArrowBadge = deArrowResultFullWidth != null && deArrowBadgeEnabledFullWidth,
+                showReminderBadge = state.showReminderBadge,
+                showDeArrowBadge = state.showDeArrowBadge,
             )
         }
 
@@ -132,12 +105,12 @@ fun VideoCardFullWidth(
         ) {
             if (showChannelAvatar) {
                 ChannelAvatarStack(
-                    urls = video.channelAvatarUrls(collaboratorItems),
-                    contentDescription = displayChannelName,
+                    urls = state.avatarUrls,
+                    contentDescription = state.channelName,
                     avatarSize = 40.dp,
                     modifier =
                         if (onChannelClick != null) {
-                            Modifier.clickable { openChannelOrCollaborators() }
+                            Modifier.clickable { state.openChannel(onChannelClick) }
                         } else {
                             Modifier
                         },
@@ -150,7 +123,7 @@ fun VideoCardFullWidth(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    text = displayTitle,
+                    text = state.title,
                     style =
                         MaterialTheme.typography.bodyLarge.copy(
                             lineHeight = MaterialTheme.typography.bodyLarge.fontSize * 1.12f,
@@ -165,7 +138,7 @@ fun VideoCardFullWidth(
                         videoMetadataLine(
                             video = video,
                             isUpcoming = video.isUpcoming,
-                            channelName = displayChannelName,
+                            channelName = state.channelName,
                             includeChannel = showChannelName,
                         ),
                     style = MaterialTheme.typography.bodySmall,
@@ -179,7 +152,7 @@ fun VideoCardFullWidth(
                     overflow = TextOverflow.Ellipsis,
                     modifier =
                         if (onChannelClick != null) {
-                            Modifier.clickable { openChannelOrCollaborators() }
+                            Modifier.clickable { state.openChannel(onChannelClick) }
                         } else {
                             Modifier
                         },
@@ -190,7 +163,7 @@ fun VideoCardFullWidth(
 
             // More options button
             IconButton(
-                onClick = { showQuickActions = true },
+                onClick = { state.sheets.showQuickActions = true },
                 modifier = Modifier.size(24.dp),
             ) {
                 Icon(
@@ -202,7 +175,7 @@ fun VideoCardFullWidth(
         }
 
         // Video card quick actions (like/dislike/mark watched)
-        if (videoCardActionsEnabledFW || videoCardMarkWatchedEnabledFW) {
+        if (cardPreferences.actionsEnabled || cardPreferences.markWatchedEnabled) {
             Column(
                 modifier =
                     Modifier
@@ -211,7 +184,7 @@ fun VideoCardFullWidth(
                         .padding(bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                if (videoCardActionsEnabledFW) {
+                if (cardPreferences.actionsEnabled) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -265,7 +238,7 @@ fun VideoCardFullWidth(
                     }
                 }
 
-                if (videoCardMarkWatchedEnabledFW) {
+                if (cardPreferences.markWatchedEnabled) {
                     val watchedTint =
                         if (isWatchedFW) {
                             MaterialTheme.colorScheme.primary
@@ -302,13 +275,5 @@ fun VideoCardFullWidth(
         }
     }
 
-    VideoCardSheets(
-        video = video,
-        collaborators = collaboratorItems,
-        showQuickActions = showQuickActions,
-        showCollaborators = showCollaborators,
-        onChannelClick = onChannelClick,
-        onDismissQuickActions = { showQuickActions = false },
-        onDismissCollaborators = { showCollaborators = false },
-    )
+    VideoCardSheets(state = state, onChannelClick = onChannelClick)
 }

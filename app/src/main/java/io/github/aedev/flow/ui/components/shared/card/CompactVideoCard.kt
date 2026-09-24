@@ -28,10 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,9 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.QuickActionsViewModel
-import io.github.aedev.flow.ui.components.rememberDeArrowResult
 import io.github.aedev.flow.ui.components.shared.pressScale
-import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.ui.theme.extendedColors
 
@@ -63,34 +58,14 @@ fun CompactVideoCard(
     video: Video,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onMoreClick: () -> Unit = {},
     onChannelClick: ((String) -> Unit)? = null,
     showChannelName: Boolean = true,
     thumbnailWidth: Dp = CompactVideoCardThumbnailWidth,
 ) {
-    var showQuickActions by remember { mutableStateOf(false) }
-    var showCollaborators by remember { mutableStateOf(false) }
-    val collaboratorItems = rememberCollaboratorItems(video)
-    val displayChannelName = rememberCollaboratorChannelDisplayName(video.channelName, collaboratorItems)
-    val openChannelOrCollaborators = {
-        if (collaboratorItems.size > 1) {
-            showCollaborators = true
-        } else {
-            onChannelClick?.invoke(video.channelId)
-        }
-    }
-    val dateSettings = rememberDateDisplaySettings()
-    val watchProgress = rememberWatchProgress(video.id)
-
-    // DeArrow: replace clickbait titles and thumbnails if enabled
+    val state = rememberVideoCardState(video)
     val cardPreferences = LocalVideoCardPreferences.current
-    val deArrowBadgeEnabledCompact = cardPreferences.deArrowBadgeEnabled
-    val deArrowResultCompact = rememberDeArrowResult(video.id, cardPreferences.deArrowEnabled)
-    val videoCardMarkWatchedEnabledCompact = cardPreferences.markWatchedEnabled
     val quickActionsVmCompact: QuickActionsViewModel = hiltViewModel()
-    val isWatchedCompact = rememberIsWatched(video.id, quickActionsVmCompact.watchedVideoIds, watchProgress)
-    val displayTitle = deArrowResultCompact?.title ?: video.title
-    val displayThumbnailUrl = deArrowResultCompact?.thumbnailUrl ?: video.thumbnailUrl
+    val isWatchedCompact = rememberIsWatched(video.id, quickActionsVmCompact.watchedVideoIds, state.watchProgress)
     // A negative count is the older "no count reported" sentinel; a row that declares itself
     // upcoming counts too. The badge and the metadata line read the same answer.
     val isUpcomingRow = video.isUpcoming || video.viewCount < 0L
@@ -104,7 +79,7 @@ fun CompactVideoCard(
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = androidx.compose.material3.ripple(),
-                    onLongClick = { showQuickActions = true },
+                    onLongClick = { state.sheets.showQuickActions = true },
                     onClick = onClick,
                 ).padding(vertical = 8.dp, horizontal = 12.dp),
     ) {
@@ -119,12 +94,12 @@ fun CompactVideoCard(
         ) {
             VideoCardThumbnailOverlays(
                 video = video,
-                displayTitle = displayTitle,
-                displayThumbnailUrl = displayThumbnailUrl,
-                watchProgress = watchProgress,
+                displayTitle = state.title,
+                displayThumbnailUrl = state.thumbnailUrl,
+                watchProgress = state.watchProgress,
                 isUpcoming = isUpcomingRow,
                 badgePadding = 4.dp,
-                showDeArrowBadge = deArrowResultCompact != null && deArrowBadgeEnabledCompact,
+                showDeArrowBadge = state.showDeArrowBadge,
             )
         }
 
@@ -135,7 +110,7 @@ fun CompactVideoCard(
             modifier = Modifier.weight(1f),
         ) {
             Text(
-                text = displayTitle,
+                text = state.title,
                 style =
                     MaterialTheme.typography.bodyMedium.copy(
                         lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.12f,
@@ -150,14 +125,14 @@ fun CompactVideoCard(
 
             if (showChannelName) {
                 Text(
-                    text = displayChannelName,
+                    text = state.channelName,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.extendedColors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier =
                         if (onChannelClick != null) {
-                            Modifier.clickable { openChannelOrCollaborators() }
+                            Modifier.clickable { state.openChannel(onChannelClick) }
                         } else {
                             Modifier
                         },
@@ -169,7 +144,7 @@ fun CompactVideoCard(
                     videoMetadataLine(
                         video = video,
                         isUpcoming = isUpcomingRow,
-                        channelName = displayChannelName,
+                        channelName = state.channelName,
                     ),
                 style = MaterialTheme.typography.bodySmall,
                 color =
@@ -192,7 +167,7 @@ fun CompactVideoCard(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             IconButton(
-                onClick = { showQuickActions = true },
+                onClick = { state.sheets.showQuickActions = true },
                 modifier = Modifier.size(24.dp),
             ) {
                 Icon(
@@ -203,7 +178,7 @@ fun CompactVideoCard(
                 )
             }
 
-            if (videoCardMarkWatchedEnabledCompact) {
+            if (cardPreferences.markWatchedEnabled) {
                 IconButton(
                     onClick = {
                         if (!isWatchedCompact) quickActionsVmCompact.markAsWatched(video)
@@ -221,13 +196,5 @@ fun CompactVideoCard(
         }
     }
 
-    VideoCardSheets(
-        video = video,
-        collaborators = collaboratorItems,
-        showQuickActions = showQuickActions,
-        showCollaborators = showCollaborators,
-        onChannelClick = onChannelClick,
-        onDismissQuickActions = { showQuickActions = false },
-        onDismissCollaborators = { showCollaborators = false },
-    )
+    VideoCardSheets(state = state, onChannelClick = onChannelClick)
 }
