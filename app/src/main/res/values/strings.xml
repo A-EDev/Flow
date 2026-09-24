@@ -1592,7 +1592,8 @@
     <string name="donation_address_clip_label">Donation Address</string>
     <!-- One-time support prompt -->
     <string name="donation_prompt_title">Enjoying Flow?</string>
-    <string name="donation_prompt_message">Flow is free, open-source, and built without ads or trackers. If it has earned a place on your device, please consider supporting its development — it genuinely helps keep the project alive.</string>
+    <string name="donation_prompt_message">Flow is free, open source and ad-free. If it earned a spot on your phone, a little support keeps it going.</string>
+    <string name="donation_method_patreon" translatable="false">Patreon</string>
     <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
     <string name="donation_prompt_support">Support development</string>
     <string name="donation_prompt_later">Maybe later</string>
@@ -2807,6 +2808,19 @@
     <string name="ui_no_crash_logs">No crash logs</string>
     <string name="ui_copy_log">Copy Log</string>
     <string name="ui_clear_and_continue">Clear &amp; Continue</string>
+    <string name="crash_title">Flow closed unexpectedly</string>
+    <string name="crash_subtitle">This report stays on your device until you share it.</string>
+    <string name="crash_summary_error">Error</string>
+    <string name="crash_summary_message">Message</string>
+    <string name="crash_summary_where">Where</string>
+    <string name="crash_summary_version">Version</string>
+    <string name="crash_summary_when">When</string>
+    <string name="crash_full_report">Full report</string>
+    <string name="crash_copy">Copy report</string>
+    <string name="crash_share">Share report</string>
+    <string name="crash_report">Report</string>
+    <string name="crash_continue">Continue</string>
+    <string name="crash_report_copied">Full report copied. Paste it into the Logs field.</string>
     <string name="ui_crashed_last_session">Flow crashed last session</string>
     <string name="ui_copy_log_description">Copy the log below and paste it into a GitHub issue so it can be fixed.</string>
     <string name="ui_search_settings">Search settings…</string>
@@ -2895,6 +2909,27 @@
     </plurals>
     <string name="notification_update_available">Update Available: %1$s</string>
     <string name="notification_tap_to_update">Tap to update to the latest version.</string>
+    <string name="update_downloading_notification">Downloading Flow %1$s</string>
+    <string name="update_ready_notification">Flow %1$s is ready</string>
+    <string name="update_ready_notification_text">Verified. Tap to install.</string>
+    <string name="update_title">Flow %1$s is here</string>
+    <string name="update_version_change">%1$s → %2$s</string>
+    <string name="update_not_now">Not now</string>
+    <string name="update_skip_version">Skip this version</string>
+    <string name="update_open_github">Open on GitHub</string>
+    <string name="update_action_download">Download</string>
+    <string name="update_action_downloading">Downloading</string>
+    <string name="update_action_downloading_percent">Downloading %1$d%%</string>
+    <string name="update_action_verifying">Checking the file</string>
+    <string name="update_action_allow">Allow installs</string>
+    <string name="update_action_install">Install update</string>
+    <string name="update_action_installing">Installing</string>
+    <string name="update_permission_notice">Allow Flow to install updates. Android asks for this once.</string>
+    <string name="update_failed_network">The download stopped. Check your connection and try again.</string>
+    <string name="update_failed_storage">There is not enough space for the update.</string>
+    <string name="update_failed_checksum">The file did not match the release, so it was deleted. Try again.</string>
+    <string name="update_failed_package">The file was not a Flow update, so it was deleted.</string>
+    <string name="update_failed_install">Android could not install the update. Try again.</string>
     <string name="notification_watch_later_reminder">Watch Later Reminder</string>
     <string name="notification_video_live">Video is live</string>
     <string name="notification_channel_live">%1$s is now live: %2$s</string>

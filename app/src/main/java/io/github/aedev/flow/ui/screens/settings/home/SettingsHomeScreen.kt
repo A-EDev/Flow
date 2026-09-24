@@ -26,9 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.UpdateDialog
 import io.github.aedev.flow.ui.components.settings.SettingEntry
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
@@ -40,7 +38,6 @@ import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 import io.github.aedev.flow.ui.screens.settings.index.HomeIndex
 import io.github.aedev.flow.ui.screens.settings.index.SettingsSearch
-import io.github.aedev.flow.utils.UpdateManager
 
 private val SearchFieldBottomPadding = 8.dp
 
@@ -53,6 +50,7 @@ internal fun SettingsHomeScreen(
     selected: SettingsDestination?,
     onOpen: (SettingsTarget) -> Unit,
     onOpenDonations: () -> Unit,
+    onOpenUpdate: () -> Unit,
     onBack: () -> Unit,
     viewModel: SettingsHomeViewModel = hiltViewModel(),
 ) {
@@ -147,16 +145,11 @@ internal fun SettingsHomeScreen(
         )
     }
 
-    val available = updateCheck as? UpdateCheckState.Available
-    if (BuildConfig.UPDATER_ENABLED && available != null) {
-        UpdateDialog(
-            updateInfo = available.info,
-            onDismiss = viewModel::consumeUpdateCheck,
-            onUpdate = {
-                UpdateManager.triggerDownload(context, available.info.downloadUrl)
-                viewModel.consumeUpdateCheck()
-            },
-        )
+    LaunchedEffect(updateCheck) {
+        if (updateCheck is UpdateCheckState.Available) {
+            viewModel.consumeUpdateCheck()
+            onOpenUpdate()
+        }
     }
 }
 

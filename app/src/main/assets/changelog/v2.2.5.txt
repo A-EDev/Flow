@@ -43,6 +43,7 @@ NEW FEATURES
 - Flow Recap: a private, on-device record of your watching and listening, with a stats page of charts for any month, year or all time, covering your top channels, videos, artists, tracks and topics, streaks and your daily clock
 - A monthly and yearly Recap story that plays itself, with morphing Material shapes, artwork-tinted pages and channel and artist portraits, plus a shareable poster image
 - Onboarding rebuilt on Material 3 Expressive: a welcome step with the Flow logo, one morphing shape that follows you through every step, an alerts step that asks for notifications in context, imports grouped by the app you are moving from, and two panes on tablets and foldables
+- Updates now download, verify and install inside Flow from a new update page with sectioned release notes, the download size and a Skip this version option
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
@@ -62,12 +63,15 @@ IMPROVEMENTS
 - Device sync, dialogs and the About page were redesigned to match, with a changelog sheet, fuller device info, and switches that show a check or a cross
 - Digital wellbeing reads your watch time from the Recap ledgers once they cover a full week
 - Notifications rebuilt with grouped rows: new items stay marked for the whole visit, older ones show their real date, a swipe removes one with Undo, and Clear all asks first
+- The crash page leads with a plain summary, shows the full report in a readable form and opens a prefilled GitHub bug report
+- The donation prompt uses the app's dialog style with a Don't show again checkbox, and never appears on the same launch as an update
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
 - Nothing animates behind a hidden layer any more: the seek bar wave, lyrics sync, mini player equalizer, queue waveform and lyrics loading indicator all pause when their surface is not visible, ending a constant per-frame drain across entire listening sessions
 - Music shelves only recompose while the Music screen is visible, similar-song lanes are cached, and each track change fetches its similar-tracks lane once instead of twice
 - Feed ranking noise scales with your actual scores instead of drowning them when the feed was stale
+- Flow opens as soon as its first screen is ready instead of holding every launch behind a two second splash, and on Android 13 and later the splash matches your theme and app icon
 
 FIXES AND STABILITY
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts

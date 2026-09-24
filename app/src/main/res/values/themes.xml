@@ -10,11 +10,75 @@
         <item name="android:enforceStatusBarContrast">false</item>
     </style>
 
-    <!-- OS-level splash screen theme (Android 12+).
-         Background matches the Compose splash screen so there is no white flash. -->
+    <!-- The platform splash. Before Android 13 it follows the system night mode; from 13 on,
+         SplashController picks one of the styles below so each launch matches the app theme
+         and launcher icon the user chose. -->
     <style name="Theme.Flow.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#0F0F0F</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.Flow</item>
+    </style>
+
+    <style name="Theme.Flow.Starting.Light">
+        <item name="windowSplashScreenBackground">@color/splash_background_light</item>
+    </style>
+    <style name="Theme.Flow.Starting.Light.Play">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_fg_flow_play</item>
+    </style>
+    <style name="Theme.Flow.Starting.Light.Amoled">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_amoled_inset</item>
+    </style>
+    <style name="Theme.Flow.Starting.Light.Monochrome">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_monochrome_inset</item>
+    </style>
+    <style name="Theme.Flow.Starting.Light.Dynamic" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenBackground">@color/splash_background_light</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_dynamic_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/icon_bg_dynamic</item>
+        <item name="postSplashScreenTheme">@style/Theme.Flow</item>
+    </style>
+
+    <style name="Theme.Flow.Starting.Dark">
+        <item name="windowSplashScreenBackground">@color/splash_background_dark</item>
+    </style>
+    <style name="Theme.Flow.Starting.Dark.Play">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_fg_flow_play</item>
+    </style>
+    <style name="Theme.Flow.Starting.Dark.Amoled">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_amoled_inset</item>
+    </style>
+    <style name="Theme.Flow.Starting.Dark.Monochrome">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_monochrome_inset</item>
+    </style>
+    <style name="Theme.Flow.Starting.Dark.Ghost">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_ghost_inset</item>
+    </style>
+    <style name="Theme.Flow.Starting.Dark.Dynamic" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenBackground">@color/splash_background_dark</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_dynamic_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/icon_bg_dynamic</item>
+        <item name="postSplashScreenTheme">@style/Theme.Flow</item>
+    </style>
+
+    <style name="Theme.Flow.Starting.Black">
+        <item name="windowSplashScreenBackground">@color/splash_background_black</item>
+    </style>
+    <style name="Theme.Flow.Starting.Black.Play">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_fg_flow_play</item>
+    </style>
+    <style name="Theme.Flow.Starting.Black.Amoled">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_amoled_inset</item>
+    </style>
+    <style name="Theme.Flow.Starting.Black.Monochrome">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_monochrome_inset</item>
+    </style>
+    <style name="Theme.Flow.Starting.Black.Ghost">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_ghost_inset</item>
+    </style>
+    <style name="Theme.Flow.Starting.Black.Dynamic" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenBackground">@color/splash_background_black</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_dynamic_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/icon_bg_dynamic</item>
         <item name="postSplashScreenTheme">@style/Theme.Flow</item>
     </style>
 </resources>

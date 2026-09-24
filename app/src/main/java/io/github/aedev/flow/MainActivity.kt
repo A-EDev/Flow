@@ -1,6 +1,5 @@
 package io.github.aedev.flow
 
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -15,6 +14,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -24,14 +24,13 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import com.google.gson.JsonParser
 import dagger.hilt.android.AndroidEntryPoint
-import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
-import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.notification.NotificationHelper
+import io.github.aedev.flow.platform.AppIconController
 import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
@@ -42,30 +41,27 @@ import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.components.ProvideVideoCardState
-import io.github.aedev.flow.ui.components.UpdateDialog
 import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.components.shared.ProvideDateDisplaySettings
-import io.github.aedev.flow.ui.screens.CrashReporterScreen
-import io.github.aedev.flow.ui.theme.CustomTheme
+import io.github.aedev.flow.ui.screens.crash.CrashReportScreen
+import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
+import io.github.aedev.flow.ui.startup.FlowTheme
+import io.github.aedev.flow.ui.startup.SplashController
+import io.github.aedev.flow.ui.startup.ThemeSettings
+import io.github.aedev.flow.ui.startup.splashTone
+import io.github.aedev.flow.ui.startup.themeSettings
 import io.github.aedev.flow.ui.theme.FlowTheme
-import io.github.aedev.flow.ui.theme.ThemeMode
-import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.tv.FlowTvApp
 import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import io.github.aedev.flow.ui.youtubeChannelDeepLinkRoute
-import io.github.aedev.flow.updater.ApkUpdateHelper
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
-import io.github.aedev.flow.utils.UpdateInfo
-import io.github.aedev.flow.utils.UpdateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import javax.inject.Inject
 
 private const val PORTRAIT_REEL_ASPECT_RATIO = 9f / 16f
@@ -78,9 +74,6 @@ class MainActivity : ComponentActivity() {
     private val _isDeeplinkShort = mutableStateOf(false)
     val isDeeplinkShort: State<Boolean> = _isDeeplinkShort
 
-    private val _pendingUpdateInfo = mutableStateOf<UpdateInfo?>(null)
-    val pendingUpdateInfo: State<UpdateInfo?> = _pendingUpdateInfo
-
     private val _openMusicPlayerRequest = mutableIntStateOf(0)
     val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
 
@@ -89,6 +82,11 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
+
+    @Inject
+    lateinit var appIconController: AppIconController
+
+    private val splashController = SplashController(this)
 
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
@@ -131,8 +129,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // the OS-level splash screen (camouflaged to match Compose splash background)
-        installSplashScreen()
+        splashController.install(installSplashScreen())
 
         super.onCreate(savedInstanceState)
         DiscordPresenceRuntime.attachActivity(this)
@@ -178,20 +175,14 @@ class MainActivity : ComponentActivity() {
 
         handleIntent(intent)
 
-        // Check for updates (only in release builds, only in github flavor)
-        if (!BuildConfig.DEBUG && BuildConfig.UPDATER_ENABLED) {
-            checkForUpdates(dataManager)
-        }
+        // Read now, alongside the rest of startup, so the theme is usually known by the first composition.
+        val storedTheme = MutableStateFlow<ThemeSettings?>(null)
+        lifecycleScope.launch { dataManager.themeSettings().collect { storedTheme.value = it } }
 
         setContent {
-            var themeMode by remember { mutableStateOf(ThemeMode.SYSTEM) }
-            var themeVariant by remember { mutableStateOf(ThemeVariant.DARK) }
-            var customTheme by remember { mutableStateOf<CustomTheme?>(null) }
-            var systemLightThemeMode by remember { mutableStateOf(ThemeMode.DARK) }
-            var systemDarkThemeMode by remember { mutableStateOf(ThemeMode.DARK) }
-            var systemDarkThemeVariant by remember { mutableStateOf(ThemeVariant.DARK) }
-            // State to control splash visibility
-            var showSplash by remember { mutableStateOf(true) }
+            // Nothing is composed until the theme is known: the splash covers the wait, and the app
+            // composes once in the right theme instead of twice.
+            val theme = storedTheme.collectAsState().value ?: return@setContent
 
             val context = LocalContext.current
             val configuration = LocalConfiguration.current
@@ -205,23 +196,17 @@ class MainActivity : ComponentActivity() {
             SideEffect { cachedAppUiRoot = appUiRoot }
 
             // Check for a crash that happened last session.
-            // If found, show the CrashReporterScreen instead of the normal UI.
+            // If found, show the CrashReportScreen instead of the normal UI.
             var pendingCrashLog by remember {
                 mutableStateOf(FlowCrashHandler.getLastCrash(applicationContext))
             }
 
             if (pendingCrashLog != null) {
-                FlowTheme(
-                    themeMode = themeMode,
-                    themeVariant = themeVariant,
-                    customTheme = customTheme,
-                    systemLightThemeMode = systemLightThemeMode,
-                    systemDarkThemeMode = systemDarkThemeMode,
-                    systemDarkThemeVariant = systemDarkThemeVariant,
-                ) {
-                    CrashReporterScreen(
-                        crashLog = pendingCrashLog!!,
-                        onClearAndRestart = {
+                SideEffect { splashController.contentReady = true }
+                FlowTheme(theme) {
+                    CrashReportScreen(
+                        report = pendingCrashLog!!,
+                        onContinue = {
                             FlowCrashHandler.clearLastCrash(applicationContext)
                             pendingCrashLog = null
                         },
@@ -230,94 +215,15 @@ class MainActivity : ComponentActivity() {
                 return@setContent
             }
 
-            var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
-
-            // Check for updates ONCE on launch — skip debug/foss builds, enforce 24h cooldown
-            LaunchedEffect(Unit) {
-                if (BuildConfig.DEBUG || !BuildConfig.UPDATER_ENABLED) return@LaunchedEffect
-                val lastCheck = dataManager.lastUpdateCheck.first()
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastCheck < 24 * 60 * 60 * 1000L) return@LaunchedEffect
-
-                val info = UpdateManager.checkForUpdate(BuildConfig.VERSION_NAME)
-                dataManager.setLastUpdateCheck(currentTime)
-                if (info != null && info.isNewer) {
-                    updateInfo = info
-                }
-            }
-
-            // Load theme preference and keep it reactive
-            LaunchedEffect(Unit) {
-                dataManager.themeMode.collect { mode ->
-                    themeMode = mode
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.themeVariant.collect { variant ->
-                    themeVariant = variant
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.activeCustomTheme.collect { theme ->
-                    customTheme = theme
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.systemLightThemeMode.collect { mode ->
-                    systemLightThemeMode = mode
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.systemDarkThemeMode.collect { mode ->
-                    systemDarkThemeMode = mode
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.systemDarkThemeVariant.collect { variant ->
-                    systemDarkThemeVariant = variant
-                }
-            }
-
             // Initialize Flow Neuro Engine
             LaunchedEffect(Unit) {
                 io.github.aedev.flow.data.recommendation.FlowNeuroEngine
                     .initialize(applicationContext)
             }
 
-            FlowTheme(
-                themeMode = themeMode,
-                themeVariant = themeVariant,
-                customTheme = customTheme,
-                systemLightThemeMode = systemLightThemeMode,
-                systemDarkThemeMode = systemDarkThemeMode,
-                systemDarkThemeVariant = systemDarkThemeVariant,
-            ) {
-                // Show Dialog Overlay if update exists (github flavor only)
-                if (BuildConfig.UPDATER_ENABLED && updateInfo != null) {
-                    UpdateDialog(
-                        updateInfo = updateInfo!!,
-                        onDismiss = { updateInfo = null },
-                        onUpdate = {
-                            UpdateManager.triggerDownload(context, updateInfo!!.downloadUrl)
-                            updateInfo = null
-                        },
-                    )
-                }
-
-                // Handle update from notification (github flavor only)
-                if (BuildConfig.UPDATER_ENABLED) {
-                    val pendingUpdate by this@MainActivity.pendingUpdateInfo
-                    LaunchedEffect(pendingUpdate) {
-                        if (pendingUpdate != null) {
-                            updateInfo = pendingUpdate
-                        }
-                    }
-                }
+            FlowTheme(theme) {
+                val splashTone = splashTone(MaterialTheme.colorScheme.background)
+                LaunchedEffect(splashTone) { splashController.rememberTheme(splashTone, appIconController.activeSuffix()) }
 
                 // Date preferences: five DataStore flows used to be opened per video card,
                 // metadata line, info section, description sheet and info dialog.
@@ -342,6 +248,7 @@ class MainActivity : ComponentActivity() {
                                 val pendingRoute by this@MainActivity.pendingRoute
 
                                 if (appUiRoot == AppUiRoot.TV) {
+                                    SideEffect { splashController.contentReady = true }
                                     FlowTvApp(
                                         deeplinkVideoId = deeplinkVideoId,
                                         isShort = isDeeplinkShort,
@@ -350,10 +257,10 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     ProvideChannelGroupLabels {
                                         FlowApp(
-                                            currentTheme = themeMode,
-                                            themeVariant = themeVariant,
-                                            systemLightThemeMode = systemLightThemeMode,
-                                            systemDarkThemeMode = systemDarkThemeMode,
+                                            currentTheme = theme.themeMode,
+                                            themeVariant = theme.themeVariant,
+                                            systemLightThemeMode = theme.systemLightThemeMode,
+                                            systemDarkThemeMode = theme.systemDarkThemeMode,
                                             deeplinkVideoId = deeplinkVideoId,
                                             isShort = isDeeplinkShort,
                                             openMusicPlayerRequest = openMusicPlayerRequest,
@@ -364,17 +271,9 @@ class MainActivity : ComponentActivity() {
                                             onPendingRouteConsumed = {
                                                 _pendingRoute.value = null
                                             },
+                                            onStartDestinationKnown = { splashController.contentReady = true },
                                         )
                                     }
-                                }
-
-                                // 2. THE SPLASH SCREEN (Z-Index Top)
-                                if (showSplash) {
-                                    io.github.aedev.flow.ui.components.FlowSplashScreen(
-                                        onAnimationFinished = {
-                                            showSplash = false
-                                        },
-                                    )
                                 }
                             }
                         }
@@ -421,6 +320,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
+        if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_UPDATE, false)) {
+            intent.removeExtra(NotificationHelper.EXTRA_OPEN_UPDATE)
+            _pendingRoute.value = UPDATE_ROUTE
+            return
+        }
         val data = intent.data
         val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
 
@@ -497,14 +401,6 @@ class MainActivity : ComponentActivity() {
         if (videoId != null) {
             _deeplinkVideoId.value = videoId
             intent.putExtra("deeplink_video_id", videoId)
-        }
-
-        // Check for Update Notification extras
-        if (intent.hasExtra("EXTRA_UPDATE_VERSION")) {
-            val version = intent.getStringExtra("EXTRA_UPDATE_VERSION") ?: ""
-            val changelog = intent.getStringExtra("EXTRA_UPDATE_CHANGELOG") ?: ""
-            val url = intent.getStringExtra("EXTRA_UPDATE_URL") ?: ""
-            _pendingUpdateInfo.value = UpdateInfo(version, changelog, url, true)
         }
     }
 
@@ -810,79 +706,6 @@ class MainActivity : ComponentActivity() {
             playerManager.pause()
             playerManager.stopBackgroundService()
         }
-    }
-
-    private fun checkForUpdates(dataManager: LocalDataManager) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // Check cooldown (24 hours)
-                val lastCheck = dataManager.lastUpdateCheck.first()
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastCheck < 24 * 60 * 60 * 1000) {
-                    Log.d("MainActivity", "Skipping update check (cooldown)")
-                    return@launch
-                }
-
-                val client = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
-                val request =
-                    Request
-                        .Builder()
-                        .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
-                        .header("Accept", "application/vnd.github.v3+json")
-                        .build()
-                val response = client.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val body = response.body?.string()
-                    if (body != null) {
-                        val json = JsonParser.parseString(body).asJsonObject
-                        val latestTag = json.get("tag_name").asString
-                        val currentVersion = BuildConfig.VERSION_NAME
-
-                        val cleanLatest = latestTag.removePrefix("v").split("-").first()
-                        val cleanCurrent = currentVersion.removePrefix("v").split("-").first()
-
-                        Log.d("MainActivity", "Latest tag: $latestTag, Current: $currentVersion, Comparing: $cleanLatest vs $cleanCurrent")
-
-                        if (isNewerVersion(cleanLatest, cleanCurrent)) {
-                            withContext(Dispatchers.Main) {
-                                AlertDialog
-                                    .Builder(this@MainActivity)
-                                    .setTitle(getString(R.string.new_update_available))
-                                    .setMessage(getString(R.string.update_download_prompt, latestTag))
-                                    .setPositiveButton(getString(R.string.download)) { _, _ ->
-                                        ApkUpdateHelper.requestDownload(this@MainActivity, "https://github.com/A-EDev/Flow/releases/latest")
-                                    }.setNegativeButton(getString(R.string.maybe_later), null)
-                                    .show()
-                            }
-                        }
-                    }
-                }
-
-                // Update last check time
-                dataManager.setLastUpdateCheck(currentTime)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Failed to check for updates", e)
-            }
-        }
-    }
-
-    private fun isNewerVersion(
-        latest: String,
-        current: String,
-    ): Boolean {
-        val cleanLatest = latest.split("-").first()
-        val cleanCurrent = current.split("-").first()
-        val latestParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
-        val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
-
-        val size = maxOf(latestParts.size, currentParts.size)
-        for (i in 0 until size) {
-            val l = latestParts.getOrNull(i) ?: 0
-            val c = currentParts.getOrNull(i) ?: 0
-            if (l > c) return true
-            if (l < c) return false
-        }
-        return false
     }
 
     companion object {

@@ -55,6 +55,8 @@ import io.github.aedev.flow.ui.screens.search.SearchScreen
 import io.github.aedev.flow.ui.screens.settings.SettingsHost
 import io.github.aedev.flow.ui.screens.shorts.ShortsScreen
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsScreen
+import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
+import io.github.aedev.flow.ui.screens.update.UpdateScreen
 
 @UnstableApi
 fun NavGraphBuilder.flowAppGraph(
@@ -116,6 +118,11 @@ fun NavGraphBuilder.flowAppGraph(
             },
             viewModel = homeViewModel,
         )
+    }
+
+    composable(UPDATE_ROUTE) {
+        currentRoute.value = UPDATE_ROUTE
+        UpdateScreen(onClose = { navController.popBackStack() })
     }
 
     // Notifications Screen
@@ -308,6 +315,7 @@ fun NavGraphBuilder.flowAppGraph(
             onExit = { navController.popBackStack() },
             onOpenDonations = { navController.navigate("donations") },
             onOpenRecap = { navController.navigate(RecapRoutes.stats()) },
+            onOpenUpdate = { navController.navigate(UPDATE_ROUTE) },
         )
     }
 

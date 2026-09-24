@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher art is full bleed; the splash masks its icon to the inner two thirds. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/splash_icon_ghost"
+    android:inset="28%" />

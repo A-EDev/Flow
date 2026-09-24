@@ -30,7 +30,7 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
-import io.github.aedev.flow.ui.components.DonationPromptHost
+import io.github.aedev.flow.ui.components.donation.DonationPromptHost
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationChrome
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationDefaults
 import io.github.aedev.flow.ui.components.layout.navigation.NavigationVisibility
@@ -50,6 +50,8 @@ import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
+import io.github.aedev.flow.ui.screens.update.UpdateLaunchEffect
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 
@@ -66,6 +68,7 @@ fun FlowApp(
     onDeeplinkConsumed: () -> Unit = {},
     pendingRoute: String? = null,
     onPendingRouteConsumed: () -> Unit = {},
+    onStartDestinationKnown: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
@@ -130,6 +133,7 @@ fun FlowApp(
         DeepFlowManager.initialize(context)
         val bypass = activity?.intent?.getBooleanExtra(MainActivity.EXTRA_BENCHMARK_BYPASS_ONBOARDING, false) == true
         needsOnboarding = if (bypass) false else FlowNeuroEngine.needsOnboarding()
+        onStartDestinationKnown()
     }
 
     FlowAppSideEffects(
@@ -569,6 +573,8 @@ fun FlowApp(
                         bottom = snackbarBottomPadding,
                     ),
         )
+
+        UpdateLaunchEffect(needsOnboarding = needsOnboarding, onOpenUpdate = { navController.navigate(UPDATE_ROUTE) })
 
         DonationPromptHost(
             enabled = needsOnboarding == false && !isInPipMode && !playerVisible,

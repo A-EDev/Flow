@@ -9,9 +9,9 @@ import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
+import io.github.aedev.flow.data.update.AppRelease
+import io.github.aedev.flow.data.update.UpdateRepository
 import io.github.aedev.flow.player.DeepFlowManager
-import io.github.aedev.flow.utils.UpdateInfo
-import io.github.aedev.flow.utils.UpdateManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -44,7 +44,7 @@ sealed interface UpdateCheckState {
     data object Failed : UpdateCheckState
 
     data class Available(
-        val info: UpdateInfo,
+        val release: AppRelease,
     ) : UpdateCheckState
 }
 
@@ -54,6 +54,7 @@ class SettingsHomeViewModel
     constructor(
         @ApplicationContext private val context: Context,
         private val playerPreferences: PlayerPreferences,
+        private val updates: UpdateRepository,
     ) : ViewModel() {
         val deepFlow: StateFlow<DeepFlowState> =
             combine(
@@ -99,7 +100,7 @@ class SettingsHomeViewModel
             _updateCheck.value = UpdateCheckState.Checking
             viewModelScope.launch {
                 val result =
-                    runCatching { UpdateManager.fetchUpdate(BuildConfig.VERSION_NAME) }
+                    runCatching { updates.fetch() }
                         .fold(
                             onSuccess = { info -> info?.let { UpdateCheckState.Available(it) } ?: UpdateCheckState.UpToDate },
                             onFailure = { UpdateCheckState.Failed },

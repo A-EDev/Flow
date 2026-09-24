@@ -296,7 +296,6 @@ dependencies {
     implementation(libs.androidx.paging.compose)
 
     implementation(libs.androidx.work.runtime.ktx)
-    "githubImplementation"(libs.apkupdater)
 
     implementation(libs.brotli)
     implementation(libs.re2j)
