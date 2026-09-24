@@ -15,6 +15,8 @@ import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.repository.RemotePlaylistPage
+import io.github.aedev.flow.data.repository.YouTubePlaylistRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
 import io.github.aedev.flow.player.quality.QualityManager
@@ -64,6 +66,7 @@ data class PlaylistUiMessage(
 
 data class PlaylistDetailUiState(
     val playlistName: String = "",
+    val ownerName: String? = null,
     val description: String = "",
     val isPrivate: Boolean = false,
     val videos: List<Video> = emptyList(),
@@ -72,6 +75,8 @@ data class PlaylistDetailUiState(
     val isSaved: Boolean = false,
     val isWatchLater: Boolean = false,
     val isLoading: Boolean = true,
+    /** Later pages of a YouTube playlist are still arriving. */
+    val isLoadingMore: Boolean = false,
     val errorMessage: String? = null,
 )
 
@@ -82,6 +87,7 @@ class PlaylistDetailViewModel
         @ApplicationContext private val context: Context,
         private val repository: PlaylistRepository,
         private val youTubeRepository: YouTubeRepository,
+        private val playlistRepository: YouTubePlaylistRepository,
         private val playerPreferences: PlayerPreferences,
         private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
         savedStateHandle: SavedStateHandle,
@@ -373,87 +379,86 @@ class PlaylistDetailViewModel
         }
 
         private suspend fun loadRemotePlaylist() {
-            try {
-                val details = youTubeRepository.getPlaylistDetails(playlistId)
-                if (details != null) {
-                    _uiState.update {
-                        it.copy(
-                            playlistName = details.name,
-                            description = details.description ?: "",
-                            isPrivate = false,
-                            videos = details.videos,
-                            thumbnailUrl = details.thumbnailUrl,
-                            isLocalPlaylist = false,
-                            isSaved = false,
-                            isWatchLater = false,
-                            isLoading = false,
-                            errorMessage = null,
-                        )
-                    }
-                    return
-                }
-
-                val musicDetails = YouTubeMusicService.fetchPlaylistDetails(playlistId)
-                if (musicDetails != null) {
-                    _uiState.update {
-                        it.copy(
-                            playlistName = musicDetails.title,
-                            description = musicDetails.description ?: "",
-                            isPrivate = false,
-                            videos =
-                                musicDetails.tracks.map { track ->
-                                    Video(
-                                        id = track.videoId,
-                                        title = track.title,
-                                        channelName = track.artist,
-                                        channelId = track.channelId,
-                                        thumbnailUrl = track.thumbnailUrl,
-                                        duration = track.duration,
-                                        viewCount = track.views ?: 0,
-                                        uploadDate = "",
-                                        isMusic = true,
-                                    )
-                                },
-                            thumbnailUrl = musicDetails.thumbnailUrl,
-                            isLocalPlaylist = false,
-                            isSaved = false,
-                            isWatchLater = false,
-                            isLoading = false,
-                            errorMessage = null,
-                        )
-                    }
-                    return
-                }
-
+            val page = playlistRepository.cachedComplete(playlistId) ?: playlistRepository.firstPage(playlistId)
+            if (page != null) {
                 _uiState.update {
                     it.copy(
+                        playlistName = page.title,
+                        ownerName = page.ownerName,
+                        description = page.description,
+                        isPrivate = false,
+                        videos = page.videos,
+                        thumbnailUrl = page.thumbnailUrl,
+                        isLocalPlaylist = false,
+                        isSaved = false,
+                        isWatchLater = false,
                         isLoading = false,
-                        errorMessage = context.getString(R.string.playlist_load_failed),
+                        isLoadingMore = page.continuation != null,
+                        errorMessage = null,
                     )
                 }
-            } catch (_: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = context.getString(R.string.playlist_load_failed),
-                    )
-                }
+                page.continuation?.let { loadRemainingPages(page, it) }
+                return
             }
+
+            val musicDetails = runCatching { YouTubeMusicService.fetchPlaylistDetails(playlistId) }.getOrNull()
+            if (musicDetails != null) {
+                _uiState.update {
+                    it.copy(
+                        playlistName = musicDetails.title,
+                        ownerName = musicDetails.author.takeIf(String::isNotBlank),
+                        description = musicDetails.description.orEmpty(),
+                        isPrivate = false,
+                        videos = musicDetails.tracks.map { track -> track.toPlaylistVideo() },
+                        thumbnailUrl = musicDetails.thumbnailUrl,
+                        isLocalPlaylist = false,
+                        isSaved = false,
+                        isWatchLater = false,
+                        isLoading = false,
+                        errorMessage = null,
+                    )
+                }
+                return
+            }
+
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessage = context.getString(R.string.playlist_load_failed),
+                )
+            }
+        }
+
+        /** Appends the pages after the first as they arrive, so the list is usable while it grows. */
+        private suspend fun loadRemainingPages(
+            first: RemotePlaylistPage,
+            firstToken: String,
+        ) {
+            var videos = first.videos
+            var token: String? = firstToken
+            var pages = 1
+            while (token != null && pages < YouTubePlaylistRepository.PAGE_LIMIT) {
+                val (more, next) = playlistRepository.nextPage(playlistId, token) ?: break
+                videos = (videos + more).distinctBy { it.id }
+                token = next.takeIf { more.isNotEmpty() }
+                pages++
+                _uiState.update { it.copy(videos = videos) }
+            }
+            _uiState.update { it.copy(isLoadingMore = false) }
+            if (token == null) playlistRepository.rememberComplete(playlistId, first.copy(videos = videos))
         }
 
         private fun refreshSavedPlaylist() {
             viewModelScope.launch {
-                try {
-                    val details = youTubeRepository.getPlaylistDetails(playlistId) ?: return@launch
-                    repository.syncSavedPlaylistVideos(playlistId, details.videos)
-                    _uiState.update { state ->
-                        state.copy(
-                            playlistName = details.name.ifBlank { state.playlistName },
-                            description = (details.description ?: "").ifBlank { state.description },
-                            thumbnailUrl = details.thumbnailUrl.ifBlank { state.thumbnailUrl },
-                        )
-                    }
-                } catch (_: Exception) {
+                val details = playlistRepository.complete(playlistId) ?: return@launch
+                repository.syncSavedPlaylistVideos(playlistId, details.videos)
+                _uiState.update { state ->
+                    state.copy(
+                        playlistName = details.title.ifBlank { state.playlistName },
+                        ownerName = details.ownerName ?: state.ownerName,
+                        description = details.description.ifBlank { state.description },
+                        thumbnailUrl = details.thumbnailUrl.ifBlank { state.thumbnailUrl },
+                    )
                 }
             }
         }
@@ -486,6 +491,19 @@ class PlaylistDetailViewModel
             }
         }
     }
+
+private fun io.github.aedev.flow.data.music.model.MusicTrack.toPlaylistVideo(): Video =
+    Video(
+        id = videoId,
+        title = title,
+        channelName = artist,
+        channelId = channelId,
+        thumbnailUrl = thumbnailUrl,
+        duration = duration,
+        viewCount = views,
+        uploadDate = "",
+        isMusic = true,
+    )
 
 private data class OfflineStreamSelection(
     val videoUrl: String,

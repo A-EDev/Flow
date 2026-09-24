@@ -65,6 +65,7 @@ import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
+import io.github.aedev.flow.innertube.pages.VideoPlaylistPage
 import io.github.aedev.flow.innertube.pages.channel.ChannelAbout
 import io.github.aedev.flow.innertube.pages.channel.ChannelHeader
 import io.github.aedev.flow.innertube.pages.channel.ChannelPage
@@ -105,6 +106,7 @@ import io.github.aedev.flow.innertube.pages.search.toSearchResultsPage
 import io.github.aedev.flow.innertube.pages.toCommentRepliesPage
 import io.github.aedev.flow.innertube.pages.toVideoCommentsPage
 import io.github.aedev.flow.innertube.pages.toVideoDescriptionPage
+import io.github.aedev.flow.innertube.pages.toVideoPlaylistPage
 import io.github.aedev.flow.innertube.pages.videoCommentsContinuation
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.avatarImageIdentityKey
@@ -1067,6 +1069,22 @@ object YouTube {
     suspend fun communityPostCommentsContinuation(continuation: String): Result<CommunityCommentsPage> =
         runCatching {
             communityPostCommentsPage(continuation = continuation)
+        }
+
+    /** A YouTube playlist's first page when [continuation] is null, otherwise the page it points to. */
+    suspend fun videoPlaylistPage(
+        playlistId: String,
+        continuation: String? = null,
+    ): Result<VideoPlaylistPage> =
+        runCatching {
+            val response =
+                innerTube.channelBrowse(
+                    client = currentWebClient(),
+                    channelId = "VL$playlistId".takeIf { continuation == null },
+                    params = null,
+                    continuation = continuation,
+                )
+            Json.parseToJsonElement(response.bodyAsText()).toVideoPlaylistPage()
         }
 
     private suspend fun communityPostsPage(
