@@ -100,7 +100,11 @@ class QuickActionsViewModel
                         .toSet()
                 }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
+        /** Channels already being observed; each collector lives as long as this ViewModel, so one per channel. */
+        private val observedChannelIds = mutableSetOf<String>()
+
         fun loadSubscriptionState(channelId: String) {
+            if (!observedChannelIds.add(channelId)) return
             viewModelScope.launch {
                 engagement.subscriptionState(channelId).collect { subscribed ->
                     if (subscribed) {
