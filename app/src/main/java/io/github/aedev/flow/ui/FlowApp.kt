@@ -68,6 +68,7 @@ fun FlowApp(
     onDeeplinkConsumed: () -> Unit = {},
     pendingRoute: String? = null,
     onPendingRouteConsumed: () -> Unit = {},
+    onStartDestinationKnown: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
@@ -132,6 +133,7 @@ fun FlowApp(
         DeepFlowManager.initialize(context)
         val bypass = activity?.intent?.getBooleanExtra(MainActivity.EXTRA_BENCHMARK_BYPASS_ONBOARDING, false) == true
         needsOnboarding = if (bypass) false else FlowNeuroEngine.needsOnboarding()
+        onStartDestinationKnown()
     }
 
     FlowAppSideEffects(

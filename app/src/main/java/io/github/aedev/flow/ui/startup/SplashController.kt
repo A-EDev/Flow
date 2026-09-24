@@ -3,29 +3,27 @@ package io.github.aedev.flow.ui.startup
 import android.app.Activity
 import android.os.Build
 import android.os.SystemClock
-import android.view.animation.AnimationUtils
 import androidx.core.splashscreen.SplashScreen
-import androidx.core.splashscreen.SplashScreenViewProvider
 
-private const val MAX_HOLD_MS = 800L
-private const val ICON_EXIT_SCALE = 1.25f
+private const val MAX_HOLD_MS = 2_500L
 
 /**
- * The platform splash, held only until the first frame can be drawn in the user's theme, then
- * handed off with one short exit. [MAX_HOLD_MS] caps the hold so a stalled preference read can
- * never keep the app hidden.
+ * The platform splash, held until the first real screen can be drawn, so a cold start goes from the
+ * splash straight to content with no blank frame between. The system plays its own exit: a custom
+ * exit listener makes Android hand the splash to the app's main thread, which is still busy with
+ * startup, and kept the splash up for seconds longer on device. [MAX_HOLD_MS] caps the hold so a
+ * stalled start can never keep the app hidden.
  */
 class SplashController(
     private val activity: Activity,
 ) {
     @Volatile
-    var themeReady: Boolean = false
+    var contentReady: Boolean = false
 
     private val startedAt = SystemClock.uptimeMillis()
 
     fun install(splash: SplashScreen) {
-        splash.setKeepOnScreenCondition { !themeReady && SystemClock.uptimeMillis() - startedAt < MAX_HOLD_MS }
-        splash.setOnExitAnimationListener(::animateExit)
+        splash.setKeepOnScreenCondition { !contentReady && SystemClock.uptimeMillis() - startedAt < MAX_HOLD_MS }
     }
 
     /** Opens the next launch on [tone] with the art of [iconSuffix]; Android 13 and later only. */
@@ -36,24 +34,5 @@ class SplashController(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             activity.splashScreen.setSplashScreenTheme(splashThemeFor(iconSuffix, tone))
         }
-    }
-
-    private fun animateExit(provider: SplashScreenViewProvider) {
-        val interpolator = AnimationUtils.loadInterpolator(activity, android.R.interpolator.fast_out_slow_in)
-        val duration = activity.resources.getInteger(android.R.integer.config_mediumAnimTime).toLong()
-        provider.iconView
-            .animate()
-            .scaleX(ICON_EXIT_SCALE)
-            .scaleY(ICON_EXIT_SCALE)
-            .setInterpolator(interpolator)
-            .setDuration(duration)
-            .start()
-        provider.view
-            .animate()
-            .alpha(0f)
-            .setInterpolator(interpolator)
-            .setDuration(duration)
-            .withEndAction(provider::remove)
-            .start()
     }
 }

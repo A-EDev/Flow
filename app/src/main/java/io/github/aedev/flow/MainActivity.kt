@@ -60,6 +60,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -174,10 +175,14 @@ class MainActivity : ComponentActivity() {
 
         handleIntent(intent)
 
+        // Read now, alongside the rest of startup, so the theme is usually known by the first composition.
+        val storedTheme = MutableStateFlow<ThemeSettings?>(null)
+        lifecycleScope.launch { dataManager.themeSettings().collect { storedTheme.value = it } }
+
         setContent {
-            val storedTheme by remember { dataManager.themeSettings() }.collectAsState(initial = null)
-            SideEffect { if (storedTheme != null) splashController.themeReady = true }
-            val theme = storedTheme ?: ThemeSettings()
+            // Nothing is composed until the theme is known: the splash covers the wait, and the app
+            // composes once in the right theme instead of twice.
+            val theme = storedTheme.collectAsState().value ?: return@setContent
 
             val context = LocalContext.current
             val configuration = LocalConfiguration.current
@@ -197,6 +202,7 @@ class MainActivity : ComponentActivity() {
             }
 
             if (pendingCrashLog != null) {
+                SideEffect { splashController.contentReady = true }
                 FlowTheme(theme) {
                     CrashReportScreen(
                         report = pendingCrashLog!!,
@@ -242,6 +248,7 @@ class MainActivity : ComponentActivity() {
                                 val pendingRoute by this@MainActivity.pendingRoute
 
                                 if (appUiRoot == AppUiRoot.TV) {
+                                    SideEffect { splashController.contentReady = true }
                                     FlowTvApp(
                                         deeplinkVideoId = deeplinkVideoId,
                                         isShort = isDeeplinkShort,
@@ -264,6 +271,7 @@ class MainActivity : ComponentActivity() {
                                             onPendingRouteConsumed = {
                                                 _pendingRoute.value = null
                                             },
+                                            onStartDestinationKnown = { splashController.contentReady = true },
                                         )
                                     }
                                 }
