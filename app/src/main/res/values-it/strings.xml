@@ -721,7 +721,7 @@
     <string name="stats_disclaimer">Le statistiche si basano sulla cronologia delle visualizzazioni in questa app. L\'utilizzo effettivo potrebbe variare.</string>
     <string name="tools_to_manage_time">Strumenti per gestire il tuo utilizzo</string>
     <string name="up_next">A SEGUIRE</string>
-    <string name="deep_flow_mode_subtitle">Sospendi l\'apprendimento — naviga senza influenzare il tuo profilo</string>
+    <string name="deep_flow_mode_subtitle">Sospendi l\'apprendimento mentre navighi</string>
     <string name="deep_flow_mode_title">Modalità Deep Flow</string>
     <string name="deep_flow_learning_paused">APPRENDIMENTO SOSPESO</string>
     <string name="deep_flow_expires_in">Scade tra %s</string>
@@ -1425,7 +1425,7 @@
     <string name="import_newpipe_history">Importa cronologia di NewPipe</string>
     <string name="import_newpipe_history_desc">Importa la cronologia di visualizzazione da backup ZIP di NewPipe o da un file newpipe.db.</string>
     <string name="notif_master_toggle">Abilita notifiche</string>
-    <string name="notif_master_toggle_subtitle">Consenti a Flow di attivarsi in background per il controllo delle notifiche e gli avvisi</string>
+    <string name="notif_master_toggle_subtitle">Consenti a Flow di cercare nuovi video in secondo piano</string>
     <string name="notif_check_interval_disabled">Il controllo delle notifiche in background è disabilitato</string>
     <string name="player_adaptive_size_title">Dimensione del player adattiva</string>
     <string name="player_adaptive_size_subtitle">Usa il formato video per l\'altezza del player. Disattiva per un rapporto fisso 16:9.</string>
@@ -1628,7 +1628,7 @@
     <string name="history_tab_local_videos">Video locali</string>
     <string name="history_tab_local_music">Musica locale</string>
     <string name="deep_flow_save_history_title">Salva nella cronologia di visualizzazione</string>
-    <string name="deep_flow_save_history_subtitle">Conserva i video visualizzati nella cronologia (con i progressi). L\'algoritmo continuerà comunque a non usarli per l\'apprendimento. Disattivato = non viene salvato nulla.</string>
+    <string name="deep_flow_save_history_subtitle">Conserva la cronologia delle visualizzazioni senza apprendere suggerimenti</string>
     <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
     <string name="content_settings_share_without_text_title">Condividi link senza testo</string>
     <string name="content_settings_share_without_text_subtitle">Condividi solo il link dei video, senza il messaggio \"Dai un\'occhiata a questo video\"</string>
