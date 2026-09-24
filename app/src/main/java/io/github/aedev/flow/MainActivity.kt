@@ -43,7 +43,7 @@ import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.components.ProvideVideoCardState
 import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.components.shared.ProvideDateDisplaySettings
-import io.github.aedev.flow.ui.screens.CrashReporterScreen
+import io.github.aedev.flow.ui.screens.crash.CrashReportScreen
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.startup.FlowTheme
 import io.github.aedev.flow.ui.startup.SplashController
@@ -191,16 +191,16 @@ class MainActivity : ComponentActivity() {
             SideEffect { cachedAppUiRoot = appUiRoot }
 
             // Check for a crash that happened last session.
-            // If found, show the CrashReporterScreen instead of the normal UI.
+            // If found, show the CrashReportScreen instead of the normal UI.
             var pendingCrashLog by remember {
                 mutableStateOf(FlowCrashHandler.getLastCrash(applicationContext))
             }
 
             if (pendingCrashLog != null) {
                 FlowTheme(theme) {
-                    CrashReporterScreen(
-                        crashLog = pendingCrashLog!!,
-                        onClearAndRestart = {
+                    CrashReportScreen(
+                        report = pendingCrashLog!!,
+                        onContinue = {
                             FlowCrashHandler.clearLastCrash(applicationContext)
                             pendingCrashLog = null
                         },
