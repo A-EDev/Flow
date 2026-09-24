@@ -89,6 +89,30 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylistVideoCrossRef(crossRef: PlaylistVideoCrossRef)
 
+    /** Applies a whole new order at once, so no intermediate order with duplicate positions is emitted. */
+    @Transaction
+    suspend fun reorderPlaylistVideos(
+        playlistId: String,
+        orderedVideoIds: List<String>,
+    ) {
+        orderedVideoIds.forEachIndexed { index, videoId -> updatePlaylistVideoPosition(playlistId, videoId, index.toLong()) }
+        updatePlaylistThumbnail(playlistId, getFirstVideoThumbnail(playlistId).orEmpty())
+    }
+
+    /** Makes the playlist hold exactly [orderedVideoIds], in that order, as one change. */
+    @Transaction
+    suspend fun replacePlaylistVideos(
+        playlistId: String,
+        orderedVideoIds: List<String>,
+    ) {
+        val wanted = orderedVideoIds.toSet()
+        getVideoIdsInPlaylist(playlistId).filterNot { it in wanted }.forEach { removeVideoFromPlaylist(playlistId, it) }
+        orderedVideoIds.forEachIndexed { index, videoId ->
+            insertPlaylistVideoCrossRef(PlaylistVideoCrossRef(playlistId = playlistId, videoId = videoId, position = index.toLong()))
+        }
+        updatePlaylistThumbnail(playlistId, getFirstVideoThumbnail(playlistId).orEmpty())
+    }
+
     @Query("UPDATE playlist_video_cross_ref SET position = :position WHERE playlistId = :playlistId AND videoId = :videoId")
     suspend fun updatePlaylistVideoPosition(
         playlistId: String,

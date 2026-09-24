@@ -96,7 +96,8 @@ fun PlaylistDetailScreen(
 
     val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
     val canReorder = isUserCreatedPlaylist && sortOrder == PlaylistSortOrder.MANUAL
-    val canModify = uiState.isLocalPlaylist
+    // A saved YouTube playlist mirrors the original; its next sync would bring removed videos back.
+    val canModify = uiState.isLocalPlaylist && !uiState.isSaved
     val exitSelection = {
         selectionMode = false
         selectedIds = emptySet()

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import io.github.aedev.flow.data.local.entity.VideoEntity
 
 @Dao
@@ -54,6 +55,27 @@ interface VideoDao {
         description: String,
         channelThumbnailUrl: String,
     )
+
+    /** Inserts or refreshes many videos as one change, so a list observing them updates once. */
+    @Transaction
+    suspend fun upsertMetadata(entities: List<VideoEntity>) {
+        entities.forEach { entity ->
+            insertVideoOrIgnore(entity)
+            updateVideoMetadata(
+                id = entity.id,
+                title = entity.title,
+                channelName = entity.channelName,
+                channelId = entity.channelId,
+                thumbnailUrl = entity.thumbnailUrl,
+                duration = entity.duration,
+                viewCount = entity.viewCount,
+                uploadDate = entity.uploadDate,
+                timestamp = entity.timestamp,
+                description = entity.description,
+                channelThumbnailUrl = entity.channelThumbnailUrl,
+            )
+        }
+    }
 
     @Query("SELECT * FROM videos WHERE id = :id")
     suspend fun getVideo(id: String): VideoEntity?

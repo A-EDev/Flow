@@ -34,6 +34,10 @@ class PlaylistRepository
         }
 
         suspend fun updateVideoMetadata(video: Video) {
+            videoDao.upsertMetadata(listOf(normalizedEntity(video)))
+        }
+
+        private fun normalizedEntity(video: Video): VideoEntity {
             val normalizedVideo =
                 parseRelativeToTimestamp(video.uploadDate)
                     ?.let { parsedTimestamp ->
@@ -45,21 +49,7 @@ class PlaylistRepository
                         video.copy(timestamp = stableTimestamp)
                     }
                     ?: video
-            val entity = VideoEntity.fromDomain(normalizedVideo)
-            videoDao.insertVideoOrIgnore(entity)
-            videoDao.updateVideoMetadata(
-                id = entity.id,
-                title = entity.title,
-                channelName = entity.channelName,
-                channelId = entity.channelId,
-                thumbnailUrl = entity.thumbnailUrl,
-                duration = entity.duration,
-                viewCount = entity.viewCount,
-                uploadDate = entity.uploadDate,
-                timestamp = entity.timestamp,
-                description = entity.description,
-                channelThumbnailUrl = entity.channelThumbnailUrl,
-            )
+            return VideoEntity.fromDomain(normalizedVideo)
         }
 
         // Saved Shorts Logic
@@ -341,15 +331,7 @@ class PlaylistRepository
             playlistId: String,
             orderedVideoIds: List<String>,
         ) {
-            orderedVideoIds.forEachIndexed { index, videoId ->
-                playlistDao.updatePlaylistVideoPosition(
-                    playlistId = playlistId,
-                    videoId = videoId,
-                    position = index.toLong(),
-                )
-            }
-            val newThumb = playlistDao.getFirstVideoThumbnail(playlistId) ?: ""
-            playlistDao.updatePlaylistThumbnail(playlistId, newThumb)
+            playlistDao.reorderPlaylistVideos(playlistId, orderedVideoIds)
         }
 
         fun getAllPlaylistsFlow(): Flow<List<PlaylistInfo>> =
@@ -469,29 +451,8 @@ class PlaylistRepository
             remoteVideos: List<Video>,
         ) {
             if (remoteVideos.isEmpty()) return
-            val remoteIds = remoteVideos.mapTo(HashSet()) { it.id }
-            val existingIds =
-                playlistDao
-                    .getVideosForPlaylist(playlistId)
-                    .firstOrNull()
-                    ?.map { it.id }
-                    ?.toSet() ?: emptySet()
-
-            remoteVideos.forEachIndexed { index, video ->
-                updateVideoMetadata(video)
-                playlistDao.insertPlaylistVideoCrossRef(
-                    PlaylistVideoCrossRef(
-                        playlistId = playlistId,
-                        videoId = video.id,
-                        position = index.toLong(),
-                    ),
-                )
-            }
-            existingIds.filterNot { it in remoteIds }.forEach { videoId ->
-                playlistDao.removeVideoFromPlaylist(playlistId, videoId)
-            }
-            val newThumb = playlistDao.getFirstVideoThumbnail(playlistId) ?: ""
-            playlistDao.updatePlaylistThumbnail(playlistId, newThumb)
+            videoDao.upsertMetadata(remoteVideos.map(::normalizedEntity))
+            playlistDao.replacePlaylistVideos(playlistId, remoteVideos.map { it.id }.distinct())
         }
 
         suspend fun getPlaylistInfo(playlistId: String): PlaylistInfo? {
