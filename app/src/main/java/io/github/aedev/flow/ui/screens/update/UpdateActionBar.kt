@@ -3,6 +3,7 @@
 package io.github.aedev.flow.ui.screens.update
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -39,23 +40,25 @@ internal fun UpdateActionBar(
     onPrimary: () -> Unit,
     onSecondary: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(BarPadding),
-        horizontalArrangement = Arrangement.spacedBy(BarSpacing, Alignment.End),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TextButton(onClick = onSecondary, modifier = Modifier.heightIn(min = ButtonDefaults.MediumContainerHeight)) {
-            Text(stringResource(if (stage is UpdateStage.Downloading) R.string.cancel else R.string.update_not_now))
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(
+            modifier = Modifier.widthIn(max = FlowMaxContentWidth).fillMaxWidth().padding(BarPadding),
+            horizontalArrangement = Arrangement.spacedBy(BarSpacing, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onSecondary, modifier = Modifier.heightIn(min = ButtonDefaults.MediumContainerHeight)) {
+                Text(stringResource(if (stage is UpdateStage.Downloading) R.string.cancel else R.string.update_not_now))
+            }
+            val action = stage.action()
+            FlowActionButton(
+                text = action.label(),
+                onClick = onPrimary,
+                enabled = action.enabled,
+                leading = action.icon,
+                progress = (stage as? UpdateStage.Downloading)?.let { downloading -> { downloading.progress ?: 0f } },
+                modifier = Modifier.weight(1f),
+            )
         }
-        val action = stage.action()
-        FlowActionButton(
-            text = action.label(),
-            onClick = onPrimary,
-            enabled = action.enabled,
-            leading = action.icon,
-            progress = (stage as? UpdateStage.Downloading)?.let { downloading -> { downloading.progress ?: 0f } },
-            modifier = Modifier.weight(1f).widthIn(max = FlowMaxContentWidth),
-        )
     }
 }
 

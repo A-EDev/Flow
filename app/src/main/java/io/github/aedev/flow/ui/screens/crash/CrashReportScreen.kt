@@ -89,32 +89,39 @@ fun CrashReportScreen(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(BarPadding),
-                horizontalArrangement = Arrangement.spacedBy(Spacing, Alignment.CenterHorizontally),
-            ) {
-                FilledTonalButton(
-                    onClick = {
-                        copy()
-                        scope.launch { snackbar.showSnackbar(copiedMessage) }
-                        uriHandler.openUri(summary.issueUrl())
-                    },
-                    shapes = ButtonDefaults.shapesFor(ButtonDefaults.MediumContainerHeight),
-                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight, hasStartIcon = true),
-                    modifier = Modifier.weight(1f).heightIn(min = ButtonDefaults.MediumContainerHeight),
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Row(
+                    modifier =
+                        Modifier
+                            .widthIn(max = FlowMaxContentWidth)
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(BarPadding),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing, Alignment.CenterHorizontally),
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.OpenInNew,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = ButtonDefaults.IconSpacing),
+                    FilledTonalButton(
+                        onClick = {
+                            copy()
+                            scope.launch { snackbar.showSnackbar(copiedMessage) }
+                            uriHandler.openUri(summary.issueUrl())
+                        },
+                        shapes = ButtonDefaults.shapesFor(ButtonDefaults.MediumContainerHeight),
+                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight, hasStartIcon = true),
+                        modifier = Modifier.weight(1f).heightIn(min = ButtonDefaults.MediumContainerHeight),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = ButtonDefaults.IconSpacing),
+                        )
+                        Text(stringResource(R.string.crash_report), style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    }
+                    FlowActionButton(
+                        text = stringResource(R.string.crash_continue),
+                        onClick = onContinue,
+                        modifier = Modifier.weight(1f),
                     )
-                    Text(stringResource(R.string.crash_report), style = MaterialTheme.typography.titleMedium, maxLines = 1)
                 }
-                FlowActionButton(
-                    text = stringResource(R.string.crash_continue),
-                    onClick = onContinue,
-                    modifier = Modifier.weight(1f),
-                )
             }
         },
     ) { padding ->
