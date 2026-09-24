@@ -43,10 +43,11 @@ import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.components.shared.ProvideDateDisplaySettings
 import io.github.aedev.flow.ui.screens.CrashReporterScreen
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
-import io.github.aedev.flow.ui.theme.CustomTheme
+import io.github.aedev.flow.ui.startup.FlowTheme
+import io.github.aedev.flow.ui.startup.SplashController
+import io.github.aedev.flow.ui.startup.ThemeSettings
+import io.github.aedev.flow.ui.startup.themeSettings
 import io.github.aedev.flow.ui.theme.FlowTheme
-import io.github.aedev.flow.ui.theme.ThemeMode
-import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.tv.FlowTvApp
 import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import io.github.aedev.flow.ui.youtubeChannelDeepLinkRoute
@@ -77,6 +78,8 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var lifecyclePlaybackPreferences: LifecyclePlaybackPreferences
+
+    private val splashController = SplashController(this)
 
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
@@ -119,8 +122,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // the OS-level splash screen (camouflaged to match Compose splash background)
-        installSplashScreen()
+        splashController.install(installSplashScreen())
 
         super.onCreate(savedInstanceState)
         DiscordPresenceRuntime.attachActivity(this)
@@ -167,14 +169,9 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
-            var themeMode by remember { mutableStateOf(ThemeMode.SYSTEM) }
-            var themeVariant by remember { mutableStateOf(ThemeVariant.DARK) }
-            var customTheme by remember { mutableStateOf<CustomTheme?>(null) }
-            var systemLightThemeMode by remember { mutableStateOf(ThemeMode.DARK) }
-            var systemDarkThemeMode by remember { mutableStateOf(ThemeMode.DARK) }
-            var systemDarkThemeVariant by remember { mutableStateOf(ThemeVariant.DARK) }
-            // State to control splash visibility
-            var showSplash by remember { mutableStateOf(true) }
+            val storedTheme by remember { dataManager.themeSettings() }.collectAsState(initial = null)
+            SideEffect { if (storedTheme != null) splashController.themeReady = true }
+            val theme = storedTheme ?: ThemeSettings()
 
             val context = LocalContext.current
             val configuration = LocalConfiguration.current
@@ -194,14 +191,7 @@ class MainActivity : ComponentActivity() {
             }
 
             if (pendingCrashLog != null) {
-                FlowTheme(
-                    themeMode = themeMode,
-                    themeVariant = themeVariant,
-                    customTheme = customTheme,
-                    systemLightThemeMode = systemLightThemeMode,
-                    systemDarkThemeMode = systemDarkThemeMode,
-                    systemDarkThemeVariant = systemDarkThemeVariant,
-                ) {
+                FlowTheme(theme) {
                     CrashReporterScreen(
                         crashLog = pendingCrashLog!!,
                         onClearAndRestart = {
@@ -213,57 +203,13 @@ class MainActivity : ComponentActivity() {
                 return@setContent
             }
 
-            // Load theme preference and keep it reactive
-            LaunchedEffect(Unit) {
-                dataManager.themeMode.collect { mode ->
-                    themeMode = mode
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.themeVariant.collect { variant ->
-                    themeVariant = variant
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.activeCustomTheme.collect { theme ->
-                    customTheme = theme
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.systemLightThemeMode.collect { mode ->
-                    systemLightThemeMode = mode
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.systemDarkThemeMode.collect { mode ->
-                    systemDarkThemeMode = mode
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                dataManager.systemDarkThemeVariant.collect { variant ->
-                    systemDarkThemeVariant = variant
-                }
-            }
-
             // Initialize Flow Neuro Engine
             LaunchedEffect(Unit) {
                 io.github.aedev.flow.data.recommendation.FlowNeuroEngine
                     .initialize(applicationContext)
             }
 
-            FlowTheme(
-                themeMode = themeMode,
-                themeVariant = themeVariant,
-                customTheme = customTheme,
-                systemLightThemeMode = systemLightThemeMode,
-                systemDarkThemeMode = systemDarkThemeMode,
-                systemDarkThemeVariant = systemDarkThemeVariant,
-            ) {
+            FlowTheme(theme) {
                 // Date preferences: five DataStore flows used to be opened per video card,
                 // metadata line, info section, description sheet and info dialog.
                 ProvideWindowSizeClass {
@@ -295,10 +241,10 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     ProvideChannelGroupLabels {
                                         FlowApp(
-                                            currentTheme = themeMode,
-                                            themeVariant = themeVariant,
-                                            systemLightThemeMode = systemLightThemeMode,
-                                            systemDarkThemeMode = systemDarkThemeMode,
+                                            currentTheme = theme.themeMode,
+                                            themeVariant = theme.themeVariant,
+                                            systemLightThemeMode = theme.systemLightThemeMode,
+                                            systemDarkThemeMode = theme.systemDarkThemeMode,
                                             deeplinkVideoId = deeplinkVideoId,
                                             isShort = isDeeplinkShort,
                                             openMusicPlayerRequest = openMusicPlayerRequest,
@@ -311,15 +257,6 @@ class MainActivity : ComponentActivity() {
                                             },
                                         )
                                     }
-                                }
-
-                                // 2. THE SPLASH SCREEN (Z-Index Top)
-                                if (showSplash) {
-                                    io.github.aedev.flow.ui.components.FlowSplashScreen(
-                                        onAnimationFinished = {
-                                            showSplash = false
-                                        },
-                                    )
                                 }
                             }
                         }
