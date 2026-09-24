@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
@@ -95,9 +96,14 @@ class PlaylistDetailViewModel
         val messages: Flow<PlaylistUiMessage> = _messages.receiveAsFlow()
 
         val sortOrder: StateFlow<PlaylistSortOrder> =
-            playerPreferences.playlistSortOrder
-                .map { PlaylistSortOrder.fromStorageValue(it) }
-                .stateIn(viewModelScope, sharing, PlaylistSortOrder.MANUAL)
+            combine(
+                playerPreferences.playlistSortOrder(playlistId),
+                _uiState.map { it.isLocalPlaylist }.distinctUntilChanged(),
+            ) { stored, isLocal ->
+                PlaylistSortOrder
+                    .fromStorageValue(stored)
+                    .takeIf { it in PlaylistSortOrder.availableFor(isLocal) } ?: PlaylistSortOrder.MANUAL
+            }.stateIn(viewModelScope, sharing, PlaylistSortOrder.MANUAL)
 
         val sortedVideos: StateFlow<List<Video>> =
             combine(_uiState.map { it.videos }, sortOrder) { videos, order ->
@@ -138,7 +144,7 @@ class PlaylistDetailViewModel
 
         fun setSortOrder(order: PlaylistSortOrder) {
             viewModelScope.launch {
-                playerPreferences.setPlaylistSortOrder(order.storageValue)
+                playerPreferences.setPlaylistSortOrder(playlistId, order.storageValue)
             }
         }
 

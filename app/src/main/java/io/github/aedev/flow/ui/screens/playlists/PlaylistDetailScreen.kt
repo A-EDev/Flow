@@ -67,7 +67,7 @@ private val ListBottomPadding: Dp = 16.dp
 fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit,
     onVideoClick: (Video) -> Unit,
-    onPlayPlaylist: (List<Video>, Int) -> Unit,
+    onPlayPlaylist: (videos: List<Video>, startIndex: Int, shuffle: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
@@ -222,11 +222,10 @@ fun PlaylistDetailScreen(
                                 videoCount = uiState.videos.size,
                                 thumbnailUrl = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl,
                                 onPlayAll = {
-                                    if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0)
+                                    if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0, false)
                                 },
                                 onShuffle = {
-                                    val shuffled = displayVideos.shuffled()
-                                    if (shuffled.isNotEmpty()) onPlayPlaylist(shuffled, 0)
+                                    if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, displayVideos.indices.random(), true)
                                 },
                                 onDownloadAll = { showDownloadAllDialog = true },
                                 isDownloading = downloadBatch?.isFinished == false,
@@ -303,7 +302,7 @@ fun PlaylistDetailScreen(
                                         selectedIds =
                                             if (isSelected) selectedIds - video.id else selectedIds + video.id
                                     } else {
-                                        onPlayPlaylist(displayVideos, index)
+                                        onPlayPlaylist(displayVideos, index, false)
                                     }
                                 },
                             )
@@ -445,6 +444,7 @@ fun PlaylistDetailScreen(
 
     if (showSortSheet) {
         PlaylistSortSheet(
+            options = PlaylistSortOrder.availableFor(uiState.isLocalPlaylist),
             selected = sortOrder,
             onSelected = {
                 viewModel.setSortOrder(it)

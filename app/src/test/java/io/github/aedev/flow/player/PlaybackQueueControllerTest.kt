@@ -278,4 +278,15 @@ class PlaybackQueueControllerTest {
 
         assertThat(controller.isReachedByAdvance("a")).isTrue()
     }
+
+    @Test
+    fun `setting a queue with shuffle off plays it in order even after a shuffled one`() {
+        val controller = PlaybackQueueController()
+        controller.setQueue(listOf(video("a"), video("b"), video("c")), startIndex = 0, title = null, shuffle = true)
+
+        controller.setQueue(listOf(video("a"), video("b"), video("c")), startIndex = 0, title = null, shuffle = false)
+
+        assertThat(controller.shuffleEnabled).isFalse()
+        assertThat(ids(controller.videos.value)).containsExactly("a", "b", "c").inOrder()
+    }
 }

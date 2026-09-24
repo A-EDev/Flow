@@ -29,6 +29,7 @@ internal fun resolveMigratedHideWatchedPreference(
 private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "player_preferences")
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
+private const val PLAYLIST_SORT_SEPARATOR = "|"
 const val CONTENT_LANGUAGE_FOLLOW_APP = "app"
 const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
 const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
@@ -299,6 +300,7 @@ class PlayerPreferences(
         // App icon — stores the component suffix of the currently selected launcher icon
         val APP_ICON_SUFFIX = stringPreferencesKey("app_icon_suffix")
         val PLAYLIST_SORT_ORDER = stringPreferencesKey("playlist_sort_order")
+        val PLAYLIST_SORT_ORDERS = stringSetPreferencesKey("playlist_sort_orders")
 
         // Video title display — max lines in the player info section (0 = no limit)
         val VIDEO_TITLE_MAX_LINES = intPreferencesKey("video_title_max_lines")
@@ -2294,15 +2296,32 @@ class PlayerPreferences(
     }
 
     // Video title max lines in the player info section — 0 means no limit (Int.MAX_VALUE)
-    val playlistSortOrder: Flow<String> =
+
+    /**
+     * [playlistId]'s own sort order. A playlist never sorted falls back to the single order older
+     * versions kept for every playlist, so nothing changes until the person picks one.
+     */
+    fun playlistSortOrder(playlistId: String): Flow<String> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.PLAYLIST_SORT_ORDER] ?: "manual"
-            }
+                preferences[Keys.PLAYLIST_SORT_ORDERS]
+                    .orEmpty()
+                    .firstOrNull { it.startsWith("$playlistId$PLAYLIST_SORT_SEPARATOR") }
+                    ?.substringAfter(PLAYLIST_SORT_SEPARATOR)
+                    ?: preferences[Keys.PLAYLIST_SORT_ORDER]
+                    ?: "manual"
+            }.distinctUntilChanged()
 
-    suspend fun setPlaylistSortOrder(order: String) {
+    suspend fun setPlaylistSortOrder(
+        playlistId: String,
+        order: String,
+    ) {
         context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PLAYLIST_SORT_ORDER] = order
+            val others =
+                preferences[Keys.PLAYLIST_SORT_ORDERS]
+                    .orEmpty()
+                    .filterNot { it.startsWith("$playlistId$PLAYLIST_SORT_SEPARATOR") }
+            preferences[Keys.PLAYLIST_SORT_ORDERS] = others.toSet() + "$playlistId$PLAYLIST_SORT_SEPARATOR$order"
         }
     }
 

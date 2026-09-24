@@ -494,8 +494,8 @@ fun NavGraphBuilder.flowAppGraph(
                     navController.openVideoOrShorts(video, disableShortsPlayer) { navController.navigateToPlayer(it.id) }
                 }
             },
-            onPlayPlaylist = { videos, index ->
-                playerViewModel.playPlaylist(videos, index, "Playlist")
+            onPlayPlaylist = { videos, index, shuffle ->
+                playerViewModel.playPlaylist(videos, index, "Playlist", shuffle)
             },
         )
     }

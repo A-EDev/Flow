@@ -36,6 +36,10 @@ enum class PlaylistSortOrder(
 
     companion object {
         fun fromStorageValue(value: String?): PlaylistSortOrder = entries.firstOrNull { it.storageValue == value } ?: MANUAL
+
+        /** The orders a playlist has data for: a YouTube playlist carries no date a video was added. */
+        fun availableFor(isLocalPlaylist: Boolean): List<PlaylistSortOrder> =
+            if (isLocalPlaylist) entries else entries.filterNot { it == DATE_ADDED_NEWEST || it == DATE_ADDED_OLDEST }
     }
 }
 

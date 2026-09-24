@@ -89,7 +89,7 @@ internal class PlaybackQueueController {
     fun nextVideo(): Video? = nextIndex()?.let(items::getOrNull)
 
     /**
-     * Replaces the queue, honouring the current shuffle setting.
+     * Replaces the queue, honouring the current shuffle setting unless [shuffle] sets it.
      *
      * @return the video playback should start from, or null when [videos] is empty.
      */
@@ -97,7 +97,9 @@ internal class PlaybackQueueController {
         videos: List<Video>,
         startIndex: Int,
         title: String?,
+        shuffle: Boolean? = null,
     ): Video? {
+        shuffle?.let { shuffleEnabled = it }
         originalItems = videos
         val normalizedStartIndex = startIndex.coerceIn(0, videos.lastIndex.coerceAtLeast(0))
         val ordered =

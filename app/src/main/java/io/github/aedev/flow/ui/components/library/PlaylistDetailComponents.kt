@@ -428,6 +428,7 @@ internal fun PlaylistSortButton(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlaylistSortSheet(
+    options: List<PlaylistSortOrder>,
     selected: PlaylistSortOrder,
     onSelected: (PlaylistSortOrder) -> Unit,
     onDismiss: () -> Unit,
@@ -443,7 +444,7 @@ internal fun PlaylistSortSheet(
                     .fillMaxWidth()
                     .padding(bottom = SortSheetBottomPadding),
         ) {
-            PlaylistSortOrder.entries.forEach { option ->
+            options.forEach { option ->
                 Row(
                     modifier =
                         Modifier

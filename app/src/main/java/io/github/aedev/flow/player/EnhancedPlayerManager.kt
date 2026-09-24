@@ -1334,13 +1334,14 @@ class EnhancedPlayerManager private constructor() {
         videos: List<Video>,
         startIndex: Int,
         title: String? = null,
+        shuffle: Boolean? = null,
     ) {
         if (!isOnMainThread()) {
             autoNextLog("setQueue posted to main size=${videos.size} start=$startIndex from=${Thread.currentThread().name}")
-            mainHandler.post { setQueue(videos, startIndex, title) }
+            mainHandler.post { setQueue(videos, startIndex, title, shuffle) }
             return
         }
-        val startVideo = queue.setQueue(videos, startIndex, title)
+        val startVideo = queue.setQueue(videos, startIndex, title, shuffle)
         autoNextLog("setQueue size=${videos.size} start=${queue.currentIndex} title=$title")
 
         updateQueueState()

@@ -440,10 +440,12 @@ class VideoPlayerViewModel
             }
         }
 
+        /** [shuffle] turns the queue's shuffle on or off for this list; null keeps the current setting. */
         fun playPlaylist(
             videos: List<Video>,
             startIndex: Int,
             title: String? = null,
+            shuffle: Boolean? = null,
         ) {
             if (videos.isEmpty()) return
             val startVideo = videos.getOrNull(startIndex) ?: videos.first()
@@ -451,7 +453,7 @@ class VideoPlayerViewModel
             EnhancedMusicPlayerManager.stop()
             EnhancedMusicPlayerManager.clearCurrentTrack()
 
-            playerManager.setQueue(videos, startIndex, title)
+            playerManager.setQueue(videos, startIndex, title, shuffle)
 
             _uiState.update { it.resetForVideo(startVideo).copy(queueTitle = title) }
             watchSessions.saveHistoryEntry(startVideo)
