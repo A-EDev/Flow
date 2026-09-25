@@ -120,10 +120,25 @@ internal class LocalMediaStore(
                             MediaStore.Audio.Media.ALBUM,
                         )?.takeUnless { it.isBlank() || it == MediaStore.UNKNOWN_STRING }
                         .orEmpty(),
-                artworkUri = if (albumId > 0) ContentUris.withAppendedId(AlbumArtBase, albumId).toString() else null,
+                artworkUri = songArtwork(collection, id, albumId),
             )
         }
     }
+
+    /**
+     * The song's own URI on Android 10 and later, where Coil loads it through `loadThumbnail`; the
+     * album-art path, deprecated there, only before that.
+     */
+    private fun songArtwork(
+        collection: Uri,
+        id: Long,
+        albumId: Long,
+    ): String? =
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> ContentUris.withAppendedId(collection, id).toString()
+            albumId > 0 -> ContentUris.withAppendedId(AlbumArtBase, albumId).toString()
+            else -> null
+        }
 
     private fun pathColumns(): List<String> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
