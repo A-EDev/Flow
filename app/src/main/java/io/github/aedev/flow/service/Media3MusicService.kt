@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Bundle
@@ -38,9 +39,9 @@ import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.audio.eq.EqualizerRepository
 import io.github.aedev.flow.data.download.DownloadUtil
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
-import io.github.aedev.flow.data.model.ParametricEQ
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
@@ -51,7 +52,8 @@ import io.github.aedev.flow.innertube.models.WatchEndpoint
 import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
 import io.github.aedev.flow.player.MusicQueuePlanner
 import io.github.aedev.flow.player.MusicRadioPlanner
-import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
+import io.github.aedev.flow.player.audio.AudioSessionRegistry
+import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.factory.LoadControlFactory
 import io.github.aedev.flow.player.sessionArtworkBitmapLoader
@@ -64,7 +66,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.min
@@ -80,7 +81,6 @@ class Media3MusicService : MediaLibraryService() {
         private const val AUTO_ROOT_ID = "flow_auto_root"
         private const val AUTO_QUEUE_ID = "flow_auto_queue"
         private const val AUTO_CURRENT_ID = "flow_auto_current"
-        const val ACTION_SET_EQ = "ACTION_SET_EQ"
 
         private const val MAX_RETRY_PER_SONG = 5
         private const val BASE_RETRY_DELAY_MS = 3000L
@@ -99,7 +99,6 @@ class Media3MusicService : MediaLibraryService() {
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
         private val CommandStop = SessionCommand(ACTION_STOP, Bundle.EMPTY)
-        private val CommandSetEq = SessionCommand(ACTION_SET_EQ, Bundle.EMPTY)
 
         const val ACTION_TOGGLE_LIKE = "ACTION_TOGGLE_LIKE"
         private val CommandToggleLike = SessionCommand(ACTION_TOGGLE_LIKE, Bundle.EMPTY)
@@ -116,7 +115,7 @@ class Media3MusicService : MediaLibraryService() {
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
     private lateinit var player: ExoPlayer
-    private val customEqualizer = CustomEqualizerAudioProcessor()
+    private val equalizer = EqualizerAudioProcessor()
     private val musicAudioAttributes =
         AudioAttributes
             .Builder()
@@ -176,6 +175,12 @@ class Media3MusicService : MediaLibraryService() {
 
     @Inject
     lateinit var musicBrain: MusicBrainEngine
+
+    @Inject
+    lateinit var equalizerRepository: EqualizerRepository
+
+    @Inject
+    lateinit var audioSessions: AudioSessionRegistry
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -246,6 +251,7 @@ class Media3MusicService : MediaLibraryService() {
 
         initializePlayer()
         initializeSession()
+        observeEqualizer()
 
         lifecycleScope.launch {
             prefs.playDuringCalls
@@ -302,6 +308,17 @@ class Media3MusicService : MediaLibraryService() {
         }
     }
 
+    /**
+     * Offloaded audio bypasses every audio processor, so offload stays on only while the equalizer
+     * leaves the sound untouched. Compare does not count: toggling offload reselects tracks.
+     */
+    private fun observeEqualizer() {
+        lifecycleScope.launch { equalizerRepository.processingSpec.collect(equalizer::setSpec) }
+        lifecycleScope.launch {
+            equalizerRepository.needsProcessing.collect { processing -> player.setOffloadEnabled(!processing) }
+        }
+    }
+
     private fun initializePlayer() {
         val mediaSourceFactory = DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory())
 
@@ -314,7 +331,7 @@ class Media3MusicService : MediaLibraryService() {
                 ): androidx.media3.exoplayer.audio.AudioSink? =
                     androidx.media3.exoplayer.audio.DefaultAudioSink
                         .Builder(context)
-                        .setAudioProcessors(arrayOf(customEqualizer))
+                        .setAudioProcessors(arrayOf(equalizer))
                         .build()
             }.setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
@@ -336,9 +353,9 @@ class Media3MusicService : MediaLibraryService() {
         // Expose audio session ID for external audio processors (James DSP, etc.)
         currentAudioSessionId = player.audioSessionId
         Log.i(TAG, "Audio session initialized - Session ID: $currentAudioSessionId")
-        Log.i(TAG, "External audio processors can target this session for effects")
+        audioSessions.open(player.audioSessionId, AudioEffect.CONTENT_TYPE_MUSIC)
 
-        player.setOffloadEnabled(true)
+        player.setOffloadEnabled(!equalizerRepository.needsProcessing.value)
 
         player.addListener(
             object : Player.Listener {
@@ -1038,6 +1055,7 @@ class Media3MusicService : MediaLibraryService() {
         finalizeListenSession()
 
         // Clear audio session ID so external processors know we're gone
+        audioSessions.close(currentAudioSessionId)
         currentAudioSessionId = 0
         Log.i(TAG, "Audio session destroyed")
 
@@ -1469,7 +1487,6 @@ class Media3MusicService : MediaLibraryService() {
                     .add(CommandToggleRepeat)
                     .add(CommandToggleLike)
                     .add(CommandStop)
-                    .add(CommandSetEq)
                     .build()
             return MediaSession.ConnectionResult
                 .AcceptedResultBuilder(session)
@@ -1486,19 +1503,6 @@ class Media3MusicService : MediaLibraryService() {
             if (customCommand.customAction == ACTION_TOGGLE_LIKE) {
                 io.github.aedev.flow.player.EnhancedMusicPlayerManager
                     .emitToggleLikeEvent()
-                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-            }
-
-            if (customCommand.customAction == ACTION_SET_EQ) {
-                val eqJson = args.getString("EQ_PROFILE")
-                if (eqJson != null) {
-                    try {
-                        val profile = Json.decodeFromString<ParametricEQ>(eqJson)
-                        customEqualizer.applyProfile(profile)
-                    } catch (e: Exception) {
-                        android.util.Log.e(TAG, "Failed to apply EQ profile", e)
-                    }
-                }
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
 

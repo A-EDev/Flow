@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Bundle
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
@@ -13,7 +12,6 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
-import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -21,7 +19,6 @@ import io.github.aedev.flow.data.local.AudioSettingsPersistence
 import io.github.aedev.flow.data.local.QueuePersistence
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.player.audio.AudioEffectsController
 import io.github.aedev.flow.service.Media3MusicService
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +33,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.Json
 import org.schabi.newpipe.extractor.stream.AudioStream
 import java.util.concurrent.ExecutionException
 import kotlin.math.pow
@@ -234,7 +230,6 @@ object EnhancedMusicPlayerManager {
 
         queuePersistence = QueuePersistence.getInstance(context)
         audioSettingsPersistence = AudioSettingsPersistence.getInstance(context)
-        AudioEffectsController.initialize(context)
 
         val sessionToken = SessionToken(context, ComponentName(context, Media3MusicService::class.java))
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
@@ -250,10 +245,6 @@ object EnhancedMusicPlayerManager {
                     scope.launch {
                         restoreSavedQueue()
                         restoreAudioSettings()
-                    }
-
-                    scope.launch {
-                        AudioEffectsController.resolvedEq.collect { applyEqProfile(it) }
                     }
 
                     queuePersistence?.startAutoSave {
@@ -323,8 +314,6 @@ object EnhancedMusicPlayerManager {
                         _playerState.value = _playerState.value.copy(position = 0L)
                     }
                     prefetchNextTrack()
-
-                    applyEqProfile(AudioEffectsController.resolvedEq.value)
                 }
 
                 override fun onRepeatModeChanged(repeatMode: Int) {
@@ -1034,28 +1023,6 @@ object EnhancedMusicPlayerManager {
             val pitch = 2.0.pow(semitones.toDouble() / 12.0).toFloat()
             val currentSpeed = p.playbackParameters.speed
             p.playbackParameters = PlaybackParameters(currentSpeed, pitch)
-        }
-    }
-
-    private fun applyEqProfile(profile: io.github.aedev.flow.data.model.ParametricEQ) {
-        try {
-            val json =
-                Json.encodeToString(
-                    io.github.aedev.flow.data.model.ParametricEQ
-                        .serializer(),
-                    profile,
-                )
-            val bundle =
-                Bundle().apply {
-                    putString("EQ_PROFILE", json)
-                }
-            val command = SessionCommand(Media3MusicService.ACTION_SET_EQ, Bundle.EMPTY)
-
-            if (controllerFuture?.isDone == true) {
-                controllerFuture?.get()?.sendCustomCommand(command, bundle)
-            }
-        } catch (e: Exception) {
-            Log.e("EnhancedMusicPlayer", "Error sending EQ profile", e)
         }
     }
 
