@@ -2,6 +2,7 @@ package io.github.aedev.flow.player.shorts
 
 import android.app.ActivityManager
 import android.content.Context
+import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.util.Log
 import androidx.annotation.OptIn
@@ -16,6 +17,8 @@ import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -23,9 +26,12 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.MediaSession
+import dagger.hilt.android.EntryPointAccessors
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
+import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
+import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.cache.SharedPlayerCacheProvider
 import io.github.aedev.flow.player.config.PlayerConfig
@@ -89,6 +95,10 @@ class ShortsPlayerPool private constructor() {
 
     private val playerVideoManifests = arrayOfNulls<String?>(POOL_SIZE)
     private val playerAudioManifests = arrayOfNulls<String?>(POOL_SIZE)
+
+    private val equalizers = arrayOfNulls<EqualizerAudioProcessor>(POOL_SIZE)
+    private var audioEffects: AudioEffectsEntryPoint? = null
+    private var equalizerScope: CoroutineScope? = null
 
     private var isInitialized = false
     private var dataSourceFactory: DefaultDataSource.Factory? = null
@@ -193,9 +203,21 @@ class ShortsPlayerPool private constructor() {
             },
         )
 
+        val effects = EntryPointAccessors.fromApplication(appContext, AudioEffectsEntryPoint::class.java).also { audioEffects = it }
+        val equalizerSpec = effects.equalizerRepository().processingSpec
+        equalizerScope =
+            CoroutineScope(SupervisorJob() + Dispatchers.Default).also { scope ->
+                scope.launch { equalizerSpec.collect { spec -> equalizers.forEach { it?.setSpec(spec) } } }
+            }
+
         try {
             for (i in 0 until POOL_SIZE) {
-                players[i] = createShortsPlayer(appContext)
+                val equalizer = EqualizerAudioProcessor().also { it.setSpec(equalizerSpec.value) }
+                equalizers[i] = equalizer
+                players[i] =
+                    createShortsPlayer(appContext, equalizer).also {
+                        effects.audioSessionRegistry().open(it.audioSessionId, AudioEffect.CONTENT_TYPE_MOVIE)
+                    }
                 playerOwnerIndices[i] = null
                 playerVideoIds[i] = null
             }
@@ -267,7 +289,10 @@ class ShortsPlayerPool private constructor() {
         }
     }
 
-    private fun createShortsPlayer(context: Context): ExoPlayer {
+    private fun createShortsPlayer(
+        context: Context,
+        equalizer: EqualizerAudioProcessor,
+    ): ExoPlayer {
         val (maxVideoWidth, maxVideoHeight) = maxVideoSizeForHeap(context)
 
         val loadControl = LoadControlFactory.forShorts()
@@ -292,9 +317,21 @@ class ShortsPlayerPool private constructor() {
                 setParameters(builder.build())
             }
 
+        // One processor per pooled player: they are all live at once and each keeps its own filter history.
         val renderersFactory =
-            DefaultRenderersFactory(context)
-                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            object : DefaultRenderersFactory(context) {
+                override fun buildAudioSink(
+                    context: Context,
+                    enableFloatOutput: Boolean,
+                    enableAudioTrackPlaybackParams: Boolean,
+                ): AudioSink =
+                    DefaultAudioSink
+                        .Builder(context)
+                        .setEnableFloatOutput(enableFloatOutput)
+                        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                        .setAudioProcessors(arrayOf(equalizer))
+                        .build()
+            }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                 .setEnableDecoderFallback(true)
 
         return ExoPlayer
@@ -693,7 +730,11 @@ class ShortsPlayerPool private constructor() {
         cachedDataSourceFactory = null
         mediaSession?.release()
         mediaSession = null
+        equalizerScope?.cancel()
+        equalizerScope = null
         for (i in 0 until POOL_SIZE) {
+            players[i]?.let { audioEffects?.audioSessionRegistry()?.close(it.audioSessionId) }
+            equalizers[i] = null
             players[i]?.stop()
             players[i]?.release()
             players[i] = null
