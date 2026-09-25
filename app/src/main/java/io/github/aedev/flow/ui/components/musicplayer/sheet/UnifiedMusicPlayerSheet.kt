@@ -310,7 +310,7 @@ fun UnifiedMusicPlayerSheet(
             }
         }
     }
-    val shouldRenderFullPlayer = rememberShouldRenderFullPlayer(state, displayTrack.videoId)
+    val shouldRenderFullPlayer = rememberShouldRenderFullPlayer(state)
 
     MaterialTheme(
         colorScheme = playerScheme,

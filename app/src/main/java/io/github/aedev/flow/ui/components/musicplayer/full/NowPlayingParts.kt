@@ -87,6 +87,7 @@ internal fun PlayerTrackHeader(
     title: String,
     artist: String,
     onArtistClick: () -> Unit,
+    animateTitle: Boolean,
     showLibraryActions: Boolean,
     isLiked: Boolean,
     isDownloaded: Boolean,
@@ -115,11 +116,15 @@ internal fun PlayerTrackHeader(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier =
-                        Modifier.basicMarquee(
-                            iterations = 1,
-                            initialDelayMillis = 3000,
-                            velocity = 30.dp,
-                        ),
+                        if (animateTitle) {
+                            Modifier.basicMarquee(
+                                iterations = 1,
+                                initialDelayMillis = 3000,
+                                velocity = 30.dp,
+                            )
+                        } else {
+                            Modifier
+                        },
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))

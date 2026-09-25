@@ -216,7 +216,8 @@ internal fun FullMusicPlayerContent(
                             previousThumbnailUrl = previousTrack?.highResThumbnailUrl,
                             nextThumbnailUrl = nextTrack?.highResThumbnailUrl,
                             previewDirection = previewDirection,
-                            isLoading = uiState.isLoading,
+                            // Spinners in the warm, collapsed tree animate at alpha 0 otherwise.
+                            isLoading = uiState.isLoading && isPlayerSheetExpanded,
                             hideArtwork = hideArtwork || immersiveBackground,
                             hiddenArtworkColor =
                                 if (immersiveBackground) Color.Unspecified else colorScheme.surfaceContainerHigh,
@@ -237,6 +238,7 @@ internal fun FullMusicPlayerContent(
                                 ?.takeIf { it.isNotEmpty() }
                                 ?.let(navigator::openArtist)
                         },
+                        animateTitle = isPlayerSheetExpanded,
                         showLibraryActions = !LocalMediaIds.isLocal(uiState.currentTrack?.videoId),
                         isLiked = uiState.isLiked,
                         isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
@@ -261,7 +263,7 @@ internal fun FullMusicPlayerContent(
                 controls = { modifier ->
                     PlayerPlaybackControls(
                         isPlaying = uiState.isPlaying,
-                        isBuffering = uiState.isBuffering,
+                        isBuffering = uiState.isBuffering && isPlayerSheetExpanded,
                         onPreviousClick = { viewModel.skipToPrevious() },
                         onPlayPauseToggle = { viewModel.togglePlayPause() },
                         onNextClick = { viewModel.skipToNext() },

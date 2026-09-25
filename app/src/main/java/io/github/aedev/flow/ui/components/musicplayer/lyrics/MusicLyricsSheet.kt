@@ -241,7 +241,7 @@ internal fun MusicLyricsSheet(
                             lyrics = lyrics,
                             syncedLyrics = syncedLyrics,
                             positionProvider = positionProvider,
-                            isLoading = isLoading,
+                            isLoading = isLoading && visible,
                             accentColor = accentColor,
                             onSeekTo = onSeekTo,
                             providerName = providerName,

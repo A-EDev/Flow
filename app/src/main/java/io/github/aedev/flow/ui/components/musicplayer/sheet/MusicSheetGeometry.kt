@@ -96,14 +96,16 @@ internal fun rememberMusicSheetGeometry(
     }
 }
 
-/** The full player composes as soon as expanding starts, or 650 ms after the track shows (warm). */
+/**
+ * The full player composes as soon as expanding starts, or 650 ms after the sheet first shows, and
+ * then stays composed (warm) for the sheet's life, across track changes, so no expand ever waits
+ * for it and no track change rebuilds it.
+ */
 @Composable
-internal fun rememberShouldRenderFullPlayer(
-    state: MusicPlayerSheetState,
-    trackId: String?,
-): Boolean {
-    var warmed by remember(trackId) { mutableStateOf(false) }
-    LaunchedEffect(trackId, state.anchor) {
+internal fun rememberShouldRenderFullPlayer(state: MusicPlayerSheetState): Boolean {
+    var warmed by remember { mutableStateOf(false) }
+    LaunchedEffect(state.anchor) {
+        if (warmed) return@LaunchedEffect
         if (state.isExpanded) {
             warmed = true
         } else {
@@ -111,7 +113,7 @@ internal fun rememberShouldRenderFullPlayer(
             warmed = true
         }
     }
-    val shouldRender by remember(trackId, state) {
+    val shouldRender by remember(state) {
         derivedStateOf {
             state.isExpanded || state.expansionFraction.value > 0.015f || warmed
         }
