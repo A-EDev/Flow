@@ -16,9 +16,25 @@ private fun EqState.presetMode(id: String?): EqMode? =
 
 private fun defaultCurve(mode: EqMode): EqCurve = if (mode == EqMode.PARAMETRIC) EqCurve() else GraphicEq.flatCurve()
 
+/**
+ * Preset [id] as the given [mode] plays it: a graphic preset's ten bands load as parametric bands as
+ * they are, and a parametric preset is fitted onto the ten graphic bands.
+ */
+fun EqState.presetCurveFor(
+    mode: EqMode,
+    id: String?,
+): EqCurve? {
+    val curve = presetCurve(id) ?: return null
+    return when {
+        mode == EqMode.PARAMETRIC -> curve.sanitized()
+        presetMode(id) == EqMode.GRAPHIC -> sanitizedFor(EqMode.GRAPHIC, curve)
+        else -> GraphicEq.fit(curve)
+    }
+}
+
 /** The curve differs from the preset it came from, or there is no preset and it is not flat. */
 val EqState.isEdited: Boolean
-    get() = active.curve != (presetCurve(active.presetId) ?: defaultCurve(mode))
+    get() = active.curve != (presetCurveFor(mode, active.presetId) ?: defaultCurve(mode))
 
 /** The equalizer is on and something in it alters the signal. */
 val EqState.changesSound: Boolean
@@ -39,18 +55,13 @@ private fun EqState.withActive(working: EqWorkingCopy): EqState =
 
 fun EqState.withActiveCurve(curve: EqCurve): EqState = withActive(active.copy(curve = sanitizedFor(mode, curve)))
 
+/** Plays preset [id] in the current mode; the mode itself never changes here. */
 fun EqState.selectPreset(id: String): EqState {
-    val curve = presetCurve(id) ?: return this
-    val presetMode = presetMode(id) ?: return this
-    val selected = EqWorkingCopy(id, sanitizedFor(presetMode, curve))
-    return if (presetMode == EqMode.PARAMETRIC) {
-        copy(mode = presetMode, parametric = selected)
-    } else {
-        copy(mode = presetMode, graphic = selected)
-    }
+    val curve = presetCurveFor(mode, id) ?: return this
+    return withActive(EqWorkingCopy(id, curve))
 }
 
-fun EqState.revert(): EqState = withActiveCurve(presetCurve(active.presetId) ?: defaultCurve(mode))
+fun EqState.revert(): EqState = withActiveCurve(presetCurveFor(mode, active.presetId) ?: defaultCurve(mode))
 
 fun EqState.saveActive(): EqState {
     if (!canSaveActive) return this
@@ -121,7 +132,7 @@ fun EqState.importPreset(
     name: String,
     curve: EqCurve,
 ): EqState =
-    copy(userPresets = userPresets + EqPreset(id = id, name = name, curve = curve.sanitized(), imported = true))
+    copy(mode = EqMode.PARAMETRIC, userPresets = userPresets + EqPreset(id = id, name = name, curve = curve.sanitized(), imported = true))
         .selectPreset(id)
 
 fun EqState.withBassBoost(db: Double): EqState = copy(bassBoost = db.coerceIn(0.0, EqLimits.MAX_BASS_BOOST))

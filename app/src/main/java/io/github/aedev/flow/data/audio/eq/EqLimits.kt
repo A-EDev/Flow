@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.audio.eq
 
+import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round
 
@@ -66,6 +67,61 @@ object GraphicEq {
                     EqBand(frequency = frequency, gain = gains.getOrElse(index) { 0.0 }, q = Q)
                 },
         )
+
+    /**
+     * The ten gains whose response comes closest to [curve] across the whole range: a least-squares
+     * fit on a log grid, with a penalty on the step between neighbouring bands so the sliders do not zigzag, then refined
+     * against the real, overlapping filters.
+     */
+    fun fit(curve: EqCurve): EqCurve {
+        val grid = List(FIT_POINTS) { EqFilterMath.frequencyAt(it.toDouble() / (FIT_POINTS - 1)) }
+        val target = grid.map { EqFilterMath.magnitudeDb(curve.bands, it) }
+        val basis =
+            FREQUENCIES.map { centre ->
+                val unit = listOf(EqBand(centre, 1.0, Q))
+                grid.map { EqFilterMath.magnitudeDb(unit, it) }
+            }
+        var gains = List(FREQUENCIES.size) { 0.0 }
+        repeat(FIT_PASSES) {
+            val bands = curveOf(gains).bands
+            val residual = grid.mapIndexed { k, f -> target[k] - EqFilterMath.magnitudeDb(bands, f) }
+            val step = solveDamped(basis, residual)
+            gains = gains.mapIndexed { i, gain -> (gain + step[i]).coerceIn(-MAX_GAIN, MAX_GAIN) }
+        }
+        return curveOf(gains.map { round(it / STEP) * STEP + 0.0 }, curve.preamp)
+    }
+
+    /** Solves (B·Bᵀ + λ·DᵀD)·x = B·r, D being the difference between neighbouring bands, by Gaussian elimination. */
+    private fun solveDamped(
+        basis: List<List<Double>>,
+        residual: List<Double>,
+    ): DoubleArray {
+        val n = basis.size
+        val a = Array(n) { i -> DoubleArray(n + 1) }
+        for (i in 0 until n) {
+            for (j in 0 until n) a[i][j] = basis[i].indices.sumOf { k -> basis[i][k] * basis[j][k] }
+            a[i][i] += FIT_SMOOTHING * (if (i == 0 || i == n - 1) 1 else 2)
+            if (i > 0) a[i][i - 1] -= FIT_SMOOTHING
+            if (i < n - 1) a[i][i + 1] -= FIT_SMOOTHING
+            a[i][n] = basis[i].indices.sumOf { k -> basis[i][k] * residual[k] }
+        }
+        for (col in 0 until n) {
+            val pivot = (col until n).maxBy { abs(a[it][col]) }
+            val swap = a[col]
+            a[col] = a[pivot]
+            a[pivot] = swap
+            for (row in 0 until n) {
+                if (row == col) continue
+                val factor = a[row][col] / a[col][col]
+                for (c in col..n) a[row][c] -= factor * a[col][c]
+            }
+        }
+        return DoubleArray(n) { a[it][n] / a[it][it] }
+    }
+
+    private const val FIT_POINTS = 96
+    private const val FIT_PASSES = 4
+    private const val FIT_SMOOTHING = 6.0
 
     /** Reads a stored graphic curve back as ten gains; anything malformed becomes flat. */
     fun gainsOf(curve: EqCurve): List<Double> =

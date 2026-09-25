@@ -155,4 +155,57 @@ class EqStateOpsTest {
         assertThat(EqStateJson.decode(EqStateJson.encode(state))).isEqualTo(state)
         assertThat(EqStateJson.decode("not json")).isNull()
     }
+
+    @Test
+    fun `a preset picked in graphic mode is fitted onto the ten bands and stays graphic`() {
+        val state = EqState(mode = EqMode.GRAPHIC).selectPreset(rock)
+        val rockBands = BuiltInEqPresets.byId(rock)!!.curve.bands
+
+        assertThat(state.mode).isEqualTo(EqMode.GRAPHIC)
+        assertThat(state.active.presetId).isEqualTo(rock)
+        assertThat(state.isEdited).isFalse()
+        assertThat(state.parametric).isEqualTo(EqState().parametric)
+        val grid = (0..80).map { EqFilterMath.frequencyAt(0.05 + 0.9 * it / 80.0) }
+        val error = grid.map { EqFilterMath.magnitudeDb(state.graphic.curve.bands, it) - EqFilterMath.magnitudeDb(rockBands, it) }
+        val rms = kotlin.math.sqrt(error.sumOf { it * it } / error.size)
+        assertThat(rms).isLessThan(1.0)
+        val gains = GraphicEq.gainsOf(state.graphic.curve)
+        val zigzags =
+            gains.windowed(3).count { (a, b, c) ->
+                (b - a) * (c - b) < 0 && kotlin.math.abs(b - a) > 1.5 &&
+                    kotlin.math.abs(c - b) > 1.5
+            }
+        assertThat(zigzags).isEqualTo(0)
+    }
+
+    @Test
+    fun `revert in graphic mode returns to the fitted preset`() {
+        val picked = EqState(mode = EqMode.GRAPHIC).selectPreset(rock)
+        val moved = picked.withActiveCurve(GraphicEq.curveOf(List(10) { 6.0 }))
+        assertThat(moved.isEdited).isTrue()
+        assertThat(moved.revert()).isEqualTo(picked)
+    }
+
+    @Test
+    fun `a graphic preset picked in parametric mode loads its bands and stays parametric`() {
+        val car = EqPreset("user:car", "Car", GraphicEq.curveOf(List(10) { it.toDouble() }), mode = EqMode.GRAPHIC)
+        val state = EqState(userPresets = listOf(car)).selectPreset(car.id)
+
+        assertThat(state.mode).isEqualTo(EqMode.PARAMETRIC)
+        assertThat(state.active.curve.bands).hasSize(10)
+        assertThat(state.isEdited).isFalse()
+    }
+
+    @Test
+    fun `importing from graphic mode switches to parametric, where the file plays exactly`() {
+        val curve = EqCurve(bands = listOf(EqBand(910.0, 9.0, 0.71)))
+        val state = EqState(mode = EqMode.GRAPHIC).importPreset("user:i", "Hefty Metal", curve)
+        assertThat(state.mode).isEqualTo(EqMode.PARAMETRIC)
+        assertThat(state.active.curve).isEqualTo(curve)
+    }
+
+    @Test
+    fun `fitting flat gives flat and never writes a negative zero`() {
+        assertThat(GraphicEq.fit(EqCurve())).isEqualTo(GraphicEq.flatCurve())
+    }
 }
