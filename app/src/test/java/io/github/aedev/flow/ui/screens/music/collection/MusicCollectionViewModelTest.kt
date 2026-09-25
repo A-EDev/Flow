@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.recommendation.music.DailyMixStore
+import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -43,6 +44,10 @@ class MusicCollectionViewModelTest {
     private val likes = mockk<LikedVideosRepository>(relaxed = true)
     private val musicLibrary = mockk<MusicLibrary>(relaxed = true)
     private val likedMedia = mockk<LikedMediaUseCase>(relaxed = true)
+    private val downloads =
+        mockk<BackgroundDownloadQueuer>(
+            relaxed = true,
+        ).also { every { it.batches } returns MutableStateFlow(emptyMap()) }
 
     @Before
     fun setUp() {
@@ -68,6 +73,7 @@ class MusicCollectionViewModelTest {
             likedMedia,
             mockk(relaxed = true),
             mockk(relaxed = true),
+            downloads,
         )
 
     private fun entity(
@@ -254,6 +260,20 @@ class MusicCollectionViewModelTest {
         coVerify(timeout = 2_000) { playlists.deletePlaylist(id) }
         assertThat(viewModel.state.value.isDeleted).isTrue()
         assertThat(viewModel.state.value.failed).isFalse()
+    }
+
+    @Test
+    fun `download all loads every page first and hands the whole playlist to the background queue`() {
+        val id = "PLremote"
+        coEvery { playlists.getPlaylistEntity(id) } returns null
+        coEvery { YouTubeMusicService.fetchPlaylistDetails(id) } returns remote(id, listOf(track("a")), continuation = "next")
+        coEvery { YouTubeMusicService.fetchPlaylistContinuation(id, "next") } returns (listOf(track("b")) to null)
+        val viewModel = viewModel(id)
+        viewModel.settled()
+
+        viewModel.download()
+
+        coVerify(timeout = 2_000) { downloads.queueSongs(id, match { songs -> songs.map { it.videoId } == listOf("a", "b") }) }
     }
 
     @Test

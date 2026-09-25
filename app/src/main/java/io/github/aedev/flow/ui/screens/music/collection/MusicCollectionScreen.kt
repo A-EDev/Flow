@@ -44,7 +44,6 @@ import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
-import io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel
 import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
 import io.github.aedev.flow.utils.filterBySearch
 import io.github.aedev.flow.utils.shareLink
@@ -115,9 +114,7 @@ private fun CollectionContent(
     viewModel: MusicCollectionViewModel,
     callbacks: MusicCollectionCallbacks,
 ) {
-    val downloads: MusicPlaylistsViewModel = hiltViewModel()
-    val isDownloading by downloads.isDownloadingPlaylist.collectAsStateWithLifecycle()
-    val downloadProgress by downloads.playlistDownloadProgress.collectAsStateWithLifecycle()
+    val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val quickActions = sharedQuickActionsViewModel()
@@ -197,13 +194,13 @@ private fun CollectionContent(
             callbacks.onTrackClick(it, queue, details.title)
         }
     }
-    val headerState = rememberCollectionHeaderState(state, tracks, downloadProgress.takeIf { isDownloading })
+    val headerState = rememberCollectionHeaderState(state, tracks, downloadProgress)
     val headerActions =
         CollectionHeaderActions(
             onPlay = { play(0, tracks) },
             onShuffle = { play(0, tracks.shuffled()) },
             onSaveToggle = viewModel::toggleSaved,
-            onDownload = { downloads.downloadPlaylistTracks(details.copy(tracks = tracks)) },
+            onDownload = { viewModel.download() },
             onShare = {
                 if (state.sharesAsFile) {
                     scope.launch {
@@ -332,12 +329,7 @@ private fun CollectionContent(
                             onPlayNext = { callbacks.onPlayNext(selectedTracks).also { exitSelection() } },
                             onAddToQueue = { callbacks.onAddToQueue(selectedTracks).also { exitSelection() } },
                             onAddTo = { sheet = CollectionSheet.AddTo(selectedTracks) },
-                            onDownload = {
-                                downloads
-                                    .downloadPlaylistTracks(
-                                        details.copy(tracks = selectedTracks),
-                                    ).also { exitSelection() }
-                            },
+                            onDownload = { viewModel.download(selectedTracks).also { exitSelection() } },
                             onRemove = { viewModel.removeTracks(selectedTracks.mapTo(HashSet()) { it.videoId }).also { exitSelection() } },
                         ),
                     modifier = Modifier.align(Alignment.BottomCenter),

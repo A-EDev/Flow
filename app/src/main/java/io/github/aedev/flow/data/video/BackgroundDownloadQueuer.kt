@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.DownloadManager
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
@@ -78,10 +79,21 @@ class BackgroundDownloadQueuer
         fun queueAll(
             collectionId: String,
             videos: List<Video>,
+        ) = runBatch(collectionId, videos.distinctBy { it.id }) { queue(it) }
+
+        /** [queueAll] for songs, which keep their album and artists through the music downloader. */
+        fun queueSongs(
+            collectionId: String,
+            tracks: List<MusicTrack>,
+        ) = runBatch(collectionId, tracks.distinctBy { it.videoId }) { queueSong(it) }
+
+        private fun <T> runBatch(
+            collectionId: String,
+            items: List<T>,
+            work: suspend (T) -> QueueOutcome,
         ) {
-            val unique = videos.distinctBy { it.id }
-            if (unique.isEmpty()) return
-            val started = DownloadBatch(collectionId, total = unique.size)
+            if (items.isEmpty()) return
+            val started = DownloadBatch(collectionId, total = items.size)
             var accepted = false
             _batches.update { batches ->
                 if (batches[collectionId]?.isFinished == false) {
@@ -92,13 +104,13 @@ class BackgroundDownloadQueuer
                 }
             }
             if (!accepted) return
-            val pending = Channel<Video>(Channel.UNLIMITED)
-            unique.forEach(pending::trySend)
+            val pending = Channel<T>(Channel.UNLIMITED)
+            items.forEach(pending::trySend)
             pending.close()
             repeat(BATCH_WORKERS) {
                 scope.launch {
-                    for (video in pending) {
-                        val outcome = runCatching { queue(video) }.getOrDefault(QueueOutcome.UNAVAILABLE)
+                    for (item in pending) {
+                        val outcome = runCatching { work(item) }.getOrDefault(QueueOutcome.UNAVAILABLE)
                         _batches.update { batches ->
                             val batch = batches[collectionId] ?: return@update batches
                             batches + (collectionId to batch.record(outcome))
@@ -142,9 +154,11 @@ class BackgroundDownloadQueuer
             return QueueOutcome.QUEUED
         }
 
-        private suspend fun queueSong(video: Video): QueueOutcome {
-            if (musicDownloadManager.isDownloaded(video.id)) return QueueOutcome.ALREADY_PRESENT
-            return if (musicDownloadManager.downloadTrack(video.toMusicTrack()).isSuccess) QueueOutcome.QUEUED else QueueOutcome.UNAVAILABLE
+        private suspend fun queueSong(video: Video): QueueOutcome = queueSong(video.toMusicTrack())
+
+        private suspend fun queueSong(track: MusicTrack): QueueOutcome {
+            if (musicDownloadManager.isDownloaded(track.videoId)) return QueueOutcome.ALREADY_PRESENT
+            return if (musicDownloadManager.downloadTrack(track).isSuccess) QueueOutcome.QUEUED else QueueOutcome.UNAVAILABLE
         }
 
         private suspend fun choose(options: VideoDownloadOptions): Choice? {

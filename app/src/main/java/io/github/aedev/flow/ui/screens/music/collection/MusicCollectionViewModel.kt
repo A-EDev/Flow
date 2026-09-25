@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.playlist.PlaylistFileCodec
 import io.github.aedev.flow.data.playlist.PlaylistTransfer
 import io.github.aedev.flow.data.recommendation.music.DailyMixStore
 import io.github.aedev.flow.data.recommendation.music.graph.MusicGraphStore
+import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.music.saveMusicCollection
@@ -68,6 +69,7 @@ class MusicCollectionViewModel
         private val likedMedia: LikedMediaUseCase,
         private val preferences: PlayerPreferences,
         private val transfer: PlaylistTransfer,
+        private val downloads: BackgroundDownloadQueuer,
     ) : ViewModel() {
         val collectionId: String = checkNotNull(savedStateHandle[MUSIC_COLLECTION_ARG])
 
@@ -103,8 +105,44 @@ class MusicCollectionViewModel
         private var moreJob: Job? = null
         private var graphRecorded = false
 
+        /** How far "Download all" has got through this collection, or null while none runs. */
+        val downloadProgress: StateFlow<Float?> =
+            downloads.batches
+                .map { batches -> batches[collectionId]?.takeUnless { it.isFinished }?.let { it.processed.toFloat() / it.total } }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SHARING_TIMEOUT_MS), null)
+
         init {
             load()
+            viewModelScope.launch {
+                downloads.batches.collect { batches ->
+                    batches.values.filter { it.isFinished && it.collectionId.startsWith(collectionId) }.forEach { batch ->
+                        downloads.clearBatch(batch.collectionId)
+                        _messages.send(
+                            if (batch.queued > 0) {
+                                CollectionMessage(
+                                    pluralRes = R.plurals.songs_download_queued,
+                                    count = batch.queued,
+                                    args = listOf(batch.queued),
+                                )
+                            } else {
+                                CollectionMessage(stringRes = R.string.songs_download_nothing_new)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        /** Downloads every song here, all pages of them, or just [songs]; it carries on after the page closes. */
+        fun download(songs: List<MusicTrack>? = null) {
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                val tracks = songs ?: loadAll()?.tracks.orEmpty()
+                if (tracks.isEmpty()) return@launch
+                _messages.send(CollectionMessage(pluralRes = R.plurals.songs_downloading, count = tracks.size, args = listOf(tracks.size)))
+                // A selection runs as its own batch, so it never blocks or borrows the whole page's progress.
+                val batchId = if (songs == null) collectionId else "$collectionId:${System.currentTimeMillis()}"
+                downloads.queueSongs(batchId, tracks)
+            }
         }
 
         fun retry() {

@@ -3679,4 +3679,13 @@
         <item quantity="one">Imported %1$s, %2$d song</item>
         <item quantity="other">Imported %1$s, %2$d songs</item>
     </plurals>
+    <plurals name="songs_downloading">
+        <item quantity="one">Downloading %d song</item>
+        <item quantity="other">Downloading %d songs</item>
+    </plurals>
+    <plurals name="songs_download_queued">
+        <item quantity="one">%d song queued for download</item>
+        <item quantity="other">%d songs queued for download</item>
+    </plurals>
+    <string name="songs_download_nothing_new">Everything here is already downloaded or unavailable</string>
 </resources>
