@@ -3613,9 +3613,23 @@
     <string name="recap_summary_top_channel">Top channel</string>
     <string name="recap_summary_top_artist">Top artist</string>
     <string name="recap_summary_top_topic">Top topic</string>
-    <!-- Playlist search -->
+    <!-- Playlist search, file export and import -->
     <string name="search_in_playlist">Search in playlist</string>
     <string name="playlist_search_no_results">No videos match “%1$s”</string>
+    <string name="export_playlist_action">Save as file</string>
+    <string name="import_playlist_action">Import from file</string>
+    <string name="imported_playlist_default_name">Imported playlist</string>
+    <string name="playlist_exported">Playlist saved</string>
+    <string name="playlist_export_failed">Couldn\'t save the playlist</string>
+    <string name="playlist_share_failed">Couldn\'t share the playlist</string>
+    <string name="playlist_import_not_a_playlist">This file isn\'t a Flow playlist</string>
+    <string name="playlist_import_too_new">This playlist needs a newer version of Flow</string>
+    <string name="playlist_import_empty">This playlist has no videos to import</string>
+    <string name="playlist_import_unreadable">Couldn\'t read this file</string>
+    <plurals name="playlist_imported">
+        <item quantity="one">Imported %1$s, %2$d video</item>
+        <item quantity="other">Imported %1$s, %2$d videos</item>
+    </plurals>
 
     <!-- Watch later: remove watched videos (#1060) -->
     <string name="content_settings_remove_watched_watch_later_title">Remove watched videos</string>

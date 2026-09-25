@@ -1,13 +1,16 @@
 package io.github.aedev.flow
 
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.util.Log
 import android.view.KeyEvent
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -21,12 +24,15 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.core.content.IntentCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.aedev.flow.data.local.AppUiModePreferences
 import io.github.aedev.flow.data.local.LocalDataManager
+import io.github.aedev.flow.data.playlist.PlaylistImport
+import io.github.aedev.flow.data.playlist.PlaylistTransfer
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.discord.DiscordPresenceRuntime
 import io.github.aedev.flow.notification.NotificationHelper
@@ -40,6 +46,7 @@ import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MemoryPressurePolicy
 import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.ui.FlowApp
+import io.github.aedev.flow.ui.components.library.message
 import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.components.shared.ProvideDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.card.ProvideVideoCardState
@@ -56,6 +63,7 @@ import io.github.aedev.flow.ui.utils.ProvideWindowSizeClass
 import io.github.aedev.flow.ui.youtubeChannelDeepLinkRoute
 import io.github.aedev.flow.utils.AppLanguageManager
 import io.github.aedev.flow.utils.FlowCrashHandler
+import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -85,6 +93,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var appIconController: AppIconController
+
+    @Inject
+    lateinit var playlistTransfer: dagger.Lazy<PlaylistTransfer>
+
+    // A recreated activity gets its launch intent again; a playlist file in it was already imported.
+    private var isRestoringState = false
 
     private val splashController = SplashController(this)
 
@@ -173,7 +187,9 @@ class MainActivity : ComponentActivity() {
                 .observeThemeChanges(applicationContext)
         }
 
+        isRestoringState = savedInstanceState != null
         handleIntent(intent)
+        isRestoringState = false
 
         // Read now, alongside the rest of startup, so the theme is usually known by the first composition.
         val storedTheme = MutableStateFlow<ThemeSettings?>(null)
@@ -319,10 +335,33 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
+    private fun playlistFileIn(intent: Intent): Uri? {
+        val type = intent.type ?: intent.data?.takeIf { it.scheme == ContentResolver.SCHEME_CONTENT }?.let(contentResolver::getType)
+        if (type != PLAYLIST_FILE_MIME_TYPE) return null
+        return when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+            else -> null
+        }
+    }
+
+    private fun importPlaylistFile(file: Uri) {
+        lifecycleScope.launch {
+            val result = playlistTransfer.get().import(file, getString(R.string.imported_playlist_default_name))
+            Toast.makeText(this@MainActivity, result.message(this@MainActivity), Toast.LENGTH_LONG).show()
+            if (result is PlaylistImport.Imported) _pendingRoute.value = "playlist/${result.playlistId}"
+        }
+    }
+
     private fun handleIntent(intent: Intent) {
         if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_UPDATE, false)) {
             intent.removeExtra(NotificationHelper.EXTRA_OPEN_UPDATE)
             _pendingRoute.value = UPDATE_ROUTE
+            return
+        }
+        val playlistFile = playlistFileIn(intent)
+        if (playlistFile != null) {
+            if (!isRestoringState) importPlaylistFile(playlistFile)
             return
         }
         val data = intent.data

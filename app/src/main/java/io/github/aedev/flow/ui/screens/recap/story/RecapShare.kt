@@ -5,7 +5,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.core.content.FileProvider
+import io.github.aedev.flow.utils.sharedFileUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -42,7 +42,7 @@ internal suspend fun shareRecap(
                             }
                         }
                     file.outputStream().use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, out) }
-                    FileProvider.getUriForFile(context, "${context.packageName}.recap", file)
+                    sharedFileUri(context, file)
                 }.getOrNull()
             }
         }

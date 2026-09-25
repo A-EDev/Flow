@@ -1,10 +1,13 @@
 package io.github.aedev.flow.ui.screens.playlists
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.PlaylistInfo
+import io.github.aedev.flow.data.playlist.PlaylistImport
+import io.github.aedev.flow.data.playlist.PlaylistTransfer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +20,7 @@ class PlaylistsViewModel
     @Inject
     constructor(
         private val repository: PlaylistRepository,
+        private val transfer: PlaylistTransfer,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(PlaylistsUiState(isLoading = true))
         val uiState: StateFlow<PlaylistsUiState> = _uiState.asStateFlow()
@@ -53,6 +57,12 @@ class PlaylistsViewModel
                 )
             }
         }
+
+        /** Imports the playlist file at [source]; the result says what to tell the viewer and where to go. */
+        suspend fun importPlaylist(
+            source: Uri,
+            fallbackName: String,
+        ): PlaylistImport = transfer.import(source, fallbackName)
 
         fun deletePlaylist(playlistId: String) {
             viewModelScope.launch {

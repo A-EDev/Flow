@@ -3,4 +3,7 @@
     <cache-path
         name="recap"
         path="recap/" />
+    <cache-path
+        name="playlists"
+        path="playlists/" />
 </paths>

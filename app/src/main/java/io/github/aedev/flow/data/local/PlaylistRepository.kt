@@ -207,6 +207,42 @@ class PlaylistRepository
             playlistDao.insertPlaylist(entity)
         }
 
+        /**
+         * Adds an imported playlist as the viewer's own, in the given order. Videos already in the
+         * library keep their stored metadata; the file only fills in ones Flow has never seen.
+         */
+        suspend fun importPlaylist(
+            name: String,
+            description: String,
+            videos: List<Video>,
+        ): String {
+            val now = System.currentTimeMillis()
+            val playlistId = now.toString()
+            videoDao.insertVideosOrIgnore(videos.map(::normalizedEntity))
+            playlistDao.insertPlaylistWithVideos(
+                playlist =
+                    PlaylistEntity(
+                        id = playlistId,
+                        name = name,
+                        description = description,
+                        thumbnailUrl = videos.firstOrNull()?.thumbnailUrl.orEmpty(),
+                        isPrivate = true,
+                        createdAt = now,
+                        isUserCreated = true,
+                    ),
+                entries =
+                    videos.mapIndexed { index, video ->
+                        PlaylistVideoCrossRef(
+                            playlistId = playlistId,
+                            videoId = video.id,
+                            position = index.toLong(),
+                            addedAt = video.addedAtInPlaylist ?: now,
+                        )
+                    },
+            )
+            return playlistId
+        }
+
         suspend fun saveExternalVideoPlaylist(
             id: String,
             name: String,

@@ -2,6 +2,8 @@ package io.github.aedev.flow.ui.screens.playlists
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,6 +20,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,7 +48,10 @@ import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
+import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
 import io.github.aedev.flow.utils.sharePlaylist
+import io.github.aedev.flow.utils.sharePlaylistFile
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlaylistDetailScreen(
@@ -72,6 +78,11 @@ fun PlaylistDetailScreen(
     val positions =
         remember(displayVideos, isSearching) {
             if (isSearching) displayVideos.withIndex().associate { (index, video) -> video.id to index + 1 } else emptyMap()
+        }
+    val scope = rememberCoroutineScope()
+    val exportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PLAYLIST_FILE_MIME_TYPE)) { target ->
+            target?.let(viewModel::exportTo)
         }
     val listState = rememberLazyListState()
     val panes = rememberLibraryPaneState()
@@ -122,7 +133,21 @@ fun PlaylistDetailScreen(
             onDownloadAll = { dialog = PlaylistDialog.DownloadAll },
             onSaveToggle = { if (uiState.isSaved) viewModel.unsaveFromLibrary() else viewModel.saveToLibrary() },
             onAddAll = { dialog = PlaylistDialog.AddAll },
-            onShare = { sharePlaylist(context, viewModel.playlistId, uiState.playlistName) },
+            onShare = {
+                if (!isUserCreated) {
+                    sharePlaylist(context, viewModel.playlistId, uiState.playlistName)
+                } else {
+                    scope.launch {
+                        val file = viewModel.shareableFile()
+                        if (file != null) {
+                            sharePlaylistFile(context, file, uiState.playlistName)
+                        } else {
+                            quickActions.announce(context.getString(R.string.playlist_share_failed))
+                        }
+                    }
+                }
+            },
+            onExport = { exportLauncher.launch(viewModel.exportFileName) },
             onEdit = { dialog = PlaylistDialog.Edit },
             onDelete = { dialog = PlaylistDialog.Delete },
         )

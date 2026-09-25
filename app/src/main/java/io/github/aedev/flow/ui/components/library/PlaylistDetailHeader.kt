@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.SaveAs
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -78,8 +79,8 @@ internal data class PlaylistHeaderState(
     val isSaved: Boolean = false,
     val canSave: Boolean = false,
     val canAddAll: Boolean = false,
-    val canShare: Boolean = false,
     val canEdit: Boolean = false,
+    val canExport: Boolean = false,
     val downloadProgress: Float? = null,
 )
 
@@ -91,6 +92,7 @@ internal class PlaylistHeaderActions(
     val onSaveToggle: () -> Unit,
     val onAddAll: () -> Unit,
     val onShare: () -> Unit,
+    val onExport: () -> Unit,
     val onEdit: () -> Unit,
     val onDelete: () -> Unit,
 )
@@ -263,23 +265,35 @@ private fun PlaylistSecondaryActions(
                 Icon(Icons.AutoMirrored.Outlined.PlaylistAdd, contentDescription = stringResource(R.string.add_all_to_playlist))
             }
         }
-        if (state.canShare) {
-            IconButton(onClick = actions.onShare) {
-                Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
-            }
+        IconButton(onClick = actions.onShare) {
+            Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
         }
-        if (state.canEdit) PlaylistOverflowMenu(actions)
+        if (state.canEdit || state.canExport) PlaylistOverflowMenu(state, actions)
     }
 }
 
 @Composable
-private fun PlaylistOverflowMenu(actions: PlaylistHeaderActions) {
+private fun PlaylistOverflowMenu(
+    state: PlaylistHeaderState,
+    actions: PlaylistHeaderActions,
+) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
             Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.more_options))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            if (state.canExport) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.export_playlist_action)) },
+                    leadingIcon = { Icon(Icons.Outlined.SaveAs, contentDescription = null) },
+                    onClick = {
+                        open = false
+                        actions.onExport()
+                    },
+                )
+            }
+            if (!state.canEdit) return@DropdownMenu
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.edit_playlist_action)) },
                 leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },

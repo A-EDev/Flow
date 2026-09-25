@@ -45,8 +45,8 @@ internal fun rememberPlaylistHeaderState(
         isSaved = uiState.isSaved,
         canSave = !isUserCreated,
         canAddAll = !isUserCreated,
-        canShare = !isUserCreated,
         canEdit = isUserCreated && !uiState.isWatchLater,
+        canExport = uiState.isLocalPlaylist,
         downloadProgress = downloadBatch?.takeUnless { it.isFinished }?.let { it.processed.toFloat() / it.total },
     )
 }

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.playlists
 
 import android.content.Context
+import android.net.Uri
 import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
@@ -16,6 +17,8 @@ import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.playlist.PlaylistFileCodec
+import io.github.aedev.flow.data.playlist.PlaylistTransfer
 import io.github.aedev.flow.data.repository.RemotePlaylistPage
 import io.github.aedev.flow.data.repository.YouTubePlaylistRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -86,6 +89,7 @@ class PlaylistDetailViewModel
         private val downloadQueuer: BackgroundDownloadQueuer,
         private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
         private val watchLaterCleanup: WatchLaterCleanup,
+        private val transfer: PlaylistTransfer,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
@@ -237,6 +241,23 @@ class PlaylistDetailViewModel
                     _messages.send(PlaylistUiMessage(stringRes = R.string.toast_failed_to_merge_playlist))
                 }
             }
+        }
+
+        /** The name offered when the viewer saves this playlist as a file. */
+        val exportFileName: String get() = PlaylistFileCodec.fileName(_uiState.value.playlistName)
+
+        fun exportTo(target: Uri) {
+            viewModelScope.launch {
+                val state = _uiState.value
+                val saved = transfer.writeTo(target, state.playlistName, state.description, state.videos)
+                _messages.send(PlaylistUiMessage(stringRes = if (saved) R.string.playlist_exported else R.string.playlist_export_failed))
+            }
+        }
+
+        /** This playlist as a file another app can read, or null when it could not be written. */
+        suspend fun shareableFile(): Uri? {
+            val state = _uiState.value
+            return transfer.shareableCopy(state.playlistName, state.description, state.videos)
         }
 
         fun downloadPlaylist() {

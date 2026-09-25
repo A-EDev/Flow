@@ -107,6 +107,16 @@ interface PlaylistDao {
         return taken
     }
 
+    /** Adds a whole playlist with its entries as one change, so it never appears half filled. */
+    @Transaction
+    suspend fun insertPlaylistWithVideos(
+        playlist: PlaylistEntity,
+        entries: List<PlaylistVideoCrossRef>,
+    ) {
+        insertPlaylist(playlist)
+        entries.forEach { insertPlaylistVideoCrossRef(it) }
+    }
+
     /** Puts entries back where they were, with their original position and date added. */
     @Transaction
     suspend fun restorePlaylistVideos(entries: List<PlaylistVideoCrossRef>) {
