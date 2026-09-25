@@ -142,6 +142,8 @@ class VideoEngagementUseCase
                     title = video.title,
                     thumbnail = video.thumbnailUrl,
                     channelName = video.channelName,
+                    channelId = video.channelId.takeIf(String::isNotBlank),
+                    durationSeconds = video.duration,
                 ),
             )
             onApplied()

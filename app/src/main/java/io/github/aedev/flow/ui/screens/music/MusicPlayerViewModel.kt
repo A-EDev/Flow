@@ -576,11 +576,13 @@ class MusicPlayerViewModel
             val currentTrack = _uiState.value.currentTrack ?: return
             if (isLocalMediaId(currentTrack.videoId)) return
 
+            // The like state decides, not the favorites list: a song liked on another device or from
+            // the video player is liked without being a favorite, and flipping the list missed it.
+            val like = !_uiState.value.isLiked
+            _uiState.update { it.copy(isLiked = like) }
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)
-                _uiState.update { it.copy(isLiked = isNowFavorite) }
-
-                if (isNowFavorite) {
+                if (like) {
+                    playlistRepository.addToFavorites(currentTrack)
                     likedVideosRepository.likeVideo(
                         LikedVideoInfo(
                             videoId = currentTrack.videoId,
@@ -588,10 +590,13 @@ class MusicPlayerViewModel
                             thumbnail = currentTrack.thumbnailUrl,
                             channelName = currentTrack.artist,
                             isMusic = true,
+                            channelId = currentTrack.channelId.takeIf(String::isNotBlank),
+                            durationSeconds = currentTrack.duration,
                         ),
                     )
                     musicBrain.onExplicitLike(currentTrack)
                 } else {
+                    playlistRepository.removeFromFavorites(currentTrack.videoId)
                     likedVideosRepository.removeLikeState(currentTrack.videoId)
                 }
             }
