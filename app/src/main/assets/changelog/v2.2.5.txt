@@ -48,6 +48,8 @@ NEW FEATURES
 - Save a playlist as a file, share it with anyone, and import one from the Playlists screen or by opening the file in Flow
 - Optional setting to remove videos from Watch later once you have watched them, with Undo when Watch later clears older ones (#1060)
 - Likes are now two built-in playlists, Liked videos and Liked music, with search, sort, select and unlike with Undo, Play all, Shuffle, Download all and Save as file
+- Album and playlist pages in Music are redesigned, with a side pane on tablets and foldables, search inside the page, sorting (album order, title, artist, album, length, date added), selecting songs to play next, queue, add to a playlist, download or remove with Undo, working Share links, and Save as file for your playlists, saved ones and Liked music
+- Your music playlists can be edited, deleted and filled from a new Add songs sheet right on their page, a Daily Mix can be saved as your own playlist, and Download all now covers the whole album or playlist and keeps going after you leave
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
@@ -106,6 +108,8 @@ FIXES AND STABILITY
 - Fix local files reaching YouTube services: Like, Subscribe and Download no longer appear for them, their history stays local, and they no longer sync as liked videos
 - Fix a missing local file loading forever, local songs failing after the app restarts, and videos removed from a saved YouTube playlist coming back
 - Fix paused downloads that could not be resumed after the app restarted, failed downloads that could only be deleted, music downloads in progress being hidden, and Download all stopping when you left the page
+- Fix songs in your music playlists showing no length, saving an album wiping details other pages had stored for its songs, and imported or synced music playlists being treated as someone else's (where Save could delete them)
+- Fix music pages loading again every time you came back to them, a failed load leaving a blank screen with no way back, playlists stopping partway through, and the music home loading in the background while a playlist page was open
 - Fix likes disappearing when a title contained a "|", and the music player's like button needing two taps to unlike a song liked on another device
 - Fix the action button on snackbars being hard to read in several themes
 - Fix a playlist stopping at a removed or unplayable video, or at one whose stream YouTube kept refusing, instead of moving on, and the video queue being lost when the app was closed (#1008)
