@@ -23,6 +23,7 @@ class FlowBottomInsetsTest {
             miniPlayerShown = miniShown,
             barFraction = { barFraction.floatValue },
             miniPlayerFraction = { miniFraction.floatValue },
+            miniPlayerSpanPx = mutableStateOf(800f..1760f),
         )
     private val density = Density(2f)
 
@@ -58,5 +59,18 @@ class FlowBottomInsetsTest {
     fun `outside the app shell nothing is reserved`() {
         assertThat(FlowBottomInsets.None.contentBottom).isEqualTo(0.dp)
         assertThat(FlowBottomInsets.None.floatingBottomPx(density)).isEqualTo(0f)
+    }
+
+    @Test
+    fun `a corner button clears the mini player only when it sits above it`() {
+        val clearOfMini = insets.floatingBottomPx(density, leftPx = 2400f, rightPx = 2512f)
+        val aboveMini = insets.floatingBottomPx(density, leftPx = 1700f, rightPx = 1812f)
+        assertThat(clearOfMini).isEqualTo((24f + 64f) * 2f)
+        assertThat(aboveMini).isEqualTo((24f + 64f + 72f) * 2f)
+    }
+
+    @Test
+    fun `side panes clear the bar and the gesture area but not the mini player`() {
+        assertThat(insets.navigationBottom).isEqualTo(88.dp)
     }
 }

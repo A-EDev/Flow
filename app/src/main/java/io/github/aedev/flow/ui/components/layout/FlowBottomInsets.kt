@@ -1,16 +1,22 @@
 package io.github.aedev.flow.ui.components.layout
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
@@ -34,12 +40,16 @@ class FlowBottomInsets(
     private val miniPlayerShown: State<Boolean>,
     private val barFraction: () -> Float,
     private val miniPlayerFraction: () -> Float,
+    private val miniPlayerSpanPx: State<ClosedFloatingPointRange<Float>> = mutableStateOf(0f..Float.MAX_VALUE),
 ) {
     /** Bottom space the settled chrome covers: gesture area, the bar when shown, the mini player when shown. */
     val contentBottom: Dp get() = systemInset.value + barBottom + if (miniPlayerShown.value) miniPlayerHeight.value else 0.dp
 
     /** The bar's height while it is shown and settled, else zero. */
     val barBottom: Dp get() = if (barShown.value) barHeight.value else 0.dp
+
+    /** The gesture area and the bar, without the mini player: for surfaces the mini player does not reach. */
+    val navigationBottom: Dp get() = systemInset.value + barBottom
 
     /** The system gesture or button area alone. */
     val systemBottom: Dp get() = systemInset.value
@@ -53,6 +63,21 @@ class FlowBottomInsets(
     /** Px from the window's bottom edge to the top of the chrome right now, for things that float above it. */
     fun floatingBottomPx(density: Density): Float =
         miniPlayerBaselinePx(density) + with(density) { miniPlayerHeight.value.toPx() } * miniPlayerFraction()
+
+    /**
+     * Like [floatingBottomPx] for an element spanning [leftPx] to [rightPx] in the window: it clears
+     * the mini player only when the two overlap across the width, as a centred card on a wide
+     * window leaves the corners free.
+     */
+    fun floatingBottomPx(
+        density: Density,
+        leftPx: Float,
+        rightPx: Float,
+    ): Float {
+        val span = miniPlayerSpanPx.value
+        val overlaps = rightPx > span.start && leftPx < span.endInclusive
+        return if (overlaps) floatingBottomPx(density) else miniPlayerBaselinePx(density)
+    }
 
     companion object {
         /** No chrome: previews, tests and surfaces outside the app shell. */
@@ -90,6 +115,45 @@ fun flowContentPadding(
         bottom = flowBottomContentPadding(extraBottom),
     )
 
-/** Lifts a floating element (a FAB, a snackbar, a toolbar) above the bottom chrome, riding along as it moves. */
-fun Modifier.floatAboveBottomChrome(insets: FlowBottomInsets): Modifier =
-    offset { IntOffset(0, -insets.floatingBottomPx(this).roundToInt()) }
+/**
+ * Lifts a floating element (a FAB, a snackbar, a toolbar) above the bottom chrome, riding along as
+ * it moves. The lift includes the mini player only where the element is actually above it.
+ */
+fun Modifier.floatAboveBottomChrome(insets: FlowBottomInsets): Modifier = this then FloatAboveBottomChromeElement(insets)
+
+private data class FloatAboveBottomChromeElement(
+    val insets: FlowBottomInsets,
+) : ModifierNodeElement<FloatAboveBottomChromeNode>() {
+    override fun create() = FloatAboveBottomChromeNode(insets)
+
+    override fun update(node: FloatAboveBottomChromeNode) {
+        node.insets = insets
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "floatAboveBottomChrome"
+    }
+}
+
+private class FloatAboveBottomChromeNode(
+    var insets: FlowBottomInsets,
+) : Modifier.Node(),
+    LayoutModifierNode {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) {
+            // Read in placement, so a moving bar or mini player re-places without a new measure.
+            val left = coordinates?.positionInWindow()?.x
+            val lift =
+                if (left == null) {
+                    insets.floatingBottomPx(this@measure)
+                } else {
+                    insets.floatingBottomPx(this@measure, left, left + placeable.width)
+                }
+            placeable.place(0, -lift.roundToInt())
+        }
+    }
+}

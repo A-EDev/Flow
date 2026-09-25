@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,9 +51,13 @@ import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.MusicMenuSheets
 import io.github.aedev.flow.ui.components.music.sheet.rememberMusicMenus
+import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerCompactMargin
+import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerLargeMargin
+import io.github.aedev.flow.ui.components.musicplayer.sheet.MiniPlayerMaxWidth
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerBottomSpacer
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerHeight
 import io.github.aedev.flow.ui.components.musicplayer.sheet.UnifiedMusicPlayerSheet
+import io.github.aedev.flow.ui.components.musicplayer.sheet.miniPlayerBounds
 import io.github.aedev.flow.ui.components.musicplayer.sheet.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
@@ -66,6 +71,8 @@ import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.screens.update.UpdateLaunchEffect
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
+import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
+import io.github.aedev.flow.ui.utils.isMediumWidth
 import kotlin.math.roundToInt
 
 @UnstableApi
@@ -372,6 +379,14 @@ fun FlowApp(
                 (isMusicSheetShown && musicPlayerSheetState.isExpanded)
         val showBottomNav = !isInPipMode && currentTab.showsNavigationBar() && !isPlayerCoveringContent
         val isBottomNavShown = !usesNavigationRail && showBottomNav && navScrollState.isBarVisible
+        // The rail is hidden only where content goes truly full screen; the expanded players cover
+        // it instead, so opening them never re-lays out the page beneath.
+        val currentDestinationRoute = currentEntry?.destination?.route
+        val isNavigationRailVisible =
+            !isInPipMode &&
+                needsOnboarding != null &&
+                currentDestinationRoute != "onboarding" &&
+                !(currentDestinationRoute == SHORTS_ROUTE_PATTERN && currentTab == null)
         val isMusicMiniPlayerObscuringContent =
             currentMusicTrack != null &&
                 !suppressMusicMiniAfterVideo &&
@@ -399,6 +414,25 @@ fun FlowApp(
         }
         val miniPlayerShownState = rememberUpdatedState(isMusicMiniPlayerObscuringContent)
         val miniPlayerHeightState = rememberUpdatedState(MusicMiniPlayerHeight + MusicMiniPlayerBottomSpacer)
+        val miniPlayerBounds =
+            with(density) {
+                miniPlayerBounds(
+                    containerWidthPx = constraints.maxWidth.toFloat(),
+                    startInsetPx = (if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp).toPx(),
+                    isCompactWidth = !LocalWindowSizeClass.current.isMediumWidth,
+                    compactMarginPx = MiniPlayerCompactMargin.toPx(),
+                    largeMarginPx = MiniPlayerLargeMargin.toPx(),
+                    maxWidthPx = MiniPlayerMaxWidth.toPx(),
+                )
+            }
+        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+        val miniPlayerSpanState =
+            rememberUpdatedState(
+                miniPlayerBounds.let { bounds ->
+                    val left = if (isRtl) constraints.maxWidth - bounds.start - bounds.width else bounds.start
+                    left..(left + bounds.width)
+                },
+            )
         val bottomInsets =
             remember {
                 FlowBottomInsets(
@@ -409,16 +443,9 @@ fun FlowApp(
                     miniPlayerShown = miniPlayerShownState,
                     barFraction = { barFraction.value },
                     miniPlayerFraction = { miniPlayerFraction.value },
+                    miniPlayerSpanPx = miniPlayerSpanState,
                 )
             }
-        // The rail is hidden only where content goes truly full screen; the expanded players cover
-        // it instead, so opening them never re-lays out the page beneath.
-        val currentDestinationRoute = currentEntry?.destination?.route
-        val isNavigationRailVisible =
-            !isInPipMode &&
-                needsOnboarding != null &&
-                currentDestinationRoute != "onboarding" &&
-                !(currentDestinationRoute == SHORTS_ROUTE_PATTERN && currentTab == null)
         FlowNavigationChrome(
             tabs = navigationTabs,
             selectedTab = selectedTab,
@@ -575,7 +602,7 @@ fun FlowApp(
                     state = musicPlayerSheetState,
                     containerWidth = maxWidth,
                     containerHeight = with(density) { screenHeightPx.toDp() },
-                    startInset = if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp,
+                    miniBounds = miniPlayerBounds,
                     restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
                     track = currentMusicTrack!!,
                     onDismiss = {

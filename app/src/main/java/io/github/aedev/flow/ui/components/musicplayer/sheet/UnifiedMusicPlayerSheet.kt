@@ -84,11 +84,11 @@ private val SheetDefaultSpring =
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun UnifiedMusicPlayerSheet(
+internal fun UnifiedMusicPlayerSheet(
     state: MusicPlayerSheetState,
     containerWidth: Dp,
     containerHeight: Dp,
-    startInset: Dp,
+    miniBounds: MiniPlayerBounds,
     restingBottomPx: () -> Float,
     track: MusicTrack,
     onDismiss: () -> Unit,
@@ -104,17 +104,6 @@ fun UnifiedMusicPlayerSheet(
     val miniSpacerPx = with(density) { MusicMiniPlayerBottomSpacer.toPx() }
     val containerWidthPx = with(density) { containerWidth.toPx() }
     val isCompactWidth = !LocalWindowSizeClass.current.isMediumWidth
-    val miniBounds =
-        with(density) {
-            miniPlayerBounds(
-                containerWidthPx = containerWidthPx,
-                startInsetPx = startInset.toPx(),
-                isCompactWidth = isCompactWidth,
-                compactMarginPx = MiniPlayerCompactMargin.toPx(),
-                largeMarginPx = MiniPlayerLargeMargin.toPx(),
-                maxWidthPx = MiniPlayerMaxWidth.toPx(),
-            )
-        }
     val collapsedTargetY = (containerHeightPx - miniHeightPx - miniSpacerPx).coerceAtLeast(0f)
     val hiddenY = containerHeightPx + miniSpacerPx
 

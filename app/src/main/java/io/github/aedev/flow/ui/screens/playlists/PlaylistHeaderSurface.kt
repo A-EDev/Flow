@@ -7,7 +7,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.shared.rememberMediaArtworkTint
 
 // The desktop app's header column, which keeps the artwork a header rather than a poster.
@@ -24,7 +24,7 @@ internal fun PlaylistHeaderSurface(
         color = tint.container,
         contentColor = tint.onContainer,
         shape = MaterialTheme.shapes.extraLarge,
-        modifier = Modifier.fillMaxSize().padding(start = 16.dp, bottom = flowBottomContentPadding()),
+        modifier = Modifier.fillMaxSize().padding(start = 16.dp, bottom = 16.dp + LocalFlowBottomInsets.current.navigationBottom),
         content = content,
     )
 }
