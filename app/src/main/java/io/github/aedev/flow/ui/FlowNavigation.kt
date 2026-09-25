@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
@@ -15,6 +16,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.localmedia.toMusicTrack
@@ -55,6 +57,7 @@ import io.github.aedev.flow.ui.screens.shorts.ShortsScreen
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsScreen
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.screens.update.UpdateScreen
+import kotlinx.coroutines.flow.first
 
 @UnstableApi
 fun NavGraphBuilder.flowAppGraph(
@@ -887,9 +890,15 @@ fun NavGraphBuilder.flowAppGraph(
             ),
     ) { backStackEntry ->
         currentRoute.value = "musicPlayer"
+        val context = LocalContext.current
 
         LaunchedEffect(Unit) {
-            musicPlayerSheetState.expand()
+            // A new song starts in the mini player unless the user asked for the full player.
+            if (PlayerPreferences(context).openMusicPlayerOnPlay.first()) {
+                musicPlayerSheetState.expand()
+            } else if (!musicPlayerSheetState.isExpanded) {
+                musicPlayerSheetState.collapse()
+            }
             withFrameNanos { }
             navController.popTransientRouteOrNavigateStart(defaultStartRoute)
         }

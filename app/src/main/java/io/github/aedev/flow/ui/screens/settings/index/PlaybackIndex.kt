@@ -261,6 +261,14 @@ internal object PlaybackIndex {
             section = R.string.settings_section_pip,
             destination = page,
         )
+    val openMusicPlayerOnPlay =
+        SettingEntry(
+            key = "playback.open_music_player_on_play",
+            title = R.string.settings_open_music_player_on_play_title,
+            summary = R.string.settings_open_music_player_on_play_summary,
+            section = R.string.settings_section_pip,
+            destination = page,
+        )
     val audioLanguage =
         SettingEntry(
             key = "playback.audio_language",
@@ -422,6 +430,7 @@ internal object PlaybackIndex {
             autoPip,
             continueWatchingMiniPlayer,
             restoreMusicMiniPlayer,
+            openMusicPlayerOnPlay,
             audioLanguage,
             subtitleLanguage,
             autoCaptions,

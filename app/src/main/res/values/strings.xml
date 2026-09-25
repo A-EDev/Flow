@@ -1014,6 +1014,8 @@
     <string name="content_settings_header_content_components">Content Components</string>
     <string name="content_settings_restored_music_mini_player_title">Show restored music mini player</string>
     <string name="content_settings_restored_music_mini_player_subtitle">Show your last music session after it\'s restored</string>
+    <string name="settings_open_music_player_on_play_title">Open the full player for new songs</string>
+    <string name="settings_open_music_player_on_play_summary">Off keeps a new song in the mini player</string>
     <string name="content_settings_hide_watched_home_title">Hide Watched Videos from Home</string>
     <string name="content_settings_hide_watched_home_subtitle">Hide videos you\'ve watched from Home</string>
     <string name="content_settings_hide_watched_subscriptions_title">Hide Watched Videos from Subscriptions</string>
