@@ -17,6 +17,7 @@ import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.transcript.TranscriptRepository
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.data.video.VideoQueueStore
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
 import io.github.aedev.flow.innertube.pages.VideoCommentSort
@@ -32,14 +33,19 @@ import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.*
 import javax.inject.Inject
+
+private const val QUEUE_SAVE_DEBOUNCE_MS = 1_000L
 
 /**
  * Owns the player screen's state and every session entry point the UI calls: what plays, what the
@@ -49,6 +55,7 @@ import javax.inject.Inject
  * player's own state changes land on, [PlaybackSessionApplier] writes what a resolved load lands on.
  * Both hold the one flow constructed here and gate on the same load token.
  */
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class VideoPlayerViewModel
     @Inject
@@ -61,6 +68,7 @@ class VideoPlayerViewModel
         private val playlistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
         private val playerPreferences: PlayerPreferences,
         private val videoDownloadManager: VideoDownloadManager,
+        private val videoQueueStore: VideoQueueStore,
         private val offlineSubtitleStore: io.github.aedev.flow.data.video.OfflineSubtitleStore,
         private val sponsorBlockRepository: SponsorBlockRepository,
         private val liveChatRepository: io.github.aedev.flow.data.repository.LiveChatRepository,
@@ -176,6 +184,8 @@ class VideoPlayerViewModel
                 scope = viewModelScope,
                 ioDispatcher = ioDispatcher,
                 resumePlayback = ::playVideo,
+                savedQueue = videoQueueStore::load,
+                resumeQueue = { videos, index, title -> playPlaylist(videos, index, title) },
             )
 
         private val _canGoPrevious = MutableStateFlow(false)
@@ -249,6 +259,13 @@ class VideoPlayerViewModel
 
         init {
             refreshBlockedChannels()
+
+            // The first value is the empty queue of a fresh process; saving it would erase the one to restore.
+            combine(playerManager.queueVideos, playerManager.currentQueueIndexState, ::Pair)
+                .drop(1)
+                .debounce(QUEUE_SAVE_DEBOUNCE_MS)
+                .onEach { (videos, index) -> videoQueueStore.save(videos, index, playerManager.playerState.value.queueTitle) }
+                .launchIn(viewModelScope)
 
             playerPreferences.shortsContentEnabled
                 .onEach { shortsContentEnabled = it }

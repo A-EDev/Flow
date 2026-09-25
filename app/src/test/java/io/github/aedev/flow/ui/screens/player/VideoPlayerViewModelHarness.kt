@@ -93,6 +93,7 @@ internal class VideoPlayerViewModelHarness(
     val streamExpiredEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val playbackAbandonedEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueVideos = MutableStateFlow<List<Video>>(emptyList())
+    val videoQueueStore = mockk<io.github.aedev.flow.data.video.VideoQueueStore>(relaxed = true)
     val musicCurrentTrack = MutableStateFlow<MusicTrack?>(null)
     val autoplayEnabled = MutableStateFlow(true)
     val continueWatchingEnabled = MutableStateFlow(true)
@@ -109,6 +110,7 @@ internal class VideoPlayerViewModelHarness(
         every { playerManager.streamExpiredEvent } returns streamExpiredEvent
         every { playerManager.playbackAbandonedEvent } returns playbackAbandonedEvent
         every { playerManager.queueVideos } returns queueVideos
+        every { playerManager.currentQueueIndexState } returns MutableStateFlow(-1)
         every { playerManager.getPlayer() } returns null
         every { playerManager.isPreparedForPlayback(any()) } returns false
         every { playerManager.isReachedByQueueAdvance(any()) } returns false
@@ -187,6 +189,7 @@ internal class VideoPlayerViewModelHarness(
             playlistRepository = playlistRepository,
             playerPreferences = playerPreferences,
             videoDownloadManager = videoDownloadManager,
+            videoQueueStore = videoQueueStore,
             offlineSubtitleStore = offlineSubtitleStore,
             sponsorBlockRepository = sponsorBlockRepository,
             liveChatRepository = liveChatRepository,
