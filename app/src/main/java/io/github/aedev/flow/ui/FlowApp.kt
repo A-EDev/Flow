@@ -285,6 +285,20 @@ fun FlowApp(
 
         val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
         var suppressMusicMiniAfterVideo by remember { mutableStateOf(false) }
+        val openMusicPlayerOnPlay = preferences.openMusicPlayerOnPlay.collectAsState(initial = false)
+        // Shows the player for a song that just started, without a route: a navigation here used to
+        // swap the page out and back for a frame, which the mini player now leaves in view.
+        val onMusicStarted: () -> Unit =
+            remember(musicPlayerSheetState) {
+                {
+                    suppressMusicMiniAfterVideo = false
+                    if (openMusicPlayerOnPlay.value) {
+                        musicPlayerSheetState.expand()
+                    } else if (musicPlayerSheetState.isDismissed) {
+                        musicPlayerSheetState.collapse()
+                    }
+                }
+            }
         var handledMusicPlayerRequest by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(activeVideo?.id) {
@@ -539,6 +553,7 @@ fun FlowApp(
                                             playerVisibleState = playerVisibleState,
                                             disableShortsPlayer = disableShortsPlayer,
                                             defaultStartRoute = defaultStartRoute,
+                                            onMusicStarted = onMusicStarted,
                                         )
                                     }
                                 }
