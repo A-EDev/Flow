@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
@@ -90,7 +90,7 @@ internal fun MusicCollectionList(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = ListEndPadding + LocalMusicMiniPlayerInset.current),
+        contentPadding = PaddingValues(bottom = flowBottomContentPadding(ListEndPadding)),
         verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
     ) {
         if (header != null) item(key = "collection-header", contentType = "header") { header() }

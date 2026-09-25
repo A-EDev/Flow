@@ -33,7 +33,7 @@ internal class MusicSheetGeometry(
     private val state: MusicPlayerSheetState,
     private val predictiveBackProgress: Animatable<Float, AnimationVector1D>,
     private val collapsedY: State<Float>,
-    private val bottomPaddingPx: State<Float>,
+    private val restingBottomPx: () -> Float,
     private val containerHeightPx: State<Float>,
     private val miniHeightPx: State<Float>,
     private val collapsedPaddingPx: State<Float>,
@@ -46,7 +46,7 @@ internal class MusicSheetGeometry(
         return state.translationY.value * (1f - p) + collapsedY.value * p
     }
 
-    fun visualTranslationY(): Float = baseTranslationY() - bottomPaddingPx.value * (1f - fraction())
+    fun visualTranslationY(): Float = baseTranslationY() - restingBottomPx() * (1f - fraction())
 
     fun cardHeightPx(): Float {
         val f = fraction()
@@ -70,14 +70,14 @@ internal fun rememberMusicSheetGeometry(
     state: MusicPlayerSheetState,
     predictiveBackProgress: Animatable<Float, AnimationVector1D>,
     collapsedYPx: Float,
-    bottomPaddingPx: Float,
+    restingBottomPx: () -> Float,
     containerHeightPx: Float,
     miniHeightPx: Float,
     collapsedPaddingPx: Float,
     collapsedRadiusPx: Float,
 ): MusicSheetGeometry {
     val collapsedY = rememberUpdatedState(collapsedYPx)
-    val bottomPadding = rememberUpdatedState(bottomPaddingPx)
+    val restingBottom = rememberUpdatedState(restingBottomPx)
     val containerHeight = rememberUpdatedState(containerHeightPx)
     val miniHeight = rememberUpdatedState(miniHeightPx)
     val collapsedPadding = rememberUpdatedState(collapsedPaddingPx)
@@ -87,7 +87,7 @@ internal fun rememberMusicSheetGeometry(
             state = state,
             predictiveBackProgress = predictiveBackProgress,
             collapsedY = collapsedY,
-            bottomPaddingPx = bottomPadding,
+            restingBottomPx = { restingBottom.value() },
             containerHeightPx = containerHeight,
             miniHeightPx = miniHeight,
             collapsedPaddingPx = collapsedPadding,

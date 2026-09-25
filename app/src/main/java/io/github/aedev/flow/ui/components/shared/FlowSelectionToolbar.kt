@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -14,8 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import kotlin.math.roundToInt
 
 /** One button in a select mode's toolbar. */
 class FlowSelectionAction(
@@ -36,6 +39,7 @@ fun FlowSelectionToolbar(
     actions: List<FlowSelectionAction>,
     modifier: Modifier = Modifier,
 ) {
+    val bottomInsets = LocalFlowBottomInsets.current
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
@@ -51,8 +55,11 @@ fun FlowSelectionToolbar(
                     toolbarContainerColor = MaterialTheme.colorScheme.inverseSurface,
                     toolbarContentColor = MaterialTheme.colorScheme.inverseOnSurface,
                 ),
-            // Above the music mini player, which floats over every screen while a song plays.
-            modifier = Modifier.padding(bottom = FloatingToolbarDefaults.ScreenOffset + LocalMusicMiniPlayerInset.current),
+            // Above the bar, the music mini player and the gesture area, riding along as they move.
+            modifier =
+                Modifier
+                    .offset { IntOffset(0, -bottomInsets.floatingBottomPx(this).roundToInt()) }
+                    .padding(bottom = FloatingToolbarDefaults.ScreenOffset),
             leadingContent = {
                 Text(
                     text = summary,

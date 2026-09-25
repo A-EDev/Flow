@@ -87,7 +87,7 @@ private val SheetDefaultSpring =
 fun UnifiedMusicPlayerSheet(
     state: MusicPlayerSheetState,
     containerHeight: Dp,
-    bottomPadding: Dp,
+    restingBottomPx: () -> Float,
     track: MusicTrack,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -101,7 +101,6 @@ fun UnifiedMusicPlayerSheet(
     val containerHeightPx = with(density) { containerHeight.toPx() }
     val miniHeightPx = with(density) { MusicMiniPlayerHeight.toPx() }
     val miniSpacerPx = with(density) { MusicMiniPlayerBottomSpacer.toPx() }
-    val bottomPaddingPx = with(density) { bottomPadding.toPx() }
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val collapsedTargetY = (containerHeightPx - miniHeightPx - miniSpacerPx).coerceAtLeast(0f)
     val hiddenY = containerHeightPx + miniSpacerPx
@@ -254,7 +253,7 @@ fun UnifiedMusicPlayerSheet(
             state = state,
             predictiveBackProgress = predictiveBackProgress,
             collapsedYPx = collapsedTargetY,
-            bottomPaddingPx = bottomPaddingPx,
+            restingBottomPx = restingBottomPx,
             containerHeightPx = containerHeightPx,
             miniHeightPx = miniHeightPx,
             collapsedPaddingPx = with(density) { CollapsedHorizontalPadding.toPx() },

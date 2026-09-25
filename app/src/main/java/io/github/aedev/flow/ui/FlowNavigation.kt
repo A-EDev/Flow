@@ -1,18 +1,13 @@
 package io.github.aedev.flow.ui
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -28,10 +23,8 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
-import io.github.aedev.flow.data.shorts.queue.openAtVideoId
-import io.github.aedev.flow.data.stats.RecapPeriod
-import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
 import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicPlayerSheetState
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
@@ -76,12 +69,6 @@ fun NavGraphBuilder.flowAppGraph(
     playerVisibleState: MutableState<Boolean>,
     disableShortsPlayer: Boolean = false,
     defaultStartRoute: String = "home",
-    /**
-     * Read lazily inside the destination that needs it. Destination lambdas are captured once
-     * when NavHost remembers the graph, so a by-value Dp here is frozen at graph-construction
-     * time and never reflects the bar showing or hiding.
-     */
-    bottomNavOverlayPadding: () -> Dp = { 0.dp },
 ) {
     // =============================================
     // ONBOARDING (First-time user experience)
@@ -158,7 +145,7 @@ fun NavGraphBuilder.flowAppGraph(
         val isRootTab = source == ShortsQueueSource.Feed
         ShortsScreen(
             source = source,
-            bottomNavOverlayPadding = if (isRootTab) bottomNavOverlayPadding() else 0.dp,
+            bottomNavOverlayPadding = if (isRootTab) LocalFlowBottomInsets.current.barBottom else 0.dp,
             onBack = {
                 navController.popBackStack()
             },
@@ -541,7 +528,6 @@ fun NavGraphBuilder.flowAppGraph(
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
 
         EnhancedMusicScreen(
-            bottomNavOverlayPadding = bottomNavOverlayPadding,
             onSongClick = { track, queue, source ->
                 musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
 

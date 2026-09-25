@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.screens.music
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,10 +26,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -38,8 +35,9 @@ import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.TabScrollEventBus
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
 import io.github.aedev.flow.ui.components.music.section.HomeSectionType
 import io.github.aedev.flow.ui.components.music.section.musicHomeFeed
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
@@ -49,6 +47,7 @@ import io.github.aedev.flow.ui.components.shared.MusicScreenShimmerLoading
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import java.util.Random
+import kotlin.math.roundToInt
 
 private val FeedBottomClearance = 96.dp
 
@@ -69,7 +68,6 @@ fun EnhancedMusicScreen(
     onRecognizeClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
     onMoodsClick: (MoodAndGenres.Item?) -> Unit = {},
-    bottomNavOverlayPadding: () -> Dp = { 0.dp },
     viewModel: MusicViewModel = sharedMusicViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -122,13 +120,7 @@ fun EnhancedMusicScreen(
     }
     val musicMenus = LocalMusicMenus.current
 
-    val bottomChrome = bottomNavOverlayPadding() + LocalMusicMiniPlayerInset.current
-    val fabLift =
-        animateDpAsState(
-            targetValue = bottomChrome,
-            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-            label = "musicRecognizeFabLift",
-        )
+    val bottomInsets = LocalFlowBottomInsets.current
 
     Scaffold(
         topBar = {
@@ -144,7 +136,7 @@ fun EnhancedMusicScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onRecognizeClick,
-                modifier = Modifier.offset { IntOffset(x = 0, y = -fabLift.value.roundToPx()) },
+                modifier = Modifier.offset { IntOffset(x = 0, y = -bottomInsets.floatingBottomPx(this).roundToInt()) },
             ) {
                 Icon(Icons.Rounded.Mic, stringResource(R.string.recognize_music))
             }
@@ -204,7 +196,7 @@ fun EnhancedMusicScreen(
                         LazyColumn(
                             state = musicListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = bottomChrome + FeedBottomClearance),
+                            contentPadding = PaddingValues(bottom = flowBottomContentPadding(FeedBottomClearance)),
                         ) {
                             musicHomeFeed(
                                 uiState = uiState,
