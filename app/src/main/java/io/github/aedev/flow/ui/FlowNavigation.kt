@@ -854,16 +854,23 @@ fun NavGraphBuilder.flowAppGraph(
         if (backStackEntry.arguments?.getString("playlistId") == null) return@composable
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
         io.github.aedev.flow.ui.screens.music.collection.MusicCollectionScreen(
-            onBackClick = { navController.popBackStack() },
-            onTrackClick = { track, queue, sourceName ->
-                musicPlayerViewModel.loadAndPlayTrack(track, queue, sourceName)
-                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                val encodedTitle = android.net.Uri.encode(track.title)
-                val encodedArtist = android.net.Uri.encode(track.artist)
-                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-            },
-            onArtistClick = { channelId -> mediaNavigator.openArtist(channelId) },
-            onCollectionClick = { mediaNavigator.openMusicPlaylist(it) },
+            callbacks =
+                io.github.aedev.flow.ui.screens.music.collection.MusicCollectionCallbacks(
+                    onBackClick = { navController.popBackStack() },
+                    onTrackClick = { track, queue, sourceName ->
+                        musicPlayerViewModel.loadAndPlayTrack(track, queue, sourceName)
+                        val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                        val encodedTitle = android.net.Uri.encode(track.title)
+                        val encodedArtist = android.net.Uri.encode(track.artist)
+                        navController.navigate(
+                            "musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl",
+                        )
+                    },
+                    onArtistClick = { channelId -> mediaNavigator.openArtist(channelId) },
+                    onCollectionClick = { mediaNavigator.openMusicPlaylist(it) },
+                    onPlayNext = musicPlayerViewModel::playNext,
+                    onAddToQueue = musicPlayerViewModel::addToQueue,
+                ),
         )
     }
 

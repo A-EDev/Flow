@@ -3665,4 +3665,14 @@
         <item quantity="one">Unliked %d song</item>
         <item quantity="other">Unliked %d songs</item>
     </plurals>
+    <string name="music_sort_collection">Playlist order</string>
+    <string name="music_sort_album_order">Album order</string>
+    <string name="music_sort_recently_liked">Recently liked</string>
+    <string name="music_sort_title">Title</string>
+    <string name="music_sort_artist">Artist</string>
+    <string name="music_sort_album">Album</string>
+    <string name="music_sort_longest">Longest first</string>
+    <string name="music_sort_shortest">Shortest first</string>
+    <string name="music_collection_no_matches">No songs match “%1$s”</string>
+    <string name="select_songs">Select songs</string>
 </resources>

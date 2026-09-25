@@ -1,15 +1,12 @@
 package io.github.aedev.flow.ui.screens.music.collection
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -20,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -34,29 +32,35 @@ import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
-import io.github.aedev.flow.ui.components.shared.CollectionTarget
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.FlowSelectionToolbar
 import io.github.aedev.flow.ui.components.shared.FlowSidePanes
-import io.github.aedev.flow.ui.components.shared.MergeIntoCollectionSheet
+import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 import io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel
+import io.github.aedev.flow.utils.filterBySearch
 
 // The same header column as the video playlist page, so both read as one design.
 private val HeaderPaneWidth = 360.dp
 private const val PAGE_AHEAD_ITEMS = 4
 
-private enum class CollectionSheet { ADD_SONGS, ADD_ALL }
+/** Where a music page sends the viewer: back, the player, an artist, another collection, the queue. */
+class MusicCollectionCallbacks(
+    val onBackClick: () -> Unit,
+    val onTrackClick: (track: MusicTrack, queue: List<MusicTrack>, sourceName: String) -> Unit,
+    val onArtistClick: (String) -> Unit,
+    val onCollectionClick: (String) -> Unit,
+    val onPlayNext: (List<MusicTrack>) -> Unit,
+    val onAddToQueue: (List<MusicTrack>) -> Unit,
+)
 
 /** An album or playlist page: loading, the page itself, or an error with Retry and a way back. */
 @Composable
 fun MusicCollectionScreen(
-    onBackClick: () -> Unit,
-    onTrackClick: (track: MusicTrack, queue: List<MusicTrack>, sourceName: String) -> Unit,
-    onArtistClick: (String) -> Unit,
-    onCollectionClick: (String) -> Unit,
+    callbacks: MusicCollectionCallbacks,
     viewModel: MusicCollectionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -68,7 +72,7 @@ fun MusicCollectionScreen(
     val details = state.details
     when {
         details != null -> {
-            CollectionContent(state, details, viewModel, onBackClick, onTrackClick, onArtistClick, onCollectionClick)
+            CollectionContent(state, details, viewModel, callbacks)
         }
 
         state.isLoading -> {
@@ -77,7 +81,7 @@ fun MusicCollectionScreen(
 
         else -> {
             Scaffold(
-                topBar = { FlowTopBar(title = "", onBack = onBackClick) },
+                topBar = { FlowTopBar(title = "", onBack = callbacks.onBackClick) },
                 contentWindowInsets = WindowInsets(0.dp),
                 containerColor = MaterialTheme.colorScheme.background,
             ) { padding ->
@@ -96,48 +100,82 @@ private fun CollectionContent(
     state: MusicCollectionUiState,
     details: PlaylistDetails,
     viewModel: MusicCollectionViewModel,
-    onBackClick: () -> Unit,
-    onTrackClick: (track: MusicTrack, queue: List<MusicTrack>, sourceName: String) -> Unit,
-    onArtistClick: (String) -> Unit,
-    onCollectionClick: (String) -> Unit,
+    callbacks: MusicCollectionCallbacks,
 ) {
     val downloads: MusicPlaylistsViewModel = hiltViewModel()
     val isDownloading by downloads.isDownloadingPlaylist.collectAsStateWithLifecycle()
     val downloadProgress by downloads.playlistDownloadProgress.collectAsStateWithLifecycle()
+    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val musicMenus = LocalMusicMenus.current
-    var sheet by rememberSaveable { mutableStateOf<CollectionSheet?>(null) }
+    var sheet by remember { mutableStateOf<CollectionSheet?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedKeys by rememberSaveable { mutableStateOf<Set<String>?>(null) }
+    val isSearching = searchQuery != null
     val listState = rememberLazyListState()
     val panes = rememberFlowPaneState()
     val twoPane = panes.showsSidePane
 
-    var displayTracks by remember { mutableStateOf(details.tracks.withStableKeys()) }
+    val sorted =
+        remember(details.tracks, sortOrder, state.addedAt) { details.tracks.sortedForCollection(sortOrder, state.addedAt).withStableKeys() }
+    var ordered by remember { mutableStateOf(sorted) }
+    val canReorder = state.isOwn && sortOrder == MusicSortOrder.COLLECTION && !isSearching && selectedKeys == null
     val reorderState =
         rememberReorderableLazyListState(
             listState = listState,
-            itemIndexOffset = if (twoPane) 0 else 1,
-            onMove = { from, to -> displayTracks = displayTracks.toMutableList().apply { add(to, removeAt(from)) } },
-            onDragStopped = { viewModel.reorder(displayTracks.map { it.second.videoId }) },
+            itemIndexOffset = if (twoPane || isSearching) 0 else 1,
+            onMove = { from, to -> ordered = ordered.toMutableList().apply { add(to, removeAt(from)) } },
+            onDragStopped = { viewModel.reorder(ordered.map { it.second.videoId }) },
         )
     // Held while a drag is in progress, so an update from the database can't replace the list mid-drag.
-    LaunchedEffect(details.tracks, reorderState.isDragging) {
-        if (!reorderState.isDragging) displayTracks = details.tracks.withStableKeys()
+    LaunchedEffect(sorted, reorderState.isDragging) {
+        if (!reorderState.isDragging) ordered = sorted
     }
-    val tracks = remember(displayTracks) { displayTracks.map { it.second } }
+    val tracks = remember(ordered) { ordered.map { it.second } }
+    val shown =
+        remember(ordered, searchQuery) { ordered.filterBySearch(searchQuery.orEmpty()) { (_, t) -> "${t.title} ${t.artist} ${t.album}" } }
+    val positions =
+        remember(ordered, isSearching) {
+            if (isSearching) {
+                ordered.withIndex().associate { (i, e) ->
+                    e.first to i + 1
+                }
+            } else {
+                emptyMap()
+            }
+        }
+    val selected = selectedKeys
+    val selectedTracks =
+        remember(ordered, selected) {
+            selected
+                ?.let { keys ->
+                    ordered.filter { it.first in keys }.map { it.second }
+                }.orEmpty()
+        }
+    val exitSelection = { selectedKeys = null }
 
     val nearEnd by remember {
         derivedStateOf {
-            val last =
+            (
                 listState.layoutInfo.visibleItemsInfo
                     .lastOrNull()
                     ?.index ?: 0
-            last >= listState.layoutInfo.totalItemsCount - PAGE_AHEAD_ITEMS
+            ) >=
+                listState.layoutInfo.totalItemsCount - PAGE_AHEAD_ITEMS
         }
     }
     LaunchedEffect(nearEnd, details.tracks.size, state.isLoadingMore) {
         if (nearEnd && details.continuation != null && !state.isLoadingMore && !state.moreFailed) viewModel.loadMore()
     }
+    LaunchedEffect(searchQuery) { if (isSearching) listState.scrollToItem(0) }
+    LaunchedEffect(sorted) { selectedKeys = selectedKeys?.intersect(sorted.mapTo(HashSet()) { it.first }) }
+    BackHandler(enabled = selected != null) { exitSelection() }
+    BackHandler(enabled = isSearching && selected == null) { searchQuery = null }
 
-    val play: (Int, List<MusicTrack>) -> Unit = { index, queue -> queue.getOrNull(index)?.let { onTrackClick(it, queue, details.title) } }
+    val play: (Int, List<MusicTrack>) -> Unit = { index, queue ->
+        queue.getOrNull(index)?.let {
+            callbacks.onTrackClick(it, queue, details.title)
+        }
+    }
     val headerState = rememberCollectionHeaderState(state, tracks, downloadProgress.takeIf { isDownloading })
     val headerActions =
         CollectionHeaderActions(
@@ -146,52 +184,85 @@ private fun CollectionContent(
             onSaveToggle = viewModel::toggleSaved,
             onDownload = { downloads.downloadPlaylistTracks(details.copy(tracks = tracks)) },
             onShare = {},
-            onAuthorClick = onArtistClick,
+            onAuthorClick = callbacks.onArtistClick,
             menu =
-                buildList {
-                    if (state.isOwn) {
-                        add(
-                            CollectionMenuItem(
-                                stringResource(R.string.ui_add_songs),
-                                Icons.Rounded.Add,
-                            ) { sheet = CollectionSheet.ADD_SONGS },
-                        )
-                    } else {
-                        add(
-                            CollectionMenuItem(stringResource(R.string.add_all_to_playlist), Icons.AutoMirrored.Rounded.PlaylistAdd) {
-                                sheet = CollectionSheet.ADD_ALL
-                            },
-                        )
-                    }
-                },
+                collectionMenu(
+                    state,
+                    onAddSongs = { sheet = CollectionSheet.AddSongs },
+                    onAddAll = { sheet = CollectionSheet.AddTo(null) },
+                ),
         )
+    val sortChip: @Composable () -> Unit = {
+        FlowSortChip(
+            options = MusicSortOrder.availableFor(state.kind, state.addedAt.isNotEmpty(), details.tracks.any { it.album.isNotBlank() }),
+            selected = sortOrder,
+            default = MusicSortOrder.COLLECTION,
+            label = { sortLabel(it, state.kind) },
+            onSelected = viewModel::setSortOrder,
+        )
+    }
     val showTitle by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
 
     MaterialTheme(colorScheme = rememberMusicCollectionColorScheme(headerState.artworkUrl)) {
         Scaffold(
-            topBar = { FlowTopBar(title = if (showTitle && !twoPane) details.title else "", onBack = onBackClick) },
+            topBar = {
+                MusicCollectionTopBar(
+                    state =
+                        CollectionTopBarState(
+                            title = if (showTitle && !twoPane) details.title else "",
+                            searchQuery = searchQuery,
+                            selectedCount = selected?.size,
+                            allSelected = shown.isNotEmpty() && selected?.containsAll(shown.map { it.first }) == true,
+                            hasSongs = details.tracks.isNotEmpty(),
+                        ),
+                    actions =
+                        CollectionTopBarActions(
+                            onBack = callbacks.onBackClick,
+                            onOpenSearch = { searchQuery = "" },
+                            onQueryChange = { searchQuery = it },
+                            onCloseSearch = { searchQuery = null },
+                            onSelect = { selectedKeys = emptySet() },
+                            onClearSelection = exitSelection,
+                            onSelectAll = {
+                                val keys = shown.mapTo(HashSet()) { it.first }
+                                selectedKeys =
+                                    if (selected.orEmpty().containsAll(keys)) selected.orEmpty() - keys else selected.orEmpty() + keys
+                            },
+                        ),
+                )
+            },
             contentWindowInsets = WindowInsets(0.dp),
             containerColor = MaterialTheme.colorScheme.background,
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
+                val toggle: (String) -> Unit = { key -> selectedKeys = selected.orEmpty().let { if (key in it) it - key else it + key } }
                 val list: @Composable (header: (@Composable () -> Unit)?) -> Unit = { header ->
                     MusicCollectionList(
-                        tracks = displayTracks,
-                        mode = CollectionListMode(kind = state.kind, canReorder = state.isOwn),
+                        tracks = shown,
+                        mode = CollectionListMode(state.kind, canReorder, selected, searchQuery.orEmpty(), positions),
                         footer =
                             CollectionFooter(
-                                summary = songsSummary(tracks.size, details.durationText),
-                                isLoadingMore = state.isLoadingMore,
-                                moreFailed = state.moreFailed,
-                                onRetryMore = viewModel::loadMore,
+                                songsSummary(tracks.size, details.durationText),
+                                state.isLoadingMore,
+                                state.moreFailed,
+                                viewModel::loadMore,
                             ),
-                        otherVersions = details.otherVersions,
+                        otherVersions = details.otherVersions.takeUnless { isSearching }.orEmpty(),
                         listState = listState,
                         reorderState = reorderState,
-                        onTrackClick = { index -> play(index, tracks) },
+                        onTrackClick = { key ->
+                            if (selected !=
+                                null
+                            ) {
+                                toggle(key)
+                            } else {
+                                play(ordered.indexOfFirst { it.first == key }, tracks)
+                            }
+                        },
+                        onTrackLongClick = { key -> if (selected == null) selectedKeys = setOf(key) },
                         onTrackMenu = musicMenus::openSong,
                         onRemove = { viewModel.removeTracks(setOf(it.videoId)) },
-                        onCollectionClick = { onCollectionClick(it.id) },
+                        onCollectionClick = { callbacks.onCollectionClick(it.id) },
                         onCollectionMenu = { musicMenus.openCollection(it.toCollectionActionItem(isAlbum = true)) },
                         header = header,
                     )
@@ -201,57 +272,56 @@ private fun CollectionContent(
                     sidePaneWidth = HeaderPaneWidth,
                     sidePane = { MusicCollectionHeaderPane(headerState, headerActions) },
                     mainPane = {
-                        if (twoPane) {
-                            Column { list(null) }
-                        } else {
-                            list { MusicCollectionHero(headerState, headerActions, sortChip = {}) }
+                        when {
+                            twoPane -> {
+                                Column {
+                                    Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { sortChip() }
+                                    list(null)
+                                }
+                            }
+
+                            isSearching -> {
+                                list(null)
+                            }
+
+                            else -> {
+                                list { MusicCollectionHero(headerState, headerActions, sortChip = sortChip) }
+                            }
                         }
                     },
                 )
+                FlowSelectionToolbar(
+                    visible = selected != null && selected.isNotEmpty(),
+                    summary = pluralStringResource(R.plurals.selected_count_template, selected?.size ?: 0, selected?.size ?: 0),
+                    actions =
+                        selectionActions(
+                            state = state,
+                            onPlayNext = { callbacks.onPlayNext(selectedTracks).also { exitSelection() } },
+                            onAddToQueue = { callbacks.onAddToQueue(selectedTracks).also { exitSelection() } },
+                            onAddTo = { sheet = CollectionSheet.AddTo(selectedTracks) },
+                            onDownload = {
+                                downloads
+                                    .downloadPlaylistTracks(
+                                        details.copy(tracks = selectedTracks),
+                                    ).also { exitSelection() }
+                            },
+                            onRemove = { viewModel.removeTracks(selectedTracks.mapTo(HashSet()) { it.videoId }).also { exitSelection() } },
+                        ),
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
 
-        when (sheet) {
-            CollectionSheet.ADD_SONGS -> {
-                val search by viewModel.songSearch.state.collectAsStateWithLifecycle()
-                MusicAddSongsSheet(
-                    search = search,
-                    inPlaylist = remember(details.tracks) { details.tracks.mapTo(HashSet()) { it.videoId } },
-                    onQueryChange = viewModel.songSearch::search,
-                    onAdd = viewModel::addTrack,
-                    onPreview = { play(0, listOf(it)) },
-                    onDismiss = {
-                        sheet = null
-                        viewModel.songSearch.clear()
-                    },
-                )
-            }
-
-            CollectionSheet.ADD_ALL -> {
-                val targets by viewModel.mergeTargets.collectAsStateWithLifecycle()
-                MergeIntoCollectionSheet(
-                    targets =
-                        remember(targets) {
-                            targets.map {
-                                CollectionTarget(
-                                    id = it.id,
-                                    name = it.name,
-                                    thumbnailUrl = it.thumbnailUrl,
-                                    itemCount = it.videoCount,
-                                )
-                            }
-                        },
-                    placeholder = Icons.Rounded.MusicNote,
-                    itemCountLabel = { pluralStringResource(R.plurals.songs_count_template, it, it) },
-                    onSelect = { target -> targets.firstOrNull { it.id == target.id }?.let(viewModel::addAllTo) },
-                    onDismiss = { sheet = null },
-                )
-            }
-
-            null -> {
-                Unit
-            }
-        }
+        CollectionSheets(
+            sheet = sheet,
+            details = details,
+            viewModel = viewModel,
+            onPreview = { play(0, listOf(it)) },
+            onDismiss = {
+                if (sheet is CollectionSheet.AddTo) exitSelection()
+                sheet = null
+            },
+        )
     }
 }
 

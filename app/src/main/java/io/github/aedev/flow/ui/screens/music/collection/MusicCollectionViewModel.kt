@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.engagement.LikedMediaUseCase
 import io.github.aedev.flow.data.local.LikedVideosRepository
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.model.PlaylistInfo
@@ -62,6 +63,7 @@ class MusicCollectionViewModel
         private val likes: LikedVideosRepository,
         private val musicLibrary: MusicLibrary,
         private val likedMedia: LikedMediaUseCase,
+        private val preferences: PlayerPreferences,
     ) : ViewModel() {
         val collectionId: String = checkNotNull(savedStateHandle[MUSIC_COLLECTION_ARG])
 
@@ -81,6 +83,17 @@ class MusicCollectionViewModel
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SHARING_TIMEOUT_MS), emptyList())
 
         val songSearch = MusicSongSearch(viewModelScope)
+
+        /** The order the songs are shown in, remembered for this collection. */
+        val sortOrder: StateFlow<MusicSortOrder> =
+            preferences
+                .playlistSortOrder(collectionId)
+                .map { MusicSortOrder.fromStorage(it) ?: MusicSortOrder.COLLECTION }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SHARING_TIMEOUT_MS), MusicSortOrder.COLLECTION)
+
+        fun setSortOrder(order: MusicSortOrder) {
+            viewModelScope.launch { preferences.setPlaylistSortOrder(collectionId, order.storageValue) }
+        }
 
         private var loadJob: Job? = null
         private var moreJob: Job? = null
@@ -205,10 +218,13 @@ class MusicCollectionViewModel
             }
         }
 
-        /** Adds every song here, all pages of it, to another of your playlists. */
-        fun addAllTo(target: PlaylistInfo) {
+        /** Adds [songs] to another of your playlists; null means every song here, all pages of it. */
+        fun addTo(
+            target: PlaylistInfo,
+            songs: List<MusicTrack>? = null,
+        ) {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                val tracks = loadAll()?.tracks.orEmpty()
+                val tracks = songs ?: loadAll()?.tracks.orEmpty()
                 if (tracks.isEmpty()) return@launch
                 val added = runCatching { playlists.addVideosToPlaylist(target.id, tracks.map { it.toStoredVideo() }) }.isSuccess
                 _messages.send(

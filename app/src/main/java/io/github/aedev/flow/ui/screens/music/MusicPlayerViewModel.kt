@@ -640,6 +640,25 @@ class MusicPlayerViewModel
             Toast.makeText(context, context.getString(R.string.added_to_queue_toast), Toast.LENGTH_SHORT).show()
         }
 
+        /** Queues [tracks] right after the current song, in the order given, with one confirmation. */
+        fun playNext(tracks: List<MusicTrack>) {
+            if (tracks.isEmpty()) return
+            tracks.asReversed().forEach { track ->
+                EnhancedMusicPlayerManager.playNext(track)
+                EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+            }
+            Toast.makeText(context, context.getString(R.string.play_next_toast), Toast.LENGTH_SHORT).show()
+        }
+
+        fun addToQueue(tracks: List<MusicTrack>) {
+            if (tracks.isEmpty()) return
+            tracks.forEach { track ->
+                EnhancedMusicPlayerManager.addToQueue(track)
+                EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+            }
+            Toast.makeText(context, context.getString(R.string.added_to_queue_toast), Toast.LENGTH_SHORT).show()
+        }
+
         fun downloadTrack(track: MusicTrack? = null) {
             val trackToDownload = track ?: _uiState.value.currentTrack ?: return
 

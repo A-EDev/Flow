@@ -12,8 +12,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,7 +46,13 @@ import io.github.aedev.flow.ui.theme.Dimensions
 internal class CollectionListMode(
     val kind: MusicCollectionKind?,
     val canReorder: Boolean,
-)
+    val selectedKeys: Set<String>? = null,
+    /** Set while a search narrows the list; each song keeps its number in the whole collection. */
+    val searchQuery: String = "",
+    val positions: Map<String, Int> = emptyMap(),
+) {
+    val inSelection: Boolean get() = selectedKeys != null
+}
 
 /** What the end of the list says: the size, a page loading, or a page that failed with Retry. */
 internal class CollectionFooter(
@@ -67,7 +75,8 @@ internal fun MusicCollectionList(
     otherVersions: List<MusicPlaylist>,
     listState: LazyListState,
     reorderState: ReorderableLazyListState,
-    onTrackClick: (index: Int) -> Unit,
+    onTrackClick: (key: String) -> Unit,
+    onTrackLongClick: (key: String) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit,
     onRemove: (MusicTrack) -> Unit,
     onCollectionClick: (MusicPlaylist) -> Unit,
@@ -82,28 +91,46 @@ internal fun MusicCollectionList(
         verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
     ) {
         if (header != null) item(key = "collection-header", contentType = "header") { header() }
-        if (tracks.isEmpty() && !footer.isLoadingMore) {
+        if (tracks.isEmpty() && mode.searchQuery.isNotBlank()) {
+            item(key = "collection-no-results", contentType = "empty") {
+                FlowEmptyState(
+                    title = stringResource(R.string.music_collection_no_matches, mode.searchQuery.trim()),
+                    icon = Icons.Outlined.SearchOff,
+                )
+            }
+        } else if (tracks.isEmpty() && !footer.isLoadingMore) {
             item(key = "collection-empty", contentType = "empty") { CollectionEmptyState(mode.kind) }
         }
-        itemsIndexed(tracks, key = { _, (key, _) -> key }, contentType = { _, _ -> "track" }) { index, (_, track) ->
+        itemsIndexed(tracks, key = { _, (key, _) -> key }, contentType = { _, _ -> "track" }) { index, (key, track) ->
+            val selected = mode.selectedKeys?.contains(key) == true
             MusicTrackItem(
                 track = track,
-                onClick = { onTrackClick(index) },
+                onClick = { onTrackClick(key) },
+                onLongClick = { onTrackLongClick(key) },
                 modifier =
                     Modifier
                         .padding(horizontal = Dimensions.ContentPaddingHorizontal)
                         .then(if (mode.canReorder) reorderState.itemModifier(index) else Modifier),
                 density = MusicItemDensity.Compact,
-                index = index + 1,
+                index = mode.positions[key] ?: (index + 1),
                 shape = flowSegmentShape(index = index, count = tracks.size),
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
                 leadingContent =
-                    if (mode.canReorder) {
-                        { ReorderHandle(modifier = reorderState.handleModifier(index)) }
-                    } else {
-                        null
+                    when {
+                        mode.inSelection -> {
+                            { Checkbox(checked = selected, onCheckedChange = { onTrackClick(key) }) }
+                        }
+
+                        mode.canReorder -> {
+                            { ReorderHandle(modifier = reorderState.handleModifier(index)) }
+                        }
+
+                        else -> {
+                            null
+                        }
                     },
-                trailingContent = removeButton(mode.kind, track, onRemove),
+                showMenu = !mode.inSelection,
+                trailingContent = if (mode.inSelection) null else removeButton(mode.kind, track, onRemove),
                 onMenuClick = { onTrackMenu(track) },
             )
         }
