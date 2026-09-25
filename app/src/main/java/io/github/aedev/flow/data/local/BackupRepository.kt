@@ -11,8 +11,10 @@ import com.google.gson.GsonBuilder
 import com.google.gson.Strictness
 import com.google.gson.annotations.SerializedName
 import com.google.gson.stream.JsonReader
+import dagger.hilt.android.EntryPointAccessors
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.audio.eq.EqStateJson
 import io.github.aedev.flow.data.local.entity.NoteEntity
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
@@ -20,6 +22,7 @@ import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
 import io.github.aedev.flow.util.AppIcons
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
@@ -145,6 +148,11 @@ class BackupRepository(
     private val context: Context,
 ) {
     private val playerPreferences = PlayerPreferences(context)
+    private val equalizer by lazy {
+        EntryPointAccessors
+            .fromApplication(context.applicationContext, AudioEffectsEntryPoint::class.java)
+            .equalizerRepository()
+    }
     private val localDataManager = LocalDataManager(context)
     private val gson =
         GsonBuilder()
@@ -180,14 +188,16 @@ class BackupRepository(
         val localSettings = localDataManager.getExportData()
         val searchSettings = searchHistoryRepo.getSettingsBackup()
         val activeIconSuffix = detectActiveIconSuffix()
+        val equalizerSettings = mapOf(EqStateJson.KEY to equalizer.exportJson())
         val exportedStrings =
             if (activeIconSuffix != null) {
                 playerSettings.strings +
                     mapOf("app_icon_suffix" to activeIconSuffix) +
                     localSettings.strings +
-                    searchSettings.strings
+                    searchSettings.strings +
+                    equalizerSettings
             } else {
-                playerSettings.strings + localSettings.strings + searchSettings.strings
+                playerSettings.strings + localSettings.strings + searchSettings.strings + equalizerSettings
             }
         return SettingsBackup(
             strings = exportedStrings,
@@ -2153,7 +2163,9 @@ class BackupRepository(
                 )
             }
         }
-        backupData.settings?.let { settings ->
+        backupData.settings?.let { backedUp ->
+            backedUp.strings[EqStateJson.KEY]?.let { equalizer.importJson(it) }
+            val settings = backedUp.copy(strings = backedUp.strings - EqStateJson.KEY)
             playerPreferences.restoreData(settings)
             localDataManager.restoreData(settings)
             searchHistoryRepo.restoreSettings(settings)
