@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
 import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
 import io.github.aedev.flow.ui.components.shared.flowHeroArtworkSize
 
@@ -132,7 +133,7 @@ internal fun MusicCollectionHeaderPane(
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.extraLarge,
-        modifier = modifier.fillMaxSize().padding(start = 16.dp, bottom = 16.dp),
+        modifier = modifier.fillMaxSize().padding(start = 16.dp, bottom = 16.dp + LocalMusicMiniPlayerInset.current),
     ) {
         Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CollectionArtwork(state.artworkUrl, Modifier.fillMaxWidth())

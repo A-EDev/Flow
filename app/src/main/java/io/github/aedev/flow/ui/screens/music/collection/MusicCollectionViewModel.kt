@@ -372,14 +372,13 @@ class MusicCollectionViewModel
         /** Liked music, live: newest like first, with the details the favorites store kept. */
         private suspend fun observeLiked() {
             val title = context.getString(R.string.liked_music_playlist)
-            val author = context.getString(R.string.playlist_type_builtin)
             combine(likes.getLikedMusicFlow(), musicLibrary.favorites) { liked, favorites ->
                 val tracks = likedMusicTracks(liked, favorites)
                 PlaylistDetails(
                     id = collectionId,
                     title = title,
                     thumbnailUrl = tracks.firstOrNull()?.thumbnailUrl.orEmpty(),
-                    author = author,
+                    author = "",
                     trackCount = tracks.size,
                     tracks = tracks,
                 ) to liked.associate { it.videoId to it.likedAt }
@@ -470,7 +469,7 @@ class MusicCollectionViewModel
                     id = collectionId,
                     title = section.title,
                     thumbnailUrl = section.thumbnailUrl ?: section.tracks.first().thumbnailUrl,
-                    author = context.getString(R.string.section_daily_mix_label),
+                    author = "",
                     trackCount = section.tracks.size,
                     description = context.getString(R.string.daily_mix_page_description),
                     tracks = section.tracks,

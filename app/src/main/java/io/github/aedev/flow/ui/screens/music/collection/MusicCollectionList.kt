@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
 import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
@@ -41,6 +42,9 @@ import io.github.aedev.flow.ui.components.shared.ReorderHandle
 import io.github.aedev.flow.ui.components.shared.ReorderableLazyListState
 import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 import io.github.aedev.flow.ui.theme.Dimensions
+
+// Room for the selection toolbar to float over the last row.
+private val ListEndPadding = 96.dp
 
 /** How the list lets the viewer act on its songs. */
 internal class CollectionListMode(
@@ -87,7 +91,7 @@ internal fun MusicCollectionList(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 120.dp),
+        contentPadding = PaddingValues(bottom = ListEndPadding + LocalMusicMiniPlayerInset.current),
         verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
     ) {
         if (header != null) item(key = "collection-header", contentType = "header") { header() }
