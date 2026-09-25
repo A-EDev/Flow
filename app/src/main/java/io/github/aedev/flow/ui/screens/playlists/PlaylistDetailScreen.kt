@@ -18,6 +18,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import io.github.aedev.flow.ui.components.library.PlaylistDetailTopBar
 import io.github.aedev.flow.ui.components.library.PlaylistHeader
 import io.github.aedev.flow.ui.components.library.PlaylistHeaderActions
 import io.github.aedev.flow.ui.components.library.PlaylistHeaderPane
+import io.github.aedev.flow.ui.components.library.PlaylistSearchBar
 import io.github.aedev.flow.ui.components.library.PlaylistSortChip
 import io.github.aedev.flow.ui.components.library.PlaylistSortOrder
 import io.github.aedev.flow.ui.components.library.SelectionAction
@@ -64,12 +66,19 @@ fun PlaylistDetailScreen(
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectionMode by remember { mutableStateOf(false) }
     var displayVideos by remember { mutableStateOf(sortedVideos) }
+    var searchQuery by rememberSaveable { mutableStateOf<String?>(null) }
+    val isSearching = searchQuery != null
+    val shownVideos = remember(displayVideos, searchQuery) { displayVideos.matchingSearch(searchQuery.orEmpty()) }
+    val positions =
+        remember(displayVideos, isSearching) {
+            if (isSearching) displayVideos.withIndex().associate { (index, video) -> video.id to index + 1 } else emptyMap()
+        }
     val listState = rememberLazyListState()
     val panes = rememberLibraryPaneState()
     val twoPane = panes.showsSidePane
 
     val isUserCreated = uiState.isLocalPlaylist && !uiState.isSaved
-    val canReorder = isUserCreated && sortOrder == PlaylistSortOrder.MANUAL
+    val canReorder = isUserCreated && sortOrder == PlaylistSortOrder.MANUAL && !isSearching
     // A saved YouTube playlist mirrors the original; its next sync would bring removed videos back.
     val canModify = uiState.isLocalPlaylist && !uiState.isSaved
     val exitSelection = {
@@ -80,7 +89,7 @@ fun PlaylistDetailScreen(
     val reorderState =
         rememberReorderableLazyListState(
             listState = listState,
-            itemIndexOffset = if (twoPane) 0 else 1,
+            itemIndexOffset = if (twoPane || isSearching) 0 else 1,
             onMove = { from, to -> displayVideos = displayVideos.toMutableList().apply { add(to, removeAt(from)) } },
             onDragStopped = { viewModel.reorderVideos(displayVideos.map { it.id }) },
         )
@@ -93,11 +102,16 @@ fun PlaylistDetailScreen(
         if (sortedVideos.isEmpty()) exitSelection()
     }
 
+    LaunchedEffect(searchQuery) {
+        if (isSearching) listState.scrollToItem(0)
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message -> quickActions.announce(message.resolve(context), message.undo) }
     }
 
     BackHandler(enabled = selectionMode) { exitSelection() }
+    BackHandler(enabled = isSearching && !selectionMode) { searchQuery = null }
 
     val showCollapsedTitle by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
     val headerState = rememberPlaylistHeaderState(uiState, displayVideos, downloadBatch)
@@ -122,13 +136,21 @@ fun PlaylistDetailScreen(
                 showTitle = (showCollapsedTitle && !twoPane) || selectionMode,
                 inSelectionMode = selectionMode,
                 selectedCount = selectedIds.size,
-                allSelected = selectedIds.size == displayVideos.size && displayVideos.isNotEmpty(),
+                allSelected = shownVideos.isNotEmpty() && shownVideos.all { it.id in selectedIds },
                 canSelect = canModify && displayVideos.isNotEmpty(),
+                search =
+                    PlaylistSearchBar(
+                        query = searchQuery,
+                        onOpen = { searchQuery = "" },
+                        onQueryChange = { searchQuery = it },
+                        onClose = { searchQuery = null },
+                    ),
                 onNavigateBack = onNavigateBack,
                 onEnterSelection = { selectionMode = true },
                 onClearSelection = exitSelection,
                 onSelectAll = {
-                    selectedIds = if (selectedIds.size == displayVideos.size) emptySet() else displayVideos.mapTo(HashSet()) { it.id }
+                    val shownIds = shownVideos.mapTo(HashSet()) { it.id }
+                    selectedIds = if (selectedIds.containsAll(shownIds)) selectedIds - shownIds else selectedIds + shownIds
                 },
             )
         },
@@ -154,7 +176,7 @@ fun PlaylistDetailScreen(
                     }
                     val list: @Composable (header: (@Composable () -> Unit)?) -> Unit = { header ->
                         PlaylistDetailList(
-                            videos = displayVideos,
+                            videos = shownVideos,
                             mode =
                                 PlaylistListMode(
                                     canReorder = canReorder,
@@ -163,6 +185,8 @@ fun PlaylistDetailScreen(
                                     selectedIds = selectedIds,
                                     showAddedDate = isUserCreated,
                                     isWatchLater = uiState.isWatchLater,
+                                    searchQuery = searchQuery.orEmpty(),
+                                    positions = positions,
                                 ),
                             isLoadingMore = uiState.isLoadingMore,
                             listState = listState,
@@ -171,7 +195,7 @@ fun PlaylistDetailScreen(
                                 if (selectionMode) {
                                     selectedIds = if (video.id in selectedIds) selectedIds - video.id else selectedIds + video.id
                                 } else {
-                                    onPlayPlaylist(displayVideos, index, false)
+                                    onPlayPlaylist(displayVideos, positions[video.id]?.minus(1) ?: index, false)
                                 }
                             },
                             onRemove = { viewModel.removeVideo(it.id) },
@@ -187,7 +211,7 @@ fun PlaylistDetailScreen(
                             ) { PlaylistHeaderPane(state = headerState, actions = headerActions) }
                         },
                         mainPane = {
-                            if (twoPane) {
+                            if (twoPane || isSearching) {
                                 Column {
                                     Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { sortChip() }
                                     list(null)

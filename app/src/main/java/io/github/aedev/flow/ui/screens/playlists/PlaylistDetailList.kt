@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.WatchLater
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -29,6 +30,9 @@ internal class PlaylistListMode(
     val selectedIds: Set<String>,
     val showAddedDate: Boolean,
     val isWatchLater: Boolean,
+    /** Set while a search narrows the list; each shown video keeps its number in the whole playlist. */
+    val searchQuery: String = "",
+    val positions: Map<String, Int> = emptyMap(),
 )
 
 /**
@@ -50,7 +54,14 @@ internal fun PlaylistDetailList(
 ) {
     LazyColumn(state = listState, modifier = modifier.fillMaxSize(), contentPadding = contentPadding) {
         if (header != null) item(key = "playlist-header", contentType = "header") { header() }
-        if (videos.isEmpty() && !isLoadingMore) {
+        if (videos.isEmpty() && mode.searchQuery.isNotBlank()) {
+            item(key = "playlist-no-results", contentType = "empty") {
+                FlowEmptyState(
+                    title = stringResource(R.string.playlist_search_no_results, mode.searchQuery.trim()),
+                    icon = Icons.Outlined.SearchOff,
+                )
+            }
+        } else if (videos.isEmpty() && !isLoadingMore) {
             item(key = "playlist-empty", contentType = "empty") {
                 FlowEmptyState(
                     title = stringResource(if (mode.isWatchLater) R.string.no_videos_saved else R.string.playlist_empty_title),
@@ -63,7 +74,7 @@ internal fun PlaylistDetailList(
             PlaylistVideoRow(
                 modifier = if (mode.canReorder) Modifier else animateMediaListItem(),
                 video = video,
-                position = index + 1,
+                position = mode.positions[video.id] ?: (index + 1),
                 isSelected = video.id in mode.selectedIds,
                 inSelectionMode = mode.selectionMode,
                 canModify = mode.canModify,

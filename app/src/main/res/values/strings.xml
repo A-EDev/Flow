@@ -3613,6 +3613,10 @@
     <string name="recap_summary_top_channel">Top channel</string>
     <string name="recap_summary_top_artist">Top artist</string>
     <string name="recap_summary_top_topic">Top topic</string>
+    <!-- Playlist search -->
+    <string name="search_in_playlist">Search in playlist</string>
+    <string name="playlist_search_no_results">No videos match “%1$s”</string>
+
     <!-- Watch later: remove watched videos (#1060) -->
     <string name="content_settings_remove_watched_watch_later_title">Remove watched videos</string>
     <string name="content_settings_remove_watched_watch_later_subtitle">Take videos out of Watch later once you finish them</string>
