@@ -820,7 +820,7 @@
     <string name="sleep_timer_will_close_app">L\'appli se fermera à l\'expiration de la minuterie</string>
     <string name="unsubscribe">Se désabonner</string>
     <string name="mark_as_watched">Marquer comme vu</string>
-    <string name="mark_as_watched_toast">Ajouté à la liste des vidéos visionnées — vos recommandations s\'amélioreront !</string>
+    <string name="mark_as_watched_toast">Ajouté à la liste des vidéos visionnées — vos recommandations s\'amélioreront !</string>
     <string name="i_like_this">Je veux plus de ça</string>
     <string name="i_like_this_toast">D\'accord ! Vous verrez davantage de contenu de ce genre.</string>
     <string name="go_to_channel">Aller sur la chaîne</string>
