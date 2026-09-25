@@ -190,6 +190,7 @@ internal class VideoPlayerViewModelHarness(
             playerPreferences = playerPreferences,
             videoDownloadManager = videoDownloadManager,
             videoQueueStore = videoQueueStore,
+            watchLaterCleanup = mockk(relaxed = true),
             offlineSubtitleStore = offlineSubtitleStore,
             sponsorBlockRepository = sponsorBlockRepository,
             liveChatRepository = liveChatRepository,

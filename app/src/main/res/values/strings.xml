@@ -3613,4 +3613,11 @@
     <string name="recap_summary_top_channel">Top channel</string>
     <string name="recap_summary_top_artist">Top artist</string>
     <string name="recap_summary_top_topic">Top topic</string>
+    <!-- Watch later: remove watched videos (#1060) -->
+    <string name="content_settings_remove_watched_watch_later_title">Remove watched videos</string>
+    <string name="content_settings_remove_watched_watch_later_subtitle">Take videos out of Watch later once you finish them</string>
+    <plurals name="watch_later_watched_removed">
+        <item quantity="one">Removed %d watched video</item>
+        <item quantity="other">Removed %d watched videos</item>
+    </plurals>
 </resources>

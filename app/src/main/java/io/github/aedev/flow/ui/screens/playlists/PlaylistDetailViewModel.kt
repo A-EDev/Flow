@@ -11,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.WatchLaterCleanup
 import io.github.aedev.flow.data.migration.WatchLaterMetadataMigrator
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
@@ -84,6 +85,7 @@ class PlaylistDetailViewModel
         private val playerPreferences: PlayerPreferences,
         private val downloadQueuer: BackgroundDownloadQueuer,
         private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
+        private val watchLaterCleanup: WatchLaterCleanup,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
@@ -291,9 +293,23 @@ class PlaylistDetailViewModel
                 if (!migrationStarted && videos.isNotEmpty()) {
                     migrationStarted = true
                     viewModelScope.launch { watchLaterMetadataMigrator.migrate(videos) }
+                    viewModelScope.launch { sweepWatched(videos) }
                 }
                 enrichStubs(videos)
             }
+        }
+
+        private suspend fun sweepWatched(videos: List<Video>) {
+            val removed = watchLaterCleanup.sweep(videos)
+            if (removed.isEmpty()) return
+            _messages.send(
+                PlaylistUiMessage(
+                    pluralRes = R.plurals.watch_later_watched_removed,
+                    count = removed.size,
+                    args = listOf(removed.size),
+                    undo = QuickActionUndo.PlaylistRemoval(removed),
+                ),
+            )
         }
 
         private suspend fun loadLocalPlaylist(localInfo: PlaylistInfo) {

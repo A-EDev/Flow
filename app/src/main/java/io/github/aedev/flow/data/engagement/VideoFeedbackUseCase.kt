@@ -4,6 +4,7 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.local.WatchLaterCleanup
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
@@ -32,6 +33,7 @@ class VideoFeedbackUseCase
         private val playlistRepository: PlaylistRepository,
         private val viewHistory: ViewHistory,
         private val videoStats: VideoStatsRecorder,
+        private val watchLaterCleanup: WatchLaterCleanup,
     ) {
         /** Adds [video] to Watch later, or takes it out; returns whether it is saved afterwards. */
         suspend fun toggleWatchLater(video: Video): Boolean {
@@ -96,5 +98,6 @@ class VideoFeedbackUseCase
                 isShort = video.isShort,
             )
             FeedInvalidationBus.emit(FeedInvalidationBus.Event.MarkedWatched(video.id))
+            watchLaterCleanup.onFinished(video.id)
         }
     }

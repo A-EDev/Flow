@@ -281,6 +281,7 @@ class PlayerPreferences(
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
         val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
         val SHARE_WITHOUT_TEXT = booleanPreferencesKey("share_without_text")
+        val REMOVE_WATCHED_FROM_WATCH_LATER = booleanPreferencesKey("remove_watched_from_watch_later")
 
         val SHORTS_PIP_ENABLED = booleanPreferencesKey("shorts_pip_enabled")
 
@@ -2084,6 +2085,19 @@ class PlayerPreferences(
     suspend fun setShareWithoutText(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHARE_WITHOUT_TEXT] = enabled
+        }
+    }
+
+    /** When ON, a video leaves Watch later once it counts as watched under [watchedThreshold]. */
+    val removeWatchedFromWatchLater: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.REMOVE_WATCHED_FROM_WATCH_LATER] ?: false
+            }
+
+    suspend fun setRemoveWatchedFromWatchLater(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.REMOVE_WATCHED_FROM_WATCH_LATER] = enabled
         }
     }
 

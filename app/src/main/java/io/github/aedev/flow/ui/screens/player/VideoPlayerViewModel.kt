@@ -69,6 +69,7 @@ class VideoPlayerViewModel
         private val playerPreferences: PlayerPreferences,
         private val videoDownloadManager: VideoDownloadManager,
         private val videoQueueStore: VideoQueueStore,
+        private val watchLaterCleanup: WatchLaterCleanup,
         private val offlineSubtitleStore: io.github.aedev.flow.data.video.OfflineSubtitleStore,
         private val sponsorBlockRepository: SponsorBlockRepository,
         private val liveChatRepository: io.github.aedev.flow.data.repository.LiveChatRepository,
@@ -283,8 +284,10 @@ class VideoPlayerViewModel
                 .launchIn(viewModelScope)
 
             playerManager.playbackCompletedEvent
-                .onEach(watchSessions::markCompleted)
-                .launchIn(viewModelScope)
+                .onEach { completion ->
+                    watchSessions.markCompleted(completion)
+                    watchLaterCleanup.onFinished(completion.videoId)
+                }.launchIn(viewModelScope)
 
             presence.restoreLastWatchedSession()
 
@@ -623,6 +626,7 @@ class VideoPlayerViewModel
                 isShort = isShort,
                 isLocal = isLocalMediaId(videoId),
             )
+            viewModelScope.launch { watchLaterCleanup.onProgress(videoId, position, duration) }
         }
 
         /** The app is going to the background: the recap gets the open session's progress so far. */
