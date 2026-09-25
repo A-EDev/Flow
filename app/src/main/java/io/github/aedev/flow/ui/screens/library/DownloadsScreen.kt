@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.SelectAll
@@ -43,17 +42,15 @@ import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.ActiveDownloadActions
 import io.github.aedev.flow.ui.components.library.DownloadsStorageCard
+import io.github.aedev.flow.ui.components.library.LibraryKindHeader
 import io.github.aedev.flow.ui.components.library.LibrarySelection
 import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
 import io.github.aedev.flow.ui.components.library.LibrarySortChip
 import io.github.aedev.flow.ui.components.library.MusicDownloadsList
 import io.github.aedev.flow.ui.components.library.SelectionAction
 import io.github.aedev.flow.ui.components.library.VideosDownloadsList
+import io.github.aedev.flow.ui.components.library.libraryHeaderIsOneRow
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
-import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
-import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
-import io.github.aedev.flow.ui.components.shared.FlowSearchField
-import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 import io.github.aedev.flow.ui.components.shared.flowGridColumns
@@ -103,18 +100,24 @@ fun DownloadsScreen(
             onCancel = { id, title -> pendingDeletion = PendingDeletion(setOf(id), title) },
             onCancelAll = { removeIncompleteOf = selectedKind },
         )
+    val sortChip: @Composable () -> Unit = {
+        LibrarySortChip(
+            options = DownloadSort.entries,
+            selected = uiState.sort,
+            default = DownloadSort.NEWEST,
+            label = { stringResource(it.labelRes) },
+            onSelected = viewModel::setSort,
+        )
+    }
+    val sortInHeader = libraryHeaderIsOneRow()
     val listHeader: @Composable () -> Unit = {
         Column {
             DownloadsStorageCard(uiState.storage.videoBytes, uiState.storage.musicBytes, uiState.storage.freeBytes)
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.weight(1f))
-                LibrarySortChip(
-                    options = DownloadSort.entries,
-                    selected = uiState.sort,
-                    default = DownloadSort.NEWEST,
-                    label = { stringResource(it.labelRes) },
-                    onSelected = viewModel::setSort,
-                )
+            if (!sortInHeader) {
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.weight(1f))
+                    sortChip()
+                }
             }
         }
     }
@@ -148,23 +151,16 @@ fun DownloadsScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize()) {
-                FlowSearchField(
+                LibraryKindHeader(
                     query = uiState.query,
                     onQueryChange = viewModel::setQuery,
                     placeholder = stringResource(R.string.downloads_search_hint),
-                    onClear = { viewModel.setQuery("") },
-                    modifier = Modifier.padding(horizontal = 16.dp).widthIn(max = FlowMaxContentWidth).fillMaxWidth(),
-                    onSearch = { focusManager.clearFocus() },
-                    releaseFocusWithKeyboard = true,
-                )
-                FlowConnectedToggleGroup(
-                    options = MediaKind.entries.map { FlowToggleOption(it, stringResource(it.labelRes), it.icon) },
-                    selected = selectedKind,
-                    onSelected = {
+                    selectedKind = selectedKind,
+                    onKindSelected = {
                         exitSelection()
                         selectedKind = it
                     },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = FlowMaxContentWidth),
+                    trailing = if (sortInHeader) sortChip else null,
                 )
                 val videoColumns = flowGridColumns(compact = 1, medium = 2, expanded = 3)
                 val musicColumns = flowGridColumns(compact = 1, medium = 1, expanded = 2)

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.filled.Checklist
@@ -52,17 +51,14 @@ import io.github.aedev.flow.data.localmedia.LocalMediaItem
 import io.github.aedev.flow.data.localmedia.toMusicTrack
 import io.github.aedev.flow.data.localmedia.toVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.library.LibraryKindHeader
 import io.github.aedev.flow.ui.components.library.LibraryPanes
 import io.github.aedev.flow.ui.components.library.LibrarySelection
 import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
 import io.github.aedev.flow.ui.components.library.SelectionAction
 import io.github.aedev.flow.ui.components.library.rememberLibraryPaneState
-import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
-import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
-import io.github.aedev.flow.ui.components.shared.FlowSearchField
-import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 import io.github.aedev.flow.ui.components.shared.flowGridColumns
@@ -194,7 +190,7 @@ fun LocalMediaScreen(
     LaunchedEffect(twoPaneFolders, state.folders) {
         if (twoPaneFolders && openFolder == null) state.folders.firstOrNull()?.let { viewModel.openFolder(it.id) }
     }
-    val gridColumns = flowGridColumns(compact = 2, medium = 3, expanded = 4)
+    val gridColumns = flowGridColumns(compact = 2, medium = 3, expanded = 3)
     val asGrid = isVideos && (state.settings.videosAsGrid ?: (gridColumns > 2))
     val columns = if (asGrid) (if (twoPaneFolders) gridColumns - 1 else gridColumns) else 1
     val selection =
@@ -245,23 +241,15 @@ fun LocalMediaScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize()) {
-                FlowSearchField(
+                LibraryKindHeader(
                     query = state.selection.filters.query,
                     onQueryChange = { query -> viewModel.updateFilters { it.copy(query = query) } },
                     placeholder = stringResource(R.string.local_search_hint),
-                    onClear = { viewModel.updateFilters { it.copy(query = "") } },
-                    modifier = Modifier.padding(horizontal = 16.dp).widthIn(max = FlowMaxContentWidth).fillMaxWidth(),
-                    onSearch = { focusManager.clearFocus() },
-                    releaseFocusWithKeyboard = true,
-                )
-                FlowConnectedToggleGroup(
-                    options = MediaKind.entries.map { FlowToggleOption(it, stringResource(it.labelRes), it.icon) },
-                    selected = state.selection.kind,
-                    onSelected = {
+                    selectedKind = state.selection.kind,
+                    onKindSelected = {
                         exitSelection()
                         viewModel.selectKind(it)
                     },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = FlowMaxContentWidth),
                 )
                 if (access != MediaAccess.NONE) {
                     LocalMediaFilterBar(

@@ -234,7 +234,7 @@ private fun DownloadsSectionHeader(
     action: (@Composable () -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = inset, end = 4.dp, top = 12.dp, bottom = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = inset, end = 4.dp, top = 16.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
