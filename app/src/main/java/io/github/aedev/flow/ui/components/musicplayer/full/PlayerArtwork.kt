@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.full
 
 import android.view.ViewGroup
 import androidx.compose.animation.core.Animatable
@@ -40,6 +40,7 @@ import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.size.Precision
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
 import kotlinx.coroutines.launch
 
 @Composable

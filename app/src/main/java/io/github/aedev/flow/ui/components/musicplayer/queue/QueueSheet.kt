@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.queue
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -80,6 +80,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.RepeatMode
 import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.components.musicplayer.common.formatTime
 import io.github.aedev.flow.ui.components.musicplayer.motion.QueueRowSwipeGestureHandler
 import io.github.aedev.flow.ui.components.musicplayer.motion.QueueSwipeAction
 import io.github.aedev.flow.ui.components.shared.FlowSwitch

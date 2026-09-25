@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.controls
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -49,6 +49,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.player.RepeatMode
+import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
+import io.github.aedev.flow.ui.components.musicplayer.common.formatTime
+import io.github.aedev.flow.ui.components.musicplayer.common.readableAccentOn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

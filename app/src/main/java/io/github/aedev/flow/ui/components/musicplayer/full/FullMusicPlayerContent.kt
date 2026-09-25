@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.full
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
@@ -95,6 +95,14 @@ import io.github.aedev.flow.service.Media3MusicService
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.SaveSongSheet
+import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
+import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerMainActionButtons
+import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerPlaybackControls
+import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerProgressSlider
+import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerSecondaryActions
+import io.github.aedev.flow.ui.components.musicplayer.lyrics.MusicLyricsSheet
+import io.github.aedev.flow.ui.components.musicplayer.queue.QueueSheet
+import io.github.aedev.flow.ui.components.musicplayer.sheet.AudioSettingsSheet
 import io.github.aedev.flow.ui.components.shared.MediaPalette
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel

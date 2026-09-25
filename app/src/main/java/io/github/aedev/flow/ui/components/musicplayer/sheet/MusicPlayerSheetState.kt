@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.sheet
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.MutatorMutex

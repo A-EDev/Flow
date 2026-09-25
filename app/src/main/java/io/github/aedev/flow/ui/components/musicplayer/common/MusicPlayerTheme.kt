@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.common
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme

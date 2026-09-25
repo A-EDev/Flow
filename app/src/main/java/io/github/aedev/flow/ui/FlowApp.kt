@@ -45,10 +45,10 @@ import io.github.aedev.flow.ui.components.music.common.ProvideMusicPlaybackState
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.MusicMenuSheets
 import io.github.aedev.flow.ui.components.music.sheet.rememberMusicMenus
-import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerBottomSpacer
-import io.github.aedev.flow.ui.components.musicplayer.MusicMiniPlayerHeight
-import io.github.aedev.flow.ui.components.musicplayer.UnifiedMusicPlayerSheet
-import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPlayerSheetState
+import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerBottomSpacer
+import io.github.aedev.flow.ui.components.musicplayer.sheet.MusicMiniPlayerHeight
+import io.github.aedev.flow.ui.components.musicplayer.sheet.UnifiedMusicPlayerSheet
+import io.github.aedev.flow.ui.components.musicplayer.sheet.rememberMusicPlayerSheetState
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
