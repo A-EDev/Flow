@@ -3652,4 +3652,17 @@
         <item quantity="one">Unliked %d video</item>
         <item quantity="other">Unliked %d videos</item>
     </plurals>
+    <!-- Music album and playlist pages -->
+    <string name="music_kind_album">Album</string>
+    <string name="music_kind_saved">Saved to your library</string>
+    <string name="music_playlist_empty_title">This playlist is empty</string>
+    <string name="music_playlist_empty_body">Add songs from the menu at the top</string>
+    <plurals name="songs_removed_from_playlist">
+        <item quantity="one">Removed %d song</item>
+        <item quantity="other">Removed %d songs</item>
+    </plurals>
+    <plurals name="songs_unliked">
+        <item quantity="one">Unliked %d song</item>
+        <item quantity="other">Unliked %d songs</item>
+    </plurals>
 </resources>

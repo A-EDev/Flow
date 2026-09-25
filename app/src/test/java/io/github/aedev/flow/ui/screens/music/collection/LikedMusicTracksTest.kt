@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.music
+package io.github.aedev.flow.ui.screens.music.collection
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.LikedVideoInfo

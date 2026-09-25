@@ -8,12 +8,17 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.engagement.LikedMediaUseCase
+import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
+import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.recommendation.music.DailyMixStore
 import io.github.aedev.flow.data.recommendation.music.graph.MusicGraphStore
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.music.saveMusicCollection
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -21,19 +26,24 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
+import io.github.aedev.flow.data.music.PlaylistRepository as MusicLibrary
 
 private const val REMOTE_TIMEOUT_MS = 12_000L
 private const val TAG = "MusicCollectionVM"
 private const val MAX_PAGES = 60
+private const val SHARING_TIMEOUT_MS = 5_000L
 
 /**
  * One album or playlist page. Each page has its own instance, keyed by the route's id, so Back
@@ -49,16 +59,28 @@ class MusicCollectionViewModel
         private val playlists: PlaylistRepository,
         private val dailyMixes: DailyMixStore,
         private val musicGraph: MusicGraphStore,
+        private val likes: LikedVideosRepository,
+        private val musicLibrary: MusicLibrary,
+        private val likedMedia: LikedMediaUseCase,
     ) : ViewModel() {
         val collectionId: String = checkNotNull(savedStateHandle[MUSIC_COLLECTION_ARG])
 
         private val _state = MutableStateFlow(MusicCollectionUiState())
         val state: StateFlow<MusicCollectionUiState> = _state.asStateFlow()
 
-        private val _messages = Channel<Int>(Channel.BUFFERED)
+        private val _messages = Channel<CollectionMessage>(Channel.BUFFERED)
 
-        /** Confirmations for the snackbar, as string resources. */
-        val messages: Flow<Int> = _messages.receiveAsFlow()
+        /** Confirmations for the snackbar. */
+        val messages: Flow<CollectionMessage> = _messages.receiveAsFlow()
+
+        /** Your music playlists, for "Add all to playlist". */
+        val mergeTargets: StateFlow<List<PlaylistInfo>> =
+            playlists
+                .getUserCreatedMusicPlaylistsFlow()
+                .map { list -> list.filterNot { it.id == collectionId } }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SHARING_TIMEOUT_MS), emptyList())
+
+        val songSearch = MusicSongSearch(viewModelScope)
 
         private var loadJob: Job? = null
         private var moreJob: Job? = null
@@ -111,7 +133,7 @@ class MusicCollectionViewModel
         /** Saves the whole collection to the library, or takes a saved one out. Your own are never saved. */
         fun toggleSaved() {
             val state = _state.value
-            if (state.isOwn || state.kind == MusicCollectionKind.DAILY_MIX) return
+            if (state.isOwn || state.kind == MusicCollectionKind.DAILY_MIX || state.kind == MusicCollectionKind.LIKED) return
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 runCatching {
                     if (state.isSaved) {
@@ -126,7 +148,80 @@ class MusicCollectionViewModel
                     }
                 }.onFailure { Log.w(TAG, "Saving $collectionId failed", it) }
                     .getOrDefault(R.string.toast_failed_to_save_playlist)
-                    .let { _messages.send(it) }
+                    .let { _messages.send(CollectionMessage(stringRes = it)) }
+            }
+        }
+
+        /** Takes songs out of your playlist, or unlikes them from Liked music, with an Undo. */
+        fun removeTracks(videoIds: Set<String>) {
+            if (videoIds.isEmpty()) return
+            val kind = _state.value.kind
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                val message =
+                    when (kind) {
+                        MusicCollectionKind.OWN -> {
+                            val removed = playlists.takeVideosFromPlaylist(collectionId, videoIds)
+                            if (removed.isEmpty()) return@launch
+                            CollectionMessage(
+                                pluralRes = R.plurals.songs_removed_from_playlist,
+                                count = removed.size,
+                                args = listOf(removed.size),
+                                undo = QuickActionUndo.PlaylistRemoval(removed),
+                            )
+                        }
+
+                        MusicCollectionKind.LIKED -> {
+                            val removed = likedMedia.unlike(videoIds)
+                            if (removed.isEmpty()) return@launch
+                            CollectionMessage(
+                                pluralRes = R.plurals.songs_unliked,
+                                count = removed.size,
+                                args = listOf(removed.size),
+                                undo = QuickActionUndo.Unlike(removed),
+                            )
+                        }
+
+                        else -> {
+                            return@launch
+                        }
+                    }
+                _messages.send(message)
+            }
+        }
+
+        fun reorder(orderedVideoIds: List<String>) {
+            if (!_state.value.isOwn) return
+            viewModelScope.launch(PerformanceDispatcher.diskIO) { playlists.reorderVideosInPlaylist(collectionId, orderedVideoIds) }
+        }
+
+        /** Adds a song found in the catalogue to your playlist; the list shows it as the database does. */
+        fun addTrack(track: MusicTrack) {
+            if (!_state.value.isOwn) return
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                val added = runCatching { playlists.addVideoToPlaylist(collectionId, track.toStoredVideo()) }.isSuccess
+                _messages.send(
+                    CollectionMessage(stringRes = if (added) R.string.toast_added_to_playlist else R.string.toast_failed_to_add_track),
+                )
+            }
+        }
+
+        /** Adds every song here, all pages of it, to another of your playlists. */
+        fun addAllTo(target: PlaylistInfo) {
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                val tracks = loadAll()?.tracks.orEmpty()
+                if (tracks.isEmpty()) return@launch
+                val added = runCatching { playlists.addVideosToPlaylist(target.id, tracks.map { it.toStoredVideo() }) }.isSuccess
+                _messages.send(
+                    if (added) {
+                        CollectionMessage(
+                            pluralRes = R.plurals.merge_playlist_success,
+                            count = tracks.size,
+                            args = listOf(tracks.size, target.name),
+                        )
+                    } else {
+                        CollectionMessage(stringRes = R.string.toast_failed_to_merge_playlist)
+                    },
+                )
             }
         }
 
@@ -135,10 +230,30 @@ class MusicCollectionViewModel
             loadJob =
                 viewModelScope.launch(PerformanceDispatcher.diskIO) {
                     when {
+                        collectionId == PlaylistRepository.LIKED_MUSIC_ID -> observeLiked()
                         collectionId.startsWith(MusicViewModel.DAILY_MIX_ID_PREFIX) -> loadDailyMix()
                         else -> loadStoredOrRemote()
                     }
                 }
+        }
+
+        /** Liked music, live: newest like first, with the details the favorites store kept. */
+        private suspend fun observeLiked() {
+            val title = context.getString(R.string.liked_music_playlist)
+            val author = context.getString(R.string.playlist_type_builtin)
+            combine(likes.getLikedMusicFlow(), musicLibrary.favorites) { liked, favorites ->
+                val tracks = likedMusicTracks(liked, favorites)
+                PlaylistDetails(
+                    id = collectionId,
+                    title = title,
+                    thumbnailUrl = tracks.firstOrNull()?.thumbnailUrl.orEmpty(),
+                    author = author,
+                    trackCount = tracks.size,
+                    tracks = tracks,
+                ) to liked.associate { it.videoId to it.likedAt }
+            }.collect { (details, likedAt) ->
+                _state.update { it.copy(kind = MusicCollectionKind.LIKED, details = details, addedAt = likedAt, isLoading = false) }
+            }
         }
 
         private suspend fun loadStoredOrRemote() {
@@ -260,6 +375,7 @@ enum class MusicCollectionKind {
     OWN,
     SAVED,
     DAILY_MIX,
+    LIKED,
 }
 
 data class MusicCollectionUiState(
@@ -274,6 +390,9 @@ data class MusicCollectionUiState(
     val isSaved: Boolean = false,
 ) {
     val isOwn: Boolean get() = kind == MusicCollectionKind.OWN
+
+    /** Your own playlist or Liked music, where songs can be taken out. */
+    val canRemove: Boolean get() = kind == MusicCollectionKind.OWN || kind == MusicCollectionKind.LIKED
 }
 
 internal fun remoteKind(id: String): MusicCollectionKind =
@@ -284,7 +403,7 @@ internal fun remoteKind(id: String): MusicCollectionKind =
     }
 
 internal fun PlaylistDetails.appending(
-    more: List<io.github.aedev.flow.data.music.model.MusicTrack>,
+    more: List<MusicTrack>,
     next: String?,
 ): PlaylistDetails {
     val known = tracks.mapTo(HashSet()) { it.videoId }

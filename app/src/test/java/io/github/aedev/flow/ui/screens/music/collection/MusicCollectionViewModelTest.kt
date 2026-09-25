@@ -3,13 +3,18 @@ package io.github.aedev.flow.ui.screens.music.collection
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.engagement.LikedMediaUseCase
+import io.github.aedev.flow.data.local.LikedVideoInfo
+import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
+import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.recommendation.music.DailyMixStore
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -29,11 +34,15 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import io.github.aedev.flow.data.music.PlaylistRepository as MusicLibrary
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MusicCollectionViewModelTest {
     private val context = mockk<Context>(relaxed = true).also { every { it.getString(any()) } returns "text" }
     private val playlists = mockk<PlaylistRepository>(relaxed = true)
+    private val likes = mockk<LikedVideosRepository>(relaxed = true)
+    private val musicLibrary = mockk<MusicLibrary>(relaxed = true)
+    private val likedMedia = mockk<LikedMediaUseCase>(relaxed = true)
 
     @Before
     fun setUp() {
@@ -54,6 +63,9 @@ class MusicCollectionViewModelTest {
             playlists,
             DailyMixStore(),
             mockk(relaxed = true),
+            likes,
+            musicLibrary,
+            likedMedia,
         )
 
     private fun entity(
@@ -184,6 +196,44 @@ class MusicCollectionViewModelTest {
 
         val failed = runBlocking { withTimeout(2_000) { viewModel.state.first { it.moreFailed } } }
         assertThat(failed.details?.continuation).isEqualTo("next")
+    }
+
+    @Test
+    fun `liked music lists liked songs newest first and unlikes them with an Undo`() {
+        val liked =
+            listOf(
+                LikedVideoInfo("b", "B", "t", "Artist", likedAt = 2L, isMusic = true),
+                LikedVideoInfo("a", "A", "t", "Artist", likedAt = 1L, isMusic = true),
+            )
+        every { likes.getLikedMusicFlow() } returns flowOf(liked)
+        every { musicLibrary.favorites } returns flowOf(emptyList())
+        coEvery { likedMedia.unlike(setOf("a")) } returns liked.takeLast(1)
+        val viewModel = viewModel(PlaylistRepository.LIKED_MUSIC_ID)
+
+        val state = viewModel.settled()
+        viewModel.removeTracks(setOf("a"))
+
+        assertThat(state.kind).isEqualTo(MusicCollectionKind.LIKED)
+        assertThat(state.details?.tracks?.map { it.videoId }).containsExactly("b", "a").inOrder()
+        val message = runBlocking { withTimeout(2_000) { viewModel.messages.first() } }
+        assertThat(message.undo).isEqualTo(QuickActionUndo.Unlike(liked.takeLast(1)))
+    }
+
+    @Test
+    fun `removing from your playlist offers an Undo that restores the same entries`() {
+        val id = "3f9c"
+        val entry = PlaylistVideoCrossRef(playlistId = id, videoId = "a", position = 4L, addedAt = 9L)
+        coEvery { playlists.getPlaylistEntity(id) } returns entity(id, own = true)
+        every { playlists.observePlaylistEntity(id) } returns flowOf(entity(id, own = true))
+        every { playlists.getPlaylistVideosWithAddedAtFlow(id) } returns flowOf(listOf(video("a")))
+        coEvery { playlists.takeVideosFromPlaylist(id, setOf("a")) } returns listOf(entry)
+        val viewModel = viewModel(id)
+        viewModel.settled()
+
+        viewModel.removeTracks(setOf("a"))
+
+        val message = runBlocking { withTimeout(2_000) { viewModel.messages.first() } }
+        assertThat(message.undo).isEqualTo(QuickActionUndo.PlaylistRemoval(listOf(entry)))
     }
 
     @Test
