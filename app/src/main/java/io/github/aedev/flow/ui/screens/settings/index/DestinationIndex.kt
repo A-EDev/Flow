@@ -44,6 +44,7 @@ internal object DestinationIndex {
             SettingsDestination.LANGUAGE_REGION -> R.string.settings_language_region_summary
             SettingsDestination.PLAYBACK -> R.string.settings_playback_summary
             SettingsDestination.BUFFER -> R.string.settings_item_buffer_subtitle
+            SettingsDestination.EQUALIZER -> R.string.eq_settings_summary
             SettingsDestination.QUALITY -> R.string.settings_quality_summary
             SettingsDestination.CONTENT -> R.string.settings_content_summary
             SettingsDestination.TOPICS -> R.string.settings_topics_summary

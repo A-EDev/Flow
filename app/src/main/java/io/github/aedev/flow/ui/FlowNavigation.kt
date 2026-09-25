@@ -38,6 +38,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.screens.channel.ChannelScreen
+import io.github.aedev.flow.ui.screens.equalizer.EqualizerScreen
 import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.home.HomeScreen
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
@@ -283,6 +284,11 @@ fun NavGraphBuilder.flowAppGraph(
                 if (!navController.popBackStack()) navController.navigate("home")
             },
         )
+    }
+
+    composable(EQUALIZER_ROUTE) {
+        currentRoute.value = EQUALIZER_ROUTE
+        EqualizerScreen(onBack = { navController.popBackStack() })
     }
 
     composable("categories") {

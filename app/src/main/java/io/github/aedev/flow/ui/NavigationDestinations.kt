@@ -106,4 +106,5 @@ internal fun String.isLibraryOrSettingsRouteForMusicMiniPlayer(): Boolean =
         this == "savedShorts" ||
         this == "recap" ||
         this == "recap_story" ||
+        this == EQUALIZER_ROUTE ||
         startsWith("settings")

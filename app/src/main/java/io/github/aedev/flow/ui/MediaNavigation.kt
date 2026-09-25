@@ -8,6 +8,7 @@ internal const val MUSIC_ARTIST_ROUTE_PATTERN = "artist/{channelId}"
 internal const val MUSIC_ARTIST_ROUTE_ARG = "channelId"
 internal const val MUSIC_PLAYLIST_ROUTE_PATTERN = "musicPlaylist/{playlistId}"
 internal const val MUSIC_PLAYLIST_ROUTE_ARG = "playlistId"
+internal const val EQUALIZER_ROUTE = "equalizer"
 
 internal fun musicArtistRoute(artistId: String): String? = artistId.trim().takeIf(String::isNotEmpty)?.let { "artist/${Uri.encode(it)}" }
 
@@ -43,6 +44,12 @@ internal class FlowMediaNavigator(
     override fun openAlbum(albumId: String) = openCollection(albumId)
 
     override fun openMusicPlaylist(playlistId: String) = openCollection(playlistId)
+
+    override fun openEqualizer() {
+        beforeNavigate()
+        if (navController.currentBackStackEntry?.destination?.route == EQUALIZER_ROUTE) return
+        navController.navigate(EQUALIZER_ROUTE)
+    }
 
     private fun openCollection(id: String) = open(MUSIC_PLAYLIST_ROUTE_PATTERN, MUSIC_PLAYLIST_ROUTE_ARG, id, musicCollectionRoute(id))
 

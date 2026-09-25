@@ -27,6 +27,7 @@ enum class SettingsDestination(
     LANGUAGE_REGION("language_region", R.string.settings_language_region_title),
     PLAYBACK("playback", R.string.settings_playback_title),
     BUFFER("buffer", R.string.buffer_settings_title, PLAYBACK),
+    EQUALIZER("equalizer", R.string.equalizer, PLAYBACK),
     QUALITY("quality", R.string.quality),
     CONTENT("content", R.string.settings_content_title),
     TOPICS("topics", R.string.settings_topics_title),
