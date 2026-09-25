@@ -220,6 +220,7 @@ private fun CollectionContent(
                     onEdit = { sheet = CollectionSheet.Edit },
                     onDelete = { sheet = CollectionSheet.Delete },
                     onExport = { exportLauncher.launch(viewModel.exportFileName) },
+                    onSaveAsPlaylist = viewModel::saveAsPlaylist,
                 ),
         )
     val sortChip: @Composable () -> Unit = {

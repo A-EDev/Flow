@@ -3688,4 +3688,6 @@
         <item quantity="other">%d songs queued for download</item>
     </plurals>
     <string name="songs_download_nothing_new">Everything here is already downloaded or unavailable</string>
+    <string name="save_as_playlist">Save as playlist</string>
+    <string name="daily_mix_saved_as_playlist">Saved %1$s to your playlists</string>
 </resources>

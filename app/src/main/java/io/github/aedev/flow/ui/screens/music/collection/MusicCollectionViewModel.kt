@@ -266,6 +266,30 @@ class MusicCollectionViewModel
             }
         }
 
+        /** A Daily Mix changes as you listen; this keeps today's songs as a playlist of your own. */
+        fun saveAsPlaylist() {
+            val details = _state.value.details ?: return
+            if (_state.value.kind != MusicCollectionKind.DAILY_MIX || details.tracks.isEmpty()) return
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                val saved =
+                    runCatching {
+                        playlists.importPlaylist(
+                            details.title,
+                            details.description.orEmpty(),
+                            details.tracks.map { it.toStoredVideo() },
+                            isMusic = true,
+                        )
+                    }.isSuccess
+                _messages.send(
+                    if (saved) {
+                        CollectionMessage(stringRes = R.string.daily_mix_saved_as_playlist, args = listOf(details.title))
+                    } else {
+                        CollectionMessage(stringRes = R.string.toast_failed_to_save_playlist)
+                    },
+                )
+            }
+        }
+
         /** The name offered when the viewer saves this collection as a file. */
         val exportFileName: String get() =
             PlaylistFileCodec.fileName(

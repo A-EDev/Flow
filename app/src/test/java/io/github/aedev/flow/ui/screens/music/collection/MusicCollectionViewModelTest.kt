@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
+import io.github.aedev.flow.data.recommendation.MusicSection
 import io.github.aedev.flow.data.recommendation.music.DailyMixStore
 import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
@@ -274,6 +275,30 @@ class MusicCollectionViewModelTest {
         viewModel.download()
 
         coVerify(timeout = 2_000) { downloads.queueSongs(id, match { songs -> songs.map { it.videoId } == listOf("a", "b") }) }
+    }
+
+    @Test
+    fun `a daily mix is saved as a music playlist of your own`() {
+        val store = DailyMixStore().apply { publish(listOf(MusicSection(title = "Mix 1", tracks = listOf(track("a"), track("b"))))) }
+        val viewModel =
+            MusicCollectionViewModel(
+                context,
+                SavedStateHandle(mapOf(MUSIC_COLLECTION_ARG to "daily_mix_0")),
+                playlists,
+                store,
+                mockk(relaxed = true),
+                likes,
+                musicLibrary,
+                likedMedia,
+                mockk(relaxed = true),
+                mockk(relaxed = true),
+                downloads,
+            )
+        assertThat(viewModel.settled().kind).isEqualTo(MusicCollectionKind.DAILY_MIX)
+
+        viewModel.saveAsPlaylist()
+
+        coVerify(timeout = 2_000) { playlists.importPlaylist("Mix 1", any(), match { it.map(Video::id) == listOf("a", "b") }, true) }
     }
 
     @Test

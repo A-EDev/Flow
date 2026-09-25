@@ -8,6 +8,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.HeartBroken
+import androidx.compose.material.icons.rounded.LibraryAdd
 import androidx.compose.material.icons.rounded.QueuePlayNext
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.SaveAs
@@ -25,8 +26,12 @@ internal fun collectionMenu(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onExport: () -> Unit,
+    onSaveAsPlaylist: () -> Unit,
 ): List<CollectionMenuItem> =
     buildList {
+        if (state.kind == MusicCollectionKind.DAILY_MIX) {
+            add(CollectionMenuItem(stringResource(R.string.save_as_playlist), Icons.Rounded.LibraryAdd, onClick = onSaveAsPlaylist))
+        }
         if (state.canExport) {
             add(
                 CollectionMenuItem(stringResource(R.string.export_playlist_action), Icons.Rounded.SaveAs, onClick = onExport),
