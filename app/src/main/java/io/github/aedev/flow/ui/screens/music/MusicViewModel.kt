@@ -1490,7 +1490,7 @@ class MusicViewModel
                                 title = video.title,
                                 artist = video.channelName,
                                 thumbnailUrl = video.thumbnailUrl,
-                                duration = (video.duration / 1000).toInt(),
+                                duration = video.duration,
                                 sourceUrl = "", // Not needed for local playback usually
                             )
                         }

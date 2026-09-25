@@ -337,8 +337,8 @@ class PlaylistRepository
                 val alreadyInPlaylist = playlistDao.getVideoIdsInPlaylist(targetPlaylistId).toHashSet()
                 var nextPosition = (playlistDao.getMaxPlaylistPosition(targetPlaylistId) ?: -1L) + 1L
 
+                videoDao.mergeMetadata(videos.map(::normalizedEntity))
                 videos.forEach { video ->
-                    updateVideoMetadata(video)
                     // Re-adding a track already in the playlist must not move it.
                     if (!alreadyInPlaylist.add(video.id)) return@forEach
                     playlistDao.insertPlaylistVideoCrossRef(
