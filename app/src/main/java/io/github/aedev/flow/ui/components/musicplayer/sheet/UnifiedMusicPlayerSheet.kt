@@ -36,7 +36,6 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -60,6 +59,8 @@ import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetSettleSpr
 import io.github.aedev.flow.ui.components.musicplayer.motion.musicSheetVerticalDragGesture
 import io.github.aedev.flow.ui.components.musicplayer.motion.rememberMiniPlayerDismissGestureHandler
 import io.github.aedev.flow.ui.components.shared.rememberMediaPalette
+import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
+import io.github.aedev.flow.ui.utils.isMediumWidth
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.max
@@ -67,7 +68,6 @@ import kotlin.math.roundToInt
 
 val MusicMiniPlayerHeight = 64.dp
 val MusicMiniPlayerBottomSpacer = 8.dp
-private val CollapsedHorizontalPadding = 12.dp
 private val CollapsedCornerRadius = 32.dp
 
 private val SheetDefaultSpring =
@@ -86,14 +86,15 @@ private val SheetDefaultSpring =
 @Composable
 fun UnifiedMusicPlayerSheet(
     state: MusicPlayerSheetState,
+    containerWidth: Dp,
     containerHeight: Dp,
+    startInset: Dp,
     restingBottomPx: () -> Float,
     track: MusicTrack,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
@@ -101,7 +102,19 @@ fun UnifiedMusicPlayerSheet(
     val containerHeightPx = with(density) { containerHeight.toPx() }
     val miniHeightPx = with(density) { MusicMiniPlayerHeight.toPx() }
     val miniSpacerPx = with(density) { MusicMiniPlayerBottomSpacer.toPx() }
-    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val containerWidthPx = with(density) { containerWidth.toPx() }
+    val isCompactWidth = !LocalWindowSizeClass.current.isMediumWidth
+    val miniBounds =
+        with(density) {
+            miniPlayerBounds(
+                containerWidthPx = containerWidthPx,
+                startInsetPx = startInset.toPx(),
+                isCompactWidth = isCompactWidth,
+                compactMarginPx = MiniPlayerCompactMargin.toPx(),
+                largeMarginPx = MiniPlayerLargeMargin.toPx(),
+                maxWidthPx = MiniPlayerMaxWidth.toPx(),
+            )
+        }
     val collapsedTargetY = (containerHeightPx - miniHeightPx - miniSpacerPx).coerceAtLeast(0f)
     val hiddenY = containerHeightPx + miniSpacerPx
 
@@ -256,7 +269,8 @@ fun UnifiedMusicPlayerSheet(
             restingBottomPx = restingBottomPx,
             containerHeightPx = containerHeightPx,
             miniHeightPx = miniHeightPx,
-            collapsedPaddingPx = with(density) { CollapsedHorizontalPadding.toPx() },
+            containerWidthPx = containerWidthPx,
+            miniBounds = miniBounds,
             collapsedRadiusPx = with(density) { CollapsedCornerRadius.toPx() },
         )
     val cardShape = remember(geometry) { MusicSheetDynamicShape(geometry::cornerRadiusPx) }
@@ -293,7 +307,7 @@ fun UnifiedMusicPlayerSheet(
             density = density,
             hapticFeedback = hapticFeedback,
             offsetAnimatable = dismissOffset,
-            screenWidthPx = screenWidthPx,
+            screenWidthPx = containerWidthPx,
             onDismiss = {
                 state.dismiss()
                 onDismiss()
@@ -347,8 +361,8 @@ fun UnifiedMusicPlayerSheet(
                             transformOrigin = TransformOrigin(0.5f, 1f)
                         }.layout { measurable, constraints ->
                             val targetHeightPx = geometry.cardHeightPx().roundToInt().coerceAtLeast(0)
-                            val padPx = geometry.horizontalPaddingPx().roundToInt().coerceAtLeast(0)
-                            val innerWidth = (constraints.maxWidth - padPx * 2).coerceAtLeast(0)
+                            val startPx = geometry.cardStartPx().roundToInt().coerceAtLeast(0)
+                            val innerWidth = geometry.cardWidthPx().roundToInt().coerceAtLeast(0)
                             val placeable =
                                 measurable.measure(
                                     constraints.copy(
@@ -359,7 +373,7 @@ fun UnifiedMusicPlayerSheet(
                                     ),
                                 )
                             layout(constraints.maxWidth, targetHeightPx) {
-                                placeable.placeRelative(padPx, 0)
+                                placeable.placeRelative(startPx, 0)
                             }
                         }.shadow(
                             elevation = cardShadowElevation,
@@ -370,9 +384,9 @@ fun UnifiedMusicPlayerSheet(
                         .layout { measurable, constraints ->
                             val fullHeightPx = containerHeightPx.roundToInt()
                             val fraction = state.expansionFraction.value
-                            val padPx = geometry.horizontalPaddingPx().roundToInt()
+                            val startPx = geometry.cardStartPx().roundToInt()
                             val measureWidth =
-                                if (fraction > 0f) screenWidthPx.roundToInt() else constraints.maxWidth
+                                if (fraction > 0f) geometry.containerWidthPx().roundToInt() else constraints.maxWidth
                             val placeable =
                                 measurable.measure(
                                     constraints.copy(
@@ -383,7 +397,7 @@ fun UnifiedMusicPlayerSheet(
                                     ),
                                 )
                             layout(constraints.maxWidth, constraints.maxHeight) {
-                                val xOffset = if (fraction > 0f) -padPx else 0
+                                val xOffset = if (fraction > 0f) -startPx else 0
                                 placeable.placeRelative(xOffset, 0)
                             }
                         }.miniPlayerDismissHorizontalGesture(
@@ -419,10 +433,10 @@ fun UnifiedMusicPlayerSheet(
                                 alpha = (1f - state.expansionFraction.value * 2f).coerceIn(0f, 1f)
                             }.layout { measurable, constraints ->
                                 val fraction = state.expansionFraction.value
-                                val padPx = geometry.horizontalPaddingPx().roundToInt().coerceAtLeast(0)
+                                val startPx = geometry.cardStartPx().roundToInt().coerceAtLeast(0)
                                 val targetWidth =
                                     if (fraction > 0f) {
-                                        (constraints.maxWidth - padPx * 2).coerceAtLeast(0)
+                                        geometry.cardWidthPx().roundToInt().coerceAtLeast(0)
                                     } else {
                                         constraints.maxWidth
                                     }
@@ -431,7 +445,7 @@ fun UnifiedMusicPlayerSheet(
                                         constraints.copy(minWidth = targetWidth, maxWidth = targetWidth),
                                     )
                                 layout(constraints.maxWidth, constraints.maxHeight) {
-                                    placeable.placeRelative(if (fraction > 0f) padPx else 0, 0)
+                                    placeable.placeRelative(if (fraction > 0f) startPx else 0, 0)
                                 }
                             }.zIndex(miniZIndex),
                 ) {

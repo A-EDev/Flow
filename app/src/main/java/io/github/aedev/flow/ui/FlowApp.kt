@@ -573,7 +573,9 @@ fun FlowApp(
             ) {
                 UnifiedMusicPlayerSheet(
                     state = musicPlayerSheetState,
+                    containerWidth = maxWidth,
                     containerHeight = with(density) { screenHeightPx.toDp() },
+                    startInset = if (usesNavigationRail && isNavigationRailVisible) navigationRailWidth else 0.dp,
                     restingBottomPx = { bottomInsets.miniPlayerBaselinePx(density) },
                     track = currentMusicTrack!!,
                     onDismiss = {

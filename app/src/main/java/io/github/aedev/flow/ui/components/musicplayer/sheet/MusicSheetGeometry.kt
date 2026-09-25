@@ -36,7 +36,8 @@ internal class MusicSheetGeometry(
     private val restingBottomPx: () -> Float,
     private val containerHeightPx: State<Float>,
     private val miniHeightPx: State<Float>,
-    private val collapsedPaddingPx: State<Float>,
+    private val containerWidthPx: State<Float>,
+    private val miniBounds: State<MiniPlayerBounds>,
     private val collapsedRadiusPx: State<Float>,
 ) {
     fun fraction(): Float = (state.expansionFraction.value * (1f - predictiveBackProgress.value)).coerceIn(0f, 1f)
@@ -60,7 +61,12 @@ internal class MusicSheetGeometry(
         }
     }
 
-    fun horizontalPaddingPx(): Float = collapsedPaddingPx.value * (1f - fraction())
+    /** The card's start edge: the mini player's resting start, opening out to the window's edge. */
+    fun cardStartPx(): Float = lerp(miniBounds.value.start, 0f, fraction())
+
+    fun cardWidthPx(): Float = lerp(miniBounds.value.width, containerWidthPx.value, fraction())
+
+    fun containerWidthPx(): Float = containerWidthPx.value
 
     fun cornerRadiusPx(): Float = collapsedRadiusPx.value * (1f - fraction())
 }
@@ -73,14 +79,16 @@ internal fun rememberMusicSheetGeometry(
     restingBottomPx: () -> Float,
     containerHeightPx: Float,
     miniHeightPx: Float,
-    collapsedPaddingPx: Float,
+    containerWidthPx: Float,
+    miniBounds: MiniPlayerBounds,
     collapsedRadiusPx: Float,
 ): MusicSheetGeometry {
     val collapsedY = rememberUpdatedState(collapsedYPx)
     val restingBottom = rememberUpdatedState(restingBottomPx)
     val containerHeight = rememberUpdatedState(containerHeightPx)
     val miniHeight = rememberUpdatedState(miniHeightPx)
-    val collapsedPadding = rememberUpdatedState(collapsedPaddingPx)
+    val containerWidth = rememberUpdatedState(containerWidthPx)
+    val bounds = rememberUpdatedState(miniBounds)
     val collapsedRadius = rememberUpdatedState(collapsedRadiusPx)
     return remember(state, predictiveBackProgress) {
         MusicSheetGeometry(
@@ -90,7 +98,8 @@ internal fun rememberMusicSheetGeometry(
             restingBottomPx = { restingBottom.value() },
             containerHeightPx = containerHeight,
             miniHeightPx = miniHeight,
-            collapsedPaddingPx = collapsedPadding,
+            containerWidthPx = containerWidth,
+            miniBounds = bounds,
             collapsedRadiusPx = collapsedRadius,
         )
     }
