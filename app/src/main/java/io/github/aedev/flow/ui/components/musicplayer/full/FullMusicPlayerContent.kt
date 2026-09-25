@@ -66,7 +66,6 @@ internal fun FullMusicPlayerContent(
     hideArtwork: Boolean,
     // The transport, seek bar, like and download and the action row draw with this scheme.
     controlScheme: ColorScheme = MaterialTheme.colorScheme,
-    onCollapse: () -> Unit = {},
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -231,7 +230,6 @@ internal fun FullMusicPlayerContent(
                         playingFrom = uiState.playingFrom,
                         modifier = modifier,
                         contentColor = colorScheme.onSurface,
-                        onCollapse = onCollapse,
                     )
                 },
                 artwork = { modifier ->

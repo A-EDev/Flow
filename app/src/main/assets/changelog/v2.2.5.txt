@@ -87,7 +87,7 @@ IMPROVEMENTS
 - Deleting local files moves them to the system trash with Undo, and local songs and videos show their cover or a frame in lists and in the media notification
 - Downloads and Local media put search, the Videos and Music switch and sort on one row on tablets and unfolded foldables
 - The music mini player now sits on its own at the bottom and moves with the navigation bar, new songs start there unless you turn on the full player in Playback settings, and on tablets and foldables it is a centred card that no longer covers the navigation rail
-- Pages now scroll under the navigation bar, the mini player and the gesture area and stop clear of them, instead of ending above a blank band, and the expanded player has a collapse button
+- Pages now scroll under the navigation bar, the mini player and the gesture area and stop clear of them, instead of ending above a blank band
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat

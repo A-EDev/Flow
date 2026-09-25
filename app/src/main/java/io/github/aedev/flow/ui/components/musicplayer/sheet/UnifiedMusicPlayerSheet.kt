@@ -487,7 +487,6 @@ internal fun UnifiedMusicPlayerSheet(
                             backgroundStyle = backgroundStyle,
                             hideArtwork = hideArtwork,
                             controlScheme = controlScheme,
-                            onCollapse = state::collapse,
                         )
                     }
                 }
