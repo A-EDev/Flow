@@ -2,7 +2,6 @@ package io.github.aedev.flow.ui.components.musicplayer.lyrics
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -12,9 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,41 +19,21 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.FormatAlignCenter
-import androidx.compose.material.icons.outlined.FormatAlignLeft
-import androidx.compose.material.icons.outlined.FormatAlignRight
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.SaveAlt
-import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.TravelExplore
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -65,16 +41,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
-import androidx.compose.material3.ToggleButtonShapes
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,8 +52,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -92,22 +62,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.LYRICS_ALIGN_CENTER
 import io.github.aedev.flow.data.local.LYRICS_ALIGN_LEFT
 import io.github.aedev.flow.data.local.LYRICS_ALIGN_RIGHT
-import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.ui.components.PlayingWaveform
-import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
-import io.github.aedev.flow.ui.components.shared.FlowNavRow
-import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
-import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionRow
-import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsGroup
-import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsSheet
-import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 internal fun lyricsTextAlignFor(pref: String): TextAlign =
@@ -317,570 +278,62 @@ internal fun LyricsBottomBar(
     }
 }
 
+/** Shown while the user has scrolled away from the sung line; brings the list back to it. */
 @Composable
-internal fun LyricsSyncOffsetRow(
-    offsetMs: Long,
-    onAdjust: (Long) -> Unit,
-    onReset: () -> Unit,
-    onHide: () -> Unit,
+internal fun LyricsResyncButton(
+    visible: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val haptic = LocalHapticFeedback.current
-    val offsetActive = offsetMs != 0L
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(52.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(160)),
+        exit = fadeOut(tween(160)),
+        modifier = modifier,
     ) {
-        // M3E connected button group: 2dp seams, round outer ends, the pressed
-        // segment widens with a spring while its inner corners relax — the same
-        // press-morph idiom as the player's main transport buttons.
-        Row(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = Color.Black.copy(alpha = 0.42f),
+            contentColor = accent,
         ) {
-            OffsetStepSegment(deltaMs = -500L, edge = OffsetSegmentEdge.START, onAdjust = onAdjust)
-            OffsetStepSegment(deltaMs = -100L, edge = OffsetSegmentEdge.INNER, onAdjust = onAdjust)
-
-            val chipWeight by animateFloatAsState(
-                targetValue = if (offsetActive) 1.7f else 1.4f,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-                label = "syncChipWeight",
-            )
-            val chipContainer by animateColorAsState(
-                targetValue =
-                    if (offsetActive) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    },
-                label = "syncChipContainer",
-            )
-            val chipContent by animateColorAsState(
-                targetValue =
-                    if (offsetActive) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                label = "syncChipContent",
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .weight(chipWeight)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(chipContainer)
-                        .clickable(enabled = offsetActive) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onReset()
-                        },
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AnimatedContent(
-                        targetState = offsetMs,
-                        transitionSpec = {
-                            // The value rolls like a counter: up when the offset grows.
-                            if (targetState > initialState) {
-                                (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut())
-                            } else {
-                                (slideInVertically { -it } + fadeIn()) togetherWith (slideOutVertically { it } + fadeOut())
-                            }
-                        },
-                        label = "syncOffsetValue",
-                    ) { value ->
-                        val valueText = if (value != 0L) String.format(Locale.US, "%+.1f", value / 1000f) else "0"
-                        Text(
-                            text = stringResource(R.string.lyrics_sync_offset_value, valueText),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = chipContent,
-                            maxLines = 1,
-                        )
-                    }
-                    AnimatedVisibility(
-                        visible = offsetActive,
-                        enter = fadeIn() + scaleIn(),
-                        exit = fadeOut() + scaleOut(),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Refresh,
-                            contentDescription = stringResource(R.string.lyrics_sync_reset),
-                            modifier = Modifier.size(14.dp),
-                            tint = chipContent,
-                        )
-                    }
-                }
-            }
-
-            OffsetStepSegment(deltaMs = 100L, edge = OffsetSegmentEdge.INNER, onAdjust = onAdjust)
-            OffsetStepSegment(deltaMs = 500L, edge = OffsetSegmentEdge.END, onAdjust = onAdjust)
-        }
-
-        IconButton(
-            onClick = onHide,
-            modifier = Modifier.size(40.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Close,
-                contentDescription = stringResource(R.string.close),
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-private enum class OffsetSegmentEdge { START, INNER, END }
-
-@Composable
-private fun RowScope.OffsetStepSegment(
-    deltaMs: Long,
-    edge: OffsetSegmentEdge,
-    onAdjust: (Long) -> Unit,
-) {
-    val haptic = LocalHapticFeedback.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val weight by animateFloatAsState(
-        targetValue = if (pressed) 1.35f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "syncStepWeight",
-    )
-    val innerRadius by animateDpAsState(
-        targetValue = if (pressed) 18.dp else 10.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "syncStepCorner",
-    )
-    val shape =
-        when (edge) {
-            OffsetSegmentEdge.START -> {
-                RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp, topEnd = innerRadius, bottomEnd = innerRadius)
-            }
-
-            OffsetSegmentEdge.END -> {
-                RoundedCornerShape(topStart = innerRadius, bottomStart = innerRadius, topEnd = 26.dp, bottomEnd = 26.dp)
-            }
-
-            OffsetSegmentEdge.INNER -> {
-                RoundedCornerShape(innerRadius)
-            }
-        }
-    Box(
-        modifier =
-            Modifier
-                .weight(weight)
-                .fillMaxHeight()
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.secondaryContainer)
-                .clickable(interactionSource = interactionSource, indication = ripple()) {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAdjust(deltaMs)
-                },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = String.format(Locale.US, "%+.1f", deltaMs / 1000f),
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-internal fun LyricsActionsSheet(
-    hasLyrics: Boolean,
-    providerName: String,
-    alignPref: String,
-    syncOffsetMs: Long,
-    onRefresh: () -> Unit,
-    onChooseSource: () -> Unit,
-    onEdit: () -> Unit,
-    onCopy: () -> Unit,
-    onSaveFile: () -> Unit,
-    onAlignChange: (String) -> Unit,
-    onAdjustSync: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    QuickActionsSheet(onDismiss = onDismiss) { sheet ->
-        fun run(action: () -> Unit): () -> Unit =
-            {
-                sheet.hideThen {
-                    onDismiss()
-                    action()
-                }
-            }
-        QuickActionsGroup(
-            title = null,
-            rows =
-                buildList {
-                    add(
-                        lyricsRow(
-                            key = "refresh",
-                            icon = Icons.Outlined.Refresh,
-                            title = stringResource(R.string.refresh_lyrics),
-                            supporting =
-                                providerName.takeIf { it.isNotBlank() }?.let {
-                                    stringResource(
-                                        R.string.lyrics_current_source,
-                                        it,
-                                    )
-                                },
-                            onClick = run(onRefresh),
-                        ),
-                    )
-                    add(
-                        lyricsRow(
-                            "source",
-                            Icons.Outlined.TravelExplore,
-                            stringResource(R.string.lyrics_choose_source),
-                            onClick = run(onChooseSource),
-                        ),
-                    )
-                    if (hasLyrics) {
-                        add(lyricsRow("edit", Icons.Outlined.Edit, stringResource(R.string.lyrics_edit), onClick = run(onEdit)))
-                        add(lyricsRow("copy", Icons.Outlined.ContentCopy, stringResource(R.string.lyrics_copy), onClick = run(onCopy)))
-                        add(lyricsRow("save", Icons.Outlined.SaveAlt, stringResource(R.string.lyrics_save_file), onClick = run(onSaveFile)))
-                    }
-                },
-        )
-        FlowSectionHeader(stringResource(R.string.lyrics_display_header))
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .height(44.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            LyricsAlignToggleButton(
-                checked = alignPref == LYRICS_ALIGN_LEFT,
-                icon = Icons.Outlined.FormatAlignLeft,
-                contentDescription = stringResource(R.string.lyrics_align_left),
-                uncheckedShape =
-                    RoundedCornerShape(
-                        topStart = 22.dp,
-                        bottomStart = 22.dp,
-                        topEnd = 8.dp,
-                        bottomEnd = 8.dp,
-                    ),
-                onClick = { onAlignChange(LYRICS_ALIGN_LEFT) },
-            )
-            LyricsAlignToggleButton(
-                checked = alignPref == LYRICS_ALIGN_CENTER,
-                icon = Icons.Outlined.FormatAlignCenter,
-                contentDescription = stringResource(R.string.lyrics_align_center),
-                uncheckedShape = RoundedCornerShape(8.dp),
-                onClick = { onAlignChange(LYRICS_ALIGN_CENTER) },
-            )
-            LyricsAlignToggleButton(
-                checked = alignPref == LYRICS_ALIGN_RIGHT,
-                icon = Icons.Outlined.FormatAlignRight,
-                contentDescription = stringResource(R.string.lyrics_align_right),
-                uncheckedShape =
-                    RoundedCornerShape(
-                        topStart = 8.dp,
-                        bottomStart = 8.dp,
-                        topEnd = 22.dp,
-                        bottomEnd = 22.dp,
-                    ),
-                onClick = { onAlignChange(LYRICS_ALIGN_RIGHT) },
-            )
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        QuickActionsGroup(
-            title = null,
-            rows =
-                listOf(
-                    lyricsRow(
-                        key = "sync",
-                        icon = Icons.Outlined.Timer,
-                        title = stringResource(R.string.lyrics_adjust_sync),
-                        supporting =
-                            syncOffsetMs.takeIf { it != 0L }?.let { offset ->
-                                stringResource(R.string.lyrics_sync_offset_value, String.format(Locale.US, "%+.1f", offset / 1000f))
-                            },
-                        onClick = run(onAdjustSync),
-                    ),
-                ),
-        )
-    }
-}
-
-private fun lyricsRow(
-    key: String,
-    icon: ImageVector,
-    title: String,
-    supporting: String? = null,
-    onClick: () -> Unit,
-): QuickActionRow =
-    QuickActionRow(key) { shape ->
-        FlowNavRow(title = title, supportingText = supporting, leadingIcon = icon, onClick = onClick, showChevron = false, shape = shape)
-    }
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun RowScope.LyricsAlignToggleButton(
-    checked: Boolean,
-    icon: ImageVector,
-    contentDescription: String,
-    uncheckedShape: RoundedCornerShape,
-    onClick: () -> Unit,
-) {
-    ToggleButton(
-        checked = checked,
-        onCheckedChange = { onClick() },
-        modifier =
-            Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-        colors =
-            ToggleButtonDefaults.toggleButtonColors(
-                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                checkedContainerColor = MaterialTheme.colorScheme.primary,
-                checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-        shapes =
-            ToggleButtonShapes(
-                shape = uncheckedShape,
-                pressedShape = RoundedCornerShape(12.dp),
-                checkedShape = RoundedCornerShape(22.dp),
-            ),
-        contentPadding = PaddingValues(0.dp),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(20.dp),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-internal fun LyricsSourcesSheet(
-    candidates: List<LyricsCandidate>,
-    isBrowsing: Boolean,
-    currentProviderName: String,
-    onSelect: (LyricsCandidate) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberFlowSheetState(),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.lyrics_choose_source),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            )
-            when {
-                candidates.isEmpty() && isBrowsing -> {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 28.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        LoadingIndicator(
-                            modifier = Modifier.size(30.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = stringResource(R.string.lyrics_searching_sources),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                candidates.isEmpty() -> {
-                    Text(
-                        text = stringResource(R.string.lyrics_no_sources_found),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
-                    )
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 460.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        items(candidates, key = { it.providerName }) { candidate ->
-                            LyricsCandidateRow(
-                                candidate = candidate,
-                                isCurrent = candidate.providerName == currentProviderName,
-                                onClick = { onSelect(candidate) },
-                            )
-                        }
-                        if (isBrowsing) {
-                            item {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    LoadingIndicator(
-                                        modifier = Modifier.size(26.dp),
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LyricsCandidateRow(
-    candidate: LyricsCandidate,
-    isCurrent: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
-        color =
-            if (isCurrent) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
-            },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = candidate.providerName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (candidate.synced) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.lyrics_synced_badge),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(3.dp))
-                val preview =
-                    remember(candidate) {
-                        candidate.entries
-                            .asSequence()
-                            .map { it.text.trim() }
-                            .filter { it.isNotBlank() }
-                            .take(2)
-                            .joinToString(" · ")
-                    }
-                Text(
-                    text = preview,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (isCurrent) {
+            IconButton(onClick = onClick) {
                 Icon(
-                    imageVector = Icons.Rounded.CheckCircle,
-                    contentDescription = stringResource(R.string.lyrics_current_source, candidate.providerName),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp),
+                    imageVector = Icons.Outlined.Sync,
+                    contentDescription = stringResource(R.string.ui_sync_lyrics),
                 )
             }
         }
     }
 }
 
+/** Names the lyrics source for three seconds after it changes, then fades out. */
 @Composable
-internal fun LyricsEditDialog(
-    initialText: String,
-    onApply: (String) -> Unit,
-    onDismiss: () -> Unit,
+internal fun LyricsProviderLabel(
+    providerName: String,
+    accent: Color,
+    modifier: Modifier = Modifier,
 ) {
-    var text by remember(initialText) { mutableStateOf(initialText) }
-    FlowAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.lyrics_edit)) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(320.dp),
-                textStyle = MaterialTheme.typography.bodySmall,
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onApply(text)
-                    onDismiss()
-                },
-                enabled = text.isNotBlank(),
-            ) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
+    if (providerName.isBlank()) return
+    var showProviderName by remember(providerName) { mutableStateOf(true) }
+    val providerAlpha by animateFloatAsState(
+        targetValue = if (showProviderName) 1f else 0f,
+        animationSpec = tween(durationMillis = 600),
+        label = "providerNameAlpha",
     )
+
+    LaunchedEffect(providerName) {
+        showProviderName = true
+        delay(3000)
+        showProviderName = false
+    }
+
+    if (providerAlpha > 0f) {
+        Text(
+            text = providerName,
+            color = accent.copy(alpha = 0.6f * providerAlpha),
+            style = MaterialTheme.typography.labelSmall,
+            modifier = modifier,
+        )
+    }
 }

@@ -1,0 +1,262 @@
+package io.github.aedev.flow.ui.components.musicplayer.lyrics
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FormatAlignCenter
+import androidx.compose.material.icons.outlined.FormatAlignLeft
+import androidx.compose.material.icons.outlined.FormatAlignRight
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.SaveAlt
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.TravelExplore
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButtonShapes
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.LYRICS_ALIGN_CENTER
+import io.github.aedev.flow.data.local.LYRICS_ALIGN_LEFT
+import io.github.aedev.flow.data.local.LYRICS_ALIGN_RIGHT
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionRow
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsGroup
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsSheet
+import java.util.Locale
+
+@Composable
+internal fun LyricsActionsSheet(
+    hasLyrics: Boolean,
+    providerName: String,
+    alignPref: String,
+    syncOffsetMs: Long,
+    onRefresh: () -> Unit,
+    onChooseSource: () -> Unit,
+    onEdit: () -> Unit,
+    onCopy: () -> Unit,
+    onSaveFile: () -> Unit,
+    onAlignChange: (String) -> Unit,
+    onAdjustSync: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    QuickActionsSheet(onDismiss = onDismiss) { sheet ->
+        fun run(action: () -> Unit): () -> Unit =
+            {
+                sheet.hideThen {
+                    onDismiss()
+                    action()
+                }
+            }
+        QuickActionsGroup(
+            title = null,
+            rows =
+                buildList {
+                    add(
+                        lyricsRow(
+                            key = "refresh",
+                            icon = Icons.Outlined.Refresh,
+                            title = stringResource(R.string.refresh_lyrics),
+                            supporting =
+                                providerName.takeIf { it.isNotBlank() }?.let {
+                                    stringResource(
+                                        R.string.lyrics_current_source,
+                                        it,
+                                    )
+                                },
+                            onClick = run(onRefresh),
+                        ),
+                    )
+                    add(
+                        lyricsRow(
+                            "source",
+                            Icons.Outlined.TravelExplore,
+                            stringResource(R.string.lyrics_choose_source),
+                            onClick = run(onChooseSource),
+                        ),
+                    )
+                    if (hasLyrics) {
+                        add(lyricsRow("edit", Icons.Outlined.Edit, stringResource(R.string.lyrics_edit), onClick = run(onEdit)))
+                        add(lyricsRow("copy", Icons.Outlined.ContentCopy, stringResource(R.string.lyrics_copy), onClick = run(onCopy)))
+                        add(lyricsRow("save", Icons.Outlined.SaveAlt, stringResource(R.string.lyrics_save_file), onClick = run(onSaveFile)))
+                    }
+                },
+        )
+        FlowSectionHeader(stringResource(R.string.lyrics_display_header))
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(44.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            LyricsAlignToggleButton(
+                checked = alignPref == LYRICS_ALIGN_LEFT,
+                icon = Icons.Outlined.FormatAlignLeft,
+                contentDescription = stringResource(R.string.lyrics_align_left),
+                uncheckedShape =
+                    RoundedCornerShape(
+                        topStart = 22.dp,
+                        bottomStart = 22.dp,
+                        topEnd = 8.dp,
+                        bottomEnd = 8.dp,
+                    ),
+                onClick = { onAlignChange(LYRICS_ALIGN_LEFT) },
+            )
+            LyricsAlignToggleButton(
+                checked = alignPref == LYRICS_ALIGN_CENTER,
+                icon = Icons.Outlined.FormatAlignCenter,
+                contentDescription = stringResource(R.string.lyrics_align_center),
+                uncheckedShape = RoundedCornerShape(8.dp),
+                onClick = { onAlignChange(LYRICS_ALIGN_CENTER) },
+            )
+            LyricsAlignToggleButton(
+                checked = alignPref == LYRICS_ALIGN_RIGHT,
+                icon = Icons.Outlined.FormatAlignRight,
+                contentDescription = stringResource(R.string.lyrics_align_right),
+                uncheckedShape =
+                    RoundedCornerShape(
+                        topStart = 8.dp,
+                        bottomStart = 8.dp,
+                        topEnd = 22.dp,
+                        bottomEnd = 22.dp,
+                    ),
+                onClick = { onAlignChange(LYRICS_ALIGN_RIGHT) },
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        QuickActionsGroup(
+            title = null,
+            rows =
+                listOf(
+                    lyricsRow(
+                        key = "sync",
+                        icon = Icons.Outlined.Timer,
+                        title = stringResource(R.string.lyrics_adjust_sync),
+                        supporting =
+                            syncOffsetMs.takeIf { it != 0L }?.let { offset ->
+                                stringResource(R.string.lyrics_sync_offset_value, String.format(Locale.US, "%+.1f", offset / 1000f))
+                            },
+                        onClick = run(onAdjustSync),
+                    ),
+                ),
+        )
+    }
+}
+
+private fun lyricsRow(
+    key: String,
+    icon: ImageVector,
+    title: String,
+    supporting: String? = null,
+    onClick: () -> Unit,
+): QuickActionRow =
+    QuickActionRow(key) { shape ->
+        FlowNavRow(title = title, supportingText = supporting, leadingIcon = icon, onClick = onClick, showChevron = false, shape = shape)
+    }
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RowScope.LyricsAlignToggleButton(
+    checked: Boolean,
+    icon: ImageVector,
+    contentDescription: String,
+    uncheckedShape: RoundedCornerShape,
+    onClick: () -> Unit,
+) {
+    ToggleButton(
+        checked = checked,
+        onCheckedChange = { onClick() },
+        modifier =
+            Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        colors =
+            ToggleButtonDefaults.toggleButtonColors(
+                containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                checkedContainerColor = MaterialTheme.colorScheme.primary,
+                checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        shapes =
+            ToggleButtonShapes(
+                shape = uncheckedShape,
+                pressedShape = RoundedCornerShape(12.dp),
+                checkedShape = RoundedCornerShape(22.dp),
+            ),
+        contentPadding = PaddingValues(0.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+internal fun LyricsEditDialog(
+    initialText: String,
+    onApply: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember(initialText) { mutableStateOf(initialText) }
+    FlowAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.lyrics_edit)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(320.dp),
+                textStyle = MaterialTheme.typography.bodySmall,
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onApply(text)
+                    onDismiss()
+                },
+                enabled = text.isNotBlank(),
+            ) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
+}
