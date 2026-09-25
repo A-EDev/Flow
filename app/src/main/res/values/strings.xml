@@ -121,6 +121,9 @@
     <string name="up_next">UP NEXT</string>
     <string name="lyrics">LYRICS</string>
     <string name="music_player_collapse">Collapse player</string>
+    <string name="music_player_tab_up_next">Up next</string>
+    <string name="music_player_tab_lyrics">Lyrics</string>
+    <string name="music_player_lyrics_full_screen">Full screen lyrics</string>
     <string name="related">RELATED</string>
     <string name="close">Close</string>
     <string name="more_options">More options</string>

@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -17,7 +17,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -36,8 +38,9 @@ import io.github.aedev.flow.ui.components.music.sheet.SaveSongSheet
 import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
 import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerPlaybackControls
 import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerProgressSlider
-import io.github.aedev.flow.ui.components.musicplayer.lyrics.MusicLyricsSheet
+import io.github.aedev.flow.ui.components.musicplayer.lyrics.lyricsBackdrop
 import io.github.aedev.flow.ui.components.musicplayer.queue.QueueActions
+import io.github.aedev.flow.ui.components.musicplayer.queue.QueueList
 import io.github.aedev.flow.ui.components.musicplayer.queue.QueuePullUpSheet
 import io.github.aedev.flow.ui.components.musicplayer.queue.QueueSheet
 import io.github.aedev.flow.ui.components.musicplayer.queue.queuePullUpGesture
@@ -47,6 +50,8 @@ import io.github.aedev.flow.ui.components.shared.MediaPalette
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
+import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
+import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,6 +180,23 @@ internal fun FullMusicPlayerContent(
     val displayTitle = previewTrack?.title ?: uiState.currentTrack?.title ?: track.title
     val displayArtist = previewTrack?.artist ?: uiState.currentTrack?.artist ?: track.artist
 
+    val panes = rememberPlayerPanes()
+    val layout =
+        musicPlayerLayoutFor(LocalWindowSizeClass.current, LocalWindowIsLandscape.current).let {
+            // The side pane needs two partitions; a window the scaffold keeps to one splits instead.
+            if (it == MusicPlayerLayout.WIDE && !panes.showsSidePane) MusicPlayerLayout.SPLIT else it
+        }
+    val isWide = layout == MusicPlayerLayout.WIDE
+    var sidePaneTab by rememberSaveable { mutableStateOf(PlayerSidePaneTab.UP_NEXT) }
+    val selectSidePaneTab: (PlayerSidePaneTab) -> Unit = { tab ->
+        if (tab == PlayerSidePaneTab.LYRICS) uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
+        sidePaneTab = tab
+    }
+    val openLyricsSheet = {
+        uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
+        showLyricsSheet = true
+    }
+
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -184,12 +206,13 @@ internal fun FullMusicPlayerContent(
 
         val reservedHeight = statusBarPadding + 56.dp + 32.dp + 32.dp + 20.dp + 72.dp + 64.dp + navBarPadding
         val availableForArtwork = maxHeight - reservedHeight
-        val artworkMaxWidth = maxWidth - (PlayerHorizontalPadding * 2)
+        val columnWidth = if (layout == MusicPlayerLayout.PORTRAIT_LARGE) min(maxWidth, PortraitLargeMaxWidth) else maxWidth
+        val artworkMaxWidth = columnWidth - (PlayerHorizontalPadding * 2)
         val artworkSize = min(availableForArtwork, artworkMaxWidth).coerceAtLeast(160.dp)
 
         val queueState =
             rememberQueuePullUpState(
-                enabled = isPlayerSheetExpanded,
+                enabled = isPlayerSheetExpanded && !isWide,
                 hiddenY = constraints.maxHeight.toFloat() + navBarPx,
             )
         LaunchedEffect(isPlayerSheetExpanded) {
@@ -273,19 +296,18 @@ internal fun FullMusicPlayerContent(
                     )
                 },
                 actions = { modifier ->
+                    // Wide windows show lyrics and the queue in the side pane, so the buttons pick its tab.
                     PlayerActionRow(
-                        lyricsActive = showLyricsSheet,
+                        lyricsActive = if (isWide) sidePaneTab == PlayerSidePaneTab.LYRICS else showLyricsSheet,
                         shuffleEnabled = uiState.shuffleEnabled,
                         repeatMode = uiState.repeatMode,
-                        onLyricsClick = {
-                            uiState.currentTrack?.let { viewModel.ensureLyricsLoaded(it) }
-                            showLyricsSheet = true
-                        },
+                        onLyricsClick = { if (isWide) selectSidePaneTab(PlayerSidePaneTab.LYRICS) else openLyricsSheet() },
                         onShuffleClick = { viewModel.toggleShuffle() },
                         onRepeatClick = { viewModel.toggleRepeat() },
-                        onQueueClick = { queueState.open() },
+                        onQueueClick = { if (isWide) selectSidePaneTab(PlayerSidePaneTab.UP_NEXT) else queueState.open() },
                         onMoreClick = { showMoreOptions = true },
                         modifier = modifier,
+                        queueActive = isWide && sidePaneTab == PlayerSidePaneTab.UP_NEXT,
                     )
                 },
             )
@@ -297,15 +319,69 @@ internal fun FullMusicPlayerContent(
             paletteAccentColor = palette.accent,
         )
 
-        CompactPlayerLayout(
-            slots = slots,
-            artworkSize = artworkSize,
-            queueFraction = queueState::fraction,
-            bottomInset = navBarPadding,
-            modifier = Modifier.queuePullUpGesture(queueState, enabled = isPlayerSheetExpanded),
-        )
+        val pullUpQueue = Modifier.queuePullUpGesture(queueState, enabled = isPlayerSheetExpanded && !isWide)
+        when (layout) {
+            MusicPlayerLayout.COMPACT -> {
+                CompactPlayerLayout(slots, artworkSize, queueState::fraction, navBarPadding, pullUpQueue)
+            }
 
-        QueuePullUpSheet(queueState) { cornerRadius, dragHandleModifier ->
+            MusicPlayerLayout.PORTRAIT_LARGE -> {
+                CompactPlayerLayout(
+                    slots = slots,
+                    artworkSize = artworkSize,
+                    queueFraction = queueState::fraction,
+                    bottomInset = navBarPadding,
+                    modifier = Modifier.align(Alignment.TopCenter).widthIn(max = PortraitLargeMaxWidth).then(pullUpQueue),
+                )
+            }
+
+            MusicPlayerLayout.SPLIT -> {
+                SplitPlayerLayout(slots, queueState::fraction, pullUpQueue)
+            }
+
+            MusicPlayerLayout.WIDE -> {
+                WidePlayerLayout(slots, panes) { modifier ->
+                    PlayerSidePane(
+                        tab = sidePaneTab,
+                        onTabChange = selectSidePaneTab,
+                        onOpenFullLyrics = openLyricsSheet,
+                        lyricsBackdrop = lyricsBackdrop(palette.base),
+                        upNext = {
+                            QueueList(
+                                queue = uiState.queue,
+                                radioTracks = uiState.autoplaySuggestions,
+                                currentIndex = uiState.currentQueueIndex,
+                                // The warm tree stays composed while collapsed; the row waveform must not animate there.
+                                isPlaying = uiState.isPlaying && isPlayerSheetExpanded,
+                                isRadioLoading = uiState.isRadioLoading,
+                                endlessRadioEnabled = uiState.endlessRadioEnabled,
+                                downloadedTrackIds = uiState.downloadedTrackIds,
+                                actions = queueActions,
+                                clearNavigationBar = false,
+                            )
+                        },
+                        lyrics = {
+                            NowPlayingLyricsPane(
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                accentColor = colorScheme.primary,
+                                positionState = positionState,
+                                active = isPlayerSheetExpanded && !showLyricsSheet,
+                            )
+                        },
+                        modifier = modifier,
+                    )
+                }
+            }
+        }
+
+        val queueSheetModifier =
+            if (layout == MusicPlayerLayout.PORTRAIT_LARGE) {
+                Modifier.align(Alignment.TopCenter).widthIn(max = PortraitLargeQueueMaxWidth)
+            } else {
+                Modifier
+            }
+        QueuePullUpSheet(queueState, queueSheetModifier) { cornerRadius, dragHandleModifier ->
             QueueSheet(
                 sheetCornerRadius = cornerRadius,
                 queue = uiState.queue,
@@ -322,37 +398,17 @@ internal fun FullMusicPlayerContent(
             )
         }
 
-        MusicLyricsSheet(
+        NowPlayingLyricsSheet(
+            uiState = uiState,
+            viewModel = viewModel,
             visible = showLyricsSheet,
             retainContent = isPlayerSheetExpanded,
             backdropBaseColor = palette.base,
             accentColor = colorScheme.primary,
-            trackTitle = uiState.currentTrack?.title ?: track.title,
-            trackArtist = uiState.currentTrack?.artist ?: track.artist,
+            fallbackTitle = track.title,
+            fallbackArtist = track.artist,
             artworkUrl = thumbnailUrl,
-            isPlaying = uiState.isPlaying,
-            isBuffering = uiState.isBuffering,
-            lyrics = uiState.lyrics,
-            syncedLyrics = uiState.syncedLyrics,
-            // Raw position — the panel's own sync loops apply syncOffsetMs; baking the
-            // offset in here double-counted (and the loops ignored it anyway, #offset fix).
-            positionProvider = { positionState.value },
-            isLoading = uiState.isLyricsLoading,
-            providerName = uiState.lyricsProviderName,
-            alignPref = uiState.lyricsTextAlign,
-            syncOffsetMs = uiState.lyricsSyncOffsetMs,
-            candidates = uiState.lyricsCandidates,
-            isBrowsing = uiState.isBrowsingLyrics,
-            onSeekTo = { viewModel.seekTo((it - uiState.lyricsSyncOffsetMs).coerceAtLeast(0L)) },
-            onRefresh = { viewModel.refreshLyrics() },
-            onTogglePlayPause = { viewModel.togglePlayPause() },
-            onAlignChange = { viewModel.setLyricsTextAlign(it) },
-            onAdjustOffset = { viewModel.adjustLyricsSyncOffset(it) },
-            onResetOffset = { viewModel.resetLyricsSyncOffset() },
-            onBrowseSources = { viewModel.browseLyricsCandidates() },
-            onCancelBrowse = { viewModel.cancelLyricsBrowse() },
-            onSelectCandidate = { viewModel.applyLyricsCandidate(it) },
-            onApplyEditedLyrics = { viewModel.applyEditedLyrics(it) },
+            positionState = positionState,
             onDismiss = { showLyricsSheet = false },
         )
 
@@ -362,3 +418,7 @@ internal fun FullMusicPlayerContent(
         }
     }
 }
+
+/** Upright tablets keep the phone column, centred at this width. */
+private val PortraitLargeMaxWidth = 600.dp
+private val PortraitLargeQueueMaxWidth = 640.dp

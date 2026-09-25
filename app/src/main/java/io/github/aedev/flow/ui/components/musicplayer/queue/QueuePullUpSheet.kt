@@ -216,6 +216,7 @@ internal fun Modifier.queuePullUpGesture(
 @Composable
 internal fun QueuePullUpSheet(
     state: QueuePullUpState,
+    modifier: Modifier = Modifier,
     content: @Composable (cornerRadius: Dp, dragHandleModifier: Modifier) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -309,7 +310,7 @@ internal fun QueuePullUpSheet(
     if (state.isActive || clampedOffset < state.hiddenY - 1f) {
         Box(
             modifier =
-                Modifier
+                modifier
                     .offset { IntOffset(0, clampedOffset.roundToInt()) }
                     .fillMaxWidth()
                     .fillMaxHeight()

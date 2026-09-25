@@ -46,6 +46,7 @@ fun PlayerSecondaryActions(
     onRepeatClick: () -> Unit,
     onQueueClick: () -> Unit,
     modifier: Modifier = Modifier,
+    queueActive: Boolean = false,
 ) {
     Row(
         modifier =
@@ -93,7 +94,7 @@ fun PlayerSecondaryActions(
             onClick = onRepeatClick,
         )
         PlayerToggleButton(
-            checked = false,
+            checked = queueActive,
             checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
             checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             icon = Icons.Outlined.QueueMusic,

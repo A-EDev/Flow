@@ -38,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -188,7 +187,7 @@ internal fun MusicLyricsSheet(
     val sheetAtRestHidden by remember { derivedStateOf { !sheetShown.isRunning && sheetShown.value == 0f } }
     if (!visible && !panelComposed && sheetAtRestHidden) return
 
-    val backdropColor = remember(backdropBaseColor) { lerp(backdropBaseColor, Color.Black, 0.3f) }
+    val backdropColor = remember(backdropBaseColor) { lyricsBackdrop(backdropBaseColor) }
 
     Box(
         modifier =

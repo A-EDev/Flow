@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -337,3 +338,6 @@ internal fun LyricsProviderLabel(
         )
     }
 }
+
+/** The dark backdrop lyrics draw on, from the artwork's base colour. */
+internal fun lyricsBackdrop(base: Color): Color = lerp(base, Color.Black, 0.3f)

@@ -31,10 +31,9 @@ internal fun CompactPlayerLayout(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
-            Modifier
+            modifier
                 .fillMaxSize()
-                .graphicsLayer { alpha = (1f - queueFraction() / 0.4f).coerceIn(0f, 1f) }
-                .then(modifier),
+                .graphicsLayer { alpha = (1f - queueFraction() / 0.4f).coerceIn(0f, 1f) },
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

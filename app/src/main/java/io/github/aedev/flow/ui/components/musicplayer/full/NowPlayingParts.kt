@@ -169,6 +169,7 @@ internal fun PlayerActionRow(
     onQueueClick: () -> Unit,
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
+    queueActive: Boolean = false,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Row(
@@ -185,6 +186,7 @@ internal fun PlayerActionRow(
             onRepeatClick = onRepeatClick,
             onQueueClick = onQueueClick,
             modifier = Modifier.weight(1f),
+            queueActive = queueActive,
         )
         FilledTonalIconButton(
             onClick = onMoreClick,
