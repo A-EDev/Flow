@@ -21,7 +21,8 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerState
 import io.github.aedev.flow.player.QualityOption
-import io.github.aedev.flow.ui.components.audio.EqualizerEditor
+import io.github.aedev.flow.ui.components.equalizer.EqQuickPanel
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
@@ -180,11 +181,10 @@ fun SettingsMenuDialog(
                 }
 
                 PlayerSettingsPage.Equalizer -> {
-                    EqualizerEditor(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 20.dp)
-                                .padding(top = 8.dp, bottom = 16.dp),
+                    val navigator = LocalMediaNavigator.current
+                    EqQuickPanel(
+                        onEdit = { sheetState.dismiss { navigator.openEqualizer() } },
+                        modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
                     )
                 }
 

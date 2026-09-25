@@ -15,14 +15,12 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerState
-import io.github.aedev.flow.player.audio.AudioEffectsController
+import io.github.aedev.flow.ui.components.equalizer.equalizerSummary
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
 import io.github.aedev.flow.ui.components.shared.FlowRowGroup
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
@@ -154,11 +152,10 @@ internal fun PlayerSettingsMainPage(
 
     FlowSectionHeader(stringResource(R.string.audio_effects))
     FlowRowGroup {
-        val eqProfile by AudioEffectsController.eqProfileName.collectAsStateWithLifecycle()
         FlowNavRow(
             leadingIcon = Icons.Filled.Equalizer,
             title = stringResource(R.string.equalizer),
-            trailingText = eqProfile,
+            trailingText = equalizerSummary(),
             shape = flowRowGroupShape(0, EFFECT_ROWS),
             onClick = { onNavigateToPage(PlayerSettingsPage.Equalizer) },
         )

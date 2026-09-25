@@ -2,6 +2,8 @@ package io.github.aedev.flow.sync.apply
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.audio.eq.EqStateJson
+import io.github.aedev.flow.data.audio.eq.EqualizerRepository
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
@@ -65,6 +67,7 @@ class SyncDataAccess
         private val musicBrainCrdtStore: MusicBrainCrdtStore,
         private val musicBrainEngine: MusicBrainEngine,
         private val subscriptions: SubscriptionRepository,
+        private val equalizer: EqualizerRepository,
     ) {
         private val likedVideos: LikedVideosRepository by lazy { LikedVideosRepository.getInstance(context) }
         private val playerPrefs: PlayerPreferences by lazy { PlayerPreferences(context) }
@@ -106,10 +109,16 @@ class SyncDataAccess
 
         // --- settings (curated whitelist) ---
 
-        suspend fun readSettings(hlc: String): List<CanonicalSetting> = SettingsMapper.exportToCanonical(playerPrefs.getExportData(), hlc)
+        suspend fun readSettings(hlc: String): List<CanonicalSetting> {
+            val settings = playerPrefs.getExportData()
+            val withEqualizer = settings.copy(strings = settings.strings + (EqStateJson.KEY to equalizer.exportJson()))
+            return SettingsMapper.exportToCanonical(withEqualizer, hlc)
+        }
 
         suspend fun writeSettings(merged: List<CanonicalSetting>) {
-            playerPrefs.restoreData(SettingsMapper.applyToBackup(merged))
+            val settings = SettingsMapper.applyToBackup(merged)
+            settings.strings[EqStateJson.KEY]?.let { equalizer.importJson(it) }
+            playerPrefs.restoreData(settings.copy(strings = settings.strings - EqStateJson.KEY))
         }
 
         // --- subscribed channels ---

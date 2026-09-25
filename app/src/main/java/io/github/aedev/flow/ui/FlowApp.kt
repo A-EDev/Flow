@@ -31,6 +31,7 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.donation.DonationPromptHost
+import io.github.aedev.flow.ui.components.equalizer.LocalEqualizerState
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationChrome
 import io.github.aedev.flow.ui.components.layout.navigation.FlowNavigationDefaults
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
@@ -51,6 +52,7 @@ import io.github.aedev.flow.ui.components.musicplayer.rememberMusicPlayerSheetSt
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsHost
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
 import io.github.aedev.flow.ui.components.videoplayer.rememberPlayerDraggableState
+import io.github.aedev.flow.ui.screens.equalizer.EqualizerViewModel
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerHost
@@ -83,6 +85,7 @@ fun FlowApp(
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity!!)
     // Activity-scoped so the unread badge has exactly one collector for the whole shell.
     val notificationViewModel: NotificationViewModel = hiltViewModel(activity)
+    val equalizerViewModel: EqualizerViewModel = hiltViewModel(activity)
     val playerUiStateResult = playerViewModel.uiState.collectAsStateWithLifecycle()
     val playerUiState by playerUiStateResult
     val enhancedPlayerManager = remember { EnhancedPlayerManager.getInstance() }
@@ -472,7 +475,11 @@ fun FlowApp(
                                 onOpenNotifications = { navController.navigate("notifications") },
                                 onOpenSettings = { navController.navigate("settings") },
                             ) {
-                                CompositionLocalProvider(LocalMediaNavigator provides mediaNavigator, LocalMusicMenus provides musicMenus) {
+                                CompositionLocalProvider(
+                                    LocalMediaNavigator provides mediaNavigator,
+                                    LocalMusicMenus provides musicMenus,
+                                    LocalEqualizerState provides equalizerViewModel.state,
+                                ) {
                                     NavHost(
                                         navController = navController,
                                         startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
@@ -522,7 +529,11 @@ fun FlowApp(
         // The video overlay takes the settled target, not the animated value: it only uses the
         // padding to pick the mini player's resting bounds, and an animated Dp parameter
         // recomposed the whole overlay on every frame of the nav bar animation.
-        CompositionLocalProvider(LocalMediaNavigator provides mediaNavigator, LocalMusicMenus provides musicMenus) {
+        CompositionLocalProvider(
+            LocalMediaNavigator provides mediaNavigator,
+            LocalMusicMenus provides musicMenus,
+            LocalEqualizerState provides equalizerViewModel.state,
+        ) {
             VideoPlayerHost(
                 video = activeVideo,
                 isVisible = playerVisible && !isShortsPlayerRoute,

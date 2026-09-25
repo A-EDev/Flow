@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.settings
 import androidx.compose.runtime.Composable
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
+import io.github.aedev.flow.ui.screens.equalizer.EqualizerScreen
 import io.github.aedev.flow.ui.screens.settings.about.AboutScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.AppearanceScreen
 import io.github.aedev.flow.ui.screens.settings.appearance.DateTimeScreen
@@ -98,6 +99,10 @@ internal fun SettingsDetail(
 
         SettingsDestination.BUFFER -> {
             BufferSettingsScreen(onBack = onBack, highlight = target.highlight)
+        }
+
+        SettingsDestination.EQUALIZER -> {
+            EqualizerScreen(onBack = onBack, inSettings = true)
         }
 
         SettingsDestination.QUALITY -> {
