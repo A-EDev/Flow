@@ -47,6 +47,7 @@ NEW FEATURES
 - Search inside any playlist by title or channel
 - Save a playlist as a file, share it with anyone, and import one from the Playlists screen or by opening the file in Flow
 - Optional setting to remove videos from Watch later once you have watched them, with Undo when Watch later clears older ones (#1060)
+- Likes are now two built-in playlists, Liked videos and Liked music, with search, sort, select and unlike with Undo, Play all, Shuffle, Download all and Save as file
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
@@ -78,6 +79,7 @@ IMPROVEMENTS
 - Local media is now a full offline library: search, sort, filters for length, quality, orientation and what you haven't watched, folders side by side on tablets, a grid view, Continue watching, New marks, Play all and Shuffle, and a file menu to queue, share, inspect or delete files
 - Local media works with Android 14's "Select photos and videos", updates itself when files change, and lets you choose in Settings what it hides
 - Deleting local files moves them to the system trash with Undo, and local songs and videos show their cover or a frame in lists and in the media notification
+- Downloads and Local media put search, the Videos and Music switch and sort on one row on tablets and unfolded foldables
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -104,6 +106,8 @@ FIXES AND STABILITY
 - Fix local files reaching YouTube services: Like, Subscribe and Download no longer appear for them, their history stays local, and they no longer sync as liked videos
 - Fix a missing local file loading forever, local songs failing after the app restarts, and videos removed from a saved YouTube playlist coming back
 - Fix paused downloads that could not be resumed after the app restarted, failed downloads that could only be deleted, music downloads in progress being hidden, and Download all stopping when you left the page
+- Fix likes disappearing when a title contained a "|", and the music player's like button needing two taps to unlike a song liked on another device
+- Fix the action button on snackbars being hard to read in several themes
 - Fix a playlist stopping at a removed or unplayable video, or at one whose stream YouTube kept refusing, instead of moving on, and the video queue being lost when the app was closed (#1008)
 - Fix topic-pair learning deleting every learned connection the moment it was created, and mature brains being unable to pick up new interests no matter how much you watched them
 - Fix videos dated "3 days ago" being treated as seconds old, and related videos being stamped with the current time, which let stale uploads crowd out genuinely new ones
