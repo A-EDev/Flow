@@ -489,6 +489,7 @@ fun UnifiedMusicPlayerSheet(
                             palette = palette,
                             backgroundStyle = backgroundStyle,
                             hideArtwork = hideArtwork,
+                            onCollapse = state::collapse,
                         )
                     }
                 }

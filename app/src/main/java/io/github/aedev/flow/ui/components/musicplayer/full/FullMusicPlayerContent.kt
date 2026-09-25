@@ -56,6 +56,7 @@ internal fun FullMusicPlayerContent(
     palette: MediaPalette,
     backgroundStyle: MusicPlayerBackgroundStyle,
     hideArtwork: Boolean,
+    onCollapse: () -> Unit = {},
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -202,6 +203,7 @@ internal fun FullMusicPlayerContent(
                         playingFrom = uiState.playingFrom,
                         modifier = modifier,
                         contentColor = colorScheme.onSurface,
+                        onCollapse = onCollapse,
                     )
                 },
                 artwork = { modifier ->

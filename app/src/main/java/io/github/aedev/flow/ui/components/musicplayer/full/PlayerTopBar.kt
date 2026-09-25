@@ -2,8 +2,12 @@ package io.github.aedev.flow.ui.components.musicplayer.full
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -18,14 +22,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 
+/** "Now playing" and where from, with a collapse button for pointers, keyboards and switch access. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerTopBar(
     playingFrom: String,
     modifier: Modifier = Modifier,
     contentColor: Color = Color.White,
+    onCollapse: (() -> Unit)? = null,
 ) {
     CenterAlignedTopAppBar(
+        navigationIcon = {
+            if (onCollapse != null) {
+                IconButton(onClick = onCollapse) {
+                    Icon(
+                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.music_player_collapse),
+                        tint = contentColor,
+                    )
+                }
+            }
+        },
         title = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
