@@ -870,71 +870,19 @@ fun NavGraphBuilder.flowAppGraph(
             )
             return@composable
         }
-        val musicViewModel: MusicViewModel =
-            io.github.aedev.flow.ui.screens.music
-                .sharedMusicViewModel()
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
-        val musicPlaylistsViewModel: io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel = hiltViewModel()
-        val uiState by musicViewModel.uiState.collectAsState()
-        val isSaved by musicPlaylistsViewModel.isSavedPlaylist.collectAsState()
-
-        LaunchedEffect(playlistId) {
-            if (playlistId.startsWith("community_")) {
-                val genre = playlistId.substringAfter("community_")
-                musicViewModel.loadCommunityPlaylist(genre)
-            } else if (playlistId.startsWith(MusicViewModel.DAILY_MIX_ID_PREFIX)) {
-                musicViewModel.loadDailyMixPage(playlistId)
-            } else {
-                musicViewModel.fetchPlaylistDetails(playlistId)
-            }
-        }
-
-        val isUserPlaylist =
-            playlistId.matches(
-                Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
-            )
-
-        LaunchedEffect(playlistId, isUserPlaylist) {
-            if (!isUserPlaylist) {
-                musicPlaylistsViewModel.checkIfPlaylistSaved(playlistId)
-            }
-        }
-
-        if (uiState.isPlaylistLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            uiState.playlistDetails?.let { details ->
-                io.github.aedev.flow.ui.screens.music.PlaylistPage(
-                    playlistDetails = details,
-                    onBackClick = { navController.popBackStack() },
-                    onTrackClick = { track, queue ->
-                        musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                        val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                        val encodedTitle = android.net.Uri.encode(track.title)
-                        val encodedArtist = android.net.Uri.encode(track.artist)
-                        navController.navigate(
-                            "musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl",
-                        )
-                    },
-                    onArtistClick = { channelId ->
-                        mediaNavigator.openArtist(channelId)
-                    },
-                    onCollectionClick = { mediaNavigator.openMusicPlaylist(it) },
-                    onLoadMore = { musicViewModel.loadMorePlaylistTracks() },
-                    isUserPlaylist = isUserPlaylist,
-                    isSaved = isSaved,
-                    onSaveToggle = {
-                        if (isSaved) {
-                            musicPlaylistsViewModel.unsavePlaylistFromLibrary(details.id)
-                        } else {
-                            musicPlaylistsViewModel.savePlaylistToLibrary(details)
-                        }
-                    },
-                )
-            }
-        }
+        io.github.aedev.flow.ui.screens.music.collection.MusicCollectionRoute(
+            onBackClick = { navController.popBackStack() },
+            onTrackClick = { track, queue, sourceName ->
+                musicPlayerViewModel.loadAndPlayTrack(track, queue, sourceName)
+                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                val encodedTitle = android.net.Uri.encode(track.title)
+                val encodedArtist = android.net.Uri.encode(track.artist)
+                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            },
+            onArtistClick = { channelId -> mediaNavigator.openArtist(channelId) },
+            onCollectionClick = { mediaNavigator.openMusicPlaylist(it) },
+        )
     }
 
     // Music Player Screen - now a global draggable overlay.

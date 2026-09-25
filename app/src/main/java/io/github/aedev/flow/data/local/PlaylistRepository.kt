@@ -501,9 +501,13 @@ class PlaylistRepository
             remoteVideos: List<Video>,
         ) {
             if (remoteVideos.isEmpty()) return
-            videoDao.upsertMetadata(remoteVideos.map(::normalizedEntity))
+            videoDao.mergeMetadata(remoteVideos.map(::normalizedEntity))
             playlistDao.replacePlaylistVideos(playlistId, remoteVideos.map { it.id }.distinct())
         }
+
+        suspend fun getPlaylistEntity(playlistId: String): PlaylistEntity? = playlistDao.getPlaylist(playlistId)
+
+        fun observePlaylistEntity(playlistId: String): Flow<PlaylistEntity?> = playlistDao.observePlaylist(playlistId)
 
         suspend fun getPlaylistInfo(playlistId: String): PlaylistInfo? {
             val entity = playlistDao.getPlaylist(playlistId) ?: return null

@@ -430,42 +430,6 @@ class MusicPlaylistsViewModel
             _locallyAddedTracks.value = emptyList()
         }
 
-        // ── Save/unsave external music playlists to library ───────────────────────
-
-        private val _isSavedPlaylist = MutableStateFlow(false)
-        val isSavedPlaylist = _isSavedPlaylist.asStateFlow()
-
-        fun checkIfPlaylistSaved(playlistId: String) {
-            viewModelScope.launch {
-                _isSavedPlaylist.value = playlistRepository.isExternalPlaylistSaved(playlistId)
-            }
-        }
-
-        fun savePlaylistToLibrary(details: PlaylistDetails) {
-            viewModelScope.launch {
-                try {
-                    playlistRepository.saveMusicCollection(details)
-                    _isSavedPlaylist.value = true
-                    Toast.makeText(context, context.getString(R.string.toast_saved_playlist_to_music_library), Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "savePlaylistToLibrary failed", e)
-                    Toast.makeText(context, context.getString(R.string.toast_failed_to_save_playlist), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        fun unsavePlaylistFromLibrary(playlistId: String) {
-            viewModelScope.launch {
-                try {
-                    playlistRepository.unsaveExternalPlaylist(playlistId)
-                    _isSavedPlaylist.value = false
-                    Toast.makeText(context, context.getString(R.string.toast_removed_playlist_from_library), Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Log.e("MusicPlaylistsVM", "unsavePlaylistFromLibrary failed", e)
-                }
-            }
-        }
-
         // ── Merge external playlist into a local user playlist ────────────────────
 
         val userCreatedMusicPlaylists: StateFlow<List<PlaylistInfo>> =
