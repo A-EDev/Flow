@@ -133,7 +133,7 @@
     <string name="dont_show_channel">Ne plus afficher cette chaîne</string>
     <string name="dont_show_channel_desc">Retirer de vos recommandations</string>
     <string name="channel_blocked_toast">%1$s n’apparaîtra plus dans votre fil</string>
-    <string name="details_metadata">Détails et métadonnées</string>
+    <string name="details_metadata">Détails</string>
     <!-- Dialogue d'Informations Médias -->
     <string name="track_info">Infos de la piste</string>
     <string name="track_info_subtitle">Métriques techniques et sociales détaillées</string>
@@ -179,7 +179,7 @@
     <string name="add_to_playlist">Ajouter à la playlist</string>
     <string name="playback_header">Lecture</string>
     <string name="play_next">Lire ensuite</string>
-    <string name="play_next_desc">Ajouter au début de la file d\'attente</string>
+    <string name="play_next_desc">S\'affiche après le morceau en cours</string>
     <string name="add_to_queue">Ajouter à la file d\'attente</string>
     <string name="add_to_queue_desc">Ajouter à la fin de la file d\'attente</string>
     <string name="audio_effects">Effets Audio</string>
@@ -335,14 +335,14 @@
     <string name="theme_name_pure_light">Lumière pure</string>
     <string name="theme_desc_pure_light">Épuré et minimaliste</string>
     <string name="theme_name_mint_fresh">Fraîcheur mentholée</string>
-    <string name="theme_desc_mint_fresh">Frais et rafraîchissant</string>
+    <string name="theme_desc_mint_fresh">Une palette de couleurs claires rehaussée de touches de menthe fraîches et vivifiantes.</string>
     <string name="theme_name_rose_petal">Pétale de rose</string>
-    <string name="theme_desc_rose_petal">Chaleureux et doux</string>
+    <string name="theme_desc_rose_petal">Une palette de couleurs claires aux nuances roses chaudes et douces.</string>
     <string name="theme_name_sky_blue">Bleu ciel</string>
-    <string name="theme_desc_sky_blue">Ouvert et aéré</string>
+    <string name="theme_desc_sky_blue">Une palette claire et aérienne, avec des bleus rappelant le ciel à perte de vue.</string>
     <string name="theme_name_cream_paper">Papier crème</string>
-    <string name="theme_desc_cream_paper">Chaleureux et douillet</string>
-    <string name="theme_name_classic_dark">Classique</string>
+    <string name="theme_desc_cream_paper">Des nuances de papier chaudes pour une lecture agréable en journée.</string>
+    <string name="theme_name_classic_dark">Par défaut</string>
     <string name="theme_desc_classic_dark">La palette originale de Flow</string>
     <string name="theme_name_true_black">Noir intense</string>
     <string name="theme_desc_true_black">OLED pur</string>
@@ -371,15 +371,15 @@
     <string name="theme_name_solar_flare">Éruption solaire</string>
     <string name="theme_desc_solar_flare">Énergie débordante</string>
     <string name="theme_name_cyberpunk">Cyberpunk</string>
-    <string name="theme_desc_cyberpunk">Futur néon</string>
+    <string name="theme_desc_cyberpunk">Du magenta et du cyan néon pour une ville du futur.</string>
     <string name="theme_name_royal_gold">Or royal</string>
-    <string name="theme_desc_royal_gold">Prestigieux et somptueux</string>
-    <string name="theme_name_nordic">Nordique</string>
-    <string name="theme_desc_nordic">Sérénité scandinave</string>
+    <string name="theme_desc_royal_gold">Des tons dorés riches et prestigieux sur des teintes sombres et profondes.</string>
+    <string name="theme_name_nordic">Nord</string>
+    <string name="theme_desc_nordic">Une palette de couleurs arctiques, aux nuances bleuâtres tirant vers le nord.</string>
     <string name="theme_name_espresso">Espresso</string>
-    <string name="theme_desc_espresso">Riche et chaleureux</string>
+    <string name="theme_desc_espresso">Des tons brun café riches et chaleureux.</string>
     <string name="theme_name_gunmetal">Gris anthracite</string>
-    <string name="theme_desc_gunmetal">Style industriel</string>
+    <string name="theme_desc_gunmetal">Des gris industriels aux accents métalliques froids.</string>
     <!-- Paramètres de Contenu -->
     <string name="content_settings_title">Paramètres de Contenu</string>
     <string name="content_settings_header_display">Affichage</string>
@@ -820,7 +820,7 @@
     <string name="sleep_timer_will_close_app">L\'appli se fermera à l\'expiration de la minuterie</string>
     <string name="unsubscribe">Se désabonner</string>
     <string name="mark_as_watched">Marquer comme vu</string>
-    <string name="mark_as_watched_toast">Ajouté à la liste des vidéos visionnées — vos recommandations s\'amélioreront !</string>
+    <string name="mark_as_watched_toast">Marqué comme « vu »</string>
     <string name="i_like_this">Je veux plus de ça</string>
     <string name="i_like_this_toast">D\'accord ! Vous verrez davantage de contenu de ce genre.</string>
     <string name="go_to_channel">Aller sur la chaîne</string>
@@ -915,7 +915,7 @@
     <string name="appearance_role_secondary">Secondaire</string>
     <string name="appearance_role_tertiary">Tertiaire</string>
     <string name="app_icon_picker_subtitle">Choisissez un style d\'icône pour le lanceur. La modification prend effet immédiatement et le lanceur s\'actualise brièvement.</string>
-    <string name="app_icon_picker_warning">Attention : la modification des icônes fait appel à un mécanisme du système Android qui peut temporairement faire disparaître le raccourci de l\'application de votre écran d\'accueil. Appuyez longuement sur le lanceur d\'applications pour le rajouter si nécessaire.</string>
+    <string name="app_icon_picker_warning">La modification de l\'icône peut entraîner la disparition temporaire de Flow de votre écran d\'accueil. Si nécessaire, rajoutez-la depuis le tiroir d\'applications.</string>
     <string name="content_settings_explore_region_picker_title">Sélection rapide de la région dans Explorer</string>
     <string name="content_settings_explore_region_picker_subtitle">Afficher une icône représentant un globe terrestre dans la barre supérieure de l\'écran « Explorer » pour changer instantanément la région en vogue.</string>
     <string name="categories_region_picker_desc">Changer la région en vogue (actuellement : %1$s)</string>
@@ -933,7 +933,7 @@
     <string name="player_show_title_title">Afficher le titre de la vidéo</string>
     <string name="player_show_title_subtitle">Afficher le titre de la vidéo sous la barre supérieure en mode plein écran</string>
     <string name="theme_name_system_default">Paramètres par défaut du système</string>
-    <string name="theme_desc_system_default">Synchroniser avec le thème de l\'appareil</string>
+    <string name="theme_desc_system_default">Suit votre appareil entre la lumière et l\'obscurité.</string>
     <string name="theme_name_monochrome">Monochrome</string>
     <string name="theme_name_custom">Personnalisé</string>
     <string name="theme_desc_custom">Créez votre propre palette professionnelle</string>
@@ -1470,7 +1470,7 @@
     <string name="player_settings_rytd_title">Réintroduire le bouton « Je n\'aime pas » sur YouTube</string>
     <string name="player_settings_rytd_subtitle">Récupérer le nombre de « J\'aime pas » à l\'aide du service « Return YouTube Dislike »</string>
     <string name="player_adaptive_size_title">Taille adaptative du lecteur</string>
-    <string name="player_adaptive_size_subtitle">Utilisez le format vidéo pour la hauteur du lecteur. Désactivez cette option pour un format fixe 16:9.</string>
+    <string name="player_adaptive_size_subtitle">Ajuster le lecteur à la vidéo. L\'option « Off » conserve le format 16:9.</string>
     <string name="section_incomplete_downloads">Téléchargements incomplets</string>
     <string name="download_status_cancelled">Annulé</string>
     <string name="remove_incomplete_downloads">Supprimer les téléchargements incomplets</string>
@@ -1492,7 +1492,7 @@
     <string name="icon_name_material_sky">Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
     <string name="theme_name_material_you">Material You</string>
-    <string name="theme_desc_material_you">Couleurs des fonds d\'écran sur Android 12 et versions ultérieures</string>
+    <string name="theme_desc_material_you">Couleurs extraites de votre fond d\'écran sous Android 12 et versions ultérieures.</string>
     <string name="content_settings_comments_enabled_title">Commentaires</string>
     <string name="content_settings_comments_enabled_subtitle">Charger et afficher la section des commentaires sur l\'écran du lecteur vidéo</string>
     <string name="content_settings_subs_show_videos_title">Vidéos par abonnement</string>
@@ -1546,7 +1546,7 @@
     <string name="subscriptions_music_badge_cd">Abonnement musical</string>
     <string name="no_subscriptions_found">Aucun abonnement trouvé</string>
     <string name="player_appearance_remember_brightness_title">N\'oubliez pas la luminosité</string>
-    <string name="player_appearance_remember_brightness_subtitle">Conserver le dernier réglage de luminosité du lecteur pour les prochaines vidéos</string>
+    <string name="player_appearance_remember_brightness_subtitle">Conserver le dernier réglage de luminosité pour la prochaine vidéo</string>
     <string name="player_background_style_title">Arrière-plan du lecteur de musique</string>
     <string name="player_background_style_blur_gradient">Flou + Dégradé</string>
     <string name="player_background_style_blur">Œuvre floue</string>
@@ -1674,7 +1674,7 @@
     <string name="content_settings_share_without_text_subtitle">Partagez uniquement le lien vers la vidéo, sans le message « Regardez cette vidéo »</string>
     <string name="icon_name_flow_play">Flow Lecture</string>
     <string name="player_appearance_controls_while_loading_title">Commandes pendant le chargement</string>
-    <string name="player_appearance_controls_while_loading_subtitle">Affichez les commandes de lecture avant la fin du chargement de la vidéo afin de pouvoir régler le volume immédiatement</string>
+    <string name="player_appearance_controls_while_loading_subtitle">Afficher les commandes avant la fin du chargement de la vidéo</string>
     <string name="player_settings_autoplay_countdown_title">Délai de lecture automatique</string>
     <string name="player_settings_autoplay_countdown_none">Aucun (changer immédiatement)</string>
     <string name="player_settings_autoplay_countdown_dialog_body">Affichez un compte à rebours avant de passer automatiquement à la vidéo suivante. Pendant le compte à rebours, vous pouvez relancer la vidéo en cours, annuler le passage à la suivante ou lancer immédiatement la vidéo suivante.</string>
@@ -1834,7 +1834,7 @@
     <string name="persona_explorer_title">L\'Explorateur</string>
     <string name="persona_explorer_description">Chaotique et magnifique. Un peu de tout.</string>
     <string name="player_appearance_grouped_quality_selector_title">Sélecteur de qualité groupé</string>
-    <string name="player_appearance_grouped_quality_selector_subtitle">Afficher une ligne par résolution, avec les choix de codecs à l\'intérieur de celle-ci</string>
+    <string name="player_appearance_grouped_quality_selector_subtitle">Une ligne par résolution, avec les codecs indiqués à l\'intérieur</string>
     <string name="playlist_video_added_template">Ajouté %1$s</string>
     <string name="select_videos">Sélectionner</string>
     <string name="cancel_selection">Annuler la sélection</string>
@@ -2323,7 +2323,7 @@
     <string name="import_invalid_format">Format de sauvegarde non reconnu — assurez-vous d\'avoir sélectionné le bon fichier</string>
     <string name="import_failed_template">Échec de l\'importation : %1$s</string>
     <string name="player_appearance_seek_gesture_title">Geste de recherche</string>
-    <string name="player_appearance_seek_gesture_subtitle">En mode plein écran, faites glisser votre doigt horizontalement pour faire défiler la vidéo</string>
+    <string name="player_appearance_seek_gesture_subtitle">En mode plein écran, faites glisser votre doigt latéralement pour avancer ou reculer</string>
     <string name="player_settings_subtitle_language">Langue préférée pour les sous-titres</string>
     <string name="player_settings_subtitle_language_dialog_title">Langue des sous-titres</string>
     <string name="player_settings_subtitle_language_dialog_body">Les sous-titres s\'affichent dans cette langue lorsqu\'ils sont disponibles. Si la vidéo ne contient aucune piste, Flow utilise la traduction proposée par YouTube d\'une piste existante. Le choix d\'un sous-titre pendant la lecture met également celle-ci à jour.</string>
@@ -2540,7 +2540,7 @@
     <string name="lyrics_choose_source">Choisissez la source des paroles</string>
     <string name="subscriptions_failed_channels_copy_logs">Copier les journaux</string>
     <string name="content_settings_channel_group_badge_title">Afficher le groupe sur les avatars des chaînes</string>
-    <string name="content_settings_channel_group_badge_subtitle">Attribuer aux avatars des chaînes et des artistes le groupe d\'abonnement auquel ils appartiennent</string>
+    <string name="content_settings_channel_group_badge_subtitle">Attribuer aux avatars une étiquette correspondant à leur groupe d\'abonnement</string>
     <string name="channel_add_to_group">Ajouter au groupe</string>
     <string name="channel_groups_sheet_title">Groupes de chaînes</string>
     <string name="channel_groups_empty">Aucun groupe pour l\'instant</string>
@@ -2618,7 +2618,7 @@
     <string name="note_channel_title">Remarque concernant cette chaîne</string>
     <string name="note_video_title">Remarque concernant cette vidéo</string>
     <string name="content_settings_notes_title">Notes personnelles</string>
-    <string name="player_appearance_gesture_overlay_subtitle">Comment s\'affichent les indicateurs de volume et de luminosité lorsque vous faites glisser votre doigt</string>
+    <string name="player_appearance_gesture_overlay_subtitle">Comment le volume et la luminosité s\'affichent lorsque vous faites glisser votre doigt</string>
     <string name="gesture_overlay_style_circular">Circulaire</string>
     <string name="gesture_overlay_style_vertical">Vertical</string>
     <string name="gesture_overlay_style_horizontal">Bar</string>
@@ -2708,7 +2708,7 @@
     <string name="channel_post_poll_votes">%1$s</string>
     <string name="player_background_style_immersive">Illustration immersive</string>
     <string name="player_appearance_haptics_title">Vibration</string>
-    <string name="player_appearance_haptics_subtitle">De légers cliquetis lorsque vous utilisez les commandes du lecteur et effectuez des gestes</string>
+    <string name="player_appearance_haptics_subtitle">Provoquer une légère vibration lorsque l\'utilisateur appuie ou effectue des gestes sur le lecteur</string>
     <string name="player_appearance_gesture_overlay_title">Style de superposition des gestes</string>
     <string name="player_appearance_scrub_preview_title">Aperçu du nettoyage</string>
     <string name="player_appearance_scrub_preview_subtitle">Ce que la barre de défilement affiche lorsque vous la faites glisser</string>
@@ -2716,4 +2716,24 @@
     <string name="player_appearance_scrub_preview_frame">Image unique</string>
     <string name="player_appearance_frame_step_title">Boutons de passage d\'image</string>
     <string name="player_appearance_frame_step_subtitle">Afficher les flèches « Retour » et « Suivant » lorsque la lecture est en pause</string>
+    <string name="quick_action_watched">Vu</string>
+    <string name="quick_action_go_to">Aller à</string>
+    <string name="quick_action_artists">Artistes</string>
+    <string name="quick_action_failed">Ça n\'a pas marché. Réessayez.</string>
+    <string name="start_radio">Lancer la radio</string>
+    <string name="start_radio_desc">Écouter une station consacrée à ce morceau</string>
+    <plurals name="playlists_count_template">
+        <item quantity="one">%1$d playlist</item>
+        <item quantity="many">%1$d playlists</item>
+        <item quantity="other">%1$d playlists</item>
+    </plurals>
+    <plurals name="shorts_count_template">
+        <item quantity="one">%1$d Short</item>
+        <item quantity="many">%1$d Shorts</item>
+        <item quantity="other">%1$d Shorts</item>
+    </plurals>
+    <string name="theme_name_green_apple">Vert pomme</string>
+    <string name="theme_name_yin_yang">Yin &amp; Yang</string>
+    <string name="theme_name_strawberry_daiquiri">Daiquiri à la fraise</string>
+    <string name="theme_name_tide">Marée</string>
 </resources>
