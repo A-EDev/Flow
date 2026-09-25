@@ -263,12 +263,25 @@ class MusicPlayerViewModel
 
         private fun isLocalMediaId(id: String?): Boolean = LocalMediaIds.isLocal(id)
 
+        private fun isLoadedInPlayer(videoId: String): Boolean {
+            val player = EnhancedMusicPlayerManager.player ?: return false
+            val state = player.playbackState
+            return EnhancedMusicPlayerManager.currentTrack.value?.videoId == videoId &&
+                (state == Player.STATE_READY || state == Player.STATE_BUFFERING)
+        }
+
         fun loadAndPlayTrack(
             track: MusicTrack,
             queue: List<MusicTrack> = emptyList(),
             sourceName: String? = null,
             asRadio: Boolean = false,
         ) {
+            // Tapping the song that is already loaded, from any list, keeps it going instead of
+            // fetching and restarting it; a paused one resumes. The queue is left as it is.
+            if (!asRadio && isLoadedInPlayer(track.videoId)) {
+                EnhancedMusicPlayerManager.play()
+                return
+            }
             if (isLocalMediaId(track.videoId)) {
                 val localUris = (queue + track).mapNotNull { t -> LocalMediaIds.audioUri(t.videoId)?.let { t.videoId to it } }.toMap()
                 playLocalMusic(track, queue.filter { isLocalMediaId(it.videoId) }, localUris)
