@@ -90,6 +90,8 @@ fun InlineLyricsPanel(
     // False while the host keeps the panel composed but hidden: the 80 ms sync loop and the
     // per-frame karaoke interpolation stop, everything else stays warm for an instant reopen.
     active: Boolean = true,
+    // Paused, the sync loop waits for a seek or an offset change instead of ticking every 80 ms.
+    isPlaying: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -118,8 +120,15 @@ fun InlineLyricsPanel(
     LaunchedEffect(lines) { state.reset() }
 
     val latestSyncOffsetMs by rememberUpdatedState(syncOffsetMs)
-    LaunchedEffect(lines, active) {
+    LaunchedEffect(lines, active, isPlaying) {
         if (lines.isEmpty() || !active) return@LaunchedEffect
+        if (!isPlaying) {
+            snapshotFlow { latestPositionProvider() to latestSyncOffsetMs }.collect { (_, offset) ->
+                val position = EnhancedMusicPlayerManager.getCurrentPosition() + offset
+                state.advance(lines, position, hasWordTimings)
+            }
+            return@LaunchedEffect
+        }
 
         var lastPlayerPos =
             EnhancedMusicPlayerManager.getCurrentPosition().takeIf { it > 0 }
@@ -444,6 +453,7 @@ fun InlineLyricsPanel(
                                     // while the panel is retained invisible; one recomposition on
                                     // reopen restores the state before the first visible frame.
                                     isActiveLine = isActiveLine && active,
+                                    isPlaying = isPlaying,
                                     syncOffsetMs = latestSyncOffsetMs,
                                     bgVisible = bgVisible,
                                     currentPositionState = state.currentPosition,

@@ -252,6 +252,7 @@ internal fun MusicLyricsSheet(
                             // Retention keeps the panel composed for an instant reopen; the
                             // position loops must still pause while the sheet is hidden.
                             active = visible,
+                            isPlaying = isPlaying,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

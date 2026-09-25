@@ -50,6 +50,7 @@ internal fun WordLevelLyrics(
     mainText: String,
     words: List<WordTimestamp>,
     isActiveLine: Boolean,
+    isPlaying: Boolean,
     syncOffsetMs: Long,
     currentPositionState: Long,
     lyricStyle: TextStyle,
@@ -72,8 +73,9 @@ internal fun WordLevelLyrics(
     var smoothPosition by remember { mutableLongStateOf(currentPositionState) }
 
     val latestSyncOffsetMs by rememberUpdatedState(syncOffsetMs)
-    LaunchedEffect(isActiveLine) {
-        if (isActiveLine) {
+    // Paused, the sung position cannot move on its own; only a seek moves it, through the panel.
+    LaunchedEffect(isActiveLine, isPlaying) {
+        if (isActiveLine && isPlaying) {
             var lastPlayerPos = EnhancedMusicPlayerManager.getCurrentPosition()
             var lastUpdateTime = System.currentTimeMillis()
             while (isActive) {
@@ -92,8 +94,8 @@ internal fun WordLevelLyrics(
         }
     }
 
-    LaunchedEffect(isActiveLine, currentPositionState) {
-        if (!isActiveLine) smoothPosition = currentPositionState
+    LaunchedEffect(isActiveLine, isPlaying, currentPositionState) {
+        if (!isActiveLine || !isPlaying) smoothPosition = currentPositionState
     }
 
     val sanitizedInputWords = remember(words) { sanitizeWordTimestamps(words) }
@@ -127,6 +129,24 @@ internal fun WordLevelLyrics(
                 graphemeClusters.map { cluster -> textMeasurer.measure(cluster, lyricStyle) }
             }
         val isRtlText = remember(mainText) { mainText.containsRtl() }
+        // One gradient per line and colour; the shimmer only slides it, through the local matrix.
+        val liquidShader =
+            remember(layoutResult.size, expressiveAccent) {
+                android.graphics.LinearGradient(
+                    -layoutResult.size.width / 2f,
+                    0f,
+                    layoutResult.size.width / 2f,
+                    layoutResult.size.height.toFloat(),
+                    intArrayOf(
+                        expressiveAccent.toArgb(),
+                        Color.White.copy(alpha = 0.8f).toArgb(),
+                        expressiveAccent.toArgb(),
+                    ),
+                    floatArrayOf(0f, 0.5f, 1f),
+                    android.graphics.Shader.TileMode.CLAMP,
+                )
+            }
+        val shimmerMatrix = remember { android.graphics.Matrix() }
 
         Canvas(
             modifier =
@@ -147,20 +167,9 @@ internal fun WordLevelLyrics(
             val currentMillis = System.currentTimeMillis()
             val shimmerOffset = (currentMillis % 3000L) / 3000f
             val shaderX = layoutResult.size.width * shimmerOffset
-            liquidPaint.shader =
-                android.graphics.LinearGradient(
-                    shaderX - layoutResult.size.width / 2f,
-                    0f,
-                    shaderX + layoutResult.size.width / 2f,
-                    layoutResult.size.height.toFloat(),
-                    intArrayOf(
-                        expressiveAccent.toArgb(),
-                        Color.White.copy(alpha = 0.8f).toArgb(),
-                        expressiveAccent.toArgb(),
-                    ),
-                    floatArrayOf(0f, 0.5f, 1f),
-                    android.graphics.Shader.TileMode.CLAMP,
-                )
+            shimmerMatrix.setTranslate(shaderX, 0f)
+            liquidShader.setLocalMatrix(shimmerMatrix)
+            liquidPaint.shader = liquidShader
             liquidPaint.textSize = lyricStyle.fontSize.toPx()
 
             if (isRtlText) {
