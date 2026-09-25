@@ -174,6 +174,7 @@ class EnhancedPlayerManager private constructor() {
 
     // Queue management
     private val queue = PlaybackQueueController()
+    private val abandonedSkips = AbandonedVideoSkips()
     private var manualLoopEnabled: Boolean = false
     private var globalLoopEnabled: Boolean = false
 
@@ -561,7 +562,7 @@ class EnhancedPlayerManager private constructor() {
                 onPlaybackShutdown = { onPlaybackShutdown() },
                 isPlayingDeviceFile = { currentLocalFilePath != null },
                 onStreamExpired = { scope.launch { _streamExpiredEvent.emit(Unit) } },
-                onPlaybackAbandoned = { scope.launch { _playbackAbandonedEvent.emit(Unit) } },
+                onPlaybackAbandoned = { if (!skipAbandonedVideo()) scope.launch { _playbackAbandonedEvent.emit(Unit) } },
                 onGatedCodecFallback = { position -> qualityManager?.fallbackToAlternateCodec(position) ?: false },
                 getFailedStreamUrls = {
                     qualityManager?.let { qm ->
@@ -858,6 +859,7 @@ class EnhancedPlayerManager private constructor() {
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _playerState.value = _playerState.value.copy(isPlaying = isPlaying)
+                    if (isPlaying) abandonedSkips.onPlaybackStarted()
                     autoNextLog("onIsPlayingChanged isPlaying=$isPlaying")
                 }
 
@@ -1382,6 +1384,18 @@ class EnhancedPlayerManager private constructor() {
     }
 
     fun hasNext(): Boolean = queue.hasNext
+
+    /**
+     * Moves a queue past a video whose streams could not be recovered, instead of stopping the
+     * whole playlist on it. False when there is nothing to move to or too many failed in a row.
+     */
+    fun skipAbandonedVideo(): Boolean {
+        if (!abandonedSkips.trySkip(hasNext())) return false
+        PlayerDiagnostics.logWarning(TAG, "Streams for $currentVideoId could not be recovered; moving to the next video in the queue")
+        // Posted so the failing load has unwound before the next one starts.
+        mainHandler.post { playNext(loadStreamsInPlayer = true) }
+        return true
+    }
 
     fun hasPrevious(): Boolean = queue.hasPrevious || (player?.currentPosition ?: 0) > 3000
 

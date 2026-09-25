@@ -15,6 +15,7 @@ import io.mockk.Called
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.verify
 import io.mockk.verifyOrder
 import kotlinx.coroutines.CompletableDeferred
@@ -202,6 +203,23 @@ class VideoPlayerViewModelFetchCountsTest {
             assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
             runCurrent()
             coVerify(exactly = 0) { harness.repository.getVideoStreamInfo(any()) }
+        }
+
+    @Test
+    fun `a queue moves past a video whose streams could not be recovered instead of stopping (#1008)`() =
+        runTest {
+            every { harness.playerManager.skipAbandonedVideo() } returns true
+            val viewModel = newViewModel()
+            viewModel.playVideo(video("vid_a"))
+            advanceUntilIdle()
+
+            repeat(4) {
+                assertThat(harness.streamExpiredEvent.tryEmit(Unit)).isTrue()
+                runCurrent()
+            }
+
+            verify(exactly = 1) { harness.playerManager.skipAbandonedVideo() }
+            assertThat(viewModel.uiState.value.error).isNotEqualTo("res:${R.string.error_all_stream_sources_failed}")
         }
 
     @Test
