@@ -44,6 +44,9 @@ NEW FEATURES
 - A monthly and yearly Recap story that plays itself, with morphing Material shapes, artwork-tinted pages and channel and artist portraits, plus a shareable poster image
 - Onboarding rebuilt on Material 3 Expressive: a welcome step with the Flow logo, one morphing shape that follows you through every step, an alerts step that asks for notifications in context, imports grouped by the app you are moving from, and two panes on tablets and foldables
 - Updates now download, verify and install inside Flow from a new update page with sectioned release notes, the download size and a Skip this version option
+- Search inside any playlist by title or channel
+- Save a playlist as a file, share it with anyone, and import one from the Playlists screen or by opening the file in Flow
+- Optional setting to remove videos from Watch later once you have watched them, with Undo when Watch later clears older ones (#1060)
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
