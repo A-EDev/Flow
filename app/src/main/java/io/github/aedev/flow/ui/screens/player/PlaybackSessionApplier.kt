@@ -253,6 +253,11 @@ internal class PlaybackSessionApplier(
         if (step.failure == PlaybackFailure.UNEXPECTED && !videoError.isRetryable) {
             playerPreferences.markVideoUnplayable(load.videoId)
         }
+        // A removed or unplayable video stays that way, so a playlist carries on instead of stopping on it.
+        if (step.failure == PlaybackFailure.EXTRACTION && InnerTubeVideoStreamExtractor.isGone(load.videoId) && playerManager.hasNext()) {
+            withContext(Dispatchers.Main) { playerManager.playNext(loadStreamsInPlayer = false) }
+            return
+        }
         uiState.update { it.applyPlaybackFailure(step.relatedVideos, videoError) }
     }
 

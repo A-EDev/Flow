@@ -219,8 +219,16 @@ object InnerTubeVideoStreamExtractor {
 
             Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")
             PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
+            if (PlayabilityVerdict.isGone(failureReasons)) goneVideoIds += videoId
             null
         }
+
+    /** Videos YouTube reported as removed or unplayable on every client; a queue skips them. */
+    private val goneVideoIds: MutableSet<String> =
+        java.util.concurrent.ConcurrentHashMap
+            .newKeySet()
+
+    fun isGone(videoId: String): Boolean = videoId in goneVideoIds
 
     /** The clients GVS is not currently refusing to serve. See [ClientGateTracker]. */
     private fun List<YouTubeClient>.ungated(): List<YouTubeClient> = filterNot { ClientGateTracker.isGated(it.clientName) }

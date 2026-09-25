@@ -1751,6 +1751,13 @@ class EnhancedPlayerManager private constructor() {
                     val extraction =
                         extractionDeferred.await() ?: run {
                             autoNextLog("playVideoFromServiceLayer extraction failed video=${video.id}")
+                            if (io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+                                    .isGone(video.id) && hasNext()
+                            ) {
+                                // Posted so this job has finished and cleared itself before the next one starts.
+                                mainHandler.post { playNext(loadStreamsInPlayer = true) }
+                                return@launch
+                            }
                             _playerState.value =
                                 _playerState.value.copy(
                                     isBuffering = false,
