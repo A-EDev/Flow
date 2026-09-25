@@ -44,13 +44,13 @@ import io.github.aedev.flow.ui.components.library.ActiveDownloadActions
 import io.github.aedev.flow.ui.components.library.DownloadsStorageCard
 import io.github.aedev.flow.ui.components.library.LibraryKindHeader
 import io.github.aedev.flow.ui.components.library.LibrarySelection
-import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
-import io.github.aedev.flow.ui.components.library.LibrarySortChip
 import io.github.aedev.flow.ui.components.library.MusicDownloadsList
-import io.github.aedev.flow.ui.components.library.SelectionAction
 import io.github.aedev.flow.ui.components.library.VideosDownloadsList
 import io.github.aedev.flow.ui.components.library.libraryHeaderIsOneRow
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.ui.components.shared.FlowSelectionAction
+import io.github.aedev.flow.ui.components.shared.FlowSelectionToolbar
+import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 import io.github.aedev.flow.ui.components.shared.flowGridColumns
@@ -101,7 +101,7 @@ fun DownloadsScreen(
             onCancelAll = { removeIncompleteOf = selectedKind },
         )
     val sortChip: @Composable () -> Unit = {
-        LibrarySortChip(
+        FlowSortChip(
             options = DownloadSort.entries,
             selected = uiState.sort,
             default = DownloadSort.NEWEST,
@@ -211,12 +211,12 @@ fun DownloadsScreen(
                     }
                 }
             }
-            LibrarySelectionToolbar(
+            FlowSelectionToolbar(
                 visible = selectionMode && selectedIds.isNotEmpty(),
                 summary = pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size),
                 actions =
                     listOf(
-                        SelectionAction(Icons.Outlined.Delete, stringResource(R.string.action_delete), destructive = true) {
+                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.action_delete), destructive = true) {
                             pendingDeletion = PendingDeletion(selectedIds, title = null)
                         },
                     ),

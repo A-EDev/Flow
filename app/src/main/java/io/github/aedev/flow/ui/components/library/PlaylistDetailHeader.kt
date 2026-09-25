@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
 
 private val HeaderPadding: Dp = 16.dp
@@ -319,7 +320,7 @@ internal fun PlaylistSortChip(
     modifier: Modifier = Modifier,
     default: PlaylistSortOrder = PlaylistSortOrder.MANUAL,
 ) {
-    LibrarySortChip(
+    FlowSortChip(
         options = options,
         selected = selected,
         default = default,

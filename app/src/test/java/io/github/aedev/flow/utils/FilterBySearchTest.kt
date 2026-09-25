@@ -1,10 +1,10 @@
-package io.github.aedev.flow.ui.screens.playlists
+package io.github.aedev.flow.utils
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
 import org.junit.Test
 
-class PlaylistSearchTest {
+class FilterBySearchTest {
     private fun video(
         id: String,
         title: String,
@@ -29,22 +29,22 @@ class PlaylistSearchTest {
 
     @Test
     fun `a blank query keeps the whole playlist`() {
-        assertThat(videos.matchingSearch("  ")).isEqualTo(videos)
+        assertThat(videos.filterBySearch("  ") { "${it.title} ${it.channelName}" }).isEqualTo(videos)
     }
 
     @Test
     fun `case and accents are ignored`() {
-        assertThat(videos.matchingSearch("CAFE").map { it.id }).containsExactly("1")
+        assertThat(videos.filterBySearch("CAFE") { "${it.title} ${it.channelName}" }.map { it.id }).containsExactly("1")
     }
 
     @Test
     fun `the channel name matches too`() {
-        assertThat(videos.matchingSearch("kitchen").map { it.id }).containsExactly("1", "3").inOrder()
+        assertThat(videos.filterBySearch("kitchen") { "${it.title} ${it.channelName}" }.map { it.id }).containsExactly("1", "3").inOrder()
     }
 
     @Test
     fun `every word must match somewhere`() {
-        assertThat(videos.matchingSearch("kitchen coffee").map { it.id }).containsExactly("3")
-        assertThat(videos.matchingSearch("kitchen beats")).isEmpty()
+        assertThat(videos.filterBySearch("kitchen coffee") { "${it.title} ${it.channelName}" }.map { it.id }).containsExactly("3")
+        assertThat(videos.filterBySearch("kitchen beats") { "${it.title} ${it.channelName}" }).isEmpty()
     }
 }

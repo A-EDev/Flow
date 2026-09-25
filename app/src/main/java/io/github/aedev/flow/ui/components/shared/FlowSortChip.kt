@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.library
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
@@ -15,14 +15,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import io.github.aedev.flow.ui.components.shared.FlowDropdownFilterChip
 
 /**
- * A library list's sort order as a chip that opens a menu of [options]. The chip reads as selected
+ * A list's sort order as a chip that opens a menu of [options]. The chip reads as selected
  * once the order is not [default], so a changed order is visible at a glance.
  */
 @Composable
-internal fun <T> LibrarySortChip(
+fun <T> FlowSortChip(
     options: List<T>,
     selected: T,
     default: T,

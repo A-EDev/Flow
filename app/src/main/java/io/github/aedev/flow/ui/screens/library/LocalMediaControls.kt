@@ -8,8 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.library.LibrarySortChip
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
+import io.github.aedev.flow.ui.components.shared.FlowSortChip
 
 /**
  * The chips under the search field: All or Folders, then sort and the filters that apply to this
@@ -44,7 +44,7 @@ internal fun LocalMediaFilterBar(
             )
         }
         item(key = "sort") {
-            LibrarySortChip(
+            FlowSortChip(
                 options = LocalSort.entries,
                 selected = filters.sort,
                 default = LocalSort.DATE_ADDED,
@@ -53,7 +53,7 @@ internal fun LocalMediaFilterBar(
             )
         }
         item(key = "length") {
-            LibrarySortChip(
+            FlowSortChip(
                 options = LengthFilter.entries,
                 selected = filters.length,
                 default = LengthFilter.ANY,
@@ -63,7 +63,7 @@ internal fun LocalMediaFilterBar(
         }
         if (isVideos) {
             item(key = "quality") {
-                LibrarySortChip(
+                FlowSortChip(
                     options = QualityFilter.entries,
                     selected = filters.quality,
                     default = QualityFilter.ANY,

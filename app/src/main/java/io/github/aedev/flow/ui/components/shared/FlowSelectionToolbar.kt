@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.library
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.padding
@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 /** One button in a select mode's toolbar. */
-internal class SelectionAction(
+class FlowSelectionAction(
     val icon: ImageVector,
     val label: String,
     val destructive: Boolean = false,
@@ -24,15 +24,15 @@ internal class SelectionAction(
 )
 
 /**
- * The actions for what is selected in a library list, floating over its bottom edge so they stay
+ * The actions for what is selected in a list, floating over its bottom edge so they stay
  * under the thumb and don't depend on how wide the top bar is.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun LibrarySelectionToolbar(
+fun FlowSelectionToolbar(
     visible: Boolean,
     summary: String,
-    actions: List<SelectionAction>,
+    actions: List<FlowSelectionAction>,
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(

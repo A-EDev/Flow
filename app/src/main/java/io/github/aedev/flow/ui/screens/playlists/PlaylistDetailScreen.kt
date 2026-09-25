@@ -33,8 +33,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.library.LibraryPanes
-import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
 import io.github.aedev.flow.ui.components.library.PlaylistDetailTopBar
 import io.github.aedev.flow.ui.components.library.PlaylistHeader
 import io.github.aedev.flow.ui.components.library.PlaylistHeaderActions
@@ -42,13 +40,16 @@ import io.github.aedev.flow.ui.components.library.PlaylistHeaderPane
 import io.github.aedev.flow.ui.components.library.PlaylistSearchBar
 import io.github.aedev.flow.ui.components.library.PlaylistSortChip
 import io.github.aedev.flow.ui.components.library.PlaylistSortOrder
-import io.github.aedev.flow.ui.components.library.SelectionAction
-import io.github.aedev.flow.ui.components.library.rememberLibraryPaneState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.FlowSelectionAction
+import io.github.aedev.flow.ui.components.shared.FlowSelectionToolbar
+import io.github.aedev.flow.ui.components.shared.FlowSidePanes
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
+import io.github.aedev.flow.utils.filterBySearch
 import io.github.aedev.flow.utils.sharePlaylist
 import io.github.aedev.flow.utils.sharePlaylistFile
 import kotlinx.coroutines.launch
@@ -74,7 +75,8 @@ fun PlaylistDetailScreen(
     var displayVideos by remember { mutableStateOf(sortedVideos) }
     var searchQuery by rememberSaveable { mutableStateOf<String?>(null) }
     val isSearching = searchQuery != null
-    val shownVideos = remember(displayVideos, searchQuery) { displayVideos.matchingSearch(searchQuery.orEmpty()) }
+    val shownVideos =
+        remember(displayVideos, searchQuery) { displayVideos.filterBySearch(searchQuery.orEmpty()) { "${it.title} ${it.channelName}" } }
     val positions =
         remember(displayVideos, isSearching) {
             if (isSearching) displayVideos.withIndex().associate { (index, video) -> video.id to index + 1 } else emptyMap()
@@ -85,7 +87,7 @@ fun PlaylistDetailScreen(
             target?.let(viewModel::exportTo)
         }
     val listState = rememberLazyListState()
-    val panes = rememberLibraryPaneState()
+    val panes = rememberFlowPaneState()
     val twoPane = panes.showsSidePane
 
     val isUserCreated = uiState.isLocalPlaylist && !uiState.isSaved
@@ -229,7 +231,7 @@ fun PlaylistDetailScreen(
                             header = header,
                         )
                     }
-                    LibraryPanes(
+                    FlowSidePanes(
                         panes = panes,
                         sidePaneWidth = HeaderPaneWidth,
                         sidePane = {
@@ -250,12 +252,12 @@ fun PlaylistDetailScreen(
                     )
                 }
             }
-            LibrarySelectionToolbar(
+            FlowSelectionToolbar(
                 visible = selectionMode && selectedIds.isNotEmpty(),
                 summary = pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size),
                 actions =
                     listOf(
-                        SelectionAction(Icons.Outlined.Delete, stringResource(R.string.remove), destructive = true) {
+                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.remove), destructive = true) {
                             dialog = PlaylistDialog.RemoveSelected(selectedIds)
                         },
                     ),

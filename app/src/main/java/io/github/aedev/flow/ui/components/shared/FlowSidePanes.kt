@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.library
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
@@ -15,7 +15,7 @@ import io.github.aedev.flow.ui.components.layout.rememberFlowPaneScaffoldDirecti
 
 /** The pane layout for this window; keeps the adaptive library's experimental types out of screens. */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
-internal class LibraryPaneState(
+class FlowPaneState(
     val navigator: ThreePaneScaffoldNavigator<Any>,
 ) {
     /** Whether the window has room for a pane beside the main one. */
@@ -27,9 +27,9 @@ internal class LibraryPaneState(
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-internal fun rememberLibraryPaneState(): LibraryPaneState {
+internal fun rememberFlowPaneState(): FlowPaneState {
     val navigator = rememberListDetailPaneScaffoldNavigator<Any>(scaffoldDirective = rememberFlowPaneScaffoldDirective())
-    return remember(navigator) { LibraryPaneState(navigator) }
+    return remember(navigator) { FlowPaneState(navigator) }
 }
 
 /**
@@ -39,8 +39,8 @@ internal fun rememberLibraryPaneState(): LibraryPaneState {
  */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-internal fun LibraryPanes(
-    panes: LibraryPaneState,
+fun FlowSidePanes(
+    panes: FlowPaneState,
     sidePaneWidth: Dp,
     sidePane: @Composable () -> Unit,
     mainPane: @Composable () -> Unit,

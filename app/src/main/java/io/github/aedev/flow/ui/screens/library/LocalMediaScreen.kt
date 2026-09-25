@@ -52,18 +52,18 @@ import io.github.aedev.flow.data.localmedia.toMusicTrack
 import io.github.aedev.flow.data.localmedia.toVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.LibraryKindHeader
-import io.github.aedev.flow.ui.components.library.LibraryPanes
 import io.github.aedev.flow.ui.components.library.LibrarySelection
-import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
-import io.github.aedev.flow.ui.components.library.SelectionAction
-import io.github.aedev.flow.ui.components.library.rememberLibraryPaneState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.FlowSelectionAction
+import io.github.aedev.flow.ui.components.shared.FlowSelectionToolbar
+import io.github.aedev.flow.ui.components.shared.FlowSidePanes
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 import io.github.aedev.flow.ui.components.shared.flowGridColumns
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.shareMediaFiles
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 
@@ -185,7 +185,7 @@ fun LocalMediaScreen(
         if (selectionMode) exitSelection() else viewModel.openFolder(null)
     }
 
-    val panes = rememberLibraryPaneState()
+    val panes = rememberFlowPaneState()
     val twoPaneFolders = state.selection.view == LocalView.FOLDERS && panes.showsSidePane
     LaunchedEffect(twoPaneFolders, state.folders) {
         if (twoPaneFolders && openFolder == null) state.folders.firstOrNull()?.let { viewModel.openFolder(it.id) }
@@ -317,7 +317,7 @@ fun LocalMediaScreen(
                                 )
                             }
                             if (twoPaneFolders) {
-                                LibraryPanes(
+                                FlowSidePanes(
                                     panes = panes,
                                     sidePaneWidth = FolderPaneWidth,
                                     sidePane = { LocalFolderList(state, isVideos, onOpenFolder = viewModel::openFolder) },
@@ -330,19 +330,19 @@ fun LocalMediaScreen(
                     }
                 }
             }
-            LibrarySelectionToolbar(
+            FlowSelectionToolbar(
                 visible = selectionMode && selectedIds.isNotEmpty(),
                 summary = pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size),
                 actions =
                     listOf(
-                        SelectionAction(Icons.Outlined.QueuePlayNext, stringResource(R.string.add_to_queue)) {
+                        FlowSelectionAction(Icons.Outlined.QueuePlayNext, stringResource(R.string.add_to_queue)) {
                             state.items.filter { it.mediaId in selectedIds }.forEach(fileActions.onAddToQueue)
                             exitSelection()
                         },
-                        SelectionAction(Icons.Outlined.Share, stringResource(R.string.share)) {
+                        FlowSelectionAction(Icons.Outlined.Share, stringResource(R.string.share)) {
                             shareFiles(state.items.filter { it.mediaId in selectedIds })
                         },
-                        SelectionAction(Icons.Outlined.Delete, stringResource(R.string.action_delete), destructive = true) {
+                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.action_delete), destructive = true) {
                             deleteFiles(state.items.filter { it.mediaId in selectedIds })
                         },
                     ),
