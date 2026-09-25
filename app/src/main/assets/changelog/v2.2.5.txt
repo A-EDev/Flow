@@ -52,7 +52,7 @@ NEW FEATURES
 - Your music playlists can be edited, deleted and filled from a new Add songs sheet right on their page, a Daily Mix can be saved as your own playlist, and Download all now covers the whole album or playlist and keeps going after you leave
 - A new Equalizer page: drag bands on its response curve, type exact frequency, gain and Q values, switch to a 10-band graphic mode, and hold Compare to hear the difference (#810)
 - Import AutoEQ and EqualizerAPO presets from a file or pasted text, export yours in the same format, and keep your presets in backup and device sync
-- The music player adapts to tablets and foldables: wide windows show Up next and Lyrics in a pane beside the player, upright tablets get a centred layout, and phones in landscape show the cover beside the controls
+- The music player adapts to tablets and foldables: wide windows show Up next and Lyrics in a pane beside the player, upright tablets get a centred layout, phones in landscape show the cover beside the controls, and the controls can use black and white or your theme instead of the artwork colors
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls

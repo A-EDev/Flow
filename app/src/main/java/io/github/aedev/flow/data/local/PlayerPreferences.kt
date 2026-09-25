@@ -132,6 +132,8 @@ class PlayerPreferences(
         val SLIDER_STYLE = stringPreferencesKey("slider_style")
         val MUSIC_PLAYER_BACKGROUND_STYLE = stringPreferencesKey("music_player_background_style")
         val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
+        val MUSIC_ARTWORK_CONTROL_COLORS = booleanPreferencesKey("music_artwork_control_colors")
+        val MUSIC_PLAIN_CONTROL_COLORS = stringPreferencesKey("music_plain_control_colors")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val GESTURE_OVERLAY_STYLE = stringPreferencesKey("gesture_overlay_style")
         val PLAYER_HAPTICS_ENABLED = booleanPreferencesKey("player_haptics_enabled")
@@ -725,6 +727,34 @@ class PlayerPreferences(
     suspend fun setMusicPlayerBackgroundStyle(style: MusicPlayerBackgroundStyle) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MUSIC_PLAYER_BACKGROUND_STYLE] = style.name
+        }
+    }
+
+    /** Whether the music player's buttons and seek bar take the artwork's colors. */
+    val musicArtworkControlColors: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_ARTWORK_CONTROL_COLORS] ?: true }
+
+    suspend fun setMusicArtworkControlColors(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_ARTWORK_CONTROL_COLORS] = enabled
+        }
+    }
+
+    /** The colors the controls use when artwork colors are off. */
+    val musicPlainControlColors: Flow<MusicPlainControlColors> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                runCatching {
+                    MusicPlainControlColors.valueOf(
+                        preferences[Keys.MUSIC_PLAIN_CONTROL_COLORS] ?: MusicPlainControlColors.MONOCHROME.name,
+                    )
+                }.getOrDefault(MusicPlainControlColors.MONOCHROME)
+            }
+
+    suspend fun setMusicPlainControlColors(colors: MusicPlainControlColors) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_PLAIN_CONTROL_COLORS] = colors.name
         }
     }
 
@@ -3133,6 +3163,12 @@ enum class SliderStyle {
 enum class DownloadDialogStyle {
     FULL,
     COMPACT,
+}
+
+/** Control colors for the music player when artwork colors are off. */
+enum class MusicPlainControlColors {
+    MONOCHROME,
+    APP_THEME,
 }
 
 enum class MusicPlayerBackgroundStyle {

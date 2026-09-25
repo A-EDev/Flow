@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.local.DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.MAX_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.MAX_PORTRAIT_SEEKBAR_PADDING_DP
+import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.ScrubPreviewStyle
 import io.github.aedev.flow.data.local.SeekbarPaddingMode
@@ -58,6 +59,8 @@ internal fun PlayerAppearanceScreen(
     val frameStep by viewModel.frameStepButtons.collectAsStateWithLifecycle()
     val musicBackground by viewModel.musicBackground.collectAsStateWithLifecycle()
     val hideMusicArtwork by viewModel.hideMusicArtwork.collectAsStateWithLifecycle()
+    val artworkControlColors by viewModel.artworkControlColors.collectAsStateWithLifecycle()
+    val plainControlColors by viewModel.plainControlColors.collectAsStateWithLifecycle()
     val adaptiveSize by viewModel.adaptivePlayerSize.collectAsStateWithLifecycle()
     val ambientMode by viewModel.ambientMode.collectAsStateWithLifecycle()
     val groupedQuality by viewModel.groupedQualitySelector.collectAsStateWithLifecycle()
@@ -90,6 +93,14 @@ internal fun PlayerAppearanceScreen(
             FlowToggleOption(ScrubPreviewStyle.FRAME, stringResource(R.string.player_appearance_scrub_preview_frame)),
         )
     val shortsOptions = ShortsPlayerUiMode.entries.map { FlowToggleOption(it, stringResource(shortsUiModeLabel(it))) }
+    val plainControlOptions =
+        listOf(
+            FlowToggleOption(
+                MusicPlainControlColors.MONOCHROME,
+                stringResource(R.string.player_appearance_plain_control_colors_monochrome),
+            ),
+            FlowToggleOption(MusicPlainControlColors.APP_THEME, stringResource(R.string.player_appearance_plain_control_colors_app)),
+        )
     val miniPlayerOptions = MiniPlayerSize.entries.map { FlowToggleOption(it, stringResource(miniPlayerSizeLabel(it))) }
     val portraitSummary = stringResource(R.string.player_fullscreen_seekbar_width_subtitle, portraitPadding)
     val fullscreenSummary = stringResource(R.string.player_fullscreen_seekbar_width_subtitle, fullscreenPadding)
@@ -142,6 +153,15 @@ internal fun PlayerAppearanceScreen(
         group(key = "player_appearance.music", header = R.string.settings_section_music_player) {
             nav(PlayerAppearanceIndex.musicBackground, value = backgroundLabel, onClick = { sheet = PreviewSheet.BACKGROUND })
             switch(PlayerAppearanceIndex.hideMusicArtwork, hideMusicArtwork, viewModel::setHideMusicArtwork)
+            switch(PlayerAppearanceIndex.artworkControlColors, artworkControlColors, viewModel::setArtworkControlColors)
+            if (!artworkControlColors) {
+                toggleGroup(
+                    PlayerAppearanceIndex.plainControlColors,
+                    plainControlOptions,
+                    plainControlColors,
+                    viewModel::setPlainControlColors,
+                )
+            }
         }
         group(key = "player_appearance.video", header = R.string.settings_section_video_player) {
             switch(PlayerAppearanceIndex.adaptiveSize, adaptiveSize, viewModel::setAdaptivePlayerSize)

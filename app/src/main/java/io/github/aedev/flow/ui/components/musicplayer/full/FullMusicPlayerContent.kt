@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -61,6 +62,8 @@ internal fun FullMusicPlayerContent(
     palette: MediaPalette,
     backgroundStyle: MusicPlayerBackgroundStyle,
     hideArtwork: Boolean,
+    // The transport, seek bar, like and download and the action row draw with this scheme.
+    controlScheme: ColorScheme = MaterialTheme.colorScheme,
     onCollapse: () -> Unit = {},
     viewModel: MusicPlayerViewModel = sharedMusicPlayerViewModel(),
 ) {
@@ -253,62 +256,70 @@ internal fun FullMusicPlayerContent(
                     }
                 },
                 header = { modifier ->
-                    PlayerTrackHeader(
-                        title = displayTitle,
-                        artist = displayArtist,
-                        onArtistClick = {
-                            uiState.currentTrack
-                                ?.channelId
-                                ?.takeIf { it.isNotEmpty() }
-                                ?.let(navigator::openArtist)
-                        },
-                        animateTitle = isPlayerSheetExpanded,
-                        showLibraryActions = !LocalMediaIds.isLocal(uiState.currentTrack?.videoId),
-                        isLiked = uiState.isLiked,
-                        isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
-                        onLikeClick = { viewModel.toggleLike() },
-                        onDownloadClick = { viewModel.downloadTrack() },
-                        onAddToPlaylist = { showSaveSheet = true },
-                        modifier = modifier,
-                    )
+                    MaterialTheme(colorScheme = controlScheme) {
+                        PlayerTrackHeader(
+                            title = displayTitle,
+                            artist = displayArtist,
+                            onArtistClick = {
+                                uiState.currentTrack
+                                    ?.channelId
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.let(navigator::openArtist)
+                            },
+                            animateTitle = isPlayerSheetExpanded,
+                            showLibraryActions = !LocalMediaIds.isLocal(uiState.currentTrack?.videoId),
+                            isLiked = uiState.isLiked,
+                            isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
+                            onLikeClick = { viewModel.toggleLike() },
+                            onDownloadClick = { viewModel.downloadTrack() },
+                            onAddToPlaylist = { showSaveSheet = true },
+                            modifier = modifier,
+                        )
+                    }
                 },
                 progress = { modifier ->
-                    PlayerProgressSlider(
-                        positionProvider = { positionState.value },
-                        duration = uiState.duration,
-                        onSeekTo = { viewModel.seekTo(it) },
-                        // The tree stays composed while collapsed (warm for a jank-free expand), so the
-                        // squiggly/wavy per-frame wave animations must stop when nobody can see them —
-                        // they otherwise burn a frame budget for the whole background-listening session.
-                        isPlaying = uiState.isPlaying && isPlayerSheetExpanded,
-                        modifier = modifier,
-                    )
+                    MaterialTheme(colorScheme = controlScheme) {
+                        PlayerProgressSlider(
+                            positionProvider = { positionState.value },
+                            duration = uiState.duration,
+                            onSeekTo = { viewModel.seekTo(it) },
+                            // The tree stays composed while collapsed (warm for a jank-free expand), so the
+                            // squiggly/wavy per-frame wave animations must stop when nobody can see them —
+                            // they otherwise burn a frame budget for the whole background-listening session.
+                            isPlaying = uiState.isPlaying && isPlayerSheetExpanded,
+                            modifier = modifier,
+                        )
+                    }
                 },
                 controls = { modifier ->
-                    PlayerPlaybackControls(
-                        isPlaying = uiState.isPlaying,
-                        isBuffering = uiState.isBuffering && isPlayerSheetExpanded,
-                        onPreviousClick = { viewModel.skipToPrevious() },
-                        onPlayPauseToggle = { viewModel.togglePlayPause() },
-                        onNextClick = { viewModel.skipToNext() },
-                        modifier = modifier,
-                        onPreviewDirectionChange = { previewDirection = it },
-                    )
+                    MaterialTheme(colorScheme = controlScheme) {
+                        PlayerPlaybackControls(
+                            isPlaying = uiState.isPlaying,
+                            isBuffering = uiState.isBuffering && isPlayerSheetExpanded,
+                            onPreviousClick = { viewModel.skipToPrevious() },
+                            onPlayPauseToggle = { viewModel.togglePlayPause() },
+                            onNextClick = { viewModel.skipToNext() },
+                            modifier = modifier,
+                            onPreviewDirectionChange = { previewDirection = it },
+                        )
+                    }
                 },
                 actions = { modifier ->
-                    // Wide windows show lyrics and the queue in the side pane, so the buttons pick its tab.
-                    PlayerActionRow(
-                        lyricsActive = if (isWide) sidePaneTab == PlayerSidePaneTab.LYRICS else showLyricsSheet,
-                        shuffleEnabled = uiState.shuffleEnabled,
-                        repeatMode = uiState.repeatMode,
-                        onLyricsClick = { if (isWide) selectSidePaneTab(PlayerSidePaneTab.LYRICS) else openLyricsSheet() },
-                        onShuffleClick = { viewModel.toggleShuffle() },
-                        onRepeatClick = { viewModel.toggleRepeat() },
-                        onQueueClick = { if (isWide) selectSidePaneTab(PlayerSidePaneTab.UP_NEXT) else queueState.open() },
-                        onMoreClick = { showMoreOptions = true },
-                        modifier = modifier,
-                        queueActive = isWide && sidePaneTab == PlayerSidePaneTab.UP_NEXT,
-                    )
+                    MaterialTheme(colorScheme = controlScheme) {
+                        // Wide windows show lyrics and the queue in the side pane, so the buttons pick its tab.
+                        PlayerActionRow(
+                            lyricsActive = if (isWide) sidePaneTab == PlayerSidePaneTab.LYRICS else showLyricsSheet,
+                            shuffleEnabled = uiState.shuffleEnabled,
+                            repeatMode = uiState.repeatMode,
+                            onLyricsClick = { if (isWide) selectSidePaneTab(PlayerSidePaneTab.LYRICS) else openLyricsSheet() },
+                            onShuffleClick = { viewModel.toggleShuffle() },
+                            onRepeatClick = { viewModel.toggleRepeat() },
+                            onQueueClick = { if (isWide) selectSidePaneTab(PlayerSidePaneTab.UP_NEXT) else queueState.open() },
+                            onMoreClick = { showMoreOptions = true },
+                            modifier = modifier,
+                            queueActive = isWide && sidePaneTab == PlayerSidePaneTab.UP_NEXT,
+                        )
+                    }
                 },
             )
 

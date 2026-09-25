@@ -69,6 +69,20 @@ internal object PlayerAppearanceIndex {
             R.string.player_appearance_hide_music_artwork_subtitle,
             R.string.settings_section_music_player,
         )
+    val artworkControlColors =
+        entry(
+            "artwork_control_colors",
+            R.string.player_appearance_artwork_control_colors_title,
+            R.string.player_appearance_artwork_control_colors_subtitle,
+            R.string.settings_section_music_player,
+        )
+    val plainControlColors =
+        entry(
+            "plain_control_colors",
+            R.string.player_appearance_plain_control_colors_title,
+            section = R.string.settings_section_music_player,
+            revealVia = artworkControlColors.key,
+        )
     val adaptiveSize =
         entry(
             "adaptive_size",
@@ -126,6 +140,8 @@ internal object PlayerAppearanceIndex {
             frameStep,
             musicBackground,
             hideMusicArtwork,
+            artworkControlColors,
+            plainControlColors,
             adaptiveSize,
             ambientMode,
             groupedQuality,

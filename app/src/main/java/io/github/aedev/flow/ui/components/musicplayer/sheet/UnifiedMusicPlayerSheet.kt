@@ -45,10 +45,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
+import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.ui.components.musicplayer.common.rememberMusicControlColorScheme
 import io.github.aedev.flow.ui.components.musicplayer.common.rememberMusicPlayerColorScheme
 import io.github.aedev.flow.ui.components.musicplayer.full.FullMusicPlayerContent
 import io.github.aedev.flow.ui.components.musicplayer.mini.MiniPlayerContent
@@ -120,6 +122,10 @@ internal fun UnifiedMusicPlayerSheet(
     val hideArtwork by playerPreferences.hideMusicPlayerArtwork.collectAsState(initial = false)
     val palette = rememberMediaPalette(displayTrack.highResThumbnailUrl)
     val playerScheme = rememberMusicPlayerColorScheme(palette, backgroundStyle)
+    val artworkControlColors by playerPreferences.musicArtworkControlColors.collectAsState(initial = true)
+    val plainControlColors by playerPreferences.musicPlainControlColors.collectAsState(initial = MusicPlainControlColors.MONOCHROME)
+    val controlScheme =
+        rememberMusicControlColorScheme(playerScheme, MaterialTheme.colorScheme, artworkControlColors, plainControlColors)
 
     val motionController =
         remember(state) {
@@ -438,11 +444,13 @@ internal fun UnifiedMusicPlayerSheet(
                                 }
                             }.zIndex(miniZIndex),
                 ) {
-                    MiniPlayerContent(
-                        track = displayTrack,
-                        animationsEnabled = miniAnimationsEnabled,
-                        showPrevious = !isCompactWidth,
-                    )
+                    MaterialTheme(colorScheme = controlScheme) {
+                        MiniPlayerContent(
+                            track = displayTrack,
+                            animationsEnabled = miniAnimationsEnabled,
+                            showPrevious = !isCompactWidth,
+                        )
+                    }
                 }
 
                 if (shouldRenderFullPlayer) {
@@ -478,6 +486,7 @@ internal fun UnifiedMusicPlayerSheet(
                             palette = palette,
                             backgroundStyle = backgroundStyle,
                             hideArtwork = hideArtwork,
+                            controlScheme = controlScheme,
                             onCollapse = state::collapse,
                         )
                     }
