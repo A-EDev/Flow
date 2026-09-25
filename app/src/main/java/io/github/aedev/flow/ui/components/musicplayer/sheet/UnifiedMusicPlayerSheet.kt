@@ -449,7 +449,11 @@ fun UnifiedMusicPlayerSheet(
                                 }
                             }.zIndex(miniZIndex),
                 ) {
-                    MiniPlayerContent(track = displayTrack, animationsEnabled = miniAnimationsEnabled)
+                    MiniPlayerContent(
+                        track = displayTrack,
+                        animationsEnabled = miniAnimationsEnabled,
+                        showPrevious = !isCompactWidth,
+                    )
                 }
 
                 if (shouldRenderFullPlayer) {
