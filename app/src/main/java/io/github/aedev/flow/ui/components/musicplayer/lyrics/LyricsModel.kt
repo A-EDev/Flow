@@ -1,13 +1,7 @@
 package io.github.aedev.flow.ui.components.musicplayer.lyrics
 
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.data.lyrics.WordTimestamp
-import kotlinx.coroutines.flow.first
-import java.text.BreakIterator
 
 internal sealed class LyricsListItem {
     data class Line(
@@ -21,14 +15,6 @@ internal sealed class LyricsListItem {
         val gapEndMs: Long,
     ) : LyricsListItem()
 }
-
-internal data class HyphenGroupWord(
-    val pos: Int,
-    val size: Int,
-    val isLast: Boolean,
-    val groupStartMs: Long,
-    val groupEndMs: Long,
-)
 
 internal fun adaptiveLyricsTextSize(
     baseSize: Float,
@@ -165,34 +151,6 @@ internal fun sanitizeWordTimestamps(words: List<WordTimestamp>): List<WordTimest
     }
 }
 
-internal fun String.containsRtl(): Boolean {
-    for (char in this) {
-        val directionality = Character.getDirectionality(char).toInt()
-        if (
-            directionality == Character.DIRECTIONALITY_RIGHT_TO_LEFT.toInt() ||
-            directionality == Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC.toInt()
-        ) {
-            return true
-        }
-    }
-    return false
-}
-
-internal fun String.toGraphemeClusters(): List<String> {
-    if (isEmpty()) return emptyList()
-    val result = mutableListOf<String>()
-    val iterator = BreakIterator.getCharacterInstance()
-    iterator.setText(this)
-    var start = iterator.first()
-    var end = iterator.next()
-    while (end != BreakIterator.DONE) {
-        result.add(substring(start, end))
-        start = end
-        end = iterator.next()
-    }
-    return result
-}
-
 /**
  * The last word of a line, when it holds hyphens ("la-la-la"), is sung as separate syllables:
  * split it into timed segments and keep, for each, the index of the word it came from.
@@ -228,94 +186,3 @@ internal fun splitTrailingHyphenWord(sanitizedInputWords: List<WordTimestamp>): 
                 listOf(word to originalIdx)
             }
         }.let { data -> data.map { it.first } to data.map { it.second } }
-
-/** The char offset where each grapheme cluster starts. */
-internal fun clusterStartOffsets(graphemeClusters: List<String>): IntArray {
-    val clusterCount = graphemeClusters.size
-    return IntArray(clusterCount).also { offsets ->
-        var charOffset = 0
-        graphemeClusters.forEachIndexed { i, cluster ->
-            offsets[i] = charOffset
-            charOffset += cluster.length
-        }
-    }
-}
-
-/**
- * For every grapheme cluster: which word it belongs to, its position inside that word, and the
- * word's length in clusters. A space after a word counts as the word's last cluster.
- */
-internal fun mapClustersToWords(
-    mainText: String,
-    effectiveWords: List<WordTimestamp>,
-    isBackground: Boolean,
-    clusterCharOffsets: IntArray,
-): Triple<IntArray, IntArray, IntArray> {
-    val clusterCount = clusterCharOffsets.size
-    val wordIdxMap = IntArray(clusterCount) { -1 }
-    val charInWordMap = IntArray(clusterCount)
-    val wordLenMap = IntArray(clusterCount) { 1 }
-    var currentPos = 0
-    var clusterCursor = 0
-    effectiveWords.forEachIndexed { wordIdx, word ->
-        val rawWordText =
-            if (isBackground) {
-                var text = word.text
-                if (wordIdx == 0) text = text.removePrefix("(")
-                if (wordIdx == effectiveWords.size - 1) text = text.removeSuffix(")")
-                text
-            } else {
-                word.text
-            }
-        val indexInMain = mainText.indexOf(rawWordText, currentPos)
-        if (indexInMain != -1) {
-            val wordEndInMain = indexInMain + rawWordText.length
-            while (clusterCursor < clusterCount && clusterCharOffsets[clusterCursor] < indexInMain) clusterCursor++
-            val wordClusterIndices = mutableListOf<Int>()
-            while (clusterCursor < clusterCount && clusterCharOffsets[clusterCursor] < wordEndInMain) {
-                wordClusterIndices.add(clusterCursor)
-                clusterCursor++
-            }
-            val wordClusterLen = wordClusterIndices.size
-            wordClusterIndices.forEachIndexed { posInWord, clusterIndex ->
-                wordIdxMap[clusterIndex] = wordIdx
-                charInWordMap[clusterIndex] = posInWord
-                wordLenMap[clusterIndex] = wordClusterLen
-            }
-            if (
-                clusterCursor < clusterCount &&
-                clusterCharOffsets[clusterCursor] == wordEndInMain &&
-                wordEndInMain < mainText.length &&
-                mainText[wordEndInMain] == ' '
-            ) {
-                wordIdxMap[clusterCursor] = wordIdx
-                charInWordMap[clusterCursor] = wordClusterLen
-                wordLenMap[clusterCursor] = wordClusterLen + 1
-                clusterCursor++
-            }
-            currentPos = wordEndInMain
-        }
-    }
-    return Triple(wordIdxMap, charInWordMap, wordLenMap)
-}
-
-/** Words joined by trailing hyphens form one group that swells together as it is sung. */
-internal fun hyphenGroups(effectiveWords: List<WordTimestamp>): Map<Int, HyphenGroupWord> {
-    val map = mutableMapOf<Int, HyphenGroupWord>()
-    var currentGroup = mutableListOf<Int>()
-    effectiveWords.forEachIndexed { wordIdx, word ->
-        currentGroup.add(wordIdx)
-        if (!word.text.endsWith("-")) {
-            if (currentGroup.size > 1) {
-                val groupSize = currentGroup.size
-                val groupStartMs = effectiveWords[currentGroup.first()].startTime
-                val groupEndMs = word.endTime
-                currentGroup.forEachIndexed { pos, idx ->
-                    map[idx] = HyphenGroupWord(pos, groupSize, pos == groupSize - 1, groupStartMs, groupEndMs)
-                }
-            }
-            currentGroup = mutableListOf()
-        }
-    }
-    return map
-}

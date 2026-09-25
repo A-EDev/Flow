@@ -31,6 +31,9 @@ data class MusicPlayerUiState(
     val lyricsProviderName: String = "",
     val lyricsSyncOffsetMs: Long = 0L,
     val lyricsTextAlign: String = LYRICS_ALIGN_CENTER,
+    val lyricsShowTranslation: Boolean = true,
+    val lyricsShowRomanization: Boolean = true,
+    val lyricsAutoRomanize: Boolean = false,
     val lyricsCandidates: List<LyricsCandidate> = emptyList(),
     val isBrowsingLyrics: Boolean = false,
 )

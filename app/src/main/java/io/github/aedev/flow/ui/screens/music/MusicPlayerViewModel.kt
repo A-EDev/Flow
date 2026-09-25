@@ -571,6 +571,12 @@ class MusicPlayerViewModel
 
         fun setLyricsTextAlign(align: String) = lyrics.setTextAlign(align)
 
+        fun setLyricsShowTranslation(show: Boolean) = lyrics.setShowTranslation(show)
+
+        fun setLyricsShowRomanization(show: Boolean) = lyrics.setShowRomanization(show)
+
+        fun setLyricsAutoRomanize(enabled: Boolean) = lyrics.setAutoRomanize(enabled)
+
         override fun onCleared() {
             super.onCleared()
         }

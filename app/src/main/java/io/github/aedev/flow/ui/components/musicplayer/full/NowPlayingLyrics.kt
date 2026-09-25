@@ -6,7 +6,9 @@ import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.InlineLyricsPanel
+import io.github.aedev.flow.ui.components.musicplayer.lyrics.LyricsDisplayOptions
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.MusicLyricsSheet
+import io.github.aedev.flow.ui.components.musicplayer.lyrics.PANE_LYRICS_TEXT_SIZE
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.lyricsTextAlignFor
 import io.github.aedev.flow.ui.screens.music.MusicPlayerUiState
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
@@ -24,6 +26,7 @@ internal fun NowPlayingLyricsSheet(
     fallbackArtist: String,
     artworkUrl: String,
     positionState: State<Long>,
+    baseTextSize: Float,
     onDismiss: () -> Unit,
 ) {
     MusicLyricsSheet(
@@ -45,12 +48,15 @@ internal fun NowPlayingLyricsSheet(
         providerName = uiState.lyricsProviderName,
         alignPref = uiState.lyricsTextAlign,
         syncOffsetMs = uiState.lyricsSyncOffsetMs,
+        display = uiState.lyricsDisplay(),
+        baseTextSize = baseTextSize,
         candidates = uiState.lyricsCandidates,
         isBrowsing = uiState.isBrowsingLyrics,
         onSeekTo = { viewModel.seekTo((it - uiState.lyricsSyncOffsetMs).coerceAtLeast(0L)) },
         onRefresh = { viewModel.refreshLyrics() },
         onTogglePlayPause = { viewModel.togglePlayPause() },
         onAlignChange = { viewModel.setLyricsTextAlign(it) },
+        onDisplayChange = { viewModel.applyLyricsDisplay(uiState.lyricsDisplay(), it) },
         onAdjustOffset = { viewModel.adjustLyricsSyncOffset(it) },
         onResetOffset = { viewModel.resetLyricsSyncOffset() },
         onBrowseSources = { viewModel.browseLyricsCandidates() },
@@ -70,6 +76,7 @@ internal fun NowPlayingLyricsPane(
     uiState: MusicPlayerUiState,
     viewModel: MusicPlayerViewModel,
     accentColor: Color,
+    backdropColor: Color,
     positionState: State<Long>,
     active: Boolean,
 ) {
@@ -85,6 +92,25 @@ internal fun NowPlayingLyricsPane(
         syncOffsetMs = uiState.lyricsSyncOffsetMs,
         active = active,
         isPlaying = uiState.isPlaying,
+        backdropColor = backdropColor,
+        baseTextSize = PANE_LYRICS_TEXT_SIZE,
+        display = uiState.lyricsDisplay(),
         modifier = Modifier.fillMaxSize(),
     )
+}
+
+private fun MusicPlayerUiState.lyricsDisplay() =
+    LyricsDisplayOptions(
+        showTranslation = lyricsShowTranslation,
+        showRomanization = lyricsShowRomanization,
+        autoRomanize = lyricsAutoRomanize,
+    )
+
+private fun MusicPlayerViewModel.applyLyricsDisplay(
+    old: LyricsDisplayOptions,
+    new: LyricsDisplayOptions,
+) {
+    if (new.showTranslation != old.showTranslation) setLyricsShowTranslation(new.showTranslation)
+    if (new.showRomanization != old.showRomanization) setLyricsShowRomanization(new.showRomanization)
+    if (new.autoRomanize != old.autoRomanize) setLyricsAutoRomanize(new.autoRomanize)
 }

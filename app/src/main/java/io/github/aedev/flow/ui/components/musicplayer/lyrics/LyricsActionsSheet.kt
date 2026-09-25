@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Abc
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FormatAlignCenter
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.outlined.FormatAlignRight
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -46,6 +49,7 @@ import io.github.aedev.flow.data.local.LYRICS_ALIGN_RIGHT
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
+import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionRow
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsGroup
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsSheet
@@ -57,12 +61,14 @@ internal fun LyricsActionsSheet(
     providerName: String,
     alignPref: String,
     syncOffsetMs: Long,
+    display: LyricsDisplayOptions,
     onRefresh: () -> Unit,
     onChooseSource: () -> Unit,
     onEdit: () -> Unit,
     onCopy: () -> Unit,
     onSaveFile: () -> Unit,
     onAlignChange: (String) -> Unit,
+    onDisplayChange: (LyricsDisplayOptions) -> Unit,
     onAdjustSync: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -156,6 +162,40 @@ internal fun LyricsActionsSheet(
             title = null,
             rows =
                 listOf(
+                    lyricsSwitchRow(
+                        key = "translation",
+                        icon = Icons.Outlined.Translate,
+                        title = stringResource(R.string.lyrics_show_translation),
+                        supporting = stringResource(R.string.lyrics_show_translation_summary),
+                        checked = display.showTranslation,
+                        onCheckedChange = { onDisplayChange(display.copy(showTranslation = it)) },
+                    ),
+                    lyricsSwitchRow(
+                        key = "romanization",
+                        icon = Icons.Outlined.Abc,
+                        title = stringResource(R.string.lyrics_show_romanization),
+                        supporting = stringResource(R.string.lyrics_show_romanization_summary),
+                        checked = display.showRomanization,
+                        onCheckedChange = { onDisplayChange(display.copy(showRomanization = it)) },
+                    ),
+                ) +
+                    listOfNotNull(
+                        lyricsSwitchRow(
+                            key = "auto_romanize",
+                            icon = Icons.Outlined.AutoAwesome,
+                            title = stringResource(R.string.lyrics_auto_romanize),
+                            supporting = stringResource(R.string.lyrics_auto_romanize_summary),
+                            checked = display.autoRomanize,
+                            enabled = display.showRomanization,
+                            onCheckedChange = { onDisplayChange(display.copy(autoRomanize = it)) },
+                        ).takeIf { LyricsRomanizer.isAvailable },
+                    ),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        QuickActionsGroup(
+            title = null,
+            rows =
+                listOf(
                     lyricsRow(
                         key = "sync",
                         icon = Icons.Outlined.Timer,
@@ -180,6 +220,27 @@ private fun lyricsRow(
 ): QuickActionRow =
     QuickActionRow(key) { shape ->
         FlowNavRow(title = title, supportingText = supporting, leadingIcon = icon, onClick = onClick, showChevron = false, shape = shape)
+    }
+
+private fun lyricsSwitchRow(
+    key: String,
+    icon: ImageVector,
+    title: String,
+    supporting: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit,
+): QuickActionRow =
+    QuickActionRow(key) { shape ->
+        FlowSwitchRow(
+            title = title,
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            supportingText = supporting,
+            leadingIcon = icon,
+            enabled = enabled,
+            shape = shape,
+        )
     }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

@@ -124,6 +124,13 @@
     <string name="music_player_tab_up_next">Up next</string>
     <string name="music_player_tab_lyrics">Lyrics</string>
     <string name="music_player_lyrics_full_screen">Full screen lyrics</string>
+    <string name="lyrics_play_from_line">Play from this line</string>
+    <string name="lyrics_show_translation">Translation</string>
+    <string name="lyrics_show_translation_summary">Show the translated line under each lyric</string>
+    <string name="lyrics_show_romanization">Romanization</string>
+    <string name="lyrics_show_romanization_summary">Show lyrics in other scripts in Latin letters too</string>
+    <string name="lyrics_auto_romanize">Romanize on this device</string>
+    <string name="lyrics_auto_romanize_summary">When the lyrics source has no romanization</string>
     <string name="player_appearance_artwork_control_colors_title">Artwork colors on controls</string>
     <string name="player_appearance_artwork_control_colors_subtitle">Tint the buttons and seek bar from the cover</string>
     <string name="player_appearance_plain_control_colors_title">Control colors</string>

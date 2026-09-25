@@ -39,6 +39,8 @@ import io.github.aedev.flow.ui.components.music.sheet.SaveSongSheet
 import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
 import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerPlaybackControls
 import io.github.aedev.flow.ui.components.musicplayer.controls.PlayerProgressSlider
+import io.github.aedev.flow.ui.components.musicplayer.lyrics.DEFAULT_LYRICS_TEXT_SIZE
+import io.github.aedev.flow.ui.components.musicplayer.lyrics.LARGE_LYRICS_TEXT_SIZE
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.lyricsBackdrop
 import io.github.aedev.flow.ui.components.musicplayer.queue.QueueActions
 import io.github.aedev.flow.ui.components.musicplayer.queue.QueueList
@@ -352,12 +354,13 @@ internal fun FullMusicPlayerContent(
             }
 
             MusicPlayerLayout.WIDE -> {
+                val paneLyricsBackdrop = remember(palette.base) { lyricsBackdrop(palette.base) }
                 WidePlayerLayout(slots, panes, immersive = immersiveBackground) { modifier ->
                     PlayerSidePane(
                         tab = sidePaneTab,
                         onTabChange = selectSidePaneTab,
                         onOpenFullLyrics = openLyricsSheet,
-                        lyricsBackdrop = lyricsBackdrop(palette.base),
+                        lyricsBackdrop = paneLyricsBackdrop,
                         upNext = {
                             QueueList(
                                 queue = uiState.queue,
@@ -377,6 +380,7 @@ internal fun FullMusicPlayerContent(
                                 uiState = uiState,
                                 viewModel = viewModel,
                                 accentColor = colorScheme.primary,
+                                backdropColor = paneLyricsBackdrop,
                                 positionState = positionState,
                                 active = isPlayerSheetExpanded && !showLyricsSheet,
                             )
@@ -421,6 +425,14 @@ internal fun FullMusicPlayerContent(
             fallbackArtist = track.artist,
             artworkUrl = thumbnailUrl,
             positionState = positionState,
+            baseTextSize =
+                if (layout == MusicPlayerLayout.WIDE ||
+                    layout == MusicPlayerLayout.PORTRAIT_LARGE
+                ) {
+                    LARGE_LYRICS_TEXT_SIZE
+                } else {
+                    DEFAULT_LYRICS_TEXT_SIZE
+                },
             onDismiss = { showLyricsSheet = false },
         )
 

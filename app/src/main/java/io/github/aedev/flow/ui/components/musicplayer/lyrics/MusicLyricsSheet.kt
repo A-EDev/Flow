@@ -76,12 +76,15 @@ internal fun MusicLyricsSheet(
     providerName: String,
     alignPref: String,
     syncOffsetMs: Long,
+    display: LyricsDisplayOptions,
+    baseTextSize: Float,
     candidates: List<LyricsCandidate>,
     isBrowsing: Boolean,
     onSeekTo: (Long) -> Unit,
     onRefresh: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onAlignChange: (String) -> Unit,
+    onDisplayChange: (LyricsDisplayOptions) -> Unit,
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onBrowseSources: () -> Unit,
@@ -252,6 +255,9 @@ internal fun MusicLyricsSheet(
                             // position loops must still pause while the sheet is hidden.
                             active = visible,
                             isPlaying = isPlaying,
+                            backdropColor = backdropColor,
+                            baseTextSize = baseTextSize,
+                            display = display,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -296,6 +302,7 @@ internal fun MusicLyricsSheet(
             providerName = providerName,
             alignPref = alignPref,
             syncOffsetMs = syncOffsetMs,
+            display = display,
             onRefresh = onRefresh,
             onChooseSource = {
                 showSourcesSheet = true
@@ -325,6 +332,7 @@ internal fun MusicLyricsSheet(
                 saveLauncher.launch("$baseName.lrc")
             },
             onAlignChange = onAlignChange,
+            onDisplayChange = onDisplayChange,
             onAdjustSync = { showSyncControls = true },
             onDismiss = { showActionsSheet = false },
         )

@@ -4,22 +4,16 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDecay
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -29,53 +23,60 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.ui.theme.ensureContrastOn
 import io.github.aedev.flow.ui.utils.fadingEdge
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 private const val LYRICS_ANCHOR_RATIO = 0.35f
 private val LYRICS_ITEM_FALLBACK_HEIGHT_DP = 68.dp
 private val LYRICS_ITEM_GAP_DP = 16.dp
 private val LYRICS_FADE_TOP_DP = 130.dp
 private val LYRICS_FADE_BOTTOM_DP = 160.dp
-private const val LYRICS_STAGGER_DELAY_PER_DISTANCE = 20
-private const val LYRICS_STAGGER_DELAY_MAX_MS = 200
 private const val LYRICS_PREVIEW_TIME = 8000L
 
+/** The main lyric size, in sp, before long lines are scaled down. */
+internal const val DEFAULT_LYRICS_TEXT_SIZE = 36f
+
+/** For the full-screen lyrics on a tablet, where the default reads small from arm's length. */
+internal const val LARGE_LYRICS_TEXT_SIZE = 44f
+
+/** For the wide player's side pane, which is narrower than a phone. */
+internal const val PANE_LYRICS_TEXT_SIZE = 30f
+
 @Composable
-fun InlineLyricsPanel(
+internal fun InlineLyricsPanel(
     lyrics: String?,
     syncedLyrics: List<LyricsEntry>,
     positionProvider: () -> Long,
@@ -92,6 +93,11 @@ fun InlineLyricsPanel(
     active: Boolean = true,
     // Paused, the sync loop waits for a seek or an offset change instead of ticking every 80 ms.
     isPlaying: Boolean = true,
+    // What the lyrics are drawn over: accents are lifted to read against it, and a duet's second
+    // singer takes its hue. Null keeps the accent as given.
+    backdropColor: Color? = null,
+    baseTextSize: Float = DEFAULT_LYRICS_TEXT_SIZE,
+    display: LyricsDisplayOptions = LyricsDisplayOptions(),
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -100,9 +106,10 @@ fun InlineLyricsPanel(
     // only needs the hosted position as a seed, so it must not recompose on every tick.
     val latestPositionProvider by rememberUpdatedState(positionProvider)
     val expressiveAccent =
-        remember(accentColor) {
-            if (accentColor.luminance() < 0.48f) Color(0xFFEDEFC1) else accentColor
+        remember(accentColor, backdropColor) {
+            backdropColor?.let { ensureContrastOn(accentColor, it, minRatio = 4.5f) } ?: accentColor
         }
+    val motionEnabled = rememberLyricsMotionEnabled()
 
     val lines =
         remember(lyrics, syncedLyrics) {
@@ -117,6 +124,23 @@ fun InlineLyricsPanel(
         }
 
     val state = remember { LyricsPanelState(positionProvider()) }
+    val panelPosition = remember(state) { { state.currentPosition } }
+    val romanized by produceState<Pair<List<LyricsEntry>, List<String?>>?>(null, lines, display) {
+        value = lines to withContext(Dispatchers.Default) { lyricsRomanizations(lines, display) }
+    }
+    val romanizations = romanized?.takeIf { it.first === lines }?.second.orEmpty()
+    val presentation =
+        remember(lines, accentColor, backdropColor, baseTextSize, textAlign, display.showTranslation, romanizations) {
+            lyricsPresentation(
+                lines = lines,
+                accent = accentColor,
+                backdrop = backdropColor,
+                baseTextSize = baseTextSize,
+                userAlign = textAlign,
+                showTranslation = display.showTranslation,
+                romanizations = romanizations,
+            )
+        }
     LaunchedEffect(lines) { state.reset() }
 
     val latestSyncOffsetMs by rememberUpdatedState(syncOffsetMs)
@@ -300,6 +324,10 @@ fun InlineLyricsPanel(
             }
         }
 
+        if (isSynced && active && isPlaying && state.isAutoScrollEnabled) {
+            CurrentLineAnnouncer { lines.getOrNull(state.deferredCurrentLineIndex)?.text.orEmpty() }
+        }
+
         Box(
             modifier =
                 Modifier
@@ -370,114 +398,33 @@ fun InlineLyricsPanel(
                 if (!shouldRender) return@forEachIndexed
 
                 key(listItem) {
-                    val distance = abs(listIndex - activeListIndex)
-                    val targetOffset = anchorY + positions.getOrDefault(listIndex, (listIndex - activeListIndex) * metrics.lineHeightPx)
-                    val frozenOffset = remember { mutableFloatStateOf(targetOffset) }
-                    LaunchedEffect(state.isAutoScrollEnabled, targetOffset, isInitialLayout) {
-                        if (state.isAutoScrollEnabled || isInitialLayout) frozenOffset.floatValue = targetOffset
-                    }
-                    val animatedOffset by animateFloatAsState(
-                        targetValue = if (state.isAutoScrollEnabled) targetOffset else frozenOffset.floatValue,
-                        animationSpec =
-                            if (isInitialLayout || !state.isAutoScrollEnabled) {
-                                snap()
-                            } else {
-                                tween(
-                                    durationMillis = 750,
-                                    delayMillis = (distance * LYRICS_STAGGER_DELAY_PER_DISTANCE).coerceAtMost(LYRICS_STAGGER_DELAY_MAX_MS),
-                                    easing = FastOutSlowInEasing,
-                                )
-                            },
-                        label = "lyricStaggeredOffset_$listIndex",
+                    LyricsListRow(
+                        listItem = listItem,
+                        distance = abs(listIndex - activeListIndex),
+                        targetOffset = anchorY + positions.getOrDefault(listIndex, (listIndex - activeListIndex) * metrics.lineHeightPx),
+                        isInitialLayout = isInitialLayout,
+                        state = state,
+                        lines = lines,
+                        presentation = presentation,
+                        isSynced = isSynced,
+                        active = active,
+                        isPlaying = isPlaying,
+                        syncOffsetMs = latestSyncOffsetMs,
+                        motionEnabled = motionEnabled,
+                        indicatorColor = expressiveAccent,
+                        positionProvider = panelPosition,
+                        onHeight = { itemHeights[listIndex] = it },
+                        onLineClick = { index, item ->
+                            if (isSynced) {
+                                val seekTarget = item.time.coerceAtLeast(0L)
+                                val duration = EnhancedMusicPlayerManager.getDuration()
+                                if (duration <= 0L || seekTarget < duration + 30_000L) {
+                                    onSeekTo(seekTarget)
+                                }
+                                state.jumpTo(index)
+                            }
+                        },
                     )
-
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .layout { measurable, constraints ->
-                                    val placeable = measurable.measure(constraints.copy(maxHeight = Constraints.Infinity))
-                                    layout(placeable.width, 0) { placeable.place(0, 0) }
-                                }.offset { IntOffset(0, (animatedOffset + state.userManualOffset).roundToInt()) },
-                    ) {
-                        when (listItem) {
-                            is LyricsListItem.Indicator -> {
-                                IntervalIndicator(
-                                    gapStartMs = listItem.gapStartMs,
-                                    gapEndMs = listItem.gapEndMs - 650L,
-                                    currentPositionMs = state.currentPosition,
-                                    visible =
-                                        state.isAutoScrollEnabled &&
-                                            state.currentPosition >= listItem.gapStartMs &&
-                                            state.currentPosition <= listItem.gapEndMs - 650L,
-                                    color = expressiveAccent,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .onSizeChanged { itemHeights[listIndex] = it.height }
-                                            .padding(horizontal = 24.dp)
-                                            .wrapContentWidth(Alignment.CenterHorizontally),
-                                )
-                            }
-
-                            is LyricsListItem.Line -> {
-                                val index = listItem.index
-                                val item = listItem.entry
-                                val isActiveLine = state.activeLineIndices.contains(index)
-                                val pairedMainLineIndex =
-                                    if (item.isBackground) {
-                                        (index - 1 downTo 0).firstOrNull { lines.getOrNull(it)?.isBackground == false } ?: -1
-                                    } else {
-                                        -1
-                                    }
-                                val isInGapWithMain =
-                                    if (item.isBackground && pairedMainLineIndex != -1) {
-                                        val pairedMainLine = lines[pairedMainLineIndex]
-                                        state.currentPosition >= pairedMainLine.time && state.currentPosition <= item.time
-                                    } else {
-                                        false
-                                    }
-                                val bgVisible =
-                                    item.isBackground &&
-                                        (
-                                            state.activeLineIndices.contains(pairedMainLineIndex) ||
-                                                state.activeLineIndices.contains(index) ||
-                                                isInGapWithMain
-                                        )
-
-                                LyricsLine(
-                                    index = index,
-                                    item = item,
-                                    isSynced = isSynced,
-                                    // The && stops the active line's withFrameMillis karaoke loop
-                                    // while the panel is retained invisible; one recomposition on
-                                    // reopen restores the state before the first visible frame.
-                                    isActiveLine = isActiveLine && active,
-                                    isPlaying = isPlaying,
-                                    syncOffsetMs = latestSyncOffsetMs,
-                                    bgVisible = bgVisible,
-                                    currentPositionState = state.currentPosition,
-                                    lyricsTextSize = 36f,
-                                    lyricsLineSpacing = 1.3f,
-                                    expressiveAccent = expressiveAccent,
-                                    isAutoScrollEnabled = state.isAutoScrollEnabled,
-                                    displayedCurrentLineIndex = state.deferredCurrentLineIndex,
-                                    textAlign = textAlign,
-                                    onSizeChanged = { itemHeights[listIndex] = it },
-                                    onClick = {
-                                        if (isSynced) {
-                                            val seekTarget = item.time.coerceAtLeast(0L)
-                                            val duration = EnhancedMusicPlayerManager.getDuration()
-                                            if (duration <= 0L || seekTarget < duration + 30_000L) {
-                                                onSeekTo(seekTarget)
-                                            }
-                                            state.jumpTo(index)
-                                        }
-                                    },
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -500,4 +447,22 @@ fun InlineLyricsPanel(
                     .padding(top = 38.dp),
         )
     }
+}
+
+/**
+ * Reads each new line to TalkBack as it becomes current. A polite live region waits for the user
+ * to finish what they are doing, and the reader only recomposes this node on a line change.
+ */
+@Composable
+private fun CurrentLineAnnouncer(currentLine: () -> String) {
+    val text by remember { derivedStateOf(currentLine) }
+    Box(
+        modifier =
+            Modifier
+                .size(1.dp)
+                .semantics {
+                    liveRegion = LiveRegionMode.Polite
+                    contentDescription = text
+                },
+    )
 }

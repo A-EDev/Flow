@@ -30,6 +30,32 @@ internal class MusicPlayerLyrics(
 ) {
     private var lyricsJob: kotlinx.coroutines.Job? = null
 
+    init {
+        scope.launch {
+            playerPreferences.lyricsShowTranslation.collect { show ->
+                uiState.update { it.copy(lyricsShowTranslation = show) }
+            }
+        }
+        scope.launch {
+            playerPreferences.lyricsShowRomanization.collect { show ->
+                uiState.update { it.copy(lyricsShowRomanization = show) }
+            }
+        }
+        scope.launch { playerPreferences.lyricsAutoRomanize.collect { on -> uiState.update { it.copy(lyricsAutoRomanize = on) } } }
+    }
+
+    fun setShowTranslation(show: Boolean) {
+        scope.launch { playerPreferences.setLyricsShowTranslation(show) }
+    }
+
+    fun setShowRomanization(show: Boolean) {
+        scope.launch { playerPreferences.setLyricsShowRomanization(show) }
+    }
+
+    fun setAutoRomanize(enabled: Boolean) {
+        scope.launch { playerPreferences.setLyricsAutoRomanize(enabled) }
+    }
+
     private fun cleanName(name: String): String =
         name
             .replace(Regex("(?i)\\s*-\\s*topic$", RegexOption.IGNORE_CASE), "")
