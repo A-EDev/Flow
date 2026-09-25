@@ -4,7 +4,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddToQueue
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.HeartBroken
 import androidx.compose.material.icons.rounded.QueuePlayNext
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
@@ -13,16 +15,27 @@ import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowSelectionAction
 
-/** The header's ⋮ menu: add songs to your own playlist, or add all of these to one of yours. */
+/** The header's ⋮ menu: add songs, edit or delete your own playlist, or add all of these to one of yours. */
 @Composable
 internal fun collectionMenu(
     state: MusicCollectionUiState,
     onAddSongs: () -> Unit,
     onAddAll: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
 ): List<CollectionMenuItem> =
     buildList {
         if (state.isOwn) {
             add(CollectionMenuItem(stringResource(R.string.ui_add_songs), Icons.Rounded.Add, onClick = onAddSongs))
+            add(CollectionMenuItem(stringResource(R.string.edit_playlist_action), Icons.Rounded.Edit, onClick = onEdit))
+            add(
+                CollectionMenuItem(
+                    stringResource(R.string.delete_playlist_action),
+                    Icons.Rounded.Delete,
+                    destructive = true,
+                    onClick = onDelete,
+                ),
+            )
         } else {
             val label = stringResource(R.string.add_all_to_playlist)
             add(CollectionMenuItem(label, Icons.AutoMirrored.Rounded.PlaylistAdd, onClick = onAddAll))

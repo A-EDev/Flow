@@ -202,6 +202,28 @@ class MusicCollectionViewModel
             }
         }
 
+        fun updateDetails(
+            name: String,
+            description: String,
+        ) {
+            if (!_state.value.isOwn) return
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                val isPrivate = playlists.getPlaylistEntity(collectionId)?.isPrivate ?: true
+                playlists.updatePlaylistMetadata(collectionId, name, description, isPrivate)
+            }
+        }
+
+        /** Deletes your playlist; the page closes itself once it is gone. */
+        fun delete() {
+            if (!_state.value.isOwn) return
+            _state.update { it.copy(isDeleted = true) }
+            loadJob?.cancel()
+            viewModelScope.launch(PerformanceDispatcher.diskIO) {
+                playlists.deletePlaylist(collectionId)
+                _messages.send(CollectionMessage(stringRes = R.string.toast_playlist_deleted))
+            }
+        }
+
         fun reorder(orderedVideoIds: List<String>) {
             if (!_state.value.isOwn) return
             viewModelScope.launch(PerformanceDispatcher.diskIO) { playlists.reorderVideosInPlaylist(collectionId, orderedVideoIds) }
@@ -404,6 +426,7 @@ data class MusicCollectionUiState(
     val isLoadingMore: Boolean = false,
     val moreFailed: Boolean = false,
     val isSaved: Boolean = false,
+    val isDeleted: Boolean = false,
 ) {
     val isOwn: Boolean get() = kind == MusicCollectionKind.OWN
 

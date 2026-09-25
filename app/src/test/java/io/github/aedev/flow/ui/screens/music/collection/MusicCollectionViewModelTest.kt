@@ -238,6 +238,24 @@ class MusicCollectionViewModelTest {
     }
 
     @Test
+    fun `deleting your playlist closes the page instead of showing an error`() {
+        val id = "3f9c"
+        val entity = MutableStateFlow<PlaylistEntity?>(entity(id, own = true))
+        coEvery { playlists.getPlaylistEntity(id) } returns entity(id, own = true)
+        every { playlists.observePlaylistEntity(id) } returns entity
+        every { playlists.getPlaylistVideosWithAddedAtFlow(id) } returns flowOf(listOf(video("a")))
+        val viewModel = viewModel(id)
+        viewModel.settled()
+
+        viewModel.delete()
+        entity.value = null
+
+        coVerify(timeout = 2_000) { playlists.deletePlaylist(id) }
+        assertThat(viewModel.state.value.isDeleted).isTrue()
+        assertThat(viewModel.state.value.failed).isFalse()
+    }
+
+    @Test
     fun `pages that repeat a song add it once`() {
         val first = remote("PL", listOf(track("a"), track("b")))
 

@@ -70,7 +70,12 @@ fun MusicCollectionScreen(
         viewModel.messages.collect { quickActions.announce(it.resolve(context), it.undo) }
     }
     val details = state.details
+    LaunchedEffect(state.isDeleted) { if (state.isDeleted) callbacks.onBackClick() }
     when {
+        state.isDeleted -> {
+            Unit
+        }
+
         details != null -> {
             CollectionContent(state, details, viewModel, callbacks)
         }
@@ -190,6 +195,8 @@ private fun CollectionContent(
                     state,
                     onAddSongs = { sheet = CollectionSheet.AddSongs },
                     onAddAll = { sheet = CollectionSheet.AddTo(null) },
+                    onEdit = { sheet = CollectionSheet.Edit },
+                    onDelete = { sheet = CollectionSheet.Delete },
                 ),
         )
     val sortChip: @Composable () -> Unit = {
