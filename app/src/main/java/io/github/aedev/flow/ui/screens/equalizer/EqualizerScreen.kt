@@ -8,7 +8,6 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -51,6 +50,7 @@ import io.github.aedev.flow.ui.components.layout.topbar.FlowGlobalActionsMode
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarMenuItem
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarOverflow
+import io.github.aedev.flow.ui.components.shared.FlowModalSheetDefaults
 import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import io.github.aedev.flow.utils.shareLink
@@ -207,7 +207,12 @@ private fun BandSheet(
     viewModel: EqualizerViewModel,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState(),
+        modifier = FlowModalSheetDefaults.modifier,
+        contentWindowInsets = FlowModalSheetDefaults.contentWindowInsets,
+    ) {
         EqBandEditor(
             index = index,
             bands = state.active.curve.bands,
@@ -221,7 +226,6 @@ private fun BandSheet(
                 Modifier
                     .verticalScroll(rememberScrollState())
                     .imePadding()
-                    .navigationBarsPadding()
                     .padding(start = SheetContentPadding, end = SheetContentPadding, bottom = SheetContentPadding),
         )
     }

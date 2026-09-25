@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.components.shared.FlowModalSheetDefaults
 import io.github.aedev.flow.ui.components.shared.FlowRowGroup
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
 import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
@@ -122,6 +123,8 @@ fun QuickActionsSheet(
         onDismissRequest = dismissRequest,
         sheetState = sheetState,
         properties = properties,
+        modifier = FlowModalSheetDefaults.modifier,
+        contentWindowInsets = FlowModalSheetDefaults.contentWindowInsets,
     ) {
         BackHandler(enabled = onBack != null) { onBack?.invoke() }
         Column(
