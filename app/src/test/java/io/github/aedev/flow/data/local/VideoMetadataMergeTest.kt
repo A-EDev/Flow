@@ -5,11 +5,10 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Assume.assumeTrue
-import org.junit.Before
+import org.junit.AssumptionViolatedException
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -18,24 +17,28 @@ import org.robolectric.annotation.Config
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34], application = Application::class)
 class VideoMetadataMergeTest {
-    private val database =
-        Room
-            .inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
-    private val dao = database.videoDao()
-
-    // Robolectric's native SQLite loads on developer machines but not on every CI image; there the
-    // test is skipped rather than failed, like the suite's other environment-bound tests.
-    @Before
-    fun requireSqlite() {
-        val failure = runCatching { database.openHelper.writableDatabase }.exceptionOrNull()
-        // After a failed native load, later tests in the same JVM see NoClassDefFoundError instead.
-        assumeTrue("Native SQLite unavailable: $failure", failure !is UnsatisfiedLinkError && failure !is NoClassDefFoundError)
-    }
-
-    @After
-    fun close() = database.close()
+    /**
+     * Runs [block] against a fresh in-memory database. SQLite is a native library Robolectric loads
+     * on first use, including on close; where it cannot load (the Linux CI image) the test is
+     * skipped, like the suite's other environment-bound tests, instead of failing.
+     */
+    private fun withDatabase(block: suspend (VideoDao) -> Unit) =
+        runTest {
+            try {
+                val database =
+                    Room
+                        .inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+                        .allowMainThreadQueries()
+                        .build()
+                try {
+                    block(database.videoDao())
+                } finally {
+                    database.close()
+                }
+            } catch (missing: LinkageError) {
+                throw AssumptionViolatedException("SQLite unavailable here: $missing")
+            }
+        }
 
     private fun entity(
         title: String = "Holocene",
@@ -61,7 +64,7 @@ class VideoMetadataMergeTest {
 
     @Test
     fun `blanks from a music copy keep what was known`() =
-        runTest {
+        withDatabase { dao ->
             dao.insertVideo(
                 entity(duration = 226, viewCount = 9_000L, uploadDate = "13 years ago", timestamp = 1_000L, description = "Live"),
             )
@@ -78,7 +81,7 @@ class VideoMetadataMergeTest {
 
     @Test
     fun `real values still update the row`() =
-        runTest {
+        withDatabase { dao ->
             dao.insertVideo(entity(duration = 0))
 
             dao.mergeMetadata(listOf(entity(title = "Holocene (Live)", duration = 240, viewCount = 12L)))
@@ -91,7 +94,7 @@ class VideoMetadataMergeTest {
 
     @Test
     fun `an unknown song is inserted as given`() =
-        runTest {
+        withDatabase { dao ->
             dao.mergeMetadata(listOf(entity(duration = 226)))
 
             assertThat(dao.getVideo("dQw4w9WgXcQ")?.duration).isEqualTo(226)
