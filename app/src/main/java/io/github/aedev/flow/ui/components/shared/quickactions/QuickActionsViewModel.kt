@@ -242,6 +242,10 @@ class QuickActionsViewModel
                         is QuickActionUndo.PlaylistRemoval -> {
                             playlistRepository.restorePlaylistVideos(undo.entries)
                         }
+
+                        is QuickActionUndo.RestoreFromTrash -> {
+                            Unit
+                        }
                     }
                 }
             }

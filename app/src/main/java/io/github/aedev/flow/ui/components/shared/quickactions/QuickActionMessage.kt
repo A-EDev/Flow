@@ -36,4 +36,9 @@ sealed interface QuickActionUndo {
     data class PlaylistRemoval(
         val entries: List<PlaylistVideoCrossRef>,
     ) : QuickActionUndo
+
+    /** Files moved to the system trash; putting them back needs the system's consent, asked by the host. */
+    data class RestoreFromTrash(
+        val contentUris: List<String>,
+    ) : QuickActionUndo
 }

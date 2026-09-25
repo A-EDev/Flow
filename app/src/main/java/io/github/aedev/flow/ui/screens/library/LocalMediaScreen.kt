@@ -66,6 +66,7 @@ import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 import io.github.aedev.flow.ui.components.shared.flowGridColumns
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.shareMediaFiles
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
@@ -119,13 +120,32 @@ fun LocalMediaScreen(
         selectionMode = false
         selectedIds = emptySet()
     }
+    var pendingDelete by remember { mutableStateOf<List<String>>(emptyList()) }
     val deleteLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) exitSelection()
+            if (result.resultCode == Activity.RESULT_OK) {
+                exitSelection()
+                if (deleteMovesToTrash) {
+                    quickActions.announce(
+                        context.resources.getQuantityString(R.plurals.local_files_trashed, pendingDelete.size, pendingDelete.size),
+                        QuickActionUndo.RestoreFromTrash(pendingDelete),
+                    )
+                } else {
+                    // On Android 10 the prompt only grants access; the delete itself runs again now.
+                    val outcome = context.contentResolver.requestDelete(pendingDelete.map(Uri::parse))
+                    if (outcome is LocalDeleteOutcome.Deleted) {
+                        quickActions.announce(
+                            context.resources.getQuantityString(R.plurals.local_files_deleted, outcome.count, outcome.count),
+                        )
+                    }
+                }
+            }
+            pendingDelete = emptyList()
         }
     val deleteFiles = { items: List<LocalMediaItem> ->
         when (val outcome = context.contentResolver.requestDelete(items.map { Uri.parse(it.contentUri) })) {
             is LocalDeleteOutcome.NeedsConsent -> {
+                pendingDelete = items.map { it.contentUri }
                 deleteLauncher.launch(IntentSenderRequest.Builder(outcome.request).build())
             }
 
