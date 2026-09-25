@@ -1,11 +1,15 @@
 package io.github.aedev.flow.ui.components.musicplayer.mini
 
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -25,12 +30,12 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +63,8 @@ private val ArtworkRingSize = 52.dp
 private val ArtworkSize = 43.dp
 private val ProgressRingStroke = 2.5.dp
 private val PlayButtonSize = 48.dp
+private val PlayButtonPressedWidth = 60.dp
+private val PlayButtonPlayingCorner = 14.dp
 
 /**
  * The collapsed player: cover in a progress ring, title and artist, then the transport. Wider
@@ -203,30 +210,14 @@ internal fun MiniPlayerContent(
                     )
                 }
             }
-            FilledIconButton(
+            MiniPlayPauseButton(
+                isPlaying = playerState.isPlaying,
+                isBuffering = playerState.isBuffering && animationsEnabled,
                 onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     EnhancedMusicPlayerManager.togglePlayPause()
                 },
-                // Rounded square while playing, circle while paused, as the full player's button.
-                shapes =
-                    IconButtonDefaults.shapes(
-                        shape = if (playerState.isPlaying) IconButtonDefaults.mediumSquareShape else IconButtonDefaults.mediumRoundShape,
-                    ),
-                modifier = Modifier.size(PlayButtonSize),
-            ) {
-                if (playerState.isBuffering && animationsEnabled) {
-                    LoadingIndicator(
-                        modifier = Modifier.size(28.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Icon(
-                        imageVector = if (playerState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = stringResource(if (playerState.isPlaying) R.string.pause else R.string.play),
-                    )
-                }
-            }
+            )
             IconButton(onClick = { EnhancedMusicPlayerManager.playNext() }) {
                 Icon(
                     imageVector = Icons.Rounded.SkipNext,
@@ -234,6 +225,49 @@ internal fun MiniPlayerContent(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+/**
+ * Play or pause with the full player's motion: the corners ease between a rounded square while
+ * playing and a circle while paused, and a press stretches the button on the same elastic spring.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MiniPlayPauseButton(
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val width by animateDpAsState(
+        targetValue = if (pressed) PlayButtonPressedWidth else PlayButtonSize,
+        animationSpec = spring(dampingRatio = 0.62f, stiffness = 720f),
+        label = "miniPlayWidth",
+    )
+    val corner by animateDpAsState(
+        targetValue = if (isPlaying) PlayButtonPlayingCorner else PlayButtonSize / 2,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 380f),
+        label = "miniPlayCorner",
+    )
+    FilledIconButton(
+        onClick = onClick,
+        modifier = Modifier.size(width = width, height = PlayButtonSize),
+        shape = RoundedCornerShape(corner),
+        interactionSource = interactionSource,
+    ) {
+        if (isBuffering) {
+            LoadingIndicator(
+                modifier = Modifier.size(28.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+        } else {
+            Icon(
+                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
+            )
         }
     }
 }
