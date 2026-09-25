@@ -3041,6 +3041,5 @@
     <string name="taste_reset_done">Reiniciar perfil</string>
     <string name="taste_trait_now">%1$s agora</string>
     <string name="recap_story_streak">Sua sequência mais longa</string>
-    <string name="recap_source_video"></string>
     <string name="recap_source_music">Música</string>
 </resources>
