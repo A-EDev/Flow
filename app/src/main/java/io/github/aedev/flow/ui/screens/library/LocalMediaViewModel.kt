@@ -76,6 +76,8 @@ class LocalMediaViewModel
             }.flowOn(Dispatchers.Default)
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SHARING_TIMEOUT_MS), LocalMediaUiState())
 
+        val isRefreshing: StateFlow<Boolean> = repository.refreshing
+
         fun refresh() = repository.refresh()
 
         fun selectKind(kind: MediaKind) = selection.update { it.copy(kind = kind, openFolderId = null) }

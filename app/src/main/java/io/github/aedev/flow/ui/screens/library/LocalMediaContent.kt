@@ -19,7 +19,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -38,6 +40,7 @@ import io.github.aedev.flow.data.localmedia.LocalMediaItem
 import io.github.aedev.flow.ui.components.library.LibrarySelection
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
+import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.animateMediaGridItem
 
@@ -89,7 +92,20 @@ internal fun LocalMediaContent(
             }
             if (showFolders) {
                 itemsIndexed(state.folders, key = { _, folder -> "folder_${folder.id}" }) { index, folder ->
-                    Box(Modifier.padding(horizontal = 16.dp)) {
+                    Box(
+                        Modifier.padding(
+                            start = 12.dp,
+                            end = 12.dp,
+                            bottom =
+                                if (index <
+                                    state.folders.lastIndex
+                                ) {
+                                    FlowSegmentedGap
+                                } else {
+                                    0.dp
+                                },
+                        ),
+                    ) {
                         LocalFolderRow(folder, index, state.folders.size, isVideos, selected = false) { actions.onOpenFolder(folder.id) }
                     }
                 }
@@ -100,7 +116,20 @@ internal fun LocalMediaContent(
                 }
                 if (state.items.isNotEmpty()) {
                     fullWidth("summary") { PlayAllRow(state.items, isVideos, rowInset(columns, showFolders), actions) }
-                } else if (state.totalCount > 0) {
+                } else if (state.totalCount == 0) {
+                    fullWidth("empty") {
+                        FlowEmptyState(
+                            title =
+                                stringResource(
+                                    R.string.local_media_empty_title,
+                                    stringResource(if (isVideos) R.string.tab_videos else R.string.tab_music),
+                                ),
+                            subtitle = stringResource(R.string.local_media_empty_body),
+                            icon = if (isVideos) Icons.Outlined.VideoLibrary else Icons.Outlined.MusicNote,
+                            modifier = Modifier.padding(top = 48.dp),
+                        )
+                    }
+                } else {
                     fullWidth("no_results") {
                         FlowEmptyState(
                             title =

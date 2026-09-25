@@ -14,16 +14,19 @@ import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DownloadsViewModel
     @Inject
@@ -42,6 +45,10 @@ class DownloadsViewModel
         private val query = MutableStateFlow("")
         private val sort = MutableStateFlow(DownloadSort.NEWEST)
 
+        // Each pull to refresh reads the lists again, so a file deleted outside Flow drops out and
+        // the free space is measured again, not only when the database changes.
+        private val refreshTick = MutableStateFlow(0)
+
         init {
             observeDownloads()
             if (!videoDownloadManager.hasScannedThisSession) rescan()
@@ -59,12 +66,12 @@ class DownloadsViewModel
 
         private fun observeDownloads() {
             viewModelScope.launch {
-                combine(musicDownloadManager.downloadedTracks, pendingDeleteIds) { tracks, pending ->
+                combine(refreshTick.flatMapLatest { musicDownloadManager.downloadedTracks }, pendingDeleteIds) { tracks, pending ->
                     tracks.filter { it.track.videoId !in pending }
                 }.collect { allTracks.value = it }
             }
             viewModelScope.launch {
-                combine(videoDownloadManager.downloadedVideos, pendingDeleteIds) { videos, pending ->
+                combine(refreshTick.flatMapLatest { videoDownloadManager.downloadedVideos }, pendingDeleteIds) { videos, pending ->
                     videos.filter { it.video.id !in pending }
                 }.collect { allVideos.value = it }
             }
@@ -88,11 +95,13 @@ class DownloadsViewModel
                 }
             }
             viewModelScope.launch {
-                combine(allVideos, allTracks) { videos, tracks -> videos.sumOf { it.fileSize } to tracks.sumOf { it.fileSize } }
-                    .collect { (videoBytes, musicBytes) ->
-                        val free = withContext(Dispatchers.IO) { freeBytes() }
-                        _uiState.update { it.copy(storage = DownloadStorage(videoBytes, musicBytes, free)) }
-                    }
+                combine(allVideos, allTracks, refreshTick) { videos, tracks, _ ->
+                    videos.sumOf { it.fileSize } to
+                        tracks.sumOf { it.fileSize }
+                }.collect { (videoBytes, musicBytes) ->
+                    val free = withContext(Dispatchers.IO) { freeBytes() }
+                    _uiState.update { it.copy(storage = DownloadStorage(videoBytes, musicBytes, free)) }
+                }
             }
             viewModelScope.launch {
                 combine(videoDownloadManager.allDownloads, pendingDeleteIds) { downloads, pending -> downloads to pending }
@@ -174,6 +183,7 @@ class DownloadsViewModel
             viewModelScope.launch {
                 _uiState.update { it.copy(isScanning = true) }
                 videoDownloadManager.scanAndRecoverDownloads()
+                refreshTick.update { it + 1 }
                 _uiState.update { it.copy(isScanning = false) }
             }
         }

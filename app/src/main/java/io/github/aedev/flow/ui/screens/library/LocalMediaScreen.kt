@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -56,12 +57,14 @@ import io.github.aedev.flow.ui.components.library.LibrarySelection
 import io.github.aedev.flow.ui.components.library.LibrarySelectionToolbar
 import io.github.aedev.flow.ui.components.library.SelectionAction
 import io.github.aedev.flow.ui.components.library.rememberLibraryPaneState
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.MediaKind
-import io.github.aedev.flow.ui.components.shared.MediaKindSelector
+import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 import io.github.aedev.flow.ui.components.shared.flowGridColumns
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.shareMediaFiles
@@ -79,7 +82,9 @@ fun LocalMediaScreen(
     viewModel: LocalMediaViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val quickActions = sharedQuickActionsViewModel()
     val musicPlayer = sharedMusicPlayerViewModel()
     val isVideos = state.selection.kind == MediaKind.Videos
@@ -226,17 +231,17 @@ fun LocalMediaScreen(
                     placeholder = stringResource(R.string.local_search_hint),
                     onClear = { viewModel.updateFilters { it.copy(query = "") } },
                     modifier = Modifier.padding(horizontal = 16.dp).widthIn(max = FlowMaxContentWidth).fillMaxWidth(),
+                    onSearch = { focusManager.clearFocus() },
+                    releaseFocusWithKeyboard = true,
                 )
-                MediaKindSelector(
-                    options = MediaKind.entries,
+                FlowConnectedToggleGroup(
+                    options = MediaKind.entries.map { FlowToggleOption(it, stringResource(it.labelRes), it.icon) },
                     selected = state.selection.kind,
                     onSelected = {
                         exitSelection()
                         viewModel.selectKind(it)
                     },
-                    label = { stringResource(it.labelRes) },
-                    icon = { it.icon },
-                    modifier = Modifier.widthIn(max = FlowMaxContentWidth),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = FlowMaxContentWidth),
                 )
                 if (access != MediaAccess.NONE) {
                     LocalMediaFilterBar(
@@ -252,7 +257,7 @@ fun LocalMediaScreen(
                     targetState = state.selection.kind,
                     animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
                     label = "local_kind",
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).dismissKeyboardOnPress { focusManager.clearFocus() },
                 ) {
                     when {
                         access == MediaAccess.NONE -> {
@@ -298,7 +303,7 @@ fun LocalMediaScreen(
                                     columns = columns,
                                     selection = selection,
                                     actions = contentActions,
-                                    isRefreshing = false,
+                                    isRefreshing = isRefreshing,
                                     onRefresh = viewModel::refresh,
                                     banner = banner,
                                 )

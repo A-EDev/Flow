@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.library
 
 import android.text.format.Formatter
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -13,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
+import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.flowRowGroupShape
 
 /** A folder on the settings row kit: its name, how many files and how much space, selected when open. */
@@ -50,7 +52,10 @@ internal fun LocalFolderList(
     isVideos: Boolean,
     onOpenFolder: (String) -> Unit,
 ) {
-    LazyColumn(contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 96.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
+    ) {
         itemsIndexed(state.folders, key = { _, folder -> folder.id }) { index, folder ->
             LocalFolderRow(
                 folder,

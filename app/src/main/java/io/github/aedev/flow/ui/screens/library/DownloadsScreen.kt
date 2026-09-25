@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -49,10 +50,12 @@ import io.github.aedev.flow.ui.components.library.MusicDownloadsList
 import io.github.aedev.flow.ui.components.library.SelectionAction
 import io.github.aedev.flow.ui.components.library.VideosDownloadsList
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.components.shared.MediaKind
-import io.github.aedev.flow.ui.components.shared.MediaKindSelector
+import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
 import io.github.aedev.flow.ui.components.shared.flowGridColumns
 
 @Composable
@@ -71,6 +74,7 @@ fun DownloadsScreen(
     var selectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val haptic = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
     val exitSelection = {
         selectionMode = false
         selectedIds = emptySet()
@@ -150,18 +154,17 @@ fun DownloadsScreen(
                     placeholder = stringResource(R.string.downloads_search_hint),
                     onClear = { viewModel.setQuery("") },
                     modifier = Modifier.padding(horizontal = 16.dp).widthIn(max = FlowMaxContentWidth).fillMaxWidth(),
+                    onSearch = { focusManager.clearFocus() },
+                    releaseFocusWithKeyboard = true,
                 )
-                MediaKindSelector(
-                    options = MediaKind.entries,
+                FlowConnectedToggleGroup(
+                    options = MediaKind.entries.map { FlowToggleOption(it, stringResource(it.labelRes), it.icon) },
                     selected = selectedKind,
                     onSelected = {
-                        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
                         exitSelection()
                         selectedKind = it
                     },
-                    label = { stringResource(it.labelRes) },
-                    icon = { it.icon },
-                    modifier = Modifier.widthIn(max = FlowMaxContentWidth),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = FlowMaxContentWidth),
                 )
                 val videoColumns = flowGridColumns(compact = 1, medium = 2, expanded = 3)
                 val musicColumns = flowGridColumns(compact = 1, medium = 1, expanded = 2)
@@ -169,7 +172,7 @@ fun DownloadsScreen(
                     targetState = selectedKind,
                     animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
                     label = "downloads_kind",
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).dismissKeyboardOnPress { focusManager.clearFocus() },
                 ) { kind ->
                     when (kind) {
                         MediaKind.Videos -> {

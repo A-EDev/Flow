@@ -15,7 +15,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flowOn
@@ -47,6 +50,11 @@ class LocalMediaRepository
         private val store = LocalMediaStore(context.contentResolver)
         private val refreshes = MutableSharedFlow<Trigger>(extraBufferCapacity = 1)
 
+        private val _refreshing = MutableStateFlow(false)
+
+        /** True from a pull to refresh until the device has been read again. */
+        val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
         @Volatile private var cached: LocalLibrary? = null
 
         @Volatile private var cachedGeneration: Long? = null
@@ -56,13 +64,19 @@ class LocalMediaRepository
             merge(mediaStoreChanges(), refreshes)
                 .onStart { emit(Trigger.OPEN) }
                 .debounce { if (it == Trigger.CHANGE) CHANGE_DEBOUNCE_MS else 0L }
-                .map { trigger -> load(force = trigger != Trigger.OPEN) }
-                .flowOn(PerformanceDispatcher.diskIO)
+                .map { trigger ->
+                    try {
+                        load(force = trigger != Trigger.OPEN)
+                    } finally {
+                        if (trigger == Trigger.REFRESH) _refreshing.value = false
+                    }
+                }.flowOn(PerformanceDispatcher.diskIO)
                 .shareIn(scope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), replay = 1)
 
         /** Reads the device again, after a permission is granted or on pull to refresh. */
         fun refresh() {
-            refreshes.tryEmit(Trigger.REFRESH)
+            _refreshing.value = true
+            if (!refreshes.tryEmit(Trigger.REFRESH)) _refreshing.value = false
         }
 
         private fun load(force: Boolean): LocalLibrary {
