@@ -24,16 +24,23 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -54,6 +61,7 @@ import io.github.aedev.flow.ui.components.shared.FlowModalSheetDefaults
 import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberFlowSheetState
 import io.github.aedev.flow.utils.shareLink
+import kotlinx.coroutines.launch
 
 private val SheetContentPadding = 24.dp
 
@@ -231,15 +239,28 @@ private fun BandSheet(
     }
 }
 
-/** Press and hold to hear the unprocessed sound; release to return to the equalizer. */
+/**
+ * Press and hold to hear the unprocessed sound; release to return to the equalizer. A tap shows the
+ * tooltip, so the button explains itself instead of seeming to do nothing.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CompareButton(onBypass: (Boolean) -> Unit) {
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
+    val tooltip = rememberTooltipState()
+    val scope = rememberCoroutineScope()
+    val label = stringResource(R.string.eq_compare)
     LaunchedEffect(pressed) { onBypass(pressed) }
     DisposableEffect(Unit) { onDispose { onBypass(false) } }
-    IconButton(onClick = {}, interactionSource = interactions) {
-        Icon(Icons.Outlined.Compare, contentDescription = stringResource(R.string.eq_compare))
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+        tooltip = { PlainTooltip { Text(text = label) } },
+        state = tooltip,
+    ) {
+        IconButton(onClick = { scope.launch { tooltip.show() } }, interactionSource = interactions) {
+            Icon(Icons.Outlined.Compare, contentDescription = label)
+        }
     }
 }
 
