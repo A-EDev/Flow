@@ -75,6 +75,7 @@ class MusicViewModel
         private val musicBrain: io.github.aedev.flow.data.recommendation.music.MusicBrainEngine,
         private val playerPreferences: PlayerPreferences,
         private val musicGraph: MusicGraphStore,
+        private val dailyMixStore: io.github.aedev.flow.data.recommendation.music.DailyMixStore,
     ) : ViewModel() {
         companion object {
             /** Route prefix for synthesized Daily Mix playlist pages. */
@@ -438,6 +439,7 @@ class MusicViewModel
                 val sections = buildDailyMixSections()
                 if (sections.isNotEmpty()) {
                     _uiState.update { it.copy(dailyMixSections = sections) }
+                    dailyMixStore.publish(sections)
                 }
             } catch (e: Exception) {
                 Log.e("MusicViewModel", "Error building daily mixes", e)
@@ -481,45 +483,6 @@ class MusicViewModel
                 )
             }
             return sections
-        }
-
-        /**
-         * A Daily Mix as a full playlist page (play all, shuffle, save to library).
-         * Mixes are deterministic per brain state, so a fresh ViewModel (own nav
-         * destination) rebuilds the same mix when the section isn't in memory.
-         */
-        fun loadDailyMixPage(mixId: String) {
-            val index = mixId.removePrefix(DAILY_MIX_ID_PREFIX).toIntOrNull() ?: return
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.update { it.copy(isPlaylistLoading = true, playlistDetails = null) }
-                val section =
-                    _uiState.value.dailyMixSections.getOrNull(index)
-                        ?: runCatching { buildDailyMixSections() }
-                            .onFailure { Log.e("MusicViewModel", "Error rebuilding daily mix", it) }
-                            .getOrDefault(emptyList())
-                            .getOrNull(index)
-                if (section == null) {
-                    _uiState.update { it.copy(isPlaylistLoading = false) }
-                    return@launch
-                }
-                val details =
-                    PlaylistDetails(
-                        id = mixId,
-                        title = section.title,
-                        thumbnailUrl = section.thumbnailUrl ?: section.tracks.first().thumbnailUrl,
-                        author = context.getString(R.string.section_daily_mix_label),
-                        trackCount = section.tracks.size,
-                        description = context.getString(R.string.daily_mix_page_description),
-                        tracks = section.tracks,
-                    )
-                _uiState.update {
-                    it.copy(
-                        isPlaylistLoading = false,
-                        playlistDetails = details,
-                        selectedPlaylist = details,
-                    )
-                }
-            }
         }
 
         /**
@@ -1191,35 +1154,6 @@ class MusicViewModel
             )
         }
 
-        fun loadMorePlaylistTracks() {
-            val currentPlaylist = _uiState.value.selectedPlaylist ?: _uiState.value.playlistDetails ?: return
-            val continuation = currentPlaylist.continuation ?: return
-            if (_uiState.value.isMoreLoading) return
-
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.update { it.copy(isMoreLoading = true) }
-                try {
-                    val (newTracks, nextContinuation) = YouTubeMusicService.fetchPlaylistContinuation(currentPlaylist.id, continuation)
-
-                    _uiState.update { state ->
-                        val updatedPlaylist =
-                            currentPlaylist.copy(
-                                tracks = currentPlaylist.tracks + newTracks,
-                                continuation = nextContinuation,
-                                trackCount = currentPlaylist.trackCount + newTracks.size,
-                            )
-                        state.copy(
-                            selectedPlaylist = updatedPlaylist,
-                            playlistDetails = updatedPlaylist,
-                            isMoreLoading = false,
-                        )
-                    }
-                } catch (e: Exception) {
-                    _uiState.update { it.copy(isMoreLoading = false) }
-                }
-            }
-        }
-
         fun loadArtistItems(
             browseId: String,
             params: String?,
@@ -1490,7 +1424,7 @@ class MusicViewModel
                                 title = video.title,
                                 artist = video.channelName,
                                 thumbnailUrl = video.thumbnailUrl,
-                                duration = (video.duration / 1000).toInt(),
+                                duration = video.duration,
                                 sourceUrl = "", // Not needed for local playback usually
                             )
                         }
@@ -1541,41 +1475,6 @@ class MusicViewModel
                             isPlaylistLoading = false,
                             error = context.getString(R.string.error_failed_to_load_playlist),
                         )
-                }
-            }
-        }
-
-        fun loadCommunityPlaylist(genre: String) {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.value = _uiState.value.copy(isPlaylistLoading = true, playlistDetails = null)
-                try {
-                    var tracks = _uiState.value.genreTracks[genre]
-
-                    if (tracks == null || tracks.isEmpty()) {
-                        // Fetch if not in state (e.g. new ViewModel instance)
-                        tracks = withTimeoutOrNull(10_000L) {
-                            YouTubeMusicService.fetchMusicByGenre(genre, 30)
-                        } ?: emptyList()
-                    }
-
-                    val playlistDetails =
-                        PlaylistDetails(
-                            id = "community_$genre",
-                            title = genre,
-                            thumbnailUrl = tracks.firstOrNull()?.thumbnailUrl ?: "",
-                            author = context.getString(R.string.playlist_author_community),
-                            trackCount = tracks.size,
-                            description = context.getString(R.string.playlist_description_community, genre),
-                            tracks = tracks,
-                        )
-                    _uiState.value =
-                        _uiState.value.copy(
-                            isPlaylistLoading = false,
-                            playlistDetails = playlistDetails,
-                        )
-                } catch (e: Exception) {
-                    Log.e("MusicViewModel", "Error loading community playlist", e)
-                    _uiState.value = _uiState.value.copy(isPlaylistLoading = false)
                 }
             }
         }

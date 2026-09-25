@@ -88,6 +88,24 @@ class VideoPlayerViewModelEntryPointsTest {
         }
 
     @Test
+    fun `a restored video that was playing in a queue resumes inside that queue`() =
+        runTest {
+            val entity = historyEntity("hist_1")
+            coEvery { harness.viewHistory.getLatestUnfinishedVideo() } returns entity
+            val queue = listOf(video("a"), entity.toVideo(), video("b"))
+            coEvery { harness.videoQueueStore.load() } returns
+                io.github.aedev.flow.data.video
+                    .SavedVideoQueue(queue, 1, "Weekend builds")
+            val viewModel = newViewModel()
+            advanceUntilIdle()
+
+            viewModel.resumeRestoredSession(stayMini = false)
+            advanceUntilIdle()
+
+            verify { harness.playerManager.setQueue(queue, 1, "Weekend builds", null) }
+        }
+
+    @Test
     fun `an unfinished history entry becomes a restored session that resumeRestoredSession turns into a play`() =
         runTest {
             val entity = historyEntity("hist_1")
@@ -162,6 +180,22 @@ class VideoPlayerViewModelEntryPointsTest {
             coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
             coVerify(exactly = 1) { harness.viewHistory.getSavedPosition("local_1") }
             coVerify(exactly = 0) { harness.viewHistory.touchHistoryEntry(any(), any(), any(), any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `syncing with a local video that is already playing keeps its state`() =
+        runTest {
+            val viewModel = newViewModel()
+            val video = video("local_1")
+            viewModel.playLocalVideo(video, "content://media/external/video/1")
+            advanceUntilIdle()
+
+            viewModel.syncWithCurrentPlayerVideo(video)
+
+            val synced = viewModel.uiState.value
+            assertThat(synced.isLoading).isFalse()
+            assertThat(synced.localFilePath).isEqualTo("content://media/external/video/1")
+            assertThat(synced.localFileVideoId).isEqualTo("local_1")
         }
 
     @Test

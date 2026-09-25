@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -72,11 +73,16 @@ internal fun VideoActionRow(
     isDownloaded: Boolean = false,
     onNoteClick: (() -> Unit)? = null,
     hasNote: Boolean = false,
+    isDeviceFile: Boolean = false,
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(ActionSpacing),
         modifier = Modifier.fillMaxWidth(),
     ) {
+        if (isDeviceFile) {
+            deviceFileActions(onBackgroundPlayClick, onShareClick)
+            return@LazyRow
+        }
         item {
             SegmentedLikeDislikeButton(
                 likeState = likeState,
@@ -149,6 +155,27 @@ internal fun VideoActionRow(
                 onClick = onCopyLinkAtTimeClick,
             )
         }
+    }
+}
+
+/** A file on the device has no likes, link or download; it can play in the background and be shared. */
+private fun LazyListScope.deviceFileActions(
+    onBackgroundPlayClick: () -> Unit,
+    onShareClick: () -> Unit,
+) {
+    item {
+        ActionButton(
+            icon = Icons.Outlined.Headphones,
+            label = stringResource(R.string.player_action_background),
+            onClick = onBackgroundPlayClick,
+        )
+    }
+    item {
+        ActionButton(
+            icon = Icons.Outlined.Share,
+            label = stringResource(R.string.share),
+            onClick = onShareClick,
+        )
     }
 }
 

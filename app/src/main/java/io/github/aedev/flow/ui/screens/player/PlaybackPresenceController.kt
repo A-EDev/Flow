@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.video.SavedVideoQueue
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -30,7 +31,12 @@ internal class PlaybackPresenceController(
     private val scope: CoroutineScope,
     private val ioDispatcher: CoroutineDispatcher,
     private val resumePlayback: (Video) -> Unit,
+    private val savedQueue: suspend () -> SavedVideoQueue?,
+    private val resumeQueue: (videos: List<Video>, index: Int, title: String?) -> Unit,
 ) {
+    // The queue the restored video was playing in, so resuming it carries on with the rest.
+    private var restoredQueue: SavedVideoQueue? = null
+
     /** Brings the last unfinished video back as a mini player, unless music already owns it. */
     fun restoreLastWatchedSession() {
         scope.launch {
@@ -39,6 +45,8 @@ internal class PlaybackPresenceController(
             val lastVideo = withContext(ioDispatcher) { viewHistory.getLatestUnfinishedVideo() } ?: return@launch
             if (uiState.value.cachedVideo != null) return@launch
             uiState.update { it.copy(cachedVideo = lastVideo.toVideo(), isRestoredSession = true) }
+            restoredQueue =
+                withContext(ioDispatcher) { savedQueue() }?.takeIf { it.videos.getOrNull(it.index)?.id == lastVideo.videoId }
         }
     }
 
@@ -66,7 +74,9 @@ internal class PlaybackPresenceController(
                 isBackgroundPlaybackMode = false,
             )
         }
-        resumePlayback(video)
+        val queue = restoredQueue
+        restoredQueue = null
+        if (queue != null) resumeQueue(queue.videos, queue.index, queue.title) else resumePlayback(video)
     }
 
     fun dismissContinueWatching() {

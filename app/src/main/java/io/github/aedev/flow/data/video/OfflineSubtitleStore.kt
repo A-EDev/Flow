@@ -48,6 +48,7 @@ class OfflineSubtitleStore
                     val streams = resolveCaptionTracks(videoId)
                     if (streams.isEmpty()) {
                         Log.d(TAG, "No caption tracks to store for $videoId")
+                        markResolvedWithoutTracks(videoId)
                         return@withContext 0
                     }
                     save(videoId, streams)
@@ -94,6 +95,15 @@ class OfflineSubtitleStore
                 Log.d(TAG, "Stored ${stored.length()} offline caption track(s) for $videoId")
                 stored.length()
             }
+
+        /** Whether captions were already looked up for [videoId], including a lookup that found none. */
+        suspend fun isResolved(videoId: String): Boolean = withContext(Dispatchers.IO) { File(videoDir(videoId), INDEX_FILE).isFile }
+
+        private fun markResolvedWithoutTracks(videoId: String) {
+            val dir = videoDir(videoId)
+            if (!dir.exists() && !dir.mkdirs()) return
+            File(dir, INDEX_FILE).writeText(JSONObject().put(KEY_TRACKS, JSONArray()).toString())
+        }
 
         /** Caption tracks previously stored for [videoId], as file-backed streams. */
         suspend fun load(videoId: String): List<SubtitlesStream> =

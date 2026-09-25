@@ -1,11 +1,14 @@
 package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +38,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,7 +66,9 @@ fun FlowSearchField(
     onFieldFocused: () -> Unit = {},
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
+    releaseFocusWithKeyboard: Boolean = false,
 ) {
+    if (releaseFocusWithKeyboard) ReleaseFocusWhenKeyboardCloses()
     Surface(
         modifier = modifier.height(PillHeight),
         shape = MaterialTheme.shapes.extraLarge,
@@ -145,6 +151,7 @@ fun FlowSearchField(
     onFieldFocused: () -> Unit = {},
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
+    releaseFocusWithKeyboard: Boolean = false,
 ) {
     val state = remember { TextFieldState(initialText = query) }
     val currentOnQueryChange by rememberUpdatedState(onQueryChange)
@@ -171,7 +178,20 @@ fun FlowSearchField(
         onFieldFocused = onFieldFocused,
         leadingIcon = leadingIcon,
         trailingContent = trailingContent,
+        releaseFocusWithKeyboard = releaseFocusWithKeyboard,
     )
+}
+
+/**
+ * For a field that filters a list in place: closing the keyboard (back, or the search key) ends
+ * editing, so the cursor doesn't stay blinking in a field nobody is typing in.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReleaseFocusWhenKeyboardCloses() {
+    val imeVisible = WindowInsets.isImeVisible
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(imeVisible) { if (!imeVisible) focusManager.clearFocus() }
 }
 
 private val PillHeight = 40.dp

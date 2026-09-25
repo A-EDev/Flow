@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.screens.playlists
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,16 +26,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.PlaylistInfo
+import io.github.aedev.flow.data.playlist.PlaylistImport
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.MusicPlaylistLibraryCard
@@ -41,16 +46,23 @@ import io.github.aedev.flow.ui.components.library.PlaylistCreationFabMenu
 import io.github.aedev.flow.ui.components.library.PlaylistCreationTarget
 import io.github.aedev.flow.ui.components.library.PlaylistLibraryFilterRow
 import io.github.aedev.flow.ui.components.library.PlaylistOwnershipFilter
+import io.github.aedev.flow.ui.components.library.message
 import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
 import io.github.aedev.flow.ui.components.shared.DeleteCollectionDialog
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.MediaKind
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel
+import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
+import kotlinx.coroutines.launch
 
 private val GridCellMinWidth = 160.dp
 private val GridSpacing = 16.dp
 private val GridContentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 96.dp)
 private val FabMenuPadding = 16.dp
+
+// Some file pickers label a .json file as plain text or a generic binary.
+private val PlaylistFileTypes = arrayOf(PLAYLIST_FILE_MIME_TYPE, "text/plain", "application/octet-stream")
 
 @Composable
 fun PlaylistsScreen(
@@ -86,6 +98,32 @@ fun PlaylistsScreen(
         when (contentKind) {
             MediaKind.Videos -> videoState.isLoading
             MediaKind.Music -> musicState.isLoading
+        }
+
+    val context = LocalContext.current
+    val quickActions = sharedQuickActionsViewModel()
+    val scope = rememberCoroutineScope()
+    val importLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                val result = viewModel.importPlaylist(uri, context.getString(R.string.imported_playlist_default_name))
+                quickActions.announce(result.message(context))
+                if (result is PlaylistImport.Imported) {
+                    val info =
+                        PlaylistInfo(
+                            id = result.playlistId,
+                            name = result.name,
+                            description = "",
+                            videoCount = result.videoCount,
+                            thumbnailUrl = "",
+                            isPrivate = true,
+                            createdAt = System.currentTimeMillis(),
+                        )
+                    contentKind = if (result.isMusic) MediaKind.Music else MediaKind.Videos
+                    if (result.isMusic) onMusicPlaylistClick(info) else onVideoPlaylistClick(info)
+                }
+            }
         }
 
     LaunchedEffect(contentKind) {
@@ -207,6 +245,7 @@ fun PlaylistsScreen(
             PlaylistCreationFabMenu(
                 onCreateVideo = { creationTarget = PlaylistCreationTarget.Video },
                 onCreateMusic = { creationTarget = PlaylistCreationTarget.Music },
+                onImport = { importLauncher.launch(PlaylistFileTypes) },
                 modifier =
                     Modifier
                         .align(Alignment.BottomEnd)

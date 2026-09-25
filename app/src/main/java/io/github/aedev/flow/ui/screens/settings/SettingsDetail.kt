@@ -17,6 +17,7 @@ import io.github.aedev.flow.ui.screens.settings.diagnostics.DiagnosticsScreen
 import io.github.aedev.flow.ui.screens.settings.downloads.DownloadSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.history.HistorySettingsScreen
 import io.github.aedev.flow.ui.screens.settings.integrations.IntegrationsScreen
+import io.github.aedev.flow.ui.screens.settings.localmedia.LocalMediaSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.network.NetworkSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.notifications.NotificationSettingsScreen
 import io.github.aedev.flow.ui.screens.settings.playback.BufferSettingsScreen
@@ -124,7 +125,11 @@ internal fun SettingsDetail(
         }
 
         SettingsDestination.DOWNLOADS -> {
-            DownloadSettingsScreen(onBack = onBack, highlight = target.highlight)
+            DownloadSettingsScreen(onBack = onBack, highlight = target.highlight, onNavigate = onNavigate)
+        }
+
+        SettingsDestination.LOCAL_MEDIA -> {
+            LocalMediaSettingsScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.NOTIFICATIONS -> {

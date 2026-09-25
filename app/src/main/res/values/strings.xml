@@ -2977,6 +2977,107 @@
     <string name="error_all_stream_sources_failed">Unable to play this video. All stream sources returned errors.</string>
     <string name="error_remote_playback">Remote playback error. Please try again.</string>
     <string name="error_playback_permission_denied">Playback permission denied. Please try again.</string>
+    <string name="error_local_file_missing">This file is no longer on your device</string>
+    <string name="local_sort_date_added">Date added</string>
+    <string name="local_sort_name">Name</string>
+    <string name="local_sort_length">Length</string>
+    <string name="local_sort_size">Size</string>
+    <string name="local_sort_recently_played">Recently played</string>
+    <string name="local_filter_length_any">Any length</string>
+    <string name="local_filter_length_short">Under 4 min</string>
+    <string name="local_filter_length_medium">4 to 20 min</string>
+    <string name="local_filter_length_long">Over 20 min</string>
+    <string name="local_filter_quality_any">Any quality</string>
+    <string name="local_filter_quality_sd">SD</string>
+    <string name="local_filter_quality_hd">HD</string>
+    <string name="local_filter_quality_full_hd">Full HD</string>
+    <string name="local_filter_quality_4k">4K</string>
+    <string name="local_filter_portrait">Portrait</string>
+    <string name="local_filter_unwatched">Unwatched</string>
+    <string name="local_view_all">All</string>
+    <string name="local_view_folders">Folders</string>
+    <string name="local_search_hint">Search videos and music</string>
+    <string name="local_continue_watching">Continue watching</string>
+    <string name="local_new_badge">New</string>
+    <string name="local_grid_view">Show as grid</string>
+    <string name="local_list_view">Show as list</string>
+    <plurals name="local_hidden_count">
+        <item quantity="one">%1$d file hidden</item>
+        <item quantity="other">%1$d files hidden</item>
+    </plurals>
+    <string name="local_manage">Manage</string>
+    <string name="local_partial_access_title">Flow can see only the videos you picked</string>
+    <string name="local_partial_access_body">Allow access to all videos to see the rest.</string>
+    <string name="local_open_settings">Open settings</string>
+    <string name="local_permission_denied_body">Allow access to videos and music in the app settings to see them here.</string>
+    <string name="local_load_failed">Couldn\'t read the files on this device</string>
+    <plurals name="local_videos_count">
+        <item quantity="one">%1$d video</item>
+        <item quantity="other">%1$d videos</item>
+    </plurals>
+    <plurals name="local_songs_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
+    <string name="local_menu_hide_folder">Hide this folder</string>
+    <string name="local_menu_delete_trash">Moves it to the trash for 30 days</string>
+    <string name="local_menu_delete_permanent">Deletes it from this device</string>
+    <plurals name="local_files_trashed">
+        <item quantity="one">Moved %1$d file to the trash</item>
+        <item quantity="other">Moved %1$d files to the trash</item>
+    </plurals>
+    <plurals name="local_files_deleted">
+        <item quantity="one">Deleted %1$d file</item>
+        <item quantity="other">Deleted %1$d files</item>
+    </plurals>
+    <string name="local_delete_failed">Couldn\'t delete that file</string>
+    <string name="local_folder_hidden">Hid %1$s</string>
+    <string name="local_detail_folder">Folder</string>
+    <string name="local_detail_resolution">Resolution</string>
+    <string name="local_detail_frame_rate">Frame rate</string>
+    <string name="local_detail_added">Added</string>
+    <string name="local_detail_fps">%1$s fps</string>
+    <string name="local_detail_resolution_value">%1$d × %2$d</string>
+    <string name="settings_local_media_title">Local media</string>
+    <string name="settings_local_media_summary">Hidden folders and short audio</string>
+    <string name="settings_local_media_keywords">local, device, files, offline, hidden, folders, voice notes, recordings</string>
+    <string name="local_setting_hide_app_audio">Hide voice notes and recordings</string>
+    <string name="local_setting_hide_app_audio_desc">Chat app, recorder and ringtone folders</string>
+    <string name="local_setting_min_audio">Hide audio shorter than</string>
+    <string name="local_setting_min_audio_off">Show every length</string>
+    <plurals name="local_setting_seconds">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
+    <string name="local_setting_hidden_folders">Hidden folders</string>
+    <string name="local_setting_no_hidden_folders">No hidden folders</string>
+    <string name="local_setting_show_folder">Show</string>
+    <string name="local_section_library">Library</string>
+    <string name="downloads_search_hint">Search downloads</string>
+    <plurals name="delete_downloads_dialog_text">
+        <item quantity="one">Delete %1$d download from this device?</item>
+        <item quantity="other">Delete %1$d downloads from this device?</item>
+    </plurals>
+    <string name="downloads_sort_newest">Newest</string>
+    <string name="downloads_sort_oldest">Oldest</string>
+    <string name="downloads_sort_largest">Largest</string>
+    <string name="downloads_sort_title">Title</string>
+    <string name="downloads_sort_channel">Channel</string>
+    <string name="downloads_storage_used">%1$s in Flow</string>
+    <string name="downloads_storage_free">%1$s free</string>
+    <string name="downloads_storage_videos">Videos %1$s</string>
+    <string name="downloads_storage_music">Music %1$s</string>
+    <string name="downloads_section_in_progress">In progress</string>
+    <string name="downloads_section_downloaded">Downloaded</string>
+    <string name="download_bytes_progress">%1$s of %2$s</string>
+    <string name="downloads_no_results">No downloads match %1$s</string>
+    <string name="playlist_type_builtin">Built-in playlist</string>
+    <string name="playlist_type_yours">Your playlist</string>
+    <string name="playlist_type_saved">Saved from YouTube</string>
+    <plurals name="playlist_videos_removed">
+        <item quantity="one">Removed %1$d video</item>
+        <item quantity="other">Removed %1$d videos</item>
+    </plurals>
     <string name="error_insecure_stream_blocked">Insecure stream blocked by device policy.</string>
     <string name="error_expiring_stream_urls">Unable to play - stream URLs keep expiring.</string>
     <string name="error_playback_device">Playback device error: %1$s</string>
@@ -3512,4 +3613,81 @@
     <string name="recap_summary_top_channel">Top channel</string>
     <string name="recap_summary_top_artist">Top artist</string>
     <string name="recap_summary_top_topic">Top topic</string>
+    <!-- Playlist search, file export and import -->
+    <string name="search_in_playlist">Search in playlist</string>
+    <string name="playlist_search_no_results">No videos match “%1$s”</string>
+    <string name="export_playlist_action">Save as file</string>
+    <string name="import_playlist_action">Import from file</string>
+    <string name="imported_playlist_default_name">Imported playlist</string>
+    <string name="playlist_exported">Playlist saved</string>
+    <string name="playlist_export_failed">Couldn\'t save the playlist</string>
+    <string name="playlist_share_failed">Couldn\'t share the playlist</string>
+    <string name="playlist_import_not_a_playlist">This file isn\'t a Flow playlist</string>
+    <string name="playlist_import_too_new">This playlist needs a newer version of Flow</string>
+    <string name="playlist_import_empty">This playlist has no videos to import</string>
+    <string name="playlist_import_unreadable">Couldn\'t read this file</string>
+    <plurals name="playlist_imported">
+        <item quantity="one">Imported %1$s, %2$d video</item>
+        <item quantity="other">Imported %1$s, %2$d videos</item>
+    </plurals>
+
+    <!-- Watch later: remove watched videos (#1060) -->
+    <string name="content_settings_remove_watched_watch_later_title">Remove watched videos</string>
+    <string name="content_settings_remove_watched_watch_later_subtitle">Take videos out of Watch later once you finish them</string>
+    <plurals name="watch_later_watched_removed">
+        <item quantity="one">Removed %d watched video</item>
+        <item quantity="other">Removed %d watched videos</item>
+    </plurals>
+    <!-- Liked videos and Liked music built-in playlists -->
+    <string name="liked_videos_playlist">Liked videos</string>
+    <string name="liked_music_playlist">Liked music</string>
+    <string name="liked_videos_empty_title">No liked videos yet</string>
+    <string name="liked_videos_empty_body">Videos you like show up here</string>
+    <string name="remove_selected_likes_text">They will be unliked.</string>
+    <string name="removed_from_liked_music">Removed from Liked music</string>
+    <string name="liked_video_template">Liked %1$s</string>
+    <string name="liked_music_empty_title">No liked songs yet</string>
+    <string name="liked_music_empty_body">Songs you like in the music player show up here</string>
+    <plurals name="liked_videos_removed">
+        <item quantity="one">Unliked %d video</item>
+        <item quantity="other">Unliked %d videos</item>
+    </plurals>
+    <!-- Music album and playlist pages -->
+    <string name="music_kind_album">Album</string>
+    <string name="music_kind_saved">Saved to your library</string>
+    <string name="music_playlist_empty_title">This playlist is empty</string>
+    <string name="music_playlist_empty_body">Add songs from the menu at the top</string>
+    <plurals name="songs_removed_from_playlist">
+        <item quantity="one">Removed %d song</item>
+        <item quantity="other">Removed %d songs</item>
+    </plurals>
+    <plurals name="songs_unliked">
+        <item quantity="one">Unliked %d song</item>
+        <item quantity="other">Unliked %d songs</item>
+    </plurals>
+    <string name="music_sort_collection">Playlist order</string>
+    <string name="music_sort_album_order">Album order</string>
+    <string name="music_sort_recently_liked">Recently liked</string>
+    <string name="music_sort_title">Title</string>
+    <string name="music_sort_artist">Artist</string>
+    <string name="music_sort_album">Album</string>
+    <string name="music_sort_longest">Longest first</string>
+    <string name="music_sort_shortest">Shortest first</string>
+    <string name="music_collection_no_matches">No songs match “%1$s”</string>
+    <string name="select_songs">Select songs</string>
+    <plurals name="music_playlist_imported">
+        <item quantity="one">Imported %1$s, %2$d song</item>
+        <item quantity="other">Imported %1$s, %2$d songs</item>
+    </plurals>
+    <plurals name="songs_downloading">
+        <item quantity="one">Downloading %d song</item>
+        <item quantity="other">Downloading %d songs</item>
+    </plurals>
+    <plurals name="songs_download_queued">
+        <item quantity="one">%d song queued for download</item>
+        <item quantity="other">%d songs queued for download</item>
+    </plurals>
+    <string name="songs_download_nothing_new">Everything here is already downloaded or unavailable</string>
+    <string name="save_as_playlist">Save as playlist</string>
+    <string name="daily_mix_saved_as_playlist">Saved %1$s to your playlists</string>
 </resources>

@@ -74,7 +74,11 @@ private fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
     val contentId = this["contentId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
     val metadata = this["metadata"].objectOrNull()?.get("lockupMetadataViewModel").objectOrNull()
     val title = metadata?.get("title").youtubeText()?.takeIf(String::isNotBlank) ?: return null
-    val parts = metadata.metadataParts()
+    // Outside a channel's own tabs (a playlist, for one) each lockup names its channel as the
+    // first metadata part, linked to it; that part is the byline, not an upload date.
+    val byline = metadata.lockupByline()
+    val itemOwner = byline?.let { owner.copy(id = it.id, name = it.name, avatarUrl = "") } ?: owner
+    val parts = metadata.metadataParts().filterNot { it == byline?.name }
     val badges = lockupBadges()
     val membersOnly = metadata.membersOnlyBadge()
 
@@ -107,13 +111,13 @@ private fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
 
         "LOCKUP_CONTENT_TYPE_SHORTS" -> {
             FeedItem.ShortItem(
-                lockupVideo(contentId, title, parts, badges, owner).copy(isShort = true, duration = 0),
+                lockupVideo(contentId, title, parts, badges, itemOwner).copy(isShort = true, duration = 0),
             )
         }
 
         else -> {
             FeedItem.VideoItem(
-                lockupVideo(contentId, title, parts, badges, owner).copy(membersOnlyText = membersOnly),
+                lockupVideo(contentId, title, parts, badges, itemOwner).copy(membersOnlyText = membersOnly),
             )
         }
     }
@@ -454,6 +458,43 @@ private fun JsonObject?.membersOnlyBadge(): String? {
     }
     return label
 }
+
+/** The first metadata part that links to a channel, as the owner it names. */
+private fun JsonObject?.lockupByline(): FeedItemOwner? =
+    this
+        ?.get("metadata")
+        .objectOrNull()
+        ?.get("contentMetadataViewModel")
+        .objectOrNull()
+        ?.get("metadataRows")
+        .arrayOrNull()
+        .orEmpty()
+        .asSequence()
+        .flatMap { row ->
+            row
+                .objectOrNull()
+                ?.get("metadataParts")
+                .arrayOrNull()
+                .orEmpty()
+        }.mapNotNull { part ->
+            val text = part.objectOrNull()?.get("text").objectOrNull() ?: return@mapNotNull null
+            val name = text.youtubeText()?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+            val channelId =
+                text["commandRuns"]
+                    .arrayOrNull()
+                    ?.firstOrNull()
+                    .objectOrNull()
+                    ?.get("onTap")
+                    .objectOrNull()
+                    ?.get("innertubeCommand")
+                    .objectOrNull()
+                    ?.get("browseEndpoint")
+                    .objectOrNull()
+                    ?.get("browseId")
+                    .stringOrNull()
+                    ?.takeIf { it.startsWith("UC") } ?: return@mapNotNull null
+            FeedItemOwner(id = channelId, name = name)
+        }.firstOrNull()
 
 private fun JsonObject?.metadataParts(): List<String> =
     this

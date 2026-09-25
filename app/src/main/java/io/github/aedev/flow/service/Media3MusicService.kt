@@ -39,6 +39,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.download.DownloadUtil
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.ParametricEQ
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -93,7 +94,6 @@ class Media3MusicService : MediaLibraryService() {
         private const val RADIO_MIN_UPCOMING = 3
         private const val RADIO_APPEND_BATCH = 10
         private const val RADIO_POOL_LOW_WATER = 15
-        private const val LOCAL_MEDIA_PREFIX = "local_"
         private const val MUSIC_URI_SCHEME = "music"
 
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
@@ -259,7 +259,7 @@ class Media3MusicService : MediaLibraryService() {
         val mediaId = player.currentMediaItem?.mediaId
         val gainDb =
             mediaId
-                ?.takeIf { loudnessNormalizationEnabled && !it.startsWith(LOCAL_MEDIA_PREFIX) }
+                ?.takeIf { loudnessNormalizationEnabled && !LocalMediaIds.isLocal(it) }
                 ?.let(MusicPlayerUtils::cachedLoudnessGainDb)
         player.volume = if (gainDb == null) 1f else 10.0.pow(gainDb / 20.0).toFloat()
     }
@@ -370,7 +370,7 @@ class Media3MusicService : MediaLibraryService() {
                         val title = item.mediaMetadata.title?.toString()
                         val artist = item.mediaMetadata.artist?.toString()
 
-                        if (!videoId.isNullOrBlank() && !videoId.startsWith(LOCAL_MEDIA_PREFIX)) {
+                        if (!videoId.isNullOrBlank() && !LocalMediaIds.isLocal(videoId)) {
                             // Desktop radio semantics: only a genuinely NEW queue seeds a
                             // fresh radio. In-app skips also arrive as PLAYLIST_CHANGED
                             // (playTrack rebuilds the playlist), so the discriminator is
@@ -1246,7 +1246,7 @@ class Media3MusicService : MediaLibraryService() {
         if (manager.shuffleEnabled.value && !ended) return
         if (manager.currentTrack.value
                 ?.videoId
-                ?.startsWith(LOCAL_MEDIA_PREFIX) == true
+                .let(LocalMediaIds::isLocal)
         ) {
             return
         }
@@ -1294,7 +1294,7 @@ class Media3MusicService : MediaLibraryService() {
                             val tailId =
                                 (manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull())
                                     ?.videoId
-                                    ?.takeUnless { it.startsWith(LOCAL_MEDIA_PREFIX) }
+                                    ?.takeUnless(LocalMediaIds::isLocal)
                                     ?: return@launch
                             YouTube.next(WatchEndpoint(playlistId = "RDAMVM$tailId")).getOrNull()
                         }
@@ -1554,7 +1554,7 @@ class Media3MusicService : MediaLibraryService() {
         return MediaItem
             .Builder()
             .setMediaId(videoId)
-            .setUri("music://$videoId")
+            .setUri(LocalMediaIds.audioUri(videoId) ?: Uri.parse("music://$videoId"))
             .setMediaMetadata(
                 MediaMetadata
                     .Builder()

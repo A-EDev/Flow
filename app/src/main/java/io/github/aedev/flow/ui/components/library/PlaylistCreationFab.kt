@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
@@ -35,6 +36,7 @@ internal enum class PlaylistCreationTarget {
 internal fun PlaylistCreationFabMenu(
     onCreateVideo: () -> Unit,
     onCreateMusic: () -> Unit,
+    onImport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -81,6 +83,14 @@ internal fun PlaylistCreationFabMenu(
             },
             icon = { Icon(Icons.Default.MusicNote, contentDescription = null) },
             text = { Text(stringResource(R.string.tab_music)) },
+        )
+        FloatingActionButtonMenuItem(
+            onClick = {
+                expanded = false
+                onImport()
+            },
+            icon = { Icon(Icons.Outlined.FileOpen, contentDescription = null) },
+            text = { Text(stringResource(R.string.import_playlist_action)) },
         )
     }
 }

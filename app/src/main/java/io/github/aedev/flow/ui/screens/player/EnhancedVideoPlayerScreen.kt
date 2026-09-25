@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -70,7 +71,7 @@ internal fun EnhancedVideoPlayerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val commentsUiState = rememberPlayerCommentsUiState(viewModel)
 
-    val isLocalMedia = video.id.startsWith("local_")
+    val isLocalMedia = LocalMediaIds.isLocal(video.id)
     val showRelatedVideos = prefs.showRelatedVideos && !isLocalMedia
     val commentsEnabled = prefs.commentsEnabled && !isLocalMedia
     val showCommentsPreview = prefs.commentsPreviewEnabled

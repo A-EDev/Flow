@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.shorts.ShortsContentFilter
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.RecapReadiness
@@ -33,7 +34,8 @@ internal data class LibraryCounts(
     val history: Int,
     val playlists: Int,
     val watchLater: Int,
-    val likes: Int,
+    val likedVideos: Int,
+    val likedMusic: Int,
     val downloadedVideos: Int,
     val downloadedTracks: Int,
     val savedShorts: Int,
@@ -43,7 +45,8 @@ internal data class LibraryCounts(
             history == 0 &&
                 playlists == 0 &&
                 watchLater == 0 &&
-                likes == 0 &&
+                likedVideos == 0 &&
+                likedMusic == 0 &&
                 downloadedVideos == 0 &&
                 downloadedTracks == 0 &&
                 savedShorts == 0
@@ -106,10 +109,26 @@ class LibraryViewModel
                 .map { entries -> entries.map { it.toLibraryMediaItem() } }
                 .shared()
 
-        internal val likes =
+        internal val likedVideos =
             allLikes
                 .map { liked ->
-                    liked?.take(LIBRARY_SHELF_ITEM_LIMIT)?.map { it.toLibraryMediaItem() }
+                    liked
+                        ?.asSequence()
+                        ?.filterNot { it.isMusic }
+                        ?.take(LIBRARY_SHELF_ITEM_LIMIT)
+                        ?.map { it.toVideo() }
+                        ?.toList()
+                }.shared()
+
+        internal val likedMusic =
+            allLikes
+                .map { liked ->
+                    liked
+                        ?.asSequence()
+                        ?.filter { it.isMusic }
+                        ?.take(LIBRARY_SHELF_ITEM_LIMIT)
+                        ?.map { it.toLibraryMediaItem() }
+                        ?.toList()
                 }.shared()
 
         internal val playlists = allVideoPlaylists.map { it?.take(LIBRARY_SHELF_ITEM_LIMIT) }.shared()
@@ -164,7 +183,8 @@ class LibraryViewModel
                         history = historyCount,
                         playlists = playlistCount,
                         watchLater = saved.first,
-                        likes = liked.size,
+                        likedVideos = liked.count { !it.isMusic },
+                        likedMusic = liked.count { it.isMusic },
                         downloadedVideos = downloaded.first.size,
                         downloadedTracks = downloaded.second.size,
                         savedShorts = saved.second,

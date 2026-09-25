@@ -29,6 +29,8 @@
     <uses-permission
         android:name="android.permission.READ_MEDIA_AUDIO"
         android:minSdkVersion="33" />
+    <!-- Android 14+: lets the local library work when the viewer picks "Select photos and videos" -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- Optional: allows saving downloads to public Movies/Music folders (survives app uninstall) -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Required for DLNA/UPnP SSDP device discovery (FOSS casting, no Google services) -->
@@ -164,6 +166,14 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- A playlist file shared from Flow opens here and is imported. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
             </intent-filter>
         </activity>
         
@@ -444,15 +454,15 @@
         </activity-alias>
 
 
-        <!-- Shares a rendered recap card as an image; only files under cache/recap/ are exposed. -->
+        <!-- Files Flow hands to other apps: recap cards and playlist files, only from their cache folders. -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.recap"
+            android:authorities="${applicationId}.files"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/recap_share_paths" />
+                android:resource="@xml/shared_file_paths" />
         </provider>
     </application>
 

@@ -56,6 +56,7 @@ class PlayerErrorHandler(
     private val setCurrentAudioStream: (AudioStream) -> Unit,
     private val setRecoveryState: () -> Unit,
     private val reloadPlaybackManager: () -> Unit,
+    private val isPlayingDeviceFile: () -> Boolean = { false },
 ) {
     companion object {
         private const val TAG = "PlayerErrorHandler"
@@ -129,9 +130,19 @@ class PlayerErrorHandler(
             }
 
             PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> {
-                PlayerDiagnostics.logError(TAG, "Stream resource not found — URL may have expired")
-                denialRecovery.handleStreamExpired("file-not-found")
-                return true
+                if (!isPlayingDeviceFile()) {
+                    PlayerDiagnostics.logError(TAG, "Stream resource not found — URL may have expired")
+                    denialRecovery.handleStreamExpired("file-not-found")
+                    return true
+                }
+                // A file that is gone stays gone; reloading it as an expired stream never ends.
+                PlayerDiagnostics.logError(TAG, "Local file not found")
+                stateFlow.value =
+                    stateFlow.value.copy(
+                        error = appContext.getString(R.string.error_local_file_missing),
+                        isPlaying = false,
+                        isBuffering = false,
+                    )
             }
 
             PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> {

@@ -35,6 +35,7 @@ enum class SettingsDestination(
     SYNC("sync", R.string.sync_devices_title),
     HISTORY("history", R.string.settings_history_title),
     DOWNLOADS("downloads", R.string.settings_downloads_title),
+    LOCAL_MEDIA("local_media", R.string.settings_local_media_title, DOWNLOADS),
     NOTIFICATIONS("notifications", R.string.settings_header_notifications),
     NETWORK("network", R.string.settings_network_title),
     WELLBEING("wellbeing", R.string.settings_wellbeing_title),

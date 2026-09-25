@@ -36,6 +36,7 @@ import io.github.aedev.flow.ui.screens.music.CollectionPlayMode
 import io.github.aedev.flow.ui.screens.music.MusicCollectionActionsViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
 import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
+import io.github.aedev.flow.utils.shareLink
 
 /** An album or playlist's menu: play, shuffle or start a radio from it, keep it, share it or open it. */
 @Composable
@@ -121,12 +122,4 @@ fun MusicCollectionQuickActionsSheet(
     }
 }
 
-private fun Context.shareCollection(item: MusicCollectionActionItem) {
-    val shareIntent =
-        Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, item.title)
-            putExtra(Intent.EXTRA_TEXT, item.shareUrl)
-        }
-    startActivity(Intent.createChooser(shareIntent, getString(R.string.share)))
-}
+private fun Context.shareCollection(item: MusicCollectionActionItem) = shareLink(this, item.shareUrl, item.title)

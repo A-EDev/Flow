@@ -251,4 +251,42 @@ class PlaybackQueueControllerTest {
         assertThat(controller.isCurrent("a")).isFalse()
         assertThat(controller.isCurrent("missing")).isFalse()
     }
+
+    @Test
+    fun `the picked video is not reached by advance, so it can resume`() {
+        val controller = controllerOf("a", "b", "c", startIndex = 1)
+
+        assertThat(controller.isReachedByAdvance("b")).isFalse()
+    }
+
+    @Test
+    fun `a video the queue moves to is reached by advance`() {
+        val controller = controllerOf("a", "b", "c", startIndex = 0)
+
+        controller.moveTo(1)
+
+        assertThat(controller.isReachedByAdvance("b")).isTrue()
+        assertThat(controller.isReachedByAdvance("a")).isFalse()
+    }
+
+    @Test
+    fun `moving back to the picked video after advancing counts as an advance`() {
+        val controller = controllerOf("a", "b", startIndex = 0)
+
+        controller.moveTo(1)
+        controller.movePrevious()
+
+        assertThat(controller.isReachedByAdvance("a")).isTrue()
+    }
+
+    @Test
+    fun `setting a queue with shuffle off plays it in order even after a shuffled one`() {
+        val controller = PlaybackQueueController()
+        controller.setQueue(listOf(video("a"), video("b"), video("c")), startIndex = 0, title = null, shuffle = true)
+
+        controller.setQueue(listOf(video("a"), video("b"), video("c")), startIndex = 0, title = null, shuffle = false)
+
+        assertThat(controller.shuffleEnabled).isFalse()
+        assertThat(ids(controller.videos.value)).containsExactly("a", "b", "c").inOrder()
+    }
 }

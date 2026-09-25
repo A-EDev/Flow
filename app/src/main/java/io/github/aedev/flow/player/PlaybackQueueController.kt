@@ -48,6 +48,9 @@ internal class PlaybackQueueController {
     var shuffleEnabled: Boolean = false
         private set
 
+    /** The video picked when the queue was set; cleared once playback moves to another item. */
+    private var pickedVideoId: String? = null
+
     private val items: List<Video>
         get() = _videos.value
 
@@ -73,6 +76,9 @@ internal class PlaybackQueueController {
 
     fun isCurrent(videoId: String): Boolean = currentVideo?.id == videoId
 
+    /** Whether [videoId] is current because the queue moved to it, rather than because it was picked. */
+    fun isReachedByAdvance(videoId: String): Boolean = isCurrent(videoId) && videoId != pickedVideoId
+
     fun nextIndex(): Int? =
         PlaylistQueueOrder.nextIndex(
             itemCount = items.size,
@@ -83,7 +89,7 @@ internal class PlaybackQueueController {
     fun nextVideo(): Video? = nextIndex()?.let(items::getOrNull)
 
     /**
-     * Replaces the queue, honouring the current shuffle setting.
+     * Replaces the queue, honouring the current shuffle setting unless [shuffle] sets it.
      *
      * @return the video playback should start from, or null when [videos] is empty.
      */
@@ -91,7 +97,9 @@ internal class PlaybackQueueController {
         videos: List<Video>,
         startIndex: Int,
         title: String?,
+        shuffle: Boolean? = null,
     ): Video? {
+        shuffle?.let { shuffleEnabled = it }
         originalItems = videos
         val normalizedStartIndex = startIndex.coerceIn(0, videos.lastIndex.coerceAtLeast(0))
         val ordered =
@@ -102,6 +110,7 @@ internal class PlaybackQueueController {
             }
         this.title = title
         publish(ordered.items, if (videos.isEmpty()) -1 else ordered.currentIndex)
+        pickedVideoId = currentVideo?.id
         return currentVideo
     }
 
@@ -112,6 +121,7 @@ internal class PlaybackQueueController {
      */
     fun moveTo(index: Int): Video? {
         val video = items.getOrNull(index) ?: return null
+        if (index != currentIndex) pickedVideoId = null
         _currentIndex.value = index
         return video
     }
@@ -213,6 +223,7 @@ internal class PlaybackQueueController {
         title = null
         loopEnabled = false
         shuffleEnabled = false
+        pickedVideoId = null
         publish(emptyList(), currentIndex = -1)
     }
 

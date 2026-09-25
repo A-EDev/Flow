@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import io.github.aedev.flow.data.local.AudioSettingsPersistence
 import io.github.aedev.flow.data.local.QueuePersistence
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.audio.AudioEffectsController
 import io.github.aedev.flow.service.Media3MusicService
@@ -175,7 +176,7 @@ object EnhancedMusicPlayerManager {
 
         if (idx != -1 && idx < queue.size - 1) {
             val nextTrack = queue[idx + 1]
-            if (urlCache.get(nextTrack.videoId) == null) {
+            if (!LocalMediaIds.isLocal(nextTrack.videoId) && urlCache.get(nextTrack.videoId) == null) {
                 scope.launch(Dispatchers.IO) {
                     try {
                         resolveStreamUrl(nextTrack.videoId)
@@ -449,10 +450,13 @@ object EnhancedMusicPlayerManager {
         )
     }
 
+    /** A device file plays from its MediaStore URI; everything else resolves through `music://`. */
+    private fun streamUri(videoId: String): Uri = LocalMediaIds.audioUri(videoId) ?: Uri.parse("music://$videoId")
+
     private fun buildMediaItem(
         track: MusicTrack,
-        uri: Uri = Uri.parse("music://${track.videoId}"),
-        useCacheKey: Boolean = true,
+        uri: Uri = streamUri(track.videoId),
+        useCacheKey: Boolean = !LocalMediaIds.isLocal(track.videoId),
     ): MediaItem {
         val builder =
             MediaItem
@@ -602,10 +606,10 @@ object EnhancedMusicPlayerManager {
                     localUri ?: if (t.videoId == track.videoId && audioUrl.isNotEmpty()) {
                         Uri.parse(audioUrl)
                     } else {
-                        Uri.parse("music://${t.videoId}")
+                        streamUri(t.videoId)
                     }
 
-                buildMediaItem(t, uri, useCacheKey = localUri == null)
+                buildMediaItem(t, uri, useCacheKey = localUri == null && !LocalMediaIds.isLocal(t.videoId))
             }
 
         val startIdx = if (startIndex >= 0) startIndex else activeQueue.indexOfFirst { it.videoId == track.videoId }.coerceAtLeast(0)

@@ -138,7 +138,8 @@ fun PaletteColors.toColorScheme(variant: ThemeVariant): ColorScheme {
         onPrimary = onPrimary,
         primaryContainer = mixColors(primary, surface, if (dark) 0.30f else 0.18f),
         onPrimaryContainer = onSurface,
-        inversePrimary = mixColors(primary, onSurface, 0.55f),
+        // Snackbar actions sit on inverseSurface (onSurface here), so the accent is toned until it reads there.
+        inversePrimary = ensureContrastOn(primary, onSurface, INVERSE_PRIMARY_CONTRAST),
         secondary = secondary,
         onSecondary = contentColorOn(secondary),
         secondaryContainer = mixColors(secondary, surface, if (dark) 0.26f else 0.16f),
@@ -174,3 +175,4 @@ fun PaletteColors.toColorScheme(variant: ThemeVariant): ColorScheme {
 }
 
 private const val OUTLINE_WEIGHT = 0.6f
+private const val INVERSE_PRIMARY_CONTRAST = 4.5f

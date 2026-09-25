@@ -11,7 +11,6 @@ import io.github.aedev.flow.data.model.needsCollaboratorResolution
 import io.github.aedev.flow.data.shorts.ChannelReelIndex
 import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.response.VideoChapter
 import io.github.aedev.flow.innertube.models.response.VideoChaptersParser
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
@@ -1063,65 +1062,6 @@ class YouTubeRepository
             }
 
         /**
-         * Fetch playlist details
-         */
-        suspend fun getPlaylistDetails(playlistId: String): io.github.aedev.flow.data.model.Playlist? =
-            withContext(Dispatchers.IO) {
-                try {
-                    val playlistUrl = "https://www.youtube.com/playlist?list=$playlistId"
-                    val playlistInfo =
-                        org.schabi.newpipe.extractor.playlist.PlaylistInfo
-                            .getInfo(service, playlistUrl)
-
-                    val allVideos = mutableListOf<Video>()
-                    allVideos +=
-                        playlistInfo.relatedItems
-                            .filterIsInstance<StreamInfoItem>()
-                            .map { it.toVideo() }
-
-                    var nextPage = playlistInfo.nextPage
-                    while (nextPage != null) {
-                        val page =
-                            org.schabi.newpipe.extractor.playlist.PlaylistInfo
-                                .getMoreItems(service, playlistUrl, nextPage)
-                        allVideos +=
-                            page.items
-                                .filterIsInstance<StreamInfoItem>()
-                                .map { it.toVideo() }
-                        nextPage = page.nextPage
-                    }
-
-                    val innertubeVideos = fetchInnertubePlaylistVideos(playlistId)
-                    val playlistVideos =
-                        if (innertubeVideos.size > allVideos.size) {
-                            val knownIds = allVideos.mapTo(HashSet()) { it.id }
-                            allVideos + innertubeVideos.filter { it.id !in knownIds }
-                        } else {
-                            allVideos
-                        }
-
-                    val bestThumbnail =
-                        playlistInfo.thumbnails
-                            .sortedByDescending { it.height }
-                            .firstOrNull()
-                            ?.url ?: playlistVideos.firstOrNull()?.thumbnailUrl ?: ""
-
-                    io.github.aedev.flow.data.model.Playlist(
-                        id = playlistId,
-                        name = playlistInfo.name ?: "Unknown Playlist",
-                        thumbnailUrl = bestThumbnail,
-                        videoCount = playlistVideos.size,
-                        description = playlistInfo.description?.content ?: "",
-                        videos = playlistVideos,
-                        isLocal = false,
-                    )
-                } catch (e: Exception) {
-                    Log.w(TAG, "${e::class.simpleName}: ${e.message}")
-                    null
-                }
-            }
-
-        /**
          * Helper to extract related videos directly from a StreamInfo object
          * This avoids a redundant network call when we already have the stream info.
          */
@@ -1271,51 +1211,6 @@ class YouTubeRepository
             }
             Log.w(TAG, "NewPipe watch metadata unavailable for $videoId: ${lastError?.message}")
             return null
-        }
-
-        private suspend fun fetchInnertubePlaylistVideos(
-            playlistId: String,
-            maxContinuationPages: Int = 30,
-        ): List<Video> {
-            return try {
-                val firstPage = YouTube.playlist(playlistId).getOrNull() ?: return emptyList()
-                val songs = mutableListOf<SongItem>()
-                val seenContinuations = mutableSetOf<String>()
-
-                songs += firstPage.songs
-                var continuation = firstPage.songsContinuation ?: firstPage.continuation
-                var requestCount = 0
-
-                while (continuation != null && requestCount < maxContinuationPages) {
-                    if (!seenContinuations.add(continuation)) break
-                    val page = YouTube.playlistContinuation(continuation).getOrNull() ?: break
-                    if (page.songs.isEmpty() && page.continuation == null) break
-                    songs += page.songs
-                    continuation = page.continuation
-                    requestCount++
-                }
-
-                songs.map { it.toPlaylistVideo() }
-            } catch (e: Exception) {
-                Log.w(TAG, "Innertube playlist fallback failed for $playlistId: ${e.message}")
-                emptyList()
-            }
-        }
-
-        private fun SongItem.toPlaylistVideo(): Video {
-            val artistNames = artists.joinToString(", ") { it.name }
-            val channel = artists.firstOrNull()
-            return Video(
-                id = id,
-                title = title,
-                channelName = artistNames,
-                channelId = channel?.id ?: "",
-                thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(id, thumbnail),
-                duration = duration ?: 0,
-                viewCount = 0,
-                uploadDate = "",
-                isMusic = false,
-            )
         }
 
         private fun StreamInfoItem.isPaidOrMembersOnly(): Boolean =

@@ -1,5 +1,7 @@
 package io.github.aedev.flow.utils
 
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
+
 object ThumbnailUrlResolver {
     private val youtubeVideoThumbnailPattern =
         Regex("""(?:https?:)?//(?:i\d*\.ytimg\.com|img\.youtube\.com)/(?:vi|vi_webp)/([^/?#]+)/[^/?#]+""")
@@ -8,12 +10,12 @@ object ThumbnailUrlResolver {
 
     fun buildHighQualityYoutubeThumbnail(videoId: String): String {
         val id = videoId.trim()
-        return if (id.isEmpty()) "" else "https://i.ytimg.com/vi/$id/hq720.jpg"
+        return if (id.isEmpty() || LocalMediaIds.isLocal(id)) "" else "https://i.ytimg.com/vi/$id/hq720.jpg"
     }
 
     fun buildFallbackYoutubeThumbnail(videoId: String): String {
         val id = videoId.trim()
-        return if (id.isEmpty()) "" else "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+        return if (id.isEmpty() || LocalMediaIds.isLocal(id)) "" else "https://i.ytimg.com/vi/$id/hqdefault.jpg"
     }
 
     fun buildMaxResYoutubeThumbnail(videoId: String): String {
@@ -34,37 +36,46 @@ object ThumbnailUrlResolver {
         if (id.isEmpty()) return emptyList()
         return listOf(
             "https://i.ytimg.com/vi/$id/hq720.jpg",
-            "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+            "https://i.ytimg.com/vi/$id/hqdefault.jpg",
         )
     }
 
-    fun resolveVideoThumbnailCandidates(videoId: String, rawUrl: String?): List<String> {
+    fun resolveVideoThumbnailCandidates(
+        videoId: String,
+        rawUrl: String?,
+    ): List<String> {
         val raw = rawUrl?.trim().orEmpty()
         val resolvedVideoId = resolveYoutubeThumbnailVideoId(videoId, raw)
         val youtubeCandidates = youtubeThumbnailCandidates(resolvedVideoId)
 
-        val candidates = when {
-            raw.isEmpty() -> youtubeCandidates
-            isYoutubeVideoThumbnail(raw) -> youtubeCandidates
-            else -> listOf(raw) + youtubeCandidates
-        }
+        val candidates =
+            when {
+                raw.isEmpty() -> youtubeCandidates
+                isYoutubeVideoThumbnail(raw) -> youtubeCandidates
+                else -> listOf(raw) + youtubeCandidates
+            }
 
         return candidates
             .filter { it.isNotBlank() }
             .distinct()
     }
 
-    fun preferredVideoThumbnail(videoId: String, urls: List<String?>): String {
-        return urls
+    fun preferredVideoThumbnail(
+        videoId: String,
+        urls: List<String?>,
+    ): String =
+        urls
             .asSequence()
             .map { it?.trim().orEmpty() }
             .filter { it.isNotBlank() }
             .map { normalizeVideoThumbnail(videoId, it) }
             .maxWithOrNull(compareBy<String> { videoThumbnailQualityRank(it) }.thenBy { it.length })
             ?: normalizeVideoThumbnail(videoId, null)
-    }
 
-    fun normalizeVideoThumbnail(videoId: String, rawUrl: String?): String {
+    fun normalizeVideoThumbnail(
+        videoId: String,
+        rawUrl: String?,
+    ): String {
         val raw = rawUrl?.trim().orEmpty()
         if (raw.isEmpty()) return buildHighQualityYoutubeThumbnail(videoId)
 
@@ -77,21 +88,35 @@ object ThumbnailUrlResolver {
         return buildHighQualityYoutubeThumbnail(resolvedVideoId).ifEmpty { raw }
     }
 
-    fun resolveMusicThumbnail(videoId: String, rawUrl: String?, size: Int = 1080): String {
+    fun resolveMusicThumbnail(
+        videoId: String,
+        rawUrl: String?,
+        size: Int = 1080,
+    ): String {
         val raw = rawUrl?.trim().orEmpty()
         val id = videoId.trim()
 
         if (raw.isEmpty()) return buildHighQualityYoutubeThumbnail(id)
 
         return when {
-            isYoutubeVideoThumbnail(raw) -> normalizeVideoThumbnail(id, raw)
-            raw.contains("googleusercontent.com") || raw.contains("ggpht.com") ->
+            isYoutubeVideoThumbnail(raw) -> {
+                normalizeVideoThumbnail(id, raw)
+            }
+
+            raw.contains("googleusercontent.com") || raw.contains("ggpht.com") -> {
                 resizeImageThumbnail(raw, size, size)
-            else -> raw
+            }
+
+            else -> {
+                raw
+            }
         }
     }
 
-    fun resolveChannelBanner(rawUrl: String?, targetWidth: Int = 1060): String {
+    fun resolveChannelBanner(
+        rawUrl: String?,
+        targetWidth: Int = 1060,
+    ): String {
         val raw = rawUrl?.trim().orEmpty()
         if (raw.isEmpty()) return ""
 
@@ -121,7 +146,10 @@ object ThumbnailUrlResolver {
      */
     const val AVATAR_SIZE_LIST = 176
 
-    fun resolveChannelAvatar(rawUrl: String?, size: Int = AVATAR_SIZE_LIST): String {
+    fun resolveChannelAvatar(
+        rawUrl: String?,
+        size: Int = AVATAR_SIZE_LIST,
+    ): String {
         val raw = rawUrl?.trim().orEmpty()
         if (raw.isEmpty()) return ""
 
@@ -143,10 +171,14 @@ object ThumbnailUrlResolver {
         return "$baseUrl=s$size"
     }
 
-    fun resolveCommunityPostImage(rawUrl: String?, targetWidth: Int = 2048): String {
-        val raw = rawUrl?.trim().orEmpty().let { url ->
-            if (url.startsWith("//")) "https:$url" else url
-        }
+    fun resolveCommunityPostImage(
+        rawUrl: String?,
+        targetWidth: Int = 2048,
+    ): String {
+        val raw =
+            rawUrl?.trim().orEmpty().let { url ->
+                if (url.startsWith("//")) "https:$url" else url
+            }
         if (raw.isEmpty()) return ""
 
         val isGoogleCdn = raw.contains("googleusercontent.com") || raw.contains("ggpht.com")
@@ -161,13 +193,18 @@ object ThumbnailUrlResolver {
         return "$baseUrl=w$targetWidth"
     }
 
-    fun fallbackVideoThumbnail(videoId: String, rawUrl: String?): String? {
+    fun fallbackVideoThumbnail(
+        videoId: String,
+        rawUrl: String?,
+    ): String? {
         val raw = rawUrl?.trim().orEmpty()
-        val resolvedVideoId = youtubeVideoThumbnailPattern.find(raw)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.takeIf { it.isNotBlank() }
-            ?: videoId.trim()
+        val resolvedVideoId =
+            youtubeVideoThumbnailPattern
+                .find(raw)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.takeIf { it.isNotBlank() }
+                ?: videoId.trim()
 
         val fallback = buildFallbackYoutubeThumbnail(resolvedVideoId)
         return fallback.takeIf { it.isNotEmpty() && it != raw }
@@ -178,13 +215,16 @@ object ThumbnailUrlResolver {
         return youtubeVideoThumbnailPattern.containsMatchIn(raw)
     }
 
-    private fun resolveYoutubeThumbnailVideoId(videoId: String, rawUrl: String): String {
-        return youtubeVideoThumbnailPattern.find(rawUrl)
+    private fun resolveYoutubeThumbnailVideoId(
+        videoId: String,
+        rawUrl: String,
+    ): String =
+        youtubeVideoThumbnailPattern
+            .find(rawUrl)
             ?.groupValues
             ?.getOrNull(1)
             ?.takeIf { it.isNotBlank() }
             ?: videoId.trim()
-    }
 
     private fun videoThumbnailQualityRank(rawUrl: String): Int {
         val raw = rawUrl.lowercase()
@@ -198,7 +238,11 @@ object ThumbnailUrlResolver {
         }
     }
 
-    fun resizeImageThumbnail(rawUrl: String?, width: Int? = null, height: Int? = null): String {
+    fun resizeImageThumbnail(
+        rawUrl: String?,
+        width: Int? = null,
+        height: Int? = null,
+    ): String {
         val raw = rawUrl?.trim().orEmpty()
         if (raw.isEmpty() || (width == null && height == null)) return raw
 
@@ -212,7 +256,11 @@ object ThumbnailUrlResolver {
         }
     }
 
-    private fun resizeGoogleCdnThumbnail(rawUrl: String, width: Int?, height: Int?): String {
+    private fun resizeGoogleCdnThumbnail(
+        rawUrl: String,
+        width: Int?,
+        height: Int?,
+    ): String {
         val w = width ?: height ?: return rawUrl
         val h = height ?: width ?: return rawUrl
 
@@ -230,23 +278,33 @@ object ThumbnailUrlResolver {
         }
     }
 
-    private fun resizeYoutubeThumbnail(rawUrl: String, width: Int): String {
-        return when {
-            width > 480 -> rawUrl
-                .replace("mqdefault.jpg", "hq720.jpg")
-                .replace("hqdefault.jpg", "hq720.jpg")
-                .replace("sddefault.jpg", "hq720.jpg")
-                .replace("default.jpg", "hq720.jpg")
-                .replace("mqdefault.webp", "hq720.jpg")
-                .replace("hqdefault.webp", "hq720.jpg")
-                .replace("sddefault.webp", "hq720.jpg")
-                .replace("default.webp", "hq720.jpg")
-            width > 320 -> rawUrl
-                .replace("mqdefault.jpg", "hqdefault.jpg")
-                .replace("default.jpg", "hqdefault.jpg")
-                .replace("mqdefault.webp", "hqdefault.jpg")
-                .replace("default.webp", "hqdefault.jpg")
-            else -> rawUrl
+    private fun resizeYoutubeThumbnail(
+        rawUrl: String,
+        width: Int,
+    ): String =
+        when {
+            width > 480 -> {
+                rawUrl
+                    .replace("mqdefault.jpg", "hq720.jpg")
+                    .replace("hqdefault.jpg", "hq720.jpg")
+                    .replace("sddefault.jpg", "hq720.jpg")
+                    .replace("default.jpg", "hq720.jpg")
+                    .replace("mqdefault.webp", "hq720.jpg")
+                    .replace("hqdefault.webp", "hq720.jpg")
+                    .replace("sddefault.webp", "hq720.jpg")
+                    .replace("default.webp", "hq720.jpg")
+            }
+
+            width > 320 -> {
+                rawUrl
+                    .replace("mqdefault.jpg", "hqdefault.jpg")
+                    .replace("default.jpg", "hqdefault.jpg")
+                    .replace("mqdefault.webp", "hqdefault.jpg")
+                    .replace("default.webp", "hqdefault.jpg")
+            }
+
+            else -> {
+                rawUrl
+            }
         }
-    }
 }

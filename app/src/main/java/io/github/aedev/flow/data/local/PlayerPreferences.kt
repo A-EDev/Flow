@@ -29,6 +29,7 @@ internal fun resolveMigratedHideWatchedPreference(
 private val Context.playerPreferencesDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "player_preferences")
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
+private const val PLAYLIST_SORT_SEPARATOR = "|"
 const val CONTENT_LANGUAGE_FOLLOW_APP = "app"
 const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
 const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
@@ -280,6 +281,7 @@ class PlayerPreferences(
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
         val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
         val SHARE_WITHOUT_TEXT = booleanPreferencesKey("share_without_text")
+        val REMOVE_WATCHED_FROM_WATCH_LATER = booleanPreferencesKey("remove_watched_from_watch_later")
 
         val SHORTS_PIP_ENABLED = booleanPreferencesKey("shorts_pip_enabled")
 
@@ -299,6 +301,7 @@ class PlayerPreferences(
         // App icon — stores the component suffix of the currently selected launcher icon
         val APP_ICON_SUFFIX = stringPreferencesKey("app_icon_suffix")
         val PLAYLIST_SORT_ORDER = stringPreferencesKey("playlist_sort_order")
+        val PLAYLIST_SORT_ORDERS = stringSetPreferencesKey("playlist_sort_orders")
 
         // Video title display — max lines in the player info section (0 = no limit)
         val VIDEO_TITLE_MAX_LINES = intPreferencesKey("video_title_max_lines")
@@ -2085,6 +2088,19 @@ class PlayerPreferences(
         }
     }
 
+    /** When ON, a video leaves Watch later once it counts as watched under [watchedThreshold]. */
+    val removeWatchedFromWatchLater: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.REMOVE_WATCHED_FROM_WATCH_LATER] ?: false
+            }
+
+    suspend fun setRemoveWatchedFromWatchLater(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.REMOVE_WATCHED_FROM_WATCH_LATER] = enabled
+        }
+    }
+
     val disableShortsPlayer: Flow<Boolean> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
@@ -2294,15 +2310,32 @@ class PlayerPreferences(
     }
 
     // Video title max lines in the player info section — 0 means no limit (Int.MAX_VALUE)
-    val playlistSortOrder: Flow<String> =
+
+    /**
+     * [playlistId]'s own sort order. A playlist never sorted falls back to the single order older
+     * versions kept for every playlist, so nothing changes until the person picks one.
+     */
+    fun playlistSortOrder(playlistId: String): Flow<String> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.PLAYLIST_SORT_ORDER] ?: "manual"
-            }
+                preferences[Keys.PLAYLIST_SORT_ORDERS]
+                    .orEmpty()
+                    .firstOrNull { it.startsWith("$playlistId$PLAYLIST_SORT_SEPARATOR") }
+                    ?.substringAfter(PLAYLIST_SORT_SEPARATOR)
+                    ?: preferences[Keys.PLAYLIST_SORT_ORDER]
+                    ?: "manual"
+            }.distinctUntilChanged()
 
-    suspend fun setPlaylistSortOrder(order: String) {
+    suspend fun setPlaylistSortOrder(
+        playlistId: String,
+        order: String,
+    ) {
         context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PLAYLIST_SORT_ORDER] = order
+            val others =
+                preferences[Keys.PLAYLIST_SORT_ORDERS]
+                    .orEmpty()
+                    .filterNot { it.startsWith("$playlistId$PLAYLIST_SORT_SEPARATOR") }
+            preferences[Keys.PLAYLIST_SORT_ORDERS] = others.toSet() + "$playlistId$PLAYLIST_SORT_SEPARATOR$order"
         }
     }
 

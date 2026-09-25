@@ -52,6 +52,7 @@ internal object DestinationIndex {
             SettingsDestination.SYNC -> R.string.sync_devices_subtitle
             SettingsDestination.HISTORY -> R.string.settings_history_summary
             SettingsDestination.DOWNLOADS -> R.string.settings_downloads_summary
+            SettingsDestination.LOCAL_MEDIA -> R.string.settings_local_media_summary
             SettingsDestination.NOTIFICATIONS -> R.string.settings_item_notifications_subtitle
             SettingsDestination.NETWORK -> R.string.settings_network_summary
             SettingsDestination.WELLBEING -> R.string.settings_wellbeing_summary

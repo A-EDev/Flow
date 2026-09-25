@@ -123,11 +123,10 @@ class PlaybackLoadResolver
                         )
                     }
 
-                    if (!NetworkState.isOnline(context)) {
-                        Log.d(TAG, "Offline with a local copy of $videoId — skipping stream resolution")
-                        innerTubeDeferred.cancel()
-                        return
-                    }
+                    // A download is never live, and nothing from the extraction is applied to it, so
+                    // letting it finish online only spends a request.
+                    innerTubeDeferred.cancel()
+                    return
                 }
 
                 val playbackLoadTimeoutMs = if (request.escalateToSabr) SABR_LOAD_TIMEOUT_MS else LOAD_TIMEOUT_MS

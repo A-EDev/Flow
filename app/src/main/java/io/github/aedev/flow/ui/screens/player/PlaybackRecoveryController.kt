@@ -96,6 +96,7 @@ internal class PlaybackRecoveryController(
     private suspend fun abandonExhaustedPlayback(videoId: String) {
         playerPreferences.markVideoUnplayable(videoId)
         cancelLoad()
+        if (playerManager.skipAbandonedVideo()) return
         playerManager.getPlayer()?.let { player ->
             player.stop()
             player.clearMediaItems()

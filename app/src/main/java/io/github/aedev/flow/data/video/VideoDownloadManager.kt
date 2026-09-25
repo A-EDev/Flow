@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -322,12 +323,15 @@ class VideoDownloadManager
          */
         val downloadedVideos: Flow<List<DownloadedVideo>>
             get() =
-                allDownloads.map { list ->
-                    list
-                        .filter { dwi ->
-                            dwi.overallStatus == DownloadItemStatus.COMPLETED && !dwi.isAudioOnly
-                        }.map { toDownloadedVideo(it) }
-                }
+                allDownloads
+                    .map { list ->
+                        list
+                            .filter { dwi ->
+                                dwi.overallStatus == DownloadItemStatus.COMPLETED &&
+                                    !dwi.isAudioOnly &&
+                                    dwi.primaryFilePath?.let { File(it).exists() } == true
+                            }.map { toDownloadedVideo(it) }
+                    }.flowOn(Dispatchers.IO)
 
         /** Save a new download with its items */
         suspend fun saveDownload(
@@ -446,6 +450,28 @@ class VideoDownloadManager
 
         /** Get download with items */
         suspend fun getDownloadWithItems(videoId: String): DownloadWithItems? = downloadDao.getDownloadWithItems(videoId)
+
+        /** Path of the finished video download of [videoId] when its file is still on disk. */
+        suspend fun localCopyPath(videoId: String): String? =
+            withContext(Dispatchers.IO) {
+                downloadDao
+                    .getDownloadWithItems(videoId)
+                    ?.takeIf { it.overallStatus == DownloadItemStatus.COMPLETED && !it.isAudioOnly }
+                    ?.primaryFilePath
+                    ?.takeIf { File(it).exists() }
+            }
+
+        /**
+         * Removes [videoId]'s row and partial files before returning, unlike [deleteDownload], so a
+         * retry that writes to the same paths can't have its new file deleted behind it.
+         */
+        suspend fun discardForRetry(videoId: String) =
+            withContext(Dispatchers.IO) {
+                val download = downloadDao.getDownloadWithItems(videoId) ?: return@withContext
+                val filePaths = download.items.flatMap { artifactPathsFor(it.filePath) }.distinct()
+                downloadDao.deleteDownload(videoId)
+                filePaths.forEach { deleteFileFromDisk(it) }
+            }
 
         /** Delete download and its files from disk.
          *
@@ -612,6 +638,11 @@ class VideoDownloadManager
             return "${safeTitle}_$quality.$extension"
         }
 
+        /** Set once a scan has run in this process; the Downloads screen scans again only on pull to refresh. */
+        @Volatile
+        var hasScannedThisSession: Boolean = false
+            private set
+
         /**
          * Scans all known download directories for video/audio files that are not tracked in the
          * database (e.g. after a database wipe) and re-inserts them as completed downloads so they
@@ -621,6 +652,7 @@ class VideoDownloadManager
          */
         suspend fun scanAndRecoverDownloads() =
             withContext(Dispatchers.IO) {
+                hasScannedThisSession = true
                 try {
                     val dirsToScan =
                         buildList {

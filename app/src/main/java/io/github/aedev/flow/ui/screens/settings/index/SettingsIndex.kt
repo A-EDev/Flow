@@ -23,6 +23,7 @@ internal object SettingsIndex {
             IntegrationsIndex.all +
             BackupIndex.all +
             DownloadsIndex.all +
+            LocalMediaIndex.all +
             NotificationsIndex.all +
             NetworkIndex.all +
             HistoryIndex.all +

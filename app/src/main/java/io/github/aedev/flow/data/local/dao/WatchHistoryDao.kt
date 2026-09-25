@@ -37,6 +37,9 @@ interface WatchHistoryDao {
     @Query("SELECT * FROM watch_history ORDER BY timestamp DESC")
     fun getAllHistory(): Flow<List<WatchHistoryEntity>>
 
+    @Query("SELECT * FROM watch_history WHERE isLocal = 1 ORDER BY timestamp DESC")
+    fun getLocalHistory(): Flow<List<WatchHistoryEntity>>
+
     @Query("SELECT * FROM watch_history WHERE isShort = 0 AND isLocal = 0 ORDER BY timestamp DESC LIMIT :limit")
     fun getRecentLibraryHistory(limit: Int): Flow<List<WatchHistoryEntity>>
 

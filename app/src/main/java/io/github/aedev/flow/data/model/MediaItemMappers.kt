@@ -36,7 +36,8 @@ fun LikedVideoInfo.toMusicTrack(): MusicTrack =
         title = title,
         artist = channelName,
         thumbnailUrl = thumbnail,
-        duration = 0,
+        duration = durationSeconds,
+        channelId = channelId.orEmpty(),
     )
 
 fun LikedVideoInfo.toVideo(): Video =
@@ -44,10 +45,11 @@ fun LikedVideoInfo.toVideo(): Video =
         id = videoId,
         title = title,
         channelName = channelName,
-        channelId = "",
+        channelId = channelId.orEmpty(),
         thumbnailUrl = thumbnail,
-        duration = 0,
+        duration = durationSeconds,
         viewCount = -1L,
         uploadDate = "",
         timestamp = likedAt,
+        isMusic = isMusic,
     )

@@ -2,44 +2,32 @@ package io.github.aedev.flow.ui.screens.playlists
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.WatchLater
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,97 +35,124 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.library.PlaylistDetailTopBar
 import io.github.aedev.flow.ui.components.library.PlaylistHeader
-import io.github.aedev.flow.ui.components.library.PlaylistSortButton
+import io.github.aedev.flow.ui.components.library.PlaylistHeaderActions
+import io.github.aedev.flow.ui.components.library.PlaylistHeaderPane
+import io.github.aedev.flow.ui.components.library.PlaylistSearchBar
+import io.github.aedev.flow.ui.components.library.PlaylistSortChip
 import io.github.aedev.flow.ui.components.library.PlaylistSortOrder
-import io.github.aedev.flow.ui.components.library.PlaylistSortSheet
-import io.github.aedev.flow.ui.components.library.PlaylistVideoRow
-import io.github.aedev.flow.ui.components.shared.CollectionEditDialog
-import io.github.aedev.flow.ui.components.shared.CollectionTarget
-import io.github.aedev.flow.ui.components.shared.DeleteCollectionDialog
-import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
-import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
-import io.github.aedev.flow.ui.components.shared.MergeIntoCollectionSheet
-import io.github.aedev.flow.ui.components.shared.animateMediaListItem
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.FlowSelectionAction
+import io.github.aedev.flow.ui.components.shared.FlowSelectionToolbar
+import io.github.aedev.flow.ui.components.shared.FlowSidePanes
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
-
-private val ListBottomPadding: Dp = 16.dp
+import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
+import io.github.aedev.flow.utils.filterBySearch
+import io.github.aedev.flow.utils.sharePlaylist
+import io.github.aedev.flow.utils.sharePlaylistFile
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit,
-    onVideoClick: (Video) -> Unit,
-    onPlayPlaylist: (List<Video>, Int) -> Unit,
+    onPlayPlaylist: (videos: List<Video>, startIndex: Int, shuffle: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val sortedVideos by viewModel.sortedVideos.collectAsStateWithLifecycle()
-    val isDownloadingPlaylist by viewModel.isDownloadingPlaylist.collectAsStateWithLifecycle()
-    val playlistDownloadProgress by viewModel.playlistDownloadProgress.collectAsStateWithLifecycle()
-    val currentDownloadingTitle by viewModel.currentDownloadingTitle.collectAsStateWithLifecycle()
+    val downloadBatch by viewModel.downloadBatch.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val mergeTargets by viewModel.userCreatedPlaylists.collectAsStateWithLifecycle()
+    val quickActions = sharedQuickActionsViewModel()
+    val context = LocalContext.current
 
-    var showEditDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showOptionsMenu by remember { mutableStateOf(false) }
-    var showMergeSheet by remember { mutableStateOf(false) }
-    var showDownloadAllDialog by remember { mutableStateOf(false) }
-    var showSortSheet by remember { mutableStateOf(false) }
-    var showRemoveSelectedDialog by remember { mutableStateOf(false) }
+    var dialog by remember { mutableStateOf<PlaylistDialog?>(null) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectionMode by remember { mutableStateOf(false) }
     var displayVideos by remember { mutableStateOf(sortedVideos) }
-
-    val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    var searchQuery by rememberSaveable { mutableStateOf<String?>(null) }
+    val isSearching = searchQuery != null
+    val shownVideos =
+        remember(displayVideos, searchQuery) { displayVideos.filterBySearch(searchQuery.orEmpty()) { "${it.title} ${it.channelName}" } }
+    val positions =
+        remember(displayVideos, isSearching) {
+            if (isSearching) displayVideos.withIndex().associate { (index, video) -> video.id to index + 1 } else emptyMap()
+        }
+    val scope = rememberCoroutineScope()
+    val exportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PLAYLIST_FILE_MIME_TYPE)) { target ->
+            target?.let(viewModel::exportTo)
+        }
     val listState = rememberLazyListState()
+    val panes = rememberFlowPaneState()
+    val twoPane = panes.showsSidePane
 
-    val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
-    val canReorder = isUserCreatedPlaylist && sortOrder == PlaylistSortOrder.MANUAL
-    val canModify = uiState.isLocalPlaylist
+    val isUserCreated = uiState.isLocalPlaylist && !uiState.isSaved
+    val canReorder = isUserCreated && sortOrder == PlaylistSortOrder.MANUAL && !isSearching
+    // A saved YouTube playlist mirrors the original; its next sync would bring removed videos back.
+    val canModify = uiState.isLocalPlaylist && !uiState.isSaved
     val exitSelection = {
         selectionMode = false
         selectedIds = emptySet()
     }
 
-    LaunchedEffect(sortedVideos) {
+    val reorderState =
+        rememberReorderableLazyListState(
+            listState = listState,
+            itemIndexOffset = if (twoPane || isSearching) 0 else 1,
+            onMove = { from, to -> displayVideos = displayVideos.toMutableList().apply { add(to, removeAt(from)) } },
+            onDragStopped = { viewModel.reorderVideos(displayVideos.map { it.id }) },
+        )
+
+    // Held while a drag is in progress, so a sync or metadata update can't replace the list mid-drag.
+    LaunchedEffect(sortedVideos, reorderState.isDragging) {
+        if (reorderState.isDragging) return@LaunchedEffect
         displayVideos = sortedVideos
         selectedIds = selectedIds.intersect(sortedVideos.mapTo(HashSet()) { it.id })
         if (sortedVideos.isEmpty()) exitSelection()
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.messages.collect { message ->
-            snackbarHostState.showSnackbar(message.resolve(context))
-        }
+    LaunchedEffect(searchQuery) {
+        if (isSearching) listState.scrollToItem(0)
     }
 
-    val reorderState =
-        rememberReorderableLazyListState(
-            listState = listState,
-            itemIndexOffset = 1,
-            onMove = { from, to ->
-                if (canReorder) {
-                    displayVideos =
-                        displayVideos.toMutableList().apply {
-                            add(to, removeAt(from))
-                        }
-                }
-            },
-            onDragStopped = {
-                if (canReorder) {
-                    viewModel.reorderVideos(displayVideos.map { it.id })
-                }
-            },
-        )
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { message -> quickActions.announce(message.resolve(context), message.undo) }
+    }
 
     BackHandler(enabled = selectionMode) { exitSelection() }
+    BackHandler(enabled = isSearching && !selectionMode) { searchQuery = null }
 
-    val showCollapsedTitle by remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 0 }
-    }
+    val showCollapsedTitle by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+    val headerState = rememberPlaylistHeaderState(uiState, displayVideos, downloadBatch)
+    val headerActions =
+        PlaylistHeaderActions(
+            onPlayAll = { if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0, false) },
+            onShuffle = { if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, displayVideos.indices.random(), true) },
+            onDownloadAll = { dialog = PlaylistDialog.DownloadAll },
+            onSaveToggle = { if (uiState.isSaved) viewModel.unsaveFromLibrary() else viewModel.saveToLibrary() },
+            onAddAll = { dialog = PlaylistDialog.AddAll },
+            onShare = {
+                if (!isUserCreated) {
+                    sharePlaylist(context, viewModel.playlistId, uiState.playlistName)
+                } else {
+                    scope.launch {
+                        val file = viewModel.shareableFile()
+                        if (file != null) {
+                            sharePlaylistFile(context, file, uiState.playlistName)
+                        } else {
+                            quickActions.announce(context.getString(R.string.playlist_share_failed))
+                        }
+                    }
+                }
+            },
+            onExport = { exportLauncher.launch(viewModel.exportFileName) },
+            onEdit = { dialog = PlaylistDialog.Edit },
+            onDelete = { dialog = PlaylistDialog.Delete },
+        )
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -145,315 +160,121 @@ fun PlaylistDetailScreen(
         topBar = {
             PlaylistDetailTopBar(
                 title = uiState.playlistName,
-                showTitle = showCollapsedTitle || selectionMode,
+                showTitle = (showCollapsedTitle && !twoPane) || selectionMode,
                 inSelectionMode = selectionMode,
                 selectedCount = selectedIds.size,
-                allSelected = selectedIds.size == displayVideos.size && displayVideos.isNotEmpty(),
+                allSelected = shownVideos.isNotEmpty() && shownVideos.all { it.id in selectedIds },
                 canSelect = canModify && displayVideos.isNotEmpty(),
-                isUserCreatedPlaylist = isUserCreatedPlaylist,
-                isWatchLater = uiState.isWatchLater,
-                isSaved = uiState.isSaved,
-                showOptionsMenu = showOptionsMenu,
+                search =
+                    PlaylistSearchBar(
+                        query = searchQuery,
+                        onOpen = { searchQuery = "" },
+                        onQueryChange = { searchQuery = it },
+                        onClose = { searchQuery = null },
+                    ),
                 onNavigateBack = onNavigateBack,
                 onEnterSelection = { selectionMode = true },
                 onClearSelection = exitSelection,
                 onSelectAll = {
-                    selectedIds =
-                        if (selectedIds.size == displayVideos.size) {
-                            emptySet()
-                        } else {
-                            displayVideos.mapTo(HashSet()) { it.id }
-                        }
-                },
-                onDeleteSelected = { showRemoveSelectedDialog = true },
-                onMergeClick = { showMergeSheet = true },
-                onSaveToggle = {
-                    if (uiState.isSaved) viewModel.unsaveFromLibrary() else viewModel.saveToLibrary()
-                },
-                onOptionsClick = { showOptionsMenu = true },
-                onOptionsDismiss = { showOptionsMenu = false },
-                onEditClick = {
-                    showOptionsMenu = false
-                    showEditDialog = true
-                },
-                onDeletePlaylistClick = {
-                    showOptionsMenu = false
-                    showDeleteDialog = true
+                    val shownIds = shownVideos.mapTo(HashSet()) { it.id }
+                    selectedIds = if (selectedIds.containsAll(shownIds)) selectedIds - shownIds else selectedIds + shownIds
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
-    ) { paddingValues ->
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when {
+                uiState.isLoading -> {
+                    FlowLoadingIndicator()
+                }
+
+                uiState.errorMessage != null -> {
+                    FlowErrorState(error = uiState.errorMessage.orEmpty(), onRetry = viewModel::retry)
+                }
+
+                else -> {
+                    val sortChip: @Composable () -> Unit = {
+                        PlaylistSortChip(
+                            options = PlaylistSortOrder.availableFor(uiState.isLocalPlaylist, uiState.isLikes),
+                            selected = sortOrder,
+                            onSelected = viewModel::setSortOrder,
+                            default = PlaylistSortOrder.defaultFor(uiState.isLikes),
+                        )
+                    }
+                    val list: @Composable (header: (@Composable () -> Unit)?) -> Unit = { header ->
+                        PlaylistDetailList(
+                            videos = shownVideos,
+                            mode =
+                                PlaylistListMode(
+                                    canReorder = canReorder,
+                                    canModify = canModify,
+                                    selectionMode = selectionMode,
+                                    selectedIds = selectedIds,
+                                    showAddedDate = isUserCreated,
+                                    isWatchLater = uiState.isWatchLater,
+                                    isLikes = uiState.isLikes,
+                                    searchQuery = searchQuery.orEmpty(),
+                                    positions = positions,
+                                ),
+                            isLoadingMore = uiState.isLoadingMore,
+                            listState = listState,
+                            reorderState = reorderState,
+                            onVideoClick = { index, video ->
+                                if (selectionMode) {
+                                    selectedIds = if (video.id in selectedIds) selectedIds - video.id else selectedIds + video.id
+                                } else {
+                                    onPlayPlaylist(displayVideos, positions[video.id]?.minus(1) ?: index, false)
+                                }
+                            },
+                            onRemove = { viewModel.removeVideo(it.id) },
+                            header = header,
+                        )
+                    }
+                    FlowSidePanes(
+                        panes = panes,
+                        sidePaneWidth = HeaderPaneWidth,
+                        sidePane = {
+                            PlaylistHeaderSurface(
+                                headerState.thumbnailUrl,
+                            ) { PlaylistHeaderPane(state = headerState, actions = headerActions) }
+                        },
+                        mainPane = {
+                            if (twoPane || isSearching) {
+                                Column {
+                                    Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { sortChip() }
+                                    list(null)
+                                }
+                            } else {
+                                list { PlaylistHeader(state = headerState, actions = headerActions, sortChip = sortChip) }
+                            }
+                        },
+                    )
                 }
             }
-
-            uiState.errorMessage != null -> {
-                FlowErrorState(
-                    error = uiState.errorMessage.orEmpty(),
-                    onRetry = viewModel::retry,
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
-
-            else -> {
-                LazyColumn(
-                    state = listState,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                    contentPadding = PaddingValues(bottom = ListBottomPadding),
-                ) {
-                    item(key = "playlist-header", contentType = "header") {
-                        Column {
-                            PlaylistHeader(
-                                name = uiState.playlistName,
-                                description = uiState.description,
-                                videoCount = uiState.videos.size,
-                                thumbnailUrl = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl,
-                                onPlayAll = {
-                                    if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0)
-                                },
-                                onShuffle = {
-                                    val shuffled = displayVideos.shuffled()
-                                    if (shuffled.isNotEmpty()) onPlayPlaylist(shuffled, 0)
-                                },
-                                onDownloadAll = { showDownloadAllDialog = true },
-                                isDownloading = isDownloadingPlaylist,
-                                downloadProgress = playlistDownloadProgress,
-                                currentDownloadingTitle = currentDownloadingTitle,
-                            )
-                            PlaylistSortButton(
-                                sortOrder = sortOrder,
-                                onClick = { showSortSheet = true },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                            )
-                        }
-                    }
-
-                    if (displayVideos.isEmpty()) {
-                        item(key = "playlist-empty", contentType = "empty") {
-                            FlowEmptyState(
-                                title =
-                                    stringResource(
-                                        if (uiState.isWatchLater) {
-                                            R.string.no_videos_saved
-                                        } else {
-                                            R.string.playlist_empty_title
-                                        },
-                                    ),
-                                subtitle =
-                                    stringResource(
-                                        if (uiState.isWatchLater) {
-                                            R.string.no_videos_saved_body
-                                        } else {
-                                            R.string.playlist_empty_desc
-                                        },
-                                    ),
-                                icon =
-                                    if (uiState.isWatchLater) {
-                                        Icons.Default.WatchLater
-                                    } else {
-                                        Icons.AutoMirrored.Filled.PlaylistPlay
-                                    },
-                            )
-                        }
-                    } else {
-                        itemsIndexed(
-                            items = displayVideos,
-                            key = { _, video -> video.id },
-                            contentType = { _, _ -> "playlist-video" },
-                        ) { index, video ->
-                            val isSelected = video.id in selectedIds
-                            PlaylistVideoRow(
-                                modifier =
-                                    if (canReorder) {
-                                        Modifier
-                                    } else {
-                                        animateMediaListItem()
-                                    },
-                                video = video,
-                                position = index + 1,
-                                isSelected = isSelected,
-                                inSelectionMode = selectionMode,
-                                canModify = canModify,
-                                reorderModifier = if (canReorder) reorderState.itemModifier(index) else Modifier,
-                                dragHandleModifier =
-                                    if (canReorder && !selectionMode) {
-                                        reorderState.handleModifier(index)
-                                    } else {
-                                        Modifier
-                                    },
-                                showDragHandle = canReorder,
-                                showAddedDate = isUserCreatedPlaylist,
-                                isWatchLater = uiState.isWatchLater,
-                                onRemove = { viewModel.removeVideo(video.id) },
-                                onClick = {
-                                    if (selectionMode) {
-                                        selectedIds =
-                                            if (isSelected) selectedIds - video.id else selectedIds + video.id
-                                    } else {
-                                        onPlayPlaylist(displayVideos, index)
-                                    }
-                                },
-                            )
-                        }
-                    }
-                }
-            }
+            FlowSelectionToolbar(
+                visible = selectionMode && selectedIds.isNotEmpty(),
+                summary = pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size),
+                actions =
+                    listOf(
+                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.remove)) {
+                            dialog = PlaylistDialog.RemoveSelected(selectedIds)
+                        },
+                    ),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 
-    if (showEditDialog && uiState.playlistName.isNotEmpty()) {
-        CollectionEditDialog(
-            title = stringResource(R.string.edit_playlist_action),
-            confirmLabel = stringResource(R.string.action_save),
-            initialName = uiState.playlistName,
-            initialDescription = uiState.description,
-            icon = Icons.Default.Edit,
-            onDismiss = { showEditDialog = false },
-            onConfirm = { name, description ->
-                viewModel.updatePlaylist(name, description)
-                showEditDialog = false
-            },
-        )
-    }
-
-    if (showDeleteDialog) {
-        DeleteCollectionDialog(
-            collectionName = uiState.playlistName,
-            onDismiss = { showDeleteDialog = false },
-            onConfirm = {
-                viewModel.deletePlaylist()
-                showDeleteDialog = false
-                onNavigateBack()
-            },
-        )
-    }
-
-    if (showMergeSheet) {
-        MergeIntoCollectionSheet(
-            targets =
-                remember(mergeTargets) {
-                    mergeTargets.map {
-                        CollectionTarget(
-                            id = it.id,
-                            name = it.name,
-                            thumbnailUrl = it.thumbnailUrl,
-                            itemCount = it.videoCount,
-                        )
-                    }
-                },
-            placeholder = Icons.AutoMirrored.Filled.PlaylistPlay,
-            itemCountLabel = { pluralStringResource(R.plurals.songs_count_template, it, it) },
-            onSelect = { viewModel.mergeIntoPlaylist(it.id) },
-            onDismiss = { showMergeSheet = false },
-        )
-    }
-
-    if (showDownloadAllDialog) {
-        FlowAlertDialog(
-            onDismissRequest = { showDownloadAllDialog = false },
-            icon = { Icon(Icons.Default.Download, contentDescription = null) },
-            title = { Text(stringResource(R.string.download_all)) },
-            text = {
-                Text(
-                    pluralStringResource(
-                        R.plurals.download_all_confirmation,
-                        uiState.videos.size,
-                        uiState.videos.size,
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.downloadPlaylist()
-                        showDownloadAllDialog = false
-                    },
-                ) {
-                    Text(stringResource(R.string.download))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDownloadAllDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
-
-    if (showRemoveSelectedDialog) {
-        FlowAlertDialog(
-            onDismissRequest = { showRemoveSelectedDialog = false },
-            icon = {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            },
-            title = {
-                Text(
-                    pluralStringResource(
-                        R.plurals.remove_selected_videos_title,
-                        selectedIds.size,
-                        selectedIds.size,
-                    ),
-                )
-            },
-            text = {
-                Text(
-                    if (uiState.isWatchLater) {
-                        stringResource(R.string.remove_selected_watch_later_text)
-                    } else {
-                        stringResource(R.string.remove_selected_playlist_text)
-                    },
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.removeVideos(selectedIds)
-                        selectedIds = emptySet()
-                        showRemoveSelectedDialog = false
-                    },
-                ) {
-                    Text(
-                        text = stringResource(R.string.remove),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRemoveSelectedDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
-
-    if (showSortSheet) {
-        PlaylistSortSheet(
-            selected = sortOrder,
-            onSelected = {
-                viewModel.setSortOrder(it)
-                showSortSheet = false
-            },
-            onDismiss = { showSortSheet = false },
-        )
-    }
+    PlaylistDetailDialogs(
+        dialog = dialog,
+        uiState = uiState,
+        mergeTargets = mergeTargets,
+        viewModel = viewModel,
+        onDismiss = { dialog = null },
+        onDeleted = onNavigateBack,
+        onRemovedSelected = exitSelection,
+    )
 }
 
 private fun PlaylistUiMessage.resolve(context: Context): String =

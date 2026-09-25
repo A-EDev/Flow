@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.*
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -16,6 +17,7 @@ import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.transcript.TranscriptRepository
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.data.video.VideoQueueStore
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
 import io.github.aedev.flow.innertube.pages.VideoCommentSort
@@ -31,14 +33,19 @@ import io.github.aedev.flow.player.stream.UpcomingPremiereProbe
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.*
 import javax.inject.Inject
+
+private const val QUEUE_SAVE_DEBOUNCE_MS = 1_000L
 
 /**
  * Owns the player screen's state and every session entry point the UI calls: what plays, what the
@@ -48,6 +55,7 @@ import javax.inject.Inject
  * player's own state changes land on, [PlaybackSessionApplier] writes what a resolved load lands on.
  * Both hold the one flow constructed here and gate on the same load token.
  */
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class VideoPlayerViewModel
     @Inject
@@ -60,6 +68,8 @@ class VideoPlayerViewModel
         private val playlistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
         private val playerPreferences: PlayerPreferences,
         private val videoDownloadManager: VideoDownloadManager,
+        private val videoQueueStore: VideoQueueStore,
+        private val watchLaterCleanup: WatchLaterCleanup,
         private val offlineSubtitleStore: io.github.aedev.flow.data.video.OfflineSubtitleStore,
         private val sponsorBlockRepository: SponsorBlockRepository,
         private val liveChatRepository: io.github.aedev.flow.data.repository.LiveChatRepository,
@@ -175,6 +185,8 @@ class VideoPlayerViewModel
                 scope = viewModelScope,
                 ioDispatcher = ioDispatcher,
                 resumePlayback = ::playVideo,
+                savedQueue = videoQueueStore::load,
+                resumeQueue = { videos, index, title -> playPlaylist(videos, index, title) },
             )
 
         private val _canGoPrevious = MutableStateFlow(false)
@@ -190,7 +202,7 @@ class VideoPlayerViewModel
 
         private fun isPlaybackLoadCurrent(token: Long): Boolean = playbackLoadToken == token
 
-        private fun isLocalMediaId(id: String?): Boolean = id?.startsWith("local_") == true
+        private fun isLocalMediaId(id: String?): Boolean = LocalMediaIds.isLocal(id)
 
         private fun cancelActivePlaybackLoad(invalidateToken: Boolean = false) {
             if (invalidateToken) {
@@ -249,6 +261,13 @@ class VideoPlayerViewModel
         init {
             refreshBlockedChannels()
 
+            // The first value is the empty queue of a fresh process; saving it would erase the one to restore.
+            combine(playerManager.queueVideos, playerManager.currentQueueIndexState, ::Pair)
+                .drop(1)
+                .debounce(QUEUE_SAVE_DEBOUNCE_MS)
+                .onEach { (videos, index) -> videoQueueStore.save(videos, index, playerManager.playerState.value.queueTitle) }
+                .launchIn(viewModelScope)
+
             playerPreferences.shortsContentEnabled
                 .onEach { shortsContentEnabled = it }
                 .launchIn(viewModelScope)
@@ -265,8 +284,10 @@ class VideoPlayerViewModel
                 .launchIn(viewModelScope)
 
             playerManager.playbackCompletedEvent
-                .onEach(watchSessions::markCompleted)
-                .launchIn(viewModelScope)
+                .onEach { completion ->
+                    watchSessions.markCompleted(completion)
+                    watchLaterCleanup.onFinished(completion.videoId)
+                }.launchIn(viewModelScope)
 
             presence.restoreLastWatchedSession()
 
@@ -312,7 +333,7 @@ class VideoPlayerViewModel
             val state = _uiState.value
             val alreadySynced =
                 state.cachedVideo?.id == video.id &&
-                    (state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty())
+                    (state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty() || state.localFileVideoId == video.id)
             if (alreadySynced) return
 
             if (upcomingPremiere.applyCountdown(video)) {
@@ -354,9 +375,16 @@ class VideoPlayerViewModel
             video: Video,
             contentUri: String,
         ) {
-            val loadToken = nextPlaybackLoadToken()
             takeOverPlayback()
+            prepareDeviceFile(video, contentUri)
+        }
 
+        /** Plays a file on the device, keeping whatever queue it belongs to. */
+        private fun prepareDeviceFile(
+            video: Video,
+            contentUri: String,
+        ) {
+            val loadToken = nextPlaybackLoadToken()
             _uiState.value = _uiState.value.startLocalPlaybackOf(video, contentUri)
             GlobalPlayerState.setCurrentVideo(video)
             GlobalPlayerState.setExplicitBackgroundPlaybackActive(false)
@@ -415,6 +443,11 @@ class VideoPlayerViewModel
             if (upcomingPremiere.applyCountdown(_uiState.value.cachedVideo ?: return)) {
                 return
             }
+            val deviceFileUri = LocalMediaIds.videoUri(videoId)
+            if (deviceFileUri != null) {
+                playLocalVideo(_uiState.value.cachedVideo ?: return, deviceFileUri.toString())
+                return
+            }
             recovery.onPlaybackRequested()
             playerManager.clearCurrentVideo()
             _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
@@ -434,10 +467,12 @@ class VideoPlayerViewModel
             }
         }
 
+        /** [shuffle] turns the queue's shuffle on or off for this list; null keeps the current setting. */
         fun playPlaylist(
             videos: List<Video>,
             startIndex: Int,
             title: String? = null,
+            shuffle: Boolean? = null,
         ) {
             if (videos.isEmpty()) return
             val startVideo = videos.getOrNull(startIndex) ?: videos.first()
@@ -445,7 +480,7 @@ class VideoPlayerViewModel
             EnhancedMusicPlayerManager.stop()
             EnhancedMusicPlayerManager.clearCurrentTrack()
 
-            playerManager.setQueue(videos, startIndex, title)
+            playerManager.setQueue(videos, startIndex, title, shuffle)
 
             _uiState.update { it.resetForVideo(startVideo).copy(queueTitle = title) }
             watchSessions.saveHistoryEntry(startVideo)
@@ -495,7 +530,10 @@ class VideoPlayerViewModel
         ) {
             notes.observe(videoId)
             if (isLocalMediaId(videoId)) {
-                Log.d("VideoPlayerViewModel", "loadVideoInfo: $videoId is a local file — skipping all network loading")
+                // A device file never touches the network; a queue of them arrives here one by one.
+                val uri = LocalMediaIds.videoUri(videoId) ?: return
+                val video = _uiState.value.cachedVideo?.takeIf { it.id == videoId } ?: return
+                prepareDeviceFile(video, uri.toString())
                 return
             }
             val currentState = _uiState.value
@@ -588,6 +626,7 @@ class VideoPlayerViewModel
                 isShort = isShort,
                 isLocal = isLocalMediaId(videoId),
             )
+            viewModelScope.launch { watchLaterCleanup.onProgress(videoId, position, duration) }
         }
 
         /** The app is going to the background: the recap gets the open session's progress so far. */

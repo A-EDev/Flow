@@ -127,7 +127,7 @@ internal class PlaybackPreparer(
                 resumeAllowed =
                     !isLiveStream &&
                         hlsUrl.isNullOrEmpty() &&
-                        (resumeOverrideRequested || !playerManager.isCurrentQueueVideo(videoId)),
+                        (resumeOverrideRequested || !playerManager.isReachedByQueueAdvance(videoId)),
             )
 
         if (localFilePath != null) {
@@ -236,7 +236,7 @@ internal class PlaybackPreparer(
             PlaybackResumePolicy.resolveStartPosition(
                 savedPosition = savedPositionMs,
                 durationMs = durationSeconds * 1000L,
-                resumeAllowed = resumeOverrideRequested || !playerManager.isCurrentQueueVideo(videoId),
+                resumeAllowed = resumeOverrideRequested || !playerManager.isReachedByQueueAdvance(videoId),
             )
         val directMaxHeight = videoStreams.maxOfOrNull { VideoCodecUtils.qualityHeightFromStream(it) } ?: 0
         // An escalated reload must not force SABR: measured 2026-09-21, a session never receives an
@@ -276,6 +276,7 @@ internal class PlaybackPreparer(
         localFilePath: String,
         offlineSegments: List<SponsorBlockSegment>?,
         savedPosition: Long,
+        durationMs: Long,
         subtitles: List<SubtitlesStream>,
         isCurrent: () -> Boolean,
     ) = withContext(Dispatchers.Main) {
@@ -286,8 +287,8 @@ internal class PlaybackPreparer(
         val startPosition =
             PlaybackResumePolicy.resolveStartPosition(
                 savedPosition = savedPosition,
-                durationMs = 0L,
-                resumeAllowed = !playerManager.isCurrentQueueVideo(videoId),
+                durationMs = durationMs,
+                resumeAllowed = !playerManager.isReachedByQueueAdvance(videoId),
             )
         playerManager.playLocalFile(
             videoId = videoId,

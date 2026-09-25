@@ -71,6 +71,7 @@ internal fun VideoInfoSection(
     isDownloaded: Boolean = false,
     onNoteClick: (() -> Unit)? = null,
     hasNote: Boolean = false,
+    isDeviceFile: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var showCollaborators by remember { mutableStateOf(false) }
@@ -195,7 +196,7 @@ internal fun VideoInfoSection(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .clickable { openChannelOrCollaborators() },
+                        .clickable(enabled = !isDeviceFile) { openChannelOrCollaborators() },
             ) {
                 ChannelAvatarStack(
                     urls = avatarUrls,
@@ -232,14 +233,16 @@ internal fun VideoInfoSection(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            FlowSubscribeButton(
-                size = FlowSubscribeButtonSize.Compact,
-                isSubscribed = isSubscribed,
-                isNotificationsEnabled = isNotificationsEnabled,
-                onSubscribeClick = onSubscribeClick,
-                onUnsubscribeClick = onUnsubscribeClick,
-                onNotificationChange = onNotificationChange,
-            )
+            if (!isDeviceFile) {
+                FlowSubscribeButton(
+                    size = FlowSubscribeButtonSize.Compact,
+                    isSubscribed = isSubscribed,
+                    isNotificationsEnabled = isNotificationsEnabled,
+                    onSubscribeClick = onSubscribeClick,
+                    onUnsubscribeClick = onUnsubscribeClick,
+                    onNotificationChange = onNotificationChange,
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -261,6 +264,7 @@ internal fun VideoInfoSection(
             isDownloaded = isDownloaded,
             onNoteClick = onNoteClick,
             hasNote = hasNote,
+            isDeviceFile = isDeviceFile,
         )
     }
 

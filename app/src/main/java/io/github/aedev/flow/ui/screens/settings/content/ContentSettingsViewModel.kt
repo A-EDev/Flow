@@ -6,7 +6,7 @@ import io.github.aedev.flow.data.local.WatchedThreshold
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
 import javax.inject.Inject
 
-/** What shows up in the feeds: Home, Subscriptions, Shorts, watched filtering, notes and sharing. */
+/** What shows up in the feeds: Home, Subscriptions, Shorts, Watch later, watched filtering, notes and sharing. */
 @HiltViewModel
 class ContentSettingsViewModel
     @Inject
@@ -29,6 +29,7 @@ class ContentSettingsViewModel
         val subsCheckedCount = preferences.subscriptionShowCheckedVideoCount.asState(true)
 
         val shortsContent = preferences.shortsContentEnabled.asState(true)
+        val removeWatchedWatchLater = preferences.removeWatchedFromWatchLater.asState(false)
         val watchedThreshold = preferences.watchedThreshold.asState(WatchedThreshold.ALMOST_FINISHED)
 
         val notes = preferences.notesEnabled.asState(true)
@@ -63,6 +64,8 @@ class ContentSettingsViewModel
         fun setSubsCheckedCount(value: Boolean) = write { preferences.setSubscriptionShowCheckedVideoCount(value) }
 
         fun setShortsContent(value: Boolean) = write { preferences.setShortsContentEnabled(value) }
+
+        fun setRemoveWatchedWatchLater(value: Boolean) = write { preferences.setRemoveWatchedFromWatchLater(value) }
 
         fun setWatchedThreshold(value: WatchedThreshold) = write { preferences.setWatchedThreshold(value) }
 

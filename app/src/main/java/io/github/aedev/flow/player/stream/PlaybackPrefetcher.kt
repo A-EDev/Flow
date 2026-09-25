@@ -1,6 +1,7 @@
 package io.github.aedev.flow.player.stream
 
 import android.util.Log
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,7 +34,7 @@ object PlaybackPrefetcher {
      * ignored rather than sent through a client ladder that would certainly fail.
      */
     fun prefetch(videoId: String) {
-        if (videoId.isBlank() || videoId.startsWith("local_")) return
+        if (videoId.isBlank() || LocalMediaIds.isLocal(videoId)) return
         synchronized(lock) {
             if (inFlightVideoId == videoId && inFlight?.isActive == true) return
             // Only the most recently tapped video is worth warming. Leaving an abandoned one

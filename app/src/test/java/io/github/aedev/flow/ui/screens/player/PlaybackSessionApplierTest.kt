@@ -263,7 +263,7 @@ class PlaybackSessionApplierTest {
             assertThat(uiState.value.localFilePath).isEqualTo("/tmp/a.mp4")
             assertThat(uiState.value.localFileVideoId).isEqualTo(VIDEO_ID)
             coVerify(exactly = 1) {
-                playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", segments, 0L, emptyList(), any())
+                playbackPreparer.prepareLocalMedia(VIDEO_ID, "/tmp/a.mp4", segments, 0L, any(), emptyList(), any())
             }
         }
 
