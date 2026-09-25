@@ -3675,4 +3675,8 @@
     <string name="music_sort_shortest">Shortest first</string>
     <string name="music_collection_no_matches">No songs match “%1$s”</string>
     <string name="select_songs">Select songs</string>
+    <plurals name="music_playlist_imported">
+        <item quantity="one">Imported %1$s, %2$d song</item>
+        <item quantity="other">Imported %1$s, %2$d songs</item>
+    </plurals>
 </resources>

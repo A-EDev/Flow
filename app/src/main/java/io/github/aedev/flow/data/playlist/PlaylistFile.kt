@@ -29,6 +29,8 @@ data class PlaylistFile(
 data class PlaylistFileHeader(
     val name: String,
     val description: String = "",
+    /** A music playlist imports into the Music library; absent in files older than music export. */
+    val isMusic: Boolean = false,
 )
 
 @Serializable
@@ -91,6 +93,7 @@ object PlaylistFileCodec {
         description: String,
         videos: List<Video>,
         exportedAt: Long,
+        isMusic: Boolean = false,
     ): String =
         json.encodeToString(
             PlaylistFile.serializer(),
@@ -98,7 +101,7 @@ object PlaylistFileCodec {
                 format = FORMAT,
                 version = VERSION,
                 exportedAt = exportedAt,
-                playlist = PlaylistFileHeader(name = name, description = description),
+                playlist = PlaylistFileHeader(name = name, description = description, isMusic = isMusic),
                 videos =
                     videos.filter { VideoIdPattern.matches(it.id) }.map { video ->
                         PlaylistFileVideo(

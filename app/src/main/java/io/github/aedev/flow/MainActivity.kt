@@ -50,6 +50,7 @@ import io.github.aedev.flow.ui.components.library.message
 import io.github.aedev.flow.ui.components.shared.ProvideChannelGroupLabels
 import io.github.aedev.flow.ui.components.shared.ProvideDateDisplaySettings
 import io.github.aedev.flow.ui.components.shared.card.ProvideVideoCardState
+import io.github.aedev.flow.ui.musicCollectionRoute
 import io.github.aedev.flow.ui.screens.crash.CrashReportScreen
 import io.github.aedev.flow.ui.screens.update.UPDATE_ROUTE
 import io.github.aedev.flow.ui.startup.FlowTheme
@@ -349,7 +350,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val result = playlistTransfer.get().import(file, getString(R.string.imported_playlist_default_name))
             Toast.makeText(this@MainActivity, result.message(this@MainActivity), Toast.LENGTH_LONG).show()
-            if (result is PlaylistImport.Imported) _pendingRoute.value = "playlist/${result.playlistId}"
+            if (result is PlaylistImport.Imported) {
+                _pendingRoute.value = if (result.isMusic) musicCollectionRoute(result.playlistId) else "playlist/${result.playlistId}"
+            }
         }
     }
 

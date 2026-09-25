@@ -219,6 +219,7 @@ class PlaylistRepository
             name: String,
             description: String,
             videos: List<Video>,
+            isMusic: Boolean = false,
         ): String {
             val now = System.currentTimeMillis()
             val playlistId = now.toString()
@@ -232,6 +233,7 @@ class PlaylistRepository
                         thumbnailUrl = videos.firstOrNull()?.thumbnailUrl.orEmpty(),
                         isPrivate = true,
                         createdAt = now,
+                        isMusic = isMusic,
                         isUserCreated = true,
                     ),
                 entries =

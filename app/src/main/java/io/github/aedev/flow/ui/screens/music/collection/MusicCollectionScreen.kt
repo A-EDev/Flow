@@ -1,6 +1,8 @@
 package io.github.aedev.flow.ui.screens.music.collection
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,6 +17,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -31,6 +34,7 @@ import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
+import io.github.aedev.flow.ui.components.music.sheet.musicCollectionShareUrl
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
@@ -41,7 +45,11 @@ import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActions
 import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 import io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel
+import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
 import io.github.aedev.flow.utils.filterBySearch
+import io.github.aedev.flow.utils.shareLink
+import io.github.aedev.flow.utils.sharePlaylistFile
+import kotlinx.coroutines.launch
 
 // The same header column as the video playlist page, so both read as one design.
 private val HeaderPaneWidth = 360.dp
@@ -111,6 +119,14 @@ private fun CollectionContent(
     val isDownloading by downloads.isDownloadingPlaylist.collectAsStateWithLifecycle()
     val downloadProgress by downloads.playlistDownloadProgress.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val quickActions = sharedQuickActionsViewModel()
+    val scope = rememberCoroutineScope()
+    val shareFailed = stringResource(R.string.playlist_share_failed)
+    val exportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PLAYLIST_FILE_MIME_TYPE)) { target ->
+            target?.let(viewModel::exportTo)
+        }
     val musicMenus = LocalMusicMenus.current
     var sheet by remember { mutableStateOf<CollectionSheet?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf<String?>(null) }
@@ -188,7 +204,16 @@ private fun CollectionContent(
             onShuffle = { play(0, tracks.shuffled()) },
             onSaveToggle = viewModel::toggleSaved,
             onDownload = { downloads.downloadPlaylistTracks(details.copy(tracks = tracks)) },
-            onShare = {},
+            onShare = {
+                if (state.sharesAsFile) {
+                    scope.launch {
+                        val file = viewModel.shareableFile()
+                        if (file != null) sharePlaylistFile(context, file, details.title) else quickActions.announce(shareFailed)
+                    }
+                } else {
+                    shareLink(context, musicCollectionShareUrl(details.id, state.kind == MusicCollectionKind.ALBUM), details.title)
+                }
+            },
             onAuthorClick = callbacks.onArtistClick,
             menu =
                 collectionMenu(
@@ -197,6 +222,7 @@ private fun CollectionContent(
                     onAddAll = { sheet = CollectionSheet.AddTo(null) },
                     onEdit = { sheet = CollectionSheet.Edit },
                     onDelete = { sheet = CollectionSheet.Delete },
+                    onExport = { exportLauncher.launch(viewModel.exportFileName) },
                 ),
         )
     val sortChip: @Composable () -> Unit = {

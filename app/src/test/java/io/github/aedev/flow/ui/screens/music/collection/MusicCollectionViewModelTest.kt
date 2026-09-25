@@ -67,6 +67,7 @@ class MusicCollectionViewModelTest {
             musicLibrary,
             likedMedia,
             mockk(relaxed = true),
+            mockk(relaxed = true),
         )
 
     private fun entity(

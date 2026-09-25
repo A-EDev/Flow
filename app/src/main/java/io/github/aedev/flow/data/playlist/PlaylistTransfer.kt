@@ -25,6 +25,7 @@ sealed interface PlaylistImport {
         val playlistId: String,
         val name: String,
         val videoCount: Int,
+        val isMusic: Boolean = false,
     ) : PlaylistImport
 
     data object NotAPlaylist : PlaylistImport
@@ -50,10 +51,11 @@ class PlaylistTransfer
             name: String,
             description: String,
             videos: List<Video>,
+            isMusic: Boolean = false,
         ): Boolean =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val text = PlaylistFileCodec.encode(name, description, videos, System.currentTimeMillis())
+                    val text = PlaylistFileCodec.encode(name, description, videos, System.currentTimeMillis(), isMusic)
                     checkNotNull(context.contentResolver.openOutputStream(target, "wt")).use { it.write(text.toByteArray()) }
                 }.isSuccess
             }
@@ -63,13 +65,14 @@ class PlaylistTransfer
             name: String,
             description: String,
             videos: List<Video>,
+            isMusic: Boolean = false,
         ): Uri? =
             withContext(Dispatchers.IO) {
                 runCatching {
                     val dir = File(context.cacheDir, SHARE_DIR).apply { mkdirs() }
                     dir.listFiles()?.forEach(File::delete)
                     val file = File(dir, PlaylistFileCodec.fileName(name))
-                    file.writeText(PlaylistFileCodec.encode(name, description, videos, System.currentTimeMillis()))
+                    file.writeText(PlaylistFileCodec.encode(name, description, videos, System.currentTimeMillis(), isMusic))
                     sharedFileUri(context, file)
                 }.getOrNull()
             }
@@ -99,8 +102,9 @@ class PlaylistTransfer
                             read.file.playlist.name
                                 .trim()
                                 .ifEmpty { fallbackName }
-                        val id = playlists.importPlaylist(name, read.file.playlist.description, videos)
-                        PlaylistImport.Imported(id, name, videos.size)
+                        val isMusic = read.file.playlist.isMusic
+                        val id = playlists.importPlaylist(name, read.file.playlist.description, videos, isMusic)
+                        PlaylistImport.Imported(id, name, videos.size, isMusic)
                     }
                 }
             }

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.music.collection
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -17,6 +18,8 @@ import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
+import io.github.aedev.flow.data.playlist.PlaylistFileCodec
+import io.github.aedev.flow.data.playlist.PlaylistTransfer
 import io.github.aedev.flow.data.recommendation.music.DailyMixStore
 import io.github.aedev.flow.data.recommendation.music.graph.MusicGraphStore
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
@@ -64,6 +67,7 @@ class MusicCollectionViewModel
         private val musicLibrary: MusicLibrary,
         private val likedMedia: LikedMediaUseCase,
         private val preferences: PlayerPreferences,
+        private val transfer: PlaylistTransfer,
     ) : ViewModel() {
         val collectionId: String = checkNotNull(savedStateHandle[MUSIC_COLLECTION_ARG])
 
@@ -223,6 +227,34 @@ class MusicCollectionViewModel
                 _messages.send(CollectionMessage(stringRes = R.string.toast_playlist_deleted))
             }
         }
+
+        /** The name offered when the viewer saves this collection as a file. */
+        val exportFileName: String get() =
+            PlaylistFileCodec.fileName(
+                _state.value.details
+                    ?.title
+                    .orEmpty(),
+            )
+
+        /** Saves every song, all pages of them, as a music playlist file in [target]. */
+        fun exportTo(target: Uri) {
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                val details = loadAll()
+                val saved =
+                    details != null &&
+                        transfer.writeTo(target, details.title, details.description.orEmpty(), fileVideos(details), isMusic = true)
+                _messages.send(CollectionMessage(stringRes = if (saved) R.string.playlist_exported else R.string.playlist_export_failed))
+            }
+        }
+
+        /** This collection as a file another app can read, or null when it could not be written. */
+        suspend fun shareableFile(): Uri? {
+            val details = loadAll() ?: return null
+            return transfer.shareableCopy(details.title, details.description.orEmpty(), fileVideos(details), isMusic = true)
+        }
+
+        private fun fileVideos(details: PlaylistDetails) =
+            details.tracks.map { track -> track.toStoredVideo().copy(addedAtInPlaylist = _state.value.addedAt[track.videoId]) }
 
         fun reorder(orderedVideoIds: List<String>) {
             if (!_state.value.isOwn) return
@@ -432,6 +464,13 @@ data class MusicCollectionUiState(
 
     /** Your own playlist or Liked music, where songs can be taken out. */
     val canRemove: Boolean get() = kind == MusicCollectionKind.OWN || kind == MusicCollectionKind.LIKED
+
+    /** Collections kept on the device share and save as a file; YouTube's own share their link. */
+    val sharesAsFile: Boolean get() =
+        kind == MusicCollectionKind.OWN || kind == MusicCollectionKind.LIKED ||
+            kind == MusicCollectionKind.DAILY_MIX
+
+    val canExport: Boolean get() = kind == MusicCollectionKind.OWN || kind == MusicCollectionKind.SAVED || kind == MusicCollectionKind.LIKED
 }
 
 internal fun remoteKind(id: String): MusicCollectionKind =

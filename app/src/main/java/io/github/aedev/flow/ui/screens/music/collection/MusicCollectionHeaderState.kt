@@ -46,7 +46,7 @@ internal fun rememberCollectionHeaderState(
         artworkUrl = details.thumbnailUrl.ifBlank { tracks.firstOrNull()?.thumbnailUrl.orEmpty() },
         isSaved = state.isSaved,
         canSave = state.kind in SavableKinds,
-        canShare = false,
+        canShare = state.kind != null,
         downloadProgress = downloadProgress,
     )
 }

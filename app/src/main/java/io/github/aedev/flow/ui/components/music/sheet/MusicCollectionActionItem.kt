@@ -12,14 +12,14 @@ data class MusicCollectionActionItem(
     val thumbnailUrl: String?,
     val isAlbum: Boolean = false,
 ) {
-    val shareUrl: String
-        get() =
-            if (isAlbum) {
-                "https://music.youtube.com/browse/$id"
-            } else {
-                "https://music.youtube.com/playlist?list=$id"
-            }
+    val shareUrl: String get() = musicCollectionShareUrl(id, isAlbum)
 }
+
+/** The YouTube Music link for an album or playlist id. */
+fun musicCollectionShareUrl(
+    id: String,
+    isAlbum: Boolean,
+): String = if (isAlbum) "https://music.youtube.com/browse/$id" else "https://music.youtube.com/playlist?list=$id"
 
 fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
     MusicCollectionActionItem(

@@ -110,8 +110,7 @@ fun PlaylistsScreen(
                 val result = viewModel.importPlaylist(uri, context.getString(R.string.imported_playlist_default_name))
                 quickActions.announce(result.message(context))
                 if (result is PlaylistImport.Imported) {
-                    contentKind = MediaKind.Videos
-                    onVideoPlaylistClick(
+                    val info =
                         PlaylistInfo(
                             id = result.playlistId,
                             name = result.name,
@@ -120,8 +119,9 @@ fun PlaylistsScreen(
                             thumbnailUrl = "",
                             isPrivate = true,
                             createdAt = System.currentTimeMillis(),
-                        ),
-                    )
+                        )
+                    contentKind = if (result.isMusic) MediaKind.Music else MediaKind.Videos
+                    if (result.isMusic) onMusicPlaylistClick(info) else onVideoPlaylistClick(info)
                 }
             }
         }

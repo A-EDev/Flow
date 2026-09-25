@@ -50,12 +50,19 @@ fun sharePlaylist(
     context: Context,
     playlistId: String,
     title: String,
+) = shareLink(context, "https://www.youtube.com/playlist?list=$playlistId", title)
+
+/** Shares [url] as plain text through the system sheet, with [title] as the subject. */
+fun shareLink(
+    context: Context,
+    url: String,
+    title: String,
 ) {
     val send =
         Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_SUBJECT, title)
-            putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/playlist?list=$playlistId")
+            putExtra(Intent.EXTRA_TEXT, url)
         }
     context.startActivity(Intent.createChooser(send, context.getString(R.string.share)))
 }

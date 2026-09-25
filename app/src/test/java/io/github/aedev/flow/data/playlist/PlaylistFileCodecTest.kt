@@ -41,6 +41,18 @@ class PlaylistFileCodecTest {
     }
 
     @Test
+    fun `a music playlist says so, and files from before music export read as video`() {
+        val music =
+            PlaylistFileCodec.decode(
+                PlaylistFileCodec.encode("Mix", "", listOf(video("dQw4w9WgXcQ")), exportedAt = 1L, isMusic = true),
+            )
+        val old = PlaylistFileCodec.decode("""{"format":"flow-playlist","version":1,"exportedAt":1,"playlist":{"name":"x"},"videos":[]}""")
+
+        assertThat((music as PlaylistFileRead.Read).file.playlist.isMusic).isTrue()
+        assertThat((old as PlaylistFileRead.Read).file.playlist.isMusic).isFalse()
+    }
+
+    @Test
     fun `device files are left out of the file`() {
         val text = PlaylistFileCodec.encode("Mixed", "", listOf(video("dQw4w9WgXcQ"), video("local_42")), exportedAt = 1L)
 
