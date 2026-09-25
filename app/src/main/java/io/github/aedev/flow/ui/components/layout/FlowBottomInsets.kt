@@ -1,14 +1,18 @@
 package io.github.aedev.flow.ui.components.layout
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 /**
  * Everything the app draws over the bottom of every page: the gesture area, the navigation bar
@@ -39,6 +43,9 @@ class FlowBottomInsets(
 
     /** The system gesture or button area alone. */
     val systemBottom: Dp get() = systemInset.value
+
+    /** What the settled bar and mini player add above the gesture area, for pages that pad that area themselves. */
+    val chromeAboveSystem: Dp get() = contentBottom - systemInset.value
 
     /** Px from the window's bottom edge to where the mini player rests right now, following the bar. */
     fun miniPlayerBaselinePx(density: Density): Float = with(density) { systemInset.value.toPx() + barHeight.value.toPx() * barFraction() }
@@ -82,3 +89,7 @@ fun flowContentPadding(
         end = horizontal,
         bottom = flowBottomContentPadding(extraBottom),
     )
+
+/** Lifts a floating element (a FAB, a snackbar, a toolbar) above the bottom chrome, riding along as it moves. */
+fun Modifier.floatAboveBottomChrome(insets: FlowBottomInsets): Modifier =
+    offset { IntOffset(0, -insets.floatingBottomPx(this).roundToInt()) }

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 
@@ -115,7 +116,7 @@ internal fun SubscriptionsManageContent(
                     start = ContentHorizontalPadding,
                     end = ContentHorizontalPadding,
                     top = 4.dp,
-                    bottom = ContentHorizontalPadding,
+                    bottom = flowBottomContentPadding(),
                 ),
             verticalArrangement = Arrangement.spacedBy(ListItemSpacing),
         ) {
