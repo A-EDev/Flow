@@ -52,6 +52,7 @@ NEW FEATURES
 - Your music playlists can be edited, deleted and filled from a new Add songs sheet right on their page, a Daily Mix can be saved as your own playlist, and Download all now covers the whole album or playlist and keeps going after you leave
 - A new Equalizer page: drag bands on its response curve, type exact frequency, gain and Q values, switch to a 10-band graphic mode, and hold Compare to hear the difference (#810)
 - Import AutoEQ and EqualizerAPO presets from a file or pasted text, export yours in the same format, and keep your presets in backup and device sync
+- The music player adapts to tablets and foldables: wide windows show Up next and Lyrics in a pane beside the player, upright tablets get a centred layout, and phones in landscape show the cover beside the controls
 
 IMPROVEMENTS
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
@@ -84,6 +85,8 @@ IMPROVEMENTS
 - Local media works with Android 14's "Select photos and videos", updates itself when files change, and lets you choose in Settings what it hides
 - Deleting local files moves them to the system trash with Undo, and local songs and videos show their cover or a frame in lists and in the media notification
 - Downloads and Local media put search, the Videos and Music switch and sort on one row on tablets and unfolded foldables
+- The music mini player now sits on its own at the bottom and moves with the navigation bar; on tablets and foldables it is a centred card that no longer covers the navigation rail
+- Pages now scroll under the navigation bar, the mini player and the gesture area and stop clear of them, instead of ending above a blank band, and the expanded player has a collapse button
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -93,6 +96,7 @@ PERFORMANCE
 - Flow opens as soon as its first screen is ready instead of holding every launch behind a two second splash, and on Android 13 and later the splash matches your theme and app icon
 - Loading placeholders now take the exact shape of the cards they stand in for, so the feed no longer jumps when it arrives, and they no longer redraw the whole layout on every frame
 - A YouTube playlist is fetched once instead of twice in full on every open, Local media no longer rescans the device on every visit, and download progress updates once a second instead of four times
+- The expanded music player is no longer rebuilt on every song change, and lyrics stop updating while the music is paused
 
 FIXES AND STABILITY
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
