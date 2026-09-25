@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -28,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicItemType
@@ -36,6 +34,7 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.section.HomeSectionType
@@ -47,7 +46,6 @@ import io.github.aedev.flow.ui.components.shared.MusicScreenShimmerLoading
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import java.util.Random
-import kotlin.math.roundToInt
 
 private val FeedBottomClearance = 96.dp
 
@@ -136,7 +134,7 @@ fun EnhancedMusicScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onRecognizeClick,
-                modifier = Modifier.offset { IntOffset(x = 0, y = -bottomInsets.floatingBottomPx(this).roundToInt()) },
+                modifier = Modifier.floatAboveBottomChrome(bottomInsets),
             ) {
                 Icon(Icons.Rounded.Mic, stringResource(R.string.recognize_music))
             }
