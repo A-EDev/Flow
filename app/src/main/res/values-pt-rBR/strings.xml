@@ -122,9 +122,9 @@
     <string name="create">Criar</string>
     <string name="save_to_playlist">Salvar na playlist</string>
     <string name="not_interested">Não estou interessado</string>
-    <string name="details_metadata">Detalhes &amp; Metadados</string>
+    <string name="details_metadata">Detalhes</string>
     <string name="mark_as_watched">Marcar como assistido</string>
-    <string name="mark_as_watched_toast">Marcado como assistido — suas recomendações irão melhorar!</string>
+    <string name="mark_as_watched_toast">Marcado como assistido</string>
     <string name="i_like_this">Quero mais coisas assim</string>
     <string name="i_like_this_toast">Entendi! Você verá mais conteúdos como este.</string>
     <string name="go_to_channel">Ir para o canal</string>
@@ -172,7 +172,7 @@
     <string name="since">Desde</string>
     <string name="add_to_playlist">Adicionar à Playlist</string>
     <string name="play_next">Próximo Vídeo</string>
-    <string name="play_next_desc">Adicionar ao início da fila</string>
+    <string name="play_next_desc">Tocar em seguida</string>
     <string name="add_to_queue">Adicionar à fila</string>
     <string name="add_to_queue_desc">Adicionar ao final da fila</string>
     <string name="audio_effects">Efeitos de áudio</string>
@@ -472,11 +472,11 @@
     <string name="theme_desc_system_default">Acompanha o tema do seu dispositivo entre claro e escuro.</string>
     <string name="theme_desc_pure_light">Simples &amp; minimalista</string>
     <string name="theme_name_sky_blue">Céu Azul</string>
-    <string name="theme_desc_cream_paper">Quentinho &amp; aconchegante</string>
-    <string name="theme_name_classic_dark">Clássico</string>
-    <string name="theme_desc_classic_dark">Paleta original da Flow</string>
+    <string name="theme_desc_cream_paper">Toques de papel quentes para leitura diurna aconchegante.</string>
+    <string name="theme_name_classic_dark">Padrão Flow</string>
+    <string name="theme_desc_classic_dark">Paleta original do Flow com um toque do vermelho do YouTube.</string>
     <string name="theme_name_custom">Personalizado</string>
-    <string name="theme_desc_custom">Crie sua própria paleta profissional</string>
+    <string name="theme_desc_custom">Sua própria paleta, com cada cor editável</string>
     <string name="theme_name_midnight">Meia-noite</string>
     <string name="theme_name_lavender">Lavanda</string>
     <string name="theme_desc_sunset">Quente &amp; vibrante</string>
@@ -603,7 +603,7 @@
     <string name="appearance_category_all">Tudo</string>
     <string name="appearance_category_light">Claro</string>
     <string name="appearance_category_dark">Escuro</string>
-    <string name="theme_desc_deep_ocean">Profundezas tranquilas</string>
+    <string name="theme_desc_deep_ocean">Azuis calmos desenhados pelas águas profundas.</string>
     <string name="theme_name_forest">Floresta</string>
     <string name="theme_name_nordic">Nórdico</string>
     <string name="content_settings_grid_small_title">Pequena</string>
@@ -807,8 +807,8 @@
     <string name="theme_name_true_black">Preto puro</string>
     <string name="theme_desc_true_black">OLED Puro</string>
     <string name="theme_name_monochrome">Monocromático</string>
-    <string name="theme_desc_monochrome">Branco puro e preto e branco</string>
-    <string name="theme_desc_midnight">Profundo e focado</string>
+    <string name="theme_desc_monochrome">Uma paleta neutra e livre de distrações com clareza máxima.</string>
+    <string name="theme_desc_midnight">Preto profundo e focado para uma vista tarde da noite.</string>
     <string name="theme_name_deep_ocean">Oceano profundo</string>
     <string name="theme_desc_forest">Natural e aterrador</string>
     <string name="theme_desc_lavender">Suave e sonhador</string>
@@ -3042,4 +3042,5 @@
     <string name="taste_trait_now">%1$s agora</string>
     <string name="recap_story_streak">Sua sequência mais longa</string>
     <string name="recap_source_music">Música</string>
+    <string name="quick_action_failed">Isso não funcionou. Tente novamente.</string>
 </resources>
