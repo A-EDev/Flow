@@ -317,6 +317,7 @@ internal fun FullMusicPlayerContent(
             style = backgroundStyle,
             paletteBaseColor = palette.base,
             paletteAccentColor = palette.accent,
+            artworkAtStart = layout == MusicPlayerLayout.WIDE || layout == MusicPlayerLayout.SPLIT,
         )
 
         val pullUpQueue = Modifier.queuePullUpGesture(queueState, enabled = isPlayerSheetExpanded && !isWide)
@@ -340,7 +341,7 @@ internal fun FullMusicPlayerContent(
             }
 
             MusicPlayerLayout.WIDE -> {
-                WidePlayerLayout(slots, panes) { modifier ->
+                WidePlayerLayout(slots, panes, immersive = immersiveBackground) { modifier ->
                     PlayerSidePane(
                         tab = sidePaneTab,
                         onTabChange = selectSidePaneTab,

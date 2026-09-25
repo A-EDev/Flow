@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.musicplayer.full
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
@@ -36,6 +38,7 @@ private val MainPanePadding = 32.dp
 private val MainPaneGap = 32.dp
 private val MainPaneRowGap = 12.dp
 private val SidePaneEdgePadding = 16.dp
+private val ImmersiveDetailsMaxWidth = 440.dp
 
 /** Whether this window gives the player a pane beside it; wraps the adaptive library's experimental types. */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
@@ -66,6 +69,7 @@ internal fun rememberPlayerPanes(): PlayerPanes {
 internal fun WidePlayerLayout(
     slots: NowPlayingSlots,
     panes: PlayerPanes,
+    immersive: Boolean,
     sidePane: @Composable (Modifier) -> Unit,
 ) {
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -84,6 +88,7 @@ internal fun WidePlayerLayout(
                 AnimatedPane {
                     WideMainPane(
                         slots = slots,
+                        immersive = immersive,
                         modifier = Modifier.padding(start = MainPanePadding, end = MainPanePadding, bottom = bottomInset + 16.dp),
                     )
                 }
@@ -100,8 +105,25 @@ internal fun WidePlayerLayout(
 @Composable
 private fun WideMainPane(
     slots: NowPlayingSlots,
+    immersive: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    if (immersive) {
+        // The art is the background on the start side; the details sit at the bottom end, over its
+        // fade, and the invisible cover slot under them keeps swipe-to-skip across the pane.
+        Box(modifier = modifier.fillMaxSize()) {
+            slots.artwork(Modifier.matchParentSize())
+            NowPlayingDetails(
+                slots = slots,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .widthIn(max = ImmersiveDetailsMaxWidth)
+                        .fillMaxWidth(),
+            )
+        }
+        return
+    }
     BoxWithConstraints(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val sideBySide = maxWidth >= maxHeight * 1.1f
         if (sideBySide) {
