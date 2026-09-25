@@ -10,7 +10,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.audioSettingsDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "audio_settings")
+/** Shared with the equalizer store: one file may only ever have one DataStore instance. */
+internal val Context.audioSettingsDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "audio_settings")
 
 class AudioSettingsPersistence private constructor(private val context: Context) {
 
