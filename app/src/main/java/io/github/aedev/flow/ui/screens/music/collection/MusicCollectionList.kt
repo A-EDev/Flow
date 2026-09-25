@@ -106,6 +106,7 @@ internal fun MusicCollectionList(
         }
         itemsIndexed(tracks, key = { _, (key, _) -> key }, contentType = { _, _ -> "track" }) { index, (key, track) ->
             val selected = mode.selectedKeys?.contains(key) == true
+            val rowColor = MaterialTheme.colorScheme.surfaceContainerHigh
             MusicTrackItem(
                 track = track,
                 onClick = { onTrackClick(key) },
@@ -117,7 +118,7 @@ internal fun MusicCollectionList(
                 density = MusicItemDensity.Compact,
                 index = mode.positions[key] ?: (index + 1),
                 shape = flowSegmentShape(index = index, count = tracks.size),
-                containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else rowColor,
                 leadingContent =
                     when {
                         mode.inSelection -> {

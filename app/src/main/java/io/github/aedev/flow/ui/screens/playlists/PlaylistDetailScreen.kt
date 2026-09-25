@@ -257,7 +257,7 @@ fun PlaylistDetailScreen(
                 summary = pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size),
                 actions =
                     listOf(
-                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.remove), destructive = true) {
+                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.remove)) {
                             dialog = PlaylistDialog.RemoveSelected(selectedIds)
                         },
                     ),

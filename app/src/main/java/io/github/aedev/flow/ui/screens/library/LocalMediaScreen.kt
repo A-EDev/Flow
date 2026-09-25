@@ -342,7 +342,7 @@ fun LocalMediaScreen(
                         FlowSelectionAction(Icons.Outlined.Share, stringResource(R.string.share)) {
                             shareFiles(state.items.filter { it.mediaId in selectedIds })
                         },
-                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.action_delete), destructive = true) {
+                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.action_delete)) {
                             deleteFiles(state.items.filter { it.mediaId in selectedIds })
                         },
                     ),

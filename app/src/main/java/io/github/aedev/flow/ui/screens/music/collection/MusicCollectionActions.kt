@@ -93,14 +93,13 @@ internal fun selectionActions(
                     FlowSelectionAction(
                         Icons.Rounded.RemoveCircleOutline,
                         stringResource(R.string.remove),
-                        destructive = true,
                         onClick = onRemove,
                     ),
                 )
             }
 
             MusicCollectionKind.LIKED -> {
-                add(FlowSelectionAction(Icons.Rounded.HeartBroken, stringResource(R.string.unlike), destructive = true, onClick = onRemove))
+                add(FlowSelectionAction(Icons.Rounded.HeartBroken, stringResource(R.string.unlike), onClick = onRemove))
             }
 
             else -> {

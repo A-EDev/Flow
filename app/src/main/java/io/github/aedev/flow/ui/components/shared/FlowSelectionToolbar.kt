@@ -7,6 +7,7 @@ import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,12 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
 
 /** One button in a select mode's toolbar. */
 class FlowSelectionAction(
     val icon: ImageVector,
     val label: String,
-    val destructive: Boolean = false,
     val onClick: () -> Unit,
 )
 
@@ -41,9 +42,17 @@ fun FlowSelectionToolbar(
         enter = FloatingToolbarDefaults.verticalEnterTransition(Alignment.Bottom),
         exit = FloatingToolbarDefaults.verticalExitTransition(Alignment.Bottom),
     ) {
+        // Inverse, like a snackbar: the standard container is the page's surface and the vibrant one
+        // matches a selected row in several palettes, so either would melt into the list under it.
         HorizontalFloatingToolbar(
             expanded = true,
-            modifier = Modifier.padding(bottom = FloatingToolbarDefaults.ScreenOffset),
+            colors =
+                FloatingToolbarDefaults.standardFloatingToolbarColors(
+                    toolbarContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                    toolbarContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                ),
+            // Above the music mini player, which floats over every screen while a song plays.
+            modifier = Modifier.padding(bottom = FloatingToolbarDefaults.ScreenOffset + LocalMusicMiniPlayerInset.current),
             leadingContent = {
                 Text(
                     text = summary,
@@ -57,7 +66,7 @@ fun FlowSelectionToolbar(
                     Icon(
                         imageVector = action.icon,
                         contentDescription = action.label,
-                        tint = if (action.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        tint = LocalContentColor.current,
                     )
                 }
             }
