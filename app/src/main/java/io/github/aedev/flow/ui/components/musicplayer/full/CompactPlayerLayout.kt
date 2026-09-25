@@ -15,13 +15,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** The phone layout: one column, with the cover taking whatever height the controls leave it. */
+/**
+ * The phone layout: one column, with the cover taking whatever height the controls leave it. As
+ * the queue is pulled up the column fades and the cover shrinks, read per frame in the draw phase.
+ */
 @Composable
 internal fun CompactPlayerLayout(
     slots: NowPlayingSlots,
     artworkSize: Dp,
-    mainAlpha: Float,
-    artworkScale: Float,
+    queueFraction: () -> Float,
     bottomInset: Dp,
     modifier: Modifier = Modifier,
 ) {
@@ -31,7 +33,7 @@ internal fun CompactPlayerLayout(
         modifier =
             Modifier
                 .fillMaxSize()
-                .graphicsLayer { alpha = mainAlpha }
+                .graphicsLayer { alpha = (1f - queueFraction() / 0.4f).coerceIn(0f, 1f) }
                 .then(modifier),
     ) {
         Column(
@@ -47,8 +49,9 @@ internal fun CompactPlayerLayout(
                 sidePadding
                     .size(artworkSize)
                     .graphicsLayer {
-                        scaleX = artworkScale
-                        scaleY = artworkScale
+                        val scale = 1f - queueFraction() * 0.10f
+                        scaleX = scale
+                        scaleY = scale
                     },
             )
             Spacer(modifier = Modifier.weight(1f))

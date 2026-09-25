@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -184,7 +185,8 @@ internal fun MusicLyricsSheet(
         label = "lyricsPanelAlpha",
     )
 
-    if (!visible && !panelComposed && !sheetShown.isRunning && sheetShown.value == 0f) return
+    val sheetAtRestHidden by remember { derivedStateOf { !sheetShown.isRunning && sheetShown.value == 0f } }
+    if (!visible && !panelComposed && sheetAtRestHidden) return
 
     val backdropColor = remember(backdropBaseColor) { lerp(backdropBaseColor, Color.Black, 0.3f) }
 

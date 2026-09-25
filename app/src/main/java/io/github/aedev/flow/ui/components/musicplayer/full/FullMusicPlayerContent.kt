@@ -194,7 +194,6 @@ internal fun FullMusicPlayerContent(
         LaunchedEffect(isPlayerSheetExpanded) {
             if (!isPlayerSheetExpanded) showLyricsSheet = false
         }
-        val queueFraction = queueState.fraction()
 
         val slots =
             NowPlayingSlots(
@@ -299,8 +298,7 @@ internal fun FullMusicPlayerContent(
         CompactPlayerLayout(
             slots = slots,
             artworkSize = artworkSize,
-            mainAlpha = (1f - (queueFraction / 0.4f)).coerceIn(0f, 1f),
-            artworkScale = 1f - (queueFraction * 0.10f),
+            queueFraction = queueState::fraction,
             bottomInset = navBarPadding,
             modifier = Modifier.queuePullUpGesture(queueState, enabled = isPlayerSheetExpanded),
         )
