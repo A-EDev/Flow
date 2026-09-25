@@ -44,6 +44,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.NotificationEntity
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
@@ -89,7 +92,9 @@ fun NotificationScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0.dp),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState, Modifier.floatAboveBottomChrome(LocalFlowBottomInsets.current))
+        },
         topBar = {
             FlowTopBar(
                 title = stringResource(R.string.notifications),
@@ -114,7 +119,12 @@ fun NotificationScreen(
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
                 modifier = Modifier.widthIn(max = FlowMaxContentWidth).fillMaxWidth(),
-                contentPadding = PaddingValues(start = GroupPadding, end = GroupPadding, bottom = ListBottomPadding),
+                contentPadding =
+                    PaddingValues(
+                        start = GroupPadding,
+                        end = GroupPadding,
+                        bottom = flowBottomContentPadding(ListBottomPadding),
+                    ),
             ) {
                 sections.forEach { section ->
                     item(key = section.bucket, contentType = "header") {

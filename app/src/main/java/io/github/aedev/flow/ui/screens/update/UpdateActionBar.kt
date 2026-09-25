@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.shared.FlowActionButton
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 
@@ -40,7 +41,10 @@ internal fun UpdateActionBar(
     onPrimary: () -> Unit,
     onSecondary: () -> Unit,
 ) {
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier.fillMaxWidth().padding(bottom = LocalFlowBottomInsets.current.contentBottom),
+        contentAlignment = Alignment.Center,
+    ) {
         Row(
             modifier = Modifier.widthIn(max = FlowMaxContentWidth).fillMaxWidth().padding(BarPadding),
             horizontalArrangement = Arrangement.spacedBy(BarSpacing, Alignment.End),

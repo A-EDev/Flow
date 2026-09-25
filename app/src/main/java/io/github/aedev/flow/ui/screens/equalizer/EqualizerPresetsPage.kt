@@ -4,10 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -40,6 +37,7 @@ import io.github.aedev.flow.data.audio.eq.BuiltInEqPresets
 import io.github.aedev.flow.data.audio.eq.EqMode
 import io.github.aedev.flow.data.audio.eq.EqPreset
 import io.github.aedev.flow.data.audio.eq.EqState
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
 import io.github.aedev.flow.ui.components.shared.FlowRowGroup
 import io.github.aedev.flow.ui.components.shared.FlowSectionHeader
@@ -61,7 +59,7 @@ internal fun EqualizerPresetsPage(
     onDialog: (EqDialog) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 32.dp
+    val bottom = flowBottomContentPadding(32.dp)
     val selectedId = state.active.presetId
     LazyColumn(
         modifier = modifier.fillMaxSize(),

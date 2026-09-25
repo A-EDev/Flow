@@ -5,12 +5,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,6 +47,7 @@ import io.github.aedev.flow.ui.components.equalizer.EqResponseGraph
 import io.github.aedev.flow.ui.components.equalizer.PanelRow
 import io.github.aedev.flow.ui.components.equalizer.activePresetName
 import io.github.aedev.flow.ui.components.equalizer.formatGain
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
@@ -87,7 +85,7 @@ internal fun EqualizerMainContent(
     onSystemEqualizer: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + BottomSpacing
+    val bottom = flowBottomContentPadding(BottomSpacing)
     val list: @Composable (LazyListScope.() -> Unit) -> Unit = { content ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
