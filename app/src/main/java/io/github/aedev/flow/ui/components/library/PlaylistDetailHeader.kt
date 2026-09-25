@@ -63,7 +63,6 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.connectedButtonShapes
 
 private val HeaderPadding: Dp = 16.dp
-private const val PHONE_ARTWORK_WIDTH_FRACTION = 0.95f
 private const val DESCRIPTION_COLLAPSED_LINES = 2
 private const val ARTWORK_PLACEHOLDER_ALPHA = 0.5f
 private val PlaceholderIconSize: Dp = 64.dp
@@ -109,10 +108,7 @@ internal fun PlaylistHeader(
         modifier = modifier.fillMaxWidth().padding(HeaderPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        PlaylistArtwork(
-            url = state.thumbnailUrl,
-            modifier = Modifier.fillMaxWidth(PHONE_ARTWORK_WIDTH_FRACTION).align(Alignment.CenterHorizontally),
-        )
+        PlaylistArtwork(url = state.thumbnailUrl, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.size(4.dp))
         PlaylistTitleBlock(state)
         PlaylistPrimaryActions(actions)
