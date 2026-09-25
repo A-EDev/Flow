@@ -8,6 +8,8 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -22,6 +24,15 @@ class VideoMetadataMergeTest {
             .allowMainThreadQueries()
             .build()
     private val dao = database.videoDao()
+
+    // Robolectric's native SQLite loads on developer machines but not on every CI image; there the
+    // test is skipped rather than failed, like the suite's other environment-bound tests.
+    @Before
+    fun requireSqlite() {
+        val failure = runCatching { database.openHelper.writableDatabase }.exceptionOrNull()
+        // After a failed native load, later tests in the same JVM see NoClassDefFoundError instead.
+        assumeTrue("Native SQLite unavailable: $failure", failure !is UnsatisfiedLinkError && failure !is NoClassDefFoundError)
+    }
 
     @After
     fun close() = database.close()
