@@ -194,9 +194,10 @@ fun PlaylistDetailScreen(
                 else -> {
                     val sortChip: @Composable () -> Unit = {
                         PlaylistSortChip(
-                            options = PlaylistSortOrder.availableFor(uiState.isLocalPlaylist),
+                            options = PlaylistSortOrder.availableFor(uiState.isLocalPlaylist, uiState.isLikes),
                             selected = sortOrder,
                             onSelected = viewModel::setSortOrder,
+                            default = PlaylistSortOrder.defaultFor(uiState.isLikes),
                         )
                     }
                     val list: @Composable (header: (@Composable () -> Unit)?) -> Unit = { header ->
@@ -210,6 +211,7 @@ fun PlaylistDetailScreen(
                                     selectedIds = selectedIds,
                                     showAddedDate = isUserCreated,
                                     isWatchLater = uiState.isWatchLater,
+                                    isLikes = uiState.isLikes,
                                     searchQuery = searchQuery.orEmpty(),
                                     positions = positions,
                                 ),

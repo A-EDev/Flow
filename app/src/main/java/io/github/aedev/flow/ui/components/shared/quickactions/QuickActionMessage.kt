@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.shared.quickactions
 
 import androidx.annotation.StringRes
+import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.model.Video
 
@@ -35,6 +36,11 @@ sealed interface QuickActionUndo {
 
     data class PlaylistRemoval(
         val entries: List<PlaylistVideoCrossRef>,
+    ) : QuickActionUndo
+
+    /** Likes taken off the Liked videos or Liked music page. */
+    data class Unlike(
+        val likes: List<LikedVideoInfo>,
     ) : QuickActionUndo
 
     /** Files moved to the system trash; putting them back needs the system's consent, asked by the host. */

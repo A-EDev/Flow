@@ -40,6 +40,7 @@ internal fun PlaylistVideoRow(
     showAddedDate: Boolean,
     isWatchLater: Boolean,
     onRemove: () -> Unit,
+    isLikes: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -49,7 +50,7 @@ internal fun PlaylistVideoRow(
         title = video.title,
         modifier = modifier.then(reorderModifier),
         subtitle = video.channelName,
-        supporting = video.playlistMetadataLine(showAddedDate),
+        supporting = video.playlistMetadataLine(showAddedDate, isLikes),
         supportingColor =
             if (video.viewCount < 0L && !showAddedDate) {
                 MaterialTheme.colorScheme.primary
@@ -96,7 +97,13 @@ internal fun PlaylistVideoRow(
             onRemoveFromCollection = if (canModify) onRemove else null,
             removeFromCollectionLabel =
                 if (canModify) {
-                    stringResource(if (isWatchLater) R.string.remove_from_watch_later else R.string.remove_from_playlist_action)
+                    stringResource(
+                        when {
+                            isLikes -> R.string.unlike
+                            isWatchLater -> R.string.remove_from_watch_later
+                            else -> R.string.remove_from_playlist_action
+                        },
+                    )
                 } else {
                     null
                 },
@@ -106,10 +113,14 @@ internal fun PlaylistVideoRow(
 }
 
 @Composable
-internal fun Video.playlistMetadataLine(showAddedDate: Boolean): String {
+internal fun Video.playlistMetadataLine(
+    showAddedDate: Boolean,
+    isLikes: Boolean = false,
+): String {
     val addedAt = addedAtInPlaylist
     if (showAddedDate && addedAt != null) {
-        return stringResource(R.string.playlist_video_added_template, formatYouTubeRelativeTime(addedAt))
+        val template = if (isLikes) R.string.liked_video_template else R.string.playlist_video_added_template
+        return stringResource(template, formatYouTubeRelativeTime(addedAt))
     }
     return videoMetadataLine(video = this, isUpcoming = viewCount < 0L)
 }

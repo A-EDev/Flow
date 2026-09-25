@@ -121,7 +121,11 @@ internal fun PlaylistDetailDialogs(
                 text = {
                     Text(
                         stringResource(
-                            if (uiState.isWatchLater) R.string.remove_selected_watch_later_text else R.string.remove_selected_playlist_text,
+                            when {
+                                uiState.isLikes -> R.string.remove_selected_likes_text
+                                uiState.isWatchLater -> R.string.remove_selected_watch_later_text
+                                else -> R.string.remove_selected_playlist_text
+                            },
                         ),
                     )
                 },

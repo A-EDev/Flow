@@ -3638,4 +3638,18 @@
         <item quantity="one">Removed %d watched video</item>
         <item quantity="other">Removed %d watched videos</item>
     </plurals>
+    <!-- Liked videos and Liked music built-in playlists -->
+    <string name="liked_videos_playlist">Liked videos</string>
+    <string name="liked_music_playlist">Liked music</string>
+    <string name="liked_videos_empty_title">No liked videos yet</string>
+    <string name="liked_videos_empty_body">Videos you like show up here</string>
+    <string name="remove_selected_likes_text">They will be unliked.</string>
+    <string name="removed_from_liked_music">Removed from Liked music</string>
+    <string name="liked_video_template">Liked %1$s</string>
+    <string name="liked_music_empty_title">No liked songs yet</string>
+    <string name="liked_music_empty_body">Songs you like in the music player show up here</string>
+    <plurals name="liked_videos_removed">
+        <item quantity="one">Unliked %d video</item>
+        <item quantity="other">Unliked %d videos</item>
+    </plurals>
 </resources>

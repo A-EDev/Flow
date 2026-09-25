@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.engagement.LikedMediaUseCase
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.engagement.VideoFeedbackUseCase
 import io.github.aedev.flow.data.local.PlaylistRepository
@@ -51,6 +52,7 @@ class QuickActionsViewModel
         private val engagement: VideoEngagementUseCase,
         private val feedback: VideoFeedbackUseCase,
         private val downloadOptions: VideoDownloadOptionsLoader,
+        private val likedMedia: LikedMediaUseCase,
     ) : ViewModel() {
         val watchLaterIds: StateFlow<Set<String>> =
             playlistRepository
@@ -241,6 +243,10 @@ class QuickActionsViewModel
 
                         is QuickActionUndo.PlaylistRemoval -> {
                             playlistRepository.restorePlaylistVideos(undo.entries)
+                        }
+
+                        is QuickActionUndo.Unlike -> {
+                            likedMedia.restore(undo.likes)
                         }
 
                         is QuickActionUndo.RestoreFromTrash -> {

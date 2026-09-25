@@ -317,11 +317,12 @@ internal fun PlaylistSortChip(
     selected: PlaylistSortOrder,
     onSelected: (PlaylistSortOrder) -> Unit,
     modifier: Modifier = Modifier,
+    default: PlaylistSortOrder = PlaylistSortOrder.MANUAL,
 ) {
     LibrarySortChip(
         options = options,
         selected = selected,
-        default = PlaylistSortOrder.MANUAL,
+        default = default,
         label = { stringResource(it.labelRes) },
         onSelected = onSelected,
         modifier = modifier,

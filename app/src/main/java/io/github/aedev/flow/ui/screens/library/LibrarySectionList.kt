@@ -18,6 +18,7 @@ internal fun LibrarySectionList(
     onNavigateToHistory: () -> Unit,
     onNavigateToPlaylists: () -> Unit,
     onNavigateToLikedVideos: () -> Unit,
+    onNavigateToLikedMusic: () -> Unit,
     onNavigateToWatchLater: () -> Unit,
     onNavigateToSavedShorts: () -> Unit,
     onNavigateToDownloads: () -> Unit,
@@ -27,7 +28,8 @@ internal fun LibrarySectionList(
         LibrarySectionRow(LibrarySection.HISTORY, counts, onNavigateToHistory)
         LibrarySectionRow(LibrarySection.PLAYLISTS, counts, onNavigateToPlaylists)
         LibrarySectionRow(LibrarySection.WATCH_LATER, counts, onNavigateToWatchLater)
-        LibrarySectionRow(LibrarySection.LIKES, counts, onNavigateToLikedVideos)
+        LibrarySectionRow(LibrarySection.LIKED_VIDEOS, counts, onNavigateToLikedVideos)
+        LibrarySectionRow(LibrarySection.LIKED_MUSIC, counts, onNavigateToLikedMusic)
         LibrarySectionRow(LibrarySection.DOWNLOADS, counts, onNavigateToDownloads)
         if (shortsEnabled) {
             LibrarySectionRow(LibrarySection.SAVED_SHORTS, counts, onNavigateToSavedShorts)

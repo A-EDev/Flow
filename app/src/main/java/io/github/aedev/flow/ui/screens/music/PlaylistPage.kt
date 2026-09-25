@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -82,11 +83,12 @@ fun PlaylistPage(
     onArtistClick: (String) -> Unit,
     onCollectionClick: (String) -> Unit = {},
     onDownloadClick: () -> Unit = {},
-    onShareClick: () -> Unit = {},
+    onShareClick: (() -> Unit)? = {},
     onLoadMore: () -> Unit = {},
     isUserPlaylist: Boolean = false,
     isSaved: Boolean = false,
     onSaveToggle: (() -> Unit)? = null,
+    onUnlikeTrack: ((MusicTrack) -> Unit)? = null,
     modifier: Modifier = Modifier,
     playlistsViewModel: MusicPlaylistsViewModel = hiltViewModel(),
 ) {
@@ -373,7 +375,18 @@ fun PlaylistPage(
                                         )
                                     },
                                     trailingContent =
-                                        if (isUserPlaylist) {
+                                        if (onUnlikeTrack != null) {
+                                            {
+                                                IconButton(onClick = { onUnlikeTrack(track) }) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Favorite,
+                                                        contentDescription = stringResource(R.string.unlike),
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp),
+                                                    )
+                                                }
+                                            }
+                                        } else if (isUserPlaylist) {
                                             {
                                                 IconButton(
                                                     onClick = {

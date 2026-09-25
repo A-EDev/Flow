@@ -91,7 +91,7 @@ internal fun PlaylistTopBar(
     title: String,
     onBackClick: () -> Unit,
     onPlayClick: () -> Unit,
-    onShareClick: () -> Unit,
+    onShareClick: (() -> Unit)?,
     showSearchToggle: Boolean,
     searchActive: Boolean,
     onSearchToggle: () -> Unit,
@@ -162,14 +162,16 @@ internal fun PlaylistTopBar(
                         },
                     )
                 }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.share)) },
-                    leadingIcon = { Icon(Icons.Rounded.Share, contentDescription = null) },
-                    onClick = {
-                        menuExpanded = false
-                        onShareClick()
-                    },
-                )
+                if (onShareClick != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.share)) },
+                        leadingIcon = { Icon(Icons.Rounded.Share, contentDescription = null) },
+                        onClick = {
+                            menuExpanded = false
+                            onShareClick()
+                        },
+                    )
+                }
             }
         }
     }

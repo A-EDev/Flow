@@ -10,6 +10,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.engagement.LikedMediaUseCase
+import io.github.aedev.flow.data.local.LikedVideoInfo
+import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.WatchLaterCleanup
@@ -71,6 +74,8 @@ data class PlaylistDetailUiState(
     val isLocalPlaylist: Boolean = false,
     val isSaved: Boolean = false,
     val isWatchLater: Boolean = false,
+    /** Liked videos: read from the likes, where removing a video unlikes it. */
+    val isLikes: Boolean = false,
     val isLoading: Boolean = true,
     /** Later pages of a YouTube playlist are still arriving. */
     val isLoadingMore: Boolean = false,
@@ -90,6 +95,8 @@ class PlaylistDetailViewModel
         private val watchLaterMetadataMigrator: WatchLaterMetadataMigrator,
         private val watchLaterCleanup: WatchLaterCleanup,
         private val transfer: PlaylistTransfer,
+        private val likedVideos: LikedVideosRepository,
+        private val likedMedia: LikedMediaUseCase,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
@@ -106,11 +113,11 @@ class PlaylistDetailViewModel
         val sortOrder: StateFlow<PlaylistSortOrder> =
             combine(
                 playerPreferences.playlistSortOrder(playlistId),
-                _uiState.map { it.isLocalPlaylist }.distinctUntilChanged(),
-            ) { stored, isLocal ->
+                _uiState.map { it.isLocalPlaylist to it.isLikes }.distinctUntilChanged(),
+            ) { stored, (isLocal, isLikes) ->
                 PlaylistSortOrder
                     .fromStorageValue(stored)
-                    .takeIf { it in PlaylistSortOrder.availableFor(isLocal) } ?: PlaylistSortOrder.MANUAL
+                    .takeIf { it in PlaylistSortOrder.availableFor(isLocal, isLikes) } ?: PlaylistSortOrder.defaultFor(isLikes)
             }.stateIn(viewModelScope, sharing, PlaylistSortOrder.MANUAL)
 
         val sortedVideos: StateFlow<List<Video>> =
@@ -188,6 +195,10 @@ class PlaylistDetailViewModel
 
         fun removeVideos(videoIds: Set<String>) {
             if (videoIds.isEmpty()) return
+            if (_uiState.value.isLikes) {
+                unlikeVideos(videoIds)
+                return
+            }
             viewModelScope.launch {
                 val removed = repository.takeVideosFromPlaylist(playlistId, videoIds)
                 if (removed.isEmpty()) return@launch
@@ -197,6 +208,21 @@ class PlaylistDetailViewModel
                         count = removed.size,
                         args = listOf(removed.size),
                         undo = QuickActionUndo.PlaylistRemoval(removed),
+                    ),
+                )
+            }
+        }
+
+        private fun unlikeVideos(videoIds: Set<String>) {
+            viewModelScope.launch {
+                val removed = likedMedia.unlike(videoIds)
+                if (removed.isEmpty()) return@launch
+                _messages.send(
+                    PlaylistUiMessage(
+                        pluralRes = R.plurals.liked_videos_removed,
+                        count = removed.size,
+                        args = listOf(removed.size),
+                        undo = QuickActionUndo.Unlike(removed),
                     ),
                 )
             }
@@ -280,6 +306,10 @@ class PlaylistDetailViewModel
                     loadWatchLater()
                     return@launch
                 }
+                if (playlistId == PlaylistRepository.LIKED_VIDEOS_ID) {
+                    loadLikedVideos()
+                    return@launch
+                }
 
                 val localInfo = repository.getPlaylistInfo(playlistId)
                 if (localInfo != null) {
@@ -317,6 +347,49 @@ class PlaylistDetailViewModel
                     viewModelScope.launch { sweepWatched(videos) }
                 }
                 enrichStubs(videos)
+            }
+        }
+
+        private suspend fun loadLikedVideos() {
+            _uiState.update {
+                it.copy(
+                    playlistName = context.getString(R.string.liked_videos_playlist),
+                    description = "",
+                    isPrivate = true,
+                    isLocalPlaylist = true,
+                    isSaved = false,
+                    isLikes = true,
+                    isLoading = false,
+                    errorMessage = null,
+                )
+            }
+            likedVideos.getLikedVideosFlow().collect { likes ->
+                val videos = likes.map { it.toPlaylistVideo() }
+                _uiState.update { it.copy(videos = videos, thumbnailUrl = videos.firstOrNull()?.thumbnailUrl.orEmpty()) }
+                completeLikeDetails(likes)
+            }
+        }
+
+        /**
+         * Likes saved before they carried a channel and length get them once, so rows show a
+         * duration and the channel opens; a like already filled in is never fetched again.
+         */
+        private fun completeLikeDetails(likes: List<LikedVideoInfo>) {
+            val sparse = likes.filter { it.channelId.isNullOrBlank() && it.videoId !in attemptedEnrichment }.take(ENRICHMENT_STUB_LIMIT)
+            if (sparse.isEmpty() || !enrichSemaphore.tryAcquire()) return
+            attemptedEnrichment.addAll(sparse.map { it.videoId })
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                try {
+                    sparse.chunked(ENRICHMENT_CHUNK_SIZE).forEach { chunk ->
+                        chunk.forEach { like ->
+                            val video = runCatching { youTubeRepository.getVideo(like.videoId) }.getOrNull() ?: return@forEach
+                            likedVideos.updateDetails(like.withDetailsOf(video))
+                        }
+                        kotlinx.coroutines.delay(ENRICHMENT_CHUNK_DELAY_MS)
+                    }
+                } finally {
+                    enrichSemaphore.release()
+                }
             }
         }
 

@@ -31,6 +31,10 @@ class PlaylistRepository
         companion object {
             const val WATCH_LATER_ID = "watch_later"
             const val SAVED_SHORTS_ID = "saved_shorts"
+
+            // Built-in pages read from the likes store, not playlist rows.
+            const val LIKED_VIDEOS_ID = "liked_videos"
+            const val LIKED_MUSIC_ID = "liked_music"
         }
 
         suspend fun updateVideoMetadata(video: Video) {

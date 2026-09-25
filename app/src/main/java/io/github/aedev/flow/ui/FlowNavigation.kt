@@ -42,7 +42,6 @@ import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.home.HomeScreen
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.library.LibraryScreen
-import io.github.aedev.flow.ui.screens.likedvideos.LikesScreen
 import io.github.aedev.flow.ui.screens.music.ArtistPage
 import io.github.aedev.flow.ui.screens.music.EnhancedMusicScreen
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
@@ -206,7 +205,10 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("playlists")
             },
             onNavigateToLikedVideos = {
-                navController.navigate("likes")
+                navController.navigate("playlist/${PlaylistRepository.LIKED_VIDEOS_ID}")
+            },
+            onNavigateToLikedMusic = {
+                mediaNavigator.openMusicPlaylist(PlaylistRepository.LIKED_MUSIC_ID)
             },
             onNavigateToWatchLater = {
                 navController.navigate("playlist/${PlaylistRepository.WATCH_LATER_ID}")
@@ -418,25 +420,6 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onMusicClick = { track, queue ->
                 musicPlayerViewModel.loadAndPlayTrack(track, queue, "History")
-                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                val encodedTitle = android.net.Uri.encode(track.title)
-                val encodedArtist = android.net.Uri.encode(track.artist)
-                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-            },
-            onBackClick = { navController.popBackStack() },
-        )
-    }
-
-    // Likes Screen
-    composable("likes") {
-        currentRoute.value = "likes"
-        val musicPlayerViewModel = sharedMusicPlayerViewModel()
-        LikesScreen(
-            onVideoClick = { track ->
-                navController.navigateToPlayer(track.videoId)
-            },
-            onMusicClick = { track, queue ->
-                musicPlayerViewModel.loadAndPlayTrack(track, queue, "Likes")
                 val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
                 val encodedTitle = android.net.Uri.encode(track.title)
                 val encodedArtist = android.net.Uri.encode(track.artist)
@@ -869,6 +852,24 @@ fun NavGraphBuilder.flowAppGraph(
     // Music Playlist Page
     composable(MUSIC_PLAYLIST_ROUTE_PATTERN) { backStackEntry ->
         val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
+        if (playlistId == PlaylistRepository.LIKED_MUSIC_ID) {
+            val musicPlayerViewModel = sharedMusicPlayerViewModel()
+            io.github.aedev.flow.ui.screens.music.LikedMusicPage(
+                onBackClick = { navController.popBackStack() },
+                onTrackClick = { track, queue ->
+                    musicPlayerViewModel.loadAndPlayTrack(track, queue)
+                    val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                    val encodedTitle = android.net.Uri.encode(track.title)
+                    val encodedArtist = android.net.Uri.encode(track.artist)
+                    navController.navigate(
+                        "musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl",
+                    )
+                },
+                onArtistClick = { mediaNavigator.openArtist(it) },
+                onCollectionClick = { mediaNavigator.openMusicPlaylist(it) },
+            )
+            return@composable
+        }
         val musicViewModel: MusicViewModel =
             io.github.aedev.flow.ui.screens.music
                 .sharedMusicViewModel()

@@ -30,7 +30,7 @@ internal fun rememberPlaylistHeaderState(
             pluralStringResource(R.plurals.videos_count_template, videos.size, videos.size),
             totalLengthLabel(totalSeconds).takeUnless { uiState.isLoadingMore },
             when {
-                uiState.isWatchLater -> stringResource(R.string.playlist_type_builtin)
+                uiState.isWatchLater || uiState.isLikes -> stringResource(R.string.playlist_type_builtin)
                 isUserCreated -> stringResource(R.string.playlist_type_yours)
                 uiState.isSaved -> stringResource(R.string.playlist_type_saved)
                 else -> null
@@ -45,7 +45,7 @@ internal fun rememberPlaylistHeaderState(
         isSaved = uiState.isSaved,
         canSave = !isUserCreated,
         canAddAll = !isUserCreated,
-        canEdit = isUserCreated && !uiState.isWatchLater,
+        canEdit = isUserCreated && !uiState.isWatchLater && !uiState.isLikes,
         canExport = uiState.isLocalPlaylist,
         downloadProgress = downloadBatch?.takeUnless { it.isFinished }?.let { it.processed.toFloat() / it.total },
     )

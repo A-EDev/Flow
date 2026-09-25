@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PermMedia
 import androidx.compose.material.icons.outlined.Settings
@@ -22,7 +23,8 @@ internal enum class LibrarySection(
     HISTORY(R.string.library_history_label),
     PLAYLISTS(R.string.library_playlists_label),
     WATCH_LATER(R.string.library_watch_later_label),
-    LIKES(R.string.library_liked_videos_label),
+    LIKED_VIDEOS(R.string.liked_videos_playlist),
+    LIKED_MUSIC(R.string.liked_music_playlist),
     DOWNLOADS(R.string.library_downloads_label),
     SAVED_SHORTS(R.string.library_saved_shorts_label),
     LOCAL_MEDIA(R.string.library_local_media_label),
@@ -35,7 +37,8 @@ internal enum class LibrarySection(
                 HISTORY -> Icons.Outlined.History
                 PLAYLISTS -> Icons.AutoMirrored.Outlined.PlaylistPlay
                 WATCH_LATER -> Icons.Outlined.WatchLater
-                LIKES -> Icons.Outlined.ThumbUp
+                LIKED_VIDEOS -> Icons.Outlined.ThumbUp
+                LIKED_MUSIC -> Icons.Outlined.FavoriteBorder
                 DOWNLOADS -> Icons.Outlined.Download
                 SAVED_SHORTS -> ImageVector.vectorResource(R.drawable.ic_shorts)
                 LOCAL_MEDIA -> Icons.Outlined.PermMedia
@@ -74,8 +77,16 @@ internal fun LibrarySection.subtitle(counts: LibraryCounts?): String? =
             }
         }
 
-        LibrarySection.LIKES -> {
-            counts?.let { itemsSubtitle(it.likes) }
+        LibrarySection.LIKED_VIDEOS -> {
+            counts?.let {
+                pluralStringResource(R.plurals.videos_count_template, it.likedVideos, it.likedVideos)
+            }
+        }
+
+        LibrarySection.LIKED_MUSIC -> {
+            counts?.let {
+                pluralStringResource(R.plurals.songs_count_template, it.likedMusic, it.likedMusic)
+            }
         }
 
         LibrarySection.SAVED_SHORTS -> {

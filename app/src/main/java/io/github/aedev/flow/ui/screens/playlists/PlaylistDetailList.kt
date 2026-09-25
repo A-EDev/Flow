@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -30,6 +31,7 @@ internal class PlaylistListMode(
     val selectedIds: Set<String>,
     val showAddedDate: Boolean,
     val isWatchLater: Boolean,
+    val isLikes: Boolean = false,
     /** Set while a search narrows the list; each shown video keeps its number in the whole playlist. */
     val searchQuery: String = "",
     val positions: Map<String, Int> = emptyMap(),
@@ -63,11 +65,31 @@ internal fun PlaylistDetailList(
             }
         } else if (videos.isEmpty() && !isLoadingMore) {
             item(key = "playlist-empty", contentType = "empty") {
-                FlowEmptyState(
-                    title = stringResource(if (mode.isWatchLater) R.string.no_videos_saved else R.string.playlist_empty_title),
-                    subtitle = stringResource(if (mode.isWatchLater) R.string.no_videos_saved_body else R.string.playlist_empty_desc),
-                    icon = if (mode.isWatchLater) Icons.Default.WatchLater else Icons.AutoMirrored.Filled.PlaylistPlay,
-                )
+                when {
+                    mode.isLikes -> {
+                        FlowEmptyState(
+                            title = stringResource(R.string.liked_videos_empty_title),
+                            subtitle = stringResource(R.string.liked_videos_empty_body),
+                            icon = Icons.Outlined.ThumbUp,
+                        )
+                    }
+
+                    mode.isWatchLater -> {
+                        FlowEmptyState(
+                            title = stringResource(R.string.no_videos_saved),
+                            subtitle = stringResource(R.string.no_videos_saved_body),
+                            icon = Icons.Default.WatchLater,
+                        )
+                    }
+
+                    else -> {
+                        FlowEmptyState(
+                            title = stringResource(R.string.playlist_empty_title),
+                            subtitle = stringResource(R.string.playlist_empty_desc),
+                            icon = Icons.AutoMirrored.Filled.PlaylistPlay,
+                        )
+                    }
+                }
             }
         }
         itemsIndexed(items = videos, key = { _, video -> video.id }, contentType = { _, _ -> "playlist-video" }) { index, video ->
@@ -83,6 +105,7 @@ internal fun PlaylistDetailList(
                 showDragHandle = mode.canReorder,
                 showAddedDate = mode.showAddedDate,
                 isWatchLater = mode.isWatchLater,
+                isLikes = mode.isLikes,
                 onRemove = { onRemove(video) },
                 onClick = { onVideoClick(index, video) },
             )

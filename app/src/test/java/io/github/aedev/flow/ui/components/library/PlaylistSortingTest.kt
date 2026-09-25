@@ -17,4 +17,13 @@ class PlaylistSortingTest {
     fun `a playlist of your own offers every order`() {
         assertThat(PlaylistSortOrder.availableFor(isLocalPlaylist = true)).containsExactlyElementsIn(PlaylistSortOrder.entries)
     }
+
+    @Test
+    fun `likes sort by when each was liked and cannot be ordered by hand`() {
+        val likes = PlaylistSortOrder.availableFor(isLocalPlaylist = true, isLikes = true)
+
+        assertThat(likes).doesNotContain(PlaylistSortOrder.MANUAL)
+        assertThat(PlaylistSortOrder.defaultFor(isLikes = true)).isEqualTo(PlaylistSortOrder.DATE_ADDED_NEWEST)
+        assertThat(PlaylistSortOrder.defaultFor(isLikes = false)).isEqualTo(PlaylistSortOrder.MANUAL)
+    }
 }
