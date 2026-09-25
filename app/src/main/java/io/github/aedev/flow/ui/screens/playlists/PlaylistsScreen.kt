@@ -40,6 +40,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.playlist.PlaylistImport
 import io.github.aedev.flow.ui.components.PlaylistCard
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.MusicPlaylistLibraryCard
 import io.github.aedev.flow.ui.components.library.PlaylistCreationFabMenu
@@ -58,7 +61,8 @@ import kotlinx.coroutines.launch
 
 private val GridCellMinWidth = 160.dp
 private val GridSpacing = 16.dp
-private val GridContentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 96.dp)
+private val GridSidePadding = 16.dp
+private val GridTopPadding = 8.dp
 private val FabMenuPadding = 16.dp
 
 // Some file pickers label a .json file as plain text or a generic binary.
@@ -163,7 +167,13 @@ fun PlaylistsScreen(
                         LazyVerticalGrid(
                             columns = GridCells.Adaptive(GridCellMinWidth),
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = GridContentPadding,
+                            contentPadding =
+                                PaddingValues(
+                                    start = GridSidePadding,
+                                    top = GridTopPadding,
+                                    end = GridSidePadding,
+                                    bottom = flowBottomContentPadding(),
+                                ),
                             verticalArrangement = Arrangement.spacedBy(GridSpacing),
                             horizontalArrangement = Arrangement.spacedBy(GridSpacing),
                         ) {
@@ -249,6 +259,7 @@ fun PlaylistsScreen(
                 modifier =
                     Modifier
                         .align(Alignment.BottomEnd)
+                        .floatAboveBottomChrome(LocalFlowBottomInsets.current)
                         .padding(FabMenuPadding),
             )
         }

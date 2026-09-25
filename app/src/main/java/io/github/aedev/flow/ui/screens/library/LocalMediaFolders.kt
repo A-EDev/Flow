@@ -13,6 +13,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.flowRowGroupShape
@@ -53,7 +54,7 @@ internal fun LocalFolderList(
     onOpenFolder: (String) -> Unit,
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 96.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = flowBottomContentPadding()),
         verticalArrangement = Arrangement.spacedBy(FlowSegmentedGap),
     ) {
         itemsIndexed(state.folders, key = { _, folder -> folder.id }) { index, folder ->

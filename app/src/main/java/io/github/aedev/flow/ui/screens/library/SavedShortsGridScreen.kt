@@ -21,12 +21,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
 
-private val GridContentPadding = PaddingValues(16.dp)
+private val GridPadding = 16.dp
 
 @Composable
 fun SavedShortsGridScreen(
@@ -57,7 +58,13 @@ fun SavedShortsGridScreen(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(ShortCardDefaults.MinWidth),
-                contentPadding = GridContentPadding,
+                contentPadding =
+                    PaddingValues(
+                        start = GridPadding,
+                        top = GridPadding,
+                        end = GridPadding,
+                        bottom = flowBottomContentPadding(GridPadding),
+                    ),
                 horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
                 verticalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
                 modifier = Modifier.padding(padding),

@@ -33,6 +33,7 @@ import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadProgressUpdate
 import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.components.shared.MediaKind
@@ -44,8 +45,14 @@ private val GridSpacing = 12.dp
 private fun rowInset(columns: Int): Dp = if (columns > 1) 0.dp else 16.dp
 
 /** Rows carry their own side padding; cards need the grid's. */
+@Composable
 private fun listPadding(columns: Int) =
-    PaddingValues(start = if (columns > 1) 16.dp else 0.dp, end = if (columns > 1) 16.dp else 0.dp, top = 4.dp, bottom = 96.dp)
+    PaddingValues(
+        start = if (columns > 1) 16.dp else 0.dp,
+        end = if (columns > 1) 16.dp else 0.dp,
+        top = 4.dp,
+        bottom = flowBottomContentPadding(),
+    )
 
 /** Which items are selected and how a tap changes that; tapping plays when [active] is false. */
 internal class LibrarySelection(

@@ -37,6 +37,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarMenuItem
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarOverflow
@@ -118,7 +120,9 @@ fun HistoryScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState, Modifier.floatAboveBottomChrome(LocalFlowBottomInsets.current))
+        },
         containerColor = MaterialTheme.colorScheme.background,
     ) { paddingValues ->
         Column(

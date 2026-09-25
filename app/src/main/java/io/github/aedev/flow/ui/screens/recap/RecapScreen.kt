@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.RecapSummary
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
@@ -73,7 +74,13 @@ internal fun RecapScreen(
         LazyVerticalStaggeredGrid(
             columns = StaggeredGridCells.Adaptive(CardMinWidth),
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(GridPadding),
+            contentPadding =
+                PaddingValues(
+                    start = GridPadding,
+                    top = GridPadding,
+                    end = GridPadding,
+                    bottom = flowBottomContentPadding(GridPadding),
+                ),
             verticalItemSpacing = GridSpacing,
             horizontalArrangement = Arrangement.spacedBy(GridSpacing),
         ) {

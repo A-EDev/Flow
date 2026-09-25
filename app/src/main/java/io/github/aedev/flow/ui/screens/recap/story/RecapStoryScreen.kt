@@ -5,7 +5,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.stats.RecapSummary
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.drawSegmentedProgress
 import io.github.aedev.flow.ui.components.stats.spentTimeLabel
@@ -124,6 +124,8 @@ private fun StoryPager(
         MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "storyChrome",
     )
+    // The music mini player floats over the story; the pages and controls stay above it.
+    val chromeAboveSystem = LocalFlowBottomInsets.current.chromeAboveSystem
     val step: (
         Int,
     ) -> Unit = { delta -> scope.launch { pager.animateScrollToPage((pager.currentPage + delta).coerceIn(0, pages.lastIndex)) } }
@@ -159,6 +161,7 @@ private fun StoryPager(
                                 onTap = { offset -> step(if (offset.x < size.width * PREVIOUS_ZONE) -1 else 1) },
                             )
                         }.safeDrawingPadding()
+                        .padding(bottom = chromeAboveSystem)
                         .padding(start = EdgePadding, end = EdgePadding, top = HeaderSpace, bottom = FooterSpace),
                 contentAlignment = Alignment.Center,
             ) {
@@ -179,6 +182,7 @@ private fun StoryPager(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .safeDrawingPadding()
+                    .padding(bottom = chromeAboveSystem)
                     .fillMaxWidth()
                     .padding(EdgePadding),
             horizontalArrangement = Arrangement.spacedBy(ControlSpacing, Alignment.End),

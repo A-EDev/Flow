@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.library.PlaylistVideoRow
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
@@ -51,7 +52,7 @@ internal fun PlaylistDetailList(
     onVideoClick: (index: Int, video: Video) -> Unit,
     onRemove: (Video) -> Unit,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(bottom = 96.dp),
+    contentPadding: PaddingValues = PaddingValues(bottom = flowBottomContentPadding()),
     header: (@Composable () -> Unit)? = null,
 ) {
     LazyColumn(state = listState, modifier = modifier.fillMaxSize(), contentPadding = contentPadding) {
