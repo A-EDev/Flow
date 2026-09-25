@@ -290,7 +290,6 @@ private fun CollectionContent(
                                 play(ordered.indexOfFirst { it.first == key }, tracks)
                             }
                         },
-                        onTrackLongClick = { key -> if (selected == null) selectedKeys = setOf(key) },
                         onTrackMenu = musicMenus::openSong,
                         onRemove = { viewModel.removeTracks(setOf(it.videoId)) },
                         onCollectionClick = { callbacks.onCollectionClick(it.id) },

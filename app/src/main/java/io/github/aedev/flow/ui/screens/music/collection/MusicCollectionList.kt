@@ -80,7 +80,6 @@ internal fun MusicCollectionList(
     listState: LazyListState,
     reorderState: ReorderableLazyListState,
     onTrackClick: (key: String) -> Unit,
-    onTrackLongClick: (key: String) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit,
     onRemove: (MusicTrack) -> Unit,
     onCollectionClick: (MusicPlaylist) -> Unit,
@@ -110,7 +109,7 @@ internal fun MusicCollectionList(
             MusicTrackItem(
                 track = track,
                 onClick = { onTrackClick(key) },
-                onLongClick = { onTrackLongClick(key) },
+                onLongClick = { if (mode.inSelection) onTrackClick(key) else onTrackMenu(track) },
                 modifier =
                     Modifier
                         .padding(horizontal = Dimensions.ContentPaddingHorizontal)
@@ -133,9 +132,8 @@ internal fun MusicCollectionList(
                             null
                         }
                     },
-                showMenu = !mode.inSelection,
+                showMenu = false,
                 trailingContent = if (mode.inSelection) null else removeButton(mode.kind, track, onRemove),
-                onMenuClick = { onTrackMenu(track) },
             )
         }
         if (otherVersions.isNotEmpty()) {
