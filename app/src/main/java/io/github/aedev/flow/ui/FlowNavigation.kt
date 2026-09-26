@@ -723,10 +723,8 @@ fun NavGraphBuilder.flowAppGraph(
                 CircularProgressIndicator()
             }
         } else if (uiState.artistLoadFailed) {
-            io.github.aedev.flow.ui.components.shared.FlowErrorState(
-                error =
-                    androidx.compose.ui.res
-                        .stringResource(io.github.aedev.flow.R.string.error_failed_to_load_artist),
+            io.github.aedev.flow.ui.screens.music.ArtistPageError(
+                onBackClick = { navController.popBackStack() },
                 onRetry = { musicViewModel.fetchArtistDetails(channelId) },
             )
         } else {
