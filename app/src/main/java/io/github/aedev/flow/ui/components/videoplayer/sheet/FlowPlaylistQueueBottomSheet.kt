@@ -73,12 +73,8 @@ fun FlowPlaylistQueueBottomSheet(
     val displayItems =
         remember(queueVideos) {
             queueVideos
-                .mapIndexed { index, video ->
-                    QueueDisplayItem(
-                        key = "$index:${video.id}",
-                        video = video,
-                    )
-                }.toMutableStateList()
+                .zip(queueRowKeys(queueVideos)) { video, key -> QueueDisplayItem(key = key, video = video) }
+                .toMutableStateList()
         }
     val currentDisplayItem =
         remember(queueVideos, currentQueueIndex) {
