@@ -43,6 +43,8 @@ import io.github.aedev.flow.innertube.pages.VideoCommentSort
 import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
 import io.github.aedev.flow.player.stream.StreamSizeEstimator
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +75,11 @@ class ShortsViewModel
         val uiState: StateFlow<ShortsUiState> = _uiState.asStateFlow()
 
         private var queue: ShortsQueueController? = null
+        private var loadedSource: ShortsQueueSource? = null
+        private var loadJob: Job? = null
+
+        /** The short the queue opened on; the user picked it, so no later filter may take it away. */
+        private var openedOnId: String? = null
 
         private val prefetch =
             FeedPrefetchQueue(
@@ -162,44 +169,53 @@ class ShortsViewModel
          * Opens the queue for [source]. Every surface funnels through here; which loader that needs,
          * and whether the algorithmic feed follows it, is [ShortsQueueLoaderFactory]'s decision.
          *
-         * Idempotent: re-entering the screen must not refetch or reset the position.
+         * Idempotent for the same source: re-entering the screen must not refetch or reset the
+         * position. A different source rebuilds, because a reused back stack entry hands this
+         * ViewModel a new source rather than a new ViewModel.
          */
         fun load(source: ShortsQueueSource) {
-            if (queue != null || _uiState.value.isLoading) return
+            if (source == loadedSource && (queue != null || _uiState.value.isLoading)) return
+            loadJob?.cancel()
+            loadedSource = source
 
             val resolved = queueFactory.resolve(source)
             val controller = queueFactory.create(resolved)
             queue = controller
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            openedOnId = resolved.openAtVideoId
+            _uiState.value = ShortsUiState(isLoading = true)
 
             // Resolving the tapped short's streams starts now rather than after the queue loads, so
             // playback is not gated on whichever network call the source happens to need.
             resolved.openAtVideoId?.let { prefetchPlaybackStreams(listOf(it)) }
 
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                try {
-                    controller.loadInitial(resolved.openAtVideoId)
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                    publishQueue()
+            loadJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    try {
+                        controller.loadInitial(resolved.openAtVideoId)
+                        _uiState.value = _uiState.value.copy(isLoading = false)
+                        publishQueue()
 
-                    val items = controller.items.value
-                    val at = controller.currentIndex.value
-                    prefetchPlaybackStreams(listOfNotNull(items.getOrNull(at)?.id, items.getOrNull(at + 1)?.id))
-                    onScreenVisible()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error loading shorts queue", e)
-                    queue = null
-                    _uiState.value =
-                        _uiState.value.copy(
-                            isLoading = false,
-                            error = e.message ?: context.getString(R.string.error_failed_to_load_shorts),
-                        )
+                        val items = controller.items.value
+                        val at = controller.currentIndex.value
+                        prefetchPlaybackStreams(listOfNotNull(items.getOrNull(at)?.id, items.getOrNull(at + 1)?.id))
+                        onScreenVisible()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error loading shorts queue", e)
+                        queue = null
+                        _uiState.value =
+                            _uiState.value.copy(
+                                isLoading = false,
+                                error = e.message ?: context.getString(R.string.error_failed_to_load_shorts),
+                            )
+                    }
                 }
-            }
         }
 
         fun retry(source: ShortsQueueSource) {
             queue = null
+            loadedSource = null
             _uiState.value = _uiState.value.copy(error = null)
             load(source)
         }
@@ -322,7 +338,7 @@ class ShortsViewModel
             videoId: String,
             details: ShortDetails,
         ) {
-            if (feed.isBlocked(details.channelId, details.title, details.channelName)) {
+            if (videoId != openedOnId && feed.isBlocked(details.channelId, details.title, details.channelName)) {
                 if (queue?.remove(videoId) != ShortsQueueChange.None) publishQueue()
                 return
             }
