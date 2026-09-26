@@ -52,7 +52,7 @@ class SubscriptionsViewModelTest {
         coEvery { playerPreferences.subscriptionLastRefreshTime } returns flowOf(0L)
         coEvery { playerPreferences.subscriptionLastRefreshedCount } returns flowOf(0)
         coEvery { playerPreferences.subscriptionShowCheckedVideoCount } returns flowOf(true)
-        coEvery { viewHistory.getVideoHistoryFlow() } returns flowOf(emptyList())
+        coEvery { viewHistory.getVideoWatchProgress() } returns flowOf(emptyList())
         coEvery { playerPreferences.hideWatchedVideosFromSubscriptions } returns flowOf(false)
         coEvery { playerPreferences.watchedThreshold } returns flowOf(mockk(relaxed = true))
         coEvery { database.downloadDao().getVideoDownloads() } returns flowOf(emptyList())

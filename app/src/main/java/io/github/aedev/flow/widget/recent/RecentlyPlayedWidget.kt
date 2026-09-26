@@ -29,35 +29,55 @@ import kotlinx.coroutines.withContext
 
 /** Continue-watching panel: newest video as a hero card, then compact rows. */
 class RecentlyPlayedWidget : GlanceAppWidget() {
-
     companion object {
         private const val MAX_ITEMS = 8
     }
 
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
+    override suspend fun provideGlance(
+        context: Context,
+        id: GlanceId,
+    ) {
         val density = context.resources.displayMetrics.density
         val thumbWidthPx = (WIDGET_THUMB_WIDTH.value * density).toInt()
         val thumbHeightPx = (WIDGET_THUMB_HEIGHT.value * density).toInt()
 
-        val items = withContext(Dispatchers.IO) {
-            ViewHistory.getInstance(context).getVideoHistoryFlow().first()
-                .take(MAX_ITEMS)
-                .mapIndexed { index, entry ->
-                    WidgetVideoItem(
-                        videoId = entry.videoId,
-                        title = entry.title,
-                        subtitle = entry.channelName,
-                        thumbnail = if (index == 0) null else WidgetImageLoader.load(
-                            context, entry.thumbnailUrl,
-                            thumbWidthPx, thumbHeightPx, WIDGET_THUMB_CORNER_DP * density,
-                        ),
-                        hero = if (index == 0) WidgetImageLoader.load(
-                            context, entry.thumbnailUrl,
-                            WIDGET_HERO_WIDTH_PX, WIDGET_HERO_HEIGHT_PX, WIDGET_HERO_CORNER_DP * density,
-                        ) else null,
-                    )
-                }
-        }
+        val items =
+            withContext(Dispatchers.IO) {
+                ViewHistory
+                    .getInstance(context)
+                    .getRecentVideoHistory(MAX_ITEMS, includeShorts = true)
+                    .mapIndexed { index, entry ->
+                        WidgetVideoItem(
+                            videoId = entry.videoId,
+                            title = entry.title,
+                            subtitle = entry.channelName,
+                            thumbnail =
+                                if (index == 0) {
+                                    null
+                                } else {
+                                    WidgetImageLoader.load(
+                                        context,
+                                        entry.thumbnailUrl,
+                                        thumbWidthPx,
+                                        thumbHeightPx,
+                                        WIDGET_THUMB_CORNER_DP * density,
+                                    )
+                                },
+                            hero =
+                                if (index == 0) {
+                                    WidgetImageLoader.load(
+                                        context,
+                                        entry.thumbnailUrl,
+                                        WIDGET_HERO_WIDTH_PX,
+                                        WIDGET_HERO_HEIGHT_PX,
+                                        WIDGET_HERO_CORNER_DP * density,
+                                    )
+                                } else {
+                                    null
+                                },
+                        )
+                    }
+            }
 
         val colorsFlow = widgetColorsFlow(context)
         val initialColors = colorsFlow.first()
@@ -70,9 +90,10 @@ class RecentlyPlayedWidget : GlanceAppWidget() {
                     headerIconRes = R.drawable.ic_widget_history,
                     chipBackground = GlanceTheme.colors.tertiaryContainer,
                     chipContent = GlanceTheme.colors.onTertiaryContainer,
-                    headerAction = actionStartActivity(
-                        WidgetDeepLink.openRoute(context, WidgetDeepLink.ROUTE_HISTORY),
-                    ),
+                    headerAction =
+                        actionStartActivity(
+                            WidgetDeepLink.openRoute(context, WidgetDeepLink.ROUTE_HISTORY),
+                        ),
                     emptyMessage = context.getString(R.string.widget_no_recent),
                     emptyAction = actionStartActivity(WidgetDeepLink.openApp(context)),
                     items = items,

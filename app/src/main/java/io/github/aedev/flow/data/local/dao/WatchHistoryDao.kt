@@ -34,27 +34,59 @@ interface WatchHistoryDao {
 
     // ── Reads ────────────────────────────────────────────────────────────────
 
-    @Query("SELECT * FROM watch_history ORDER BY timestamp DESC")
-    fun getAllHistory(): Flow<List<WatchHistoryEntity>>
-
-    @Query("SELECT * FROM watch_history WHERE isLocal = 1 ORDER BY timestamp DESC")
-    fun getLocalHistory(): Flow<List<WatchHistoryEntity>>
-
     @Query("SELECT * FROM watch_history WHERE isShort = 0 AND isLocal = 0 ORDER BY timestamp DESC LIMIT :limit")
     fun getRecentLibraryHistory(limit: Int): Flow<List<WatchHistoryEntity>>
 
-    /** Paged version for very large histories (UI only needs recent items). */
-    @Query("SELECT * FROM watch_history ORDER BY timestamp DESC LIMIT :limit OFFSET :offset")
+    /**
+     * One keyset page, newest first. [isMusic] and [isLocal] take 0 or 1, or [ANY]. Whole-table reads
+     * go through these pages: a single cursor over a long history outgrows its CursorWindow and
+     * fails on the refill (#1054).
+     */
+    @Query(
+        """
+        SELECT * FROM watch_history
+        WHERE (:isMusic < 0 OR isMusic = :isMusic)
+        AND (:isLocal < 0 OR isLocal = :isLocal)
+        AND (timestamp < :beforeTimestamp OR (timestamp = :beforeTimestamp AND videoId > :afterVideoId))
+        ORDER BY timestamp DESC, videoId ASC
+        LIMIT :limit
+    """,
+    )
     suspend fun getHistoryPage(
+        isMusic: Int,
+        isLocal: Int,
+        beforeTimestamp: Long,
+        afterVideoId: String,
         limit: Int,
-        offset: Int,
     ): List<WatchHistoryEntity>
 
-    @Query("SELECT * FROM watch_history WHERE isMusic = 0 AND isLocal = 0 ORDER BY timestamp DESC")
-    fun getVideoHistory(): Flow<List<WatchHistoryEntity>>
+    /** [getHistoryPage] with only what watched and progress checks read. */
+    @Query(
+        """
+        SELECT videoId, position, duration, timestamp FROM watch_history
+        WHERE (:isMusic < 0 OR isMusic = :isMusic)
+        AND (:isLocal < 0 OR isLocal = :isLocal)
+        AND (timestamp < :beforeTimestamp OR (timestamp = :beforeTimestamp AND videoId > :afterVideoId))
+        ORDER BY timestamp DESC, videoId ASC
+        LIMIT :limit
+    """,
+    )
+    suspend fun getProgressPage(
+        isMusic: Int,
+        isLocal: Int,
+        beforeTimestamp: Long,
+        afterVideoId: String,
+        limit: Int,
+    ): List<WatchProgress>
 
-    @Query("SELECT * FROM watch_history WHERE isMusic = 1 AND isLocal = 0 ORDER BY timestamp DESC")
-    fun getMusicHistory(): Flow<List<WatchHistoryEntity>>
+    @Query(
+        "SELECT * FROM watch_history WHERE isMusic = 0 AND isLocal = 0 AND (:includeShorts OR isShort = 0) " +
+            "ORDER BY timestamp DESC LIMIT :limit",
+    )
+    suspend fun getRecentVideoHistory(
+        limit: Int,
+        includeShorts: Boolean,
+    ): List<WatchHistoryEntity>
 
     @Query("SELECT * FROM watch_history WHERE videoId = :videoId")
     fun getEntry(videoId: String): Flow<WatchHistoryEntity?>
@@ -167,7 +199,20 @@ interface WatchHistoryDao {
      */
     @Query("UPDATE watch_history SET position = duration WHERE videoId = :videoId")
     suspend fun markAsWatched(videoId: String)
+
+    companion object {
+        /** Matches either value in the page queries' 0/1 filters. */
+        const val ANY = -1
+    }
 }
+
+/** One row of [WatchHistoryDao.getProgressPage]. */
+data class WatchProgress(
+    val videoId: String,
+    val position: Long,
+    val duration: Long,
+    val timestamp: Long,
+)
 
 /** One row of [WatchHistoryDao.getChannelVideoCounts]. */
 data class ChannelVideoCount(

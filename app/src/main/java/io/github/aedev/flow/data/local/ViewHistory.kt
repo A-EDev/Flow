@@ -8,15 +8,20 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 
@@ -32,11 +37,13 @@ private val Context.viewHistoryDataStore: DataStore<Preferences> by safePreferen
 class ViewHistory private constructor(
     private val context: Context,
 ) {
-    private val dao = AppDatabase.getDatabase(context).watchHistoryDao()
+    private val database = AppDatabase.getDatabase(context)
+    private val dao = database.watchHistoryDao()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
         private const val TAG = "ViewHistory"
+        private const val WATCH_HISTORY_TABLE = "watch_history"
 
         @Volatile
         private var instance: ViewHistory? = null
@@ -215,19 +222,44 @@ class ViewHistory private constructor(
     fun getVideoHistory(videoId: String): Flow<VideoHistoryEntry?> = dao.getEntry(videoId).map { it?.toDomain() }
 
     /** All history, newest first. */
-    fun getAllHistory(): Flow<List<VideoHistoryEntry>> = dao.getAllHistory().map { list -> list.map { it.toDomain() } }
+    fun getAllHistory(): Flow<List<VideoHistoryEntry>> = observeHistory()
 
     fun getRecentLibraryHistory(limit: Int): Flow<List<VideoHistoryEntry>> =
         dao.getRecentLibraryHistory(limit).map { list -> list.map { it.toDomain() } }
 
     /** Video (non-music) history, newest first. */
-    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> = dao.getVideoHistory().map { list -> list.map { it.toDomain() } }
+    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isMusic = 0, isLocal = 0)
 
     /** Music history, newest first. */
-    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> = dao.getMusicHistory().map { list -> list.map { it.toDomain() } }
+    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isMusic = 1, isLocal = 0)
 
     /** Plays of files on the device, newest first: their progress and when they were last played. */
-    fun getLocalHistoryFlow(): Flow<List<VideoHistoryEntry>> = dao.getLocalHistory().map { list -> list.map { it.toDomain() } }
+    fun getLocalHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isLocal = 1)
+
+    /** Position and duration of every entry, for progress bars. */
+    fun getAllWatchProgress(): Flow<List<WatchProgress>> = observe { dao.readProgress() }
+
+    /** Position and duration of every video (non-music, non-local) entry, for watched checks. */
+    fun getVideoWatchProgress(): Flow<List<WatchProgress>> = observe { dao.readProgress(isMusic = 0, isLocal = 0) }
+
+    /** The latest [limit] video entries, newest first, without reading the rest of the table. */
+    suspend fun getRecentVideoHistory(
+        limit: Int,
+        includeShorts: Boolean,
+    ): List<VideoHistoryEntry> = dao.getRecentVideoHistory(limit, includeShorts).map { it.toDomain() }
+
+    private fun observeHistory(
+        isMusic: Int = WatchHistoryDao.ANY,
+        isLocal: Int = WatchHistoryDao.ANY,
+    ): Flow<List<VideoHistoryEntry>> = observe { dao.readHistory(isMusic, isLocal).map { it.toDomain() } }
+
+    /** Re-reads on every change to the table, as a Room Flow query would, dropping a read a newer change supersedes. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T> observe(read: suspend () -> T): Flow<T> =
+        database.invalidationTracker
+            .createFlow(WATCH_HISTORY_TABLE)
+            .mapLatest { read() }
+            .flowOn(Dispatchers.IO)
 
     suspend fun getWatchedShortIdsAboveThreshold(
         minPercent: Float = 99f,
