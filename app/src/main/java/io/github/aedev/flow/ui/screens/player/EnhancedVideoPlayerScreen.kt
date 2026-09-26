@@ -227,7 +227,7 @@ internal fun EnhancedVideoPlayerScreen(
 
         if (showsQueueDock) {
             PlaylistQueueDock(
-                nextVideoTitle = nextQueueVideo(queueVideos, currentQueueIndex, playerState.isQueueLooping)?.title,
+                nextVideo = nextQueueVideo(queueVideos, currentQueueIndex, playerState.isQueueLooping),
                 playlistName = playerState.queueTitle ?: "",
                 currentIndex = currentQueueIndex,
                 queueSize = queueVideos.size,
