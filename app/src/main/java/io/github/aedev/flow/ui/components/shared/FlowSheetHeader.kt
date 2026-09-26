@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -70,6 +71,7 @@ fun FlowSheetHeader(
     dividerAlpha: Float? = FlowSheetHeaderDefaults.DividerAlpha,
     actions: @Composable RowScope.() -> Unit = {},
     showDragHandle: Boolean = true,
+    titleMaxLines: Int = Int.MAX_VALUE,
 ) {
     Column(modifier = modifier) {
         if (showDragHandle) {
@@ -117,6 +119,8 @@ fun FlowSheetHeader(
                     text = title,
                     style = titleStyle,
                     color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = titleMaxLines,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (subtitle != null) {
                     Text(
