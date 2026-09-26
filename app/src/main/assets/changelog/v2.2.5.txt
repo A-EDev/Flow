@@ -48,6 +48,8 @@ NEW FEATURES
 - Save a playlist as a file, share it with anyone, and import one from the Playlists screen or by opening the file in Flow
 - Optional setting to remove videos from Watch later once you have watched them, with Undo when Watch later clears older ones (#1060)
 - Likes are now two built-in playlists, Liked videos and Liked music, with search, sort, select and unlike with Undo, Play all, Shuffle, Download all and Save as file
+- The video queue is redesigned on Material 3 Expressive: swipe a video away with Undo, long press for its menu, shuffle and repeat as toggle buttons, and the time left in the queue. On tablets it opens in the side pane and what plays next sits at the top of that pane, and in fullscreen it opens from its own button
+- Chapters are a segmented list with the current chapter tinted by the video's artwork, its progress shown under it, and each chapter's length on its thumbnail
 - Album and playlist pages in Music are redesigned, with a side pane on tablets and foldables, search inside the page, sorting (album order, title, artist, album, length, date added), selecting songs to play next, queue, add to a playlist, download or remove with Undo, working Share links, and Save as file for your playlists, saved ones and Liked music
 - Your music playlists can be edited, deleted and filled from a new Add songs sheet right on their page, a Daily Mix can be saved as your own playlist, and Download all now covers the whole album or playlist and keeps going after you leave
 - A new Equalizer page: drag bands on its response curve, type exact frequency, gain and Q values, switch to a 10-band graphic mode, and hold Compare to hear the difference (#810)
@@ -56,6 +58,7 @@ NEW FEATURES
 - The music player adapts to tablets and foldables: wide windows show Up next and Lyrics in a pane beside the player, upright tablets get a centred layout, phones in landscape show the cover beside the controls, and the controls can use black and white or your theme instead of the artwork colors
 
 IMPROVEMENTS
+- Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
 - Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
 - Music content follows your chosen region instead of the device locale, and music home caches invalidate on a region change so shelves refresh immediately
 - Every music shelf — Speed dial, Listen again, Recommended, music videos and long listens — is now ranked by your taste rather than arriving in YouTube's order, and the music page leads with charts and moods while the engine is new, your own taste once it matures
@@ -102,6 +105,7 @@ PERFORMANCE
 FIXES AND STABILITY
 - Fix a video without chapters showing the chapters, most-replayed curve and scrub preview of the video played before it (#1111)
 - Fix the comment count under the player showing the previous video's count when the next video has none
+- Fix the video queue always being called Playlist instead of the playlist's name, and the queue dock covering the last related video
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
 - Fix onboarding subscribing to some channels under their handle instead of their id, which left them without a feed, and system back leaving setup instead of going to the previous step
 - Fix the music feed crashing after an update: release builds could mis-read the artist lists stored inside history, queues, playlists and downloads — stored tracks are now repaired on read, with no clean install needed
