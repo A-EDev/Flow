@@ -166,6 +166,6 @@ object RelativeUploadDateParser {
             .filter(String::isNotEmpty)
             .joinToString(" ")
 
-    private const val ZERO_WIDTH = "​‌‍﻿"
+    private const val ZERO_WIDTH = "\u200B\u200C\u200D\uFEFF"
     private const val MAX_AMOUNT = 100_000L
 }
