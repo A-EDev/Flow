@@ -290,6 +290,7 @@ class PlayerPreferences(
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
         val HIDE_WATCHED_HOME_FEED = booleanPreferencesKey("hide_watched_home_feed")
         val HIDE_WATCHED_SUBSCRIPTIONS = booleanPreferencesKey("hide_watched_subscriptions")
+        val HIDE_WATCHED_SHORTS = booleanPreferencesKey("hide_watched_shorts")
         val WATCHED_THRESHOLD = stringPreferencesKey("watched_threshold")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
         val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
@@ -2099,6 +2100,17 @@ class PlayerPreferences(
     suspend fun setHideWatchedVideosFromSubscriptions(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.HIDE_WATCHED_SUBSCRIPTIONS] = enabled
+        }
+    }
+
+    /** Watched Shorts leave the Home and Subscriptions shelves and every Shorts queue, whatever the video settings say. */
+    val hideWatchedShorts: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.HIDE_WATCHED_SHORTS] ?: true }
+
+    suspend fun setHideWatchedShorts(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HIDE_WATCHED_SHORTS] = enabled
         }
     }
 

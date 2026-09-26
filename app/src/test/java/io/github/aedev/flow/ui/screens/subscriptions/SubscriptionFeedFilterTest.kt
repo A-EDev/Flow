@@ -114,6 +114,7 @@ class SubscriptionFeedFilterTest {
                 SubscriptionFeedFilters(
                     showLive = false,
                     watchedVideoIds = setOf("watched"),
+                    watchedShortIds = setOf("watched"),
                     allowedChannelIds = setOf("UCa"),
                     excludedShortsChannelIds = setOf("UCa"),
                 ),
@@ -121,6 +122,20 @@ class SubscriptionFeedFilterTest {
 
         assertThat(result.recentVideos.map { it.id }).containsExactly("keep")
         assertThat(result.shorts).isEmpty()
+    }
+
+    // #979 (owner decision D1): watched reels follow the Shorts setting, whatever the videos one says.
+    @Test
+    fun `the shelf hides watched reels by the Shorts setting alone`() {
+        val feed = listOf(video("seen-reel", "UCa", isShort = true), video("seen-video", "UCb"), video("fresh-reel", "UCc", isShort = true))
+
+        val shortsOnly = sections(feed, SubscriptionFeedFilters(watchedShortIds = setOf("seen-reel", "seen-video")))
+        val videosOnly = sections(feed, SubscriptionFeedFilters(watchedVideoIds = setOf("seen-reel", "seen-video")))
+
+        assertThat(shortsOnly.shorts.map { it.id }).containsExactly("fresh-reel")
+        assertThat(shortsOnly.recentVideos.map { it.id }).containsExactly("seen-video")
+        assertThat(videosOnly.shorts.map { it.id }).containsExactly("seen-reel", "fresh-reel")
+        assertThat(videosOnly.recentVideos).isEmpty()
     }
 
     private companion object {

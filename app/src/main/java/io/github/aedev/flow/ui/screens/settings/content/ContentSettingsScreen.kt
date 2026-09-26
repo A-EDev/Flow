@@ -30,6 +30,7 @@ internal fun ContentSettingsScreen(
     val shortsContent by viewModel.shortsContent.collectAsStateWithLifecycle()
     val hideWatchedHome by viewModel.hideWatchedHome.collectAsStateWithLifecycle()
     val hideWatchedSubs by viewModel.hideWatchedSubs.collectAsStateWithLifecycle()
+    val hideWatchedShorts by viewModel.hideWatchedShorts.collectAsStateWithLifecycle()
     val removeWatchedWatchLater by viewModel.removeWatchedWatchLater.collectAsStateWithLifecycle()
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     var showThresholdDialog by rememberSaveable { mutableStateOf(false) }
@@ -58,11 +59,12 @@ internal fun ContentSettingsScreen(
         }
         group(key = "content.shorts", header = R.string.content_settings_header_shorts) {
             switch(ContentIndex.shortsContent, viewModel.shortsContent, viewModel::setShortsContent)
+            switch(ContentIndex.hideWatchedShorts, viewModel.hideWatchedShorts, viewModel::setHideWatchedShorts, enabled = shortsContent)
         }
         group(key = "content.watch_later", header = R.string.watch_later) {
             switch(ContentIndex.removeWatchedWatchLater, viewModel.removeWatchedWatchLater, viewModel::setRemoveWatchedWatchLater)
         }
-        if (hideWatchedHome || hideWatchedSubs || removeWatchedWatchLater) {
+        if (hideWatchedHome || hideWatchedSubs || hideWatchedShorts || removeWatchedWatchLater) {
             group(key = "content.watched", header = R.string.settings_section_watched) {
                 choice(ContentIndex.watchedThreshold, onClick = { showThresholdDialog = true }) {
                     val threshold by viewModel.watchedThreshold.collectAsStateWithLifecycle()

@@ -1022,6 +1022,8 @@
     <string name="content_settings_header_shorts">Shorts</string>
     <string name="content_settings_shorts_content_title">Show Shorts</string>
     <string name="content_settings_shorts_content_subtitle">Hide Shorts everywhere. Saved Shorts and history are kept.</string>
+    <string name="content_settings_hide_watched_shorts_title">Hide watched Shorts</string>
+    <string name="content_settings_hide_watched_shorts_subtitle">Keep Shorts you finished out of shelves and the Shorts feed</string>
     <string name="content_settings_header_content_components">Content Components</string>
     <string name="content_settings_restored_music_mini_player_title">Show restored music mini player</string>
     <string name="content_settings_restored_music_mini_player_subtitle">Show your last music session after it\'s restored</string>

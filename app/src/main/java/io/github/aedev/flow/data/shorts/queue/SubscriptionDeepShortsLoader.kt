@@ -130,7 +130,7 @@ class SubscriptionDeepShortsLoader(
         val feed = subscriptionFeedRepository.observeFeed().first()
         skipIds =
             buildSet {
-                addAll(watchedVideos.ids.first())
+                addAll(watchedVideos.shortIds.first())
                 feed.forEach { video -> if (video.isShort && video.id.isNotBlank()) add(video.id) }
             }
         subscriptionReelChannelOrder(

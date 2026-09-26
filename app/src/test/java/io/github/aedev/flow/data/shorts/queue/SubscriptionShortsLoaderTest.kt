@@ -51,7 +51,7 @@ class SubscriptionShortsLoaderTest {
         val preferences: PlayerPreferences = mockk(relaxed = true)
         every { preferences.subscriptionShortsExcludedChannels } returns flowOf(excluded)
         val watchedVideos: SubscriptionWatchedVideos = mockk(relaxed = true)
-        every { watchedVideos.ids } returns flowOf(watched)
+        every { watchedVideos.shortIds } returns flowOf(watched)
         return SubscriptionShortsLoader(repository, preferences, watchedVideos, anchorVideoId) { hidden }
     }
 

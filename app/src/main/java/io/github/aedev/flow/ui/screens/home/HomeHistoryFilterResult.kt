@@ -5,39 +5,47 @@ import io.github.aedev.flow.data.local.WatchedThreshold
 
 internal data class HomeHistoryFilterResult(
     val watchedVideoIds: Set<String>,
-    val continueWatchingVideos: List<VideoHistoryEntry>
+    val continueWatchingVideos: List<VideoHistoryEntry>,
+    /** Filters the Shorts shelf, under its own setting rather than the videos one. */
+    val watchedShortIds: Set<String>,
 )
 
 internal fun filterHomeHistory(
     history: List<VideoHistoryEntry>,
     hideWatchedVideos: Boolean,
     watchedThreshold: WatchedThreshold,
-    continueWatchingEnabled: Boolean
+    continueWatchingEnabled: Boolean,
+    hideWatchedShorts: Boolean,
 ): HomeHistoryFilterResult {
-    val watchedVideoIds = if (hideWatchedVideos) {
-        history.asSequence()
+    val watchedIds by lazy(LazyThreadSafetyMode.NONE) {
+        history
+            .asSequence()
             .filter { watchedThreshold.isWatched(it.position, it.duration) }
             .mapTo(HashSet()) { it.videoId }
-    } else {
-        emptySet()
     }
+    val watchedVideoIds = if (hideWatchedVideos) watchedIds else emptySet()
 
-    val continueWatchingVideos = if (continueWatchingEnabled) {
-        history.asSequence()
-            .filter { !it.isShort && it.progressPercentage >= 3f }
-            .filter { entry ->
-                if (hideWatchedVideos) {
-                    entry.videoId !in watchedVideoIds
-                } else {
-                    entry.progressPercentage <= 90f
-                }
-            }
-            .sortedByDescending { it.timestamp }
-            .take(20)
-            .toList()
-    } else {
-        emptyList()
-    }
+    val continueWatchingVideos =
+        if (continueWatchingEnabled) {
+            history
+                .asSequence()
+                .filter { !it.isShort && it.progressPercentage >= 3f }
+                .filter { entry ->
+                    if (hideWatchedVideos) {
+                        entry.videoId !in watchedVideoIds
+                    } else {
+                        entry.progressPercentage <= 90f
+                    }
+                }.sortedByDescending { it.timestamp }
+                .take(20)
+                .toList()
+        } else {
+            emptyList()
+        }
 
-    return HomeHistoryFilterResult(watchedVideoIds, continueWatchingVideos)
+    return HomeHistoryFilterResult(
+        watchedVideoIds = watchedVideoIds,
+        continueWatchingVideos = continueWatchingVideos,
+        watchedShortIds = if (hideWatchedShorts) watchedIds else emptySet(),
+    )
 }

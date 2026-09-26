@@ -71,7 +71,7 @@ class SubscriptionShortsLoader(
 ) : ShortsQueueLoader {
     override suspend fun initial(): ShortsQueuePage {
         val excludedChannelIds = playerPreferences.subscriptionShortsExcludedChannels.first()
-        val watchedIds = watchedVideos.ids.first()
+        val watchedIds = watchedVideos.shortIds.first()
         val hidden = exclusions()
         val items =
             subscriptionFeedRepository
@@ -82,8 +82,7 @@ class SubscriptionShortsLoader(
                 .filter {
                     it.id == anchorVideoId ||
                         (it.isShort && it.channelId !in excludedChannelIds && !hidden.hides(it) && it.id !in watchedIds)
-                }
-                .sortedByDescending { it.timestamp }
+                }.sortedByDescending { it.timestamp }
                 .map { it.toShortVideo() }
                 .toList()
         return ShortsQueuePage(spreadChannels(items, ShortVideo::channelId), cursor = null, exhausted = true)

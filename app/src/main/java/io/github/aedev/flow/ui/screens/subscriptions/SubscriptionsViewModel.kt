@@ -67,6 +67,7 @@ class SubscriptionsViewModel
 
         private var latestFeedVideos: List<Video> = emptyList()
         private var watchedVideoIds: Set<String> = emptySet()
+        private var watchedShortIds: Set<String> = emptySet()
         private var unplayableVideoIds: Set<String> = emptySet()
         private var excludedShortsChannelIds: Set<String> = emptySet()
         private val durationEnrichmentAttemptedAt = mutableMapOf<String, Long>()
@@ -170,8 +171,9 @@ class SubscriptionsViewModel
             }
 
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                subscriptionWatchedVideos.ids.collect { ids ->
-                    watchedVideoIds = ids
+                combine(subscriptionWatchedVideos.ids, subscriptionWatchedVideos.shortIds, ::Pair).collect { (videoIds, shortIds) ->
+                    watchedVideoIds = videoIds
+                    watchedShortIds = shortIds
                     refreshVisibleFeed()
                 }
             }
@@ -322,6 +324,7 @@ class SubscriptionsViewModel
                             showShorts = state.showSubscriptionShorts,
                             showLive = state.showSubscriptionLive,
                             watchedVideoIds = watchedVideoIds,
+                            watchedShortIds = watchedShortIds,
                             unplayableVideoIds = unplayableVideoIds,
                             allowedChannelIds =
                                 state.selectedGroupName?.let { name ->
