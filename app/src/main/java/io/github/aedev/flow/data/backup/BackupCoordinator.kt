@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.backup
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.BackupRepository
@@ -18,6 +19,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -50,7 +52,8 @@ sealed interface BackupOperation {
 /**
  * Runs every import and export, one at a time, on a scope of its own — so an import or export keeps
  * going when the screen that started it closes, and onboarding and Settings watch the same
- * operation. Results arrive as ready-to-show messages.
+ * operation. Results arrive as ready-to-show messages. Every start returns false when another
+ * operation is still running, for the caller to say so.
  */
 @Singleton
 class BackupCoordinator
@@ -73,31 +76,36 @@ class BackupCoordinator
         }
 
         fun exportAppData(uri: Uri) =
-            exportTo(R.string.settings_export_success, R.string.settings_export_failed) { repository.exportData(uri) }
+            exportTo(uri, R.string.settings_export_success, R.string.settings_export_failed) { repository.exportData(uri) }
 
         fun exportNewPipeSubscriptions(uri: Uri) =
-            exportTo(
-                R.string.export_newpipe_subs_success,
-                R.string.export_newpipe_subs_failed,
-            ) { repository.exportSubscriptionsAsNewPipe(uri) }
+            exportTo(uri, R.string.export_newpipe_subs_failed) {
+                repository.exportSubscriptionsAsNewPipe(uri).map { export ->
+                    if (export.skipped > 0) {
+                        context.resources.getQuantityString(R.plurals.export_newpipe_subs_skipped, export.skipped, export.skipped)
+                    } else {
+                        context.getString(R.string.export_newpipe_subs_success)
+                    }
+                }
+            }
 
         fun exportWatchHistory(uri: Uri) =
-            exportTo(R.string.settings_export_success, R.string.history_export_failed) {
+            exportTo(uri, R.string.settings_export_success, R.string.history_export_failed) {
                 repository.exportWatchHistory(uri)
             }
 
         fun exportEngine(uri: Uri) =
-            exportTo(R.string.export_engine_success, R.string.export_engine_failed) {
+            exportTo(uri, R.string.export_engine_success, R.string.export_engine_failed) {
                 writeStream(uri) { out -> FlowNeuroEngine.exportBrainToStream(out) }
             }
 
         fun exportMusicBrain(uri: Uri) =
-            exportTo(R.string.music_brain_export_success, R.string.music_brain_export_failed) {
+            exportTo(uri, R.string.music_brain_export_success, R.string.music_brain_export_failed) {
                 writeStream(uri) { out -> musicBrain.exportBrainToStream(out).let { true } }
             }
 
         fun exportMaster(uri: Uri) =
-            exportTo(R.string.master_backup_export_success, R.string.master_backup_export_failed) {
+            exportTo(uri, R.string.master_backup_export_success, R.string.master_backup_export_failed) {
                 repository.exportMasterBackup(uri, musicBrain = musicBrainBytes(), recap = recapBytes())
             }
 
@@ -176,6 +184,18 @@ class BackupCoordinator
         fun importNewPipe(uri: Uri) =
             importCounted(R.string.import_label_newpipe_subscriptions) { progress -> repository.importNewPipe(uri, progress) }
 
+        /** [importNewPipe] for a screen that shows the outcome itself, so it is taken off the shared state. */
+        suspend fun importNewPipeForResult(uri: Uri): String {
+            if (!importNewPipe(uri)) return context.getString(R.string.backup_busy)
+            val outcome = operation.first { it !is BackupOperation.Running }
+            dismiss()
+            return when (outcome) {
+                is BackupOperation.Succeeded -> outcome.message
+                is BackupOperation.Failed -> outcome.message
+                else -> ""
+            }
+        }
+
         fun importYouTube(uri: Uri) =
             importCounted(R.string.import_label_youtube_subscriptions) { progress -> repository.importYouTube(uri, progress) }
 
@@ -206,9 +226,9 @@ class BackupCoordinator
         fun importLibreTubePlaylists(uri: Uri) =
             importCounted(R.string.import_label_libretube_playlists) { progress -> repository.importLibreTubePlaylists(uri, progress) }
 
-        fun importYouTubeTakeout(uri: Uri) {
+        fun importYouTubeTakeout(uri: Uri): Boolean {
             val label = context.getString(R.string.import_label_youtube_takeout)
-            run(label) {
+            return run(label) {
                 repository
                     .importYouTubeTakeout(uri) { step, current, total -> progress("$label – $step", current, total) }
                     .fold(
@@ -244,9 +264,9 @@ class BackupCoordinator
         private fun importCounted(
             labelRes: Int,
             import: suspend (progress: (Int, Int) -> Unit) -> Result<Int>,
-        ) {
+        ): Boolean {
             val label = context.getString(labelRes)
-            run(label) {
+            return run(label) {
                 import { current, total -> progress(label, current, total) }.fold(
                     onSuccess = { count ->
                         BackupOperation.Succeeded(
@@ -263,15 +283,45 @@ class BackupCoordinator
         }
 
         private fun exportTo(
+            uri: Uri,
             successRes: Int,
             failureRes: Int,
             export: suspend () -> Result<Unit>,
-        ) = run(context.getString(R.string.settings_backup_exporting), notify = false) {
-            if (export().isSuccess) {
-                BackupOperation.Succeeded(context.getString(successRes))
-            } else {
-                BackupOperation.Failed(context.getString(failureRes))
-            }
+        ) = exportTo(uri, failureRes) { export().map { context.getString(successRes) } }
+
+        /**
+         * The save dialog has already created [uri] by the time this runs, so a busy or failed export
+         * deletes it rather than leave an empty file behind that looks like a finished export.
+         */
+        private fun exportTo(
+            uri: Uri,
+            failureRes: Int,
+            export: suspend () -> Result<String>,
+        ): Boolean {
+            val started =
+                run(context.getString(R.string.settings_backup_exporting), notify = false) {
+                    val result =
+                        try {
+                            export()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Result.failure(e)
+                        }
+                    result.fold(
+                        onSuccess = { BackupOperation.Succeeded(it) },
+                        onFailure = {
+                            withContext(Dispatchers.IO) { discard(uri) }
+                            BackupOperation.Failed(context.getString(failureRes))
+                        },
+                    )
+                }
+            if (!started) scope.launch(Dispatchers.IO) { discard(uri) }
+            return started
+        }
+
+        private fun discard(uri: Uri) {
+            runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
         }
 
         /** Runs [work] unless another operation is already running; the result replaces the progress. */
@@ -279,8 +329,8 @@ class BackupCoordinator
             label: String,
             notify: Boolean = true,
             work: suspend () -> BackupOperation,
-        ) {
-            if (isRunning) return
+        ): Boolean {
+            if (isRunning) return false
             progress(label, 0, 0, notify)
             scope.launch {
                 val outcome =
@@ -297,6 +347,7 @@ class BackupCoordinator
                     NotificationHelper.showImportComplete(context, label, 0, outcome.message)
                 }
             }
+            return true
         }
 
         private fun progress(
