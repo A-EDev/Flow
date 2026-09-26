@@ -432,15 +432,15 @@ fun NavGraphBuilder.flowAppGraph(
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
         PlaylistDetailScreen(
             onNavigateBack = { navController.popBackStack() },
-            onPlayPlaylist = { videos, index, shuffle ->
+            onPlayPlaylist = { videos, index, shuffle, title ->
                 val start = videos[index]
                 if (start.isMusic) {
                     // A YouTube Music playlist plays in the music player, like any other song list.
                     val tracks = videos.filter { it.isMusic }.map { it.toMusicTrack() }
-                    musicPlayerViewModel.loadAndPlayTrack(start.toMusicTrack(), tracks, "Playlist")
+                    musicPlayerViewModel.loadAndPlayTrack(start.toMusicTrack(), tracks, title)
                     onMusicStarted()
                 } else {
-                    playerViewModel.playPlaylist(videos, index, "Playlist", shuffle)
+                    playerViewModel.playPlaylist(videos, index, title, shuffle)
                 }
             },
         )
@@ -461,19 +461,23 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "downloads"
 
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
+        val downloadsTitle =
+            androidx.compose.ui.res.stringResource(
+                io.github.aedev.flow.R.string.library_downloads_label,
+            )
 
         io.github.aedev.flow.ui.screens.library.DownloadsScreen(
             onBackClick = { navController.popBackStack() },
             onVideoClick = { videos, index ->
                 val videoList = videos.map { it.video }
-                playerViewModel.playPlaylist(videoList, index, "Downloads")
+                playerViewModel.playPlaylist(videoList, index, downloadsTitle)
                 GlobalPlayerState.setCurrentVideo(videoList[index])
             },
             onMusicClick = { tracks, index ->
                 val musicTracks = tracks.map { it.track }
                 val selectedTrack = musicTracks[index]
 
-                musicPlayerViewModel.loadAndPlayTrack(selectedTrack, musicTracks, "Downloads")
+                musicPlayerViewModel.loadAndPlayTrack(selectedTrack, musicTracks, downloadsTitle)
                 onMusicStarted()
             },
             onHomeClick = {
