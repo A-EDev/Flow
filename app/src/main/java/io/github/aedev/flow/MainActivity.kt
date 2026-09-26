@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
     private var cachedAppUiRoot = AppUiRoot.MOBILE
+    private var suppressForegroundVideoRestoreOnResume = false
 
     private fun videoPlaybackStateName(state: Int?): String =
         when (state) {
@@ -178,6 +179,7 @@ class MainActivity : ComponentActivity() {
                 }
         }
 
+        suppressForegroundVideoRestoreOnResume = intentRequestsContentNavigation(intent)
         handleIntent(intent)
 
         // Check for updates (only in release builds, only in github flavor)
@@ -476,8 +478,20 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        suppressForegroundVideoRestoreOnResume =
+            !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
+            intentRequestsContentNavigation(intent)
         handleIntent(intent)
     }
+
+    private fun intentRequestsContentNavigation(intent: Intent): Boolean =
+        intent.getBooleanExtra("open_music_player", false) ||
+            intent.getBooleanExtra("open_video_player", false) ||
+            intent.hasExtra("notification_video_id") ||
+            intent.hasExtra("video_id") ||
+            intent.hasExtra("open_video_id") ||
+            intent.action == Intent.ACTION_VIEW ||
+            intent.action == Intent.ACTION_SEND
 
     private fun handleIntent(intent: Intent) {
         val data = intent.data
@@ -593,7 +607,15 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch {
                     delay(350L)
                     val stillBackgrounded = !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
-                    if (stillBackgrounded && !isInPictureInPictureMode) {
+                    val explicitBackgroundActive =
+                        GlobalPlayerState.isExplicitBackgroundPlaybackActive.value
+                    if (
+                        io.github.aedev.flow.player.PipDismissPolicy.shouldDismissAfterPipExit(
+                            stillBackgrounded = stillBackgrounded,
+                            isInPipMode = isInPictureInPictureMode,
+                            explicitBackgroundActive = explicitBackgroundActive,
+                        )
+                    ) {
                         GlobalPlayerState.requestDismiss()
                         io.github.aedev.flow.player.EnhancedPlayerManager
                             .getInstance()
@@ -627,6 +649,16 @@ class MainActivity : ComponentActivity() {
         pendingAutoPip = false
         pipDismissCheckJob?.cancel()
         PictureInPictureHelper.dismissPopup(this)
+
+        val restoreVideo =
+            !suppressForegroundVideoRestoreOnResume &&
+                !isInPictureInPictureMode &&
+                GlobalPlayerState.isExplicitBackgroundPlaybackActive.value &&
+                GlobalPlayerState.currentVideo.value != null
+        suppressForegroundVideoRestoreOnResume = false
+        if (restoreVideo) {
+            GlobalPlayerState.requestForegroundVideoRestore()
+        }
     }
 
     override fun onKeyDown(
@@ -762,6 +794,8 @@ class MainActivity : ComponentActivity() {
         enterPlayerPictureInPictureMode(
             aspectRatio = shortsPool.activeVideoAspectRatio() ?: PORTRAIT_REEL_ASPECT_RATIO,
             isPlaying = true,
+            hasNext = false,
+            includeBackgroundAction = false,
         )
     }
 
@@ -779,6 +813,8 @@ class MainActivity : ComponentActivity() {
         aspectRatio: Float = PictureInPictureHelper.currentVideoAspectRatio,
         isPlaying: Boolean = true,
         openSettingsOnDenied: Boolean = false,
+        hasNext: Boolean? = null,
+        includeBackgroundAction: Boolean = true,
     ): Boolean {
         if (cachedAppUiRoot == AppUiRoot.TV) return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
@@ -796,6 +832,8 @@ class MainActivity : ComponentActivity() {
                 aspectRatio = aspectRatio,
                 isPlaying = isPlaying,
                 autoEnterEnabled = false,
+                hasNext = hasNext,
+                includeBackgroundAction = includeBackgroundAction,
             )
         if (!entered) {
             pendingAutoPip = false

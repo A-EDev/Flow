@@ -380,7 +380,12 @@ fun VideoInfoContent(
         onDownloadClick = { screenState.showDownloadDialog = true },
         isSaved = isVideoSaved,
         isDownloaded = isVideoDownloaded,
-        onBackgroundPlayClick = { viewModel.startBackgroundPlayback() },
+        onBackgroundPlayClick = {
+            io.github.aedev.flow.ui.screens.player.effects.BackgroundAudioTransition.enterBackgroundAudio(
+                activity = context as? android.app.Activity,
+                viewModel = viewModel,
+            )
+        },
         onCopyLinkClick = {
             val url = "https://www.youtube.com/watch?v=${video.id}"
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

@@ -258,6 +258,7 @@ fun FlowApp(
 
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
+    val foregroundVideoRestoreRequest by GlobalPlayerState.foregroundVideoRestoreRequest.collectAsState()
     val isShortsPlayerRoute = currentRoute.value == "shorts"
 
     LaunchedEffect(isShortsPlayerRoute) {
@@ -328,6 +329,22 @@ fun FlowApp(
 
         LaunchedEffect(playerViewModel) {
             playerViewModel.expandPlayerRequest.collect {
+                playerVisible = true
+                playerSheetState.expand()
+            }
+        }
+
+        LaunchedEffect(foregroundVideoRestoreRequest) {
+            if (
+                foregroundVideoRestoreRequest > 0 &&
+                !isInPipMode &&
+                !isShortsPlayerRoute &&
+                GlobalPlayerState.isExplicitBackgroundPlaybackActive.value &&
+                GlobalPlayerState.currentVideo.value != null
+            ) {
+                // Reuse the existing ViewModel/player and queue. showVideoPlayer only restores
+                // video output and clears audio-only mode; it does not load a second media item.
+                playerViewModel.showVideoPlayer()
                 playerVisible = true
                 playerSheetState.expand()
             }

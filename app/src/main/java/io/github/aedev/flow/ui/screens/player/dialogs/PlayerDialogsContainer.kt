@@ -158,6 +158,7 @@ fun PlayerDialogsContainer(
                     io.github.aedev.flow.player.PictureInPictureHelper.requestPlayerPipMode(
                         activity = context as androidx.activity.ComponentActivity,
                         isPlaying = playerState.isPlaying,
+                        hasNext = playerState.hasNext || uiState.relatedVideos.isNotEmpty(),
                     )
                 }
             },

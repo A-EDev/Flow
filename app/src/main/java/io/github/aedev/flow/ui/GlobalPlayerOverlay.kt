@@ -516,6 +516,11 @@ fun GlobalPlayerOverlay(
         onPipModeChanged = { inPipMode ->
             GlobalPlayerState.setPipMode(inPipMode)
         },
+        hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
+        onNext = { playerViewModel.playNext() },
+        onBackgroundAudio = {
+            BackgroundAudioTransition.enterBackgroundAudio(activity, playerViewModel)
+        },
     )
 
     FullscreenEffect(
@@ -1196,6 +1201,7 @@ fun GlobalPlayerOverlay(
                                     activity = activity,
                                     aspectRatio = videoAspectRatio,
                                     isPlaying = playerState.isPlaying,
+                                    hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
                                 )
                             },
                             chapters = playerUiState.chapters,
@@ -1491,6 +1497,7 @@ fun GlobalPlayerOverlay(
                                     activity = activity,
                                     aspectRatio = videoAspectRatio,
                                     isPlaying = playerState.isPlaying,
+                                    hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
                                 )
                             }
                         },

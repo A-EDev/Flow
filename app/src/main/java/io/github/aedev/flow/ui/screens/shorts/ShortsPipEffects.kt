@@ -28,6 +28,8 @@ internal fun ShortsPipActionEffect() {
                 activity = activity,
                 aspectRatio = pool.activeVideoAspectRatio() ?: PictureInPictureHelper.currentVideoAspectRatio,
                 isPlaying = isPlaying,
+                hasNext = false,
+                includeBackgroundAction = false,
             )
         }
 
@@ -41,7 +43,6 @@ internal fun ShortsPipActionEffect() {
                     pool.pause()
                     restateWindow(isPlaying = false)
                 },
-                onClose = { pool.pauseAll() },
             )
 
         ContextCompat.registerReceiver(

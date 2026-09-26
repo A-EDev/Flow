@@ -46,6 +46,9 @@ object GlobalPlayerState {
     private val _dismissRequested = MutableStateFlow(false)
     val dismissRequested: StateFlow<Boolean> = _dismissRequested.asStateFlow()
 
+    private val _foregroundVideoRestoreRequest = MutableStateFlow(0)
+    val foregroundVideoRestoreRequest: StateFlow<Int> = _foregroundVideoRestoreRequest.asStateFlow()
+
     // Delegate to EnhancedPlayerManager for player state. This is the single reactive
     // source of truth for playback; collect playerState for isPlaying/position/duration.
     val playerState: StateFlow<EnhancedPlayerState> = EnhancedPlayerManager.getInstance().playerState
@@ -92,6 +95,15 @@ object GlobalPlayerState {
 
     fun resetDismiss() {
         _dismissRequested.value = false
+    }
+
+    /**
+     * Signals the Compose shell to reveal the existing video player after explicit audio-only
+     * playback is brought back to the foreground. The player instance and queue remain owned by
+     * EnhancedPlayerManager; this is only a UI/lifecycle handoff.
+     */
+    fun requestForegroundVideoRestore() {
+        _foregroundVideoRestoreRequest.value++
     }
 
     /**
