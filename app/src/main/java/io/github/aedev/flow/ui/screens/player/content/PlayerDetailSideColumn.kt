@@ -21,6 +21,7 @@ import io.github.aedev.flow.ui.screens.player.dialogs.PlayerChaptersSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerCommentsPanelHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDescriptionSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerLiveChatColumn
+import io.github.aedev.flow.ui.screens.player.dialogs.PlayerQueueSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSettingsSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerSleepTimerSheetHost
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerTranscriptSheetHost
@@ -33,8 +34,8 @@ import io.github.aedev.flow.ui.screens.player.state.transcriptTrackUrl
 import kotlinx.coroutines.launch
 
 /**
- * Supporting pane of the wide player layout. Comments, the description, the chapters, the settings
- * sheet with every page it owns and the sleep timer take the pane over when opened, so the video
+ * Supporting pane of the wide player layout. Comments, the description, the chapters, the queue, the
+ * settings sheet with every page it owns and the sleep timer take the pane over when opened, so the video
  * stays visible instead of being covered by a bottom sheet (#918); otherwise it shows live chat,
  * falling back to the related-videos list.
  */
@@ -134,6 +135,15 @@ internal fun PlayerDetailSideColumn(
                     screenState = screenState,
                     chapters = uiState.chapters,
                     thumbnailUrl = video.thumbnailUrl,
+                    asSidePanel = true,
+                    expandedHeight = paneHeight,
+                    onDismiss = closeSheet,
+                )
+            }
+
+            screenState.activeSheet == PlayerSheet.Queue -> {
+                BackHandler(onBack = closeSheet)
+                PlayerQueueSheetHost(
                     asSidePanel = true,
                     expandedHeight = paneHeight,
                     onDismiss = closeSheet,

@@ -25,10 +25,7 @@ import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
-import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
-import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
-import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
@@ -177,33 +174,11 @@ internal fun PlayerBottomSheetsContainer(
         )
     }
 
-    // Playlist Queue Bottom Sheet
-    if (screenState.activeSheet == PlayerSheet.Queue) {
-        val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
-        val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(initialValue = -1)
-        val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
-        val quickActions = sharedQuickActionsViewModel()
-        val removedFromQueue = stringResource(R.string.removed_from_queue)
-
-        FlowPlaylistQueueBottomSheet(
-            queueVideos = queueVideos,
-            currentQueueIndex = currentQueueIndex,
-            playlistTitle = playerState.queueTitle,
-            isLooping = playerState.isQueueLooping,
-            isShuffled = playerState.isQueueShuffled,
-            onLoopToggle = EnhancedPlayerManager.getInstance()::toggleQueueLoop,
-            onShuffleToggle = EnhancedPlayerManager.getInstance()::toggleQueueShuffle,
-            onPlayVideoAtIndex = { index ->
-                EnhancedPlayerManager.getInstance().playVideoAtIndex(index, loadStreamsInPlayer = false)
-            },
-            onRemoveVideoAtIndex = { index ->
-                EnhancedPlayerManager.getInstance().removeVideoAtIndex(index)?.let { removed ->
-                    quickActions.announce(removedFromQueue, QuickActionUndo.QueueRemoval(removed))
-                }
-            },
-            onMoveVideoAtIndex = EnhancedPlayerManager.getInstance()::moveVideoAtIndex,
-            onDismiss = { screenState.closeSheet() },
+    if (screenState.activeSheet == PlayerSheet.Queue && !hostedInSidePanel) {
+        PlayerQueueSheetHost(
+            asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.closeSheet() },
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
         )

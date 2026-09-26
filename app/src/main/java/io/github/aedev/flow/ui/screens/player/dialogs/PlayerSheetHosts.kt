@@ -40,8 +40,11 @@ import io.github.aedev.flow.ui.components.shared.FlowDescriptionBottomSheet
 import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.MediaSleepTimerSheet
 import io.github.aedev.flow.ui.components.shared.commentTimestampToMs
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.rememberDateDisplaySettings
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowChaptersBottomSheet
+import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowTranscriptBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.LiveChatList
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlayerCommentsPanel
@@ -83,6 +86,45 @@ internal fun PlayerChaptersSheetHost(
         },
         onDismiss = onDismiss,
         thumbnailUrl = thumbnailUrl,
+        expandedHeight = expandedHeight,
+        collapsedHeight = collapsedHeight,
+        enableVerticalDismiss = !asSidePanel,
+        onSheetProgressChange = onSheetProgressChange,
+        modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
+    )
+}
+
+@Composable
+internal fun PlayerQueueSheetHost(
+    asSidePanel: Boolean,
+    expandedHeight: Dp?,
+    onDismiss: () -> Unit,
+    collapsedHeight: Dp = 0.dp,
+    onSheetProgressChange: (Float) -> Unit = {},
+) {
+    val manager = EnhancedPlayerManager.getInstance()
+    val queueVideos by manager.queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
+    val currentQueueIndex by manager.currentQueueIndexState.collectAsStateWithLifecycle(initialValue = -1)
+    val playerState by manager.playerState.collectAsStateWithLifecycle()
+    val quickActions = sharedQuickActionsViewModel()
+    val removedFromQueue = stringResource(R.string.removed_from_queue)
+
+    FlowPlaylistQueueBottomSheet(
+        queueVideos = queueVideos,
+        currentQueueIndex = currentQueueIndex,
+        playlistTitle = playerState.queueTitle,
+        isLooping = playerState.isQueueLooping,
+        isShuffled = playerState.isQueueShuffled,
+        onLoopToggle = manager::toggleQueueLoop,
+        onShuffleToggle = manager::toggleQueueShuffle,
+        onPlayVideoAtIndex = { index -> manager.playVideoAtIndex(index, loadStreamsInPlayer = false) },
+        onRemoveVideoAtIndex = { index ->
+            manager.removeVideoAtIndex(index)?.let { removed ->
+                quickActions.announce(removedFromQueue, QuickActionUndo.QueueRemoval(removed))
+            }
+        },
+        onMoveVideoAtIndex = manager::moveVideoAtIndex,
+        onDismiss = onDismiss,
         expandedHeight = expandedHeight,
         collapsedHeight = collapsedHeight,
         enableVerticalDismiss = !asSidePanel,

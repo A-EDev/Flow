@@ -56,6 +56,7 @@ fun FlowPlaylistQueueBottomSheet(
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
+    enableVerticalDismiss: Boolean = true,
     onSheetProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -106,6 +107,7 @@ fun FlowPlaylistQueueBottomSheet(
         state = sheetState,
         expandedHeight = expandedHeight ?: defaultSheetExpandedHeight(),
         collapsedHeight = collapsedHeight,
+        dismissible = enableVerticalDismiss,
         dismissOnOutsideTap = false,
         shape = RectangleShape,
         containerColor = MaterialTheme.colorScheme.surface,
