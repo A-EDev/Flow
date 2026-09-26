@@ -3,6 +3,8 @@ package io.github.aedev.flow.player.error
 import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.R
+import io.github.aedev.flow.player.stream.PlaybackBlock
+import io.github.aedev.flow.player.stream.PlaybackBlockedException
 import org.schabi.newpipe.extractor.exceptions.AccountTerminatedException
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
@@ -115,6 +117,24 @@ object VideoErrorMapper {
                     message = context.getString(R.string.error_channel_terminated),
                     hint = if (reason != null) reason else context.getString(R.string.error_channel_terminated_hint),
                     isRetryable = false,
+                    isUserActionable = false,
+                )
+            }
+
+            throwable is PlaybackBlockedException && throwable.block == PlaybackBlock.BOT_WALL -> {
+                VideoError(
+                    message = context.getString(R.string.error_bot_wall),
+                    hint = context.getString(R.string.error_bot_wall_hint),
+                    isRetryable = true,
+                    isUserActionable = true,
+                )
+            }
+
+            throwable is PlaybackBlockedException -> {
+                VideoError(
+                    message = context.getString(R.string.error_login_required),
+                    hint = context.getString(R.string.error_login_required_hint),
+                    isRetryable = true,
                     isUserActionable = false,
                 )
             }

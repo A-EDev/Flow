@@ -24,4 +24,32 @@ class PlayabilityVerdictTest {
         assertThat(PlayabilityVerdict.isGone(listOf("IOS: no adaptive formats"))).isFalse()
         assertThat(PlayabilityVerdict.isGone(emptyList())).isFalse()
     }
+
+    @Test
+    fun `a bot check is told apart from an age check`() {
+        assertThat(PlayabilityVerdict.isBotWall("Sign in to confirm you’re not a bot")).isTrue()
+        assertThat(PlayabilityVerdict.isBotWall("Sign in to confirm you're not a bot")).isTrue()
+        assertThat(PlayabilityVerdict.isBotWall("Sign in to confirm your age")).isFalse()
+        assertThat(PlayabilityVerdict.isBotWall(null)).isFalse()
+    }
+
+    @Test
+    fun `a bot wall on any client blocks the network`() {
+        val reasons = listOf("VISIONOS: BOT_WALL, reason=Sign in", "MWEB: timeout or null response")
+
+        assertThat(PlayabilityVerdict.block(reasons)).isEqualTo(PlaybackBlock.BOT_WALL)
+    }
+
+    @Test
+    fun `a sign-in status without a bot check needs an account`() {
+        val reasons = listOf("VISIONOS: status=LOGIN_REQUIRED, reason=Sign in to confirm your age")
+
+        assertThat(PlayabilityVerdict.block(reasons)).isEqualTo(PlaybackBlock.LOGIN_REQUIRED)
+    }
+
+    @Test
+    fun `other failures carry no block`() {
+        assertThat(PlayabilityVerdict.block(listOf("IOS: status=ERROR, reason=x", "WEB: timeout or null response"))).isNull()
+        assertThat(PlayabilityVerdict.block(emptyList())).isNull()
+    }
 }

@@ -129,6 +129,7 @@ object InnerTubeVideoStreamExtractor {
             Log.w(TAG, "Extraction start for $videoId (forceSabr=$forceSabr)")
             PlayerDiagnostics.logWarning(TAG, "extract start $videoId forceSabr=$forceSabr")
             dropGatesOnIdentityChange()
+            blockedVideoIds.remove(videoId)
             val failureReasons = mutableListOf<String>()
             val liveDetected = booleanArrayOf(false)
 
@@ -140,6 +141,7 @@ object InnerTubeVideoStreamExtractor {
                 }
                 Log.e(TAG, "Forced SABR extraction failed for $videoId. Reasons: ${failureReasons.joinToString(" | ")}")
                 PlayerDiagnostics.logError(TAG, "forced SABR FAILED $videoId: ${failureReasons.joinToString(" | ")}")
+                recordBlock(videoId, failureReasons)
                 return@withContext null
             }
 
@@ -220,6 +222,7 @@ object InnerTubeVideoStreamExtractor {
             Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")
             PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
             if (PlayabilityVerdict.isGone(failureReasons)) goneVideoIds += videoId
+            recordBlock(videoId, failureReasons)
             null
         }
 
@@ -229,6 +232,18 @@ object InnerTubeVideoStreamExtractor {
             .newKeySet()
 
     fun isGone(videoId: String): Boolean = videoId in goneVideoIds
+
+    private val blockedVideoIds = java.util.concurrent.ConcurrentHashMap<String, PlaybackBlock>()
+
+    /** Why the last extraction of [videoId] failed, when YouTube refused the viewer rather than the video. */
+    fun blockOf(videoId: String): PlaybackBlock? = blockedVideoIds[videoId]
+
+    private fun recordBlock(
+        videoId: String,
+        failureReasons: List<String>,
+    ) {
+        PlayabilityVerdict.block(failureReasons)?.let { blockedVideoIds[videoId] = it }
+    }
 
     /** The clients GVS is not currently refusing to serve. See [ClientGateTracker]. */
     private fun List<YouTubeClient>.ungated(): List<YouTubeClient> = filterNot { ClientGateTracker.isGated(it.clientName) }
@@ -404,7 +419,7 @@ object InnerTubeVideoStreamExtractor {
                     val status = playerResponse.playabilityStatus.status
                     if (status != "OK") {
                         val reason = playerResponse.playabilityStatus.reason
-                        val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                        val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
                         failureReasons.add("${client.clientName}: $tag, reason=$reason")
                         Log.w(TAG, "${client.clientName}: $tag, reason=$reason")
                         PlayerDiagnostics.logWarning(
@@ -609,7 +624,7 @@ object InnerTubeVideoStreamExtractor {
             val status = playerResponse.playabilityStatus.status
             if (status != "OK") {
                 val reason = playerResponse.playabilityStatus.reason
-                val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
                 failureReasons.add("$label: $tag, reason=$reason")
                 Log.w(TAG, "$label: $tag, reason=$reason")
                 return null
@@ -821,14 +836,6 @@ object InnerTubeVideoStreamExtractor {
         val challenge = renderer.challenge ?: return "empty"
         val shared = if (renderer.useSharedChallenge == true) ",shared" else ""
         return "yes(${challenge.length}c$shared)"
-    }
-
-    private fun isBotWall(reason: String?): Boolean {
-        if (reason == null) return false
-        return reason.contains("Sign in to confirm", ignoreCase = true) ||
-            reason.contains("confirm you", ignoreCase = true) ||
-            reason.contains("not a bot", ignoreCase = true) ||
-            reason.contains("Inicia sesión", ignoreCase = true) // localized "sign in"
     }
 
     private suspend fun PlayerResponse.StreamingData.Format.toPlayableFormat(
