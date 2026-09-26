@@ -167,6 +167,7 @@ object InnertubeMusicService {
                     description = null,
                     tracks = tracks,
                     continuation = page.songsContinuation ?: page.continuation,
+                    totalTrackCount = page.trackCount,
                 )
             } catch (e: Exception) {
                 e.printStackTrace()

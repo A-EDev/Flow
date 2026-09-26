@@ -18,7 +18,6 @@ import io.github.aedev.flow.data.music.model.DailyDiscoverItem
 import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.music.model.RelatedMusic
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
@@ -70,7 +69,6 @@ class MusicViewModel
         private val musicRecommendationAlgorithm: MusicRecommendationAlgorithm,
         private val subscriptionRepository: io.github.aedev.flow.data.local.SubscriptionRepository,
         private val playlistRepository: io.github.aedev.flow.data.music.PlaylistRepository,
-        private val localPlaylistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
         private val downloadManager: DownloadManager,
         private val musicBrain: io.github.aedev.flow.data.recommendation.music.MusicBrainEngine,
         private val playerPreferences: PlayerPreferences,
@@ -1312,15 +1310,16 @@ class MusicViewModel
          *  PERFORMANCE OPTIMIZED: Fetch artist details with timeout
          */
         fun fetchArtistDetails(channelId: String) {
+            _uiState.update {
+                it.copy(
+                    isArtistLoading = true,
+                    artistLoadFailed = false,
+                    artistDetails = null,
+                    artistInsights = null,
+                    knownRelatedArtistIds = emptySet(),
+                )
+            }
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        isArtistLoading = true,
-                        artistDetails = null,
-                        artistInsights = null,
-                        knownRelatedArtistIds = emptySet(),
-                    )
-
                 supervisorScope {
                     val detailsDeferred =
                         async(PerformanceDispatcher.networkIO) {
@@ -1356,6 +1355,7 @@ class MusicViewModel
                     _uiState.value =
                         _uiState.value.copy(
                             isArtistLoading = false,
+                            artistLoadFailed = details == null,
                             artistDetails = details?.copy(isSubscribed = isSubscribed),
                             artistInsights = insights,
                             knownRelatedArtistIds = knownRelated,
@@ -1397,90 +1397,6 @@ class MusicViewModel
                     artistInsights = null,
                     knownRelatedArtistIds = emptySet(),
                 )
-        }
-
-        /**
-         *  PERFORMANCE OPTIMIZED: Fetch playlist details with timeout
-         */
-        fun fetchPlaylistDetails(playlistId: String) {
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.value = _uiState.value.copy(isPlaylistLoading = true, playlistDetails = null)
-
-                // Try local first (fast path)
-                val localPlaylist =
-                    withContext(PerformanceDispatcher.diskIO) {
-                        localPlaylistRepository.getPlaylistInfo(playlistId)
-                    }
-
-                if (localPlaylist != null) {
-                    val videos =
-                        withContext(PerformanceDispatcher.diskIO) {
-                            localPlaylistRepository.getPlaylistVideosFlow(playlistId).firstOrNull() ?: emptyList()
-                        }
-                    val tracks =
-                        videos.map { video ->
-                            MusicTrack(
-                                videoId = video.id,
-                                title = video.title,
-                                artist = video.channelName,
-                                thumbnailUrl = video.thumbnailUrl,
-                                duration = video.duration,
-                                sourceUrl = "", // Not needed for local playback usually
-                            )
-                        }
-
-                    val details =
-                        PlaylistDetails(
-                            id = localPlaylist.id,
-                            title = localPlaylist.name,
-                            thumbnailUrl = localPlaylist.thumbnailUrl,
-                            author = context.getString(R.string.you),
-                            trackCount = tracks.size,
-                            description = localPlaylist.description,
-                            tracks = tracks,
-                        )
-
-                    _uiState.value =
-                        _uiState.value.copy(
-                            isPlaylistLoading = false,
-                            playlistDetails = details,
-                            selectedPlaylist = details,
-                        )
-                    return@launch
-                }
-
-                // Fallback to remote with timeout
-                try {
-                    val details =
-                        withTimeoutOrNull(12_000L) {
-                            YouTubeMusicService.fetchPlaylistDetails(playlistId)
-                        }
-                    _uiState.value =
-                        _uiState.value.copy(
-                            isPlaylistLoading = false,
-                            playlistDetails = details,
-                            selectedPlaylist = details,
-                        )
-                    if (details != null) {
-                        runCatching {
-                            when {
-                                playlistId.startsWith("MPREb") -> musicGraph.recordAlbum(details)
-                                playlistId.isCuratedPlaylistId() -> musicGraph.recordPlaylist(details)
-                            }
-                        }.onFailure { Log.w("MusicViewModel", "Music graph write failed for $playlistId", it) }
-                    }
-                } catch (e: Exception) {
-                    _uiState.value =
-                        _uiState.value.copy(
-                            isPlaylistLoading = false,
-                            error = context.getString(R.string.error_failed_to_load_playlist),
-                        )
-                }
-            }
-        }
-
-        fun clearPlaylistDetails() {
-            _uiState.value = _uiState.value.copy(playlistDetails = null)
         }
 
         fun loadMoreHomeContent() {
@@ -1615,9 +1531,7 @@ data class MusicUiState(
     val artistInsights: MusicArtistInsights? = null,
     val knownRelatedArtistIds: Set<String> = emptySet(),
     val isArtistLoading: Boolean = false,
-    val playlistDetails: PlaylistDetails? = null,
-    val selectedPlaylist: PlaylistDetails? = null,
-    val isPlaylistLoading: Boolean = false,
+    val artistLoadFailed: Boolean = false,
     val isMoreLoading: Boolean = false,
     val searchResultsArtists: List<ArtistDetails> = emptyList(),
     val homeContinuation: String? = null,

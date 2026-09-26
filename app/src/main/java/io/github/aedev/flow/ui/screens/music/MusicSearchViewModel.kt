@@ -97,7 +97,7 @@ class MusicSearchViewModel
             if (q.isBlank()) return
 
             _query.value = q
-            _uiState.update { it.copy(isLoading = true, isSearching = true, activeFilter = null) }
+            _uiState.update { it.copy(isLoading = true, isSearching = true, activeFilter = null, error = null) }
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 val result =
@@ -116,7 +116,8 @@ class MusicSearchViewModel
                             )
                         }
                     }?.onFailure { throwable ->
-                        _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
+                        android.util.Log.w("MusicSearchViewModel", "Search failed", throwable)
+                        _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.search_failed)) }
                     } ?: run {
                     _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.error_search_timed_out)) }
                 }
@@ -130,7 +131,7 @@ class MusicSearchViewModel
             val q = _query.value
             if (q.isBlank()) return
 
-            _uiState.update { state -> state.copy(isLoading = true, activeFilter = filter) }
+            _uiState.update { state -> state.copy(isLoading = true, isSearching = true, activeFilter = filter, error = null) }
 
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                 if (filter == null) {
@@ -151,7 +152,8 @@ class MusicSearchViewModel
                                 )
                             }
                         }?.onFailure { throwable ->
-                            _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
+                            android.util.Log.w("MusicSearchViewModel", "Filtered search failed", throwable)
+                            _uiState.update { state -> state.copy(isLoading = false, error = context.getString(R.string.search_failed)) }
                         } ?: run {
                         _uiState.update { state ->
                             state.copy(isLoading = false, error = context.getString(R.string.error_filter_search_timed_out))

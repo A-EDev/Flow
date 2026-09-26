@@ -52,6 +52,7 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
+import io.github.aedev.flow.ui.components.music.search.searchSummaryTitle
 import io.github.aedev.flow.ui.screens.music.MusicSearchUiState
 import io.github.aedev.flow.ui.screens.music.MusicSearchViewModel
 import io.github.aedev.flow.ui.screens.music.convertSongToMusicTrack
@@ -464,7 +465,8 @@ private fun TvMusicSearchResults(
             ?.summaries
             .orEmpty()
             .filter { it.items.isNotEmpty() }
-    val loading = state.isSearching || state.isLoading
+    val loading = state.isLoading || !state.isSearching
+    val noResults = state.error ?: stringResource(R.string.tv_search_no_results)
 
     when {
         query.isBlank() -> {
@@ -482,7 +484,7 @@ private fun TvMusicSearchResults(
 
                 state.filteredResults.isEmpty() -> {
                     TvMessageState(
-                        title = stringResource(R.string.tv_search_no_results),
+                        title = noResults,
                         modifier = modifier,
                     )
                 }
@@ -524,7 +526,7 @@ private fun TvMusicSearchResults(
 
         summaries.isEmpty() -> {
             TvMessageState(
-                title = stringResource(R.string.tv_search_no_results),
+                title = noResults,
                 modifier = modifier,
             )
         }
@@ -542,10 +544,10 @@ private fun TvMusicSearchResults(
                 ) {
                     itemsIndexed(
                         summaries,
-                        key = { index, summary -> "music-section:$index:${summary.title}" },
+                        key = { index, summary -> "music-section:$index:${summary.kind}:${summary.title}" },
                     ) { _, summary ->
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TvSectionHeader(title = summary.title)
+                            TvSectionHeader(title = searchSummaryTitle(summary))
                             val sectionSongs =
                                 remember(summary) {
                                     summary.items.filterIsInstance<SongItem>().map(::convertSongToMusicTrack)

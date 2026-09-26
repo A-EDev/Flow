@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.engagement.LikedMediaUseCase
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.SavedPlaylistSyncStore
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.music.YouTubeMusicService
@@ -70,6 +71,7 @@ class MusicCollectionViewModel
         private val preferences: PlayerPreferences,
         private val transfer: PlaylistTransfer,
         private val downloads: BackgroundDownloadQueuer,
+        private val syncState: SavedPlaylistSyncStore,
     ) : ViewModel() {
         val collectionId: String = checkNotNull(savedStateHandle[MUSIC_COLLECTION_ARG])
 
@@ -421,7 +423,8 @@ class MusicCollectionViewModel
 
         /**
          * A saved album or playlist opens from the saved copy at once, so it works offline, then
-         * refreshes from YouTube once. A complete refresh replaces the saved songs.
+         * refreshes from YouTube once. A change on the first page loads every page, at most once per
+         * [SavedCopyTtl], and only a complete load replaces the saved songs.
          */
         private suspend fun loadSaved() {
             val entity = playlists.getPlaylistEntity(collectionId) ?: return loadRemote()
@@ -439,11 +442,26 @@ class MusicCollectionViewModel
             val remote = fetchRemote() ?: return
             _state.update { it.copy(details = remote) }
             recordInGraph(remote)
-            if (remote.continuation == null && remote.tracks.isNotEmpty()) {
-                runCatching { playlists.syncSavedPlaylistVideos(collectionId, remote.tracks.map { it.toStoredVideo() }) }
-                    .onFailure { Log.w(TAG, "Saved copy of $collectionId not refreshed", it) }
-            }
+            val savedIds = videos.map { it.id }
+            val complete =
+                when {
+                    remote.continuation == null -> remote
+                    needsFullRefresh(savedIds, remote, lastSyncedAt(), System.currentTimeMillis()) -> loadAll()
+                    else -> null
+                }
+            if (complete == null || complete.continuation != null) return
+            runCatching {
+                savedCopyRefresh(savedIds, complete)?.let { tracks ->
+                    playlists.syncSavedPlaylistVideos(collectionId, tracks.map { it.toStoredVideo() })
+                }
+                syncState.markSynced(collectionId, System.currentTimeMillis())
+            }.onFailure { Log.w(TAG, "Saved copy of $collectionId not refreshed", it) }
         }
+
+        private suspend fun lastSyncedAt(): Long? =
+            runCatching { syncState.syncedAt(collectionId) }
+                .onFailure { Log.w(TAG, "Last refresh of $collectionId unreadable", it) }
+                .getOrNull()
 
         private suspend fun loadRemote() {
             val remote = fetchRemote()

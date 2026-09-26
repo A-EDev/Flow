@@ -722,6 +722,11 @@ fun NavGraphBuilder.flowAppGraph(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                 CircularProgressIndicator()
             }
+        } else if (uiState.artistLoadFailed) {
+            io.github.aedev.flow.ui.screens.music.ArtistPageError(
+                onBackClick = { navController.popBackStack() },
+                onRetry = { musicViewModel.fetchArtistDetails(channelId) },
+            )
         } else {
             uiState.artistDetails?.let { details ->
                 ArtistPage(
