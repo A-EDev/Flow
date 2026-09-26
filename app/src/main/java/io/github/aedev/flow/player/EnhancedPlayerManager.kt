@@ -2877,8 +2877,26 @@ class EnhancedPlayerManager private constructor() {
         resumePlaybackIfStalled(p)
     }
 
-    fun handleCriticalMemoryPressure() {
-        Log.w(TAG, "Critical memory pressure; releasing video-heavy player state")
+    fun handleMemoryPressure(
+        trimLevel: Int,
+        videoVisible: Boolean,
+    ) {
+        when (MemoryPressurePolicy.responseTo(trimLevel, videoVisible)) {
+            MemoryPressureResponse.NONE -> {}
+
+            MemoryPressureResponse.DROP_PRELOAD -> {
+                Log.w(TAG, "Memory pressure level=$trimLevel while video is visible; dropping the preload only")
+                preload.clear()
+            }
+
+            MemoryPressureResponse.RELEASE_VIDEO -> {
+                releaseVideoForMemoryPressure(trimLevel)
+            }
+        }
+    }
+
+    private fun releaseVideoForMemoryPressure(trimLevel: Int) {
+        Log.w(TAG, "Critical memory pressure level=$trimLevel; releasing video-heavy player state")
         mediaLoader?.releaseSabr()
         val p = player ?: return
         val shouldKeepPlaying = p.playWhenReady || p.isPlaying
