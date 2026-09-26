@@ -8,6 +8,7 @@ package io.github.aedev.flow.data.recommendation.music
 
 import android.util.Log
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.local.readHistory
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.model.MusicTrack
 import kotlinx.coroutines.flow.firstOrNull
@@ -65,9 +66,7 @@ class MusicBrainBackfill
         ) {
             val rows =
                 watchHistoryDao
-                    .getMusicHistory()
-                    .firstOrNull()
-                    .orEmpty()
+                    .readHistory(isMusic = 1, isLocal = 0)
                     .take(MusicBrainParams.BACKFILL_MAX_ROWS)
                     .asReversed()
 

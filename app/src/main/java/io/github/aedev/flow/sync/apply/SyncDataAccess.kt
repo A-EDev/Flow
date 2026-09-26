@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
 import io.github.aedev.flow.data.local.entity.NoteEntity
+import io.github.aedev.flow.data.local.readHistory
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
@@ -77,9 +78,7 @@ class SyncDataAccess
 
         suspend fun readWatchHistory(node: String): List<CanonicalWatchHistory> =
             watchHistoryDao
-                .getAllHistory()
-                .first()
-                .filter { !it.isLocal } // device-local media files don't sync
+                .readHistory(isLocal = 0) // device-local media files don't sync
                 .map { WatchHistoryMapper.toCanonical(it, node) }
 
         suspend fun writeWatchHistory(merged: List<CanonicalWatchHistory>) {
