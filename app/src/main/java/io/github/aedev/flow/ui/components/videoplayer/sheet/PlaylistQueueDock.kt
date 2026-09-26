@@ -25,13 +25,17 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 
-private val DockHeight = 76.dp
 private val DockHorizontalPadding = 12.dp
 private val OverlineTracking = 0.8.sp
+
+object PlaylistQueueDockDefaults {
+    val Height: Dp = 76.dp
+}
 
 /**
  * The bar that sits under the player while a queue is playing, and opens it.
@@ -67,7 +71,7 @@ fun PlaylistQueueDock(
                 .fillMaxWidth()
                 .padding(horizontal = DockHorizontalPadding)
                 .safeDrawingPadding()
-                .height(DockHeight)
+                .height(PlaylistQueueDockDefaults.Height)
                 .clickable(onClick = open),
     ) {
         Row(
