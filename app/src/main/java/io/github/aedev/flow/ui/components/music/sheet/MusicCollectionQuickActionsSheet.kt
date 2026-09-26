@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.music.sheet
 
-import android.content.Context
 import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
@@ -32,6 +31,7 @@ import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsViewMo
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickPrimaryAction
 import io.github.aedev.flow.ui.components.shared.quickactions.actionRow
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.rememberShareLinksWithoutText
 import io.github.aedev.flow.ui.screens.music.CollectionPlayMode
 import io.github.aedev.flow.ui.screens.music.MusicCollectionActionsViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
@@ -49,6 +49,7 @@ fun MusicCollectionQuickActionsSheet(
 ) {
     val context = LocalContext.current
     val navigator = LocalMediaNavigator.current
+    val shareLinkOnly by rememberShareLinksWithoutText()
     val isSaved by viewModel.isSaved.collectAsStateWithLifecycle()
     LaunchedEffect(item.id) { viewModel.loadSaved(item.id) }
     val announce: (Int) -> Unit = { quickActions.announce(it) }
@@ -103,7 +104,7 @@ fun MusicCollectionQuickActionsSheet(
                         )
                     },
                     actionRow("share", Icons.Outlined.Share, stringResource(R.string.share)) {
-                        context.shareCollection(item)
+                        shareLink(context, item.shareUrl, item.title, shareLinkOnly)
                         sheet.close()
                     },
                     QuickActionRow("open") { shape ->
@@ -121,5 +122,3 @@ fun MusicCollectionQuickActionsSheet(
         )
     }
 }
-
-private fun Context.shareCollection(item: MusicCollectionActionItem) = shareLink(this, item.shareUrl, item.title)

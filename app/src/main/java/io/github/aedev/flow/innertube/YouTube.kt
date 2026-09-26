@@ -38,6 +38,7 @@ import io.github.aedev.flow.innertube.models.response.GetTranscriptResponse
 import io.github.aedev.flow.innertube.models.response.ImageUploadResponse
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.innertube.models.response.ResolveUrlResponse
 import io.github.aedev.flow.innertube.models.response.SearchResponse
 import io.github.aedev.flow.innertube.models.response.channelVideoCountText
 import io.github.aedev.flow.innertube.pages.AlbumPage
@@ -133,6 +134,7 @@ import java.net.Proxy
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 /**
@@ -734,6 +736,28 @@ object YouTube {
                         .firstOrNull { it.selected }
                         ?.let { tab -> response.toChannelTabContent(tab.kind, header.toOwner()) },
             )
+        }
+
+    private val resolvedChannelIds = ConcurrentHashMap<String, String>()
+
+    /**
+     * The channel id behind an @handle, `/c/` or `/user/` link, which browse cannot open directly.
+     * Kept for the process: a channel page and its Shorts feed both resolve the same link.
+     */
+    suspend fun resolveChannelId(url: String): Result<String> =
+        runCatching {
+            resolvedChannelIds[url]?.let { return@runCatching it }
+            val channelId =
+                innerTube
+                    .resolveUrl(WEB, url)
+                    .body<ResolveUrlResponse>()
+                    .endpoint
+                    ?.browseEndpoint
+                    ?.browseId
+                    ?.takeIf { it.startsWith("UC") }
+                    ?: error("No channel behind $url")
+            resolvedChannelIds[url] = channelId
+            channelId
         }
 
     suspend fun channelTab(

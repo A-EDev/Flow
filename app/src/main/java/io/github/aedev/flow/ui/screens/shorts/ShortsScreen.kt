@@ -206,7 +206,7 @@ fun ShortsScreen(
                                     viewModel.loadShortDescription(short.id)
                                     showDescriptionSheet = true
                                 },
-                                onShareClick = { shareVideo(short.id, short.title) },
+                                onShareClick = { shareVideo(short.id, short.title, true) },
                                 onMoreClick = { settingsSheet.open(page, short.id) },
                                 onVideoEnded = {
                                     scope.launch {

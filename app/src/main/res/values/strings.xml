@@ -208,6 +208,8 @@
     <string name="share_video">Share video</string>
     <string name="check_out_video_template">Check out this video: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="share_link_only_template">https://youtube.com/watch?v=%1$s</string>
+    <string name="check_out_short_template">Check out this short: %1$s\nhttps://youtube.com/shorts/%2$s</string>
+    <string name="link_not_supported">Flow can\'t open this kind of link</string>
     <string name="content_settings_share_without_text_title">Share links without text</string>
     <string name="content_settings_share_without_text_subtitle">Share just the video link, without the “Check out this video” message</string>
     <string name="related_videos">Related Videos</string>
@@ -452,7 +454,6 @@
     <string name="search_hint">Search</string>
     <string name="search_videos_channels_placeholder">Search videos, channels...</string>
     <string name="search_voice_prompt">Speak to search…</string>
-    <string name="shared_video">Shared Video</string>
     <string name="search_failed">Search failed</string>
     <string name="loading_more">Loading more…</string>
     <string name="load_failed">Load failed</string>
@@ -1327,7 +1328,6 @@
     <!-- Shorts Screen -->
     <string name="loading_shorts">Loading shorts…</string>
     <string name="error_short_load">An error occurred</string>
-    <string name="share_short_template">Check out this short: https://youtu.be/%1$s</string>
     <string name="speed_2x">2x Speed</string>
     <string name="cd_liked">Liked</string>
     <string name="cd_pause">Pause</string>
@@ -3063,6 +3063,7 @@
     <string name="error_no_videos_for_category">No videos found for this category.</string>
     <string name="error_failed_to_load_videos">Failed to load videos.</string>
     <string name="error_invalid_channel_url">Invalid channel URL</string>
+    <string name="error_channel_link_not_found">Couldn\'t find the channel this link points to</string>
     <string name="error_channel_loading_timed_out">Channel loading timed out</string>
     <string name="error_failed_to_load_feed">Failed to load feed</string>
     <string name="error_failed_to_load_channel">Failed to load channel</string>

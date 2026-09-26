@@ -32,10 +32,12 @@ fun HandlePendingRoute(
     pendingRoute: String?,
     navController: NavController,
     onConsumed: () -> Unit,
+    onBeforeNavigate: () -> Unit = {},
 ) {
     LaunchedEffect(pendingRoute) {
         pendingRoute?.let { route ->
             navController.awaitGraph()
+            onBeforeNavigate()
             navController.navigate(route)
             onConsumed()
         }

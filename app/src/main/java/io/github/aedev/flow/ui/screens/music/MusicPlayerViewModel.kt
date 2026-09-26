@@ -20,6 +20,7 @@ import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MUSIC_GENRE_SOURCE_PREFIX
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -376,6 +377,14 @@ class MusicPlayerViewModel
                         // seeds the radio pool for every new queue context.
                     }
                 }
+        }
+
+        /** A YouTube Music link names only the song, so its details are fetched before it plays. */
+        suspend fun playFromLink(videoId: String) {
+            val track =
+                InnertubeMusicService.fetchQueue(videoIds = listOf(videoId)).firstOrNull()
+                    ?: MusicTrack(videoId = videoId, title = "", artist = "", thumbnailUrl = "", duration = 0)
+            loadAndPlayTrack(track)
         }
 
         /**
