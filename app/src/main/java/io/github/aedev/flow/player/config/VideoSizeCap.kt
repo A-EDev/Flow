@@ -46,3 +46,16 @@ fun DefaultTrackSelector.Parameters.Builder.resetVideoSizeTo(cap: VideoSizeCap):
         setMaxVideoSize(cap.maxWidth, cap.maxHeight)
         setViewportSizeToPhysicalDisplaySize(true)
     }
+
+/** Automatic quality: any size up to the device cap, no forced bitrate, the default codec order. */
+@UnstableApi
+internal fun adaptiveTrackSelectorDefaults(
+    builder: DefaultTrackSelector.Parameters.Builder,
+    cap: VideoSizeCap,
+): DefaultTrackSelector.Parameters.Builder =
+    builder
+        .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
+        .setAllowVideoMixedMimeTypeAdaptiveness(false)
+        .setAllowMultipleAdaptiveSelections(true)
+        .resetVideoSizeTo(cap)
+        .setForceHighestSupportedBitrate(false)

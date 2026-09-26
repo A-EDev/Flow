@@ -6,7 +6,7 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.config.VideoSizeCap
-import io.github.aedev.flow.player.config.resetVideoSizeTo
+import io.github.aedev.flow.player.config.adaptiveTrackSelectorDefaults
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
 import io.github.aedev.flow.player.stream.VideoCodecUtils
@@ -628,16 +628,3 @@ class QualityManager(
         return true
     }
 }
-
-/** Automatic quality: any size up to the device cap, no forced bitrate, the default codec order. */
-@UnstableApi
-internal fun adaptiveTrackSelectorDefaults(
-    builder: DefaultTrackSelector.Parameters.Builder,
-    cap: VideoSizeCap,
-): DefaultTrackSelector.Parameters.Builder =
-    builder
-        .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
-        .setAllowVideoMixedMimeTypeAdaptiveness(false)
-        .setAllowMultipleAdaptiveSelections(true)
-        .resetVideoSizeTo(cap)
-        .setForceHighestSupportedBitrate(false)
