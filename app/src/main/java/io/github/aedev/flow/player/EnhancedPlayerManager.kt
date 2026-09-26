@@ -1458,15 +1458,28 @@ class EnhancedPlayerManager private constructor() {
         updateQueueState()
     }
 
-    fun removeVideoAtIndex(index: Int) {
+    /** @return what an undo needs to put the video back; null when nothing was removed or the call was posted. */
+    fun removeVideoAtIndex(index: Int): RemovedQueueEntry? {
         if (!isOnMainThread()) {
             mainHandler.post { removeVideoAtIndex(index) }
-            return
+            return null
         }
-        if (!queue.removeAt(index)) return
+        val removed = queue.removeAt(index) ?: return null
 
         preload.clear()
         onQueueMutated("queue-remove")
+        return removed
+    }
+
+    fun restoreRemovedVideo(entry: RemovedQueueEntry) {
+        if (!isOnMainThread()) {
+            mainHandler.post { restoreRemovedVideo(entry) }
+            return
+        }
+        if (!queue.restore(entry)) return
+
+        preload.clear()
+        onQueueMutated("queue-restore")
     }
 
     fun moveVideoAtIndex(

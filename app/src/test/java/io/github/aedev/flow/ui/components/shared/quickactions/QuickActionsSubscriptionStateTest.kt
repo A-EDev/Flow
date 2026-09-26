@@ -44,6 +44,7 @@ class QuickActionsSubscriptionStateTest {
             feedback = mockk(relaxed = true),
             downloadOptions = mockk(relaxed = true),
             likedMedia = mockk(relaxed = true),
+            playerManager = { mockk(relaxed = true) },
         )
 
     @Test
