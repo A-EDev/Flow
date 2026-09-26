@@ -56,12 +56,13 @@ class HomeFeedSources
         private val relatedSemaphore = Semaphore(RELATED_FETCH_CONCURRENCY)
         private val savedSeedCooldown = ConcurrentHashMap<String, Long>()
 
-        suspend fun historySeedInputs(): List<GraphSeedInput> = graphSeedInputsFromHistory(viewHistory.getVideoHistoryFlow().first())
+        suspend fun historySeedInputs(): List<GraphSeedInput> =
+            graphSeedInputsFromHistory(viewHistory.getRecentVideoHistory(HISTORY_SEED_MAX, includeShorts = false))
 
         internal suspend fun gatherSavedSeedSources(): SavedSeedSources {
             val historySeeds =
                 runCatching {
-                    graphSeedInputsFromHistory(viewHistory.getVideoHistoryFlow().first())
+                    graphSeedInputsFromHistory(viewHistory.getRecentVideoHistory(HISTORY_SEED_MAX, includeShorts = false))
                 }.getOrElse { emptyList() }
             val likedSeeds =
                 runCatching {

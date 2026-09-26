@@ -19,7 +19,7 @@ class SubscriptionWatchedVideos
     ) {
         val ids: Flow<Set<String>> =
             combine(
-                viewHistory.getVideoHistoryFlow(),
+                viewHistory.getVideoWatchProgress(),
                 playerPreferences.hideWatchedVideosFromSubscriptions,
                 playerPreferences.watchedThreshold,
                 database.downloadDao().getVideoDownloads(),

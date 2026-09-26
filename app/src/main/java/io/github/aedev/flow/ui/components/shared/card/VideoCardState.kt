@@ -15,8 +15,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
@@ -143,7 +143,7 @@ fun ProvideVideoCardState(
         remember(context) {
             ViewHistory
                 .getInstance(context)
-                .getAllHistory()
+                .getAllWatchProgress()
                 .map { entries -> entries.toWatchProgressMap() }
                 .distinctUntilChanged()
         }
@@ -162,11 +162,12 @@ fun ProvideVideoCardState(
  * Below 3% a video counts as not started, and at 90% the bar is filled rather than left a sliver
  * short of the end. Mirrors what each card computed for itself before.
  */
-internal fun List<VideoHistoryEntry>.toWatchProgressMap(): Map<String, Float> =
+internal fun List<WatchProgress>.toWatchProgressMap(): Map<String, Float> =
     buildMap {
         this@toWatchProgressMap.forEach { entry ->
-            val percentage = entry.progressPercentage
-            if (entry.duration > 0 && percentage >= 3f) {
+            if (entry.duration <= 0) return@forEach
+            val percentage = entry.position.toFloat() / entry.duration.toFloat() * 100f
+            if (percentage >= 3f) {
                 put(entry.videoId, if (percentage >= 90f) 1f else percentage / 100f)
             }
         }

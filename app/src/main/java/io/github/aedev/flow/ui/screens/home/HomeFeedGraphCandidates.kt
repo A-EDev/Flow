@@ -7,10 +7,12 @@ import io.github.aedev.flow.data.recommendation.GraphSeedSource
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
+internal const val HISTORY_SEED_MAX = 40
+
 /** Watch-history seed candidates for related-graph retrieval, newest first. */
 internal fun graphSeedInputsFromHistory(
     history: List<VideoHistoryEntry>,
-    max: Int = 40,
+    max: Int = HISTORY_SEED_MAX,
 ): List<GraphSeedInput> =
     history
         .filter { !it.isShort }
