@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.common
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.ui.components.shared.MediaPalette
 import io.github.aedev.flow.ui.components.shared.PaletteInkDark
@@ -101,3 +102,53 @@ internal fun readableAccentOn(
         container.luminance() > 0.5f -> PaletteInkDark
         else -> Color.White
     }
+
+/**
+ * The scheme the player's controls (transport, seek bar, like and download, the action row, the
+ * mini player's button and ring) draw with. Only the accent and container roles change, so text
+ * and surfaces keep the player's own scheme: artwork colors, plain black and white against the
+ * player's surface, or the app theme's accents.
+ */
+@Composable
+fun rememberMusicControlColorScheme(
+    playerScheme: ColorScheme,
+    appScheme: ColorScheme,
+    artworkColors: Boolean,
+    plainColors: MusicPlainControlColors,
+): ColorScheme =
+    remember(playerScheme, appScheme, artworkColors, plainColors) {
+        when {
+            artworkColors -> playerScheme
+            plainColors == MusicPlainControlColors.APP_THEME -> playerScheme.withControlRolesFrom(appScheme)
+            else -> playerScheme.monochromeControls()
+        }
+    }
+
+private fun ColorScheme.withControlRolesFrom(source: ColorScheme): ColorScheme =
+    copy(
+        primary = source.primary,
+        onPrimary = source.onPrimary,
+        primaryContainer = source.primaryContainer,
+        onPrimaryContainer = source.onPrimaryContainer,
+        secondaryContainer = source.secondaryContainer,
+        onSecondaryContainer = source.onSecondaryContainer,
+        tertiaryContainer = source.tertiaryContainer,
+        onTertiaryContainer = source.onTertiaryContainer,
+    )
+
+/** White controls on a dark player, black on a light one; selected toggles fill solid. */
+private fun ColorScheme.monochromeControls(): ColorScheme {
+    val darkSurface = surface.luminance() < 0.5f
+    val ink = if (darkSurface) Color.White else Color.Black
+    val paper = if (darkSurface) Color.Black else Color.White
+    return copy(
+        primary = ink,
+        onPrimary = paper,
+        primaryContainer = ink,
+        onPrimaryContainer = paper,
+        secondaryContainer = ink.copy(alpha = 0.16f),
+        onSecondaryContainer = ink,
+        tertiaryContainer = ink,
+        onTertiaryContainer = paper,
+    )
+}

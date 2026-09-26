@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 import io.github.aedev.flow.ui.components.shared.card.VideoCardSkeleton
@@ -43,7 +44,7 @@ internal fun HomeFeedShimmer(
                 start = if (isListView) 0.dp else layoutConfig.contentPadding,
                 end = if (isListView) 0.dp else layoutConfig.contentPadding,
                 top = 8.dp,
-                bottom = 80.dp,
+                bottom = flowBottomContentPadding(),
             ),
         horizontalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
         verticalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),

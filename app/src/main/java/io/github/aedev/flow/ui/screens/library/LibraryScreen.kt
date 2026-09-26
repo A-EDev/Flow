@@ -31,13 +31,14 @@ import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.stats.RecapPeriod
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.OnTabReselected
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.stats.RecapEntryCard
 import java.time.format.TextStyle
 
-private val ListContentPadding = PaddingValues(vertical = 12.dp)
+private val ListVerticalPadding = 12.dp
 private val ShelfSpacing = 24.dp
 private val RecapCardPadding = 16.dp
 
@@ -82,7 +83,7 @@ fun LibraryScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .background(MaterialTheme.colorScheme.background),
-            contentPadding = ListContentPadding,
+            contentPadding = PaddingValues(top = ListVerticalPadding, bottom = flowBottomContentPadding(ListVerticalPadding)),
             verticalArrangement = Arrangement.spacedBy(ShelfSpacing),
         ) {
             item(key = "recap", contentType = "recap") {

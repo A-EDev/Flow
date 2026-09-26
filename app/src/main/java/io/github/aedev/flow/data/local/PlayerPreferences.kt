@@ -132,6 +132,8 @@ class PlayerPreferences(
         val SLIDER_STYLE = stringPreferencesKey("slider_style")
         val MUSIC_PLAYER_BACKGROUND_STYLE = stringPreferencesKey("music_player_background_style")
         val HIDE_MUSIC_PLAYER_ARTWORK = booleanPreferencesKey("hide_music_player_artwork")
+        val MUSIC_ARTWORK_CONTROL_COLORS = booleanPreferencesKey("music_artwork_control_colors")
+        val MUSIC_PLAIN_CONTROL_COLORS = stringPreferencesKey("music_plain_control_colors")
         val SHORTS_PLAYER_UI_MODE = stringPreferencesKey("shorts_player_ui_mode")
         val GESTURE_OVERLAY_STYLE = stringPreferencesKey("gesture_overlay_style")
         val PLAYER_HAPTICS_ENABLED = booleanPreferencesKey("player_haptics_enabled")
@@ -152,6 +154,9 @@ class PlayerPreferences(
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
         val LYRICS_PROVIDER_ORDER = stringPreferencesKey("lyrics_provider_order")
         val LYRICS_TEXT_ALIGN = stringPreferencesKey("lyrics_text_align")
+        val LYRICS_SHOW_TRANSLATION = booleanPreferencesKey("lyrics_show_translation")
+        val LYRICS_SHOW_ROMANIZATION = booleanPreferencesKey("lyrics_show_romanization")
+        val LYRICS_AUTO_ROMANIZE = booleanPreferencesKey("lyrics_auto_romanize")
         val LYRICS_PROVIDER_ENABLED_BETTERLYRICS = booleanPreferencesKey("lyrics_provider_enabled_betterlyrics")
         val LYRICS_PROVIDER_ENABLED_SIMPMUSIC = booleanPreferencesKey("lyrics_provider_enabled_simpmusic")
         val LYRICS_PROVIDER_ENABLED_LYRICSPLUS = booleanPreferencesKey("lyrics_provider_enabled_lyricsplus")
@@ -238,6 +243,7 @@ class PlayerPreferences(
         val MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS = booleanPreferencesKey("mini_player_show_next_prev_controls")
         val MINI_PLAYER_CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("mini_player_continue_watching_enabled")
         val SHOW_RESTORED_MUSIC_MINI_PLAYER = booleanPreferencesKey("show_restored_music_mini_player")
+        val OPEN_MUSIC_PLAYER_ON_PLAY = booleanPreferencesKey("open_music_player_on_play")
 
         // Audio focus during calls
         val PLAY_DURING_CALLS = booleanPreferencesKey("play_during_calls")
@@ -724,6 +730,34 @@ class PlayerPreferences(
     suspend fun setMusicPlayerBackgroundStyle(style: MusicPlayerBackgroundStyle) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MUSIC_PLAYER_BACKGROUND_STYLE] = style.name
+        }
+    }
+
+    /** Whether the music player's buttons and seek bar take the artwork's colors. */
+    val musicArtworkControlColors: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.MUSIC_ARTWORK_CONTROL_COLORS] ?: true }
+
+    suspend fun setMusicArtworkControlColors(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_ARTWORK_CONTROL_COLORS] = enabled
+        }
+    }
+
+    /** The colors the controls use when artwork colors are off. */
+    val musicPlainControlColors: Flow<MusicPlainControlColors> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                runCatching {
+                    MusicPlainControlColors.valueOf(
+                        preferences[Keys.MUSIC_PLAIN_CONTROL_COLORS] ?: MusicPlainControlColors.MONOCHROME.name,
+                    )
+                }.getOrDefault(MusicPlainControlColors.MONOCHROME)
+            }
+
+    suspend fun setMusicPlainControlColors(colors: MusicPlainControlColors) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_PLAIN_CONTROL_COLORS] = colors.name
         }
     }
 
@@ -2789,6 +2823,28 @@ class PlayerPreferences(
         }
     }
 
+    val lyricsShowTranslation: Flow<Boolean> =
+        context.playerPreferencesDataStore.data.map { it[Keys.LYRICS_SHOW_TRANSLATION] ?: true }
+
+    suspend fun setLyricsShowTranslation(show: Boolean) {
+        context.playerPreferencesDataStore.edit { it[Keys.LYRICS_SHOW_TRANSLATION] = show }
+    }
+
+    val lyricsShowRomanization: Flow<Boolean> =
+        context.playerPreferencesDataStore.data.map { it[Keys.LYRICS_SHOW_ROMANIZATION] ?: true }
+
+    suspend fun setLyricsShowRomanization(show: Boolean) {
+        context.playerPreferencesDataStore.edit { it[Keys.LYRICS_SHOW_ROMANIZATION] = show }
+    }
+
+    /** Whether lyrics in other scripts get a Latin-script line made on the device when the source has none. */
+    val lyricsAutoRomanize: Flow<Boolean> =
+        context.playerPreferencesDataStore.data.map { it[Keys.LYRICS_AUTO_ROMANIZE] ?: false }
+
+    suspend fun setLyricsAutoRomanize(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { it[Keys.LYRICS_AUTO_ROMANIZE] = enabled }
+    }
+
     // ========== MINI PLAYER PREFERENCES ==========
 
     val miniPlayerScale: Flow<Float> =
@@ -2824,6 +2880,19 @@ class PlayerPreferences(
     suspend fun setShowRestoredMusicMiniPlayer(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHOW_RESTORED_MUSIC_MINI_PLAYER] = enabled
+        }
+    }
+
+    /** Whether starting a song opens the full player; off keeps it in the mini player. */
+    val openMusicPlayerOnPlay: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.OPEN_MUSIC_PLAYER_ON_PLAY] ?: false
+            }
+
+    suspend fun setOpenMusicPlayerOnPlay(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OPEN_MUSIC_PLAYER_ON_PLAY] = enabled
         }
     }
 
@@ -3119,6 +3188,12 @@ enum class SliderStyle {
 enum class DownloadDialogStyle {
     FULL,
     COMPACT,
+}
+
+/** Control colors for the music player when artwork colors are off. */
+enum class MusicPlainControlColors {
+    MONOCHROME,
+    APP_THEME,
 }
 
 enum class MusicPlayerBackgroundStyle {

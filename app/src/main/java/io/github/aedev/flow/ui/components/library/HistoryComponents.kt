@@ -40,6 +40,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toMusicTrack
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FastScrollbar
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
@@ -52,7 +53,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-private val ListContentPadding = PaddingValues(bottom = 96.dp)
 private val FilterRowPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
 private val SectionHeaderPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
 private val ShortsRowPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
@@ -176,7 +176,7 @@ internal fun HistoryList(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = ListContentPadding,
+            contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
             verticalArrangement = Arrangement.spacedBy(ItemSpacing),
         ) {
             groupedEntries.forEach { (sectionKey, sectionEntries) ->

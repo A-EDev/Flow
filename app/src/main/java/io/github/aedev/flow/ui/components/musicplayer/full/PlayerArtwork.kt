@@ -1,6 +1,5 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.full
 
-import android.view.ViewGroup
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -30,16 +29,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.Player
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.size.Precision
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.musicplayer.common.SkipDirection
 import kotlinx.coroutines.launch
 
 @Composable
@@ -68,11 +64,9 @@ fun PlayerArtwork(
     previousThumbnailUrl: String?,
     nextThumbnailUrl: String?,
     previewDirection: SkipDirection?,
-    isVideoMode: Boolean,
     isLoading: Boolean,
     hideArtwork: Boolean,
     hiddenArtworkColor: Color,
-    player: Player?,
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
@@ -192,23 +186,7 @@ fun PlayerArtwork(
                         )
                     },
         ) {
-            if (isVideoMode) {
-                AndroidView(
-                    factory = { context ->
-                        PlayerView(context).apply {
-                            this.player = player
-                            useController = false
-                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                            layoutParams =
-                                ViewGroup.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                )
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else if (hideArtwork) {
+            if (hideArtwork) {
                 // An unspecified color means the slot should stay fully invisible (immersive
                 // background), keeping only the gesture area and the loading overlay.
                 if (hiddenArtworkColor.isSpecified) {
@@ -224,18 +202,6 @@ fun PlayerArtwork(
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(0.42f),
                         )
-                    }
-                }
-
-                if (isLoading) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = Color.White)
                     }
                 }
             } else {
@@ -270,17 +236,16 @@ fun PlayerArtwork(
                             .graphicsLayer { translationX = dragOffsetX.value },
                     contentScale = ContentScale.Crop,
                 )
-
-                if (isLoading) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = Color.White)
-                    }
+            }
+            if (isLoading) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = Color.White)
                 }
             }
         }

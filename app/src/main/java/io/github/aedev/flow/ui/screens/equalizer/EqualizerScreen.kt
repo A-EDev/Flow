@@ -6,7 +6,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -53,6 +52,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.audio.eq.EqMode
 import io.github.aedev.flow.data.audio.eq.EqState
 import io.github.aedev.flow.ui.components.equalizer.EqBandEditor
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 import io.github.aedev.flow.ui.components.layout.topbar.FlowGlobalActionsMode
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBarMenuItem
@@ -113,7 +114,7 @@ fun EqualizerScreen(
         modifier = modifier,
         contentWindowInsets = WindowInsets(0.dp),
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar, Modifier.floatAboveBottomChrome(LocalFlowBottomInsets.current)) },
         topBar = {
             if (showPresets) {
                 FlowTopBar(

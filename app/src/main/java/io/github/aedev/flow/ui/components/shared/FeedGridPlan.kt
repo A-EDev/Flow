@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.components.FeedGridLayout
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.partialRowIndices
 import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 
@@ -93,7 +94,7 @@ fun rememberFeedGridPlan(
     includeLastRun: Boolean,
     itemsKey: Any? = null,
     topPadding: Dp = FeedGridTopPadding,
-    bottomPadding: Dp = FeedGridBottomPadding,
+    bottomPadding: Dp = flowBottomContentPadding(),
 ): FeedGridPlan =
     remember(layout, listMode, itemCount, includeLastRun, itemsKey, topPadding, bottomPadding) {
         feedGridPlanFor(layout, listMode, itemCount, spansOwnRow, includeLastRun, topPadding, bottomPadding)
@@ -101,5 +102,5 @@ fun rememberFeedGridPlan(
 
 private val FeedGridTopPadding = 8.dp
 
-/** Clears the mini player, which floats over the bottom of every feed. */
+/** Only for plans built outside a composition; on screen the default clears the bottom chrome. */
 private val FeedGridBottomPadding = 90.dp

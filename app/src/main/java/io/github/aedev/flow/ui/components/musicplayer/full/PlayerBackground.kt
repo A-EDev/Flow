@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.full
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -7,7 +7,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,6 +33,8 @@ fun PlayerBackground(
     paletteBaseColor: Color,
     paletteAccentColor: Color,
     modifier: Modifier = Modifier,
+    // Landscape layouts put the immersive art on the start side, where the controls are not.
+    artworkAtStart: Boolean = false,
 ) {
     val baseColor = paletteBaseColor.copy(alpha = 0.78f)
     val accentColor = paletteAccentColor.copy(alpha = 0.72f)
@@ -85,7 +89,7 @@ fun PlayerBackground(
                 // Issue #954: full-bleed artwork holds the top of the screen, then hands off to
                 // its own blurred continuation and a scrim so the controls stay readable.
                 BlurredArtworkLayer(thumbnailUrl = thumbnailUrl, alpha = 0.85f, crossfadeMillis = 450)
-                ImmersiveArtworkLayer(thumbnailUrl = thumbnailUrl)
+                ImmersiveArtworkLayer(thumbnailUrl = thumbnailUrl, atStart = artworkAtStart)
                 Box(
                     modifier =
                         Modifier
@@ -128,7 +132,10 @@ fun PlayerBackground(
 }
 
 @Composable
-private fun ImmersiveArtworkLayer(thumbnailUrl: String?) {
+private fun ImmersiveArtworkLayer(
+    thumbnailUrl: String?,
+    atStart: Boolean,
+) {
     AnimatedContent(
         targetState = thumbnailUrl,
         transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(400)) },
@@ -139,21 +146,28 @@ private fun ImmersiveArtworkLayer(thumbnailUrl: String?) {
             contentDescription = null,
             modifier =
                 Modifier
-                    .fillMaxSize()
+                    .then(if (atStart) Modifier.fillMaxHeight().fillMaxWidth(IMMERSIVE_START_WIDTH_FRACTION) else Modifier.fillMaxSize())
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                     .drawWithContent {
                         drawContent()
                         drawRect(
                             brush =
-                                Brush.verticalGradient(
-                                    0.42f to Color.Black,
-                                    0.85f to Color.Transparent,
-                                ),
+                                if (atStart) {
+                                    Brush.horizontalGradient(
+                                        0.50f to Color.Black,
+                                        1.00f to Color.Transparent,
+                                    )
+                                } else {
+                                    Brush.verticalGradient(
+                                        0.42f to Color.Black,
+                                        0.85f to Color.Transparent,
+                                    )
+                                },
                             blendMode = BlendMode.DstIn,
                         )
                     },
             contentScale = ContentScale.Crop,
-            alignment = Alignment.TopCenter,
+            alignment = if (atStart) Alignment.Center else Alignment.TopCenter,
         )
     }
 }
@@ -181,3 +195,6 @@ internal fun BlurredArtworkLayer(
         )
     }
 }
+
+/** How much of a landscape window the immersive art covers from the start edge before it fades out. */
+private const val IMMERSIVE_START_WIDTH_FRACTION = 0.62f

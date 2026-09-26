@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -28,6 +29,7 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.ui.components.currentGridThumbnailHeight
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
 import io.github.aedev.flow.ui.components.music.item.MusicItemDensity
@@ -67,6 +69,7 @@ fun YouTubeBrowseScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp),
     ) { padding ->
         Box(
             modifier =
@@ -78,7 +81,7 @@ fun YouTubeBrowseScreen(
                 uiState.isLoading -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
                     ) {
                         item {
                             ShimmerHost {
@@ -115,7 +118,7 @@ fun YouTubeBrowseScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
                     ) {
                         uiState.sections.forEachIndexed { index, section ->
                             if (section.items.isEmpty()) return@forEachIndexed

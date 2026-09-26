@@ -65,6 +65,7 @@ class PlaybackSettingsViewModel
         val autoPip = preferences.autoPipEnabled.asState(false)
         val continueWatchingMiniPlayer = preferences.miniPlayerContinueWatchingEnabled.asState(true)
         val restoreMusicMiniPlayer = preferences.showRestoredMusicMiniPlayer.asState(true)
+        val openMusicPlayerOnPlay = preferences.openMusicPlayerOnPlay.asState(false)
 
         val audioLanguage = preferences.preferredAudioLanguage.asState(ORIGINAL_AUDIO)
         val subtitleLanguage = preferences.preferredSubtitleLanguage.asState(CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
@@ -164,6 +165,8 @@ class PlaybackSettingsViewModel
         fun setContinueWatchingMiniPlayer(value: Boolean) = write { preferences.setMiniPlayerContinueWatchingEnabled(value) }
 
         fun setRestoreMusicMiniPlayer(value: Boolean) = write { preferences.setShowRestoredMusicMiniPlayer(value) }
+
+        fun setOpenMusicPlayerOnPlay(value: Boolean) = write { preferences.setOpenMusicPlayerOnPlay(value) }
 
         fun setAudioLanguage(value: String) = write { preferences.setPreferredAudioLanguage(value) }
 

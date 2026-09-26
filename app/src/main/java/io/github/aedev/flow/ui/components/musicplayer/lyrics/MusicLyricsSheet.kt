@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.lyrics
 
 import android.content.ClipData
 import android.os.Build
@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -76,12 +76,15 @@ internal fun MusicLyricsSheet(
     providerName: String,
     alignPref: String,
     syncOffsetMs: Long,
+    display: LyricsDisplayOptions,
+    baseTextSize: Float,
     candidates: List<LyricsCandidate>,
     isBrowsing: Boolean,
     onSeekTo: (Long) -> Unit,
     onRefresh: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onAlignChange: (String) -> Unit,
+    onDisplayChange: (LyricsDisplayOptions) -> Unit,
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
     onBrowseSources: () -> Unit,
@@ -184,9 +187,10 @@ internal fun MusicLyricsSheet(
         label = "lyricsPanelAlpha",
     )
 
-    if (!visible && !panelComposed && !sheetShown.isRunning && sheetShown.value == 0f) return
+    val sheetAtRestHidden by remember { derivedStateOf { !sheetShown.isRunning && sheetShown.value == 0f } }
+    if (!visible && !panelComposed && sheetAtRestHidden) return
 
-    val backdropColor = remember(backdropBaseColor) { lerp(backdropBaseColor, Color.Black, 0.3f) }
+    val backdropColor = remember(backdropBaseColor) { lyricsBackdrop(backdropBaseColor) }
 
     Box(
         modifier =
@@ -241,7 +245,7 @@ internal fun MusicLyricsSheet(
                             lyrics = lyrics,
                             syncedLyrics = syncedLyrics,
                             positionProvider = positionProvider,
-                            isLoading = isLoading,
+                            isLoading = isLoading && visible,
                             accentColor = accentColor,
                             onSeekTo = onSeekTo,
                             providerName = providerName,
@@ -250,6 +254,10 @@ internal fun MusicLyricsSheet(
                             // Retention keeps the panel composed for an instant reopen; the
                             // position loops must still pause while the sheet is hidden.
                             active = visible,
+                            isPlaying = isPlaying,
+                            backdropColor = backdropColor,
+                            baseTextSize = baseTextSize,
+                            display = display,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -294,6 +302,7 @@ internal fun MusicLyricsSheet(
             providerName = providerName,
             alignPref = alignPref,
             syncOffsetMs = syncOffsetMs,
+            display = display,
             onRefresh = onRefresh,
             onChooseSource = {
                 showSourcesSheet = true
@@ -323,6 +332,7 @@ internal fun MusicLyricsSheet(
                 saveLauncher.launch("$baseName.lrc")
             },
             onAlignChange = onAlignChange,
+            onDisplayChange = onDisplayChange,
             onAdjustSync = { showSyncControls = true },
             onDismiss = { showActionsSheet = false },
         )

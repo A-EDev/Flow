@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
 import io.github.aedev.flow.ui.components.shared.FlowActionButton
 import io.github.aedev.flow.ui.components.shared.drawSegmentedProgress
 
@@ -121,7 +122,11 @@ internal fun OnboardingBottomBar(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(BottomBarPadding),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(bottom = LocalFlowBottomInsets.current.contentBottom)
+                .padding(BottomBarPadding),
         horizontalArrangement = Arrangement.spacedBy(BarSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {

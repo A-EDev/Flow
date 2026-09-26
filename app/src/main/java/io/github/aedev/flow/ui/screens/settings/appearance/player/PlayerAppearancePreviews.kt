@@ -23,11 +23,11 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.GestureOverlayStyle
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.SliderStyle
-import io.github.aedev.flow.ui.components.musicplayer.ExpressivePlayerSlider
-import io.github.aedev.flow.ui.components.musicplayer.ExpressiveWavySlider
-import io.github.aedev.flow.ui.components.musicplayer.PlayerBackground
-import io.github.aedev.flow.ui.components.musicplayer.SquigglySlider
-import io.github.aedev.flow.ui.components.musicplayer.expressiveSliderSpec
+import io.github.aedev.flow.ui.components.musicplayer.controls.ExpressivePlayerSlider
+import io.github.aedev.flow.ui.components.musicplayer.controls.ExpressiveWavySlider
+import io.github.aedev.flow.ui.components.musicplayer.controls.SquigglySlider
+import io.github.aedev.flow.ui.components.musicplayer.controls.expressiveSliderSpec
+import io.github.aedev.flow.ui.components.musicplayer.full.PlayerBackground
 import io.github.aedev.flow.ui.components.videoplayer.overlay.GestureLevelHudPreview
 import io.github.aedev.flow.ui.theme.PlayerGround
 

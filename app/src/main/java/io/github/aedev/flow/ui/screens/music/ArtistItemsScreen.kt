@@ -32,6 +32,7 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.item.MusicCardOverflowButton
 import io.github.aedev.flow.ui.components.music.item.MusicCollectionCard
@@ -115,7 +116,7 @@ fun ArtistItemsScreen(
                 if (artistItemsPage.items.firstOrNull() is SongItem) {
                     LazyColumn(
                         state = lazyListState,
-                        contentPadding = PaddingValues(bottom = 16.dp),
+                        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
                     ) {
                         items(artistItemsPage.items, key = { it.id }) { item ->
                             if (item is SongItem) {
@@ -138,7 +139,7 @@ fun ArtistItemsScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(GridCellMinWidth),
                         state = lazyGridState,
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = flowBottomContentPadding()),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {

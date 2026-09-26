@@ -37,6 +37,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
@@ -53,7 +54,6 @@ private val HeaderTopPadding = 8.dp
 private val HeaderBottomPadding = 12.dp
 private val ShelfSpacing = 8.dp
 private val ErrorCardPadding = 4.dp
-private val FeedBottomSpacer = 80.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,7 +99,7 @@ internal fun SubscriptionsFeedContent(
                         start = if (state.isFullWidthView) feedLayout.contentPadding else 0.dp,
                         end = if (state.isFullWidthView) feedLayout.contentPadding else 0.dp,
                         top = 4.dp,
-                        bottom = FeedBottomSpacer,
+                        bottom = flowBottomContentPadding(),
                     ),
                 verticalArrangement = Arrangement.spacedBy(gridSpacing),
                 horizontalArrangement = Arrangement.spacedBy(gridSpacing),
@@ -209,10 +209,6 @@ internal fun SubscriptionsFeedContent(
                             onClick = { onVideoClick(video) },
                         )
                     }
-                }
-
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Box(modifier = Modifier.height(FeedBottomSpacer))
                 }
             }
         }

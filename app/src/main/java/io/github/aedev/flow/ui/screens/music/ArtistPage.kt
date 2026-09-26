@@ -33,6 +33,7 @@ import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.ArtistBio
 import io.github.aedev.flow.ui.components.music.detail.ArtistHero
@@ -111,7 +112,7 @@ fun ArtistPage(
         ) { _ ->
             LazyColumn(
                 state = scrollState,
-                contentPadding = PaddingValues(bottom = 32.dp),
+                contentPadding = PaddingValues(bottom = flowBottomContentPadding(32.dp)),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 item(key = "hero") {

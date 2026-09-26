@@ -21,6 +21,7 @@ import io.github.aedev.flow.data.paging.SearchShelfKind
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
@@ -149,7 +150,7 @@ fun SearchShortsGrid(
                 start = ShortGridPadding,
                 end = ShortGridPadding,
                 top = TopPadding,
-                bottom = BottomPadding,
+                bottom = flowBottomContentPadding(),
             ),
         horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
         verticalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
@@ -217,5 +218,4 @@ private fun SearchResultItem?.contentType(): Any =
     }
 
 private val TopPadding = 8.dp
-private val BottomPadding = 90.dp
 private val ShortGridPadding = 12.dp

@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.components.FeedGridLayout
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.card.VideoCardSkeleton
 
 /** Placeholder cards in the layout the content will land in, so the first page does not jump. */
@@ -28,7 +29,7 @@ internal fun CategoryShimmer(
                 start = feedLayout.contentPadding,
                 end = feedLayout.contentPadding,
                 top = TopPadding,
-                bottom = BottomPadding,
+                bottom = flowBottomContentPadding(),
             ),
         horizontalArrangement = Arrangement.spacedBy(gutter),
         verticalArrangement = Arrangement.spacedBy(gutter),
@@ -42,4 +43,3 @@ internal fun CategoryShimmer(
 
 private val PLACEHOLDER_KEYS = (0 until 8).map { "shimmer:$it" }
 private val TopPadding = 8.dp
-private val BottomPadding = 90.dp

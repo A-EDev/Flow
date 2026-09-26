@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.localmedia.LocalMediaItem
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.library.LibrarySelection
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
@@ -83,7 +84,12 @@ internal fun LocalMediaContent(
     ) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(if (showFolders) 1 else columns),
-            contentPadding = PaddingValues(start = inset(columns, showFolders), end = inset(columns, showFolders), bottom = 96.dp),
+            contentPadding =
+                PaddingValues(
+                    start = inset(columns, showFolders),
+                    end = inset(columns, showFolders),
+                    bottom = flowBottomContentPadding(),
+                ),
             horizontalArrangement = Arrangement.spacedBy(GridSpacing),
             modifier = Modifier.fillMaxSize(),
         ) {

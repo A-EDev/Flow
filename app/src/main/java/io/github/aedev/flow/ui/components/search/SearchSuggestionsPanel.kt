@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.components.search
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +26,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.SearchHistoryItem
 import io.github.aedev.flow.data.local.SearchType
 import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowSuggestionRow
 
 /**
@@ -42,7 +44,10 @@ fun SearchSuggestionsPanel(
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(modifier = modifier.fillMaxSize()) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
+    ) {
         if (history.isNotEmpty()) {
             item {
                 Row(

@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.home.ContinueWatchingShelf
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
@@ -53,7 +54,7 @@ internal fun HomeFeedGrid(
                 start = if (isListView) 0.dp else layoutConfig.contentPadding,
                 end = if (isListView) 0.dp else layoutConfig.contentPadding,
                 top = 4.dp,
-                bottom = 80.dp,
+                bottom = flowBottomContentPadding(),
             ),
         horizontalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
         verticalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),

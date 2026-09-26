@@ -6,10 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,6 +26,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowGlobalActionsMode
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
@@ -86,7 +87,9 @@ fun SettingsPage(
                 globalActions = FlowGlobalActionsMode.None,
             )
         },
-        snackbarHost = { snackbarHostState?.let { SnackbarHost(it) } },
+        snackbarHost = {
+            snackbarHostState?.let { SnackbarHost(it, Modifier.floatAboveBottomChrome(LocalFlowBottomInsets.current)) }
+        },
     ) { padding ->
         Column(
             modifier =
@@ -103,11 +106,7 @@ fun SettingsPage(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(SettingsRowGap),
                     contentPadding =
-                        PaddingValues(
-                            bottom =
-                                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
-                                    SettingsBottomSpacing,
-                        ),
+                        PaddingValues(bottom = flowBottomContentPadding(SettingsBottomSpacing)),
                 ) {
                     keys.reset()
                     SettingsListScope(this, keys).content()

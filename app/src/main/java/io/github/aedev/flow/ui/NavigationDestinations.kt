@@ -96,15 +96,3 @@ private fun normalizeYoutubeChannelUrl(url: String): String {
         else -> "https://www.youtube.com/@$channelValue"
     }
 }
-
-internal fun String.isLibraryOrSettingsRouteForMusicMiniPlayer(): Boolean =
-    this == "library" ||
-        this == "history" ||
-        this == "playlists" ||
-        this == "playlist" ||
-        this == "downloads" ||
-        this == "savedShorts" ||
-        this == "recap" ||
-        this == "recap_story" ||
-        this == EQUALIZER_ROUTE ||
-        startsWith("settings")

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.musicplayer
+package io.github.aedev.flow.ui.components.musicplayer.common
 
 enum class SkipDirection {
     NEXT,

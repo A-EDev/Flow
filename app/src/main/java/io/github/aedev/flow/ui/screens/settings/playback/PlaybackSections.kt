@@ -81,6 +81,7 @@ internal fun SettingsListScope.playbackSections(
         switch(PlaybackIndex.autoPip, viewModel.autoPip, viewModel::setAutoPip)
         switch(PlaybackIndex.continueWatchingMiniPlayer, viewModel.continueWatchingMiniPlayer, viewModel::setContinueWatchingMiniPlayer)
         switch(PlaybackIndex.restoreMusicMiniPlayer, viewModel.restoreMusicMiniPlayer, viewModel::setRestoreMusicMiniPlayer)
+        switch(PlaybackIndex.openMusicPlayerOnPlay, viewModel.openMusicPlayerOnPlay, viewModel::setOpenMusicPlayerOnPlay)
     }
     group(key = "playback.languages", header = R.string.settings_section_language_captions) {
         choice(PlaybackIndex.audioLanguage, onClick = { openDialog(PlaybackDialog.AUDIO_LANGUAGE) }) {

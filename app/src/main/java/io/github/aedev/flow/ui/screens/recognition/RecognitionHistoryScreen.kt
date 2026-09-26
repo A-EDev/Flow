@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.recognition
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.entity.RecognitionHistoryEntity
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.MusicThumbnail
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
@@ -118,7 +120,10 @@ fun RecognitionHistoryScreen(
                     icon = Icons.Rounded.History,
                 )
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = flowBottomContentPadding()),
+                ) {
                     items(history, key = { it.id }) { item ->
                         HistoryRow(
                             item = item,

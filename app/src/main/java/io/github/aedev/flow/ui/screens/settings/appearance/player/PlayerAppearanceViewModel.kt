@@ -4,6 +4,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.GestureOverlayStyle
+import io.github.aedev.flow.data.local.MusicPlainControlColors
 import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerOverlayPreferences
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -31,6 +32,8 @@ class PlayerAppearanceViewModel
         val frameStepButtons = preferences.frameStepButtonsEnabled.asState(overlayDefaults.frameStepButtonsEnabled)
         val musicBackground = preferences.musicPlayerBackgroundStyle.asState(MusicPlayerBackgroundStyle.BLUR_GRADIENT)
         val hideMusicArtwork = preferences.hideMusicPlayerArtwork.asState(false)
+        val artworkControlColors = preferences.musicArtworkControlColors.asState(true)
+        val plainControlColors = preferences.musicPlainControlColors.asState(MusicPlainControlColors.MONOCHROME)
         val adaptivePlayerSize = preferences.adaptivePlayerSizeEnabled.asState(true)
         val ambientMode = preferences.videoAmbientModeEnabled.asState(false)
         val groupedQualitySelector = preferences.groupedQualitySelectorEnabled.asState(false)
@@ -57,6 +60,10 @@ class PlayerAppearanceViewModel
         fun setMusicBackground(value: MusicPlayerBackgroundStyle) = write { preferences.setMusicPlayerBackgroundStyle(value) }
 
         fun setHideMusicArtwork(value: Boolean) = write { preferences.setHideMusicPlayerArtwork(value) }
+
+        fun setArtworkControlColors(value: Boolean) = write { preferences.setMusicArtworkControlColors(value) }
+
+        fun setPlainControlColors(value: MusicPlainControlColors) = write { preferences.setMusicPlainControlColors(value) }
 
         fun setAdaptivePlayerSize(value: Boolean) = write { preferences.setAdaptivePlayerSizeEnabled(value) }
 

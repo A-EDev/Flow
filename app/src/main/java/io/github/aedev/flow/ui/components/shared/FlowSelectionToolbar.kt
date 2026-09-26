@@ -15,7 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.ui.components.music.common.LocalMusicMiniPlayerInset
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.floatAboveBottomChrome
 
 /** One button in a select mode's toolbar. */
 class FlowSelectionAction(
@@ -36,6 +37,7 @@ fun FlowSelectionToolbar(
     actions: List<FlowSelectionAction>,
     modifier: Modifier = Modifier,
 ) {
+    val bottomInsets = LocalFlowBottomInsets.current
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
@@ -51,8 +53,11 @@ fun FlowSelectionToolbar(
                     toolbarContainerColor = MaterialTheme.colorScheme.inverseSurface,
                     toolbarContentColor = MaterialTheme.colorScheme.inverseOnSurface,
                 ),
-            // Above the music mini player, which floats over every screen while a song plays.
-            modifier = Modifier.padding(bottom = FloatingToolbarDefaults.ScreenOffset + LocalMusicMiniPlayerInset.current),
+            // Above the bar, the music mini player and the gesture area, riding along as they move.
+            modifier =
+                Modifier
+                    .floatAboveBottomChrome(bottomInsets)
+                    .padding(bottom = FloatingToolbarDefaults.ScreenOffset),
             leadingContent = {
                 Text(
                     text = summary,
