@@ -42,7 +42,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.Page
 import javax.inject.Inject
 
 private data class Wave1FeedResults(
@@ -100,7 +99,6 @@ class HomeViewModel
                     initialValue = _uiState.value.withUniqueLazyContent(),
                 )
 
-        private var currentPage: Page? = null
         private var isInitialized = false
         private val homePrefetchQueue =
             FeedPrefetchQueue(
@@ -1092,7 +1090,6 @@ class HomeViewModel
          * offers a refresh instead of filling itself with unrelated content.
          */
         private fun settleWithoutFeed() {
-            currentPage = null
             _uiState.update {
                 it.copy(
                     isLoading = false,
