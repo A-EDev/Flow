@@ -19,14 +19,13 @@ import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.utils.PerformanceDispatcher
-import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.bestImageUrl
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.newPipeLocalization
-import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import io.github.aedev.flow.utils.parseToTimestamp
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -1353,12 +1352,8 @@ class YouTubeRepository
             textualDate: String?,
         ): Long {
             absoluteMillis?.let { if (it > 0L) return it }
-            // Shared parser: the old private copy carried the plural-"s" bug
-            // ("3 days" matched the seconds branch), which stamped every
-            // plural-dated subs video as seconds old — stale uploads then won
-            // the recency sort and the fresh-subs slots over genuinely new ones.
-            val parsed = RelativeUploadDateParser.parse(textualDate)
-            return parsed ?: System.currentTimeMillis()
+            // 0 is unknown: stamping an unreadable date as now made stale uploads win every recency sort.
+            return RelativeUploadDateParser.parse(textualDate, YouTube.locale.hl) ?: 0L
         }
 
         private fun <T> takeRotatingWindow(
@@ -1421,7 +1416,7 @@ internal fun mergeWatchMetadata(
     // The relative form first: the absolute one is a date with no time, so on its own it places
     // every upload at midnight and reads back as however long the day has been running.
     val timestamp =
-        response.relativeUploadDate()?.let { parseRelativeToTimestamp(it) }
+        response.relativeUploadDate()?.let { RelativeUploadDateParser.parse(it, YouTube.locale.hl) }
             ?: parseToTimestamp(uploadDate)
             ?: video.timestamp
     val avatarUrl = response.channelAvatarUrl().orEmpty().ifBlank { video.channelThumbnailUrl }
@@ -1510,7 +1505,7 @@ internal fun decodeWatchMetadata(raw: JsonElement): WatchMetadataResponse? =
 
 internal object WatchMetadataVideoMapper {
     fun relatedVideos(resp: WatchMetadataResponse): List<Video> =
-        resp.relatedVideos().mapNotNull { cv ->
+        resp.relatedVideos(YouTube.locale.hl).mapNotNull { cv ->
             val id = cv.videoId ?: return@mapNotNull null
             val viewText = cv.viewCountText?.text()
             val isLive = cv.isLive || viewText.isLiveViewCountText()
@@ -1531,7 +1526,7 @@ internal object WatchMetadataVideoMapper {
                 // Video.timestamp defaults to now(), which made every related item
                 // look brand new — defeating the age filter and shorts-shelf sort.
                 // Parse the real age; 0 means unknown (callers fall back to text).
-                timestamp = RelativeUploadDateParser.parse(uploadDateText) ?: 0L,
+                timestamp = RelativeUploadDateParser.parse(uploadDateText, YouTube.locale.hl) ?: 0L,
                 isLive = isLive,
             )
         }

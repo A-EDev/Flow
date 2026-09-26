@@ -8,7 +8,8 @@ import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.utils.parseRelativeToTimestamp
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -43,7 +44,8 @@ class PlaylistRepository
 
         private fun normalizedEntity(video: Video): VideoEntity {
             val normalizedVideo =
-                parseRelativeToTimestamp(video.uploadDate)
+                RelativeUploadDateParser
+                    .parse(video.uploadDate, YouTube.locale.hl)
                     ?.let { parsedTimestamp ->
                         val stableTimestamp =
                             video.timestamp

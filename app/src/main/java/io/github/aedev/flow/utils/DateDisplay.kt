@@ -1,5 +1,7 @@
 package io.github.aedev.flow.utils
 
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -127,10 +129,11 @@ fun formatUploadDateConfigured(
     style: DateFormatStyle,
     timestampFallbackMs: Long = 0L,
     locale: Locale = Locale.getDefault(),
+    hl: String? = YouTube.locale.hl,
 ): String {
     if (date?.trim().equals("live", ignoreCase = true)) return "LIVE"
 
-    val timestamp = resolveDisplayUploadTimestamp(date, timestampFallbackMs)
+    val timestamp = resolveDisplayUploadTimestamp(date, timestampFallbackMs, hl = hl)
     val prefix = relativePrefix(date)
     val relative = applyRelativePrefix(relativeString(date, timestamp, locale), prefix)
     val exact = if (timestamp != null && timestamp > 0L) formatExactDate(timestamp, style, locale) else ""
@@ -193,7 +196,10 @@ private fun applyExactPrefix(
     return "$prefix $value"
 }
 
-fun parseToTimestamp(text: String?): Long? {
+fun parseToTimestamp(
+    text: String?,
+    hl: String? = YouTube.locale.hl,
+): Long? {
     val raw = text?.trim().orEmpty()
     if (raw.isEmpty()) return null
     raw.toLongOrNull()?.takeIf { it > 100_000_000_000L }?.let { return it }
@@ -231,20 +237,26 @@ fun parseToTimestamp(text: String?): Long? {
             }
         }
     }
-    return parseRelativeToTimestamp(cleanRaw)
+    return RelativeUploadDateParser.parse(cleanRaw, hl)
 }
 
+/**
+ * Relative text is read in the host language it was fetched in ([hl]), then in English. Text neither
+ * reads leaves the stored timestamp, or null, in which case the relative display shows the server's
+ * own wording rather than a guess.
+ */
 internal fun resolveDisplayUploadTimestamp(
     date: String?,
     timestampFallbackMs: Long,
     nowMillis: Long = System.currentTimeMillis(),
+    hl: String? = YouTube.locale.hl,
 ): Long? {
     val storedTimestamp = timestampFallbackMs.takeIf { it > 0L }
-    val relativeTimestamp = parseRelativeToTimestamp(date.orEmpty(), nowMillis)
+    val relativeTimestamp = RelativeUploadDateParser.parse(date, hl, nowMillis)
     return when {
         storedTimestamp != null && relativeTimestamp != null -> minOf(storedTimestamp, relativeTimestamp)
         relativeTimestamp != null -> relativeTimestamp
-        else -> preferStoredWithinDay(parseToTimestamp(date), storedTimestamp)
+        else -> preferStoredWithinDay(parseToTimestamp(date, hl), storedTimestamp)
     }
 }
 
@@ -266,46 +278,4 @@ private fun preferStoredWithinDay(
         Instant.ofEpochMilli(parsed).atZone(zone).toLocalDate() ==
             Instant.ofEpochMilli(stored).atZone(zone).toLocalDate()
     return if (sameDay) stored else parsed
-}
-
-internal fun parseRelativeToTimestamp(
-    text: String,
-    now: Long = System.currentTimeMillis(),
-): Long? {
-    val n =
-        text
-            .lowercase(Locale.US)
-            .replace("streamed", "")
-            .replace("premiered", "")
-            .replace("live", "")
-            .replace("ago", "")
-            .trim()
-    if (n.isBlank()) return null
-    if (n.contains("just now") || n.contains("today")) return now
-    if (n.contains("yesterday")) return now - 86_400_000L
-
-    val compactMatch =
-        Regex("""(\d+)\s*(mo|sec|secs|second|seconds|min|mins|minute|minutes|hr|hrs|hour|hours|[smhdwy])\b""")
-            .find(n)
-    val value =
-        compactMatch?.groupValues?.getOrNull(1)?.toLongOrNull()
-            ?: Regex("(\\d+)")
-                .find(n)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toLongOrNull()
-            ?: return null
-    val compactUnit = compactMatch?.groupValues?.getOrNull(2)
-    val unitMillis =
-        when {
-            compactUnit in listOf("s", "sec", "secs", "second", "seconds") || n.contains("second") -> 1_000L
-            compactUnit in listOf("m", "min", "mins", "minute", "minutes") || n.contains("minute") -> 60_000L
-            compactUnit in listOf("h", "hr", "hrs", "hour", "hours") || n.contains("hour") -> 3_600_000L
-            compactUnit == "d" || n.contains("day") -> 86_400_000L
-            compactUnit == "w" || n.contains("week") -> 7L * 86_400_000L
-            compactUnit == "mo" || n.contains("month") -> 30L * 86_400_000L
-            compactUnit == "y" || n.contains("year") -> 365L * 86_400_000L
-            else -> return null
-        }
-    return now - value * unitMillis
 }

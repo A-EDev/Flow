@@ -3,15 +3,16 @@ package io.github.aedev.flow.innertube.pages.renderer
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
 import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
 import io.github.aedev.flow.innertube.pages.reel.parseReelLockup
 import io.github.aedev.flow.innertube.pages.stringOrNull
 import io.github.aedev.flow.innertube.pages.youtubeText
-import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.premiereDateText
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -130,8 +131,7 @@ private fun JsonObject.lockupVideo(
     badges: List<String>,
     owner: FeedItemOwner,
 ): Video {
-    val viewsText = parts.firstOrNull { it.mentionsViewers() }
-    val uploadText = parts.firstOrNull { !it.mentionsViewers() && !it.mentionsWaiting() }.orEmpty()
+    val (viewsText, uploadText, uploadTimestamp) = lockupDateAndViews(parts, YouTube.locale.hl)
     val duration = badges.firstNotNullOfOrNull(::parseDurationText) ?: 0
     val isLive = viewsText?.contains("watching", ignoreCase = true) == true || badges.any { it.marksLive() }
     // A stream that has not started carries a badge that is neither a duration nor LIVE ("Upcoming"),
@@ -144,9 +144,9 @@ private fun JsonObject.lockupVideo(
         channelId = owner.id,
         thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, lockupThumbnailUrl()),
         duration = duration,
-        viewCount = parseYouTubeViewCount(viewsText),
+        viewCount = if (isUpcoming) 0L else parseYouTubeViewCount(viewsText),
         uploadDate = uploadText,
-        timestamp = if (isUpcoming) 0L else RelativeUploadDateParser.parse(uploadText) ?: 0L,
+        timestamp = if (isUpcoming) 0L else uploadTimestamp ?: 0L,
         channelThumbnailUrl = owner.avatarUrl,
         isLive = isLive,
         isUpcoming = isUpcoming,
@@ -186,7 +186,7 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
             // date it has none of. An upcoming row's "1 waiting" is nobody's view count, so it goes.
             viewCount = if (isUpcoming) 0L else parseYouTubeViewCount(viewsText),
             uploadDate = upcomingStartMs?.let(::premiereDateText) ?: uploadText,
-            timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText) ?: 0L,
+            timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText, YouTube.locale.hl) ?: 0L,
             channelThumbnailUrl = bylineAvatarUrl() ?: owner.avatarUrl,
             isLive = isLive,
             isUpcoming = isUpcoming,
@@ -580,10 +580,6 @@ private fun String.leadingCount(): Int? =
         ?.replace(",", "")
         ?.replace(".", "")
         ?.toIntOrNull()
-
-private fun String.mentionsViewers(): Boolean = contains("view", ignoreCase = true) || contains("watching", ignoreCase = true)
-
-private fun String.mentionsWaiting(): Boolean = contains("waiting", ignoreCase = true)
 
 private fun String.mentionsSubscribers(): Boolean = contains("subscriber", ignoreCase = true)
 

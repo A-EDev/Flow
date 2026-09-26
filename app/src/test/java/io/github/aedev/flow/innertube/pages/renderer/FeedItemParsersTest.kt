@@ -1,11 +1,14 @@
 package io.github.aedev.flow.innertube.pages.renderer
 
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.YouTubeLocale
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 /**
  * `contentType` is the field the whole registry turns on: the same `lockupViewModel` carries videos,
@@ -70,6 +73,33 @@ class FeedItemParsersTest {
         assertFalse(video.isLive)
         assertFalse(video.isUpcoming)
         assertEquals("Streamed 2 months ago", video.uploadDate)
+    }
+
+    @Test
+    fun `a spanish row keeps its view count and dates the video by its own words`() {
+        val previous = YouTube.locale
+        YouTube.locale = YouTubeLocale(gl = "ES", hl = "es")
+        val video =
+            try {
+                (
+                    item(
+                        lockup(
+                            "es1",
+                            "LOCKUP_CONTENT_TYPE_VIDEO",
+                            "Un video",
+                            rows = row("1234 visualizaciones", "hace 3 semanas"),
+                            overlays = durationOverlay("10:00"),
+                        ),
+                    ) as FeedItem.VideoItem
+                ).video
+            } finally {
+                YouTube.locale = previous
+            }
+
+        assertEquals("hace 3 semanas", video.uploadDate)
+        assertEquals(1234L, video.viewCount)
+        val threeWeeksAgo = System.currentTimeMillis() - 21L * 86_400_000L
+        assertTrue(abs(video.timestamp - threeWeeksAgo) < 60_000L)
     }
 
     @Test
