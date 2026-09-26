@@ -122,7 +122,7 @@ data class UserBrain(
     val tagAffinities: Map<String, Double> = emptyMap(),
     /** Reels used as related-chain seeds recently (videoId → lastUsedAt), for rotation. */
     val recentShortsSeeds: Map<String, Long> = emptyMap(),
-    val schemaVersion: Int = 15,
+    val schemaVersion: Int = 16,
 )
 
 // ── Interaction Types ──

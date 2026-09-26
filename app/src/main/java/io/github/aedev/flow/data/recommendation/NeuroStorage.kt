@@ -40,7 +40,7 @@ internal class NeuroStorage(
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
-        private const val SCHEMA_VERSION = 15
+        private const val SCHEMA_VERSION = 16
     }
 
     // ── Serializable models ──

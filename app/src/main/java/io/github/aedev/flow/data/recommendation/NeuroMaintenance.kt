@@ -20,9 +20,13 @@ package io.github.aedev.flow.data.recommendation
  * onboarding seeds while channelTopicProfiles (which learn undamped) kept the
  * user's REAL interests. This scrubs junk and rehydrates the vector and
  * affinity edges from those profiles, once.
+ *
+ * V16 removes the single words that multi-word searches planted at the
+ * acquisition floor ("lofi hip hop" became lofi, hip and hop at one weight).
  */
 internal object NeuroMaintenance {
-    const val TARGET_SCHEMA_VERSION = 15
+    const val TARGET_SCHEMA_VERSION = 16
+    private const val V15_SCHEMA_VERSION = 15
 
     private const val REHYDRATE_MAX_TOPICS = 40
     private const val REHYDRATE_MAX_WEIGHT = 0.30
@@ -30,22 +34,75 @@ internal object NeuroMaintenance {
     private const val REHYDRATE_AFFINITY_SEED = 0.15
     private const val REHYDRATE_MIN_CHANNEL_QUALITY = 0.4
 
-    fun runV15IfNeeded(
+    fun runIfNeeded(
         brain: UserBrain,
         tokenizer: NeuroTokenizer,
     ): UserBrain {
         if (brain.schemaVersion >= TARGET_SCHEMA_VERSION) return brain
+        var updated = brain
+        if (updated.schemaVersion < V15_SCHEMA_VERSION) updated = runV15(updated, tokenizer)
+        updated = scrubSearchWordPlants(updated, tokenizer)
+        return updated.copy(schemaVersion = TARGET_SCHEMA_VERSION)
+    }
 
+    private fun runV15(
+        brain: UserBrain,
+        tokenizer: NeuroTokenizer,
+    ): UserBrain {
         val cleanedTopics =
             brain.globalVector.topics.filter { (topic, score) ->
                 score >= NeuroVectorMath.TOPIC_PRUNE_THRESHOLD && !tokenizer.isNoiseTopic(topic)
             }
-        var updated =
+        val updated =
             brain.copy(globalVector = brain.globalVector.copy(topics = cleanedTopics))
+        return rehydrateFromChannelProfiles(updated, tokenizer)
+    }
 
-        updated = rehydrateFromChannelProfiles(updated, tokenizer)
+    /**
+     * A search writes evidence with no video or channel, and every word of one
+     * query shares the same timestamp. Search-only single words that share a
+     * first- or last-seen time came from one multi-word query. A single-word
+     * search has no sibling, so it stays, as do catalog and chosen topics.
+     */
+    private fun scrubSearchWordPlants(
+        brain: UserBrain,
+        tokenizer: NeuroTokenizer,
+    ): UserBrain {
+        val searchOnlyWords =
+            brain.topicEvidence.filter { (topic, ev) ->
+                ' ' !in topic &&
+                    ev.positiveSignals > 0 &&
+                    ev.explicitSignals == ev.positiveSignals &&
+                    ev.watchSignals == 0 &&
+                    ev.videoIds.isEmpty() &&
+                    ev.channelIds.isEmpty()
+            }
+        if (searchOnlyWords.size < 2) return brain
 
-        return updated.copy(schemaVersion = TARGET_SCHEMA_VERSION)
+        fun siblingTimes(time: (TopicEvidence) -> Long) =
+            searchOnlyWords.values
+                .map(time)
+                .filter { it > 0L }
+                .groupingBy { it }
+                .eachCount()
+                .filterValues { it >= 2 }
+                .keys
+        val sharedFirst = siblingTimes { it.firstSeenAt }
+        val sharedLast = siblingTimes { it.lastSeenAt }
+        val keep =
+            NeuroSearchLearning.catalogTopics(tokenizer) +
+                brain.preferredTopics.map { tokenizer.normalizeLemma(it) }
+        val scrubbed =
+            searchOnlyWords
+                .filter { (topic, ev) ->
+                    topic !in keep && (ev.firstSeenAt in sharedFirst || ev.lastSeenAt in sharedLast)
+                }.keys
+        if (scrubbed.isEmpty()) return brain
+
+        return brain.copy(
+            globalVector = brain.globalVector.copy(topics = brain.globalVector.topics - scrubbed),
+            topicEvidence = brain.topicEvidence - scrubbed,
+        )
     }
 
     private fun rehydrateFromChannelProfiles(
