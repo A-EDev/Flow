@@ -1,32 +1,16 @@
 package io.github.aedev.flow.data.music
 
 import android.util.Log
-import io.github.aedev.flow.FlowApplication
-import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.music.model.ArtistDetails
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.models.SongItem
-import io.github.aedev.flow.player.stream.AudioStreamSelector
-import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.playlist.PlaylistInfo
-import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
-import org.schabi.newpipe.extractor.search.SearchExtractor
-import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
-/**
- * Professional YouTube Music Service using NewPipe Extractor
- * Provides access to YouTube's music catalog with trending, search, genres, and playlists
- */
+/** YouTube Music catalog access for trending, search, genres, playlists and artists, over InnerTube. */
 object YouTubeMusicService {
     private const val TAG = "YouTubeMusicService"
 
@@ -65,49 +49,6 @@ object YouTubeMusicService {
             "SZA",
             "Kendrick Lamar",
             "Bruno Mars",
-        )
-
-    // Blacklist for non-music content and compilations
-    private val blacklistKeywords =
-        listOf(
-            "top 50",
-            "top 40",
-            "top 100",
-            "best of",
-            "compilation",
-            "full album",
-            "collection",
-            "mix 2024",
-            "mix 2025",
-            "mashup",
-            "mega mix",
-            "nonstop",
-            "best songs",
-            "review",
-            "tutorial",
-            "update",
-            "news",
-            "gameplay",
-            "walkthrough",
-            "react",
-            "reaction",
-            "trailer",
-            "teaser",
-            "interview",
-            "podcast",
-            "live stream",
-            "unboxing",
-            "tech",
-            "coding",
-            "agent",
-            "software",
-            "chatgpt",
-            "ai",
-            "gemini",
-            "claude",
-            "copilot",
-            "how to",
-            "explained",
         )
 
     private val trendingMusicQueries =
@@ -156,24 +97,10 @@ object YouTubeMusicService {
     /**
      * Fetch new releases using curated playlists
      */
-    suspend fun fetchNewReleases(limit: Int = 30): List<MusicTrack> =
-        withContext(Dispatchers.IO) {
-            try {
-                val innertubeResults = InnertubeMusicService.searchMusic("new music releases 2025")
-                if (innertubeResults.isNotEmpty()) {
-                    return@withContext innertubeResults.take(limit)
-                }
-
-                searchMusic("new music releases 2025", limit)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching new releases", e)
-                emptyList()
-            }
-        }
+    suspend fun fetchNewReleases(limit: Int = 30): List<MusicTrack> = searchMusic("new music releases 2025", limit)
 
     /**
      * Search for music tracks on YouTube
-     * Uses Innertube for better results
      */
     suspend fun searchMusic(
         query: String,
@@ -181,230 +108,9 @@ object YouTubeMusicService {
     ): List<MusicTrack> =
         withContext(Dispatchers.IO) {
             try {
-                // Try Innertube first
-                val innertubeResults = InnertubeMusicService.searchMusic(query)
-                if (innertubeResults.isNotEmpty()) {
-                    return@withContext innertubeResults.take(limit)
-                }
-
-                val service = ServiceList.YouTube
-
-                // Refine query for better results if it's not already specific
-                val isSpecificQuery =
-                    query.contains("official") || query.contains("music") || query.contains("song")
-                val refinedQuery = if (isSpecificQuery) query else "$query song"
-
-                val searchExtractor = service.getSearchExtractor(refinedQuery, emptyList(), "")
-                searchExtractor.fetchPage()
-
-                val tracks =
-                    searchExtractor.initialPage.items
-                        .filterIsInstance<StreamInfoItem>()
-                        .filter { isMusicContent(it) }
-                        .take(limit)
-                        .mapNotNull { item ->
-                            try {
-                                convertToMusicTrack(item)
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-
-                Log.d(TAG, "Found ${tracks.size} tracks for query: $query")
-                tracks
+                InnertubeMusicService.searchMusic(query).take(limit)
             } catch (e: Exception) {
                 Log.e(TAG, "Error searching music", e)
-                emptyList()
-            }
-        }
-
-    /**
-     * Search for artists on YouTube
-     */
-    suspend fun searchArtists(
-        query: String,
-        limit: Int = 10,
-    ): List<ArtistDetails> =
-        withContext(Dispatchers.IO) {
-            try {
-                val service = ServiceList.YouTube
-                val searchExtractor = service.getSearchExtractor(query, listOf("channel"), "")
-                searchExtractor.fetchPage()
-
-                searchExtractor.initialPage.items
-                    .filterIsInstance<org.schabi.newpipe.extractor.channel.ChannelInfoItem>()
-                    .take(limit)
-                    .map { item ->
-                        val channelId = item.url.substringAfterLast("/")
-                        ArtistDetails(
-                            name = item.name,
-                            channelId = channelId,
-                            thumbnailUrl = item.thumbnails.maxByOrNull { it.height }?.url ?: "",
-                            subscriberCount = item.subscriberCount,
-                            description = item.description ?: "",
-                            bannerUrl = "", // Not available in search results
-                            topTracks = emptyList(), // Not available in search results
-                        )
-                    }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error searching artists", e)
-                emptyList()
-            }
-        }
-
-    /**
-     * Fetch music tracks by genre/mood
-     */
-    suspend fun fetchMusicByGenre(
-        genre: String,
-        limit: Int = 30,
-    ): List<MusicTrack> =
-        withContext(Dispatchers.IO) {
-            try {
-                // Strategic search for genres
-                val query =
-                    when (genre.lowercase()) {
-                        "workout" -> "high energy workout music 2025"
-                        "relax" -> "chill lo-fi hip hop relax"
-                        "focus" -> "deep focus ambient music"
-                        "energize" -> "party hits 2025"
-                        else -> "$genre songs 2025"
-                    }
-
-                searchMusic(query, limit)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching tracks by genre: $genre", e)
-                emptyList()
-            }
-        }
-
-    /**
-     * Get detailed stream info
-     */
-    suspend fun getStreamInfo(videoId: String): StreamInfo? =
-        withContext(Dispatchers.IO) {
-            try {
-                val service = ServiceList.YouTube
-                val url = "https://www.youtube.com/watch?v=$videoId"
-                StreamInfo.getInfo(service, url)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting stream info for $videoId", e)
-                null
-            }
-        }
-
-    suspend fun fetchVideoDuration(videoId: String): Int =
-        withContext(Dispatchers.IO) {
-            try {
-                getStreamInfo(videoId)?.duration?.toInt() ?: 0
-            } catch (e: Exception) {
-                0
-            }
-        }
-
-    /**
-     * Get best audio stream object including metadata for DASH optimization
-     */
-    suspend fun getBestAudioStream(videoId: String): Pair<org.schabi.newpipe.extractor.stream.AudioStream, Long>? =
-        withContext(Dispatchers.IO) {
-            try {
-                val streamInfo = getStreamInfo(videoId) ?: return@withContext null
-                val preferences = PlayerPreferences(FlowApplication.appContext)
-                val preferredAudioLanguage = preferences.preferredAudioLanguage.first()
-                val preferredMusicAudioQuality =
-                    preferences.musicAudioQuality
-                        .first()
-                        .resolve(onWifi = NetworkState.isOnWifi(FlowApplication.appContext))
-                val audioStream =
-                    AudioStreamSelector.selectPreferredAudioStream(
-                        streams =
-                            streamInfo.audioStreams
-                                ?.filter { !it.url.isNullOrEmpty() }
-                                ?: emptyList(),
-                        preferredAudioLanguage = preferredAudioLanguage,
-                        preferredMusicAudioQuality = preferredMusicAudioQuality,
-                    )
-
-                if (audioStream != null) {
-                    Pair(audioStream, streamInfo.duration)
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting best audio stream", e)
-                null
-            }
-        }
-
-    /**
-     * Get best audio stream URL
-     */
-    suspend fun getAudioUrl(videoId: String): String? =
-        withContext(Dispatchers.IO) {
-            try {
-                val streamInfo = getStreamInfo(videoId)
-                val preferences = PlayerPreferences(FlowApplication.appContext)
-                val preferredAudioLanguage = preferences.preferredAudioLanguage.first()
-                val preferredMusicAudioQuality =
-                    preferences.musicAudioQuality
-                        .first()
-                        .resolve(onWifi = NetworkState.isOnWifi(FlowApplication.appContext))
-                val audioStream =
-                    AudioStreamSelector.selectPreferredAudioStream(
-                        streams =
-                            streamInfo
-                                ?.audioStreams
-                                ?.filter { !it.url.isNullOrEmpty() }
-                                ?: emptyList(),
-                        preferredAudioLanguage = preferredAudioLanguage,
-                        preferredMusicAudioQuality = preferredMusicAudioQuality,
-                    )
-
-                audioStream?.url
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting audio URL", e)
-                null
-            }
-        }
-
-    /**
-     * Get best video stream URL (synced with audio)
-     */
-    suspend fun getVideoUrl(videoId: String): String? =
-        withContext(Dispatchers.IO) {
-            try {
-                val streamInfo = getStreamInfo(videoId)
-                // Prefer video streams that have both audio and video if possible,
-                // but usually we want the highest quality video stream
-                val videoStream =
-                    streamInfo
-                        ?.videoStreams
-                        ?.filter { !it.url.isNullOrEmpty() }
-                        ?.maxByOrNull { it.bitrate }
-
-                videoStream?.url
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting video URL", e)
-                null
-            }
-        }
-
-    /**
-     * Fetch tracks from a YouTube playlist
-     */
-    suspend fun fetchPlaylistTracks(playlistId: String): List<MusicTrack> =
-        withContext(Dispatchers.IO) {
-            try {
-                val service = ServiceList.YouTube
-                val playlistUrl = "https://www.youtube.com/playlist?list=$playlistId"
-                val playlistInfo = PlaylistInfo.getInfo(service, playlistUrl)
-
-                playlistInfo.relatedItems
-                    .filterIsInstance<StreamInfoItem>()
-                    .filter { isMusicContent(it) } // Filter out compilations in playlists
-                    .mapNotNull { convertToMusicTrack(it) }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching playlist tracks: $playlistId", e)
                 emptyList()
             }
         }
@@ -414,76 +120,33 @@ object YouTubeMusicService {
      */
     suspend fun fetchPlaylistDetails(playlistId: String): PlaylistDetails? =
         withContext(Dispatchers.IO) {
-            Log.d("YouTubeMusicService", "Fetching playlist details for: $playlistId")
-
             try {
                 if (playlistId.startsWith("MPREb_") || playlistId.startsWith("FEmusic_library_privately_owned_release_")) {
-                    val album = InnertubeMusicService.fetchAlbum(playlistId)
-                    if (album != null) return@withContext album
-                } else {
-                    val playlist = InnertubeMusicService.fetchPlaylistDetails(playlistId)
-                    if (playlist != null) return@withContext playlist
+                    return@withContext InnertubeMusicService.fetchAlbum(playlistId)
                 }
-            } catch (e: Exception) {
-                Log.e("YouTubeMusicService", "Innertube fetch failed for $playlistId, falling back to NewPipe", e)
-            }
+                InnertubeMusicService.fetchPlaylistDetails(playlistId)?.let { return@withContext it }
+                if (!playlistId.startsWith("FMDM") && !playlistId.startsWith("OLAK")) return@withContext null
 
-            try {
-                if (playlistId.startsWith("MPREb_") || playlistId.startsWith("FMDM") || playlistId.startsWith("OLAK")) {
-                    val albumResult = YouTube.album(playlistId)
-                    val albumPage = albumResult.getOrNull()
-                    if (albumPage != null) {
-                        val tracks = albumPage.songs.mapNotNull { convertSongItemToMusicTrack(it) }
-                        val totalSeconds = tracks.sumOf { it.duration }
-                        val durationText = formatTotalDuration(totalSeconds)
-
-                        return@withContext PlaylistDetails(
-                            id = playlistId,
-                            title = albumPage.album.title,
-                            thumbnailUrl = albumPage.album.thumbnail,
-                            author =
-                                albumPage.album.artists
-                                    ?.firstOrNull()
-                                    ?.name ?: "Unknown Artist",
-                            authorId =
-                                albumPage.album.artists
-                                    ?.firstOrNull()
-                                    ?.id,
-                            authorAvatarUrl = null,
-                            trackCount = tracks.size,
-                            description = null,
-                            views = null,
-                            durationText = durationText,
-                            dateText = albumPage.album.year?.toString(),
-                            tracks = tracks,
-                        )
-                    }
-                }
-
-                val service = ServiceList.YouTube
-                val playlistUrl = "https://www.youtube.com/playlist?list=$playlistId"
-                val playlistInfo = PlaylistInfo.getInfo(service, playlistUrl)
-
-                val tracks =
-                    playlistInfo.relatedItems
-                        .filterIsInstance<StreamInfoItem>()
-                        .mapNotNull { convertToMusicTrack(it) }
-
-                val totalSeconds = tracks.sumOf { it.duration }
-                val durationText = formatTotalDuration(totalSeconds)
-
+                val albumPage = YouTube.album(playlistId).getOrNull() ?: return@withContext null
+                val tracks = albumPage.songs.map { convertSongItemToMusicTrack(it) }
                 PlaylistDetails(
                     id = playlistId,
-                    title = playlistInfo.name,
-                    thumbnailUrl = playlistInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
-                    author = playlistInfo.uploaderName ?: "Unknown",
-                    authorId = playlistInfo.uploaderUrl?.substringAfterLast("/"),
+                    title = albumPage.album.title,
+                    thumbnailUrl = albumPage.album.thumbnail,
+                    author =
+                        albumPage.album.artists
+                            ?.firstOrNull()
+                            ?.name ?: "Unknown Artist",
+                    authorId =
+                        albumPage.album.artists
+                            ?.firstOrNull()
+                            ?.id,
                     authorAvatarUrl = null,
                     trackCount = tracks.size,
-                    description = playlistInfo.description?.content,
+                    description = null,
                     views = null,
-                    durationText = durationText,
-                    dateText = null,
+                    durationText = formatTotalDuration(tracks.sumOf { it.duration }),
+                    dateText = albumPage.album.year?.toString(),
                     tracks = tracks,
                 )
             } catch (e: Exception) {
@@ -516,7 +179,7 @@ object YouTubeMusicService {
         return if (hours > 0) "$hours hr $minutes min" else "$minutes min $seconds sec"
     }
 
-    private fun convertSongItemToMusicTrack(item: io.github.aedev.flow.innertube.models.SongItem): MusicTrack? =
+    private fun convertSongItemToMusicTrack(item: io.github.aedev.flow.innertube.models.SongItem): MusicTrack =
         MusicTrack(
             videoId = item.id,
             title = item.title,
@@ -540,25 +203,10 @@ object YouTubeMusicService {
     ): List<MusicTrack> =
         withContext(Dispatchers.IO) {
             try {
-                val innertubeRelated = InnertubeMusicService.getRelatedMusic(videoId, audioOnly)
-                if (innertubeRelated.isNotEmpty()) {
-                    return@withContext innertubeRelated
-                        .filterNot { audioOnly && it.isVideoSong }
-                        .take(limit)
-                }
-
-                if (audioOnly) {
-                    return@withContext emptyList()
-                }
-
-                val streamInfo = getStreamInfo(videoId)
-                streamInfo
-                    ?.relatedItems
-                    ?.filterIsInstance<StreamInfoItem>()
-                    ?.filter { isMusicContent(it) }
-                    ?.take(limit)
-                    ?.mapNotNull { convertToMusicTrack(it) }
-                    ?.filterNot { audioOnly && it.isVideoSong } ?: emptyList()
+                InnertubeMusicService
+                    .getRelatedMusic(videoId, audioOnly)
+                    .filterNot { audioOnly && it.isVideoSong }
+                    .take(limit)
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching related music", e)
                 emptyList()
@@ -585,51 +233,6 @@ object YouTubeMusicService {
             }
         }
 
-    private fun isMusicContent(item: StreamInfoItem): Boolean {
-        val title = item.name.lowercase()
-        val duration = item.duration
-
-        // Relaxed duration for music content (30s to 20 minutes)
-        if (duration < 30 || duration > 1200) return false
-
-        // Blacklist keywords
-        if (blacklistKeywords.any { title.contains(it) }) return false
-
-        // Must contain music indicators
-        val musicIndicators =
-            listOf(
-                "official video",
-                "official music",
-                "official audio",
-                "official lyric",
-                "music video",
-                "lyric video",
-                "audio",
-                "visualizer",
-                "mv",
-                "feat.",
-                "ft.",
-                "prod.",
-                "remix",
-                "cover",
-                "soundtrack",
-                "ost",
-                "song",
-                "track",
-                "single",
-            )
-
-        // If it has a music indicator, it's likely music
-        if (musicIndicators.any { title.contains(it) }) return true
-
-        // If the uploader is a Topic channel or VEVO
-        val uploader = item.uploaderName?.lowercase() ?: ""
-        if (uploader.endsWith("topic") || uploader.endsWith("vevo") || uploader.contains("records")) return true
-
-        // Most music videos are between 2 and 5 minutes
-        return duration in 120..420
-    }
-
     /**
      * Search for playlists (albums)
      */
@@ -639,206 +242,23 @@ object YouTubeMusicService {
     ): List<MusicPlaylist> =
         withContext(Dispatchers.IO) {
             try {
-                val innertubePlaylists = InnertubeMusicService.searchPlaylists(query)
-                if (innertubePlaylists.isNotEmpty()) {
-                    return@withContext innertubePlaylists.take(limit)
-                }
-
-                val service = ServiceList.YouTube
-                val searchExtractor = service.getSearchExtractor(query, emptyList(), "")
-                searchExtractor.fetchPage()
-
-                searchExtractor.initialPage.items
-                    .filterIsInstance<PlaylistInfoItem>()
-                    .take(limit)
-                    .map { item ->
-                        MusicPlaylist(
-                            id = item.url.substringAfter("list="),
-                            title = item.name,
-                            thumbnailUrl = item.thumbnails.maxByOrNull { it.height }?.url ?: "",
-                            trackCount = item.streamCount.toInt(),
-                            author = item.uploaderName ?: "Unknown Artist",
-                        )
-                    }
+                InnertubeMusicService.searchPlaylists(query).take(limit)
             } catch (e: Exception) {
                 Log.e(TAG, "Error searching playlists", e)
                 emptyList()
             }
         }
 
-    /**
-     * Fetch artist details including top tracks
-     */
+    /** The artist page, or null when it could not be loaded; the page shows an error for that. */
     suspend fun fetchArtistDetails(channelId: String): ArtistDetails? =
         withContext(Dispatchers.IO) {
             try {
-                // Priority: Innertube Data (Rich Metadata)
-                val innertubeDetails = InnertubeMusicService.fetchArtistDetails(channelId)
-                if (innertubeDetails != null) {
-                    return@withContext innertubeDetails
-                }
-
-                // Fallback: NewPipe Strategy
-                val service = ServiceList.YouTube
-                val url = "https://www.youtube.com/channel/$channelId"
-                val extractor = service.getChannelExtractor(url)
-                extractor.fetchPage()
-
-                val channelInfo =
-                    org.schabi.newpipe.extractor.channel.ChannelInfo
-                        .getInfo(extractor)
-
-                val name = channelInfo.name
-                val thumbnail = channelInfo.avatars.maxByOrNull { it.height }?.url ?: ""
-                val banner = channelInfo.banners.maxByOrNull { it.height }?.url ?: ""
-                val subscriberCount = channelInfo.subscriberCount
-                val description = channelInfo.description
-
-                // Fetch items (videos) from the channel
-                val initialPageItems =
-                    try {
-                        val method =
-                            extractor::class.java.methods.firstOrNull {
-                                it.name == "getInitialPage" || it.name == "getInitialItems"
-                            }
-                        if (method != null) {
-                            val result = method.invoke(extractor)
-                            val itemsField = result!!::class.java.getMethod("getItems")
-                            @Suppress("UNCHECKED_CAST")
-                            (itemsField.invoke(result) as? List<*>)?.filterIsInstance<StreamInfoItem>() ?: emptyList()
-                        } else {
-                            emptyList()
-                        }
-                    } catch (e: Exception) {
-                        emptyList<StreamInfoItem>()
-                    }
-
-                val relatedItems =
-                    initialPageItems
-                        .filter { isMusicContent(it) }
-                        .mapNotNull { convertToMusicTrack(it) }
-                        .take(20)
-
-                // Fetch albums (playlists)
-                val albums =
-                    try {
-                        searchPlaylists("$name albums", 10)
-                    } catch (e: Exception) {
-                        emptyList()
-                    }
-
-                ArtistDetails(
-                    name = name,
-                    channelId = channelId,
-                    thumbnailUrl = thumbnail,
-                    subscriberCount = subscriberCount,
-                    description = description,
-                    bannerUrl = banner,
-                    topTracks = relatedItems,
-                    albums = albums,
-                )
+                InnertubeMusicService.fetchArtistDetails(channelId)
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching artist details for $channelId", e)
                 null
             }
         }
 
-    /**
-     * Convert StreamInfoItem to MusicTrack with better metadata extraction
-     */
-    private fun convertToMusicTrack(item: StreamInfoItem): MusicTrack? {
-        try {
-            val videoId = item.url.substringAfter("watch?v=").take(11)
-            if (videoId.length < 11) return null
-
-            val rawTitle = item.name
-            val uploader = item.uploaderName ?: "Unknown Artist"
-
-            // Improved artist extraction
-            val (cleanedTitle, extractedArtist) = parseTitleAndArtist(rawTitle, uploader)
-            val channelId = item.uploaderUrl?.substringAfterLast("/") ?: ""
-
-            return MusicTrack(
-                videoId = videoId,
-                title = cleanedTitle,
-                artist = extractedArtist,
-                thumbnailUrl = item.thumbnails.maxByOrNull { it.height }?.url ?: "",
-                duration = item.duration.toInt(),
-                views = item.viewCount,
-                sourceUrl = item.url,
-                album = "YouTube Music",
-                channelId = channelId,
-            )
-        } catch (e: Exception) {
-            return null
-        }
-    }
-
-    /**
-     * Parse title and artist from raw YouTube title and uploader name
-     */
-    private fun parseTitleAndArtist(
-        rawTitle: String,
-        uploader: String,
-    ): Pair<String, String> {
-        val delimiters = listOf(" - ", " – ", " — ", " | ", ": ")
-        var title = rawTitle
-        var artist = uploader
-
-        // Remove common suffixes first
-        title = cleanMusicTitle(title)
-
-        for (delim in delimiters) {
-            if (title.contains(delim)) {
-                val parts = title.split(delim)
-                if (parts.size >= 2) {
-                    val potentialArtist = parts[0].trim()
-                    val potentialTitle = parts[1].trim()
-
-                    // If uploader is in the first part, it's definitely Artist - Title
-                    if (uploader.lowercase().contains(potentialArtist.lowercase()) ||
-                        potentialArtist.lowercase().contains(uploader.lowercase().replace(" official", ""))
-                    ) {
-                        artist = potentialArtist
-                        title = potentialTitle
-                    } else {
-                        // Otherwise, use the part that doesn't look like the uploader as title
-                        title = potentialTitle
-                        artist = potentialArtist
-                    }
-                    break
-                }
-            }
-        }
-
-        // Final polish for artist name
-        artist =
-            artist
-                .replace(Regex(" - Topic$", RegexOption.IGNORE_CASE), "")
-                .replace(Regex(" Official$", RegexOption.IGNORE_CASE), "")
-                .replace(Regex(" VEVO$", RegexOption.IGNORE_CASE), "")
-                .trim()
-
-        return Pair(title, artist)
-    }
-
-    private fun cleanMusicTitle(title: String): String =
-        title
-            .replace(Regex("\\(Official.*?\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\[Official.*?\\]", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(Lyric.*?\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\[Lyric.*?\\]", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(Audio.*?\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\[Audio.*?\\]", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(Music.*?Video\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\[Music.*?Video\\]", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(.*?Video.*?\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(.*?HD.*?\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\(.*?4K.*?\\)", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\s+", RegexOption.IGNORE_CASE), " ")
-            .trim()
-
     fun getPopularGenres(): List<String> = musicGenres
-
-    suspend fun fetchTopPicks(limit: Int = 20): List<MusicTrack> = fetchTrendingMusic(limit)
 }

@@ -34,6 +34,7 @@ import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.recommendation.music.MusicArtistInsights
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
+import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.music.common.rememberMusicCollectionColorScheme
 import io.github.aedev.flow.ui.components.music.detail.ArtistBio
 import io.github.aedev.flow.ui.components.music.detail.ArtistHero
@@ -47,6 +48,7 @@ import io.github.aedev.flow.ui.components.music.section.MusicCollectionShelf
 import io.github.aedev.flow.ui.components.music.section.MusicShelf
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.music.sheet.toCollectionActionItem
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.flowSegmentShape
 import io.github.aedev.flow.ui.theme.Dimensions
@@ -55,6 +57,27 @@ import io.github.aedev.flow.utils.formatViewCount
 private const val TOP_TRACKS_SHOWN = 5
 private val VideoCardHeight = 124.dp
 private const val VIDEO_ASPECT_RATIO = 16f / 9f
+
+/** The artist route when the page could not be loaded: the error with Retry, under a bar that leads back. */
+@Composable
+fun ArtistPageError(
+    onBackClick: () -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = { FlowTopBar(title = "", onBack = onBackClick) },
+    ) { padding ->
+        FlowErrorState(
+            error = stringResource(R.string.error_failed_to_load_artist),
+            onRetry = onRetry,
+            modifier = Modifier.padding(padding),
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
