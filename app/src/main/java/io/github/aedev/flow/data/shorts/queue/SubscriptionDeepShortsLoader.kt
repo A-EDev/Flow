@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.shorts.ChannelShortsFeed
 import io.github.aedev.flow.data.shorts.ChannelShortsFeedPage
 import io.github.aedev.flow.data.shorts.ChannelShortsOwner
@@ -66,6 +67,7 @@ class SubscriptionDeepShortsLoader(
     private val subscriptionRepository: SubscriptionRepository,
     private val playerPreferences: PlayerPreferences,
     private val watchedVideos: SubscriptionWatchedVideos,
+    private val exclusions: suspend () -> FeedExclusions = { FeedExclusions.NONE },
     private val fetchFirstPage: suspend (String) -> ChannelShortsFeedPage? = { ChannelShortsFeed.initial(it) },
     private val fetchNextPage: suspend (String, ChannelShortsOwner) -> ChannelShortsFeedPage? =
         { continuation, owner -> ChannelShortsFeed.more(continuation, owner) },
@@ -102,6 +104,7 @@ class SubscriptionDeepShortsLoader(
      * what would otherwise send it back for more pages it did not need.
      */
     private var skipIds: Set<String> = emptySet()
+    private var hidden = FeedExclusions.NONE
     private var prepared = false
 
     override suspend fun initial(): ShortsQueuePage {
@@ -123,6 +126,7 @@ class SubscriptionDeepShortsLoader(
         if (prepared) return
         prepared = true
         val excluded = playerPreferences.subscriptionShortsExcludedChannels.first()
+        hidden = exclusions()
         val feed = subscriptionFeedRepository.observeFeed().first()
         skipIds =
             buildSet {
@@ -132,7 +136,7 @@ class SubscriptionDeepShortsLoader(
         subscriptionReelChannelOrder(
             feed = feed,
             subscribedChannelIds = subscriptionRepository.getAllSubscriptions().first().map { it.channelId },
-        ).forEach { channelId -> if (channelId !in excluded) pending.addLast(channelId) }
+        ).forEach { channelId -> if (channelId !in excluded && !hidden.hidesChannel(channelId)) pending.addLast(channelId) }
         Log.d(TAG, "Deep subscription tier ready with ${pending.size} channels")
     }
 
@@ -191,7 +195,9 @@ class SubscriptionDeepShortsLoader(
         pager.owner = page.owner
         pager.continuation = page.continuation
         page.videos.forEach { video ->
-            if (video.id.isNotBlank() && video.id !in skipIds) pager.buffered.addLast(video.toShortVideo())
+            if (video.id.isNotBlank() && video.id !in skipIds && video.id !in hidden.suppressedVideoIds) {
+                pager.buffered.addLast(video.toShortVideo())
+            }
         }
     }
 

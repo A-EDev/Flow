@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.local.*
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -118,7 +119,7 @@ class VideoPlayerViewModel
                 isLoadCurrent = ::isPlaybackLoadCurrent,
                 currentLoadToken = { playbackLoadToken },
                 shortsEnabled = { shortsContentEnabled },
-                blockedChannelIds = { blockedChannelIds },
+                exclusions = { feedExclusions },
             )
 
         private val comments = collaborators.comments
@@ -244,22 +245,21 @@ class VideoPlayerViewModel
         private var shortsContentEnabled: Boolean = true
 
         /**
-         * Channels the viewer has blocked, so the related list drops them the way search and the
-         * home feed do. The engine publishes no change signal, so this is re-read when a video
-         * loads — the same cadence search re-reads it at, and cheap beside the work a load already
-         * does.
+         * What the viewer hid, so the related list and autoplay drop it the way search and the home
+         * feed do. The engine publishes no change signal, so this is re-read when a video loads —
+         * the same cadence search re-reads it at, and cheap beside the work a load already does.
          */
         @Volatile
-        private var blockedChannelIds: Set<String> = emptySet()
+        private var feedExclusions: FeedExclusions = FeedExclusions.NONE
 
-        private fun refreshBlockedChannels() {
-            viewModelScope.launch {
-                blockedChannelIds = FlowNeuroEngine.getInstance(context).getBlockedChannels()
+        private fun refreshFeedExclusions() {
+            viewModelScope.launch(ioDispatcher) {
+                runCatching { FlowNeuroEngine.getInstance(context).feedExclusions() }.onSuccess { feedExclusions = it }
             }
         }
 
         init {
-            refreshBlockedChannels()
+            refreshFeedExclusions()
 
             // The first value is the empty queue of a fresh process; saving it would erase the one to restore.
             combine(playerManager.queueVideos, playerManager.currentQueueIndexState, ::Pair)
@@ -552,7 +552,7 @@ class VideoPlayerViewModel
                 return
             }
 
-            refreshBlockedChannels()
+            refreshFeedExclusions()
             navigationHistory.push(videoId)
             _canGoPrevious.value = navigationHistory.canGoPrevious
 
@@ -583,7 +583,7 @@ class VideoPlayerViewModel
                                     escalateToSabr = escalateToSabr,
                                     resumePositionOverrideMs = resumePositionOverrideMs,
                                     allowShorts = shortsContentEnabled,
-                                    blockedChannelIds = blockedChannelIds,
+                                    blockedChannelIds = feedExclusions.blockedChannelIds,
                                 ),
                             isCurrent = { isPlaybackLoadCurrent(loadToken) },
                             resolveUpcoming = upcomingPremiere::resolve,

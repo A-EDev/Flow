@@ -4,6 +4,7 @@ import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.shorts.ChannelShortsFeedPage
 import io.github.aedev.flow.data.shorts.ChannelShortsOwner
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
@@ -104,6 +105,7 @@ class SubscriptionDeepShortsLoaderTest {
         subscriptions: List<String> = emptyList(),
         excluded: Set<String> = emptySet(),
         watched: Set<String> = emptySet(),
+        hidden: FeedExclusions = FeedExclusions.NONE,
     ): SubscriptionDeepShortsLoader {
         val feedRepository: SubscriptionFeedRepository = mockk(relaxed = true)
         every { feedRepository.observeFeed() } returns flowOf(feed)
@@ -118,6 +120,7 @@ class SubscriptionDeepShortsLoaderTest {
             subscriptionRepository = subscriptionRepository,
             playerPreferences = preferences,
             watchedVideos = watchedVideos,
+            exclusions = { hidden },
             fetchFirstPage = tabs::first,
             fetchNextPage = tabs::next,
         )
@@ -290,6 +293,29 @@ class SubscriptionDeepShortsLoaderTest {
                     tabs,
                     subscriptions = listOf("UCa", "UCmuted"),
                     excluded = setOf("UCmuted"),
+                ).initial()
+
+            assertEquals(listOf("a1"), page.items.map { it.id })
+            assertEquals(listOf("UCa"), tabs.requested)
+        }
+
+    // #1031: "not interested" and "don't recommend channel" must hold in the subscriptions queue too.
+    @Test
+    fun `a blocked channel is never asked and a reel marked not interested is left out`() =
+        runTest {
+            val tabs =
+                RecordingTabs(
+                    mapOf(
+                        "UCa" to listOf(tabPage("UCa", listOf("a1", "hidden"))),
+                        "UCblocked" to listOf(tabPage("UCblocked", listOf("b1"))),
+                    ),
+                )
+
+            val page =
+                loader(
+                    tabs,
+                    subscriptions = listOf("UCa", "UCblocked"),
+                    hidden = FeedExclusions(suppressedVideoIds = setOf("hidden"), blockedChannelIds = setOf("UCblocked")),
                 ).initial()
 
             assertEquals(listOf("a1"), page.items.map { it.id })

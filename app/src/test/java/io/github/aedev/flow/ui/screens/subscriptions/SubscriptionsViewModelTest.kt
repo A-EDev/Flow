@@ -6,6 +6,8 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
+import io.github.aedev.flow.data.recommendation.FeedExclusions
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionRefreshPlan
 import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
@@ -34,6 +36,7 @@ class SubscriptionsViewModelTest {
     private val database: AppDatabase = mockk(relaxed = true)
     private val playerPreferences: PlayerPreferences = mockk(relaxed = true)
     private val subscriptionGroupDao: SubscriptionGroupDao = mockk(relaxed = true)
+    private val neuroEngine: FlowNeuroEngine = mockk(relaxed = true)
 
     private lateinit var viewModel: SubscriptionsViewModel
 
@@ -61,6 +64,7 @@ class SubscriptionsViewModelTest {
         coEvery { subscriptionRepository.getAllSubscriptions() } returns flowOf(emptyList())
         coEvery { subscriptionFeedRepository.observeFeed() } returns flowOf(emptyList())
         coEvery { subscriptionFeedRepository.planRefresh(any()) } returns SubscriptionRefreshPlan.NOTHING_TO_DO
+        coEvery { neuroEngine.feedExclusions(any()) } returns FeedExclusions.NONE
 
         viewModel =
             SubscriptionsViewModel(
@@ -69,6 +73,7 @@ class SubscriptionsViewModelTest {
                 playerPreferences = playerPreferences,
                 subscriptionGroupDao = subscriptionGroupDao,
                 subscriptionWatchedVideos = SubscriptionWatchedVideos(viewHistory, playerPreferences, database),
+                neuroEngine = neuroEngine,
             )
     }
 

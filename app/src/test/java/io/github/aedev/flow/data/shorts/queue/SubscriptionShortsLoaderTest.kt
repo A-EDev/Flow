@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.shorts.queue
 
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
 import io.github.aedev.flow.data.subscriptions.SubscriptionWatchedVideos
 import io.mockk.every
@@ -43,6 +44,7 @@ class SubscriptionShortsLoaderTest {
         excluded: Set<String> = emptySet(),
         watched: Set<String> = emptySet(),
         anchorVideoId: String? = null,
+        hidden: FeedExclusions = FeedExclusions.NONE,
     ): SubscriptionShortsLoader {
         val repository: SubscriptionFeedRepository = mockk(relaxed = true)
         every { repository.observeFeed() } returns flowOf(feed)
@@ -50,7 +52,7 @@ class SubscriptionShortsLoaderTest {
         every { preferences.subscriptionShortsExcludedChannels } returns flowOf(excluded)
         val watchedVideos: SubscriptionWatchedVideos = mockk(relaxed = true)
         every { watchedVideos.ids } returns flowOf(watched)
-        return SubscriptionShortsLoader(repository, preferences, watchedVideos, anchorVideoId)
+        return SubscriptionShortsLoader(repository, preferences, watchedVideos, anchorVideoId) { hidden }
     }
 
     @Test
@@ -102,6 +104,24 @@ class SubscriptionShortsLoaderTest {
                 ).initial()
 
             assertEquals(listOf("unseen"), page.items.map { it.id })
+        }
+
+    // #1031: a reel marked not interested kept coming back every time the queue was rebuilt.
+    @Test
+    fun `reels marked not interested and blocked channels stay out`() =
+        runTest {
+            val page =
+                loader(
+                    feed =
+                        listOf(
+                            reel("keep", channelId = "UCa", timestamp = 3L),
+                            reel("hidden", channelId = "UCa", timestamp = 2L),
+                            reel("blocked", channelId = "UCb", timestamp = 1L),
+                        ),
+                    hidden = FeedExclusions(suppressedVideoIds = setOf("hidden"), blockedChannelIds = setOf("UCb")),
+                ).initial()
+
+            assertEquals(listOf("keep"), page.items.map { it.id })
         }
 
     // Tapping a reel has to open on that reel. Filtering it out would silently start the queue on
