@@ -42,27 +42,7 @@ class ParallelDownloader
             private const val BLOCK_SIZE = 2L * 1024 * 1024
             private const val MAX_RETRIES = 5
             private const val INITIAL_RETRY_DELAY_MS = 2000L
-            private const val UA_IOS = "com.google.ios.youtube/21.03.3 (iPad7,6; U; CPU iPadOS 17_7_10 like Mac OS X; en-US)"
-            private const val UA_ANDROID = "com.google.android.youtube/21.03.38 (Linux; U; Android 14) gzip"
-            private const val UA_ANDROID_VR =
-                "com.google.android.apps.youtube.vr.oculus/1.61.48 " +
-                    "(Linux; U; Android 12; en_US; Quest 3; Build/SQ3A.220605.009.A1; Cronet/132.0.6808.3)"
         }
-
-        private fun resolveUserAgent(
-            url: String,
-            fallback: String,
-        ): String =
-            try {
-                when (Uri.parse(url).getQueryParameter("c")?.uppercase()) {
-                    "IOS" -> UA_IOS
-                    "ANDROID", "ANDROID_CREATOR" -> UA_ANDROID
-                    "ANDROID_VR" -> UA_ANDROID_VR
-                    else -> fallback
-                }
-            } catch (_: Exception) {
-                fallback
-            }
 
         private var client: OkHttpClient? = null
 
@@ -79,72 +59,6 @@ class ParallelDownloader
                 .retryOnConnectionFailure(true)
                 .build()
                 .also { client = it }
-        }
-
-        // ===== YouTube URL helpers =====
-
-        /**
-         * YouTube CDN (googlevideo.com / youtube.com/videoplayback) streams embed a `range=0-N`
-         * query parameter that caps how much content the CDN will serve per URL.
-         * For parallel block downloads we must strip that cap and append `&range=X-Y` per-block,
-         * matching how YouTube's official clients (and MusicPlayerUtils) do it.
-         */
-        private fun isYouTubeStreamUrl(url: String): Boolean {
-            return try {
-                val host = Uri.parse(url).host ?: return false
-                host.contains("googlevideo.com") ||
-                    (host.contains("youtube.com") && url.contains("videoplayback"))
-            } catch (_: Exception) {
-                false
-            }
-        }
-
-        /**
-         * YouTube embeds the true content length as a `clen=` query parameter.
-         * This is the canonical size for the *entire* stream, even when the URL
-         * has an embedded `range=` restriction that would cause a HEAD/GET to
-         * return only a fragment.
-         */
-        private fun extractClenFromUrl(url: String): Long =
-            try {
-                Uri.parse(url).getQueryParameter("clen")?.toLongOrNull() ?: -1L
-            } catch (_: Exception) {
-                -1L
-            }
-
-        /**
-         * Return the URL with any embedded `range=` query parameter removed.
-         * All other parameters (including `n` for throttle deobfuscation) are kept.
-         */
-        private fun stripRangeParam(url: String): String {
-            return try {
-                val uri = Uri.parse(url)
-                if (uri.getQueryParameter("range") == null) return url
-                val builder = uri.buildUpon().clearQuery()
-                uri.queryParameterNames
-                    .filter { it != "range" }
-                    .forEach { key ->
-                        uri.getQueryParameters(key).forEach { value ->
-                            builder.appendQueryParameter(key, value)
-                        }
-                    }
-                builder.build().toString()
-            } catch (_: Exception) {
-                url
-            }
-        }
-
-        /**
-         * Append `range=X-Y` as a query parameter for a YouTube block request.
-         * Assumes the URL has already had its original `range=` stripped.
-         */
-        private fun buildYouTubeBlockUrl(
-            baseUrl: String,
-            startByte: Long,
-            endByte: Long,
-        ): String {
-            val sep = if (baseUrl.contains('?')) "&" else "?"
-            return "${baseUrl}${sep}range=$startByte-$endByte"
         }
 
         /**
@@ -170,8 +84,8 @@ class ParallelDownloader
                     // the CDN from serving the full file.  We strip it here so all block
                     // workers can append their own `&range=X-Y` per-block.
                     val videoBaseUrl =
-                        if (isYouTubeStreamUrl(mission.url)) {
-                            stripRangeParam(mission.url).also {
+                        if (YouTubeStreamUrls.isYouTubeStreamUrl(mission.url)) {
+                            YouTubeStreamUrls.stripRangeParam(mission.url).also {
                                 Log.d(TAG, "start: Stripped range from video URL (YouTube DASH)")
                             }
                         } else {
@@ -180,8 +94,8 @@ class ParallelDownloader
 
                     val audioBaseUrl =
                         mission.audioUrl?.let { audioUrl ->
-                            if (isYouTubeStreamUrl(audioUrl)) {
-                                stripRangeParam(audioUrl).also {
+                            if (YouTubeStreamUrls.isYouTubeStreamUrl(audioUrl)) {
+                                YouTubeStreamUrls.stripRangeParam(audioUrl).also {
                                     Log.d(TAG, "start: Stripped range from audio URL (YouTube DASH)")
                                 }
                             } else {
@@ -193,8 +107,8 @@ class ParallelDownloader
                     if (mission.totalBytes == 0L) {
                         // Fast path: read clen= from the original URL (before stripping)
                         val clenFromUrl =
-                            if (isYouTubeStreamUrl(mission.url)) {
-                                extractClenFromUrl(mission.url)
+                            if (YouTubeStreamUrls.isYouTubeStreamUrl(mission.url)) {
+                                YouTubeStreamUrls.extractClenFromUrl(mission.url)
                             } else {
                                 -1L
                             }
@@ -218,8 +132,8 @@ class ParallelDownloader
 
                     if (audioBaseUrl != null && mission.audioTotalBytes == 0L) {
                         val clenFromUrl =
-                            if (isYouTubeStreamUrl(mission.audioUrl ?: "")) {
-                                extractClenFromUrl(mission.audioUrl ?: "")
+                            if (YouTubeStreamUrls.isYouTubeStreamUrl(mission.audioUrl ?: "")) {
+                                YouTubeStreamUrls.extractClenFromUrl(mission.audioUrl ?: "")
                             } else {
                                 -1L
                             }
@@ -483,12 +397,12 @@ class ParallelDownloader
                 return true
             }
 
-            val isYT = isYouTubeStreamUrl(url)
-            val effectiveUserAgent = resolveUserAgent(url, mission.userAgent)
+            val isYT = YouTubeStreamUrls.isYouTubeStreamUrl(url)
+            val effectiveUserAgent = YouTubeStreamUrls.resolveUserAgent(url, mission.userAgent)
 
             val request =
                 if (isYT) {
-                    val rangedUrl = buildYouTubeBlockUrl(url, resumeFrom, endByte)
+                    val rangedUrl = YouTubeStreamUrls.buildYouTubeBlockUrl(url, resumeFrom, endByte)
                     Request
                         .Builder()
                         .url(rangedUrl)
@@ -574,8 +488,8 @@ class ParallelDownloader
             url: String,
             userAgent: String,
         ): Long {
-            val useQueryRange = isYouTubeStreamUrl(url)
-            val effectiveUserAgent = resolveUserAgent(url, userAgent)
+            val useQueryRange = YouTubeStreamUrls.isYouTubeStreamUrl(url)
+            val effectiveUserAgent = YouTubeStreamUrls.resolveUserAgent(url, userAgent)
             return try {
                 if (!useQueryRange) {
                     val request =
@@ -596,7 +510,7 @@ class ParallelDownloader
                         // YouTube: use query-range
                         Request
                             .Builder()
-                            .url(buildYouTubeBlockUrl(url, 0L, 0L))
+                            .url(YouTubeStreamUrls.buildYouTubeBlockUrl(url, 0L, 0L))
                             .header("User-Agent", effectiveUserAgent)
                             .header("Origin", "https://www.youtube.com")
                             .header("Referer", "https://www.youtube.com/")
