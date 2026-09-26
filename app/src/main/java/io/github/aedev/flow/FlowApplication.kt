@@ -204,6 +204,10 @@ class FlowApplication :
             } catch (e: Exception) {
                 Log.w(TAG, "WebPoTokenSession prewarm failed: ${e.message}")
             }
+            // A cold player script is a 3 MB download the first web-client extraction would
+            // otherwise wait on.
+            io.github.aedev.flow.utils.cipher.CipherDeobfuscator
+                .ensureSignatureTimestamp()
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
