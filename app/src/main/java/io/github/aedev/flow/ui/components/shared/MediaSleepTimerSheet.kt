@@ -226,6 +226,7 @@ private fun FlowSleepTimerBottomSheet(
         onProgressChange = onSheetProgressChange,
         header = { dragModifier ->
             FlowSheetHeader(
+                inSidePane = !enableVerticalDismiss,
                 title = stringResource(R.string.sleep_timer),
                 onClose = { sheetState.dismiss() },
                 modifier = dragModifier,

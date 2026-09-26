@@ -97,6 +97,7 @@ fun FlowChaptersBottomSheet(
         onProgressChange = onSheetProgressChange,
         header = { dragModifier ->
             FlowSheetHeader(
+                inSidePane = !enableVerticalDismiss,
                 title = stringResource(R.string.chapters),
                 subtitle = chaptersSubtitle(chapters.size, durationMs),
                 onClose = { sheetState.dismiss() },

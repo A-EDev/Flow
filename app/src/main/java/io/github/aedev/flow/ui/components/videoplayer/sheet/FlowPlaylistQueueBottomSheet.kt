@@ -114,6 +114,7 @@ fun FlowPlaylistQueueBottomSheet(
         onProgressChange = onSheetProgressChange,
         header = { dragModifier ->
             FlowSheetHeader(
+                inSidePane = !enableVerticalDismiss,
                 title = playlistTitle ?: stringResource(R.string.playlist_queue),
                 subtitle = queueSubtitle(queueVideos, currentQueueIndex),
                 onClose = { sheetState.dismiss() },

@@ -219,6 +219,7 @@ fun FlowDescriptionBottomSheet(
         onProgressChange = onSheetProgressChange,
         header = { dragModifier ->
             FlowSheetHeader(
+                inSidePane = !enableVerticalDismiss,
                 title = stringResource(R.string.description),
                 onClose = { sheetState.dismiss() },
                 modifier = dragModifier,
