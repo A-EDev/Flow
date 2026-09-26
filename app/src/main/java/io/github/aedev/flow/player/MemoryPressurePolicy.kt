@@ -45,4 +45,19 @@ object MemoryPressurePolicy {
             videoVisible -> MemoryPressureResponse.DROP_PRELOAD
             else -> MemoryPressureResponse.RELEASE_VIDEO
         }
+
+    /**
+     * A PiP window shows the video, so an audio-only mode or a deferred surface restore left over
+     * from earlier would otherwise keep it black. Explicit background playback keeps its audio-only
+     * mode: the PiP window then belongs to another player.
+     */
+    fun shouldRestoreVideoOnPipEntry(
+        isInPictureInPictureMode: Boolean,
+        isAudioOnly: Boolean,
+        isVideoRestorePending: Boolean,
+        explicitBackgroundPlaybackActive: Boolean,
+    ): Boolean =
+        isInPictureInPictureMode &&
+            !explicitBackgroundPlaybackActive &&
+            (isAudioOnly || isVideoRestorePending)
 }

@@ -68,4 +68,42 @@ class MemoryPressurePolicyTest {
             }
         }
     }
+
+    @Test
+    fun `entering picture in picture restores video left in audio only mode`() {
+        assertThat(pipRestore(isAudioOnly = true)).isTrue()
+    }
+
+    @Test
+    fun `entering picture in picture completes a deferred surface restore`() {
+        assertThat(pipRestore(isVideoRestorePending = true)).isTrue()
+    }
+
+    @Test
+    fun `entering picture in picture with video already on does nothing`() {
+        assertThat(pipRestore()).isFalse()
+    }
+
+    @Test
+    fun `leaving picture in picture does not restore video`() {
+        assertThat(pipRestore(isInPip = false, isAudioOnly = true, isVideoRestorePending = true)).isFalse()
+    }
+
+    @Test
+    fun `explicit background playback stays audio only when a picture in picture window opens`() {
+        assertThat(pipRestore(isAudioOnly = true, explicitBackground = true)).isFalse()
+    }
+
+    private fun pipRestore(
+        isInPip: Boolean = true,
+        isAudioOnly: Boolean = false,
+        isVideoRestorePending: Boolean = false,
+        explicitBackground: Boolean = false,
+    ): Boolean =
+        MemoryPressurePolicy.shouldRestoreVideoOnPipEntry(
+            isInPictureInPictureMode = isInPip,
+            isAudioOnly = isAudioOnly,
+            isVideoRestorePending = isVideoRestorePending,
+            explicitBackgroundPlaybackActive = explicitBackground,
+        )
 }

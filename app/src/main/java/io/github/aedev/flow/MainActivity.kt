@@ -481,6 +481,7 @@ class MainActivity : ComponentActivity() {
         pendingAutoPip = false
 
         clearWindowBrightnessOverride()
+        restoreVideoForPipWindow(isInPictureInPictureMode)
 
         pipDismissCheckJob?.cancel()
         if (!isInPictureInPictureMode) {
@@ -498,6 +499,21 @@ class MainActivity : ComponentActivity() {
                             .stopBackgroundService()
                     }
                 }
+        }
+    }
+
+    private fun restoreVideoForPipWindow(isInPictureInPictureMode: Boolean) {
+        val playerManager = videoPlayerManager.get()
+        if (
+            MemoryPressurePolicy.shouldRestoreVideoOnPipEntry(
+                isInPictureInPictureMode = isInPictureInPictureMode,
+                isAudioOnly = playerManager.isInAudioOnlyMode(),
+                isVideoRestorePending = playerManager.isVideoSurfaceRestorePending(),
+                explicitBackgroundPlaybackActive = GlobalPlayerState.isExplicitBackgroundPlaybackActive.value,
+            )
+        ) {
+            videoLifecycleLog("restoreVideoOutput for PiP window")
+            playerManager.restoreVideoOutput()
         }
     }
 
