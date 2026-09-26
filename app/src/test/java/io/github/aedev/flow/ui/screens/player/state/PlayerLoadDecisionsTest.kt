@@ -3,7 +3,9 @@ package io.github.aedev.flow.ui.screens.player.state
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.stream.StoryboardLevel
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
@@ -12,6 +14,7 @@ import org.junit.Test
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.StreamSegment
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 /**
@@ -100,6 +103,22 @@ class PlayerLoadDecisionsTest {
         assertThat(next.isLoading).isFalse()
         assertThat(next.localFilePath).isNull()
         assertThat(next.localFileVideoId).isNull()
+    }
+
+    @Test
+    fun `the next video starts without the chapters, curve or filmstrip of the one before`() {
+        val before =
+            VideoPlayerUiState(
+                chapters = listOf(StreamSegment("Intro", 0)),
+                heatmap = VideoHeatmap(markers = listOf(mockk()), highlights = emptyList()),
+                storyboard = listOf(mockk<StoryboardLevel>()),
+            )
+
+        val next = before.resetForVideo(video("vid_b"))
+
+        assertThat(next.chapters).isEmpty()
+        assertThat(next.heatmap).isNull()
+        assertThat(next.storyboard).isEmpty()
     }
 
     @Test
