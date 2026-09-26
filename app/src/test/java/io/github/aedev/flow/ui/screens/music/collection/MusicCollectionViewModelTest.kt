@@ -177,6 +177,19 @@ class MusicCollectionViewModelTest {
     }
 
     @Test
+    fun `a saved playlist longer than one page is refreshed from every page`() {
+        val id = "PLsaved"
+        coEvery { playlists.getPlaylistEntity(id) } returns entity(id, own = false)
+        every { playlists.getPlaylistVideosWithAddedAtFlow(id) } returns flowOf(listOf(video("a")))
+        coEvery { YouTubeMusicService.fetchPlaylistDetails(id) } returns remote(id, listOf(track("a")), continuation = "next")
+        coEvery { YouTubeMusicService.fetchPlaylistContinuation(id, "next") } returns (listOf(track("b")) to null)
+
+        viewModel(id)
+
+        coVerify(timeout = 2_000) { playlists.syncSavedPlaylistVideos(id, match { it.map(Video::id) == listOf("a", "b") }) }
+    }
+
+    @Test
     fun `a failed load shows an error and Retry loads again`() {
         val id = "PLremote"
         coEvery { playlists.getPlaylistEntity(id) } returns null

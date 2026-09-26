@@ -17,7 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -25,11 +24,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
-import io.github.aedev.flow.ui.screens.music.MusicViewModel
+import io.github.aedev.flow.ui.screens.music.collection.MusicCollectionViewModel
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvLoadingState
 import io.github.aedev.flow.ui.tv.components.TvMessageState
@@ -38,29 +38,25 @@ import io.github.aedev.flow.ui.tv.focus.ProvideTvColumnPivot
 import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
 
+private const val PAGE_AHEAD_ROWS = 10
+
 /**
  * Album / playlist detail page for TV music: large art header with Play All
- * and Shuffle, then the focusable track list. Content comes from the shared
- * [MusicViewModel.fetchPlaylistDetails] (local playlists fast-path included).
+ * and Shuffle, then the focusable track list. It loads through the phone page's
+ * [MusicCollectionViewModel], so saved copies refresh and long playlists page in the same way.
  */
 @Composable
 fun TvMusicCollectionScreen(
-    collectionId: String,
-    viewModel: MusicViewModel,
     onTrackClick: (MusicTrack, List<MusicTrack>, String) -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: MusicCollectionViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val dimens = LocalTvDimens.current
 
-    LaunchedEffect(collectionId) { viewModel.fetchPlaylistDetails(collectionId) }
-    DisposableEffect(viewModel) {
-        onDispose { viewModel.clearPlaylistDetails() }
-    }
-
-    val details = state.playlistDetails
+    val details = state.details
     when {
-        state.isPlaylistLoading || (details == null && state.error == null) -> {
+        state.isLoading -> {
             TvLoadingState(modifier.fillMaxSize())
         }
 
@@ -158,7 +154,10 @@ fun TvMusicCollectionScreen(
                         itemsIndexed(
                             items = tracks,
                             key = { index, track -> "$index:${track.videoId}" },
-                        ) { _, track ->
+                        ) { index, track ->
+                            if (details.continuation != null && index >= tracks.size - PAGE_AHEAD_ROWS) {
+                                LaunchedEffect(tracks.size) { viewModel.loadMore() }
+                            }
                             TvMusicTrackRow(
                                 track = track,
                                 onClick = { onTrackClick(track, tracks, details.title) },

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.tv.navigation
 
 import android.net.Uri
+import io.github.aedev.flow.ui.screens.music.collection.MUSIC_COLLECTION_ARG as COLLECTION_ROUTE_ARG
 
 /** Detail routes layered over the top-level [TvDestination] tabs. */
 object TvRoutes {
@@ -10,7 +11,7 @@ object TvRoutes {
     const val PLAYLIST_ARG = "playlistId"
     const val PLAYLIST = "playlist/{$PLAYLIST_ARG}"
 
-    const val MUSIC_COLLECTION_ARG = "collectionId"
+    const val MUSIC_COLLECTION_ARG = COLLECTION_ROUTE_ARG
     const val MUSIC_COLLECTION = "musicCollection/{$MUSIC_COLLECTION_ARG}"
 
     const val MUSIC_ARTIST_ARG = "artistChannelId"
@@ -24,8 +25,7 @@ object TvRoutes {
 
     fun playlist(playlistId: String): String = "playlist/${Uri.encode(playlistId)}"
 
-    fun musicCollection(collectionId: String): String =
-        "musicCollection/${Uri.encode(collectionId)}"
+    fun musicCollection(collectionId: String): String = "musicCollection/${Uri.encode(collectionId)}"
 
     fun musicArtist(channelId: String): String = "musicArtist/${Uri.encode(channelId)}"
 }

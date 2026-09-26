@@ -421,7 +421,7 @@ class MusicCollectionViewModel
 
         /**
          * A saved album or playlist opens from the saved copy at once, so it works offline, then
-         * refreshes from YouTube once. A complete refresh replaces the saved songs.
+         * refreshes from YouTube once. Every page is loaded before the saved songs are replaced.
          */
         private suspend fun loadSaved() {
             val entity = playlists.getPlaylistEntity(collectionId) ?: return loadRemote()
@@ -439,10 +439,10 @@ class MusicCollectionViewModel
             val remote = fetchRemote() ?: return
             _state.update { it.copy(details = remote) }
             recordInGraph(remote)
-            if (remote.continuation == null && remote.tracks.isNotEmpty()) {
-                runCatching { playlists.syncSavedPlaylistVideos(collectionId, remote.tracks.map { it.toStoredVideo() }) }
-                    .onFailure { Log.w(TAG, "Saved copy of $collectionId not refreshed", it) }
-            }
+            val complete = if (remote.continuation == null) remote else loadAll() ?: return
+            val tracks = savedCopyRefresh(videos.map { it.id }, complete) ?: return
+            runCatching { playlists.syncSavedPlaylistVideos(collectionId, tracks.map { it.toStoredVideo() }) }
+                .onFailure { Log.w(TAG, "Saved copy of $collectionId not refreshed", it) }
         }
 
         private suspend fun loadRemote() {
