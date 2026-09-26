@@ -377,7 +377,7 @@ class FlowNeuroEngine(
                 storage.deleteLegacyFile()
             }
 
-            val maintained = runV15MaintenanceIfNeeded(currentUserBrain)
+            val maintained = runMaintenanceIfNeeded(currentUserBrain)
             if (maintained !== currentUserBrain) {
                 currentUserBrain = maintained
                 storage.save(currentUserBrain)
@@ -402,13 +402,13 @@ class FlowNeuroEngine(
         saveScope.cancel()
     }
 
-    /** One-time V15 maintenance — see NeuroMaintenance for the rationale. */
-    private fun runV15MaintenanceIfNeeded(brain: UserBrain): UserBrain {
-        val updated = NeuroMaintenance.runV15IfNeeded(brain, tokenizer)
+    /** One-time brain maintenance, see NeuroMaintenance for the rationale. */
+    private fun runMaintenanceIfNeeded(brain: UserBrain): UserBrain {
+        val updated = NeuroMaintenance.runIfNeeded(brain, tokenizer)
         if (updated !== brain) {
             Log.i(
                 TAG,
-                "V15 maintenance: topics ${brain.globalVector.topics.size} → " +
+                "Brain maintenance: topics ${brain.globalVector.topics.size} → " +
                     "${updated.globalVector.topics.size}, affinities ${brain.topicAffinities.size} → " +
                     "${updated.topicAffinities.size}",
             )
@@ -2468,8 +2468,8 @@ class FlowNeuroEngine(
                         ?: return@withContext false
 
                 brainMutex.withLock {
-                    // Imported brains may pre-date V15 — run the same maintenance.
-                    currentUserBrain = runV15MaintenanceIfNeeded(finalBrain)
+                    // Imported brains may pre-date the current maintenance, so run it.
+                    currentUserBrain = runMaintenanceIfNeeded(finalBrain)
                     idfWordFrequency = finalBrain.idfWordFrequency.toMutableMap()
                     idfTotalDocuments = finalBrain.idfTotalDocuments
                     watchHistory.clear()

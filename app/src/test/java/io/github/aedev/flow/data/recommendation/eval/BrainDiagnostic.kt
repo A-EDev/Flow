@@ -101,7 +101,7 @@ internal object BrainDiagnostic {
         val tokenizer = NeuroTokenizer()
         // Diagnose the brain AS THE APP WILL RUN IT: apply pending maintenance
         // migrations first (identical code path to engine initialize()).
-        val brain = NeuroMaintenance.runV15IfNeeded(rawBrain, tokenizer)
+        val brain = NeuroMaintenance.runIfNeeded(rawBrain, tokenizer)
         val discovery = NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
         val persona =
             FlowPersona.entries.find { it.name == brain.lastPersona } ?: FlowPersona.EXPLORER

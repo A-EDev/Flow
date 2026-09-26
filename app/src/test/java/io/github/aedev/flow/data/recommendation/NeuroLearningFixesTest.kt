@@ -79,7 +79,7 @@ class NeuroLearningFixesTest {
 
     @Test
     fun `v15 maintenance scrubs junk and rehydrates from channel profiles`() {
-        val updated = NeuroMaintenance.runV15IfNeeded(fossilBrain(), tokenizer)
+        val updated = NeuroMaintenance.runIfNeeded(fossilBrain(), tokenizer)
 
         assertThat(updated.schemaVersion).isEqualTo(NeuroMaintenance.TARGET_SCHEMA_VERSION)
         // Junk scrubbed.
@@ -99,9 +99,9 @@ class NeuroLearningFixesTest {
     }
 
     @Test
-    fun `v15 maintenance is a no-op on current brains`() {
-        val brain = fossilBrain().copy(schemaVersion = 15)
-        assertThat(NeuroMaintenance.runV15IfNeeded(brain, tokenizer)).isSameInstanceAs(brain)
+    fun `maintenance is a no-op on current brains`() {
+        val brain = fossilBrain().copy(schemaVersion = NeuroMaintenance.TARGET_SCHEMA_VERSION)
+        assertThat(NeuroMaintenance.runIfNeeded(brain, tokenizer)).isSameInstanceAs(brain)
     }
 
     // ── F5: every cluster in every feed + tree-depth descent ──
