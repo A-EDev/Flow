@@ -208,6 +208,10 @@ class EnhancedPlayerManager private constructor() {
     @Volatile
     var localCopySource: LocalCopySource? = null
 
+    /** Set by the DI graph; null until then, when autoplay hides nothing as before. */
+    @Volatile
+    var feedExclusionsSource: FeedExclusionsSource? = null
+
     // Coroutine scope
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -1825,7 +1829,7 @@ class EnhancedPlayerManager private constructor() {
                     )
                     setAutoplayCandidates(
                         sourceVideoId = enrichedVideo.id,
-                        videos = YouTubeRepository.getInstance().getRelatedCandidates(enrichedVideo.id),
+                        videos = visibleRelatedCandidates(enrichedVideo.id),
                         enabled = autoplayEnabled,
                     )
 
@@ -1940,6 +1944,13 @@ class EnhancedPlayerManager private constructor() {
         val videos: List<Video> = emptyList(),
     )
 
+    private suspend fun visibleRelatedCandidates(videoId: String): List<Video> {
+        val candidates = YouTubeRepository.getInstance().getRelatedCandidates(videoId)
+        return withContext(Dispatchers.Default) {
+            PlayerRelatedVideosPolicy.sanitizeHidden(videoId, candidates, feedExclusionsSource)
+        }
+    }
+
     private suspend fun resolveStreamsForVideo(
         video: Video,
         context: Context,
@@ -2001,7 +2012,7 @@ class EnhancedPlayerManager private constructor() {
                 durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
                 dashManifestUrl = extraction.liveDashUrl,
                 streamType = InnerTubeVideoMapper.streamType(extraction),
-                relatedVideos = YouTubeRepository.getInstance().getRelatedCandidates(video.id),
+                relatedVideos = visibleRelatedCandidates(video.id),
                 preferredCodec = preferredCodecKey,
                 itVideoFormats = extraction.videoFormats,
                 itAudioFormats = extraction.audioFormats,

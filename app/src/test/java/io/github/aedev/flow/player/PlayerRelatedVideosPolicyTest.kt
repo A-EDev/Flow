@@ -3,6 +3,7 @@ package io.github.aedev.flow.player
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FeedExclusions
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 class PlayerRelatedVideosPolicyTest {
@@ -160,6 +161,31 @@ class PlayerRelatedVideosPolicyTest {
 
         assertThat(sanitized.map { it.id }).containsExactly("keep")
     }
+
+    @Test
+    fun `background autoplay drops what the live source hides`() =
+        runTest {
+            val source =
+                FeedExclusionsSource {
+                    FeedExclusions(suppressedVideoIds = setOf("not-interested"), blockedChannelIds = setOf("blocked"))
+                }
+            val candidates =
+                listOf(video("keep"), video("not-interested"), video("from-blocked", channelId = "blocked"))
+
+            val sanitized = PlayerRelatedVideosPolicy.sanitizeHidden("playing", candidates, source)
+
+            assertThat(sanitized.map { it.id }).containsExactly("keep")
+        }
+
+    @Test
+    fun `background autoplay without a source keeps every candidate`() =
+        runTest {
+            val candidates = listOf(video("a"), video("b", channelId = "blocked"))
+
+            val sanitized = PlayerRelatedVideosPolicy.sanitizeHidden("playing", candidates, source = null)
+
+            assertThat(sanitized).containsExactlyElementsIn(candidates).inOrder()
+        }
 
     private fun video(
         id: String,
