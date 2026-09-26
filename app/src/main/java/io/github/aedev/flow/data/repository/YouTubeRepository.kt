@@ -17,6 +17,8 @@ import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.innertube.models.response.VideoHeatmapParser
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
+import io.github.aedev.flow.innertube.pages.YouTubeCountParser
+import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -1121,8 +1123,8 @@ class YouTubeRepository
                     channelName = resp.channelName(),
                     channelId = resp.channelId(),
                     channelAvatarUrl = resp.channelAvatarUrl(),
-                    subscriberCount = parseAbbreviatedCount(resp.subscriberCountText()),
-                    viewCount = parseAbbreviatedCount(resp.viewCountText()),
+                    subscriberCount = YouTubeCountParser.parse(resp.subscriberCountText(), YouTube.locale.hl),
+                    viewCount = YouTubeCountParser.parse(resp.viewCountText(), YouTube.locale.hl),
                     description = resp.description(),
                     relatedVideos = related,
                 )
@@ -1424,8 +1426,8 @@ internal fun mergeWatchMetadata(
         title = response.title().orEmpty().ifBlank { video.title },
         channelName = response.channelName().orEmpty().ifBlank { video.channelName },
         channelId = response.channelId().orEmpty().ifBlank { video.channelId },
-        viewCount = parseAbbreviatedCount(response.viewCountText()) ?: video.viewCount,
-        likeCount = parseAbbreviatedCount(response.likeCountText()) ?: video.likeCount,
+        viewCount = YouTubeCountParser.parse(response.viewCountText(), YouTube.locale.hl) ?: video.viewCount,
+        likeCount = YouTubeCountParser.parse(response.likeCountText(), YouTube.locale.hl) ?: video.likeCount,
         uploadDate = uploadDate,
         timestamp = timestamp,
         description = response.description().orEmpty().ifBlank { video.description },
@@ -1437,20 +1439,6 @@ internal fun mergeWatchMetadata(
                 video.channelThumbnailUrls
             },
     )
-}
-
-internal fun parseAbbreviatedCount(text: String?): Long? {
-    if (text.isNullOrBlank()) return null
-    val match = Regex("""([\d.,]+)\s*([KkMmBb])?""").find(text) ?: return null
-    val number = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
-    val mult =
-        when (match.groupValues[2].lowercase(Locale.US)) {
-            "k" -> 1_000.0
-            "m" -> 1_000_000.0
-            "b" -> 1_000_000_000.0
-            else -> 1.0
-        }
-    return (number * mult).toLong()
 }
 
 internal fun parseDurationTextToSeconds(text: String?): Int {
@@ -1521,7 +1509,7 @@ internal object WatchMetadataVideoMapper {
                 channelThumbnailUrl =
                     cv.channelAvatarUrl?.let(ThumbnailUrlResolver::resolveChannelAvatar).orEmpty(),
                 duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
-                viewCount = parseAbbreviatedCount(viewText) ?: 0L,
+                viewCount = parseYouTubeViewCount(viewText),
                 uploadDate = uploadDateText,
                 // Video.timestamp defaults to now(), which made every related item
                 // look brand new — defeating the age filter and shorts-shelf sort.

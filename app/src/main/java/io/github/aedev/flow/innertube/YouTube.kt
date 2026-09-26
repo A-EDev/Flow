@@ -86,6 +86,7 @@ import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
 import io.github.aedev.flow.innertube.pages.explore.exploreShelves
 import io.github.aedev.flow.innertube.pages.explore.toExploreDestinationShell
 import io.github.aedev.flow.innertube.pages.explore.toVideoChartsPage
+import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
 import io.github.aedev.flow.innertube.pages.reel.ReelLockup
 import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
 import io.github.aedev.flow.innertube.pages.reel.ReelParams
@@ -1244,7 +1245,7 @@ object YouTube {
             channelId = channelId,
             thumbnailUrl = thumbnail,
             duration = parseLengthText(durationText),
-            viewCount = parseViewCountText(viewsText),
+            viewCount = parseYouTubeViewCount(viewsText),
             uploadDate = uploadText,
             timestamp = uploadTimestamp ?: 0L,
             channelThumbnailUrl = channelThumbnailUrl,
@@ -1277,7 +1278,7 @@ object YouTube {
             channelId = channelId,
             thumbnailUrl = thumbnail,
             duration = parseLengthText(r.lengthText?.textValue()),
-            viewCount = parseViewCountText(viewsText),
+            viewCount = parseYouTubeViewCount(viewsText),
             uploadDate = uploadText,
             timestamp = RelativeUploadDateParser.parse(uploadText, locale.hl) ?: 0L,
             channelThumbnailUrl = avatarUrls.firstOrNull().orEmpty(),
@@ -1425,7 +1426,7 @@ object YouTube {
                 ?.url
                 ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
         val duration = parseLengthText(r.lengthText?.simpleText)
-        val viewCount = parseViewCountText(r.viewCountText?.simpleText)
+        val viewCount = parseYouTubeViewCount(r.viewCountText?.simpleText)
         val avatarUrls = r.channelAvatarUrls(channelThumbnailUrl)
         return io.github.aedev.flow.data.model.Video(
             id = videoId,
@@ -1482,33 +1483,6 @@ object YouTube {
             2 -> parts[0] * 60 + parts[1]
             else -> 0
         }
-    }
-
-    private fun parseViewCountText(text: String?): Long {
-        if (text.isNullOrBlank()) return 0L
-        val normalized =
-            text
-                .lowercase(Locale.US)
-                .replace(",", "")
-                .replace("views", "")
-                .replace("view", "")
-                .replace("watching", "")
-                .trim()
-        val number =
-            Regex("""(\d+(?:\.\d+)?)""")
-                .find(normalized)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toDoubleOrNull()
-                ?: return 0L
-        val multiplier =
-            when {
-                normalized.contains("b") -> 1_000_000_000.0
-                normalized.contains("m") -> 1_000_000.0
-                normalized.contains("k") -> 1_000.0
-                else -> 1.0
-            }
-        return (number * multiplier).toLong()
     }
 
     suspend fun album(
