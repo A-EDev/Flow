@@ -34,14 +34,13 @@ internal fun youtubeChannelUrl(channelIdOrHandle: String): String? {
 }
 
 /**
- * The browseId InnerTube wants, from whatever the nav route carried. A channel id and an @handle are
- * both valid browse targets, so a handle is kept rather than resolved through an extra request.
+ * The channel id the nav route carried, or null when it carried an @handle, `/c/` or `/user/` link.
+ * Browse answers 400 to those, so they are resolved to an id first.
  */
 internal fun youtubeChannelBrowseId(channelIdOrUrl: String): String? {
     val value = channelIdOrUrl.trim()
     if (value.isEmpty()) return null
     if (value.startsWith("UC") && !value.contains('/')) return value
-    if (value.startsWith("@") && !value.contains('/')) return value
 
     val segments =
         youtubeChannelUrl(value)
@@ -49,27 +48,16 @@ internal fun youtubeChannelBrowseId(channelIdOrUrl: String): String? {
             ?.split('/')
             ?.filter(String::isNotBlank)
             ?: return null
-    return when {
-        segments.firstOrNull() == "channel" -> segments.getOrNull(1)
-        segments.firstOrNull()?.startsWith("@") == true -> segments.first()
-        else -> null
-    }?.takeIf(String::isNotBlank)
+    return segments
+        .takeIf { it.firstOrNull() == "channel" }
+        ?.getOrNull(1)
+        ?.takeIf { it.startsWith("UC") }
 }
 
 internal fun youtubeChannelRoute(channelIdOrHandle: String): String? =
     youtubeChannelUrl(channelIdOrHandle)?.let { channelUrl ->
         "channel?url=${URLEncoder.encode(channelUrl, Charsets.UTF_8.name())}"
     }
-
-/**
- * The channel route an external link opens, or null when the link is not a `/channel/UC…` link.
- * InnerTube's browse rejects an @handle as a browseId (400), and `/c/` and `/user/` need a resolve
- * request the app does not make, so those fall through like any other unknown link.
- */
-internal fun youtubeChannelDeepLinkRoute(url: String): String? =
-    youtubeChannelBrowseId(url)
-        ?.takeIf { it.startsWith("UC") }
-        ?.let(::youtubeChannelRoute)
 
 private fun normalizeYoutubeChannelUrl(url: String): String {
     val uri = runCatching { URI(url) }.getOrNull() ?: return url
