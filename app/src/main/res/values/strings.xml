@@ -354,7 +354,6 @@
     <string name="description_copied">Description copied to clipboard</string>
     <string name="title_copied">Title copied to clipboard</string>
     <string name="tags">Tags</string>
-    <string name="in_this_video">In this video</string>
     <string name="sb_manual_skip">Skip</string>
     <string name="sb_skip_segment">Skip %1$s</string>
     <string name="ago">Ago</string>
@@ -3249,7 +3248,8 @@
     <string name="fallback_downloaded_locally">Downloaded locally</string>
     <string name="fallback_more_results">More results</string>
     <string name="remove_from_queue">Remove from queue</string>
-    <string name="remove_from_queue_confirmation">Are you sure you want to remove this video from the queue?</string>
+    <string name="removed_from_queue">Removed from queue</string>
+    <string name="queue_after_this_template">%1$s after this</string>
     <string name="reorder_queue_item">Reorder queue item</string>
     <string name="music_search_no_results">No results for \"%1$s\"</string>
     <plurals name="chapters_count_template">

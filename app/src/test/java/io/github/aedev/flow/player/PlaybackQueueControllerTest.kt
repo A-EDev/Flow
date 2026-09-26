@@ -149,7 +149,7 @@ class PlaybackQueueControllerTest {
     fun `removing an earlier video keeps the same video current`() {
         val controller = controllerOf("a", "b", "c", startIndex = 2)
 
-        assertThat(controller.removeAt(0)).isTrue()
+        assertThat(controller.removeAt(0)).isNotNull()
         assertThat(controller.currentIndex).isEqualTo(1)
         assertThat(controller.currentVideo?.id).isEqualTo("c")
         assertThat(controller.currentIndexState.value).isEqualTo(1)
@@ -159,9 +159,55 @@ class PlaybackQueueControllerTest {
     fun `the currently playing video cannot be removed out from under playback`() {
         val controller = controllerOf("a", "b", "c", startIndex = 1)
 
-        assertThat(controller.removeAt(1)).isFalse()
-        assertThat(controller.removeAt(9)).isFalse()
+        assertThat(controller.removeAt(1)).isNull()
+        assertThat(controller.removeAt(9)).isNull()
         assertThat(ids(controller.videos.value)).containsExactly("a", "b", "c").inOrder()
+    }
+
+    @Test
+    fun `undoing a removal before the current video puts it back and keeps the same video playing`() {
+        val controller = controllerOf("a", "b", "c", startIndex = 2)
+
+        val removed = controller.removeAt(0)!!
+
+        assertThat(controller.restore(removed)).isTrue()
+        assertThat(ids(controller.videos.value)).containsExactly("a", "b", "c").inOrder()
+        assertThat(controller.currentVideo?.id).isEqualTo("c")
+        assertThat(controller.currentIndex).isEqualTo(2)
+    }
+
+    @Test
+    fun `undoing a removal after the current video leaves the position alone`() {
+        val controller = controllerOf("a", "b", "c", startIndex = 0)
+
+        controller.restore(controller.removeAt(2)!!)
+
+        assertThat(ids(controller.videos.value)).containsExactly("a", "b", "c").inOrder()
+        assertThat(controller.currentIndex).isEqualTo(0)
+    }
+
+    @Test
+    fun `a removal undone while shuffled comes back in the original order too`() {
+        val controller = controllerOf("a", "b", "c", "d", startIndex = 0)
+        controller.setShuffleEnabled(true)
+        val shuffled = ids(controller.videos.value)
+
+        controller.restore(controller.removeAt(shuffled.indexOf("c"))!!)
+
+        assertThat(ids(controller.videos.value)).containsExactlyElementsIn(shuffled).inOrder()
+        controller.setShuffleEnabled(false)
+        assertThat(ids(controller.videos.value)).containsExactly("a", "b", "c", "d").inOrder()
+    }
+
+    @Test
+    fun `an undo from a queue that has since been replaced does nothing`() {
+        val controller = controllerOf("a", "b", "c")
+        val removed = controller.removeAt(1)!!
+
+        controller.setQueue(listOf(video("x"), video("y")), startIndex = 0, title = "Other")
+
+        assertThat(controller.restore(removed)).isFalse()
+        assertThat(ids(controller.videos.value)).containsExactly("x", "y").inOrder()
     }
 
     @Test

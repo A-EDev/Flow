@@ -16,6 +16,7 @@ internal data class PlayerControlActions(
     val onResizeClick: () -> Unit = {},
     val onPipClick: () -> Unit = {},
     val onChapterClick: () -> Unit = {},
+    val onQueueClick: () -> Unit = {},
     val onDescriptionClick: () -> Unit = {},
     val onSubtitleClick: () -> Unit = {},
     val onSubtitleLongClick: () -> Unit = {},

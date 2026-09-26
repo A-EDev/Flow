@@ -1,27 +1,19 @@
 package io.github.aedev.flow.ui.components.videoplayer.sheet
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,19 +21,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.FlowBottomSheet
-import io.github.aedev.flow.ui.components.shared.FlowSheetHeaderDefaults
+import io.github.aedev.flow.ui.components.shared.FlowSheetHeader
 import io.github.aedev.flow.ui.components.shared.defaultSheetExpandedHeight
+import io.github.aedev.flow.ui.components.shared.mediaLengthLabel
 import io.github.aedev.flow.ui.components.shared.rememberFlowBottomSheetState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
 
@@ -65,6 +56,7 @@ fun FlowPlaylistQueueBottomSheet(
     onDismiss: () -> Unit,
     expandedHeight: Dp? = null,
     collapsedHeight: Dp = 0.dp,
+    enableVerticalDismiss: Boolean = true,
     onSheetProgressChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -73,12 +65,8 @@ fun FlowPlaylistQueueBottomSheet(
     val displayItems =
         remember(queueVideos) {
             queueVideos
-                .mapIndexed { index, video ->
-                    QueueDisplayItem(
-                        key = "$index:${video.id}",
-                        video = video,
-                    )
-                }.toMutableStateList()
+                .zip(queueRowKeys(queueVideos)) { video, key -> QueueDisplayItem(key = key, video = video) }
+                .toMutableStateList()
         }
     val currentDisplayItem =
         remember(queueVideos, currentQueueIndex) {
@@ -119,23 +107,33 @@ fun FlowPlaylistQueueBottomSheet(
         state = sheetState,
         expandedHeight = expandedHeight ?: defaultSheetExpandedHeight(),
         collapsedHeight = collapsedHeight,
+        dismissible = enableVerticalDismiss,
         dismissOnOutsideTap = false,
         shape = RectangleShape,
         containerColor = MaterialTheme.colorScheme.surface,
         onProgressChange = onSheetProgressChange,
         header = { dragModifier ->
-            // Not FlowSheetHeader: this is the only sheet whose title truncates to one line and
-            // whose subtitle is bodyMedium, and neither reads as a shared header parameter.
-            QueueSheetHeader(
-                playlistTitle = playlistTitle,
-                currentQueueIndex = currentQueueIndex,
-                queueSize = queueVideos.size,
-                isLooping = isLooping,
-                isShuffled = isShuffled,
-                onLoopToggle = onLoopToggle,
-                onShuffleToggle = onShuffleToggle,
+            FlowSheetHeader(
+                inSidePane = !enableVerticalDismiss,
+                title = playlistTitle ?: stringResource(R.string.playlist_queue),
+                subtitle = queueSubtitle(queueVideos, currentQueueIndex),
                 onClose = { sheetState.dismiss() },
-                dragModifier = dragModifier,
+                modifier = dragModifier,
+                titleMaxLines = 1,
+                actions = {
+                    QueueModeToggle(
+                        checked = isShuffled,
+                        onCheckedChange = onShuffleToggle,
+                        imageVector = Icons.Rounded.Shuffle,
+                        contentDescription = stringResource(R.string.shuffle),
+                    )
+                    QueueModeToggle(
+                        checked = isLooping,
+                        onCheckedChange = onLoopToggle,
+                        imageVector = Icons.Rounded.Repeat,
+                        contentDescription = stringResource(R.string.repeat),
+                    )
+                },
             )
         },
     ) {
@@ -146,12 +144,14 @@ fun FlowPlaylistQueueBottomSheet(
                     .fillMaxWidth()
                     .weight(1f),
             contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             itemsIndexed(displayItems, key = { _, item -> item.key }) { index, item ->
                 val isPlaying = item === currentDisplayItem
                 PlaylistQueueItem(
                     video = item.video,
                     isPlaying = isPlaying,
+                    isPlayed = index < currentQueueIndex,
                     reorderModifier = reorderState.itemModifier(index),
                     dragHandleModifier = reorderState.handleModifier(index),
                     onClick = { onPlayVideoAtIndex(index) },
@@ -179,83 +179,33 @@ fun FlowPlaylistQueueBottomSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QueueSheetHeader(
-    playlistTitle: String?,
+private fun queueSubtitle(
+    queueVideos: List<Video>,
     currentQueueIndex: Int,
-    queueSize: Int,
-    isLooping: Boolean,
-    isShuffled: Boolean,
-    onLoopToggle: (Boolean) -> Unit,
-    onShuffleToggle: (Boolean) -> Unit,
-    onClose: () -> Unit,
-    dragModifier: Modifier,
+): String {
+    val position = stringResource(R.string.queue_position_template, currentQueueIndex + 1, queueVideos.size)
+    val secondsAfter =
+        remember(queueVideos, currentQueueIndex) {
+            queueVideos.drop(currentQueueIndex + 1).sumOf { it.duration.coerceAtLeast(0).toLong() }
+        }
+    val after = mediaLengthLabel(secondsAfter) ?: return position
+    return "$position ${stringResource(R.string.metadata_separator)} ${stringResource(R.string.queue_after_this_template, after)}"
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun QueueModeToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    imageVector: ImageVector,
+    contentDescription: String,
 ) {
-    Column(modifier = dragModifier) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            BottomSheetDefaults.DragHandle()
-        }
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = playlistTitle ?: stringResource(R.string.playlist_queue),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text =
-                        stringResource(
-                            R.string.queue_position_template,
-                            currentQueueIndex + 1,
-                            queueSize,
-                        ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            QueueModeIconButton(
-                selected = isShuffled,
-                onClick = { onShuffleToggle(!isShuffled) },
-                imageVector = Icons.Default.Shuffle,
-                contentDescription = stringResource(R.string.shuffle),
-            )
-            QueueModeIconButton(
-                selected = isLooping,
-                onClick = { onLoopToggle(!isLooping) },
-                imageVector = Icons.Default.Repeat,
-                contentDescription = stringResource(R.string.repeat),
-            )
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.size(40.dp),
-            ) {
-                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
-            }
-        }
-
-        HorizontalDivider(
-            color =
-                MaterialTheme.colorScheme.outlineVariant
-                    .copy(alpha = FlowSheetHeaderDefaults.DividerAlpha),
-        )
+    FilledTonalIconToggleButton(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        shapes = IconButtonDefaults.toggleableShapes(),
+    ) {
+        Icon(imageVector = imageVector, contentDescription = contentDescription)
     }
 }

@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -26,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
@@ -35,6 +38,7 @@ object FlowSheetHeaderDefaults {
     val ContentPadding: PaddingValues = PaddingValues(start = 16.dp, end = 16.dp, bottom = 6.dp)
     val CloseButtonSize: Dp = 40.dp
     val DividerAlpha: Float = 0.2f
+    val SidePaneTopPadding: Dp = 12.dp
 
     val titleStyle: TextStyle
         @Composable get() = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
@@ -54,6 +58,8 @@ object FlowSheetHeaderDefaults {
  *   default.
  * @param dividerAlpha alpha for the `outlineVariant` divider, or null for a header with no divider.
  * @param showDragHandle false inside a `ModalBottomSheet`, which already draws its own handle.
+ * @param inSidePane true when the sheet fills a side pane or drawer and cannot be dragged: no
+ *   handle, and space above the title in its place.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,9 +76,13 @@ fun FlowSheetHeader(
     dividerAlpha: Float? = FlowSheetHeaderDefaults.DividerAlpha,
     actions: @Composable RowScope.() -> Unit = {},
     showDragHandle: Boolean = true,
+    titleMaxLines: Int = Int.MAX_VALUE,
+    inSidePane: Boolean = false,
 ) {
     Column(modifier = modifier) {
-        if (showDragHandle) {
+        if (inSidePane) {
+            Spacer(Modifier.height(FlowSheetHeaderDefaults.SidePaneTopPadding))
+        } else if (showDragHandle) {
             Box(
                 modifier =
                     Modifier
@@ -117,6 +127,8 @@ fun FlowSheetHeader(
                     text = title,
                     style = titleStyle,
                     color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = titleMaxLines,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (subtitle != null) {
                     Text(

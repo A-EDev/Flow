@@ -34,6 +34,7 @@ internal data class PlayerControlsUiState(
     val isLooping: Boolean = false,
     val hasPrevious: Boolean = false,
     val hasNext: Boolean = false,
+    val hasQueue: Boolean = false,
     val sbSubmitEnabled: Boolean = false,
     val isCasting: Boolean = false,
     val isLive: Boolean = false,

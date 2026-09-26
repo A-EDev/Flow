@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.library
 
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -11,9 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.MediaRow
@@ -23,14 +19,10 @@ import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsB
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 
-// Wide enough for three digits at bodySmall; longer positions grow the column instead of wrapping.
-private val PositionColumnMinWidth: Dp = 24.dp
-
 /** A video in a playlist. Long press opens its menu, with the playlist's own remove when it has one. */
 @Composable
 internal fun PlaylistVideoRow(
     video: Video,
-    position: Int,
     isSelected: Boolean,
     inSelectionMode: Boolean,
     canModify: Boolean,
@@ -60,28 +52,20 @@ internal fun PlaylistVideoRow(
         selected = isSelected,
         onClick = onClick,
         onLongClick = if (inSelectionMode) null else ({ showQuickActions = true }),
-        leading = {
+        leading =
             when {
                 inSelectionMode -> {
-                    Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+                    { Checkbox(checked = isSelected, onCheckedChange = { onClick() }) }
                 }
 
                 showDragHandle -> {
-                    ReorderHandle(modifier = dragHandleModifier)
+                    { ReorderHandle(modifier = dragHandleModifier) }
                 }
 
                 else -> {
-                    Text(
-                        text = position.toString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier.widthIn(min = PositionColumnMinWidth),
-                    )
+                    null
                 }
-            }
-        },
+            },
     ) {
         MediaThumbnail(
             videoId = video.id,

@@ -167,7 +167,7 @@ class EnhancedVideoPlayerScreenLayoutTest {
 
         listOf(
             PlayerSheet.Description to R.string.description,
-            PlayerSheet.Chapters to R.string.in_this_video,
+            PlayerSheet.Chapters to R.string.chapters,
             PlayerSheet.Settings() to R.string.player_settings,
             PlayerSheet.Settings(PlayerSettingsPage.SubtitleStyle) to R.string.subtitle_style,
             PlayerSheet.SleepTimer to R.string.sleep_timer,

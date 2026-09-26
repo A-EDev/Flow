@@ -6,9 +6,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.ui.components.shared.mediaLengthLabel
 
-private const val SECONDS_PER_HOUR = 3_600
-private const val SECONDS_PER_MINUTE = 60
 private val SavableKinds = setOf(MusicCollectionKind.ALBUM, MusicCollectionKind.PLAYLIST, MusicCollectionKind.SAVED)
 
 /**
@@ -24,7 +23,7 @@ internal fun rememberCollectionHeaderState(
     val details = requireNotNull(state.details)
     val isAlbum = state.kind == MusicCollectionKind.ALBUM
     val totalSeconds = remember(tracks) { tracks.sumOf { it.duration.coerceAtLeast(0) } }
-    val length = details.durationText?.takeIf(String::isNotBlank) ?: totalLengthLabel(totalSeconds)
+    val length = details.durationText?.takeIf(String::isNotBlank) ?: mediaLengthLabel(totalSeconds.toLong())
     val separator = stringResource(R.string.metadata_separator)
     val metadata =
         listOfNotNull(
@@ -63,14 +62,3 @@ private fun kindLabel(kind: MusicCollectionKind?): String =
             MusicCollectionKind.PLAYLIST, null -> R.string.playlist
         },
     )
-
-@Composable
-private fun totalLengthLabel(totalSeconds: Int): String? {
-    val hours = totalSeconds / SECONDS_PER_HOUR
-    val minutes = (totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE
-    return when {
-        hours > 0 -> stringResource(R.string.duration_hours_minutes, hours, minutes)
-        minutes > 0 -> pluralStringResource(R.plurals.duration_minutes, minutes, minutes)
-        else -> null
-    }
-}

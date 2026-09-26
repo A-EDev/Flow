@@ -33,9 +33,7 @@ internal class PlaylistListMode(
     val showAddedDate: Boolean,
     val isWatchLater: Boolean,
     val isLikes: Boolean = false,
-    /** Set while a search narrows the list; each shown video keeps its number in the whole playlist. */
     val searchQuery: String = "",
-    val positions: Map<String, Int> = emptyMap(),
 )
 
 /**
@@ -97,7 +95,6 @@ internal fun PlaylistDetailList(
             PlaylistVideoRow(
                 modifier = if (mode.canReorder) Modifier else animateMediaListItem(),
                 video = video,
-                position = mode.positions[video.id] ?: (index + 1),
                 isSelected = video.id in mode.selectedIds,
                 inSelectionMode = mode.selectionMode,
                 canModify = mode.canModify,

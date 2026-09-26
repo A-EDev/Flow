@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit,
-    onPlayPlaylist: (videos: List<Video>, startIndex: Int, shuffle: Boolean) -> Unit,
+    onPlayPlaylist: (videos: List<Video>, startIndex: Int, shuffle: Boolean, title: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
@@ -130,8 +130,17 @@ fun PlaylistDetailScreen(
     val headerState = rememberPlaylistHeaderState(uiState, displayVideos, downloadBatch)
     val headerActions =
         PlaylistHeaderActions(
-            onPlayAll = { if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0, false) },
-            onShuffle = { if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, displayVideos.indices.random(), true) },
+            onPlayAll = { if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0, false, uiState.playlistName) },
+            onShuffle = {
+                if (displayVideos.isNotEmpty()) {
+                    onPlayPlaylist(
+                        displayVideos,
+                        displayVideos.indices.random(),
+                        true,
+                        uiState.playlistName,
+                    )
+                }
+            },
             onDownloadAll = { dialog = PlaylistDialog.DownloadAll },
             onSaveToggle = { if (uiState.isSaved) viewModel.unsaveFromLibrary() else viewModel.saveToLibrary() },
             onAddAll = { dialog = PlaylistDialog.AddAll },
@@ -211,11 +220,10 @@ fun PlaylistDetailScreen(
                                     canModify = canModify,
                                     selectionMode = selectionMode,
                                     selectedIds = selectedIds,
-                                    showAddedDate = isUserCreated,
+                                    showAddedDate = sortOrder.showsDateAdded,
                                     isWatchLater = uiState.isWatchLater,
                                     isLikes = uiState.isLikes,
                                     searchQuery = searchQuery.orEmpty(),
-                                    positions = positions,
                                 ),
                             isLoadingMore = uiState.isLoadingMore,
                             listState = listState,
@@ -224,7 +232,7 @@ fun PlaylistDetailScreen(
                                 if (selectionMode) {
                                     selectedIds = if (video.id in selectedIds) selectedIds - video.id else selectedIds + video.id
                                 } else {
-                                    onPlayPlaylist(displayVideos, positions[video.id]?.minus(1) ?: index, false)
+                                    onPlayPlaylist(displayVideos, positions[video.id]?.minus(1) ?: index, false, uiState.playlistName)
                                 }
                             },
                             onRemove = { viewModel.removeVideo(it.id) },

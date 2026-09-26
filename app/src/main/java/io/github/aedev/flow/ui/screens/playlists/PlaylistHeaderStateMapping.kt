@@ -8,9 +8,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadBatch
 import io.github.aedev.flow.ui.components.library.PlaylistHeaderState
-
-private const val SECONDS_PER_HOUR = 3_600L
-private const val SECONDS_PER_MINUTE = 60L
+import io.github.aedev.flow.ui.components.shared.mediaLengthLabel
 
 /**
  * What the header shows for this playlist: owner, count, total length and what kind of playlist it
@@ -28,7 +26,7 @@ internal fun rememberPlaylistHeaderState(
         listOfNotNull(
             uiState.ownerName?.takeIf(String::isNotBlank),
             pluralStringResource(R.plurals.videos_count_template, videos.size, videos.size),
-            totalLengthLabel(totalSeconds).takeUnless { uiState.isLoadingMore },
+            mediaLengthLabel(totalSeconds).takeUnless { uiState.isLoadingMore },
             when {
                 uiState.isWatchLater || uiState.isLikes -> stringResource(R.string.playlist_type_builtin)
                 isUserCreated -> stringResource(R.string.playlist_type_yours)
@@ -49,15 +47,4 @@ internal fun rememberPlaylistHeaderState(
         canExport = uiState.isLocalPlaylist,
         downloadProgress = downloadBatch?.takeUnless { it.isFinished }?.let { it.processed.toFloat() / it.total },
     )
-}
-
-@Composable
-private fun totalLengthLabel(totalSeconds: Long): String? {
-    val hours = (totalSeconds / SECONDS_PER_HOUR).toInt()
-    val minutes = ((totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE).toInt()
-    return when {
-        hours > 0 -> stringResource(R.string.duration_hours_minutes, hours, minutes)
-        minutes > 0 -> pluralStringResource(R.plurals.duration_minutes, minutes, minutes)
-        else -> null
-    }
 }

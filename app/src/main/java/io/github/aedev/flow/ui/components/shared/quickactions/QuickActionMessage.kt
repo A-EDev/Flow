@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.player.RemovedQueueEntry
 
 /**
  * A confirmation for the app's snackbar: [text] formatted with [arg], or [plainText] already
@@ -46,5 +47,10 @@ sealed interface QuickActionUndo {
     /** Files moved to the system trash; putting them back needs the system's consent, asked by the host. */
     data class RestoreFromTrash(
         val contentUris: List<String>,
+    ) : QuickActionUndo
+
+    /** A video swiped out of the player's queue. */
+    data class QueueRemoval(
+        val entry: RemovedQueueEntry,
     ) : QuickActionUndo
 }

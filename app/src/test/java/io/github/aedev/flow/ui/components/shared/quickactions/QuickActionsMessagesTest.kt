@@ -64,6 +64,7 @@ class QuickActionsMessagesTest {
             feedback = feedback,
             downloadOptions = loader,
             likedMedia = mockk(relaxed = true),
+            playerManager = { mockk(relaxed = true) },
         )
 
     private fun kotlinx.coroutines.test.TestScope.messagesOf(viewModel: QuickActionsViewModel): List<QuickActionMessage> {

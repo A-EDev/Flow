@@ -21,6 +21,7 @@ import io.github.aedev.flow.ui.components.videoplayer.placedWhen
 import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
 import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
+import io.github.aedev.flow.ui.screens.player.state.hasVisibleQueue
 
 /** The transport controls the expanded player mounts once its surfaces are at rest. */
 @UnstableApi
@@ -108,6 +109,7 @@ internal fun VideoStageControls(
             isLooping = playerState.isLooping,
             hasPrevious = playerState.hasPrevious || canGoPrevious,
             hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
+            hasQueue = hasVisibleQueue(playerState.queueTitle, playerState.queueSize),
             sbSubmitEnabled = prefs.sbSubmitEnabled,
             isCasting = DlnaCastManager.isCasting,
             isLive = !playerUiState.hlsUrl.isNullOrEmpty(),
@@ -157,6 +159,7 @@ internal fun VideoStageControls(
                 )
             },
             onChapterClick = { screenState.open(PlayerSheet.Chapters) },
+            onQueueClick = { screenState.open(PlayerSheet.Queue) },
             onDescriptionClick = { screenState.open(PlayerSheet.Description) },
             onSubtitleClick = {
                 if (screenState.subtitlesEnabled) {
