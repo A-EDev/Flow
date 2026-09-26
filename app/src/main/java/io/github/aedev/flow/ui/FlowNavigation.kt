@@ -833,6 +833,8 @@ fun NavGraphBuilder.flowAppGraph(
         val videoId = backStackEntry.arguments?.getString(MUSIC_PLAYER_ROUTE_ARG).orEmpty()
 
         LaunchedEffect(videoId) {
+            // The music player stays hidden while a video is loaded, so a music link closes it first.
+            if (playerViewModel.uiState.value.cachedVideo != null) GlobalPlayerState.requestDismiss()
             musicPlayerViewModel.playFromLink(videoId)
             onMusicStarted()
             withFrameNanos { }
