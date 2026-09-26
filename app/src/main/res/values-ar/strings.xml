@@ -3196,4 +3196,11 @@
         <item quantity="other">%d يوم</item>
     </plurals>
     <string name="recap_play_story">تشغيل مُلخصك</string>
+    <string name="settings_playback_summary">التشغيل التلقائي، الإيماءات، الترجمات وأزرار المشغّل</string>
+    <string name="settings_quality_summary">جودة الفيديو، والمقاطع القصيرة والموسيقى</string>
+    <string name="settings_content_summary">الصفحة الرئيسية والاشتراكات والمقاطع القصيرة والملاحظات</string>
+    <string name="settings_topics_summary">المواضيع التي تتابعها والمواضيع التي تخفيها</string>
+    <string name="settings_integrations_summary">SponsorBlock وDeArrow وعدم الإعجابات والمزيد</string>
+    <string name="settings_backup_summary">التصدير والاستيراد والنسخ الاحتياطي التلقائي</string>
+    <string name="settings_history_summary">سجل البحث والاقتراحات</string>
 </resources>
