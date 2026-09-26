@@ -251,8 +251,7 @@ class SubscriptionRepository private constructor(
         return repairs.size
     }
 
-    private fun serializeChannel(channel: ChannelSubscription): String =
-        "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}|${channel.isNotificationEnabled}|${channel.isMusic}|${channel.lastFeedFetchAt}"
+    private fun serializeChannel(channel: ChannelSubscription): String = SubscriptionRecordCodec.encode(channel)
 
     private fun ChannelSubscription.withPreservedThumbnail(preferences: Preferences): ChannelSubscription {
         val existing = preferences[channelKey(channelId)]?.let { deserializeChannel(it) }
@@ -267,27 +266,7 @@ class SubscriptionRepository private constructor(
         }
     }
 
-    private fun deserializeChannel(data: String): ChannelSubscription? =
-        try {
-            val parts = data.split("|")
-            if (parts.size >= 4) {
-                ChannelSubscription(
-                    channelId = parts[0],
-                    channelName = parts[1],
-                    channelThumbnail = parts[2],
-                    subscribedAt = parts[3].toLong(),
-                    lastVideoId = if (parts.size > 4 && parts[4].isNotEmpty()) parts[4] else null,
-                    lastCheckTime = if (parts.size > 5 && parts[5].isNotEmpty()) parts[5].toLong() else 0L,
-                    isNotificationEnabled = if (parts.size > 6 && parts[6].isNotEmpty()) parts[6].toBoolean() else false,
-                    isMusic = if (parts.size > 7 && parts[7].isNotEmpty()) parts[7].toBoolean() else false,
-                    lastFeedFetchAt = if (parts.size > 8 && parts[8].isNotEmpty()) parts[8].toLong() else 0L,
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
+    private fun deserializeChannel(data: String): ChannelSubscription? = SubscriptionRecordCodec.decode(data)
 
     /**
      * Update the notification state for a channel
