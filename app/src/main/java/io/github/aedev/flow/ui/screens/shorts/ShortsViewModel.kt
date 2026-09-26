@@ -78,9 +78,6 @@ class ShortsViewModel
         private var loadedSource: ShortsQueueSource? = null
         private var loadJob: Job? = null
 
-        /** The short the queue opened on; the user picked it, so no later filter may take it away. */
-        private var openedOnId: String? = null
-
         private val prefetch =
             FeedPrefetchQueue(
                 prefetchAheadItemCount = PREFETCH_AHEAD_REELS,
@@ -181,7 +178,6 @@ class ShortsViewModel
             val resolved = queueFactory.resolve(source)
             val controller = queueFactory.create(resolved)
             queue = controller
-            openedOnId = resolved.openAtVideoId
             _uiState.value = ShortsUiState(isLoading = true)
 
             // Resolving the tapped short's streams starts now rather than after the queue loads, so
@@ -338,8 +334,11 @@ class ShortsViewModel
             videoId: String,
             details: ShortDetails,
         ) {
-            if (videoId != openedOnId && feed.isBlocked(details.channelId, details.title, details.channelName)) {
-                if (queue?.remove(videoId) != ShortsQueueChange.None) publishQueue()
+            val dropped =
+                feed.isBlocked(details.channelId, details.title, details.channelName) &&
+                    (queue?.dropFiltered(videoId) ?: ShortsQueueChange.None) != ShortsQueueChange.None
+            if (dropped) {
+                publishQueue()
                 return
             }
             enrich(videoId) { short ->

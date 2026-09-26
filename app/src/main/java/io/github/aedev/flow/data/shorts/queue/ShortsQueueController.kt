@@ -68,6 +68,9 @@ class ShortsQueueController(
     private var legIndex = 0
     private var legStarted = false
 
+    /** The short the user opened the queue on. */
+    private var anchorId: String? = null
+
     /** False only once every loader is done, which is what stops the pager asking for more. */
     val hasMore: Boolean
         get() = legIndex < legs.size
@@ -91,6 +94,7 @@ class ShortsQueueController(
         _items.value = items
 
         val anchor = startVideoId?.takeIf { it.isNotBlank() }
+        anchorId = anchor
         _currentIndex.value = anchor?.let(::indexOf) ?: 0
         if (anchor != null && indexOf(anchor) == null && !pageToAnchor(anchor)) openOnPlaceholder(anchor)
     }
@@ -169,6 +173,12 @@ class ShortsQueueController(
      * or it keeps playing the one that was just rejected.
      */
     fun remove(id: String): ShortsQueueChange = removeAll { it.id == id }
+
+    /**
+     * Drops a reel an automatic filter rejected once it resolved, except the one the queue opened
+     * on: the user picked that one, and removing it would slide a different short under the tap.
+     */
+    fun dropFiltered(id: String): ShortsQueueChange = if (id == anchorId) ShortsQueueChange.None else remove(id)
 
     /** Drops every short of a channel — "Don't show this channel". */
     fun removeChannel(channelId: String): ShortsQueueChange {

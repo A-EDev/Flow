@@ -131,6 +131,29 @@ class ShortsQueueControllerTest {
             assertEquals(listOf("missing", "a", "f1"), ids(controller))
         }
 
+    // #1123: the tapped reel resolved to a blocked channel and was removed, so another played instead.
+    @Test
+    fun `a resolve-time filter never removes the short the queue opened on`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c"))))
+            controller.loadInitial(startVideoId = "b")
+
+            assertEquals(ShortsQueueChange.None, controller.dropFiltered("b"))
+            assertEquals(ShortsQueueChange.ListOnly, controller.dropFiltered("c"))
+
+            assertEquals(listOf("a", "b"), ids(controller))
+            assertEquals("b", controller.currentItem?.id)
+        }
+
+    @Test
+    fun `a user removal still takes the short the queue opened on`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
+            controller.loadInitial(startVideoId = "b")
+
+            assertEquals(ShortsQueueChange.CurrentItemChanged, controller.remove("b"))
+        }
+
     @Test
     fun `duplicates in the first page are dropped`() =
         runTest {
