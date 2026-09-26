@@ -31,6 +31,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -722,8 +723,7 @@ class EnhancedPlayerManager private constructor() {
         }
 
         // Collect per-category SponsorBlock actions and update handler
-        val sbCategories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
-        sbCategories.forEach { category ->
+        SponsorBlockCategories.all.forEach { category ->
             scope.launch {
                 prefs.sbActionForCategory(category).collect { action ->
                     val current = sponsorBlockHandler?.categoryActions?.toMutableMap() ?: mutableMapOf()
@@ -2722,6 +2722,8 @@ class EnhancedPlayerManager private constructor() {
 
     val sponsorSegments: StateFlow<List<SponsorBlockSegment>>
         get() = sponsorBlockHandler?.sponsorSegments ?: MutableStateFlow(emptyList())
+
+    fun reloadSponsorSegments(videoId: String) = sponsorBlockHandler?.reloadSegments(videoId)
 
     /** Emits the display label of a subtitle track whose fetch failed and will not be retried. */
     val subtitleLoadFailedEvent: SharedFlow<SubtitleLoadFailure>

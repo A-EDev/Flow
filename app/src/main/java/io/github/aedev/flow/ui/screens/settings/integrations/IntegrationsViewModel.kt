@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.discord.DiscordLinkResult
 import io.github.aedev.flow.discord.DiscordPresenceController
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
@@ -12,10 +13,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
-
-/** SponsorBlock's segment categories, in the order the settings list them. */
-internal val SponsorBlockCategories =
-    listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic", "filler", "preview", "exclusive_access")
 
 /** One segment category's behaviour and colour; a null [colorArgb] means the default colour. */
 @Immutable
@@ -42,13 +39,15 @@ class IntegrationsViewModel
         /** Every category's flows are built once here, not per recomposition. */
         val segments =
             combine(
-                SponsorBlockCategories.map { category ->
+                SponsorBlockCategories.all.map { category ->
                     combine(preferences.sbActionForCategory(category), preferences.sbColorForCategory(category)) { action, color ->
                         category to SegmentSetting(action, color)
                     }
                 },
             ) { pairs -> pairs.toMap() }
-                .asState(SponsorBlockCategories.associateWith { SegmentSetting(SponsorBlockAction.SKIP, null) })
+                .asState(
+                    SponsorBlockCategories.all.associateWith { SegmentSetting(SponsorBlockCategories.defaultAction(it), null) },
+                )
 
         private val _discordFailures = MutableSharedFlow<String>(extraBufferCapacity = 1)
 

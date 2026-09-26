@@ -13,29 +13,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.ui.components.shared.FlowDialogDefaults
 import io.github.aedev.flow.utils.formatDurationMillis
 import io.github.aedev.flow.utils.parseTimestampMs
+import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 import kotlinx.coroutines.launch
-
-/** All SponsorBlock submit categories shown in the dialog dropdown. */
-private val SB_SUBMIT_CATEGORIES =
-    listOf(
-        "sponsor" to R.string.sb_category_sponsor,
-        "intro" to R.string.sb_category_intro,
-        "outro" to R.string.sb_category_outro,
-        "selfpromo" to R.string.sb_category_selfpromo,
-        "interaction" to R.string.sb_category_interaction,
-        "music_offtopic" to R.string.sb_category_music_offtopic,
-        "filler" to R.string.sb_category_filler,
-        "preview" to R.string.sb_category_preview,
-        "exclusive_access" to R.string.sb_category_exclusive_access,
-    )
 
 /**
  * Dialog for submitting a new SponsorBlock segment.
- * End time is pre-filled with the current player position.
+ * End time is pre-filled with the current player position; [onSubmitted] runs once the server accepts it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +31,7 @@ internal fun SbSubmitSegmentDialog(
     videoId: String,
     currentPositionMs: Long,
     onDismiss: () -> Unit,
+    onSubmitted: () -> Unit,
     repository: SponsorBlockRepository = remember { SponsorBlockRepository() },
 ) {
     val context = LocalContext.current
@@ -130,7 +119,7 @@ internal fun SbSubmitSegmentDialog(
                         onExpandedChange = { categoryExpanded = it },
                     ) {
                         OutlinedTextField(
-                            value = stringResource(SB_SUBMIT_CATEGORIES[selectedCategoryIndex].second),
+                            value = submitCategoryLabel(SponsorBlockCategories.submittable[selectedCategoryIndex]),
                             onValueChange = {},
                             readOnly = true,
                             label = { Text(stringResource(R.string.sb_submit_category)) },
@@ -144,9 +133,9 @@ internal fun SbSubmitSegmentDialog(
                             expanded = categoryExpanded,
                             onDismissRequest = { categoryExpanded = false },
                         ) {
-                            SB_SUBMIT_CATEGORIES.forEachIndexed { idx, (_, labelRes) ->
+                            SponsorBlockCategories.submittable.forEachIndexed { idx, category ->
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(labelRes), style = MaterialTheme.typography.bodyLarge) },
+                                    text = { Text(submitCategoryLabel(category), style = MaterialTheme.typography.bodyLarge) },
                                     onClick = {
                                         selectedCategoryIndex = idx
                                         categoryExpanded = false
@@ -195,7 +184,7 @@ internal fun SbSubmitSegmentDialog(
                             submitSucceeded = null
                             coroutineScope.launch {
                                 val userId = playerPreferences.getOrCreateSbUserId()
-                                val category = SB_SUBMIT_CATEGORIES[selectedCategoryIndex].first
+                                val category = SponsorBlockCategories.submittable[selectedCategoryIndex]
                                 val success =
                                     repository.submitSegment(
                                         videoId = videoId,
@@ -206,7 +195,10 @@ internal fun SbSubmitSegmentDialog(
                                     )
                                 isSubmitting = false
                                 submitSucceeded = success
-                                if (success) onDismiss()
+                                if (success) {
+                                    onSubmitted()
+                                    onDismiss()
+                                }
                             }
                         },
                         enabled = !isSubmitting,
@@ -226,3 +218,6 @@ internal fun SbSubmitSegmentDialog(
         }
     }
 }
+
+@Composable
+private fun submitCategoryLabel(category: String): String = sponsorCategoryLabelRes(category)?.let { stringResource(it) } ?: category

@@ -2,6 +2,7 @@ package io.github.aedev.flow.player.sponsorblock
 
 import android.util.Log
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import kotlinx.coroutines.CancellationException
@@ -62,7 +63,7 @@ class SponsorBlockHandler(
     var isEnabled: Boolean = false
         private set
 
-    /** Map from category string (e.g. "sponsor") to the action to take. Defaults to SKIP for all. */
+    /** Category id to action; a category missing here takes [SponsorBlockCategories.defaultAction]. */
     var categoryActions: Map<String, SponsorBlockAction> = emptyMap()
 
     /**
@@ -137,6 +138,31 @@ class SponsorBlockHandler(
     }
 
     /**
+     * Refetch [videoId]'s segments in place, e.g. after the user submitted one. The current list stays
+     * on the seek bar until the new one arrives, and an empty answer (the fetch failed, or the server
+     * has not published the submission yet) keeps it.
+     */
+    fun reloadSegments(videoId: String) {
+        if (!isEnabled || videoId != currentVideoId) return
+        loadJob?.cancel()
+        loadJob =
+            scope.launch {
+                try {
+                    val segments = sponsorBlockRepository.getSegments(videoId)
+                    if (segments.isNotEmpty() && videoId == currentVideoId) {
+                        offlineSegmentsLoaded = false
+                        _sponsorSegments.value = segments
+                    }
+                    Log.d(TAG, "Reloaded ${segments.size} segments for video $videoId")
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to reload segments for video $videoId", e)
+                }
+            }
+    }
+
+    /**
      * Reset SponsorBlock state for a new video.
      */
     fun reset() {
@@ -183,7 +209,7 @@ class SponsorBlockHandler(
         }
 
         if (segment != null && segment.uuid != lastSkippedSegmentUuid) {
-            val action = categoryActions[segment.category] ?: SponsorBlockAction.SKIP
+            val action = categoryActions[segment.category] ?: SponsorBlockCategories.defaultAction(segment.category)
             Log.d(TAG, "Segment hit: ${segment.category} action=$action")
 
             return when (action) {
