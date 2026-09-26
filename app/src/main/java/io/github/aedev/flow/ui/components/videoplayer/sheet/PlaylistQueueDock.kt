@@ -49,8 +49,8 @@ private val NextThumbnailWidth = 72.dp
 @Composable
 fun PlaylistQueueDock(
     nextVideo: Video?,
+    nextPosition: Int,
     playlistName: String,
-    currentIndex: Int,
     queueSize: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -71,8 +71,8 @@ fun PlaylistQueueDock(
     ) {
         QueueNextUpRow(
             nextVideo = nextVideo,
+            nextPosition = nextPosition,
             playlistName = playlistName,
-            currentIndex = currentIndex,
             queueSize = queueSize,
             actionIcon = Icons.Rounded.KeyboardArrowUp,
             onAction = open,
@@ -85,8 +85,8 @@ fun PlaylistQueueDock(
 @Composable
 fun PlaylistQueuePaneCard(
     nextVideo: Video?,
+    nextPosition: Int,
     playlistName: String,
-    currentIndex: Int,
     queueSize: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -103,8 +103,8 @@ fun PlaylistQueuePaneCard(
     ) {
         QueueNextUpRow(
             nextVideo = nextVideo,
+            nextPosition = nextPosition,
             playlistName = playlistName,
-            currentIndex = currentIndex,
             queueSize = queueSize,
             actionIcon = Icons.AutoMirrored.Rounded.QueueMusic,
             onAction = open,
@@ -125,14 +125,13 @@ private fun rememberQueueOpenAction(onClick: () -> Unit): () -> Unit {
 @Composable
 private fun QueueNextUpRow(
     nextVideo: Video?,
+    nextPosition: Int,
     playlistName: String,
-    currentIndex: Int,
     queueSize: Int,
     actionIcon: ImageVector,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val position = (currentIndex + 1).coerceIn(1, queueSize.coerceAtLeast(1))
     Row(
         modifier = modifier.padding(start = 12.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -152,9 +151,9 @@ private fun QueueNextUpRow(
         ) {
             Text(
                 text =
-                    if (queueSize > 0) {
+                    if (nextVideo != null) {
                         "${stringResource(R.string.next_up)} ${stringResource(R.string.metadata_separator)} " +
-                            stringResource(R.string.queue_position_template, position, queueSize)
+                            stringResource(R.string.queue_position_template, nextPosition, queueSize)
                     } else {
                         stringResource(R.string.next_up)
                     },

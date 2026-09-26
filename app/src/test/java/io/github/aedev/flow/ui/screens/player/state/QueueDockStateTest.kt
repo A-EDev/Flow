@@ -29,9 +29,9 @@ class QueueDockStateTest {
 
     @Test
     fun `the next video wraps to the first only while looping`() {
-        assertThat(nextQueueVideo(queue, currentIndex = 0, isLooping = false)?.id).isEqualTo("b")
+        assertThat(nextQueueVideo(queue, currentIndex = 0, isLooping = false)).isEqualTo(IndexedValue(1, queue[1]))
         assertThat(nextQueueVideo(queue, currentIndex = 2, isLooping = false)).isNull()
-        assertThat(nextQueueVideo(queue, currentIndex = 2, isLooping = true)?.id).isEqualTo("a")
+        assertThat(nextQueueVideo(queue, currentIndex = 2, isLooping = true)).isEqualTo(IndexedValue(0, queue[0]))
     }
 
     @Test

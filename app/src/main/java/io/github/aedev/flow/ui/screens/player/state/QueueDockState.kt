@@ -25,14 +25,20 @@ internal fun hasVisibleQueue(
     queueSize: Int,
 ): Boolean = if (queueTitle != null) queueSize > 0 else queueSize > 1
 
-/** What plays after [currentIndex]: the next video, the first again when the queue loops, or null at the end. */
+/**
+ * What plays after [currentIndex], with its index: the next video, the first again when the queue
+ * loops, or null at the end.
+ */
 internal fun nextQueueVideo(
     queue: List<Video>,
     currentIndex: Int,
     isLooping: Boolean,
-): Video? =
-    when {
-        currentIndex < queue.lastIndex -> queue.getOrNull(currentIndex + 1)
-        isLooping -> queue.firstOrNull()
-        else -> null
-    }
+): IndexedValue<Video>? {
+    val index =
+        when {
+            currentIndex < queue.lastIndex -> currentIndex + 1
+            isLooping -> 0
+            else -> return null
+        }
+    return queue.getOrNull(index)?.let { IndexedValue(index, it) }
+}

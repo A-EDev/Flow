@@ -183,9 +183,9 @@ internal fun EnhancedVideoPlayerScreen(
                                 if (dockPlacement == QueueDockPlacement.IN_PANE) {
                                     {
                                         PlaylistQueuePaneCard(
-                                            nextVideo = nextVideo,
+                                            nextVideo = nextVideo?.value,
+                                            nextPosition = (nextVideo?.index ?: 0) + 1,
                                             playlistName = playerState.queueTitle.orEmpty(),
-                                            currentIndex = currentQueueIndex,
                                             queueSize = queueVideos.size,
                                             onClick = { screenState.open(PlayerSheet.Queue) },
                                         )
@@ -244,9 +244,9 @@ internal fun EnhancedVideoPlayerScreen(
 
         if (showsQueueDock) {
             PlaylistQueueDock(
-                nextVideo = nextVideo,
+                nextVideo = nextVideo?.value,
+                nextPosition = (nextVideo?.index ?: 0) + 1,
                 playlistName = playerState.queueTitle.orEmpty(),
-                currentIndex = currentQueueIndex,
                 queueSize = queueVideos.size,
                 onClick = { screenState.open(PlayerSheet.Queue) },
                 modifier =
