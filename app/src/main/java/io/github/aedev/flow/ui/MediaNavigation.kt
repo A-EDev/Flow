@@ -2,15 +2,22 @@ package io.github.aedev.flow.ui
 
 import android.net.Uri
 import androidx.navigation.NavHostController
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.components.layout.navigation.MediaNavigator
+import io.github.aedev.flow.utils.YouTubeLink
 
 internal const val MUSIC_ARTIST_ROUTE_PATTERN = "artist/{channelId}"
 internal const val MUSIC_ARTIST_ROUTE_ARG = "channelId"
 internal const val MUSIC_PLAYLIST_ROUTE_PATTERN = "musicPlaylist/{playlistId}"
 internal const val MUSIC_PLAYLIST_ROUTE_ARG = "playlistId"
+internal const val MUSIC_PLAYER_ROUTE_PATTERN = "musicPlayer/{videoId}"
+internal const val MUSIC_PLAYER_ROUTE_ARG = "videoId"
 internal const val EQUALIZER_ROUTE = "equalizer"
 
 internal fun musicArtistRoute(artistId: String): String? = artistId.trim().takeIf(String::isNotEmpty)?.let { "artist/${Uri.encode(it)}" }
+
+/** Plays a song in the music player from its id alone, the way a YouTube Music link names it. */
+internal fun musicPlayerRoute(videoId: String): String = "musicPlayer/${Uri.encode(videoId)}"
 
 /** Albums and playlists share one page; InnerTube tells them apart by the browse id itself. */
 internal fun musicCollectionRoute(collectionId: String): String? =
@@ -49,6 +56,17 @@ internal class FlowMediaNavigator(
         beforeNavigate()
         if (navController.currentBackStackEntry?.destination?.route == EQUALIZER_ROUTE) return
         navController.navigate(EQUALIZER_ROUTE)
+    }
+
+    override fun openLink(link: YouTubeLink): Boolean {
+        val destination = linkDestination(link) ?: return false
+        beforeNavigate()
+        when (destination) {
+            is LinkDestination.Video -> navController.navigateToPlayer(destination.videoId)
+            is LinkDestination.Short -> navController.openShorts(ShortsQueueSource.SeededFeed(destination.videoId))
+            is LinkDestination.Page -> navController.navigate(destination.route)
+        }
+        return true
     }
 
     private fun openCollection(id: String) = open(MUSIC_PLAYLIST_ROUTE_PATTERN, MUSIC_PLAYLIST_ROUTE_ARG, id, musicCollectionRoute(id))

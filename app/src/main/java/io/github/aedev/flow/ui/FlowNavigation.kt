@@ -13,7 +13,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import androidx.navigation.navDeepLink
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.localmedia.toMusicTrack
@@ -824,29 +823,17 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
-    // Music Player Screen - now a global draggable overlay.
+    // A YouTube Music link: the song plays in the music player, and this route leaves at once.
     composable(
-        route = "musicPlayer/{trackId}?title={title}&artist={artist}&thumbnailUrl={thumbnailUrl}",
-        arguments =
-            listOf(
-                navArgument("trackId") { type = NavType.StringType },
-                navArgument("title") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                },
-                navArgument("artist") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                },
-                navArgument("thumbnailUrl") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                },
-            ),
+        route = MUSIC_PLAYER_ROUTE_PATTERN,
+        arguments = listOf(navArgument(MUSIC_PLAYER_ROUTE_ARG) { type = NavType.StringType }),
     ) { backStackEntry ->
         currentRoute.value = "musicPlayer"
+        val musicPlayerViewModel = sharedMusicPlayerViewModel()
+        val videoId = backStackEntry.arguments?.getString(MUSIC_PLAYER_ROUTE_ARG).orEmpty()
 
-        LaunchedEffect(Unit) {
+        LaunchedEffect(videoId) {
+            musicPlayerViewModel.playFromLink(videoId)
             onMusicStarted()
             withFrameNanos { }
             navController.popTransientRouteOrNavigateStart(defaultStartRoute)
@@ -856,49 +843,6 @@ fun NavGraphBuilder.flowAppGraph(
     composable(
         route = "player/{videoId}",
         arguments = listOf(navArgument("videoId") { type = NavType.StringType }),
-        deepLinks =
-            listOf(
-                navDeepLink {
-                    uriPattern = "http://www.youtube.com/watch?v={videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "https://www.youtube.com/watch?v={videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "http://youtube.com/watch?v={videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "https://youtube.com/watch?v={videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "http://youtu.be/{videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "https://youtu.be/{videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "http://m.youtube.com/watch?v={videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "https://m.youtube.com/watch?v={videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "https://www.youtube.com/shorts/{videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-                navDeepLink {
-                    uriPattern = "https://youtube.com/shorts/{videoId}"
-                    action = android.content.Intent.ACTION_VIEW
-                },
-            ),
     ) { backStackEntry ->
         val videoId = backStackEntry.arguments?.getString("videoId")
         val effectiveVideoId =

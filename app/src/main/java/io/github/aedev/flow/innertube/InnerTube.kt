@@ -415,6 +415,14 @@ class InnerTube {
         )
     }
 
+    /** What a youtube.com link points at, as the endpoint the site would follow for it. */
+    suspend fun resolveUrl(
+        client: YouTubeClient,
+        url: String,
+    ) = mainSitePost(client, "navigation/resolve_url") { requestVisitorData ->
+        ResolveUrlBody(context = client.toContext(locale, requestVisitorData, null), url = url)
+    }
+
     /**
      * YouTube Charts, on its own host with its own client. The filter rides a top-level `query`
      * string rather than a protobuf `params`, and an unsupported country code answers 400 — see
