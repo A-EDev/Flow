@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DownloadDao {
-
     // ===== Download (parent) =====
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -30,7 +29,10 @@ interface DownloadDao {
     suspend fun exists(videoId: String): Boolean
 
     @Query("UPDATE downloads SET sponsorBlockSegmentsJson = :json WHERE videoId = :videoId")
-    suspend fun updateSponsorBlockData(videoId: String, json: String)
+    suspend fun updateSponsorBlockData(
+        videoId: String,
+        json: String,
+    )
 
     @Query("SELECT sponsorBlockSegmentsJson FROM downloads WHERE videoId = :videoId")
     suspend fun getSponsorBlockData(videoId: String): String?
@@ -47,16 +49,38 @@ interface DownloadDao {
     suspend fun updateItem(item: DownloadItemEntity)
 
     @Query("UPDATE download_items SET downloadedBytes = :downloadedBytes, status = :status WHERE id = :itemId")
-    suspend fun updateProgress(itemId: Int, downloadedBytes: Long, status: DownloadItemStatus)
+    suspend fun updateProgress(
+        itemId: Int,
+        downloadedBytes: Long,
+        status: DownloadItemStatus,
+    )
 
     @Query("UPDATE download_items SET status = :status WHERE id = :itemId")
-    suspend fun updateStatus(itemId: Int, status: DownloadItemStatus)
+    suspend fun updateStatus(
+        itemId: Int,
+        status: DownloadItemStatus,
+    )
 
     @Query("UPDATE download_items SET status = :status WHERE videoId = :videoId")
-    suspend fun updateAllItemsStatus(videoId: String, status: DownloadItemStatus)
+    suspend fun updateAllItemsStatus(
+        videoId: String,
+        status: DownloadItemStatus,
+    )
 
     @Query("UPDATE download_items SET downloadedBytes = :downloadedBytes, totalBytes = :totalBytes, status = :status WHERE id = :itemId")
-    suspend fun updateItemFull(itemId: Int, downloadedBytes: Long, totalBytes: Long, status: DownloadItemStatus)
+    suspend fun updateItemFull(
+        itemId: Int,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        status: DownloadItemStatus,
+    )
+
+    @Query("UPDATE download_items SET filePath = :filePath, fileName = :fileName WHERE id = :itemId")
+    suspend fun updateItemLocation(
+        itemId: Int,
+        filePath: String,
+        fileName: String,
+    )
 
     @Query("SELECT * FROM download_items WHERE id = :itemId")
     suspend fun getItemById(itemId: Int): DownloadItemEntity?
@@ -87,17 +111,20 @@ interface DownloadDao {
 
     /** Get downloads that have at least one item with VIDEO fileType */
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT DISTINCT d.* FROM downloads d 
         INNER JOIN download_items di ON d.videoId = di.videoId 
         WHERE di.fileType = 'VIDEO' 
         ORDER BY d.createdAt DESC
-    """)
+    """,
+    )
     fun getVideoDownloads(): Flow<List<DownloadWithItems>>
 
     /** Get downloads that have AUDIO items but NO VIDEO items */
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT DISTINCT d.* FROM downloads d 
         INNER JOIN download_items di ON d.videoId = di.videoId 
         WHERE di.fileType = 'AUDIO' 
@@ -105,26 +132,31 @@ interface DownloadDao {
             SELECT videoId FROM download_items WHERE fileType = 'VIDEO'
         )
         ORDER BY d.createdAt DESC
-    """)
+    """,
+    )
     fun getAudioOnlyDownloads(): Flow<List<DownloadWithItems>>
 
     /** Get downloads with active (DOWNLOADING/PENDING) items */
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT DISTINCT d.* FROM downloads d 
         INNER JOIN download_items di ON d.videoId = di.videoId 
         WHERE di.status IN ('DOWNLOADING', 'PENDING', 'PAUSED')
         ORDER BY d.createdAt DESC
-    """)
+    """,
+    )
     fun getActiveDownloads(): Flow<List<DownloadWithItems>>
 
     /** Check if a completed download exists for a video */
-    @Query("""
+    @Query(
+        """
         SELECT EXISTS(
             SELECT 1 FROM download_items 
             WHERE videoId = :videoId AND status = 'COMPLETED'
         )
-    """)
+    """,
+    )
     suspend fun isDownloaded(videoId: String): Boolean
 
     /** Get total download storage size */

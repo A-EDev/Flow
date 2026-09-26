@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
+import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
@@ -35,6 +36,8 @@ const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
 const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
 const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
 const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
+const val DEFAULT_CONCURRENT_DOWNLOADS = 3
+const val MAX_CONCURRENT_DOWNLOADS = 5
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
 private const val MAX_UNPLAYABLE_VIDEO_IDS = 300
@@ -96,11 +99,14 @@ class PlayerPreferences(
 
         // Download settings
         val DOWNLOAD_THREADS = intPreferencesKey("download_threads")
+        val CONCURRENT_DOWNLOADS = intPreferencesKey("concurrent_downloads")
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val DEFAULT_DOWNLOAD_CODEC = stringPreferencesKey("default_download_codec")
         val DOWNLOAD_LOCATION = stringPreferencesKey("download_location")
         val MUSIC_DOWNLOAD_LOCATION = stringPreferencesKey("music_download_location")
+        val DOWNLOAD_LOCATION_TREE = stringPreferencesKey("download_location_tree")
+        val MUSIC_DOWNLOAD_LOCATION_TREE = stringPreferencesKey("music_download_location_tree")
 
         // Download dialog style + remembered last-used download options (compact dialog)
         val DOWNLOAD_DIALOG_STYLE = stringPreferencesKey("download_dialog_style")
@@ -2532,6 +2538,19 @@ class PlayerPreferences(
         }
     }
 
+    /** How many downloads transfer at the same time. */
+    val concurrentDownloads: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                (preferences[Keys.CONCURRENT_DOWNLOADS] ?: DEFAULT_CONCURRENT_DOWNLOADS).coerceIn(1, MAX_CONCURRENT_DOWNLOADS)
+            }
+
+    suspend fun setConcurrentDownloads(count: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CONCURRENT_DOWNLOADS] = count.coerceIn(1, MAX_CONCURRENT_DOWNLOADS)
+        }
+    }
+
     // Download dialog style (Classic full dialog vs new Compact dialog)
     val downloadDialogStyle: Flow<DownloadDialogStyle> =
         context.playerPreferencesDataStore.data
@@ -2614,38 +2633,39 @@ class PlayerPreferences(
         }
     }
 
-    /** Custom download directory path (null = default Movies/Flow or Music/Flow) */
-    val downloadLocation: Flow<String?> =
+    /** The folder video downloads go to; unset means the default folder. */
+    val downloadLocation: Flow<DownloadLocation> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.DOWNLOAD_LOCATION]
+                DownloadLocation(preferences[Keys.DOWNLOAD_LOCATION], preferences[Keys.DOWNLOAD_LOCATION_TREE])
             }
 
-    suspend fun setDownloadLocation(path: String?) {
+    suspend fun setDownloadLocation(location: DownloadLocation) {
         context.playerPreferencesDataStore.edit { preferences ->
-            if (path != null) {
-                preferences[Keys.DOWNLOAD_LOCATION] = path
-            } else {
-                preferences.remove(Keys.DOWNLOAD_LOCATION)
-            }
+            preferences.putOrRemove(Keys.DOWNLOAD_LOCATION, location.path)
+            preferences.putOrRemove(Keys.DOWNLOAD_LOCATION_TREE, location.treeUri)
         }
     }
 
-    /** Custom music download directory path (null = use the video/global download location defaults) */
-    val musicDownloadLocation: Flow<String?> =
+    /** The folder music downloads go to; unset means they follow [downloadLocation]. */
+    val musicDownloadLocation: Flow<DownloadLocation> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
-                preferences[Keys.MUSIC_DOWNLOAD_LOCATION]
+                DownloadLocation(preferences[Keys.MUSIC_DOWNLOAD_LOCATION], preferences[Keys.MUSIC_DOWNLOAD_LOCATION_TREE])
             }
 
-    suspend fun setMusicDownloadLocation(path: String?) {
+    suspend fun setMusicDownloadLocation(location: DownloadLocation) {
         context.playerPreferencesDataStore.edit { preferences ->
-            if (path != null) {
-                preferences[Keys.MUSIC_DOWNLOAD_LOCATION] = path
-            } else {
-                preferences.remove(Keys.MUSIC_DOWNLOAD_LOCATION)
-            }
+            preferences.putOrRemove(Keys.MUSIC_DOWNLOAD_LOCATION, location.path)
+            preferences.putOrRemove(Keys.MUSIC_DOWNLOAD_LOCATION_TREE, location.treeUri)
         }
+    }
+
+    private fun MutablePreferences.putOrRemove(
+        key: Preferences.Key<String>,
+        value: String?,
+    ) {
+        if (value.isNullOrBlank()) remove(key) else this[key] = value
     }
 
     val proxyEnabled: Flow<Boolean> =
