@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.local.Duration
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.local.UploadDate
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.innertube.pages.SearchFixture
 import io.github.aedev.flow.innertube.pages.search.SearchHeader
 import io.github.aedev.flow.innertube.pages.search.toSearchResultsPage
@@ -40,7 +41,7 @@ class SearchPagingSourceTest {
         shortsEnabled: Boolean = true,
         onHeader: (SearchHeader) -> Unit = {},
         blocked: Set<String> = emptySet(),
-    ) = SearchPagingSource("sam sulek", filter, shortsEnabled, onHeader, loader) { blocked }
+    ) = SearchPagingSource("sam sulek", filter, shortsEnabled, onHeader, loader) { FeedExclusions(blockedChannelIds = blocked) }
 
     private suspend fun SearchPagingSource.loadPage(key: String? = null) =
         load(PagingSource.LoadParams.Refresh(key, 20, false)) as PagingSource.LoadResult.Page
@@ -223,14 +224,31 @@ class SearchPagingSourceTest {
                 videos = listOf(video(channelId = "UCblocked")),
             )
 
-        assertThat(listOf(shelf).withoutBlockedChannels(setOf("UCblocked"))).isEmpty()
+        assertThat(listOf(shelf).withoutHidden(FeedExclusions(blockedChannelIds = setOf("UCblocked")))).isEmpty()
     }
 
     @Test
     fun `a video with no channel id survives blocking`() {
         val item = SearchResultItem.VideoResult(video(channelId = ""))
 
-        assertThat(listOf(item).withoutBlockedChannels(setOf("UCblocked"))).containsExactly(item)
+        assertThat(listOf(item).withoutHidden(FeedExclusions(blockedChannelIds = setOf("UCblocked")))).containsExactly(item)
+    }
+
+    @Test
+    fun `a video marked not interested leaves the results but its channel stays`() {
+        val hidden = SearchResultItem.VideoResult(video(channelId = "UCkept"))
+        val channel =
+            SearchResultItem.ChannelResult(
+                io.github.aedev.flow.data.model
+                    .Channel(id = "UCkept", name = "Kept", thumbnailUrl = "", subscriberCount = 0L),
+            )
+
+        val visible =
+            listOf(hidden, channel).withoutHidden(
+                FeedExclusions(suppressedVideoIds = setOf(hidden.video.id), suppressedChannelIds = setOf("UCkept")),
+            )
+
+        assertThat(visible).containsExactly(channel)
     }
 
     private fun video(channelId: String) =

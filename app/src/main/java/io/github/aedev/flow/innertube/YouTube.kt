@@ -724,17 +724,27 @@ object YouTube {
                 response
                     .channelAboutContinuation()
                     ?.let { token -> runCatching { channelBrowseJson(continuation = token).toChannelAbout() }.getOrNull() }
-            val header = response.toChannelHeader(idOrHandle).mergedWith(about)
-            val tabs = response.toChannelTabs()
-            ChannelPage(
-                header = header,
-                tabs = tabs,
-                initialTab =
-                    tabs
-                        .firstOrNull { it.selected }
-                        ?.let { tab -> response.toChannelTabContent(tab.kind, header.toOwner()) },
-            )
+            response.toChannelPage(response.toChannelHeader(idOrHandle).mergedWith(about))
         }
+
+    /** [channel] without the About request, for callers that only need the header and the tabs. */
+    suspend fun channelLanding(channelId: String): Result<ChannelPage> =
+        runCatching {
+            val response = channelBrowseJson(browseId = channelId)
+            response.toChannelPage(response.toChannelHeader(channelId))
+        }
+
+    private fun JsonElement.toChannelPage(header: ChannelHeader): ChannelPage {
+        val tabs = toChannelTabs()
+        return ChannelPage(
+            header = header,
+            tabs = tabs,
+            initialTab =
+                tabs
+                    .firstOrNull { it.selected }
+                    ?.let { tab -> toChannelTabContent(tab.kind, header.toOwner()) },
+        )
+    }
 
     suspend fun channelTab(
         browseId: String,

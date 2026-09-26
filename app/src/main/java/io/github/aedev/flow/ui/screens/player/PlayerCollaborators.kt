@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.HomeFeedCacheRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.repository.LiveChatRepository
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -54,7 +55,7 @@ internal class PlayerCollaborators(
     isLoadCurrent: (Long) -> Boolean,
     currentLoadToken: () -> Long,
     shortsEnabled: () -> Boolean,
-    blockedChannelIds: () -> Set<String>,
+    exclusions: () -> FeedExclusions,
 ) {
     val comments =
         CommentsPager(
@@ -102,7 +103,7 @@ internal class PlayerCollaborators(
             currentState = { uiState.value },
             relatedVideosFor = ::relatedVideosFor,
             shortsEnabled = shortsEnabled,
-            blockedChannelIds = blockedChannelIds,
+            exclusions = exclusions,
             isPlaybackCurrent = isLoadCurrent,
             onResult = { result -> sessionApplier.applySecondary(result) },
         )

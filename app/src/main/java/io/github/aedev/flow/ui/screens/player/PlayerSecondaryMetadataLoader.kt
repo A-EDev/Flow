@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.models.response.VideoChapter
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
@@ -92,7 +93,7 @@ internal class PlayerSecondaryMetadataLoader(
     private val currentState: () -> VideoPlayerUiState,
     private val relatedVideosFor: (String) -> List<Video>,
     private val shortsEnabled: () -> Boolean,
-    private val blockedChannelIds: () -> Set<String>,
+    private val exclusions: () -> FeedExclusions,
     private val isPlaybackCurrent: (Long) -> Boolean,
     private val onResult: (SecondaryMetadata) -> Unit,
 ) {
@@ -325,7 +326,7 @@ internal class PlayerSecondaryMetadataLoader(
                 fallback = playerManager.relatedCandidatesFor(videoId),
                 current = relatedVideosFor(videoId),
                 shortsEnabled = shortsEnabled(),
-                blockedChannelIds = blockedChannelIds(),
+                exclusions = exclusions(),
             )
         if (selected.isNotEmpty()) {
             relatedLoad.takeOver(videoId, loadToken)
@@ -342,7 +343,13 @@ internal class PlayerSecondaryMetadataLoader(
                 if (awaitPlayback) awaitPlaybackStarted(videoId)
                 if (!isPlaybackCurrent(loadToken) || !relatedLoad.holds(videoId, loadToken)) return@launch
 
-                val managerCandidates = playerManager.relatedCandidatesFor(videoId)
+                val managerCandidates =
+                    PlayerRelatedVideosPolicy.sanitize(
+                        videoId = videoId,
+                        candidates = playerManager.relatedCandidatesFor(videoId),
+                        shortsEnabled = shortsEnabled(),
+                        exclusions = exclusions(),
+                    )
                 if (managerCandidates.isNotEmpty()) {
                     publish(videoId, managerCandidates, loadToken)
                     return@launch
@@ -361,7 +368,7 @@ internal class PlayerSecondaryMetadataLoader(
                         fallback = fallbackCandidates,
                         current = currentState().relatedVideos,
                         shortsEnabled = shortsEnabled(),
-                        blockedChannelIds = blockedChannelIds(),
+                        exclusions = exclusions(),
                     )
                 if (resolved.isNotEmpty()) {
                     publish(videoId, resolved, loadToken)
@@ -426,7 +433,7 @@ internal class PlayerSecondaryMetadataLoader(
                                 ?: innerTubeMeta?.relatedVideos
                                 ?: meta.relatedVideos,
                         shortsEnabled = shortsEnabled(),
-                        blockedChannelIds = blockedChannelIds(),
+                        exclusions = exclusions(),
                     )
                 val related =
                     metadataRelated.ifEmpty {

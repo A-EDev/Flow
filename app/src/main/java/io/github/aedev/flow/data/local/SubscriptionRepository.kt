@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.Flow
@@ -125,6 +126,7 @@ class SubscriptionRepository private constructor(
             .getDatabase(context)
             .cacheDao()
             .deleteSubscriptionFeedForChannel(channelId)
+        FeedInvalidationBus.emit(FeedInvalidationBus.Event.ChannelUnsubscribed(channelId))
     }
 
     /**

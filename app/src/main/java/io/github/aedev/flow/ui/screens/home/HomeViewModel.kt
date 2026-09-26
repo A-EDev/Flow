@@ -178,26 +178,11 @@ class HomeViewModel
                 FeedInvalidationBus.events.collect { event ->
                     when (event) {
                         is FeedInvalidationBus.Event.ChannelBlocked -> {
-                            HomeFeedCache.filterOut(channelId = event.channelId)
-                            HomeFeedCache.filterOut(videoId = event.videoId)
-                            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                                persistentHomeFeedCache.deleteChannel(event.channelId)
-                                persistentHomeFeedCache.deleteVideo(event.videoId)
-                            }
-                            _uiState.update { state ->
-                                state.copy(
-                                    videos =
-                                        state.videos.filter {
-                                            it.id != event.videoId && it.channelId != event.channelId
-                                        },
-                                    shorts =
-                                        state.shorts.filter {
-                                            it.id != event.videoId && it.channelId != event.channelId
-                                        },
-                                )
-                            }
-                            // Targeted eviction — preserves other channel caches in discovery engine
-                            shortsRepository.evictChannel(event.channelId)
+                            dropChannelFromFeed(event.channelId, event.videoId)
+                        }
+
+                        is FeedInvalidationBus.Event.ChannelUnsubscribed -> {
+                            dropChannelFromFeed(event.channelId)
                         }
 
                         is FeedInvalidationBus.Event.NotInterested -> {
@@ -357,6 +342,26 @@ class HomeViewModel
             viewModelScope.launch {
                 viewHistory.clearVideoHistory(videoId)
             }
+        }
+
+        private fun dropChannelFromFeed(
+            channelId: String,
+            videoId: String? = null,
+        ) {
+            HomeFeedCache.filterOut(channelId = channelId, videoId = videoId)
+            subsBacklog = subsBacklog.filter { it.channelId != channelId }
+            viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                persistentHomeFeedCache.deleteChannel(channelId)
+                videoId?.let { persistentHomeFeedCache.deleteVideo(it) }
+            }
+            _uiState.update { state ->
+                state.copy(
+                    videos = state.videos.filter { it.id != videoId && it.channelId != channelId },
+                    shorts = state.shorts.filter { it.id != videoId && it.channelId != channelId },
+                )
+            }
+            // Targeted eviction — preserves other channel caches in discovery engine
+            shortsRepository.evictChannel(channelId)
         }
 
         private suspend fun cacheFilters(): HomeFeedCacheFilters {

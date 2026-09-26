@@ -24,6 +24,10 @@ object FeedInvalidationBus {
         data class MarkedWatched(
             val videoId: String,
         ) : Event()
+
+        data class ChannelUnsubscribed(
+            val channelId: String,
+        ) : Event()
     }
 
     private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 8)
