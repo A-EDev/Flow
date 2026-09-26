@@ -261,7 +261,9 @@ class PlaybackLoadResolver
                 )
             } else {
                 Log.e(TAG, "InnerTube resolved nothing playable for $videoId and no offline copy found.")
-                onStep(upcomingOrFailure(videoId, PlaybackFailure.EXTRACTION, extractionFailureCause(videoId), relatedVideos, resolveUpcoming))
+                onStep(
+                    upcomingOrFailure(videoId, PlaybackFailure.EXTRACTION, extractionFailureCause(videoId), relatedVideos, resolveUpcoming),
+                )
             }
         }
 
