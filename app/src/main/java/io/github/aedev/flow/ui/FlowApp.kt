@@ -541,6 +541,8 @@ fun FlowApp(
                                         exitTransition = FlowNavTransitions.exit,
                                         popEnterTransition = FlowNavTransitions.popEnter,
                                         popExitTransition = FlowNavTransitions.popExit,
+                                        predictivePopEnterTransition = FlowNavTransitions.predictivePopEnter,
+                                        predictivePopExitTransition = FlowNavTransitions.predictivePopExit,
                                     ) {
                                         flowAppGraph(
                                             navController = navController,
