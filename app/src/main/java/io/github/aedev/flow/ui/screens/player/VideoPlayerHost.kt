@@ -31,6 +31,7 @@ import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.ui.components.videoplayer.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
 import io.github.aedev.flow.ui.components.videoplayer.PlayerSheetValue
+import io.github.aedev.flow.ui.components.videoplayer.isImmersivePlayer
 import io.github.aedev.flow.ui.screens.player.effects.*
 import io.github.aedev.flow.ui.screens.player.stage.*
 import io.github.aedev.flow.ui.screens.player.state.*
@@ -317,6 +318,13 @@ fun VideoPlayerHost(
         suppressFullscreenRequest = pipForcedFullscreen.value,
         isPortrait = screenState.isFullscreenPortrait,
         isLargeWindow = isLargeWindow,
+        hideSystemBars =
+            isImmersivePlayer(
+                isExpanded = playerSheetState.currentValue == PlayerSheetValue.Expanded,
+                isFullscreen = screenState.isFullscreen,
+                isLandscape = isLandscape,
+                isLargeWindow = isLargeWindow,
+            ),
     )
 
     OrientationResetEffect(activity)

@@ -139,8 +139,12 @@ fun DraggablePlayerLayout(
             val screenWidth = constraints.maxWidth.toFloat()
             val screenHeight = constraints.maxHeight.toFloat()
             val showImmersiveFullscreen =
-                state.currentValue == PlayerSheetValue.Expanded &&
-                    (isFullscreen || (isLandscape && !isLargeWindow))
+                isImmersivePlayer(
+                    isExpanded = state.currentValue == PlayerSheetValue.Expanded,
+                    isFullscreen = isFullscreen,
+                    isLandscape = isLandscape,
+                    isLargeWindow = isLargeWindow,
+                )
 
             val geometry =
                 computeDraggablePlayerGeometry(
