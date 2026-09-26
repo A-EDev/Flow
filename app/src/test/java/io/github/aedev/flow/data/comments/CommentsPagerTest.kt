@@ -114,6 +114,32 @@ class CommentsPagerTest {
         }
 
     @Test
+    fun `the next video does not keep the count or sort menu of the one before`() =
+        runTest(testDispatcher) {
+            val scope = CoroutineScope(testDispatcher)
+            coEvery { repository.getVideoComments("vid_a", null) } returns
+                CommentsPageResult(
+                    comments = listOf(comment("c1")),
+                    sortOptions = listOf(VideoCommentSort("Top", "top_token", selected = true)),
+                    totalText = "246",
+                    totalCount = 246L,
+                )
+            coEvery { repository.getVideoComments("vid_b", null) } returns
+                CommentsPageResult(comments = listOf(comment("c2")))
+            val pager = pager(scope)
+
+            pager.load("vid_a")
+            advanceUntilIdle()
+            pager.load("vid_b")
+            advanceUntilIdle()
+
+            assertThat(pager.totalText.value).isNull()
+            assertThat(pager.totalCount.value).isNull()
+            assertThat(pager.sortOptions.value).isEmpty()
+            scope.cancel()
+        }
+
+    @Test
     fun `selecting a sort reloads the section through that continuation`() =
         runTest(testDispatcher) {
             val scope = CoroutineScope(testDispatcher)

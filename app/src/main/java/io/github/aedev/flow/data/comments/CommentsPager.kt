@@ -130,6 +130,12 @@ internal class CommentsPager(
     ) {
         loadJob?.cancel()
         prefetchJob?.cancel()
+        // A re-sort keeps the header; a page without a count must not inherit the last video's (#1111).
+        if (videoId != loadingVideoId) {
+            _sortOptions.value = emptyList()
+            _totalText.value = null
+            _totalCount.value = null
+        }
         loadingVideoId = videoId
         activeSortToken = sortToken
         _comments.value = emptyList()

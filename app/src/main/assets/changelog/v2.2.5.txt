@@ -101,6 +101,7 @@ PERFORMANCE
 
 FIXES AND STABILITY
 - Fix a video without chapters showing the chapters, most-replayed curve and scrub preview of the video played before it (#1111)
+- Fix the comment count under the player showing the previous video's count when the next video has none
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
 - Fix onboarding subscribing to some channels under their handle instead of their id, which left them without a feed, and system back leaving setup instead of going to the previous step
 - Fix the music feed crashing after an update: release builds could mis-read the artist lists stored inside history, queues, playlists and downloads — stored tracks are now repaired on read, with no clean install needed
