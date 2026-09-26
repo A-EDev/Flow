@@ -46,8 +46,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
@@ -82,7 +80,7 @@ class FlowDownloadService : Service() {
     private val downloadJobs = ConcurrentHashMap<String, Job>()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val pendingDownloadStarts = AtomicInteger(0)
-    private val downloadSlots = Semaphore(MAX_CONCURRENT_DOWNLOADS)
+    private val downloadSlots = DownloadSlots()
     private val mainHandler = Handler(Looper.getMainLooper())
 
     // Room item IDs for each video's download items (videoId -> list of itemIds)
@@ -106,7 +104,6 @@ class FlowDownloadService : Service() {
         const val CHANNEL_ID = "flow_downloads"
         const val NOTIFICATION_GROUP = "flow_download_group"
         private const val FOREGROUND_NOTIFICATION_ID = 724
-        private const val MAX_CONCURRENT_DOWNLOADS = 3
 
         // Progress changes are shown in whole percent; the notification may not update faster anyway.
         private const val PROGRESS_INTERVAL_MS = 1_000L
@@ -297,6 +294,7 @@ class FlowDownloadService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        serviceScope.launch { preferences.concurrentDownloads.collect(downloadSlots::setLimit) }
         serviceScope.launch {
             val customPath = preferences.downloadLocation.firstOrNull()
             downloadManager.customDownloadPath = customPath
@@ -650,7 +648,7 @@ class FlowDownloadService : Service() {
 
                         Log.d(TAG, "Saved download for $videoId with ${ids.size} item(s): $ids")
 
-                        downloadSlots.withPermit {
+                        downloadSlots.withSlot {
                             updateNotification(mission, videoId)
                             val wifiOnly = preferences.downloadOverWifiOnly.firstOrNull() ?: false
                             if (wifiOnly && !isOnWifi()) {
@@ -1236,7 +1234,7 @@ class FlowDownloadService : Service() {
         val previousJob = downloadJobs[videoId]
         val job =
             serviceScope.launch {
-                downloadSlots.withPermit {
+                downloadSlots.withSlot {
                     val audioOnly =
                         downloadManager.getDownloadWithItems(videoId)?.isAudioOnly
                             ?: (mission.audioUrl == null && mission.savePath.endsWith(".m4a", ignoreCase = true))

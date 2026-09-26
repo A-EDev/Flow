@@ -6,6 +6,7 @@ import android.os.StatFs
 import androidx.compose.runtime.Immutable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.local.DEFAULT_CONCURRENT_DOWNLOADS
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
@@ -44,6 +45,7 @@ class DownloadSettingsViewModel
         val menuStyle = preferences.downloadDialogStyle.asState(DownloadDialogStyle.FULL)
         val wifiOnly = preferences.downloadOverWifiOnly.asState(false)
         val threads = preferences.downloadThreads.asState(DEFAULT_THREADS)
+        val concurrentDownloads = preferences.concurrentDownloads.asState(DEFAULT_CONCURRENT_DOWNLOADS)
         val cacheSizeMb = preferences.mediaCacheSizeMb.asState(DEFAULT_CACHE_MB)
 
         /** Space on the video location's volume, measured off the main thread whenever a location changes. */
@@ -88,6 +90,8 @@ class DownloadSettingsViewModel
         fun setWifiOnly(value: Boolean) = write { preferences.setDownloadOverWifiOnly(value) }
 
         fun setThreads(value: Int) = write { preferences.setDownloadThreads(value) }
+
+        fun setConcurrentDownloads(value: Int) = write { preferences.setConcurrentDownloads(value) }
 
         fun setCacheSize(value: Int) = write { preferences.setMediaCacheSizeMb(value) }
 

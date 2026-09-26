@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DownloadDialogStyle
+import io.github.aedev.flow.data.local.MAX_CONCURRENT_DOWNLOADS
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
@@ -86,6 +87,7 @@ internal fun DownloadSettingsScreen(
     val codec by viewModel.codec.collectAsStateWithLifecycle()
     val menuStyle by viewModel.menuStyle.collectAsStateWithLifecycle()
     val threads by viewModel.threads.collectAsStateWithLifecycle()
+    val concurrentDownloads by viewModel.concurrentDownloads.collectAsStateWithLifecycle()
     val cacheSizeMb by viewModel.cacheSizeMb.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
 
@@ -172,6 +174,14 @@ internal fun DownloadSettingsScreen(
             )
         }
         group(key = "downloads.performance", header = R.string.performance_header, footer = R.string.performance_optimization_note) {
+            slider(
+                DownloadsIndex.concurrentDownloads,
+                value = concurrentDownloads.toFloat(),
+                onValueCommitted = { viewModel.setConcurrentDownloads(it.toInt()) },
+                valueRange = 1f..MAX_CONCURRENT_DOWNLOADS.toFloat(),
+                steps = MAX_CONCURRENT_DOWNLOADS - 2,
+                valueLabel = { it.toInt().toString() },
+            )
             slider(
                 DownloadsIndex.threads,
                 value = threads.toFloat(),

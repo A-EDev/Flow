@@ -1575,12 +1575,14 @@
     <string name="performance_header">Performance</string>
     <string name="parallel_downloading_title">Parallel Downloading</string>
     <string name="parallel_downloading_subtitle">Download files in multiple chunks for max speed.</string>
-    <string name="concurrent_threads_title">Concurrent Threads</string>
+    <string name="concurrent_threads_title">Connections per file</string>
+    <string name="concurrent_downloads_title">Downloads at once</string>
+    <string name="concurrent_downloads_summary">How many files download at the same time</string>
     <plurals name="threads_per_download_template">
         <item quantity="one">%1$d thread per download</item>
         <item quantity="other">%1$d threads per download</item>
     </plurals>
-    <string name="performance_optimization_note">More threads can be faster but use more battery and heat.</string>
+    <string name="performance_optimization_note">More at once can be faster but uses more battery and heat.</string>
     <string name="location_dialog_subtitle">Choose where downloaded files are saved on your device.</string>
     <string name="location_preset_header">Preset Locations</string>
     <string name="location_custom_header">Custom Location</string>
@@ -2181,9 +2183,9 @@
     <string name="download_audio">Audio</string>
     <string name="download_title_label">Title</string>
     <string name="download_format_label">Format</string>
-    <string name="download_threads_label">Threads</string>
-    <string name="download_threads_decrease">Fewer download threads</string>
-    <string name="download_threads_increase">More download threads</string>
+    <string name="download_threads_label">Connections</string>
+    <string name="download_threads_decrease">Fewer connections per file</string>
+    <string name="download_threads_increase">More connections per file</string>
     <string name="download_no_compatible_audio">No compatible audio stream — download cannot proceed</string>
     <!-- Quality shown in the downloads list for a SABR download, whose resolution is not known up front -->
     <string name="download_quality_best">Best</string>

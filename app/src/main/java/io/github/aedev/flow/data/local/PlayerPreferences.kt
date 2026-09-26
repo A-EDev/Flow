@@ -35,6 +35,8 @@ const val DEFAULT_PORTRAIT_SEEKBAR_PADDING_DP = 16
 const val MAX_PORTRAIT_SEEKBAR_PADDING_DP = 64
 const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
 const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
+const val DEFAULT_CONCURRENT_DOWNLOADS = 3
+const val MAX_CONCURRENT_DOWNLOADS = 5
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
 private const val MAX_UNPLAYABLE_VIDEO_IDS = 300
@@ -96,6 +98,7 @@ class PlayerPreferences(
 
         // Download settings
         val DOWNLOAD_THREADS = intPreferencesKey("download_threads")
+        val CONCURRENT_DOWNLOADS = intPreferencesKey("concurrent_downloads")
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val DEFAULT_DOWNLOAD_CODEC = stringPreferencesKey("default_download_codec")
@@ -2529,6 +2532,19 @@ class PlayerPreferences(
     suspend fun setDownloadThreads(threads: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DOWNLOAD_THREADS] = threads
+        }
+    }
+
+    /** How many downloads transfer at the same time. */
+    val concurrentDownloads: Flow<Int> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                (preferences[Keys.CONCURRENT_DOWNLOADS] ?: DEFAULT_CONCURRENT_DOWNLOADS).coerceIn(1, MAX_CONCURRENT_DOWNLOADS)
+            }
+
+    suspend fun setConcurrentDownloads(count: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CONCURRENT_DOWNLOADS] = count.coerceIn(1, MAX_CONCURRENT_DOWNLOADS)
         }
     }
 
