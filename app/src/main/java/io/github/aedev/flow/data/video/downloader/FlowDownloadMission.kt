@@ -13,7 +13,7 @@ enum class MissionStatus {
     RUNNING,
     PAUSED,
     FINISHED,
-    FAILED
+    FAILED,
 }
 
 data class FlowDownloadMission(
@@ -24,79 +24,90 @@ data class FlowDownloadMission(
     val quality: String,
     val savePath: String,
     val fileName: String,
-    
     // User-Agent (important for YouTube streams)
     val userAgent: String = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
-
     // Optional codec requested by the download UI. Used when a direct URL is CDN-gated
     // and we need to re-resolve the same quality through SABR.
     val videoCodec: String? = null,
-    
     // Progress tracking — AtomicLong for lock-free thread-safe updates
     var totalBytes: Long = 0,
     var audioTotalBytes: Long = 0,
     var status: MissionStatus = MissionStatus.PENDING,
     var threads: Int = 3,
-    
     // Timestamps
     val createdTime: Long = System.currentTimeMillis(),
     var finishTime: Long = 0,
-
     // Error tracking
     var error: String? = null,
-
     var fallbackUrl: String? = null,
     var fallbackAudioUrl: String? = null,
     var fallbackCodec: String? = null,
-    var fallbackQuality: String? = null
+    var fallbackQuality: String? = null,
 ) {
     @Volatile
     var gatedHttp403: Boolean = false
+
+    /** Paused by the Wi-Fi only setting rather than by the user, so Wi-Fi coming back resumes it. */
+    @Volatile
+    var waitingForWifi: Boolean = false
+
     // Atomic counters — updated from multiple download threads without locks
     @Transient val downloadedBytesAtomic = AtomicLong(0L)
+
     @Transient val audioDownloadedBytesAtomic = AtomicLong(0L)
 
     @Transient val videoBlockCounter = AtomicInteger(0)
+
     @Transient val audioBlockCounter = AtomicInteger(0)
 
     // persist download blocks to avoid re-downloading
     @Transient val completedVideoBlocks: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+
     @Transient val completedAudioBlocks: MutableSet<Int> = ConcurrentHashMap.newKeySet()
 
     @Transient val partialVideoBlockBytes: ConcurrentHashMap<Int, Long> = ConcurrentHashMap()
+
     @Transient val partialAudioBlockBytes: ConcurrentHashMap<Int, Long> = ConcurrentHashMap()
 
     @Transient val activeCalls: MutableList<Call> = Collections.synchronizedList(mutableListOf())
 
     fun cancelActiveCalls(): Int {
-        val calls = synchronized(activeCalls) {
-            activeCalls.toList().also { activeCalls.clear() }
-        }
+        val calls =
+            synchronized(activeCalls) {
+                activeCalls.toList().also { activeCalls.clear() }
+            }
         calls.forEach { it.cancel() }
         return calls.size
     }
-    
+
     /** Convenience accessors for current downloaded bytes */
     val downloadedBytes: Long get() = downloadedBytesAtomic.get()
     val audioDownloadedBytes: Long get() = audioDownloadedBytesAtomic.get()
-    
+
     val progress: Float
         get() {
             val total = totalBytes + audioTotalBytes
             val current = downloadedBytesAtomic.get() + audioDownloadedBytesAtomic.get()
             return if (total > 0) current.toFloat() / total.toFloat() else 0f
         }
-        
+
     /** Lock-free progress update — safe to call from any thread */
-    fun updateProgress(bytesRead: Long, isAudio: Boolean = false) {
+    fun updateProgress(
+        bytesRead: Long,
+        isAudio: Boolean = false,
+    ) {
         if (isAudio) {
             audioDownloadedBytesAtomic.addAndGet(bytesRead)
         } else {
             downloadedBytesAtomic.addAndGet(bytesRead)
         }
     }
-    
+
     fun isRunning(): Boolean = status == MissionStatus.RUNNING
+
     fun isFinished(): Boolean = status == MissionStatus.FINISHED
+
     fun isFailed(): Boolean = status == MissionStatus.FAILED
+
+    fun resumesWhenWifiReturns(): Boolean = status == MissionStatus.PAUSED && waitingForWifi
 }

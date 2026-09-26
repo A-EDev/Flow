@@ -7,10 +7,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -86,8 +82,9 @@ class FlowDownloadService : Service() {
     // Room item IDs for each video's download items (videoId -> list of itemIds)
     private val itemIds = ConcurrentHashMap<String, MutableList<Int>>()
 
-    // WiFi connectivity callback
-    private var connectivityCallback: ConnectivityManager.NetworkCallback? = null
+    private val wifiGate by lazy {
+        WifiDownloadGate(this, onWifiAvailable = ::resumeDownloadsWaitingForWifi, onWifiLost = ::pauseForLostWifi)
+    }
 
     // Last text posted on the foreground summary, so an unchanged summary is not re-posted 4x/second
     @Volatile
@@ -651,13 +648,14 @@ class FlowDownloadService : Service() {
                         downloadSlots.withSlot {
                             updateNotification(mission, videoId)
                             val wifiOnly = preferences.downloadOverWifiOnly.firstOrNull() ?: false
-                            if (wifiOnly && !isOnWifi()) {
+                            if (wifiOnly) wifiGate.watch()
+                            if (wifiOnly && !wifiGate.isOnWifi()) {
                                 Log.i(TAG, "WiFi only enabled but not on WiFi. Pausing.")
                                 mission.status = MissionStatus.PAUSED
+                                mission.waitingForWifi = true
                                 mission.error = getString(R.string.download_waiting_for_wifi)
                                 updateAllItemStatuses(videoId, DownloadItemStatus.PAUSED)
                                 updateNotification(mission, videoId)
-                                registerWifiCallback(videoId)
                             } else {
                                 val isSabrDownload = !sabrStreamingUrl.isNullOrEmpty() && sabrAudioItag > 0
                                 if (isSabrDownload) {
@@ -1228,6 +1226,7 @@ class FlowDownloadService : Service() {
             return
         }
         Log.d(TAG, "handleResume: Resuming $videoId")
+        mission.waitingForWifi = false
 
         startForegroundPlaceholder()
 
@@ -1379,50 +1378,24 @@ class FlowDownloadService : Service() {
 
     // ===== WiFi Management =====
 
-    private fun isOnWifi(): Boolean {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(network) ?: return false
-        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    private fun resumeDownloadsWaitingForWifi() {
+        activeMissions.forEach { (id, mission) ->
+            if (mission.resumesWhenWifiReturns()) handleResume(id)
+        }
     }
 
-    private fun registerWifiCallback(videoId: String) {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        connectivityCallback =
-            object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    val caps = cm.getNetworkCapabilities(network)
-                    if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-                        // WiFi available — resume paused downloads
-                        activeMissions.forEach { (id, mission) ->
-                            if (mission.status == MissionStatus.PAUSED && mission.error == "Waiting for WiFi") {
-                                handleResume(id)
-                            }
-                        }
-                    }
-                }
-
-                override fun onLost(network: Network) {
-                    serviceScope.launch {
-                        val wifiOnly = preferences.downloadOverWifiOnly.firstOrNull() ?: false
-                        if (wifiOnly && !isOnWifi()) {
-                            // Pause all running downloads
-                            activeMissions.forEach { (id, mission) ->
-                                if (mission.status == MissionStatus.RUNNING) {
-                                    mission.error = getString(R.string.download_waiting_for_wifi)
-                                    handlePause(id)
-                                }
-                            }
-                        }
-                    }
+    private fun pauseForLostWifi() {
+        serviceScope.launch {
+            val wifiOnly = preferences.downloadOverWifiOnly.firstOrNull() ?: false
+            if (!wifiOnly || wifiGate.isOnWifi()) return@launch
+            activeMissions.forEach { (id, mission) ->
+                if (mission.status == MissionStatus.RUNNING) {
+                    mission.waitingForWifi = true
+                    mission.error = getString(R.string.download_waiting_for_wifi)
+                    handlePause(id)
                 }
             }
-        val request =
-            NetworkRequest
-                .Builder()
-                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                .build()
-        cm.registerNetworkCallback(request, connectivityCallback!!)
+        }
     }
 
     // ===== Notifications =====
@@ -1728,13 +1701,7 @@ class FlowDownloadService : Service() {
     override fun onDestroy() {
         mainHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
-        connectivityCallback?.let {
-            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            try {
-                cm.unregisterNetworkCallback(it)
-            } catch (_: Exception) {
-            }
-        }
+        wifiGate.release()
         serviceScope.cancel()
     }
 }
