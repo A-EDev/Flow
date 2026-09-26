@@ -26,7 +26,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.innertube.models.MediaInfo
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
@@ -81,7 +80,6 @@ class MediaDetailsViewModel
                 val duration =
                     info?.durationSeconds?.takeIf { it > 0 }
                         ?: subject.durationSeconds?.takeIf { it > 0 }
-                        ?: runCatching { YouTubeMusicService.fetchVideoDuration(subject.videoId) }.getOrDefault(0).takeIf { it > 0 }
                 val loaded = MediaDetailsState(info = info, durationSeconds = duration, isLoading = false)
                 cache[subject.videoId] = loaded
                 _state.value = loaded

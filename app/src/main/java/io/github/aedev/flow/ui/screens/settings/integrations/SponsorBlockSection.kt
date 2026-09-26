@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.ui.components.settings.SettingsListScope
 import io.github.aedev.flow.ui.components.settings.switch
 import io.github.aedev.flow.ui.components.shared.FlowNavRow
@@ -67,7 +68,7 @@ internal fun SettingsListScope.sponsorBlockSection(
     }
     if (enabled) {
         group(key = IntegrationsIndex.segments.key, header = R.string.sb_segments_header) {
-            SponsorBlockCategories.forEach { category ->
+            SponsorBlockCategories.all.forEach { category ->
                 row("integrations.segment.$category") { shape ->
                     SegmentRow(
                         category = category,
@@ -98,7 +99,7 @@ private fun SegmentRow(
     var menuOpen by remember { mutableStateOf(false) }
     val label = sponsorCategoryLabelRes(category)?.let { stringResource(it) } ?: category
     val colour = setting?.colorArgb?.let(::Color) ?: defaultSponsorBlockColor(category)
-    val action = setting?.action ?: SponsorBlockAction.SKIP
+    val action = setting?.action ?: SponsorBlockCategories.defaultAction(category)
 
     SegmentedListItem(
         verticalAlignment = Alignment.CenterVertically,

@@ -5,6 +5,7 @@ import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
 import io.github.aedev.flow.data.shorts.ChannelShortsFeed
 import io.github.aedev.flow.data.shorts.ChannelShortsOwner
+import io.github.aedev.flow.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -46,12 +47,13 @@ class ChannelShortsLoader(
             page(page.videos.map { it.toShortVideo() })
         }
 
-    /** `Channel.url` is always `/channel/<id>`; anything else has no id to browse. */
-    private fun resolveChannelId(): String? =
+    /** A channel page opened from an @handle or `/c/` link carries that link rather than an id. */
+    private suspend fun resolveChannelId(): String? =
         CHANNEL_ID
             .find(channelUrl)
             ?.groupValues
             ?.getOrNull(1)
+            ?: YouTube.resolveChannelId(channelUrl).getOrNull()
 
     private fun page(shorts: List<ShortVideo>): ShortsQueuePage {
         val hasMore = nextPage != null

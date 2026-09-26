@@ -377,7 +377,7 @@ class FlowNeuroEngine(
                 storage.deleteLegacyFile()
             }
 
-            val maintained = runV15MaintenanceIfNeeded(currentUserBrain)
+            val maintained = runMaintenanceIfNeeded(currentUserBrain)
             if (maintained !== currentUserBrain) {
                 currentUserBrain = maintained
                 storage.save(currentUserBrain)
@@ -402,13 +402,13 @@ class FlowNeuroEngine(
         saveScope.cancel()
     }
 
-    /** One-time V15 maintenance — see NeuroMaintenance for the rationale. */
-    private fun runV15MaintenanceIfNeeded(brain: UserBrain): UserBrain {
-        val updated = NeuroMaintenance.runV15IfNeeded(brain, tokenizer)
+    /** One-time brain maintenance, see NeuroMaintenance for the rationale. */
+    private fun runMaintenanceIfNeeded(brain: UserBrain): UserBrain {
+        val updated = NeuroMaintenance.runIfNeeded(brain, tokenizer)
         if (updated !== brain) {
             Log.i(
                 TAG,
-                "V15 maintenance: topics ${brain.globalVector.topics.size} → " +
+                "Brain maintenance: topics ${brain.globalVector.topics.size} → " +
                     "${updated.globalVector.topics.size}, affinities ${brain.topicAffinities.size} → " +
                     "${updated.topicAffinities.size}",
             )
@@ -2356,55 +2356,16 @@ class FlowNeuroEngine(
 
     /**
      * A typed search is the most explicit interest statement in the product.
-     * Records explicit topic evidence and nudges the global vector so searched
-     * topics can seed discovery — without counting as a full interaction.
+     * Records explicit topic evidence and plants the query's phrase-level topics
+     * (see NeuroSearchLearning) without counting as a full interaction.
      */
     suspend fun onSearchQuery(rawQuery: String) {
-        val query = rawQuery.trim()
-        if (query.isBlank()) return
-        val tokens = tokenizer.tokenize(query).distinct().take(4)
-        if (tokens.isEmpty()) return
+        if (rawQuery.isBlank()) return
         brainMutex.withLock {
-            val blocked = currentUserBrain.blockedTopics
-            val usable = tokens.filter { token -> blocked.none { b -> token == b || token == tokenizer.normalizeLemma(b) } }
-            if (usable.isEmpty()) return
-            val now = System.currentTimeMillis()
-            val updated = currentUserBrain.topicEvidence.toMutableMap()
-            usable.forEach { topic ->
-                val existing = updated[topic]
-                updated[topic] =
-                    TopicEvidence(
-                        positiveSignals = (existing?.positiveSignals ?: 0) + 1,
-                        negativeSignals = existing?.negativeSignals ?: 0,
-                        watchSignals = existing?.watchSignals ?: 0,
-                        explicitSignals = (existing?.explicitSignals ?: 0) + 1,
-                        positiveScore = ((existing?.positiveScore ?: 0.0) + 0.5).coerceAtMost(50.0),
-                        videoIds = existing?.videoIds.orEmpty(),
-                        channelIds = existing?.channelIds.orEmpty(),
-                        firstSeenAt = existing?.firstSeenAt?.takeIf { it > 0L } ?: now,
-                        lastSeenAt = now,
-                    )
-            }
-            val queryVector = ContentVector(topics = usable.associateWith { 1.0 / usable.size })
             val learned =
-                NeuroVectorMath.adjustVector(
-                    currentUserBrain.globalVector,
-                    queryVector,
-                    0.05,
-                )
-            currentUserBrain =
-                currentUserBrain.copy(
-                    // Typing a query is explicit intent — plant its topics so they
-                    // survive pruning and can seed discovery immediately.
-                    globalVector =
-                        NeuroVectorMath.plantTopics(
-                            learned,
-                            queryVector,
-                            NeuroScoring.TOPIC_ACQUISITION_FLOOR,
-                            NeuroScoring.TOPIC_ACQUISITION_TOP_K,
-                        ),
-                    topicEvidence = capEvidence(updated),
-                )
+                NeuroSearchLearning.learn(currentUserBrain, rawQuery, tokenizer, System.currentTimeMillis())
+                    ?: return
+            currentUserBrain = learned.copy(topicEvidence = capEvidence(learned.topicEvidence.toMutableMap()))
             scheduleDebouncedSave()
         }
     }
@@ -2507,8 +2468,8 @@ class FlowNeuroEngine(
                         ?: return@withContext false
 
                 brainMutex.withLock {
-                    // Imported brains may pre-date V15 — run the same maintenance.
-                    currentUserBrain = runV15MaintenanceIfNeeded(finalBrain)
+                    // Imported brains may pre-date the current maintenance, so run it.
+                    currentUserBrain = runMaintenanceIfNeeded(finalBrain)
                     idfWordFrequency = finalBrain.idfWordFrequency.toMutableMap()
                     idfTotalDocuments = finalBrain.idfTotalDocuments
                     watchHistory.clear()

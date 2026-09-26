@@ -44,6 +44,7 @@ import io.github.aedev.flow.ui.components.shared.FlowSortChip
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
+import io.github.aedev.flow.ui.components.shared.rememberShareLinksWithoutText
 import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
 import io.github.aedev.flow.utils.filterBySearch
 import io.github.aedev.flow.utils.shareLink
@@ -120,6 +121,7 @@ private fun CollectionContent(
     val quickActions = sharedQuickActionsViewModel()
     val scope = rememberCoroutineScope()
     val shareFailed = stringResource(R.string.playlist_share_failed)
+    val shareLinkOnly by rememberShareLinksWithoutText()
     val exportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PLAYLIST_FILE_MIME_TYPE)) { target ->
             target?.let(viewModel::exportTo)
@@ -208,7 +210,12 @@ private fun CollectionContent(
                         if (file != null) sharePlaylistFile(context, file, details.title) else quickActions.announce(shareFailed)
                     }
                 } else {
-                    shareLink(context, musicCollectionShareUrl(details.id, state.kind == MusicCollectionKind.ALBUM), details.title)
+                    shareLink(
+                        context,
+                        musicCollectionShareUrl(details.id, state.kind == MusicCollectionKind.ALBUM),
+                        details.title,
+                        shareLinkOnly,
+                    )
                 }
             },
             onAuthorClick = callbacks.onArtistClick,
