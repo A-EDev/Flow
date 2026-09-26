@@ -104,6 +104,87 @@ class NeuroLearningFixesTest {
         assertThat(NeuroMaintenance.runIfNeeded(brain, tokenizer)).isSameInstanceAs(brain)
     }
 
+    // ── #907: search queries plant phrases, not their words ──
+
+    private val floor = NeuroScoring.TOPIC_ACQUISITION_FLOOR
+
+    @Test
+    fun `multi-word search plants its bigrams and no word at the floor`() {
+        val learned = NeuroSearchLearning.learn(UserBrain(), "lofi hip hop", tokenizer, now = 1_000L)!!
+        val topics = learned.globalVector.topics
+
+        assertThat(topics.getValue("hip hop")).isAtLeast(floor)
+        assertThat(topics.getValue("lofi hip")).isAtLeast(floor)
+        listOf("lofi", "hip", "hop").forEach { word ->
+            assertThat(topics[word] ?: 0.0).isLessThan(floor)
+        }
+        assertThat(learned.topicEvidence.keys).containsExactly("lofi hip", "hip hop")
+    }
+
+    @Test
+    fun `generic words of a query keep a weak contribution`() {
+        val learned = NeuroSearchLearning.learn(UserBrain(), "lofi hip hop", tokenizer, now = 1_000L)!!
+        assertThat(learned.globalVector.topics["lofi"] ?: 0.0).isGreaterThan(0.0)
+    }
+
+    @Test
+    fun `single-word search still plants the word`() {
+        val learned = NeuroSearchLearning.learn(UserBrain(), "woodworking", tokenizer, now = 1_000L)!!
+        assertThat(learned.globalVector.topics.getValue("woodworking")).isAtLeast(floor)
+        assertThat(learned.topicEvidence.getValue("woodworking").explicitSignals).isEqualTo(1)
+    }
+
+    @Test
+    fun `catalog words of a multi-word search are planted beside the phrase`() {
+        val topics = NeuroSearchLearning.queryTopics("minecraft hardcore", tokenizer)
+        assertThat(topics.phrases).containsExactly("minecraft hardcore", "minecraft")
+        assertThat(topics.weakWords).containsExactly("hardcore")
+    }
+
+    @Test
+    fun `blocked words never reach a planted phrase`() {
+        val topics = NeuroSearchLearning.queryTopics("lofi hip hop", tokenizer, blockedTopics = setOf("lofi"))
+        assertThat(topics.phrases).containsExactly("hip hop")
+        assertThat(topics.phrases + topics.weakWords).doesNotContain("lofi")
+    }
+
+    @Test
+    fun `plantTopics prefers bigrams and skips their words`() {
+        val source =
+            ContentVector(topics = mapOf("hip" to 0.9, "hop" to 0.8, "hip hop" to 0.5, "beats" to 0.3))
+        val planted = NeuroVectorMath.plantTopics(ContentVector(), source, floor, topK = 3)
+        assertThat(planted.topics.keys).containsExactly("hip hop", "beats")
+    }
+
+    private fun searchEvidence(time: Long) =
+        TopicEvidence(positiveSignals = 1, explicitSignals = 1, positiveScore = 0.5, firstSeenAt = time, lastSeenAt = time)
+
+    @Test
+    fun `v16 maintenance scrubs words planted by multi-word searches`() {
+        val words = listOf("lofi", "hip", "hop", "woodworking", "minecraft", "hardcore", "claude")
+        val brain =
+            UserBrain(
+                schemaVersion = 15,
+                globalVector = ContentVector(topics = words.associateWith { floor }),
+                topicEvidence =
+                    mapOf(
+                        "lofi" to searchEvidence(1_000L),
+                        "hip" to searchEvidence(1_000L),
+                        "hop" to searchEvidence(1_000L),
+                        "woodworking" to searchEvidence(2_000L),
+                        "minecraft" to searchEvidence(3_000L),
+                        "hardcore" to searchEvidence(3_000L),
+                        "claude" to searchEvidence(1_000L).copy(watchSignals = 1, videoIds = setOf("v1")),
+                    ),
+            )
+
+        val updated = NeuroMaintenance.runIfNeeded(brain, tokenizer)
+
+        assertThat(updated.schemaVersion).isEqualTo(16)
+        assertThat(updated.globalVector.topics.keys).containsExactly("woodworking", "minecraft", "claude")
+        assertThat(updated.topicEvidence.keys).containsExactly("woodworking", "minecraft", "claude")
+    }
+
     // ── F5: every cluster in every feed + tree-depth descent ──
 
     @Test
