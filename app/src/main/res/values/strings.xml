@@ -3074,6 +3074,7 @@
     <string name="error_search_timed_out">Search timed out</string>
     <string name="error_filter_search_timed_out">Filter search timed out</string>
     <string name="error_failed_to_load_playlist">Failed to load playlist</string>
+    <string name="error_failed_to_load_artist">Couldn\'t load this artist</string>
     <string name="error_failed_to_load_content">Failed to load content</string>
     <string name="error_no_videos_found">No videos found</string>
     <string name="error_no_shorts_found">No Shorts found</string>

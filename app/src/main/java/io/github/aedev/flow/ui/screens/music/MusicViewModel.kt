@@ -1312,15 +1312,16 @@ class MusicViewModel
          *  PERFORMANCE OPTIMIZED: Fetch artist details with timeout
          */
         fun fetchArtistDetails(channelId: String) {
+            _uiState.update {
+                it.copy(
+                    isArtistLoading = true,
+                    artistLoadFailed = false,
+                    artistDetails = null,
+                    artistInsights = null,
+                    knownRelatedArtistIds = emptySet(),
+                )
+            }
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                _uiState.value =
-                    _uiState.value.copy(
-                        isArtistLoading = true,
-                        artistDetails = null,
-                        artistInsights = null,
-                        knownRelatedArtistIds = emptySet(),
-                    )
-
                 supervisorScope {
                     val detailsDeferred =
                         async(PerformanceDispatcher.networkIO) {
@@ -1356,6 +1357,7 @@ class MusicViewModel
                     _uiState.value =
                         _uiState.value.copy(
                             isArtistLoading = false,
+                            artistLoadFailed = details == null,
                             artistDetails = details?.copy(isSubscribed = isSubscribed),
                             artistInsights = insights,
                             knownRelatedArtistIds = knownRelated,
@@ -1615,6 +1617,7 @@ data class MusicUiState(
     val artistInsights: MusicArtistInsights? = null,
     val knownRelatedArtistIds: Set<String> = emptySet(),
     val isArtistLoading: Boolean = false,
+    val artistLoadFailed: Boolean = false,
     val playlistDetails: PlaylistDetails? = null,
     val selectedPlaylist: PlaylistDetails? = null,
     val isPlaylistLoading: Boolean = false,
