@@ -114,11 +114,11 @@ internal fun ShortsSettingsSheet(
         if (state.availableQualities.isNotEmpty()) return
         withStreams {
             state.availableQualities = viewModel.availableQualities(short.id)
-            val activeFormat = playerPool.ownedPlayer(pageIndex)?.videoFormat
+            val activeFormat = playerPool.ownedPlayer(pageIndex, short.id)?.videoFormat
             val active =
                 findActiveShortQuality(
                     qualities = state.availableQualities,
-                    currentVideoUrl = playerPool.getVideoUrlForIndex(pageIndex),
+                    currentVideoUrl = playerPool.getVideoUrlForIndex(pageIndex, short.id),
                     activeVideoWidth = activeFormat?.width ?: 0,
                     activeVideoHeight = activeFormat?.height ?: 0,
                     activeCodecKey = activeFormat?.let { VideoCodecUtils.codecKeyFromMimeType(it.fullMimeType()) },

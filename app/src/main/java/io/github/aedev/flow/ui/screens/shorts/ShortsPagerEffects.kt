@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.ShortVideo
@@ -72,31 +73,46 @@ internal fun ShortsPagerPlaybackEffects(
     viewModel: ShortsViewModel,
 ) {
     val context = LocalContext.current
-    val settledShortId = shorts.getOrNull(pagerState.settledPage)?.id
+    val settledPage = pagerState.settledPage
+    val settledShortId = shorts.getOrNull(settledPage)?.id
+    val preparedShortId = remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(pagerState.settledPage, settledShortId, targetHeight) {
+    LaunchedEffect(settledPage, settledShortId, targetHeight) {
         val height = targetHeight ?: return@LaunchedEffect
-        val settled = pagerState.settledPage
+        val current = shorts.getOrNull(settledPage) ?: return@LaunchedEffect
+        preparedShortId.value = null
         val playerPool = ShortsPlayerPool.getInstance()
         playerPool.initialize(context)
-        playerPool.setCurrentVideo(shorts.getOrNull(settled))
+        playerPool.setCurrentVideo(current)
         val preferredLang = playerPreferences.preferredAudioLanguage.first()
 
-        playerPool.activatePlayer(settled)
-
-        // Awaited, not launched alongside the neighbours. Each resolve mints a BotGuard PoToken, and
-        // those serialise on one process-wide WebView — so firing all of them at once can leave the
-        // short the user is looking at queued behind two it cannot see.
-        shorts.getOrNull(settled)?.let { current ->
-            prepareReel(playerPool, viewModel, settled, current, height, preferredLang, shouldPlay = true)
-            viewModel.loadShortDetails(current.id)
-            launch {
-                delay(SHOWN_DWELL_MS)
-                viewModel.onReelShown(current.id)
-            }
+        playerPool.activatePlayer(settledPage, current.id)
+        prepareReel(playerPool, viewModel, settledPage, current, height, preferredLang, shouldPlay = true)
+        viewModel.loadShortDetails(current.id)
+        launch {
+            delay(SHOWN_DWELL_MS)
+            viewModel.onReelShown(current.id)
         }
 
-        playerPool.releaseUnusedPlayers(settled)
+        playerPool.releaseUnusedPlayers(settledPage)
+        preparedShortId.value = current.id
+    }
+
+    // Keyed on the neighbours' ids as well as the page: enrichment can reorder the reels after the
+    // current one, and the pool would otherwise keep buffering whichever short used to sit there.
+    // Kept apart from the effect above so a neighbour change never re-activates a paused reel.
+    val previousShortId = shorts.getOrNull(settledPage - 1)?.id
+    val nextShortId = shorts.getOrNull(settledPage + 1)?.id
+    val preloadShortId = shorts.getOrNull(settledPage + 2)?.id
+    LaunchedEffect(settledPage, settledShortId, previousShortId, nextShortId, preloadShortId, targetHeight) {
+        val height = targetHeight ?: return@LaunchedEffect
+        val currentId = settledShortId ?: return@LaunchedEffect
+        val settled = settledPage
+        val playerPool = ShortsPlayerPool.getInstance()
+        // Each resolve mints a BotGuard PoToken, and those serialise on one process-wide WebView, so
+        // the neighbours wait for the short the user is looking at rather than queue ahead of it.
+        snapshotFlow { preparedShortId.value }.first { it == currentId }
+        val preferredLang = playerPreferences.preferredAudioLanguage.first()
 
         shorts.getOrNull(settled + 1)?.let { next ->
             launch { prepareReel(playerPool, viewModel, settled + 1, next, height, preferredLang, shouldPlay = false) }

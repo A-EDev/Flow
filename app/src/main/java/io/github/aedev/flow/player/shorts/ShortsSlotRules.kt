@@ -18,18 +18,24 @@ internal object ShortsSlotRules {
      *
      * An unclaimed slot is fair game: the surface has to be attached before media loads. A slot
      * claimed by a *different* index is not, which is what used to give a page mid-fling the short
-     * that was still playing several pages back.
+     * that was still playing several pages back. Nor is one claimed by the same index for a
+     * different short: the queue can reorder under a prepared slot, and the index alone would then
+     * show the wrong reel.
      */
     fun canAttach(
         ownerIndex: Int?,
+        ownerVideoId: String?,
         requestedIndex: Int,
-    ): Boolean = ownerIndex == null || ownerIndex == requestedIndex
+        requestedVideoId: String,
+    ): Boolean = ownerIndex == null || isOwnedBy(ownerIndex, ownerVideoId, requestedIndex, requestedVideoId)
 
-    /** Whether the slot actually holds this index's media, i.e. commands and state reads are safe. */
+    /** Whether the slot actually holds this short at this index, i.e. commands and state reads are safe. */
     fun isOwnedBy(
         ownerIndex: Int?,
+        ownerVideoId: String?,
         requestedIndex: Int,
-    ): Boolean = ownerIndex != null && ownerIndex == requestedIndex
+        requestedVideoId: String,
+    ): Boolean = ownerIndex != null && ownerIndex == requestedIndex && ownerVideoId == requestedVideoId
 
     /**
      * Whether a slot is far enough from the current page to be torn down. Neighbours are kept so a

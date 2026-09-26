@@ -35,41 +35,48 @@ class ShortsSlotRulesTest {
 
     @Test
     fun `unclaimed slot can be attached`() {
-        assertTrue(ShortsSlotRules.canAttach(ownerIndex = null, requestedIndex = 4))
+        assertTrue(ShortsSlotRules.canAttach(ownerIndex = null, ownerVideoId = null, requestedIndex = 4, requestedVideoId = "a"))
     }
 
     @Test
     fun `own slot can be attached`() {
-        assertTrue(ShortsSlotRules.canAttach(ownerIndex = 4, requestedIndex = 4))
+        assertTrue(ShortsSlotRules.canAttach(ownerIndex = 4, ownerVideoId = "a", requestedIndex = 4, requestedVideoId = "a"))
     }
 
     @Test
     fun `slot held by another index cannot be attached`() {
         // index 3 and index 0 share slot 0. Mid-fling, page 3 must not take over the player that
         // is still showing short 0.
-        assertFalse(ShortsSlotRules.canAttach(ownerIndex = 0, requestedIndex = 3))
+        assertFalse(ShortsSlotRules.canAttach(ownerIndex = 0, ownerVideoId = "a", requestedIndex = 3, requestedVideoId = "d"))
+    }
+
+    // #1123: the queue reordered under a prepared slot and the page showed the short that used to
+    // sit at its index.
+    @Test
+    fun `slot holding another short at the same index cannot be attached`() {
+        assertFalse(ShortsSlotRules.canAttach(ownerIndex = 4, ownerVideoId = "old", requestedIndex = 4, requestedVideoId = "new"))
     }
 
     // isOwnedBy — gates every command and state read.
 
     @Test
     fun `unprepared slot is not owned`() {
-        assertFalse(ShortsSlotRules.isOwnedBy(ownerIndex = null, requestedIndex = 4))
+        assertFalse(ShortsSlotRules.isOwnedBy(ownerIndex = null, ownerVideoId = null, requestedIndex = 4, requestedVideoId = "a"))
     }
 
     @Test
-    fun `slot is owned only by its exact index`() {
-        assertTrue(ShortsSlotRules.isOwnedBy(ownerIndex = 4, requestedIndex = 4))
-        assertFalse(ShortsSlotRules.isOwnedBy(ownerIndex = 1, requestedIndex = 4))
+    fun `slot is owned only by its exact index and short`() {
+        assertTrue(ShortsSlotRules.isOwnedBy(ownerIndex = 4, ownerVideoId = "a", requestedIndex = 4, requestedVideoId = "a"))
+        assertFalse(ShortsSlotRules.isOwnedBy(ownerIndex = 1, ownerVideoId = "a", requestedIndex = 4, requestedVideoId = "a"))
+        assertFalse(ShortsSlotRules.isOwnedBy(ownerIndex = 4, ownerVideoId = "old", requestedIndex = 4, requestedVideoId = "new"))
     }
 
     @Test
     fun `attachable is not the same as owned`() {
         // The distinction that fixes tap-to-pause landing on the previous short: a page may hold the
         // surface while the slot is still unclaimed, but it must not accept commands yet.
-        val owner: Int? = null
-        assertTrue(ShortsSlotRules.canAttach(owner, 4))
-        assertFalse(ShortsSlotRules.isOwnedBy(owner, 4))
+        assertTrue(ShortsSlotRules.canAttach(null, null, 4, "a"))
+        assertFalse(ShortsSlotRules.isOwnedBy(null, null, 4, "a"))
     }
 
     // shouldRelease — neighbours stay warm.

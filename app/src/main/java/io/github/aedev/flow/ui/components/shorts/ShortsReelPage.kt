@@ -127,7 +127,7 @@ internal fun ShortsReelPage(
             }
         }
     val ambientActive = isActive && settings.ambientModeEnabled && !isInPip
-    val ambientFrame = rememberAmbientFrame(playerView, ambientActive) { playerPool.ownedPlayer(pageIndex)?.isPlaying == true }
+    val ambientFrame = rememberAmbientFrame(playerView, ambientActive) { playerPool.ownedPlayer(pageIndex, short.id)?.isPlaying == true }
     var attachedPlayer by remember { mutableStateOf<Player?>(null) }
     var ambientVideoAspect by remember { mutableStateOf<Float?>(null) }
 
@@ -181,7 +181,7 @@ internal fun ShortsReelPage(
 
     fun togglePlaybackWithFeedback() {
         playerPool.togglePlayPause()
-        playerPool.ownedPlayer(pageIndex)?.let { pageState.isPlaying = it.isPlaying }
+        playerPool.ownedPlayer(pageIndex, short.id)?.let { pageState.isPlaying = it.isPlaying }
         pageState.showPauseIndicator = true
         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }

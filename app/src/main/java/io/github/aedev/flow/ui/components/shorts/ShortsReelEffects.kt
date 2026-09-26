@@ -61,7 +61,7 @@ internal fun ShortsReelPlaybackEffects(
         if (isActive) {
             playerPool.initialize(context)
             EnhancedMusicPlayerManager.pause()
-            val player = playerPool.playerForAttach(pageIndex)
+            val player = playerPool.playerForAttach(pageIndex, short.id)
             playerView.player = player
             onAttachedPlayerChange(player)
             if (player?.isPlaying == true) pageState.hasStartedPlaying = true
@@ -127,8 +127,8 @@ internal fun ShortsReelPlaybackEffects(
         }
     }
 
-    DisposableEffect(isActive, pageIndex, ownershipGeneration, settings.playbackMode) {
-        val player = playerPool.ownedPlayer(pageIndex)
+    DisposableEffect(isActive, pageIndex, short.id, ownershipGeneration, settings.playbackMode) {
+        val player = playerPool.ownedPlayer(pageIndex, short.id)
         if (!isActive || player == null) return@DisposableEffect onDispose { }
 
         fun sync() {
@@ -171,9 +171,17 @@ internal fun ShortsReelPlaybackEffects(
         onDispose { player.removeListener(listener) }
     }
 
-    LaunchedEffect(isActive, pageIndex, ownershipGeneration, pageState.isPlaying, settings.playbackMode, settings.autoScrollSeconds) {
+    LaunchedEffect(
+        isActive,
+        pageIndex,
+        short.id,
+        ownershipGeneration,
+        pageState.isPlaying,
+        settings.playbackMode,
+        settings.autoScrollSeconds,
+    ) {
         if (!isActive || !pageState.isPlaying) return@LaunchedEffect
-        val player = playerPool.ownedPlayer(pageIndex) ?: return@LaunchedEffect
+        val player = playerPool.ownedPlayer(pageIndex, short.id) ?: return@LaunchedEffect
         while (true) {
             val position = player.currentPosition.coerceAtLeast(0L)
             val duration = player.duration.coerceAtLeast(0L)
