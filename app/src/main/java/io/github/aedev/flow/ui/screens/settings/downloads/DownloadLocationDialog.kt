@@ -1,8 +1,5 @@
 package io.github.aedev.flow.ui.screens.settings.downloads
 
-import android.net.Uri
-import android.os.Environment
-import android.provider.DocumentsContract
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -132,17 +129,3 @@ private fun ManualPathDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
-
-/**
- * The file-system path of a folder picked with the system picker. The download service writes with
- * plain files, so the tree has to be turned back into a path it can use.
- */
-internal fun treeUriToPath(uri: Uri): String? =
-    runCatching {
-        val (volume, relative) = DocumentsContract.getTreeDocumentId(uri).split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
-        if (volume.equals("primary", ignoreCase = true)) {
-            "${Environment.getExternalStorageDirectory().absolutePath}/$relative"
-        } else {
-            "/storage/$volume/$relative"
-        }
-    }.getOrNull()

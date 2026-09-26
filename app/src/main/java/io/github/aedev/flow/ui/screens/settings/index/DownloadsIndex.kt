@@ -51,6 +51,13 @@ internal object DownloadsIndex {
             R.string.settings_section_download_defaults,
             summary = R.string.reduce_data_usage_subtitle,
         )
+    val concurrentDownloads =
+        entry(
+            "concurrent_downloads",
+            R.string.concurrent_downloads_title,
+            R.string.performance_header,
+            summary = R.string.concurrent_downloads_summary,
+        )
     val threads = entry("threads", R.string.concurrent_threads_title, R.string.performance_header)
     val allFilesAccess =
         entry(
@@ -84,6 +91,7 @@ internal object DownloadsIndex {
             codec,
             menuStyle,
             wifiOnly,
+            concurrentDownloads,
             threads,
             allFilesAccess,
             videoAccess,

@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadProgressUpdate
+import io.github.aedev.flow.data.video.DownloadRecoveryScanner
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
@@ -32,6 +33,7 @@ class DownloadsViewModel
     @Inject
     constructor(
         private val videoDownloadManager: VideoDownloadManager,
+        private val recoveryScanner: DownloadRecoveryScanner,
         private val musicDownloadManager: MusicDownloadManager,
         @param:ApplicationContext private val appContext: Context,
     ) : ViewModel() {
@@ -51,7 +53,7 @@ class DownloadsViewModel
 
         init {
             observeDownloads()
-            if (!videoDownloadManager.hasScannedThisSession) rescan()
+            if (!recoveryScanner.hasScannedThisSession) rescan()
         }
 
         fun setQuery(value: String) {
@@ -182,7 +184,7 @@ class DownloadsViewModel
         fun rescan() {
             viewModelScope.launch {
                 _uiState.update { it.copy(isScanning = true) }
-                videoDownloadManager.scanAndRecoverDownloads()
+                recoveryScanner.scanAndRecoverDownloads()
                 refreshTick.update { it + 1 }
                 _uiState.update { it.copy(isScanning = false) }
             }

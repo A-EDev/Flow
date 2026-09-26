@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
 import io.github.aedev.flow.player.error.PlayerDiagnostics
@@ -26,9 +27,9 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import java.io.File
 import javax.inject.Inject
 
 /** The three preference reads every stream resolution needs. */
@@ -95,20 +96,18 @@ class PlaybackLoadResolver
                     }
                 val autoplayDeferred = scope.async(ioDispatcher) { playerPreferences.autoplayEnabled.first() }
 
-                val (preferences, downloadedVideo) =
+                val (preferences, localCopy) =
                     supervisorScope {
                         val prefsDeferred = async(ioDispatcher) { readStreamPreferences(request.isWifi) }
-                        val downloadedDeferred = async(ioDispatcher) { findDownloadedVideo(videoId) }
-                        prefsDeferred.await() to downloadedDeferred.await()
+                        val localCopyDeferred = async { localCopyOf(videoId) }
+                        prefsDeferred.await() to localCopyDeferred.await()
                     }
 
-                // Check for offline file immediately (video downloads and audio-only downloads)
-                val localFile = downloadedVideo?.let { File(it.filePath) }
-                isOfflineAvailable = localFile?.exists() == true
-                offlineLocalPath = localFile?.absolutePath?.takeIf { isOfflineAvailable }
+                offlineLocalPath = localCopy
+                isOfflineAvailable = offlineLocalPath != null
 
                 if (isOfflineAvailable) {
-                    Log.d(TAG, "Found offline video at ${localFile?.absolutePath}")
+                    Log.d(TAG, "Found offline video at $offlineLocalPath")
                     val storedSponsorBlockJson = videoDownloadManager.getSponsorBlockData(videoId)
                     val offlineSegments = sponsorBlockRepository.parseSegments(storedSponsorBlockJson)
                     currentCoroutineContext().ensureActive()
@@ -134,8 +133,7 @@ class PlaybackLoadResolver
                     resolveStreams(
                         request = request,
                         preferences = preferences,
-                        downloadedFilePath = downloadedVideo?.filePath,
-                        offlineAbsolutePath = localFile?.absolutePath,
+                        offlineLocalPath = offlineLocalPath,
                         isOfflineAvailable = isOfflineAvailable,
                         innerTubeDeferred = innerTubeDeferred,
                         savedPositionDeferred = savedPositionDeferred,
@@ -162,7 +160,7 @@ class PlaybackLoadResolver
                 Log.e(TAG, "Exception loading video $videoId", e)
                 if (isCurrent() && isOfflineAvailable) {
                     Log.d(TAG, "Ignoring exception, playing offline video")
-                    val localPath = findDownloadedVideo(videoId)?.filePath?.takeIf { File(it).exists() }
+                    val localPath = localCopyOf(videoId)
                     onStep(
                         ResolvedPlayback.LocalCopyAfterFailure(
                             localFilePath = localPath,
@@ -171,7 +169,7 @@ class PlaybackLoadResolver
                     )
                 } else if (isCurrent()) {
                     // Final fallback if everything fails
-                    val localPath = findDownloadedVideo(videoId)?.filePath?.takeIf { File(it).exists() }
+                    val localPath = localCopyOf(videoId)
                     if (localPath != null) {
                         onStep(
                             ResolvedPlayback.LocalCopyReady(
@@ -189,8 +187,7 @@ class PlaybackLoadResolver
         private suspend fun resolveStreams(
             request: PlaybackResolutionRequest,
             preferences: StreamPreferences,
-            downloadedFilePath: String?,
-            offlineAbsolutePath: String?,
+            offlineLocalPath: String?,
             isOfflineAvailable: Boolean,
             innerTubeDeferred: Deferred<InnerTubeVideoStreamExtractor.VideoExtractionResult?>,
             savedPositionDeferred: Deferred<Long>,
@@ -245,7 +242,7 @@ class PlaybackLoadResolver
                 Log.d(TAG, "Using offline video for $videoId (Network fetch failed)")
                 onStep(
                     ResolvedPlayback.OfflineFallback(
-                        localFilePath = offlineAbsolutePath,
+                        localFilePath = offlineLocalPath,
                         offlineSegments = storedSponsorBlockSegments(videoId),
                         relatedVideos = relatedVideos,
                     ),
@@ -314,6 +311,11 @@ class PlaybackLoadResolver
                 codecKey = playerPreferences.videoCodecPriority.first(),
                 subtitleLanguage = playerPreferences.preferredSubtitleLanguage.first(),
             )
+
+        private suspend fun localCopyOf(videoId: String): String? =
+            withContext(ioDispatcher) {
+                findDownloadedVideo(videoId)?.filePath?.takeIf { DownloadFiles.exists(context, it) }
+            }
 
         private suspend fun findDownloadedVideo(videoId: String) =
             try {

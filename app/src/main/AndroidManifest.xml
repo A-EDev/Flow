@@ -14,10 +14,10 @@
     <!-- Fallback popup player for devices whose ROM does not expose native Android PiP. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
-    <!-- Required for writing to external Downloads/Movies on API < 29 -->
+    <!-- Writing to a chosen folder through plain files on API 29 and below (legacy storage on 29) -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="29" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -72,6 +72,7 @@
         android:theme="@style/Theme.Flow"
         android:usesCleartextTraffic="true"
         android:resizeableActivity="true"
+        android:requestLegacyExternalStorage="true"
         android:enableOnBackInvokedCallback="true">
 
         <!--
