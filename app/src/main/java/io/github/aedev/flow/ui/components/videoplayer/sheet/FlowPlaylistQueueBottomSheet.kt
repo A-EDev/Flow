@@ -142,12 +142,14 @@ fun FlowPlaylistQueueBottomSheet(
                     .fillMaxWidth()
                     .weight(1f),
             contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             itemsIndexed(displayItems, key = { _, item -> item.key }) { index, item ->
                 val isPlaying = item === currentDisplayItem
                 PlaylistQueueItem(
                     video = item.video,
                     isPlaying = isPlaying,
+                    isPlayed = index < currentQueueIndex,
                     reorderModifier = reorderState.itemModifier(index),
                     dragHandleModifier = reorderState.handleModifier(index),
                     onClick = { onPlayVideoAtIndex(index) },

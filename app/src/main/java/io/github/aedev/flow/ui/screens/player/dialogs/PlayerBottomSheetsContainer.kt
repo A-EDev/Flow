@@ -25,6 +25,8 @@ import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.shared.CommentSortFilter
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
 import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowPlaylistQueueBottomSheet
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
@@ -180,6 +182,8 @@ internal fun PlayerBottomSheetsContainer(
         val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
         val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(initialValue = -1)
         val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+        val quickActions = sharedQuickActionsViewModel()
+        val removedFromQueue = stringResource(R.string.removed_from_queue)
 
         FlowPlaylistQueueBottomSheet(
             queueVideos = queueVideos,
@@ -192,7 +196,11 @@ internal fun PlayerBottomSheetsContainer(
             onPlayVideoAtIndex = { index ->
                 EnhancedPlayerManager.getInstance().playVideoAtIndex(index, loadStreamsInPlayer = false)
             },
-            onRemoveVideoAtIndex = EnhancedPlayerManager.getInstance()::removeVideoAtIndex,
+            onRemoveVideoAtIndex = { index ->
+                EnhancedPlayerManager.getInstance().removeVideoAtIndex(index)?.let { removed ->
+                    quickActions.announce(removedFromQueue, QuickActionUndo.QueueRemoval(removed))
+                }
+            },
             onMoveVideoAtIndex = EnhancedPlayerManager.getInstance()::moveVideoAtIndex,
             onDismiss = { screenState.closeSheet() },
             expandedHeight = mediaSheetExpandedHeight,
