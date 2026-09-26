@@ -354,7 +354,6 @@
     <string name="description_copied">Description copied to clipboard</string>
     <string name="title_copied">Title copied to clipboard</string>
     <string name="tags">Tags</string>
-    <string name="in_this_video">In this video</string>
     <string name="sb_manual_skip">Skip</string>
     <string name="sb_skip_segment">Skip %1$s</string>
     <string name="ago">Ago</string>

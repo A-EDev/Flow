@@ -1,21 +1,26 @@
 package io.github.aedev.flow.ui.components.videoplayer.sheet
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -23,118 +28,75 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
+import io.github.aedev.flow.ui.components.shared.DurationBadge
+import io.github.aedev.flow.ui.components.shared.MediaArtworkTint
+import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
+import io.github.aedev.flow.utils.formatDuration
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
+private val ThumbnailWidth: Dp = 104.dp
+
+/**
+ * One chapter in a segmented list. The chapter in play takes the artwork tint and shows how far
+ * into it the playhead is; [shape] is its place in the group.
+ */
 @Composable
 internal fun ChapterItem(
     chapter: StreamSegment,
     isCurrent: Boolean,
     progress: Float,
-    durationLabel: String?,
+    durationSeconds: Int?,
     thumbnailUrl: String,
+    shape: Shape,
+    tint: MediaArtworkTint,
     onClick: () -> Unit,
 ) {
+    val colors = MaterialTheme.colorScheme
     Surface(
+        shape = shape,
+        color = if (isCurrent) tint.container else colors.surfaceContainer,
+        contentColor = if (isCurrent) tint.onContainer else colors.onSurface,
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
+                .clip(shape)
                 .clickable(onClick = onClick)
-                // Being the chapter in play is carried by a fill and a border, which a screen
-                // reader cannot see and a test cannot assert.
+                // Being the chapter in play is carried by colour, which a screen reader cannot see.
                 .semantics { selected = isCurrent },
-        shape = RoundedCornerShape(20.dp),
-        color =
-            if (isCurrent) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(
-                    alpha = 0.7f,
-                )
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        border = if (isCurrent) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)) else null,
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val thumbnailWidth = (maxWidth * 0.42f).coerceIn(72.dp, 146.dp)
-            val thumbnailHeight = thumbnailWidth * (82f / 146f)
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            ChapterThumbnail(thumbnailUrl = thumbnailUrl, durationSeconds = durationSeconds)
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                ChapterThumbnail(
-                    thumbnailUrl = thumbnailUrl,
-                    isCurrent = isCurrent,
-                    progress = progress,
-                    width = thumbnailWidth,
-                    height = thumbnailHeight,
+                Text(
+                    text = chapter.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(vertical = 4.dp),
-                ) {
-                    if (isCurrent) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(18.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(12.dp),
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = formatChapterTime(chapter.startTimeSeconds),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                    } else {
-                        Text(
-                            text = formatChapterTime(chapter.startTimeSeconds),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                    }
-
-                    Text(
-                        text = chapter.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.SemiBold,
-                        color = if (isCurrent) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
+                Text(
+                    text = formatDuration(chapter.startTimeSeconds),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isCurrent) tint.onContainer else colors.onSurfaceVariant,
+                )
+                if (isCurrent) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        color = tint.accent,
+                        trackColor = tint.raised,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
                     )
-                    if (durationLabel != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = durationLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
                 }
             }
         }
@@ -144,71 +106,32 @@ internal fun ChapterItem(
 @Composable
 private fun ChapterThumbnail(
     thumbnailUrl: String,
-    isCurrent: Boolean,
-    progress: Float,
-    width: Dp,
-    height: Dp,
+    durationSeconds: Int?,
 ) {
-    val context = LocalContext.current
-
     Box(
         modifier =
             Modifier
-                .width(width)
-                .height(height)
-                .clip(RoundedCornerShape(14.dp)),
+                .width(ThumbnailWidth)
+                .aspectRatio(MediaThumbnailDefaults.VideoAspectRatio)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         if (thumbnailUrl.isNotBlank()) {
             AsyncImage(
-                model =
-                    ImageRequest
-                        .Builder(context)
-                        .data(thumbnailUrl)
-                        .crossfade(true)
-                        .build(),
+                model = thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
-        } else {
-            Box(
+        }
+        if (durationSeconds != null && durationSeconds > 0) {
+            DurationBadge(
+                seconds = durationSeconds,
                 modifier =
                     Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                        .align(Alignment.BottomEnd)
+                        .padding(MediaThumbnailDefaults.BadgePadding),
             )
         }
-
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = if (isCurrent) 0.16f else 0.26f)),
-        )
-
-        if (isCurrent) {
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = Color.White.copy(alpha = 0.22f),
-                gapSize = 0.dp,
-                drawStopIndicator = {},
-            )
-        }
-    }
-}
-
-private fun formatChapterTime(totalSeconds: Int): String {
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format("%d:%02d", minutes, seconds)
     }
 }
