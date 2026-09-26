@@ -172,7 +172,7 @@ private fun VideoPrimaryActions(
                 icon = Icons.Outlined.Share,
                 label = stringResource(R.string.share),
                 onClick = {
-                    share(video.id, video.title)
+                    share(video.id, video.title, video.isShort)
                     onDismiss()
                 },
             ),
