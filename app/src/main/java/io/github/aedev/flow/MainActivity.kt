@@ -41,6 +41,7 @@ import io.github.aedev.flow.platform.AppUiMode
 import io.github.aedev.flow.platform.AppUiRoot
 import io.github.aedev.flow.platform.DeviceFormFactorDetector
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
+import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.LifecyclePlaybackPreferences
 import io.github.aedev.flow.player.MemoryPressurePolicy
@@ -97,6 +98,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var playlistTransfer: dagger.Lazy<PlaylistTransfer>
+
+    @Inject
+    lateinit var videoPlayerManager: dagger.Lazy<EnhancedPlayerManager>
 
     // A recreated activity gets its launch intent again; a playlist file in it was already imported.
     private var isRestoringState = false
@@ -663,11 +667,10 @@ class MainActivity : ComponentActivity() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         FlowCrashHandler.recordPhase("memory", "MainActivity.onTrimMemory level=$level")
-        if (MemoryPressurePolicy.shouldReleaseVideoPlayback(level)) {
-            io.github.aedev.flow.player.EnhancedPlayerManager
-                .getInstance()
-                .handleCriticalMemoryPressure()
-        }
+        videoPlayerManager.get().handleMemoryPressure(
+            trimLevel = level,
+            videoVisible = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) || isInPictureInPictureMode,
+        )
     }
 
     fun enterPlayerPictureInPictureMode(
