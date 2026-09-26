@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import io.github.aedev.flow.data.model.ShortVideo
+import io.github.aedev.flow.data.shorts.SHORT_COMPLETE_FRACTION
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.screens.shorts.ShortsViewModel
@@ -21,7 +22,6 @@ private const val POSITION_WRITE_STEP_MS = 1_000L
 private const val FIRST_HISTORY_TOUCH_MS = 1_500L
 private const val HISTORY_SAVE_INTERVAL_MS = 5_000L
 private const val ABANDON_POSITION_MS = 1_000L
-private const val WATCHED_FRACTION = 0.9f
 private const val DWELL_SEED_MS = 8_000L
 private const val AUTO_INTERVAL_MIN_SECONDS = 5
 private const val AUTO_INTERVAL_MAX_SECONDS = 20
@@ -164,6 +164,12 @@ internal fun ShortsReelPlaybackEffects(
                     reason: Int,
                 ) {
                     pageState.currentPosition = newPosition.positionMs.coerceAtLeast(0L)
+                    // A looping Short never reaches STATE_ENDED; the wrap back to the start is its end,
+                    // and the half-second tick can miss the last tenth after a seek.
+                    if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
+                        val loopedDuration = player.duration.coerceAtLeast(0L)
+                        if (loopedDuration > 0L) recordWatched(loopedDuration, loopedDuration)
+                    }
                 }
             }
         sync()
@@ -201,7 +207,7 @@ internal fun ShortsReelPlaybackEffects(
                     recordProgress(position, duration)
                 }
 
-                if (!sessionState.hasRecordedWatched && duration > 0L && position >= (duration * WATCHED_FRACTION).toLong()) {
+                if (!sessionState.hasRecordedWatched && duration > 0L && position >= (duration * SHORT_COMPLETE_FRACTION).toLong()) {
                     recordWatched(position, duration)
                 }
 

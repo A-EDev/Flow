@@ -13,7 +13,6 @@ import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.feed.FeedPrefetchQueue
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
-import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.Video
@@ -29,6 +28,7 @@ import io.github.aedev.flow.data.shorts.ShortWatchClassifier
 import io.github.aedev.flow.data.shorts.ShortsFeedRepository
 import io.github.aedev.flow.data.shorts.ShortsMetadataRepository
 import io.github.aedev.flow.data.shorts.ShortsStreamResolver
+import io.github.aedev.flow.data.shorts.ShortsWatchHistory
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueChange
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueController
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueLoaderFactory
@@ -66,7 +66,7 @@ class ShortsViewModel
         private val metadata: ShortsMetadataRepository,
         private val engagement: VideoEngagementUseCase,
         private val playlistRepository: PlaylistRepository,
-        private val viewHistory: ViewHistory,
+        private val watchHistory: ShortsWatchHistory,
         private val queueFactory: ShortsQueueLoaderFactory,
         private val playerPreferences: PlayerPreferences,
         private val videoStats: VideoStatsRecorder,
@@ -414,26 +414,13 @@ class ShortsViewModel
             durationMs: Long,
         ) {
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                val video = short.toVideo()
                 val safeDuration =
                     when {
                         durationMs > 0L -> durationMs
-                        video.duration > 0 -> video.duration * 1000L
+                        short.durationMs >= 1_000L -> short.durationMs
                         else -> DEFAULT_REEL_DURATION_MS
                     }
-                val safePosition = positionMs.coerceAtLeast(1_000L).coerceAtMost(safeDuration)
-
-                viewHistory.savePlaybackPosition(
-                    videoId = video.id,
-                    position = safePosition,
-                    duration = safeDuration,
-                    title = video.title,
-                    thumbnailUrl = video.thumbnailUrl,
-                    channelName = video.channelName,
-                    channelId = video.channelId,
-                    isMusic = false,
-                    isShort = true,
-                )
+                watchHistory.save(short, positionMs.coerceAtLeast(1_000L).coerceAtMost(safeDuration), safeDuration)
             }
         }
 
@@ -472,18 +459,7 @@ class ShortsViewModel
                 val video = short.toVideo()
                 val signal = ShortWatchClassifier.classify(positionMs, durationMs, video.duration)
                 recordShortView(video, signal.position, counted = signal.interaction == InteractionType.WATCHED)
-
-                viewHistory.savePlaybackPosition(
-                    videoId = video.id,
-                    position = signal.position,
-                    duration = signal.safeDuration,
-                    title = video.title,
-                    thumbnailUrl = video.thumbnailUrl,
-                    channelName = video.channelName,
-                    channelId = video.channelId,
-                    isMusic = false,
-                    isShort = true,
-                )
+                watchHistory.save(short, signal.position, signal.safeDuration)
 
                 runCatching {
                     FlowNeuroEngine.onVideoInteraction(video.copy(isShort = true), signal.interaction, percentWatched = signal.percent)
