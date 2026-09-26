@@ -297,6 +297,7 @@ internal fun PlayerControlsOverlay(
                             isSleepTimerActive = state.isSleepTimerActive,
                             lockModeEnabled = state.lockModeEnabled,
                             isLiveChatAvailable = state.isLiveChatAvailable,
+                            hasQueue = state.hasQueue,
                             topPadding = portraitFullscreenTopPadding,
                             horizontalPadding = topControlHorizontalPadding,
                             verticalPadding = topControlVerticalPadding,

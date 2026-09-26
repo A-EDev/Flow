@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.outlined.Cast
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ClosedCaption
@@ -84,6 +85,7 @@ internal fun VideoPlayerTopBar(
     isSleepTimerActive: Boolean,
     lockModeEnabled: Boolean,
     isLiveChatAvailable: Boolean,
+    hasQueue: Boolean,
     topPadding: Dp,
     horizontalPadding: Dp,
     verticalPadding: Dp,
@@ -195,6 +197,16 @@ internal fun VideoPlayerTopBar(
                                 else -> Icons.Rounded.ZoomIn
                             },
                         contentDescription = stringResource(R.string.resize_to, resizeModeLabels[resizeMode]),
+                    )
+                }
+
+                if (isFullscreen && hasQueue) {
+                    TopBarIconButton(
+                        onClick = actions.onQueueClick,
+                        buttonSize = actionButtonSize,
+                        iconSize = actionIconSize,
+                        icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                        contentDescription = stringResource(R.string.playlist_queue),
                     )
                 }
 
