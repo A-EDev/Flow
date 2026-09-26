@@ -14,6 +14,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
@@ -102,6 +103,15 @@ internal fun PlayerControlsOverlay(
     val portraitSeekbarHorizontalPaddingDp = overlayPreferences.portraitSeekbarHorizontalPaddingDp
     val isFullscreen = state.isFullscreen
     val isPortraitFullscreen = isFullscreen && state.isPortraitFullscreen
+    val isLandscapeFullscreen = isFullscreen && !isPortraitFullscreen
+    // The stage hands this overlay no insets, so landscape fullscreen clears the camera cutout
+    // itself: the side one on phones, the top one on tablets (#968).
+    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+    val cutoutHorizontalPadding =
+        maxOf(
+            cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr),
+            cutoutPadding.calculateRightPadding(LayoutDirection.Ltr),
+        )
     // Landscape fullscreen insets the controls well clear of the rounded corners and the gesture
     // bar. Portrait fullscreen is the same width as the portrait player, so it keeps the portrait
     // insets and only the vertical breathing room changes.
@@ -124,34 +134,31 @@ internal fun PlayerControlsOverlay(
             target =
                 when {
                     isPortraitFullscreen -> 16.dp
-                    isFullscreen -> 56.dp
+                    isFullscreen -> maxOf(56.dp, cutoutHorizontalPadding)
                     else -> 12.dp
                 },
             label = "bottomControlPadding",
         )
     val topControlHorizontalPadding = (bottomControlHorizontalPadding - OverlayActionIconInset).coerceAtLeast(0.dp)
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 4.dp
-    val portraitFullscreenTopPadding =
-        if (isPortraitFullscreen) {
-            WindowInsets.displayCutout
-                .asPaddingValues()
-                .calculateTopPadding()
-                .coerceAtLeast(16.dp)
-        } else {
-            0.dp
+    val fullscreenTopPadding =
+        when {
+            isPortraitFullscreen -> cutoutPadding.calculateTopPadding().coerceAtLeast(16.dp)
+            isLandscapeFullscreen -> cutoutPadding.calculateTopPadding()
+            else -> 0.dp
         }
     val seekbarHorizontalPadding =
         animatedInset(
             target =
-                if (isFullscreen && !isPortraitFullscreen) {
-                    fullscreenSeekbarHorizontalPaddingDp.dp
+                if (isLandscapeFullscreen) {
+                    maxOf(fullscreenSeekbarHorizontalPaddingDp.dp, cutoutHorizontalPadding)
                 } else {
                     portraitSeekbarHorizontalPaddingDp.dp
                 },
             label = "seekbarHorizontalPadding",
         )
     val pillsRowMinHeight = if (isFullscreen) OverlayControlRowMinHeight else 30.dp
-    val chapterMaxWidth = if (isFullscreen && !isPortraitFullscreen) 200.dp else 96.dp
+    val chapterMaxWidth = if (isLandscapeFullscreen) 200.dp else 96.dp
     val qualityBadge = remember(state.qualityLabel) { state.qualityLabel?.let(::compactPlayerQualityBadge) }
     val compactQualityLabel = qualityBadge?.let { playerQualityBadgeLabel(it) }
     val speedIndicatorLabel = remember(state.playbackSpeed) { formatMultiplierLabel(state.playbackSpeed) }
@@ -266,7 +273,7 @@ internal fun PlayerControlsOverlay(
                     showRemainingTime = state.showRemainingTime,
                     seekbarContent = seekbarContent,
                     pillHeight = OverlayPillHeight,
-                    topPadding = portraitFullscreenTopPadding,
+                    topPadding = fullscreenTopPadding,
                     seekbarHorizontalPadding = seekbarHorizontalPadding,
                     seekbarBottomPadding = fullscreenSeekbarBottomPadding,
                     onRevealUnlock = revealLockOverlay,
@@ -298,7 +305,7 @@ internal fun PlayerControlsOverlay(
                             lockModeEnabled = state.lockModeEnabled,
                             isLiveChatAvailable = state.isLiveChatAvailable,
                             hasQueue = state.hasQueue,
-                            topPadding = portraitFullscreenTopPadding,
+                            topPadding = fullscreenTopPadding,
                             horizontalPadding = topControlHorizontalPadding,
                             verticalPadding = topControlVerticalPadding,
                             rowMinHeight = OverlayControlRowMinHeight,
