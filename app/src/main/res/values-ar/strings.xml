@@ -3171,4 +3171,29 @@
     <string name="settings_group_system">النظام</string>
     <string name="settings_appearance_summary">السمة وأيقونة التطبيق والتخطيط وشريط التنقل</string>
     <string name="settings_language_region_summary">لغة التطبيق ولغة المحتوى والبلد</string>
+    <string name="recap_title">ملخص Flow</string>
+    <string name="recap_summary">ما قمت بمشاهدته واستمعت إليه، شهرًا بعد شهر</string>
+    <string name="recap_keywords">مغلف، الإحصائيات، الإحصاءات، الملخص، مراجعة العام، وقت المشاهدة، وقت الاستماع، الأكثر مشاهدة، أفضل الفنانين</string>
+    <string name="recap_period_month">الشهر</string>
+    <string name="recap_period_year">السنة</string>
+    <string name="recap_period_all">طول الوقت</string>
+    <string name="recap_source_all">كل شيء</string>
+    <string name="recap_source_video">الفيديوهات</string>
+    <string name="recap_source_music">الموسيقى</string>
+    <string name="recap_total_time">الوقت في Flow</string>
+    <string name="recap_delta_up">أكثر بـ %1$s من الوقت السابق</string>
+    <string name="recap_delta_down">أقل بـ %1$s من الوقت السابق</string>
+    <string name="recap_delta_same">تقريبًا مماثل كالوقت السابق</string>
+    <string name="recap_views">الفيديوهات التي تم مشاهدتها</string>
+    <string name="recap_plays">الأغاني التي تم تشغيلها</string>
+    <string name="recap_streak">أطول سلسلة متتالية</string>
+    <plurals name="recap_days">
+        <item quantity="zero">%d يوم</item>
+        <item quantity="one">%d يوم</item>
+        <item quantity="two">%d يومان</item>
+        <item quantity="few">%d أيام</item>
+        <item quantity="many">%d يومًا</item>
+        <item quantity="other">%d يوم</item>
+    </plurals>
+    <string name="recap_play_story">تشغيل مُلخصك</string>
 </resources>
