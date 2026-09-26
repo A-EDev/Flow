@@ -34,6 +34,10 @@ enum class PlaylistSortOrder(
     DATE_PUBLISHED_OLDEST("date_published_oldest", R.string.playlist_sort_date_published_oldest),
     ;
 
+    /** Rows show when each video was added only while the list is ordered by it. */
+    val showsDateAdded: Boolean
+        get() = this == DATE_ADDED_NEWEST || this == DATE_ADDED_OLDEST
+
     companion object {
         fun fromStorageValue(value: String?): PlaylistSortOrder = entries.firstOrNull { it.storageValue == value } ?: MANUAL
 

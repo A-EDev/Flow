@@ -26,4 +26,11 @@ class PlaylistSortingTest {
         assertThat(PlaylistSortOrder.defaultFor(isLikes = true)).isEqualTo(PlaylistSortOrder.DATE_ADDED_NEWEST)
         assertThat(PlaylistSortOrder.defaultFor(isLikes = false)).isEqualTo(PlaylistSortOrder.MANUAL)
     }
+
+    @Test
+    fun `only the date added orders show when a video was added`() {
+        val showing = PlaylistSortOrder.entries.filter { it.showsDateAdded }
+
+        assertThat(showing).containsExactly(PlaylistSortOrder.DATE_ADDED_NEWEST, PlaylistSortOrder.DATE_ADDED_OLDEST)
+    }
 }
