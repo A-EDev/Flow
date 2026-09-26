@@ -162,7 +162,7 @@ class FlowDownloadService : Service() {
                     action = ACTION_START_DOWNLOAD
                     putExtra("video_id", video.id)
                     putExtra("video_title", video.title)
-                    putExtra("video_url", "sabr://${video.id}")
+                    putExtra("video_url", sabrMissionUrl(video.id))
                     putExtra("video_quality", quality)
                     putExtra("video_thumbnail", video.thumbnailUrl)
                     putExtra("video_channel", video.channelName)
@@ -1131,6 +1131,8 @@ class FlowDownloadService : Service() {
                 } else {
                     notifications.update(mission, videoId)
                 }
+            } else if (mission.status == MissionStatus.PAUSED) {
+                Log.d(TAG, "executeSabrDownload: $videoId paused; resuming resolves a new session")
             } else {
                 mission.status = MissionStatus.FAILED
                 mission.error = getString(R.string.download_sabr_failed)
@@ -1207,12 +1209,13 @@ class FlowDownloadService : Service() {
     }
 
     private fun handleResume(videoId: String) {
-        val mission =
-            activeMissions[videoId] ?: run {
-                Log.w(TAG, "handleResume: No mission for $videoId; starting it over")
-                requeue(videoId)
-                return
-            }
+        val mission = activeMissions[videoId]
+        val route = downloadResumeRoute(mission?.url)
+        if (route == DownloadResumeRoute.REQUEUE || mission == null) {
+            Log.w(TAG, "handleResume: No mission for $videoId; starting it over")
+            requeue(videoId)
+            return
+        }
         if (mission.status != MissionStatus.PAUSED) {
             Log.d(TAG, "handleResume: Mission $videoId is not paused (${mission.status}), ignoring")
             return
@@ -1230,6 +1233,13 @@ class FlowDownloadService : Service() {
                         downloadManager.getDownloadWithItems(videoId)?.isAudioOnly
                             ?: (mission.audioUrl == null && mission.savePath.endsWith(".m4a", ignoreCase = true))
                     previousJob?.join()
+                    if (route == DownloadResumeRoute.SABR_RERESOLVE) {
+                        Log.d(TAG, "handleResume: $videoId is a SABR download; resolving a new session")
+                        mission.status = MissionStatus.PENDING
+                        mission.error = null
+                        retryWithSabrFallback(mission, audioOnly)
+                        return@withSlot
+                    }
                     when (executeDownload(mission, videoId, audioOnly)) {
                         DownloadRetryAction.CODEC_FALLBACK -> retryWithCodecFallback(mission)
                         DownloadRetryAction.SABR_FALLBACK -> retryWithSabrFallback(mission, audioOnly)
