@@ -1,5 +1,6 @@
 package io.github.aedev.flow.innertube.pages
 
+import io.github.aedev.flow.innertube.YouTubeConstants
 import io.github.aedev.flow.innertube.models.Album
 import io.github.aedev.flow.innertube.models.AlbumItem
 import io.github.aedev.flow.innertube.models.Artist
@@ -9,60 +10,163 @@ import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContex
 import io.github.aedev.flow.innertube.models.BrowseEndpoint.BrowseEndpointContextSupportedConfigs.BrowseEndpointContextMusicConfig.Companion.MUSIC_PAGE_TYPE_USER_CHANNEL
 import io.github.aedev.flow.innertube.models.MusicCardShelfRenderer
 import io.github.aedev.flow.innertube.models.MusicResponsiveListItemRenderer
+import io.github.aedev.flow.innertube.models.MusicShelfRenderer
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.innertube.models.YTItem
 import io.github.aedev.flow.innertube.models.clean
-import io.github.aedev.flow.innertube.models.filterExplicit
-import io.github.aedev.flow.innertube.models.filterVideoSongs
+import io.github.aedev.flow.innertube.models.getContinuation
+import io.github.aedev.flow.innertube.models.getItems
 import io.github.aedev.flow.innertube.models.oddElements
+import io.github.aedev.flow.innertube.models.response.SearchResponse
 import io.github.aedev.flow.innertube.models.splitBySeparator
 import io.github.aedev.flow.innertube.utils.parseTime
+
+/** What a search summary section holds; [SHELF] is a section the server titled itself. */
+enum class SearchSummaryKind {
+    TOP_RESULT,
+    SONGS,
+    VIDEOS,
+    EPISODES,
+    ALBUMS,
+    ARTISTS,
+    PLAYLISTS,
+    SHELF,
+}
 
 data class SearchSummary(
     val title: String,
     val items: List<YTItem>,
+    val kind: SearchSummaryKind = SearchSummaryKind.SHELF,
 )
 
 data class SearchSummaryPage(
     val summaries: List<SearchSummary>,
     val continuation: String? = null,
 ) {
-    fun filterExplicit(enabled: Boolean) =
-        if (enabled) {
-            SearchSummaryPage(
-                summaries.mapNotNull { s ->
-                    SearchSummary(
-                        title = s.title,
-                        items =
-                            s.items.filterExplicit().ifEmpty {
-                                return@mapNotNull null
-                            },
-                    )
-                },
-            )
-        } else {
-            this
-        }
-
-    fun filterVideoSongs(disableVideos: Boolean) =
-        if (disableVideos) {
-            SearchSummaryPage(
-                summaries.mapNotNull { s ->
-                    SearchSummary(
-                        title = s.title,
-                        items =
-                            s.items.filterVideoSongs(true).ifEmpty {
-                                return@mapNotNull null
-                            },
-                    )
-                },
-            )
-        } else {
-            this
-        }
-
     companion object {
+        private const val MUSIC_VIDEO_TYPE_PODCAST_EPISODE = "MUSIC_VIDEO_TYPE_PODCAST_EPISODE"
+
+        /**
+         * Reads both layouts the unfiltered search has shipped: titled shelves with a continuation,
+         * and the current one where every result is its own item section with no continuation. Runs
+         * of item sections are grouped by what the items are, in the order each kind first appears.
+         */
+        fun fromSearchResponse(response: SearchResponse): SearchSummaryPage {
+            val contents =
+                response.contents
+                    ?.tabbedSearchResultsRenderer
+                    ?.tabs
+                    ?.firstOrNull()
+                    ?.tabRenderer
+                    ?.content
+                    ?.sectionListRenderer
+                    ?.contents
+                    .orEmpty()
+            val summaries = mutableListOf<SearchSummary>()
+            val loose = mutableListOf<YTItem>()
+
+            fun flushLoose() {
+                summaries += groupedByKind(loose)
+                loose.clear()
+            }
+            contents.forEach { content ->
+                val itemSection = content.itemSectionRenderer
+                if (itemSection != null) {
+                    itemSection.contents
+                        .orEmpty()
+                        .getItems()
+                        .mapNotNullTo(loose, ::fromMusicResponsiveListItemRenderer)
+                } else {
+                    flushLoose()
+                    val summary =
+                        content.musicCardShelfRenderer?.let(::topResult)
+                            ?: content.musicShelfRenderer?.let(::titledShelf)
+                    summary?.let(summaries::add)
+                }
+            }
+            flushLoose()
+            return SearchSummaryPage(
+                summaries = summaries,
+                continuation =
+                    contents
+                        .lastOrNull()
+                        ?.musicShelfRenderer
+                        ?.continuations
+                        ?.getContinuation(),
+            )
+        }
+
+        private fun topResult(renderer: MusicCardShelfRenderer): SearchSummary? {
+            val items =
+                listOfNotNull(fromMusicCardShelfRenderer(renderer))
+                    .plus(
+                        renderer.contents
+                            ?.mapNotNull { it.musicResponsiveListItemRenderer }
+                            ?.mapNotNull(::fromMusicResponsiveListItemRenderer)
+                            .orEmpty(),
+                    ).distinctBy { it.id }
+            if (items.isEmpty()) return null
+            return SearchSummary(
+                title =
+                    renderer.header
+                        ?.musicCardShelfHeaderBasicRenderer
+                        ?.title
+                        ?.runs
+                        ?.firstOrNull()
+                        ?.text ?: YouTubeConstants.DEFAULT_TOP_RESULT,
+                items = items,
+                kind = SearchSummaryKind.TOP_RESULT,
+            )
+        }
+
+        private fun titledShelf(renderer: MusicShelfRenderer): SearchSummary? {
+            val items =
+                renderer.contents
+                    ?.getItems()
+                    ?.mapNotNull(::fromMusicResponsiveListItemRenderer)
+                    ?.distinctBy { it.id }
+                    .orEmpty()
+            if (items.isEmpty()) return null
+            return SearchSummary(
+                title =
+                    renderer.title
+                        ?.runs
+                        ?.firstOrNull()
+                        ?.text ?: YouTubeConstants.DEFAULT_OTHER_RESULTS,
+                items = items,
+            )
+        }
+
+        private fun groupedByKind(items: List<YTItem>): List<SearchSummary> =
+            items
+                .distinctBy { it::class to it.id }
+                .groupBy(::kindOf)
+                .map { (kind, grouped) -> SearchSummary(title = "", items = grouped, kind = kind) }
+
+        private fun kindOf(item: YTItem): SearchSummaryKind =
+            when (item) {
+                is SongItem -> {
+                    when {
+                        item.musicVideoType == MUSIC_VIDEO_TYPE_PODCAST_EPISODE -> SearchSummaryKind.EPISODES
+                        item.isVideoSong -> SearchSummaryKind.VIDEOS
+                        else -> SearchSummaryKind.SONGS
+                    }
+                }
+
+                is AlbumItem -> {
+                    SearchSummaryKind.ALBUMS
+                }
+
+                is ArtistItem -> {
+                    SearchSummaryKind.ARTISTS
+                }
+
+                is PlaylistItem -> {
+                    SearchSummaryKind.PLAYLISTS
+                }
+            }
+
         fun fromMusicCardShelfRenderer(renderer: MusicCardShelfRenderer): YTItem? {
             val subtitle = renderer.subtitle.runs?.splitBySeparator()
             return when {

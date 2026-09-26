@@ -2110,6 +2110,9 @@
     <string name="filter_songs">Songs</string>
     <string name="filter_community_playlists">Community playlists</string>
     <string name="section_top_result">Top result</string>
+    <string name="music_search_section_artists">Artists</string>
+    <string name="music_search_section_playlists">Playlists</string>
+    <string name="music_search_section_episodes">Episodes</string>
     <string name="subtitle_song_prefix">Song • %1$s</string>
     <string name="subtitle_artist">Artist</string>
     <string name="subtitle_album_template">Album • %1$s</string>

@@ -61,7 +61,6 @@ import io.github.aedev.flow.innertube.pages.RelatedPage
 import io.github.aedev.flow.innertube.pages.SearchPage
 import io.github.aedev.flow.innertube.pages.SearchResult
 import io.github.aedev.flow.innertube.pages.SearchSuggestionPage
-import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
@@ -218,70 +217,7 @@ object YouTube {
 
     suspend fun searchSummary(query: String): Result<SearchSummaryPage> =
         runCatching {
-            val response = innerTube.search(WEB_REMIX, query).body<SearchResponse>()
-            SearchSummaryPage(
-                summaries =
-                    response.contents
-                        ?.tabbedSearchResultsRenderer
-                        ?.tabs
-                        ?.firstOrNull()
-                        ?.tabRenderer
-                        ?.content
-                        ?.sectionListRenderer
-                        ?.contents
-                        ?.mapNotNull { it ->
-                            if (it.musicCardShelfRenderer != null) {
-                                SearchSummary(
-                                    title =
-                                        it.musicCardShelfRenderer.header
-                                            ?.musicCardShelfHeaderBasicRenderer
-                                            ?.title
-                                            ?.runs
-                                            ?.firstOrNull()
-                                            ?.text ?: YouTubeConstants.DEFAULT_TOP_RESULT,
-                                    items =
-                                        listOfNotNull(SearchSummaryPage.fromMusicCardShelfRenderer(it.musicCardShelfRenderer))
-                                            .plus(
-                                                it.musicCardShelfRenderer.contents
-                                                    ?.mapNotNull { it.musicResponsiveListItemRenderer }
-                                                    ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
-                                                    .orEmpty(),
-                                            ).distinctBy { it.id }
-                                            .ifEmpty { null } ?: return@mapNotNull null,
-                                )
-                            } else {
-                                SearchSummary(
-                                    title =
-                                        it.musicShelfRenderer
-                                            ?.title
-                                            ?.runs
-                                            ?.firstOrNull()
-                                            ?.text ?: YouTubeConstants.DEFAULT_OTHER_RESULTS,
-                                    items =
-                                        it.musicShelfRenderer
-                                            ?.contents
-                                            ?.getItems()
-                                            ?.mapNotNull {
-                                                SearchSummaryPage.fromMusicResponsiveListItemRenderer(it)
-                                            }?.distinctBy { it.id }
-                                            ?.ifEmpty { null } ?: return@mapNotNull null,
-                                )
-                            }
-                        }!!,
-                continuation =
-                    response.contents
-                        ?.tabbedSearchResultsRenderer
-                        ?.tabs
-                        ?.firstOrNull()
-                        ?.tabRenderer
-                        ?.content
-                        ?.sectionListRenderer
-                        ?.contents
-                        ?.lastOrNull()
-                        ?.musicShelfRenderer
-                        ?.continuations
-                        ?.getContinuation(),
-            )
+            SearchSummaryPage.fromSearchResponse(innerTube.search(WEB_REMIX, query).body<SearchResponse>())
         }
 
     suspend fun search(
