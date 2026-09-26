@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.engagement.LikedMediaUseCase
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.SavedPlaylistSyncStore
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.model.Video
@@ -45,6 +46,7 @@ class MusicCollectionViewModelTest {
     private val likes = mockk<LikedVideosRepository>(relaxed = true)
     private val musicLibrary = mockk<MusicLibrary>(relaxed = true)
     private val likedMedia = mockk<LikedMediaUseCase>(relaxed = true)
+    private val syncState = mockk<SavedPlaylistSyncStore>(relaxed = true).also { coEvery { it.syncedAt(any()) } returns null }
     private val downloads =
         mockk<BackgroundDownloadQueuer>(
             relaxed = true,
@@ -75,6 +77,7 @@ class MusicCollectionViewModelTest {
             mockk(relaxed = true),
             mockk(relaxed = true),
             downloads,
+            syncState,
         )
 
     private fun entity(
@@ -177,16 +180,32 @@ class MusicCollectionViewModelTest {
     }
 
     @Test
-    fun `a saved playlist longer than one page is refreshed from every page`() {
+    fun `a long saved playlist whose first page changed is refreshed from every page`() {
         val id = "PLsaved"
         coEvery { playlists.getPlaylistEntity(id) } returns entity(id, own = false)
         every { playlists.getPlaylistVideosWithAddedAtFlow(id) } returns flowOf(listOf(video("a")))
-        coEvery { YouTubeMusicService.fetchPlaylistDetails(id) } returns remote(id, listOf(track("a")), continuation = "next")
+        coEvery { YouTubeMusicService.fetchPlaylistDetails(id) } returns remote(id, listOf(track("z")), continuation = "next")
         coEvery { YouTubeMusicService.fetchPlaylistContinuation(id, "next") } returns (listOf(track("b")) to null)
 
         viewModel(id)
 
-        coVerify(timeout = 2_000) { playlists.syncSavedPlaylistVideos(id, match { it.map(Video::id) == listOf("a", "b") }) }
+        coVerify(timeout = 2_000) { playlists.syncSavedPlaylistVideos(id, match { it.map(Video::id) == listOf("z", "b") }) }
+        coVerify(timeout = 2_000) { syncState.markSynced(id, any()) }
+    }
+
+    @Test
+    fun `a long saved playlist whose first page is unchanged loads no further pages`() {
+        val id = "PLsaved"
+        coEvery { playlists.getPlaylistEntity(id) } returns entity(id, own = false)
+        every { playlists.getPlaylistVideosWithAddedAtFlow(id) } returns flowOf(listOf(video("a"), video("b")))
+        coEvery { YouTubeMusicService.fetchPlaylistDetails(id) } returns remote(id, listOf(track("a")), continuation = "next")
+
+        val viewModel = viewModel(id)
+
+        runBlocking { withTimeout(2_000) { viewModel.state.first { it.details?.continuation == "next" } } }
+        coVerify(timeout = 2_000) { syncState.syncedAt(id) }
+        coVerify(exactly = 0) { YouTubeMusicService.fetchPlaylistContinuation(any(), any()) }
+        coVerify(exactly = 0) { playlists.syncSavedPlaylistVideos(any(), any()) }
     }
 
     @Test
@@ -306,6 +325,7 @@ class MusicCollectionViewModelTest {
                 mockk(relaxed = true),
                 mockk(relaxed = true),
                 downloads,
+                syncState,
             )
         assertThat(viewModel.settled().kind).isEqualTo(MusicCollectionKind.DAILY_MIX)
 

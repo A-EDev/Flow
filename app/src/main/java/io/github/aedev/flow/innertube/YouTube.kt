@@ -2017,6 +2017,7 @@ object YouTube {
                         ?.sectionListRenderer
                         ?.continuations
                         ?.getContinuation(),
+                trackCount = PlaylistPage.trackCountFrom(header.secondSubtitle),
             )
         }
 

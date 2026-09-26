@@ -6,11 +6,16 @@ import io.github.aedev.flow.data.music.model.PlaylistDetails
 import org.junit.Test
 
 class SavedCollectionRefreshTest {
+    private val now = 1_000_000_000L
+    private val longAgo = now - SavedCopyTtl.toMillis() - 1
+    private val recently = now - SavedCopyTtl.toMillis() + 1
+
     private fun track(id: String) = MusicTrack(videoId = id, title = id, artist = "Artist", thumbnailUrl = "t", duration = 200)
 
     private fun remote(
         ids: List<String>,
         continuation: String? = null,
+        total: Int? = null,
     ) = PlaylistDetails(
         id = "PL1",
         title = "Remote",
@@ -19,7 +24,34 @@ class SavedCollectionRefreshTest {
         trackCount = ids.size,
         tracks = ids.map(::track),
         continuation = continuation,
+        totalTrackCount = total,
     )
+
+    @Test
+    fun `an unchanged first page loads no further pages`() {
+        assertThat(needsFullRefresh(listOf("a", "b", "c"), remote(listOf("a", "b"), "next"), null, now)).isFalse()
+    }
+
+    @Test
+    fun `a changed first page loads every page`() {
+        assertThat(needsFullRefresh(listOf("a", "b", "c"), remote(listOf("z", "a"), "next"), longAgo, now)).isTrue()
+    }
+
+    @Test
+    fun `a changed song count loads every page even when the first page matches`() {
+        assertThat(needsFullRefresh(listOf("a", "b", "c"), remote(listOf("a", "b"), "next", total = 4), null, now)).isTrue()
+        assertThat(needsFullRefresh(listOf("a", "b", "c"), remote(listOf("a", "b"), "next", total = 3), null, now)).isFalse()
+    }
+
+    @Test
+    fun `a copy checked within the ttl is not loaded in full again`() {
+        assertThat(needsFullRefresh(listOf("a"), remote(listOf("z"), "next"), recently, now)).isFalse()
+    }
+
+    @Test
+    fun `a single page playlist never needs further pages`() {
+        assertThat(needsFullRefresh(listOf("a"), remote(listOf("z")), null, now)).isFalse()
+    }
 
     @Test
     fun `a complete load that differs replaces the saved songs`() {
