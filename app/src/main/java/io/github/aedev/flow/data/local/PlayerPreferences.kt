@@ -3307,29 +3307,6 @@ enum class PlayerRelatedCardStyle {
     FULL_WIDTH,
 }
 
-enum class WatchedThreshold(
-    val minPercent: Float,
-    val maxRemainingMs: Long,
-) {
-    PERCENT_90(90f, Long.MAX_VALUE),
-    PERCENT_95(95f, Long.MAX_VALUE),
-    PERCENT_99(99f, Long.MAX_VALUE),
-    ALMOST_FINISHED(99f, 60_000L),
-    ;
-
-    fun isWatched(
-        positionMs: Long,
-        durationMs: Long,
-    ): Boolean {
-        if (positionMs <= 0L || durationMs <= 0L) return false
-        val percent = positionMs.toFloat() / durationMs.toFloat() * 100f
-        return when (this) {
-            ALMOST_FINISHED -> durationMs - positionMs <= maxRemainingMs
-            else -> percent >= minPercent
-        }
-    }
-}
-
 const val LYRICS_ALIGN_LEFT = "left"
 const val LYRICS_ALIGN_CENTER = "center"
 const val LYRICS_ALIGN_RIGHT = "right"

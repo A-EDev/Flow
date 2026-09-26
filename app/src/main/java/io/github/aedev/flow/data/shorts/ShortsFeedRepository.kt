@@ -158,12 +158,7 @@ class ShortsFeedRepository
 
         private suspend fun watchedReelIds(): Set<String> {
             val threshold = playerPreferences.watchedThreshold.first()
-            return runCatching {
-                viewHistory.getWatchedShortIdsAboveThreshold(
-                    threshold.minPercent,
-                    threshold.maxRemainingMs,
-                )
-            }.getOrDefault(emptySet())
+            return runCatching { viewHistory.getWatchedShortIds(threshold) }.getOrDefault(emptySet())
         }
 
         private val engine =

@@ -133,36 +133,15 @@ interface WatchHistoryDao {
     @Query("SELECT videoId FROM watch_history WHERE isMusic = 0 AND isLocal = 0")
     suspend fun getAllWatchedVideoIds(): List<String>
 
+    /** Every Short with progress; which of them count as watched is [WatchedThreshold.isWatched]'s call. */
     @Query(
-        """
-        SELECT videoId FROM watch_history
-        WHERE isMusic = 0
-        AND isLocal = 0
-        AND duration > 0
-        AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
-        AND (duration - position) <= :maxRemainingMs
-    """,
+        "SELECT videoId, position, duration, timestamp FROM watch_history " +
+            "WHERE isMusic = 0 AND isLocal = 0 AND isShort = 1 AND position > 0 AND duration > 0",
     )
-    suspend fun getWatchedVideoIdsAboveThreshold(
-        minPercent: Float = 99f,
-        maxRemainingMs: Long = Long.MAX_VALUE,
-    ): List<String>
+    suspend fun readShortProgress(): List<WatchProgress>
 
-    @Query(
-        """
-        SELECT videoId FROM watch_history
-        WHERE isMusic = 0
-        AND isLocal = 0
-        AND isShort = 1
-        AND duration > 0
-        AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
-        AND (duration - position) <= :maxRemainingMs
-    """,
-    )
-    suspend fun getWatchedShortIdsAboveThreshold(
-        minPercent: Float = 99f,
-        maxRemainingMs: Long = Long.MAX_VALUE,
-    ): List<String>
+    @Query("SELECT videoId, position, duration, timestamp FROM watch_history WHERE videoId = :videoId")
+    suspend fun getProgress(videoId: String): WatchProgress?
 
     /**
      * Returns the most recently watched non-music, non-Short video **only if that specific video
