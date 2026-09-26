@@ -31,6 +31,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
@@ -43,12 +44,16 @@ import io.github.aedev.flow.player.audio.AudioFeaturesManager
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
+import io.github.aedev.flow.player.config.VideoSizeCap
+import io.github.aedev.flow.player.config.resetVideoSizeTo
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.PlayerErrorHandler
 import io.github.aedev.flow.player.factory.PlayerFactory
 import io.github.aedev.flow.player.media.MediaLoader
 import io.github.aedev.flow.player.preload.GaplessPreloadController
 import io.github.aedev.flow.player.preload.PreloadTarget
+import io.github.aedev.flow.player.quality.LiveQualityPick
+import io.github.aedev.flow.player.quality.LiveQualitySelection
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.recovery.ClearedMediaRecoveryState
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
@@ -149,6 +154,9 @@ class EnhancedPlayerManager private constructor() {
     private var currentHlsUrl: String? = null
     private var currentIsLiveStream = false
     private var liveQualityHeights: List<Int> = emptyList()
+    private var liveIsPortrait = false
+    private var liveQualityPick: LiveQualityPick? = null
+    private var videoSizeCap = VideoSizeCap.UHD
 
     private var pendingLiveQualityHeight: Int = 0
 
@@ -514,7 +522,8 @@ class EnhancedPlayerManager private constructor() {
 
         // Initialize bandwidth meter and track selector via factory
         bandwidthMeter = playerFactory.createBandwidthMeter(context)
-        trackSelector = playerFactory.createTrackSelector(context)
+        videoSizeCap = VideoSizeCap.forDevice(context)
+        trackSelector = playerFactory.createTrackSelector(context, videoSizeCap)
 
         // Initialize media loader
         mediaLoader =
@@ -549,6 +558,7 @@ class EnhancedPlayerManager private constructor() {
             QualityManager(
                 bandwidthMeter = bandwidthMeter,
                 trackSelector = trackSelector,
+                videoSizeCap = videoSizeCap,
                 stateFlow = _playerState,
                 onQualitySwitch = { stream, position ->
                     currentVideoStream = stream
@@ -722,8 +732,7 @@ class EnhancedPlayerManager private constructor() {
         }
 
         // Collect per-category SponsorBlock actions and update handler
-        val sbCategories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
-        sbCategories.forEach { category ->
+        SponsorBlockCategories.all.forEach { category ->
             scope.launch {
                 prefs.sbActionForCategory(category).collect { action ->
                     val current = sponsorBlockHandler?.categoryActions?.toMutableMap() ?: mutableMapOf()
@@ -743,7 +752,7 @@ class EnhancedPlayerManager private constructor() {
                     if (videoSize.height > 0) {
                         _playerState.value =
                             _playerState.value.copy(
-                                effectiveQuality = QualityManager.normalizeQualityHeight(videoSize.height),
+                                effectiveQuality = VideoCodecUtils.qualityClass(videoSize.width, videoSize.height),
                             )
                     }
                 }
@@ -1030,7 +1039,9 @@ class EnhancedPlayerManager private constructor() {
         val isLiveStream =
             useLiveManifest &&
                 (!currentHlsUrl.isNullOrEmpty() || !currentDashManifestUrl.isNullOrEmpty())
-        pendingLiveQualityHeight = if (isLiveStream) preferredLiveQualityHeight else 0
+        liveQualityPick = LiveQualitySelection.retainedPick(videoId, liveQualityPick)
+        pendingLiveQualityHeight =
+            if (isLiveStream) LiveQualitySelection.targetHeight(videoId, liveQualityPick, preferredLiveQualityHeight) else 0
         if (isLiveStream) applyLiveCodecPreference()
         updateLivePlaybackMode(isLive = isLiveStream, forceLiveSpeedReset = true)
         pendingInitialLiveEdgeSeek = streamType == StreamType.LIVE_STREAM
@@ -1107,6 +1118,7 @@ class EnhancedPlayerManager private constructor() {
         clearAutoplayCountdownInternal()
         currentVideoId = videoId
         liveQualityHeights = emptyList()
+        liveIsPortrait = false
         pendingLiveQualityHeight = 0
         lastLiveEdgeRecoveryMs = 0L
         qualityManager?.resetForNewVideo()
@@ -2508,14 +2520,15 @@ class EnhancedPlayerManager private constructor() {
 
     private fun updateLiveQualityOptions(tracks: Tracks) {
         val heightToFps = HashMap<Int, Int>()
+        var portrait = false
         tracks.groups
             .asSequence()
             .filter { it.type == C.TRACK_TYPE_VIDEO }
             .forEach { group ->
                 for (i in 0 until group.length) {
                     val format = group.getTrackFormat(i)
-                    val h = format.height.takeIf { it > 0 } ?: continue
-                    val height = VideoCodecUtils.normalizeQualityHeight(h)
+                    val height = VideoCodecUtils.qualityClass(format.width, format.height).takeIf { it > 0 } ?: continue
+                    if (format.height > format.width && format.width > 0) portrait = true
                     val fps = if (format.frameRate > 0f) format.frameRate.toInt() else 0
                     heightToFps[height] = maxOf(heightToFps[height] ?: 0, fps)
                 }
@@ -2523,6 +2536,7 @@ class EnhancedPlayerManager private constructor() {
         val heights = heightToFps.keys.sortedDescending()
         if (heights.isEmpty() || heights == liveQualityHeights) return
         liveQualityHeights = heights
+        liveIsPortrait = portrait
 
         val options =
             listOf(QualityOption(height = 0, label = "Auto", bitrate = 0L)) +
@@ -2534,17 +2548,13 @@ class EnhancedPlayerManager private constructor() {
             _playerState.value.currentQualityKey
                 ?.removePrefix(LIVE_QUALITY_KEY_PREFIX)
                 ?.toIntOrNull()
-        _playerState.value =
-            _playerState.value.copy(
-                availableQualities = options,
-                effectiveQuality = manualHeight ?: heights.first(),
-            )
+        _playerState.value = _playerState.value.copy(availableQualities = options)
 
         if (pendingLiveQualityHeight > 0 && manualHeight == null) {
-            val target = heights.firstOrNull { it <= pendingLiveQualityHeight } ?: heights.last()
+            val target = LiveQualitySelection.snapToOffered(pendingLiveQualityHeight, heights) ?: return
             pendingLiveQualityHeight = 0
-            Log.d(TAG, "Applying default live quality: ${target}p")
-            switchLiveQuality(target)
+            Log.d(TAG, "Applying live quality: ${target}p (portrait=$liveIsPortrait)")
+            switchLiveQuality(target, byUser = false)
         }
     }
 
@@ -2558,7 +2568,11 @@ class EnhancedPlayerManager private constructor() {
         )
     }
 
-    private fun switchLiveQuality(height: Int): Boolean {
+    /** Leaves `effectiveQuality` to `onVideoSizeChanged`, which reports the frame actually decoded. */
+    private fun switchLiveQuality(
+        height: Int,
+        byUser: Boolean = true,
+    ): Boolean {
         val selector = trackSelector ?: return false
         val builder =
             selector
@@ -2566,20 +2580,20 @@ class EnhancedPlayerManager private constructor() {
                 .setPreferredVideoMimeTypes(*VideoCodecUtils.preferredVideoMimeTypes(preferredVideoCodecKey))
         if (height <= 0) {
             builder
-                .clearVideoSizeConstraints()
-                .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
+                .resetVideoSizeTo(videoSizeCap)
                 .setForceHighestSupportedBitrate(false)
         } else {
+            val (maxWidth, maxHeight) = LiveQualitySelection.maxVideoSize(height, liveIsPortrait)
             builder
                 .setMinVideoSize(0, 0)
-                .setMaxVideoSize(Int.MAX_VALUE, height)
+                .setMaxVideoSize(maxWidth, maxHeight)
                 .setForceHighestSupportedBitrate(true)
         }
         selector.setParameters(builder.build())
+        if (byUser) currentVideoId?.let { liveQualityPick = LiveQualityPick(it, height.coerceAtLeast(0)) }
         _playerState.value =
             _playerState.value.copy(
                 currentQuality = if (height <= 0) 0 else height,
-                effectiveQuality = if (height <= 0) (liveQualityHeights.firstOrNull() ?: 0) else height,
                 currentQualityKey = if (height <= 0) null else "$LIVE_QUALITY_KEY_PREFIX$height",
             )
         return true
@@ -2722,6 +2736,8 @@ class EnhancedPlayerManager private constructor() {
 
     val sponsorSegments: StateFlow<List<SponsorBlockSegment>>
         get() = sponsorBlockHandler?.sponsorSegments ?: MutableStateFlow(emptyList())
+
+    fun reloadSponsorSegments(videoId: String) = sponsorBlockHandler?.reloadSegments(videoId)
 
     /** Emits the display label of a subtitle track whose fetch failed and will not be retried. */
     val subtitleLoadFailedEvent: SharedFlow<SubtitleLoadFailure>

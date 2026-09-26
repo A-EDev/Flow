@@ -59,6 +59,7 @@ internal fun VideoPlayerDialogs(
             videoId = video.id,
             currentPositionMs = initialPosition,
             onDismiss = { screenState.closeSheet() },
+            onSubmitted = { playerViewModel.reloadSponsorSegments(video.id) },
         )
     }
 

@@ -29,7 +29,7 @@ internal fun scrubInfoAt(
     val chapter = chapters.lastOrNull { it.startTimeSeconds <= positionSeconds }
     val sponsor =
         sponsorSegments
-            .filter { positionSeconds >= it.startTime && positionSeconds <= it.endTime }
+            .filter { it.endTime > it.startTime && positionSeconds >= it.startTime && positionSeconds <= it.endTime }
             .minByOrNull { it.endTime - it.startTime }
     return ScrubInfo(
         chapterTitle = chapter?.title?.takeIf { it.isNotBlank() },

@@ -1,6 +1,5 @@
 package io.github.aedev.flow.player.shorts
 
-import android.app.ActivityManager
 import android.content.Context
 import android.media.audiofx.AudioEffect
 import android.net.Uri
@@ -35,6 +34,7 @@ import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.cache.SharedPlayerCacheProvider
 import io.github.aedev.flow.player.config.PlayerConfig
+import io.github.aedev.flow.player.config.VideoSizeCap
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
 import io.github.aedev.flow.player.factory.LoadControlFactory
 import io.github.aedev.flow.player.resolver.MediaSourceBuilder
@@ -293,7 +293,8 @@ class ShortsPlayerPool private constructor() {
         context: Context,
         equalizer: EqualizerAudioProcessor,
     ): ExoPlayer {
-        val (maxVideoWidth, maxVideoHeight) = maxVideoSizeForHeap(context)
+        // The device cap is landscape; a Short is portrait, so its axes swap.
+        val (maxVideoWidth, maxVideoHeight) = VideoSizeCap.forDevice(context).let { it.maxHeight to it.maxWidth }
 
         val loadControl = LoadControlFactory.forShorts()
 
@@ -377,17 +378,6 @@ class ShortsPlayerPool private constructor() {
                     },
                 )
             }
-    }
-
-    private fun maxVideoSizeForHeap(context: Context): Pair<Int, Int> {
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-        val memoryClassMb = activityManager?.memoryClass ?: 256
-        val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb <= 256
-        return when {
-            isLowMemoryDevice -> 1080 to 1920
-            memoryClassMb <= 384 -> 1440 to 2560
-            else -> 2160 to 3840
-        }
     }
 
     // PLAYER ACCESS

@@ -2,15 +2,18 @@ package io.github.aedev.flow.data.repository
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,17 +25,11 @@ class SponsorBlockRepository
             get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
         private val gson = Gson()
         private val segmentListType = object : TypeToken<List<SponsorBlockSegment>>() {}.type
-        private val baseUrl = "https://sponsor.ajay.app/api/skipSegments"
-
-        // Categories to fetch
-        private val categories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
 
         suspend fun getSegments(videoId: String): List<SponsorBlockSegment> =
             withContext(Dispatchers.IO) {
                 try {
-                    val categoriesJson = gson.toJson(categories)
-                    val encodedCategories = URLEncoder.encode(categoriesJson, "UTF-8")
-                    val url = "$baseUrl?videoID=$videoId&categories=$encodedCategories"
+                    val url = segmentsUrl(videoId)
 
                     val request =
                         Request
@@ -92,7 +89,7 @@ class SponsorBlockRepository
                             .replace("-", "")
                     val duration = (endTime - startTime)
                     val submitUrl =
-                        "https://sponsor.ajay.app/api/skipSegments"
+                        SKIP_SEGMENTS_URL
                             .toHttpUrl()
                             .newBuilder()
                             .addQueryParameter("videoID", videoId)
@@ -119,4 +116,20 @@ class SponsorBlockRepository
                     false
                 }
             }
+
+        companion object {
+            private const val SKIP_SEGMENTS_URL = "https://sponsor.ajay.app/api/skipSegments"
+
+            /** The lookup for [videoId], asking for every category and action type Flow handles. */
+            internal fun segmentsUrl(videoId: String): HttpUrl =
+                SKIP_SEGMENTS_URL
+                    .toHttpUrl()
+                    .newBuilder()
+                    .addQueryParameter("videoID", videoId)
+                    .addQueryParameter("categories", SponsorBlockCategories.all.toJsonArray())
+                    .addQueryParameter("actionTypes", SponsorBlockCategories.actionTypes.toJsonArray())
+                    .build()
+
+            private fun List<String>.toJsonArray(): String = JsonArray(map { JsonPrimitive(it) }).toString()
+        }
     }
