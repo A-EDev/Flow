@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.musicplayer.full
 
-import android.content.Intent
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -32,7 +31,6 @@ import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
-import io.github.aedev.flow.service.Media3MusicService
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.music.sheet.MusicQuickActionsSheet
 import io.github.aedev.flow.ui.components.music.sheet.SaveSongSheet
@@ -115,7 +113,6 @@ internal fun FullMusicPlayerContent(
     LaunchedEffect(Unit) {
         SleepTimerManager.attachExitCallback {
             EnhancedMusicPlayerManager.stop()
-            context.stopService(Intent(context, Media3MusicService::class.java))
             (context as? android.app.Activity)?.finishAndRemoveTask()
         }
     }
