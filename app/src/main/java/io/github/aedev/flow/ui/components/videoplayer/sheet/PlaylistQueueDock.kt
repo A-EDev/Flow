@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -76,6 +77,38 @@ fun PlaylistQueueDock(
             actionIcon = Icons.Rounded.KeyboardArrowUp,
             onAction = open,
             modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** What plays next, at the top of the wide layout's side pane; opens the queue in the pane. */
+@Composable
+fun PlaylistQueuePaneCard(
+    nextVideo: Video?,
+    playlistName: String,
+    currentIndex: Int,
+    queueSize: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val open = rememberQueueOpenAction(onClick)
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.large,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(onClick = open),
+    ) {
+        QueueNextUpRow(
+            nextVideo = nextVideo,
+            playlistName = playlistName,
+            currentIndex = currentIndex,
+            queueSize = queueSize,
+            actionIcon = Icons.AutoMirrored.Rounded.QueueMusic,
+            onAction = open,
+            modifier = Modifier.padding(vertical = 12.dp),
         )
     }
 }

@@ -2,6 +2,23 @@ package io.github.aedev.flow.ui.screens.player.state
 
 import io.github.aedev.flow.data.model.Video
 
+/** Where the player shows what plays next: floating under the details, atop the side pane, or not at all. */
+internal enum class QueueDockPlacement {
+    FLOATING,
+    IN_PANE,
+    HIDDEN,
+}
+
+internal fun queueDockPlacement(
+    hasQueue: Boolean,
+    layoutMode: PlayerLayoutMode,
+): QueueDockPlacement =
+    when {
+        !hasQueue -> QueueDockPlacement.HIDDEN
+        layoutMode == PlayerLayoutMode.WIDE -> QueueDockPlacement.IN_PANE
+        else -> QueueDockPlacement.FLOATING
+    }
+
 /** A named queue shows from its first video; an unnamed one only once something follows the current video. */
 internal fun hasVisibleQueue(
     queueTitle: String?,

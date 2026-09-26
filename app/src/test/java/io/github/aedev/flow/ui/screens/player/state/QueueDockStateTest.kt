@@ -33,4 +33,12 @@ class QueueDockStateTest {
         assertThat(nextQueueVideo(queue, currentIndex = 2, isLooping = false)).isNull()
         assertThat(nextQueueVideo(queue, currentIndex = 2, isLooping = true)?.id).isEqualTo("a")
     }
+
+    @Test
+    fun `the wide layout puts what plays next in the side pane`() {
+        assertThat(queueDockPlacement(hasQueue = true, layoutMode = PlayerLayoutMode.WIDE)).isEqualTo(QueueDockPlacement.IN_PANE)
+        assertThat(queueDockPlacement(hasQueue = true, layoutMode = PlayerLayoutMode.MEDIUM)).isEqualTo(QueueDockPlacement.FLOATING)
+        assertThat(queueDockPlacement(hasQueue = true, layoutMode = PlayerLayoutMode.COMPACT)).isEqualTo(QueueDockPlacement.FLOATING)
+        assertThat(queueDockPlacement(hasQueue = false, layoutMode = PlayerLayoutMode.WIDE)).isEqualTo(QueueDockPlacement.HIDDEN)
+    }
 }

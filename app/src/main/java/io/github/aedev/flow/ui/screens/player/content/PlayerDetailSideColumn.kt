@@ -1,9 +1,13 @@
 package io.github.aedev.flow.ui.screens.player.content
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +37,9 @@ import io.github.aedev.flow.ui.screens.player.state.rememberPlayerCommentsUiStat
 import io.github.aedev.flow.ui.screens.player.state.transcriptTrackUrl
 import kotlinx.coroutines.launch
 
+private val QueueCardHorizontalPadding = 12.dp
+private val QueueCardVerticalPadding = 8.dp
+
 /**
  * Supporting pane of the wide player layout. Comments, the description, the chapters, the queue, the
  * settings sheet with every page it owns and the sleep timer take the pane over when opened, so the video
@@ -53,6 +60,7 @@ internal fun PlayerDetailSideColumn(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    queueCard: (@Composable () -> Unit)? = null,
 ) {
     val commentsUiState = rememberPlayerCommentsUiState(viewModel)
     val scope = rememberCoroutineScope()
@@ -159,61 +167,79 @@ internal fun PlayerDetailSideColumn(
                 )
             }
 
-            uiState.isLiveChatAvailable && screenState.showLiveChatPanel -> {
-                PlayerLiveChatColumn(
-                    messages = uiState.liveChatMessages,
-                    isLoading = uiState.isLiveChatLoading,
-                    onClose = { screenState.showLiveChatPanel = false },
-                    modifier = paneModifier,
-                )
-            }
-
-            // With related videos switched off the resting pane had nothing in it, leaving a
-            // column of empty space beside the video (#1022). It keeps its place and shows the next
-            // most useful thing instead: the comments, or the description when those are off too.
-            !showRelatedVideos && commentsEnabled -> {
-                PlayerCommentsPanelHost(
-                    videoId = video.id,
-                    screenState = screenState,
-                    viewModel = viewModel,
-                    commentsUiState = commentsUiState,
-                    artworkUrl = video.thumbnailUrl,
-                    onNavigateToChannel = onChannelClick,
-                    onClose = closeSheet,
-                    modifier = paneModifier,
-                )
-            }
-
-            !showRelatedVideos -> {
-                PlayerDescriptionSheetHost(
-                    video = video,
-                    uiState = uiState,
-                    viewModel = viewModel,
-                    asSidePanel = true,
-                    expandedHeight = paneHeight,
-                    onDismiss = closeSheet,
-                    hasTranscriptTrack = transcriptTrackUrl(playerState, screenState) != null,
-                    onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
-                    onTranscriptClick = { screenState.open(PlayerSheet.Transcript) },
-                    onChannelClick = onChannelClick,
-                )
-            }
-
             else -> {
-                LazyColumn(
-                    modifier = paneModifier,
-                    contentPadding = PaddingValues(bottom = 80.dp),
-                ) {
-                    if (uiState.isLiveChatAvailable) {
-                        item {
-                            LiveChatPreview(onClick = { screenState.showLiveChatPanel = true })
+                Column(paneModifier) {
+                    if (queueCard != null) {
+                        Box(Modifier.padding(horizontal = QueueCardHorizontalPadding, vertical = QueueCardVerticalPadding)) {
+                            queueCard()
                         }
                     }
-                    relatedVideosContent(
-                        relatedVideos = uiState.relatedVideos,
-                        onVideoClick = onVideoClick,
-                        cardStyle = relatedCardStyle,
-                    )
+                    BoxWithConstraints(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                    ) {
+                        val restingHeight = maxHeight
+                        when {
+                            uiState.isLiveChatAvailable && screenState.showLiveChatPanel -> {
+                                PlayerLiveChatColumn(
+                                    messages = uiState.liveChatMessages,
+                                    isLoading = uiState.isLiveChatLoading,
+                                    onClose = { screenState.showLiveChatPanel = false },
+                                    modifier = paneModifier,
+                                )
+                            }
+
+                            // With related videos switched off the resting pane had nothing in it, leaving a
+                            // column of empty space beside the video (#1022). It keeps its place and shows the next
+                            // most useful thing instead: the comments, or the description when those are off too.
+                            !showRelatedVideos && commentsEnabled -> {
+                                PlayerCommentsPanelHost(
+                                    videoId = video.id,
+                                    screenState = screenState,
+                                    viewModel = viewModel,
+                                    commentsUiState = commentsUiState,
+                                    artworkUrl = video.thumbnailUrl,
+                                    onNavigateToChannel = onChannelClick,
+                                    onClose = closeSheet,
+                                    modifier = paneModifier,
+                                )
+                            }
+
+                            !showRelatedVideos -> {
+                                PlayerDescriptionSheetHost(
+                                    video = video,
+                                    uiState = uiState,
+                                    viewModel = viewModel,
+                                    asSidePanel = true,
+                                    expandedHeight = restingHeight,
+                                    onDismiss = closeSheet,
+                                    hasTranscriptTrack = transcriptTrackUrl(playerState, screenState) != null,
+                                    onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
+                                    onTranscriptClick = { screenState.open(PlayerSheet.Transcript) },
+                                    onChannelClick = onChannelClick,
+                                )
+                            }
+
+                            else -> {
+                                LazyColumn(
+                                    modifier = paneModifier,
+                                    contentPadding = PaddingValues(bottom = 80.dp),
+                                ) {
+                                    if (uiState.isLiveChatAvailable) {
+                                        item {
+                                            LiveChatPreview(onClick = { screenState.showLiveChatPanel = true })
+                                        }
+                                    }
+                                    relatedVideosContent(
+                                        relatedVideos = uiState.relatedVideos,
+                                        onVideoClick = onVideoClick,
+                                        cardStyle = relatedCardStyle,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

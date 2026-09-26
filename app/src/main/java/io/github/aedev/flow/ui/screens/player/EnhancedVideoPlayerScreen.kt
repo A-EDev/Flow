@@ -27,6 +27,7 @@ import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueueDock
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueueDockDefaults
+import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueuePaneCard
 import io.github.aedev.flow.ui.screens.player.content.PlayerDetailSideColumn
 import io.github.aedev.flow.ui.screens.player.content.VideoInfoContent
 import io.github.aedev.flow.ui.screens.player.content.relatedVideosContent
@@ -34,10 +35,12 @@ import io.github.aedev.flow.ui.screens.player.content.relatedVideosGridContent
 import io.github.aedev.flow.ui.screens.player.state.PlayerLayoutMode
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.QueueDockPlacement
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
 import io.github.aedev.flow.ui.screens.player.state.hasVisibleQueue
 import io.github.aedev.flow.ui.screens.player.state.nextQueueVideo
 import io.github.aedev.flow.ui.screens.player.state.playerLayoutModeFor
+import io.github.aedev.flow.ui.screens.player.state.queueDockPlacement
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerCommentsUiState
 import io.github.aedev.flow.ui.utils.LocalWindowIsLandscape
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
@@ -46,7 +49,6 @@ import kotlin.math.roundToInt
 /** A readable cap for the dock, which would otherwise stretch across a tablet's whole width. */
 private val QueueDockMaxWidth = 600.dp
 private val QueueDockMargin = 16.dp
-private val QueueDockWideMargin = 24.dp
 private val QueueDockGap = 8.dp
 private val ListEndPadding = 80.dp
 
@@ -106,11 +108,12 @@ internal fun EnhancedVideoPlayerScreen(
         val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(
             initialValue = -1,
         )
-        val showsQueueDock = hasVisibleQueue(playerState.queueTitle, queueVideos.size)
-        val dockBottomMargin = if (isWideLayout) QueueDockWideMargin else QueueDockMargin
+        val dockPlacement = queueDockPlacement(hasVisibleQueue(playerState.queueTitle, queueVideos.size), layoutMode)
+        val showsQueueDock = dockPlacement == QueueDockPlacement.FLOATING
+        val nextVideo = nextQueueVideo(queueVideos, currentQueueIndex, playerState.isQueueLooping)
         val dockReserve =
             if (showsQueueDock) {
-                PlaylistQueueDockDefaults.Height + dockBottomMargin +
+                PlaylistQueueDockDefaults.Height + QueueDockMargin +
                     WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
             } else {
                 0.dp
@@ -176,6 +179,20 @@ internal fun EnhancedVideoPlayerScreen(
                             onVideoClick = onVideoClick,
                             onChannelClick = onChannelClick,
                             modifier = Modifier.fillMaxSize(),
+                            queueCard =
+                                if (dockPlacement == QueueDockPlacement.IN_PANE) {
+                                    {
+                                        PlaylistQueuePaneCard(
+                                            nextVideo = nextVideo,
+                                            playlistName = playerState.queueTitle.orEmpty(),
+                                            currentIndex = currentQueueIndex,
+                                            queueSize = queueVideos.size,
+                                            onClick = { screenState.open(PlayerSheet.Queue) },
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 },
@@ -227,15 +244,15 @@ internal fun EnhancedVideoPlayerScreen(
 
         if (showsQueueDock) {
             PlaylistQueueDock(
-                nextVideo = nextQueueVideo(queueVideos, currentQueueIndex, playerState.isQueueLooping),
-                playlistName = playerState.queueTitle ?: "",
+                nextVideo = nextVideo,
+                playlistName = playerState.queueTitle.orEmpty(),
                 currentIndex = currentQueueIndex,
                 queueSize = queueVideos.size,
                 onClick = { screenState.open(PlayerSheet.Queue) },
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = dockBottomMargin)
+                        .padding(bottom = QueueDockMargin)
                         .widthIn(max = QueueDockMaxWidth),
             )
         }
