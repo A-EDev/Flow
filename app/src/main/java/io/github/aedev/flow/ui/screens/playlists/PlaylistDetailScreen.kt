@@ -48,6 +48,7 @@ import io.github.aedev.flow.ui.components.shared.FlowSidePanes
 import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
 import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
 import io.github.aedev.flow.ui.components.shared.rememberReorderableLazyListState
+import io.github.aedev.flow.ui.components.shared.rememberShareLinksWithoutText
 import io.github.aedev.flow.utils.PLAYLIST_FILE_MIME_TYPE
 import io.github.aedev.flow.utils.filterBySearch
 import io.github.aedev.flow.utils.sharePlaylist
@@ -68,6 +69,7 @@ fun PlaylistDetailScreen(
     val mergeTargets by viewModel.userCreatedPlaylists.collectAsStateWithLifecycle()
     val quickActions = sharedQuickActionsViewModel()
     val context = LocalContext.current
+    val shareLinkOnly by rememberShareLinksWithoutText()
 
     var dialog by remember { mutableStateOf<PlaylistDialog?>(null) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -146,7 +148,7 @@ fun PlaylistDetailScreen(
             onAddAll = { dialog = PlaylistDialog.AddAll },
             onShare = {
                 if (!isUserCreated) {
-                    sharePlaylist(context, viewModel.playlistId, uiState.playlistName)
+                    sharePlaylist(context, viewModel.playlistId, uiState.playlistName, shareLinkOnly)
                 } else {
                     scope.launch {
                         val file = viewModel.shareableFile()

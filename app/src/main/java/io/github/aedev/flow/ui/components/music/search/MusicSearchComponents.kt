@@ -35,6 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
+import io.github.aedev.flow.innertube.pages.SearchSummary
+import io.github.aedev.flow.innertube.pages.SearchSummaryKind
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.FlowSearchField
 import io.github.aedev.flow.ui.theme.Dimensions
@@ -154,3 +156,17 @@ fun SearchSuggestionRow(
 private val BarHorizontalPadding = 4.dp
 private val BarVerticalPadding = 4.dp
 private val BarItemSpacing = 2.dp
+
+/** A search section's heading: our own words for the grouped kinds, the server's for a shelf it titled. */
+@Composable
+fun searchSummaryTitle(summary: SearchSummary): String =
+    when (summary.kind) {
+        SearchSummaryKind.TOP_RESULT -> stringResource(R.string.section_top_result)
+        SearchSummaryKind.SONGS -> stringResource(R.string.filter_songs)
+        SearchSummaryKind.VIDEOS -> stringResource(R.string.tab_videos)
+        SearchSummaryKind.EPISODES -> stringResource(R.string.music_search_section_episodes)
+        SearchSummaryKind.ALBUMS -> stringResource(R.string.filter_albums)
+        SearchSummaryKind.ARTISTS -> stringResource(R.string.music_search_section_artists)
+        SearchSummaryKind.PLAYLISTS -> stringResource(R.string.music_search_section_playlists)
+        SearchSummaryKind.SHELF -> summary.title
+    }

@@ -138,11 +138,27 @@
                 <data android:host="m.music.youtube.com" />
                 <data android:pathPrefix="/watch" />
                 <data android:pathPrefix="/v" />
+                <data android:pathPrefix="/live" />
+                <data android:pathPrefix="/embed" />
+                <data android:pathPrefix="/shorts" />
+                <data android:pathPrefix="/playlist" />
+                <data android:pathPrefix="/browse" />
                 <data android:pathPrefix="/channel" />
                 <data android:pathPrefix="/c" />
                 <data android:pathPrefix="/user" />
-                <data android:pathPrefix="/results" />
-                <data android:pathPrefix="/shorts" />
+                <data android:pathPrefix="/@" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="www.youtube-nocookie.com" />
+                <data android:host="youtube-nocookie.com" />
+                <data android:pathPrefix="/embed" />
             </intent-filter>
 
             <intent-filter android:autoVerify="true">

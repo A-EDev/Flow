@@ -164,7 +164,6 @@ fun FlowApp(
     )
 
     HandleDeepLinks(deeplinkVideoId, isShort, navController, onDeeplinkConsumed)
-    HandlePendingRoute(pendingRoute, navController, onPendingRouteConsumed)
     OfflineMonitor(context, navController, snackbarHostState, currentRoute)
 
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -213,13 +212,16 @@ fun FlowApp(
 
         val musicPlayerSheetState = rememberMusicPlayerSheetState()
         val musicMenus = rememberMusicMenus()
-        val mediaNavigator =
-            remember(navController, playerSheetState, musicPlayerSheetState) {
-                FlowMediaNavigator(navController) {
+        val collapseExpandedPlayers: () -> Unit =
+            remember(playerSheetState, musicPlayerSheetState) {
+                {
                     if (playerSheetState.currentValue == PlayerSheetValue.Expanded) playerSheetState.collapse()
                     if (musicPlayerSheetState.isExpanded) musicPlayerSheetState.collapse()
                 }
             }
+        val mediaNavigator = remember(navController, collapseExpandedPlayers) { FlowMediaNavigator(navController, collapseExpandedPlayers) }
+        // A page opened from another app would otherwise land under an expanded player.
+        HandlePendingRoute(pendingRoute, navController, onPendingRouteConsumed, onBeforeNavigate = collapseExpandedPlayers)
 
         val activeVideo = playerUiState.cachedVideo
 

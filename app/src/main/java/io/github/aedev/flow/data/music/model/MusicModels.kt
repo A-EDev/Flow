@@ -109,6 +109,8 @@ data class PlaylistDetails(
     val tracks: List<MusicTrack> = emptyList(),
     val continuation: String? = null,
     val otherVersions: List<MusicPlaylist> = emptyList(),
+    /** The song count YouTube states for the whole playlist, when it states one. */
+    val totalTrackCount: Int? = null,
 )
 
 data class ArtistDetails(

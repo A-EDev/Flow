@@ -246,15 +246,39 @@ internal object NeuroVectorMath {
         topK: Int,
     ): ContentVector {
         if (source.topics.isEmpty()) return current
+        return plantKeys(current, selectPlantKeys(source, topK), floor)
+    }
+
+    /**
+     * Phrase keys first, and never the words of a planted phrase: planting
+     * "hip hop" beside "hip" and "hop" gives generic words the same weight as
+     * the interest itself.
+     */
+    fun selectPlantKeys(
+        source: ContentVector,
+        topK: Int,
+    ): List<String> {
+        val ranked =
+            source.topics.entries
+                .sortedByDescending { it.value }
+                .map { it.key }
+                .filter { it.length >= 3 }
+        val phrases = ranked.filter { ' ' in NeuroScoring.stripDomainTag(it) }.take(topK)
+        val phraseWords = phrases.flatMap { NeuroScoring.stripDomainTag(it).split(' ') }.toSet()
+        val words = ranked.filter { ' ' !in it && NeuroScoring.stripDomainTag(it) !in phraseWords }
+        return (phrases + words).take(topK)
+    }
+
+    fun plantKeys(
+        current: ContentVector,
+        keys: List<String>,
+        floor: Double,
+    ): ContentVector {
+        if (keys.isEmpty()) return current
         val planted = current.topics.toMutableMap()
-        source.topics.entries
-            .sortedByDescending { it.value }
-            .asSequence()
-            .filter { it.key.length >= 3 }
-            .take(topK)
-            .forEach { (topic, _) ->
-                if ((planted[topic] ?: 0.0) < floor) planted[topic] = floor
-            }
+        keys.forEach { topic ->
+            if ((planted[topic] ?: 0.0) < floor) planted[topic] = floor
+        }
         return current.copy(topics = planted)
     }
 

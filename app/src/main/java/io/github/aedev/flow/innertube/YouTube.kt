@@ -38,6 +38,7 @@ import io.github.aedev.flow.innertube.models.response.GetTranscriptResponse
 import io.github.aedev.flow.innertube.models.response.ImageUploadResponse
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.innertube.models.response.ResolveUrlResponse
 import io.github.aedev.flow.innertube.models.response.SearchResponse
 import io.github.aedev.flow.innertube.models.response.channelVideoCountText
 import io.github.aedev.flow.innertube.pages.AlbumPage
@@ -61,7 +62,6 @@ import io.github.aedev.flow.innertube.pages.RelatedPage
 import io.github.aedev.flow.innertube.pages.SearchPage
 import io.github.aedev.flow.innertube.pages.SearchResult
 import io.github.aedev.flow.innertube.pages.SearchSuggestionPage
-import io.github.aedev.flow.innertube.pages.SearchSummary
 import io.github.aedev.flow.innertube.pages.SearchSummaryPage
 import io.github.aedev.flow.innertube.pages.VideoCommentsPage
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
@@ -133,6 +133,7 @@ import java.net.Proxy
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 /**
@@ -218,70 +219,7 @@ object YouTube {
 
     suspend fun searchSummary(query: String): Result<SearchSummaryPage> =
         runCatching {
-            val response = innerTube.search(WEB_REMIX, query).body<SearchResponse>()
-            SearchSummaryPage(
-                summaries =
-                    response.contents
-                        ?.tabbedSearchResultsRenderer
-                        ?.tabs
-                        ?.firstOrNull()
-                        ?.tabRenderer
-                        ?.content
-                        ?.sectionListRenderer
-                        ?.contents
-                        ?.mapNotNull { it ->
-                            if (it.musicCardShelfRenderer != null) {
-                                SearchSummary(
-                                    title =
-                                        it.musicCardShelfRenderer.header
-                                            ?.musicCardShelfHeaderBasicRenderer
-                                            ?.title
-                                            ?.runs
-                                            ?.firstOrNull()
-                                            ?.text ?: YouTubeConstants.DEFAULT_TOP_RESULT,
-                                    items =
-                                        listOfNotNull(SearchSummaryPage.fromMusicCardShelfRenderer(it.musicCardShelfRenderer))
-                                            .plus(
-                                                it.musicCardShelfRenderer.contents
-                                                    ?.mapNotNull { it.musicResponsiveListItemRenderer }
-                                                    ?.mapNotNull(SearchSummaryPage.Companion::fromMusicResponsiveListItemRenderer)
-                                                    .orEmpty(),
-                                            ).distinctBy { it.id }
-                                            .ifEmpty { null } ?: return@mapNotNull null,
-                                )
-                            } else {
-                                SearchSummary(
-                                    title =
-                                        it.musicShelfRenderer
-                                            ?.title
-                                            ?.runs
-                                            ?.firstOrNull()
-                                            ?.text ?: YouTubeConstants.DEFAULT_OTHER_RESULTS,
-                                    items =
-                                        it.musicShelfRenderer
-                                            ?.contents
-                                            ?.getItems()
-                                            ?.mapNotNull {
-                                                SearchSummaryPage.fromMusicResponsiveListItemRenderer(it)
-                                            }?.distinctBy { it.id }
-                                            ?.ifEmpty { null } ?: return@mapNotNull null,
-                                )
-                            }
-                        }!!,
-                continuation =
-                    response.contents
-                        ?.tabbedSearchResultsRenderer
-                        ?.tabs
-                        ?.firstOrNull()
-                        ?.tabRenderer
-                        ?.content
-                        ?.sectionListRenderer
-                        ?.contents
-                        ?.lastOrNull()
-                        ?.musicShelfRenderer
-                        ?.continuations
-                        ?.getContinuation(),
-            )
+            SearchSummaryPage.fromSearchResponse(innerTube.search(WEB_REMIX, query).body<SearchResponse>())
         }
 
     suspend fun search(
@@ -725,6 +663,28 @@ object YouTube {
                     .channelAboutContinuation()
                     ?.let { token -> runCatching { channelBrowseJson(continuation = token).toChannelAbout() }.getOrNull() }
             response.toChannelPage(response.toChannelHeader(idOrHandle).mergedWith(about))
+        }
+
+    private val resolvedChannelIds = ConcurrentHashMap<String, String>()
+
+    /**
+     * The channel id behind an @handle, `/c/` or `/user/` link, which browse cannot open directly.
+     * Kept for the process: a channel page and its Shorts feed both resolve the same link.
+     */
+    suspend fun resolveChannelId(url: String): Result<String> =
+        runCatching {
+            resolvedChannelIds[url]?.let { return@runCatching it }
+            val channelId =
+                innerTube
+                    .resolveUrl(WEB, url)
+                    .body<ResolveUrlResponse>()
+                    .endpoint
+                    ?.browseEndpoint
+                    ?.browseId
+                    ?.takeIf { it.startsWith("UC") }
+                    ?: error("No channel behind $url")
+            resolvedChannelIds[url] = channelId
+            channelId
         }
 
     /** [channel] without the About request, for callers that only need the header and the tabs. */
@@ -2091,6 +2051,7 @@ object YouTube {
                         ?.sectionListRenderer
                         ?.continuations
                         ?.getContinuation(),
+                trackCount = PlaylistPage.trackCountFrom(header.secondSubtitle),
             )
         }
 

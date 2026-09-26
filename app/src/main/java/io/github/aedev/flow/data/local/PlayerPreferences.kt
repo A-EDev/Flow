@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
@@ -548,7 +549,7 @@ class PlayerPreferences(
                 else -> Keys.SB_ACTION_SPONSOR
             }
         return context.playerPreferencesDataStore.data.map { preferences ->
-            SponsorBlockAction.fromString(preferences[key] ?: SponsorBlockAction.SKIP.name)
+            preferences[key]?.let(SponsorBlockAction::fromString) ?: SponsorBlockCategories.defaultAction(category)
         }
     }
 
