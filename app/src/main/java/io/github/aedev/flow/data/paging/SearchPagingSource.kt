@@ -5,6 +5,7 @@ import androidx.paging.PagingState
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.model.DistinctKeyTracker
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
@@ -26,7 +27,7 @@ class SearchPagingSource(
     private val shortsEnabled: Boolean = true,
     private val onHeader: (SearchHeader) -> Unit = {},
     private val loadPage: SearchPageLoader = DefaultSearchPageLoader,
-    private val blockedChannelIds: suspend () -> Set<String> = { emptySet() },
+    private val exclusions: suspend () -> FeedExclusions = { FeedExclusions.NONE },
 ) : PagingSource<String, SearchResultItem>() {
     override fun getRefreshKey(state: PagingState<String, SearchResultItem>): String? = null
 
@@ -37,7 +38,7 @@ class SearchPagingSource(
         return try {
             val page = loadPage(query, filter.toSearchParams(), continuation)
             if (continuation == null) onHeader(page.header)
-            val results = page.toResultItems(shortsEnabled).withoutBlockedChannels(blockedChannelIds())
+            val results = page.toResultItems(shortsEnabled).withoutHidden(exclusions())
             LoadResult.Page(
                 data = loadedItemKeys.filter(results) { it.identityKey() },
                 prevKey = null,
@@ -94,23 +95,25 @@ internal fun SearchResultsPage.toResultItems(shortsEnabled: Boolean): List<Searc
 
 /**
  * Drops everything a blocked creator put in the results, the way the home feed already drops them
- * before ranking: their own card, their videos, and their videos inside a strip. A strip left with
- * nothing goes too, rather than staying as a heading over a gap.
+ * before ranking: their own card, their videos, and their videos inside a strip. A video marked not
+ * interested goes too. A strip left with nothing goes, rather than staying as a heading over a gap.
+ *
+ * Only what the viewer hid outright applies: a search is an explicit ask, so the engine's inferred
+ * suppressions and blocked topics do not filter it.
  *
  * Community posts carry no channel id in the response, so a blocked creator's post survives here.
  */
-internal fun List<SearchResultItem>.withoutBlockedChannels(blockedChannelIds: Set<String>): List<SearchResultItem> {
-    if (blockedChannelIds.isEmpty()) return this
+internal fun List<SearchResultItem>.withoutHidden(exclusions: FeedExclusions): List<SearchResultItem> {
+    if (exclusions.isEmpty) return this
 
-    fun blocked(channelId: String) = channelId.isNotBlank() && channelId in blockedChannelIds
     return mapNotNull { item ->
         when (item) {
             is SearchResultItem.VideoResult -> {
-                item.takeUnless { blocked(it.video.channelId) }
+                item.takeUnless { exclusions.hides(it.video) }
             }
 
             is SearchResultItem.ChannelResult -> {
-                item.takeUnless { blocked(it.channel.id) }
+                item.takeUnless { exclusions.hidesChannel(it.channel.id) }
             }
 
             is SearchResultItem.PlaylistResult -> {
@@ -118,7 +121,7 @@ internal fun List<SearchResultItem>.withoutBlockedChannels(blockedChannelIds: Se
             }
 
             is SearchResultItem.ShelfResult -> {
-                val videos = item.videos.filterNot { blocked(it.channelId) }
+                val videos = item.videos.filterNot { exclusions.hides(it) }
                 when {
                     videos.isNotEmpty() -> item.copy(videos = videos)
                     item.posts.isNotEmpty() -> item

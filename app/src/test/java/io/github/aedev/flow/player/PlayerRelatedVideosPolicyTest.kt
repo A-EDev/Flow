@@ -2,6 +2,7 @@ package io.github.aedev.flow.player
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import org.junit.Test
 
 class PlayerRelatedVideosPolicyTest {
@@ -87,7 +88,7 @@ class PlayerRelatedVideosPolicyTest {
             PlayerRelatedVideosPolicy.sanitize(
                 videoId = "playing",
                 candidates = candidates,
-                blockedChannelIds = setOf("blocked"),
+                exclusions = FeedExclusions(blockedChannelIds = setOf("blocked")),
             )
 
         assertThat(sanitized.map { it.id }).containsExactly("keep")
@@ -101,7 +102,7 @@ class PlayerRelatedVideosPolicyTest {
             PlayerRelatedVideosPolicy.sanitize(
                 videoId = "playing",
                 candidates = candidates,
-                blockedChannelIds = setOf("blocked"),
+                exclusions = FeedExclusions(blockedChannelIds = setOf("blocked")),
             )
 
         assertThat(sanitized.map { it.id }).containsExactly("unknown")
@@ -118,10 +119,46 @@ class PlayerRelatedVideosPolicyTest {
                 primary = primary,
                 fallback = fallback,
                 current = emptyList(),
-                blockedChannelIds = setOf("blocked"),
+                exclusions = FeedExclusions(blockedChannelIds = setOf("blocked")),
             )
 
         assertThat(selected.map { it.id }).containsExactly("wanted")
+    }
+
+    // #1031: autoplay and the queue read this list, so a video marked not interested must leave it.
+    @Test
+    fun `a video marked not interested and a suppressed channel are dropped`() {
+        val candidates =
+            listOf(
+                video("keep", channelId = "wanted"),
+                video("not-interested", channelId = "wanted"),
+                video("suppressed", channelId = "cooling-off"),
+            )
+
+        val sanitized =
+            PlayerRelatedVideosPolicy.sanitize(
+                videoId = "playing",
+                candidates = candidates,
+                exclusions =
+                    FeedExclusions(
+                        suppressedVideoIds = setOf("not-interested"),
+                        suppressedChannelIds = setOf("cooling-off"),
+                    ),
+            )
+
+        assertThat(sanitized.map { it.id }).containsExactly("keep")
+    }
+
+    @Test
+    fun `a blocked topic in the title drops the candidate`() {
+        val sanitized =
+            PlayerRelatedVideosPolicy.sanitize(
+                videoId = "playing",
+                candidates = listOf(video("keep"), video("topic")),
+                exclusions = FeedExclusions(blockedText = { title, _ -> title == "topic" }),
+            )
+
+        assertThat(sanitized.map { it.id }).containsExactly("keep")
     }
 
     private fun video(

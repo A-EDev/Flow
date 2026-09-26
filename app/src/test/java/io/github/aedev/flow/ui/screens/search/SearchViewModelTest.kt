@@ -38,6 +38,7 @@ class SearchViewModelTest {
             ShortsQueueHandoff(),
             mockk(relaxed = true),
             mockk(relaxed = true),
+            mockk(relaxed = true),
         )
 
     @Before

@@ -3,9 +3,9 @@ package io.github.aedev.flow.data.innertube
 import android.util.Log
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.shorts.ChannelReelIndex
-import io.github.aedev.flow.data.shorts.ShortsClassifier
 import io.github.aedev.flow.data.subscriptions.ChannelRssClient
 import io.github.aedev.flow.data.subscriptions.ChannelRssEntry
+import io.github.aedev.flow.data.subscriptions.ChannelUploadsClient
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 import io.github.aedev.flow.utils.parsePremiereTimestamp
@@ -17,15 +17,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.Page
-import org.schabi.newpipe.extractor.channel.ChannelInfo
-import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
-import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs
-import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
-import org.schabi.newpipe.extractor.stream.ContentAvailability
-import org.schabi.newpipe.extractor.stream.StreamInfoItem
-import org.schabi.newpipe.extractor.stream.StreamType
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
@@ -60,6 +51,7 @@ class RssSubscriptionService
     constructor(
         private val rssClient: ChannelRssClient,
         private val channelReelIndex: ChannelReelIndex,
+        private val channelUploads: ChannelUploadsClient,
     ) {
         fun fetchSubscriptionVideos(
             channelIds: List<String>,
@@ -105,7 +97,10 @@ class RssSubscriptionService
                         }
                     for ((channelId, result) in results) {
                         rssChannelHasRecent[channelId] = result.hasRecent
-                        rssNeedsChannelFallback[channelId] = result.needsChannelFallback
+                        // RSS carries only the last fifteen uploads, so a Shorts-heavy channel can fill
+                        // all of them with reels and hide its latest long-form upload entirely.
+                        rssNeedsChannelFallback[channelId] =
+                            result.needsChannelFallback || (result.hasRecentEntries && result.videos.none { !it.isShort })
                         rssDateMap.putAll(result.videoTimestamps)
                         if (result.failed) {
                             unreachableChannelIds += channelId
@@ -161,9 +156,10 @@ class RssSubscriptionService
                         }
 
                     for ((channelId, result) in chunkResults) {
-                        // RSS may already have answered for this channel; only a second miss keeps it listed.
                         if (result.failed) {
-                            // The tab attempt is the final verdict, so its reason replaces the RSS one.
+                            // Even when RSS answered, a failed tab pass leaves this channel's slice
+                            // incomplete, and only a listed failure keeps its earlier rows alive.
+                            unreachableChannelIds += channelId
                             result.failureReason?.let { failureReasons[channelId] = it }
                         } else {
                             unreachableChannelIds -= channelId
@@ -294,6 +290,8 @@ class RssSubscriptionService
             val videoTimestamps: Map<String, Long>,
             val videos: List<Video>,
             val needsChannelFallback: Boolean,
+            /** The feed lists an upload inside the window, whether or not it survived the filters. */
+            val hasRecentEntries: Boolean = false,
             val failed: Boolean = false,
             val failureReason: String? = null,
         )
@@ -358,6 +356,7 @@ class RssSubscriptionService
                 videoTimestamps = timestamps,
                 videos = videos,
                 needsChannelFallback = videos.isEmpty() && newestTimestamp > minimumDateMillis,
+                hasRecentEntries = newestTimestamp > minimumDateMillis,
             )
         }
 
@@ -386,7 +385,7 @@ class RssSubscriptionService
         }
 
         /**
-         * Get videos (including Shorts) from a single channel using NewPipe Extractor.
+         * A channel's own Videos, Shorts and Live tabs, through the native InnerTube browse.
          *
          * @param rssDateMap Pre-fetched RSS timestamps keyed by video ID. Used to assign accurate
          *   upload dates to Shorts tab items, which carry no date metadata of their own.
@@ -396,284 +395,97 @@ class RssSubscriptionService
             minimumDateMillis: Long,
             rssDateMap: Map<String, Long>,
         ): ChannelFetchResult {
-            val channelUrl = "$YOUTUBE_URL/channel/$channelId"
-            val service = NewPipe.getService(0)
-
-            try {
-                val channelInfo = ChannelInfo.getInfo(service, channelUrl)
-                val channelAvatar =
-                    channelInfo.avatars
-                        .maxByOrNull { it.height }
-                        ?.url
-                        ?.let { ThumbnailUrlResolver.resolveChannelAvatar(it) }
-
-                val videosTab = channelInfo.tabs.find { it.contentFilters.contains(ChannelTabs.VIDEOS) }
-                val shortsTab = channelInfo.tabs.find { it.contentFilters.contains(ChannelTabs.SHORTS) }
-                val liveTab = channelInfo.tabs.find { it.contentFilters.contains(ChannelTabs.LIVESTREAMS) }
-
-                if (videosTab == null && shortsTab == null && liveTab == null) {
-                    Log.w(TAG, "[$channelId] No VIDEOS/SHORTS/LIVE tab found")
-                    return ChannelFetchResult(emptyList(), failed = false)
+            val uploads =
+                channelUploads.fetch(channelId, minimumDateMillis).getOrElse { error ->
+                    if (error is CancellationException) throw error
+                    Log.e(TAG, "[$channelId] Channel tabs FAILED (${error::class.simpleName}): ${error.message}")
+                    return ChannelFetchResult(
+                        videos = emptyList(),
+                        failed = true,
+                        failureReason = "Channel: ${error::class.simpleName}: ${error.message}",
+                    )
                 }
-
-                val (videoItems, shortsItems, liveItems) =
-                    coroutineScope {
-                        val videoDeferred = videosTab?.let { async(Dispatchers.IO) { fetchTabItems(it, MAX_VIDEOS_PER_CHANNEL) } }
-                        val shortsDeferred = shortsTab?.let { async(Dispatchers.IO) { fetchTabItems(it, MAX_SHORTS_PER_CHANNEL) } }
-                        val liveDeferred = liveTab?.let { async(Dispatchers.IO) { fetchTabItems(it, MAX_LIVE_PER_CHANNEL) } }
-                        Triple(
-                            videoDeferred?.await() ?: emptyList(),
-                            shortsDeferred?.await() ?: emptyList(),
-                            liveDeferred?.await() ?: emptyList(),
+            val channelAvatar =
+                uploads.owner.avatarUrl
+                    .takeIf { it.isNotBlank() }
+                    ?.let { ThumbnailUrlResolver.resolveChannelAvatar(it) }
+                    .orEmpty()
+            val shortIds = uploads.shorts.mapTo(HashSet()) { it.id }
+            val liveIds = uploads.live.mapTo(HashSet()) { it.id }
+            val videos =
+                (uploads.videos + uploads.shorts + uploads.live)
+                    .distinctBy { it.id }
+                    .mapNotNull { video ->
+                        video.toFeedVideo(
+                            channelId = channelId,
+                            channelName = uploads.owner.name,
+                            channelAvatar = channelAvatar,
+                            fromShortsTab = video.id in shortIds,
+                            fromLiveTab = video.id in liveIds,
+                            rssUploadTimeMillis = rssDateMap[video.id],
+                            minimumDateMillis = minimumDateMillis,
                         )
                     }
 
-                val shortsUrls = shortsItems.map { it.url }.toHashSet()
-                val liveUrls = liveItems.map { it.url }.toHashSet()
-                val combined = (videoItems + shortsItems + liveItems).distinctBy { it.url }
-
-                val videos =
-                    combined.mapNotNull { item ->
-                        val videoId = extractVideoId(item.url)
-                        if (item.isPaidOrMembersOnly()) return@mapNotNull null
-
-                        val uploadTimeMillis = rssDateMap[videoId] ?: resolveUploadTimestamp(item)
-                        when {
-                            uploadTimeMillis == null -> {
-                                null
-                            }
-
-                            uploadTimeMillis <= minimumDateMillis -> {
-                                null
-                            }
-
-                            else -> {
-                                streamInfoItemToVideo(
-                                    item = item,
-                                    channelId = channelId,
-                                    channelAvatar = channelAvatar,
-                                    forceShort = item.url in shortsUrls,
-                                    forceLive = item.url in liveUrls,
-                                    overrideTimestamp = uploadTimeMillis,
-                                )
-                            }
-                        }
-                    }
-
-                Log.i(TAG, "[$channelId] RESULT: ${videos.size} videos (${videos.count { it.isShort }} shorts)")
-                return ChannelFetchResult(videos, failed = false)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.e(TAG, "[$channelId] ChannelInfo FAILED (${e::class.simpleName}): ${e.message}")
-                return ChannelFetchResult(
-                    videos = emptyList(),
-                    failed = true,
-                    failureReason = "Channel: ${e::class.simpleName}: ${e.message}",
-                )
-            }
+            Log.i(TAG, "[$channelId] RESULT: ${videos.size} videos (${videos.count { it.isShort }} shorts)")
+            return ChannelFetchResult(videos, failed = false)
         }
 
-        private fun fetchTabItems(
-            tab: ListLinkHandler,
-            limit: Int,
-        ): List<StreamInfoItem> {
-            val service = NewPipe.getService(0)
-            val items = mutableListOf<StreamInfoItem>()
-            var nextPage: Page? = null
-
-            runCatching {
-                val tabInfo = ChannelTabInfo.getInfo(service, tab)
-                items += tabInfo.relatedItems.filterIsInstance<StreamInfoItem>()
-                nextPage = tabInfo.nextPage
-            }.getOrElse {
-                Log.w(TAG, "Initial tab fetch failed: ${it::class.simpleName}: ${it.message}")
-                return emptyList()
-            }
-
-            while (items.size < limit && nextPage != null) {
-                val page = nextPage ?: break
-                val moreItems =
-                    try {
-                        ChannelTabInfo.getMoreItems(service, tab, page)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Paged tab fetch failed: ${e::class.simpleName}: ${e.message}")
-                        break
-                    }
-
-                val newItems = moreItems.items.filterIsInstance<StreamInfoItem>()
-                if (newItems.isEmpty()) break
-                items += newItems
-                nextPage = moreItems.nextPage
-            }
-
-            return items.distinctBy { it.url }.take(limit)
-        }
-
-        /**
-         * @param overrideTimestamp If non-null, use this instead of re-resolving from the item. This
-         *   allows the caller to inject an RSS-derived timestamp.
-         */
-        private fun streamInfoItemToVideo(
-            item: StreamInfoItem,
+        private fun Video.toFeedVideo(
             channelId: String,
-            channelAvatar: String?,
-            forceShort: Boolean = false,
-            forceLive: Boolean = false,
-            overrideTimestamp: Long? = null,
-        ): Video {
-            val videoId = extractVideoId(item.url)
-            val thumbnail =
-                ThumbnailUrlResolver.normalizeVideoThumbnail(
-                    videoId,
-                    item.thumbnails.maxByOrNull { it.width }?.url,
-                )
+            channelName: String,
+            channelAvatar: String,
+            fromShortsTab: Boolean,
+            fromLiveTab: Boolean,
+            rssUploadTimeMillis: Long?,
+            minimumDateMillis: Long,
+        ): Video? {
+            if (isPaidOrMembersOnly()) return null
+            val premiereAt = if (isUpcoming) parsePremiereTimestamp(uploadDate) else null
+            val uploadedAt = rssUploadTimeMillis ?: timestamp.takeIf { it > 0L } ?: premiereAt ?: return null
+            if (uploadedAt <= minimumDateMillis) return null
 
-            val uploadTimeMillis = overrideTimestamp ?: resolveUploadTimestamp(item) ?: 0L
-
-            val now = System.currentTimeMillis()
-            val rawDate = item.textualUploadDate
-            val upcomingReleaseTimeMs =
-                rawDate
-                    ?.let(::parsePremiereTimestamp)
-                    ?.takeIf { it > now + 60_000L }
-                    ?: overrideTimestamp?.takeIf { it > now + 60_000L }
-            val isUpcoming = !forceLive && upcomingReleaseTimeMs != null
-            val isArchivedLivestream = forceLive && !item.isActiveLiveStream() && !isUpcoming
-            val uploadDateStr =
-                when {
-                    isUpcoming && rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> {
-                        rawDate
-                    }
-
-                    uploadTimeMillis > 0L -> {
-                        formatRelativeTime(uploadTimeMillis)
-                            .let { if (isArchivedLivestream) "Streamed $it" else it }
-                    }
-
-                    rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> {
-                        if (isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true)) {
-                            "Streamed $rawDate"
-                        } else {
-                            rawDate
-                        }
-                    }
-
-                    else -> {
-                        ""
-                    }
-                }
-
-            return Video(
-                id = videoId,
-                title = item.name ?: UNKNOWN_LABEL,
-                channelName = item.uploaderName ?: UNKNOWN_LABEL,
+            val upcoming = isUpcoming || uploadedAt > System.currentTimeMillis() + 60_000L
+            val isArchivedLivestream = fromLiveTab && !isLive && !upcoming
+            return copy(
+                channelName = this.channelName.ifBlank { channelName }.ifBlank { UNKNOWN_LABEL },
                 channelId = channelId,
-                thumbnailUrl = thumbnail,
-                duration = item.duration.toInt().coerceAtLeast(0),
-                viewCount = item.viewCount.coerceAtLeast(0L),
-                uploadDate = uploadDateStr,
-                timestamp = uploadTimeMillis,
-                channelThumbnailUrl =
-                    channelAvatar?.takeIf { it.isNotBlank() }
-                        ?: item.uploaderAvatars
-                            .maxByOrNull { it.height }
-                            ?.url
-                            ?.let { ThumbnailUrlResolver.resolveChannelAvatar(it) }
-                        ?: "",
-                isShort = forceShort || item.isLikelyShort(),
-                isLive = forceLive || item.isActiveLiveStream(),
-                isUpcoming = isUpcoming,
+                thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(id, thumbnailUrl),
+                uploadDate =
+                    if (upcoming && uploadDate.isNotBlank()) {
+                        uploadDate
+                    } else {
+                        formatRelativeTime(uploadedAt).let { if (isArchivedLivestream) "Streamed $it" else it }
+                    },
+                timestamp = uploadedAt,
+                channelThumbnailUrl = channelAvatar.ifBlank { channelThumbnailUrl },
+                isShort = isShort || fromShortsTab,
+                isLive = !upcoming && (isLive || fromLiveTab),
+                isUpcoming = upcoming,
             )
         }
 
-        private fun StreamInfoItem.isActiveLiveStream(): Boolean =
-            streamType == StreamType.LIVE_STREAM || streamType == StreamType.AUDIO_LIVE_STREAM
-
-        private fun StreamInfoItem.isLikelyShort(): Boolean = ShortsClassifier.isReel(this)
-
         private fun formatRelativeTime(timestampMillis: Long): String = formatYouTubeRelativeTime(timestampMillis)
 
-        private fun extractVideoId(url: String): String =
-            when {
-                url.contains("v=") -> url.substringAfter("v=").substringBefore("&")
-                url.contains("/watch/") -> url.substringAfter("/watch/").substringBefore("?")
-                url.contains("/shorts/") -> url.substringAfter("/shorts/").substringBefore("?").substringBefore("/")
-                else -> url.substringAfterLast("/").substringBefore("?")
-            }
+        /** The structured members-only badge, or a strong marker in the title itself. */
+        private fun Video.isPaidOrMembersOnly(): Boolean = membersOnlyText != null || hasRestrictionMarker(title)
 
-        private fun resolveUploadTimestamp(item: StreamInfoItem): Long? {
-            val absolute =
-                item.uploadDate
-                    ?.offsetDateTime()
-                    ?.toInstant()
-                    ?.toEpochMilli()
-            if (absolute != null && absolute > 0L) return absolute
+        /**
+         * Title only: "join this channel" and "channel members" are YouTube's stock membership call
+         * to action in ordinary descriptions, so matching descriptions dropped normal uploads (#1094).
+         */
+        private fun ChannelRssEntry.isPaidOrMembersOnly(): Boolean = hasRestrictionMarker(title)
 
-            val textual = item.textualUploadDate?.trim().orEmpty()
-            if (textual.isBlank()) return null
-
-            return parseRelativeUploadDate(textual)
-        }
-
-        private fun StreamInfoItem.isPaidOrMembersOnly(): Boolean {
-            if (contentAvailability == ContentAvailability.PAID ||
-                contentAvailability == ContentAvailability.MEMBERSHIP
-            ) {
-                return true
-            }
-            return containsRestrictionMarker(listOfNotNull(name, shortDescription).joinToString(" "))
-        }
-
-        private fun ChannelRssEntry.isPaidOrMembersOnly(): Boolean =
-            containsRestrictionMarker(listOfNotNull(title, description).joinToString(" "))
-
-        private fun containsRestrictionMarker(text: String): Boolean {
-            val normalized = text.lowercase(Locale.US)
+        private fun hasRestrictionMarker(title: String): Boolean {
+            val normalized = title.lowercase(Locale.US)
             return RESTRICTION_MARKERS.any { marker -> normalized.contains(marker) }
-        }
-
-        private fun parseRelativeUploadDate(text: String): Long? {
-            val normalized =
-                text
-                    .lowercase(Locale.US)
-                    .replace("streamed", "")
-                    .replace("premiered", "")
-                    .replace("live", "")
-                    .replace("ago", "")
-                    .trim()
-
-            if (normalized.isBlank()) return null
-            if (normalized.contains("just now") || normalized.contains("today")) return System.currentTimeMillis()
-            if (normalized.contains("yesterday")) return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
-
-            val value =
-                Regex("(\\d+)")
-                    .find(normalized)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.toLongOrNull() ?: return null
-            val unitMillis =
-                when {
-                    normalized.contains("second") || normalized.endsWith("s") -> 1_000L
-                    normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
-                    normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
-                    normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
-                    normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
-                    normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
-                    normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
-                    else -> return null
-                }
-
-            return System.currentTimeMillis() - (value * unitMillis)
         }
 
         private companion object {
             const val TAG = "InnertubeSubs"
-            const val YOUTUBE_URL = "https://www.youtube.com"
             const val UNKNOWN_LABEL = "Unknown"
 
-            const val RSS_CHUNK_SIZE = 20
+            const val RSS_CHUNK_SIZE = 8
             const val CHANNEL_CHUNK_SIZE = 3
             const val CHANNEL_BATCH_SIZE = 50
             val CHANNEL_BATCH_DELAY = (100L..400L)
@@ -681,23 +493,15 @@ class RssSubscriptionService
 
             const val MAX_REGULAR_VIDEOS = 1200
             const val MAX_SHORTS = 300
-            const val MAX_VIDEOS_PER_CHANNEL = 60
-            const val MAX_SHORTS_PER_CHANNEL = 20
-            const val MAX_LIVE_PER_CHANNEL = 20
 
             val RESTRICTION_MARKERS =
                 listOf(
                     "members only",
+                    "members-only",
+                    "member only",
                     "member-only",
+                    "membership only",
                     "requires membership",
-                    "join this channel",
-                    "channel members",
-                    "premium members",
-                    "paid content",
-                    "paid video",
-                    "rent or buy",
-                    "buy or rent",
-                    "purchase this",
                 )
         }
     }

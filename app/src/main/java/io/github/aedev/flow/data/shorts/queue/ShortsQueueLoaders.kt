@@ -4,6 +4,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.shorts.ShortsFeedRepository
 import io.github.aedev.flow.data.shorts.spreadChannels
 import io.github.aedev.flow.data.subscriptions.SubscriptionFeedRepository
@@ -57,22 +58,25 @@ class SavedShortsLoader(
     override suspend fun more(cursor: String?): ShortsQueuePage = exhaustedPage()
 }
 
+/** [exclusions] keeps reels marked not interested and blocked channels out, as the Subscriptions feed does. */
 class SubscriptionShortsLoader(
     private val subscriptionFeedRepository: SubscriptionFeedRepository,
     private val playerPreferences: PlayerPreferences,
     private val watchedVideos: SubscriptionWatchedVideos,
     private val anchorVideoId: String?,
+    private val exclusions: suspend () -> FeedExclusions = { FeedExclusions.NONE },
 ) : ShortsQueueLoader {
     override suspend fun initial(): ShortsQueuePage {
         val excludedChannelIds = playerPreferences.subscriptionShortsExcludedChannels.first()
         val watchedIds = watchedVideos.ids.first()
+        val hidden = exclusions()
         val items =
             subscriptionFeedRepository
                 .observeFeed()
                 .first()
                 .asSequence()
                 .filter { it.isShort && it.id.isNotBlank() }
-                .filter { it.channelId !in excludedChannelIds }
+                .filter { it.channelId !in excludedChannelIds && !hidden.hides(it) }
                 .filter { it.id == anchorVideoId || it.id !in watchedIds }
                 .sortedByDescending { it.timestamp }
                 .map { it.toShortVideo() }

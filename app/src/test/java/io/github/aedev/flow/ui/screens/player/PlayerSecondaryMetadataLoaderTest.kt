@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.state.EnhancedPlayerState
@@ -46,7 +47,7 @@ class PlayerSecondaryMetadataLoaderTest {
     private var uiState = VideoPlayerUiState()
     private var currentToken = TOKEN_A
     private var shortsEnabled = true
-    private var blockedChannelIds: Set<String> = emptySet()
+    private var exclusions: FeedExclusions = FeedExclusions.NONE
     private val results = mutableListOf<SecondaryMetadata>()
 
     @Before
@@ -79,7 +80,7 @@ class PlayerSecondaryMetadataLoaderTest {
                     .orEmpty()
             },
             shortsEnabled = { shortsEnabled },
-            blockedChannelIds = { blockedChannelIds },
+            exclusions = { exclusions },
             isPlaybackCurrent = { it == currentToken },
             onResult = { results += it },
         )
