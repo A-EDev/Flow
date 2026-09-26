@@ -4,9 +4,6 @@ import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.state.EnhancedPlayerState
-import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.VideoStream
 
 /*
  * The decisions a load makes before it does anything, and the states it starts from.
@@ -138,6 +135,13 @@ internal fun VideoPlayerUiState.shouldReopenInsteadOfPlaying(
                 playerState.playWhenReady ||
                 playerState.isBuffering,
     )
+
+/**
+ * Whether a link to [videoId] should only reopen the sheet. A failed, restored or upcoming screen
+ * for the same video still needs `playVideo`, or re-sharing it after a failure does nothing.
+ */
+internal fun VideoPlayerUiState.shouldExpandInsteadOfPlaying(videoId: String): Boolean =
+    cachedVideo?.id == videoId && !isRestoredSession && error == null && !isUpcoming
 
 /** What a late prepare has to arm from the screen state alone, when the player owns no media item. */
 internal sealed interface LatePrepare {

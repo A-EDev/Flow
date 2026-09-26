@@ -6,16 +6,11 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.StoryboardLevel
-import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import org.junit.After
 import org.junit.Test
-import org.schabi.newpipe.extractor.MediaFormat
-import org.schabi.newpipe.extractor.stream.DeliveryMethod
-import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamSegment
-import org.schabi.newpipe.extractor.stream.VideoStream
 
 /**
  * Pins the decisions a load makes before it does anything: whether it runs at all, what the screen
@@ -210,6 +205,32 @@ class PlayerLoadDecisionsTest {
         assertThat(VideoPlayerUiState().holdsVideo("vid_a")).isFalse()
     }
 
+    @Test
+    fun `a link to the video already playing only reopens the sheet`() {
+        val playing = VideoPlayerUiState(cachedVideo = video("vid_a"))
+        val loading = VideoPlayerUiState(cachedVideo = video("vid_a"), isLoading = true)
+
+        assertThat(playing.shouldExpandInsteadOfPlaying("vid_a")).isTrue()
+        assertThat(loading.shouldExpandInsteadOfPlaying("vid_a")).isTrue()
+    }
+
+    @Test
+    fun `a link to a failed, restored or upcoming video plays it again`() {
+        val failed = VideoPlayerUiState(cachedVideo = video("vid_a"), error = "boom")
+        val restored = VideoPlayerUiState(cachedVideo = video("vid_a"), isRestoredSession = true)
+        val upcoming = VideoPlayerUiState(cachedVideo = video("vid_a"), isUpcoming = true)
+
+        assertThat(failed.shouldExpandInsteadOfPlaying("vid_a")).isFalse()
+        assertThat(restored.shouldExpandInsteadOfPlaying("vid_a")).isFalse()
+        assertThat(upcoming.shouldExpandInsteadOfPlaying("vid_a")).isFalse()
+    }
+
+    @Test
+    fun `a link to another video or an empty screen plays it`() {
+        assertThat(VideoPlayerUiState(cachedVideo = video("vid_b")).shouldExpandInsteadOfPlaying("vid_a")).isFalse()
+        assertThat(VideoPlayerUiState().shouldExpandInsteadOfPlaying("vid_a")).isFalse()
+    }
+
     private fun video(id: String): Video =
         Video(
             id = id,
@@ -224,27 +245,4 @@ class PlayerLoadDecisionsTest {
 
     private fun segment(): SponsorBlockSegment =
         SponsorBlockSegment(category = "sponsor", segment = listOf(0f, 1f), uuid = "uuid_1", actionType = "skip")
-
-    private fun streamInfo(
-        id: String,
-        videoStreams: List<VideoStream> = emptyList(),
-    ): StreamInfo {
-        val info = mockk<StreamInfo>(relaxed = true)
-        every { info.id } returns id
-        every { info.videoStreams } returns videoStreams
-        every { info.videoOnlyStreams } returns emptyList()
-        every { info.dashMpdUrl } returns null
-        return info
-    }
-
-    private fun videoStream(): VideoStream =
-        VideoStream
-            .Builder()
-            .setId("720p")
-            .setContent("https://example.invalid/720p.mp4", true)
-            .setMediaFormat(MediaFormat.MPEG_4)
-            .setResolution("720p")
-            .setIsVideoOnly(true)
-            .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP)
-            .build()
 }
