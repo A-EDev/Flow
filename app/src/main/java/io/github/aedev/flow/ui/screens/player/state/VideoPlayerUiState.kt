@@ -83,5 +83,9 @@ data class VideoPlayerUiState(
             localFileVideoId = null,
             isUpcoming = false,
             upcomingReleaseTimeMs = null,
+            // A video without these sends nothing, so they are cleared here or stay from the last one (#1111).
+            chapters = emptyList(),
+            heatmap = null,
+            storyboard = emptyList(),
         )
 }
