@@ -360,13 +360,12 @@ fun FlowApp(
         )
 
         LaunchedEffect(isInPipMode) {
-            if (
-                isInPipMode &&
-                !isShortsPlayerRoute &&
-                !currentRoute.value.startsWith("player") &&
-                currentVideo != null
-            ) {
-                navController.navigate("player/${currentVideo!!.id}")
+            if (!isInPipMode) return@LaunchedEffect
+            navController.awaitGraph()
+            val video = currentVideo
+            val route = currentRoute.value
+            if (route != SHORTS_ROUTE_KEY && !route.startsWith("player") && video != null) {
+                navController.navigate("player/${video.id}")
             }
         }
 

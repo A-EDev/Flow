@@ -18,6 +18,14 @@ import io.github.aedev.flow.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
+/**
+ * Suspends until the NavHost has set its graph. The NavHost is composed only once the onboarding
+ * check resolves, so a fresh activity has a window where navigate() throws (#1079, #1102).
+ */
+suspend fun NavController.awaitGraph() {
+    currentBackStackEntryFlow.first()
+}
+
 /** Navigates to a route handed in from outside the graph, once the graph has its first entry. */
 @Composable
 fun HandlePendingRoute(
@@ -27,7 +35,7 @@ fun HandlePendingRoute(
 ) {
     LaunchedEffect(pendingRoute) {
         pendingRoute?.let { route ->
-            navController.currentBackStackEntryFlow.first()
+            navController.awaitGraph()
             navController.navigate(route)
             onConsumed()
         }
@@ -42,40 +50,18 @@ fun HandleDeepLinks(
     onDeeplinkConsumed: () -> Unit,
 ) {
     LaunchedEffect(deeplinkVideoId, isShort) {
-        if (deeplinkVideoId != null) {
-            val maxAttempts = 30
-            var navigated = false
-            for (attempt in 1..maxAttempts) {
-                delay(100L)
-                try {
-                    if (navController.currentDestination != null) {
-                        if (isShort) {
-                            navController.openShorts(ShortsQueueSource.SeededFeed(deeplinkVideoId)) {
-                                launchSingleTop = true
-                            }
-                        } else {
-                            navController.navigate("player/$deeplinkVideoId") {
-                                launchSingleTop = true
-                            }
-                        }
-                        navigated = true
-                        break
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w(
-                        "HandleDeepLinks",
-                        "Navigation attempt $attempt failed for $deeplinkVideoId: ${e.message}",
-                    )
-                }
+        val videoId = deeplinkVideoId ?: return@LaunchedEffect
+        navController.awaitGraph()
+        if (isShort) {
+            navController.openShorts(ShortsQueueSource.SeededFeed(videoId)) {
+                launchSingleTop = true
             }
-            if (!navigated) {
-                android.util.Log.e(
-                    "HandleDeepLinks",
-                    "Navigation failed after $maxAttempts attempts for: $deeplinkVideoId",
-                )
+        } else {
+            navController.navigate("player/$videoId") {
+                launchSingleTop = true
             }
-            onDeeplinkConsumed()
         }
+        onDeeplinkConsumed()
     }
 }
 

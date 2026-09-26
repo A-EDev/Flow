@@ -2,7 +2,6 @@ package io.github.aedev.flow.player
 
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.annotation.OptIn
@@ -1051,21 +1050,28 @@ object EnhancedMusicPlayerManager {
             player?.pause()
             player?.stop()
             player?.clearMediaItems()
-            _currentTrack.value = null
-            _queue.value = emptyList()
-            _automixItems.value = emptyList()
-            playContextGenre = null
-            pendingRadioSeedId = null
-            _radioLoading.value = false
-            _currentQueueIndex.value = 0
-            clearPendingPlayNext()
-            _currentPosition.value = 0L
-            _playingFrom.value = "Flow Music"
-            _playerState.value = MusicPlayerState()
-            appContext?.let { context ->
-                context.stopService(Intent(context, Media3MusicService::class.java))
-            }
+            resetQueueState()
+            (player as? MediaController)?.let(Media3MusicService::requestStop)
         }
+    }
+
+    /** Called by the service once it has stopped itself, so the UI drops the track it showed. */
+    fun onServiceStopped() {
+        scope.launch { resetQueueState() }
+    }
+
+    private fun resetQueueState() {
+        _currentTrack.value = null
+        _queue.value = emptyList()
+        _automixItems.value = emptyList()
+        playContextGenre = null
+        pendingRadioSeedId = null
+        _radioLoading.value = false
+        _currentQueueIndex.value = 0
+        clearPendingPlayNext()
+        _currentPosition.value = 0L
+        _playingFrom.value = "Flow Music"
+        _playerState.value = MusicPlayerState()
     }
 
     fun removeFromQueue(index: Int) {

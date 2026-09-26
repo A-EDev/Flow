@@ -29,6 +29,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
@@ -111,6 +112,14 @@ class Media3MusicService : MediaLibraryService() {
         @Volatile
         var currentAudioSessionId: Int = 0
             private set
+
+        /**
+         * Stops playback and the service from inside it. Sent through the controller, it lands after
+         * the player commands the caller already queued, which a direct stopService() overtakes.
+         */
+        fun requestStop(controller: MediaController) {
+            controller.sendCustomCommand(CommandStop, Bundle.EMPTY)
+        }
     }
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
@@ -980,7 +989,7 @@ class Media3MusicService : MediaLibraryService() {
             player.clearMediaItems()
         }
         io.github.aedev.flow.player.EnhancedMusicPlayerManager
-            .clearCurrentTrack()
+            .onServiceStopped()
         releaseLocks()
         stopSelf()
     }
@@ -1042,12 +1051,17 @@ class Media3MusicService : MediaLibraryService() {
      * Without this override Android calls stopSelf() via the default onTaskRemoved,
      * which destroys the foreground service and stops background music playback.
      * Overriding without calling super keeps the service alive.
+     *
+     * When nothing is playing it stops the way Media3's default does: a raw stopSelf() leaves the
+     * user-engaged timeout armed, so the notification update for that pause can put the stopped
+     * service back into the foreground (#1025).
      */
+    @OptIn(UnstableApi::class)
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (::player.isInitialized && player.isPlaying) {
             return
         }
-        stopSelf()
+        pauseAllPlayersAndStopSelf()
     }
 
     override fun onDestroy() {
