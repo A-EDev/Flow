@@ -28,6 +28,7 @@ import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
 import io.github.aedev.flow.data.video.DownloadProgressUpdate
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.player.sabr.integration.SabrDownloadEngine
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
@@ -292,10 +293,6 @@ class FlowDownloadService : Service() {
         super.onCreate()
         createNotificationChannel()
         serviceScope.launch { preferences.concurrentDownloads.collect(downloadSlots::setLimit) }
-        serviceScope.launch {
-            val customPath = preferences.downloadLocation.firstOrNull()
-            downloadManager.customDownloadPath = customPath
-        }
     }
 
     override fun onStartCommand(
@@ -515,14 +512,9 @@ class FlowDownloadService : Service() {
                     av1NeedsMkv -> "mkv"
                     else -> "mp4"
                 }
-            downloadManager.customDownloadPath =
-                if (isMusic) {
-                    preferences.musicDownloadLocation.firstOrNull()
-                        ?: preferences.downloadLocation.firstOrNull()
-                } else {
-                    preferences.downloadLocation.firstOrNull()
-                }
-            val downloadDir = downloadManager.getDownloadDir(fileType)
+            val destination = downloadManager.resolveDestination(fileType, downloadManager.savedLocation(isMusic))
+            val downloadDir = destination.directory
+            if (destination.fellBack) Log.w(TAG, "handleStartDownload: chosen folder unusable, saving to $downloadDir")
             Log.d(
                 TAG,
                 "handleStartDownload: downloadDir=${downloadDir.absolutePath}, exists=${downloadDir.exists()}, canWrite=${downloadDir.canWrite()}",
@@ -580,6 +572,9 @@ class FlowDownloadService : Service() {
                         videoCodec = codecHint,
                     )
                 }
+
+            mission.exportTreeUri = destination.exportTreeUri
+            if (destination.fellBack) mission.fallbackFolder = downloadDir.absolutePath
 
             if (!audioOnly && isAv1Codec && fallbackUrl != null) {
                 mission.fallbackUrl = fallbackUrl
@@ -1312,23 +1307,30 @@ class FlowDownloadService : Service() {
 
         val fileSize = File(mission.savePath).length()
         Log.d(TAG, "commitFinishedDownload: $videoId final file size=$fileSize")
+        val finalPath = placeFinishedFile(mission, audioOnly)
 
         val ids = itemIds[videoId]
         if (!ids.isNullOrEmpty()) {
             downloadManager.updateItemFull(ids.first(), fileSize, fileSize, DownloadItemStatus.COMPLETED)
+            if (finalPath != mission.savePath) {
+                val fileName = DownloadFiles.displayName(this@FlowDownloadService, finalPath) ?: mission.fileName
+                downloadManager.updateItemLocation(ids.first(), finalPath, fileName)
+            }
         }
 
-        try {
-            val mimeType =
-                when {
-                    audioOnly -> audioMimeTypeForPath(mission.savePath, audioMimeType)
-                    mission.savePath.endsWith(".webm") -> "video/webm"
-                    mission.savePath.endsWith(".mkv") -> "video/x-matroska"
-                    else -> "video/mp4"
-                }
-            downloadManager.scanFile(mission.savePath, mimeType)
-        } catch (e: Exception) {
-            Log.w(TAG, "commitFinishedDownload: MediaScanner indexing failed (non-fatal)", e)
+        if (!DownloadFiles.isDocument(finalPath)) {
+            try {
+                val mimeType =
+                    when {
+                        audioOnly -> audioMimeTypeForPath(finalPath, audioMimeType)
+                        finalPath.endsWith(".webm") -> "video/webm"
+                        finalPath.endsWith(".mkv") -> "video/x-matroska"
+                        else -> "video/mp4"
+                    }
+                downloadManager.scanFile(finalPath, mimeType)
+            } catch (e: Exception) {
+                Log.w(TAG, "commitFinishedDownload: MediaScanner indexing failed (non-fatal)", e)
+            }
         }
 
         if (!ids.isNullOrEmpty()) {
@@ -1344,6 +1346,28 @@ class FlowDownloadService : Service() {
         }
 
         updateNotification(mission, videoId, isComplete = true)
+    }
+
+    /**
+     * Copies a download bound for a picked folder into it and returns the stored path: the new
+     * document, or when the copy fails, the file moved to the default folder.
+     */
+    private fun placeFinishedFile(
+        mission: FlowDownloadMission,
+        audioOnly: Boolean,
+    ): String {
+        val tree = mission.exportTreeUri ?: return mission.savePath
+        val staged = File(mission.savePath)
+        DownloadFiles.exportToTree(this, staged, tree)?.let { document ->
+            staged.delete()
+            return document
+        }
+        val fileType = if (audioOnly) DownloadFileType.AUDIO else DownloadFileType.VIDEO
+        val fallback = downloadManager.resolveDestination(fileType).directory
+        val moved = DownloadFiles.moveInto(staged, fallback) ?: staged
+        mission.fallbackFolder = moved.parent
+        Log.w(TAG, "placeFinishedFile: export to $tree failed, kept at ${moved.absolutePath}")
+        return moved.absolutePath
     }
 
     /**
@@ -1490,7 +1514,8 @@ class FlowDownloadService : Service() {
         val contentText =
             when {
                 isComplete -> {
-                    getString(R.string.notification_download_complete)
+                    mission.fallbackFolder?.let { getString(R.string.notification_download_saved_elsewhere, it) }
+                        ?: getString(R.string.notification_download_complete)
                 }
 
                 isMuxing -> {
@@ -1525,6 +1550,7 @@ class FlowDownloadService : Service() {
                 .Builder(this, CHANNEL_ID)
                 .setContentTitle(mission.video.title)
                 .setContentText(contentText)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
                 .setSmallIcon(android.R.drawable.stat_sys_download)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(tapPendingIntent)

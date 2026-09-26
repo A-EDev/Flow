@@ -49,6 +49,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.MAX_CONCURRENT_DOWNLOADS
 import io.github.aedev.flow.data.local.VideoCodec
+import io.github.aedev.flow.data.video.storage.DownloadFiles
+import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
@@ -81,21 +83,20 @@ internal fun DownloadSettingsScreen(
     viewModel: DownloadSettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val videoLocation by viewModel.videoLocation.collectAsStateWithLifecycle()
-    val musicLocation by viewModel.musicLocation.collectAsStateWithLifecycle()
+    val locations by viewModel.locations.collectAsStateWithLifecycle()
     val quickQuality by viewModel.quickQuality.collectAsStateWithLifecycle()
     val codec by viewModel.codec.collectAsStateWithLifecycle()
     val menuStyle by viewModel.menuStyle.collectAsStateWithLifecycle()
     val threads by viewModel.threads.collectAsStateWithLifecycle()
     val concurrentDownloads by viewModel.concurrentDownloads.collectAsStateWithLifecycle()
     val cacheSizeMb by viewModel.cacheSizeMb.collectAsStateWithLifecycle()
-    val storage by viewModel.storage.collectAsStateWithLifecycle()
 
     var picker by rememberSaveable { mutableStateOf<DownloadPicker?>(null) }
     var locationTarget by rememberSaveable { mutableStateOf<DownloadTarget?>(null) }
     var access by remember { mutableStateOf(StorageAccess.read(context)) }
     LifecycleResumeEffect(Unit) {
         access = StorageAccess.read(context)
+        viewModel.refresh()
         onPauseOrDispose { }
     }
 
@@ -109,21 +110,23 @@ internal fun DownloadSettingsScreen(
                         Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
                     )
                 }
-                (treeUriToPath(uri) ?: uri.path)?.takeIf { it.isNotBlank() }?.let { viewModel.setLocation(target, it) }
+                val tree = uri.toString()
+                viewModel.setLocation(target, DownloadLocation(path = DownloadFiles.treePath(tree), treeUri = tree))
                 locationTarget = null
             }
         }
     val mediaPermission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { access = StorageAccess.read(context) }
-    val legacyWrite = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
+    val legacyWrite = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { viewModel.refresh() }
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && !context.granted(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q && !context.granted(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
             legacyWrite.launch(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE))
         }
     }
 
-    val videoPath = videoLocation ?: viewModel.defaultPath(DownloadTarget.VIDEO)
-    val musicPath = musicLocation ?: viewModel.defaultPath(DownloadTarget.MUSIC)
+    val storage = locations?.storage
+    val videoPath = locations?.video?.label().orEmpty()
+    val musicPath = locations?.music?.label().orEmpty()
     val usage =
         storage?.let {
             stringResource(
@@ -227,14 +230,21 @@ internal fun DownloadSettingsScreen(
         }
     }
 
-    locationTarget?.let { target ->
+    val dialogTarget = locationTarget
+    val dialogLocation =
+        when (dialogTarget) {
+            DownloadTarget.VIDEO -> locations?.video
+            DownloadTarget.MUSIC -> locations?.music
+            null -> null
+        }
+    if (dialogTarget != null && dialogLocation != null) {
         DownloadLocationDialog(
-            target = target,
-            current = if (target == DownloadTarget.MUSIC) musicLocation else videoLocation,
-            defaultPath = viewModel.defaultPath(target),
+            target = dialogTarget,
+            current = dialogLocation.chosen,
+            defaultPath = dialogLocation.defaultFolder,
             downloadsPath = viewModel.downloadsPath(),
             internalPath = viewModel.internalPath(),
-            onSelect = { viewModel.setLocation(target, it) },
+            onSelect = { path -> viewModel.setLocation(dialogTarget, path?.let { DownloadLocation(path = it) }) },
             onBrowse = { folderPicker.launch(null) },
             onDismiss = { locationTarget = null },
         )
@@ -306,6 +316,10 @@ private fun StorageUsageRow(
         Text(stringResource(DownloadsIndex.usage.title))
     }
 }
+
+@Composable
+private fun LocationUi.label(): String =
+    if (notWritable) stringResource(R.string.download_location_not_writable, saveFolder) else saveFolder
 
 private fun cacheSizeLabel(megabytes: Int): Int =
     when (megabytes) {

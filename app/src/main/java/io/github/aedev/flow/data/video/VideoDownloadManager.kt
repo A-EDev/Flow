@@ -13,6 +13,7 @@ import android.provider.Settings
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.entity.DownloadEntity
 import io.github.aedev.flow.data.local.entity.DownloadFileType
@@ -20,6 +21,10 @@ import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.video.storage.DownloadDestination
+import io.github.aedev.flow.data.video.storage.DownloadFiles
+import io.github.aedev.flow.data.video.storage.DownloadLocation
+import io.github.aedev.flow.data.video.storage.resolveDownloadDestination
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,6 +32,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -75,11 +81,14 @@ class VideoDownloadManager
         @ApplicationContext private val context: Context,
         private val downloadDao: DownloadDao,
         private val offlineSubtitleStore: OfflineSubtitleStore,
+        private val preferences: PlayerPreferences,
     ) {
         companion object {
             private const val TAG = "VideoDownloadManager"
             const val VIDEO_DIR = "Flow"
             const val AUDIO_DIR = "Flow"
+            private const val STAGING_DIR = "staging"
+            private const val INTERNAL_DIR = "downloads"
 
             /**
              * Legacy bridge — callers that still use getInstance() will get a crash
@@ -115,10 +124,6 @@ class VideoDownloadManager
         }
 
         // ===== Directory Management =====
-
-        /** Custom download location set by user (null = use defaults) */
-        @Volatile
-        var customDownloadPath: String? = null
 
         /** Check if the app has All Files Access (MANAGE_EXTERNAL_STORAGE) on Android 11+ */
         fun hasAllFilesAccess(): Boolean =
@@ -187,120 +192,48 @@ class VideoDownloadManager
             }
         }
 
-        /**
-         * Get the video download directory.
-*/
-        fun getVideoDownloadDir(): File {
-            customDownloadPath?.let { custom ->
-                val dir = File(custom)
-                if (!dir.exists()) dir.mkdirs()
-                if (dir.exists() && dir.canWrite()) return dir
-                Log.w(TAG, "Custom download path not writable: $custom, falling back to defaults")
-            }
-            // Downloads folder is always writable without extra permissions on all API levels
-            try {
-                val downloadsDir =
-                    File(
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                        VIDEO_DIR,
-                    )
-                if (!downloadsDir.exists()) downloadsDir.mkdirs()
-                if (downloadsDir.canWrite()) return downloadsDir
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not use Downloads dir", e)
-            }
-            // Use public Movies dir if MANAGE_EXTERNAL_STORAGE is granted (Android 11+)
-            if (hasAllFilesAccess()) {
-                try {
-                    val dir =
-                        File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
-                            VIDEO_DIR,
-                        )
-                    if (!dir.exists()) dir.mkdirs()
-                    if (dir.canWrite()) return dir
-                } catch (e: Exception) {
-                    Log.w(TAG, "Could not use Movies dir with MANAGE_EXTERNAL_STORAGE", e)
-                }
-            }
-            // Final fallback: app-private external storage (no permissions needed)
-            val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), VIDEO_DIR)
-            if (!dir.exists()) dir.mkdirs()
-            return dir
-        }
+        /** The folder the user chose for a music or a video download. */
+        suspend fun savedLocation(isMusic: Boolean): DownloadLocation =
+            DownloadLocation.forDownload(
+                isMusic = isMusic,
+                video = preferences.downloadLocation.first(),
+                music = preferences.musicDownloadLocation.first(),
+            )
 
-        /**
-         * Get the audio download directory.
-         * Priority: custom path > public Music/Flow > public Downloads/Flow
-         */
-        fun getAudioDownloadDir(): File {
-            customDownloadPath?.let { custom ->
-                val dir = File(custom)
-                if (!dir.exists()) dir.mkdirs()
-                if (dir.exists() && dir.canWrite()) return dir
-                Log.w(TAG, "Custom audio download path not writable: $custom, falling back to defaults")
-            }
-            try {
-                val musicDir =
-                    File(
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                        AUDIO_DIR,
-                    )
-                if (!musicDir.exists()) musicDir.mkdirs()
-                if (musicDir.canWrite()) return musicDir
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not use Music dir for audio", e)
-            }
-            try {
-                val downloadsDir =
-                    File(
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                        AUDIO_DIR,
-                    )
-                if (!downloadsDir.exists()) downloadsDir.mkdirs()
-                if (downloadsDir.canWrite()) return downloadsDir
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not use Downloads dir for audio", e)
-            }
-            val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), AUDIO_DIR)
-            if (!dir.exists()) dir.mkdirs()
-            return dir
-        }
+        /** Where a [fileType] download to [location] is written. Touches the disk: call it off the main thread. */
+        fun resolveDestination(
+            fileType: DownloadFileType,
+            location: DownloadLocation = DownloadLocation.DEFAULT,
+        ): DownloadDestination =
+            resolveDownloadDestination(
+                chosen = location,
+                defaults = defaultDirectories(fileType),
+                staging = File(context.getExternalFilesDir(null) ?: context.filesDir, STAGING_DIR).apply { mkdirs() },
+                isUsableDirectory = ::isUsableDirectory,
+                hasTreeAccess = { DownloadFiles.hasTreeAccess(context, it) },
+            )
 
-        /** Fallback to internal app storage if external isn't available */
-        fun getInternalDownloadDir(): File {
-            val dir = File(context.filesDir, "downloads")
-            if (!dir.exists()) dir.mkdirs()
-            return dir
-        }
-
-        /** Get appropriate download dir based on file type and storage availability */
-        fun getDownloadDir(fileType: DownloadFileType): File =
-            try {
-                val externalDir = if (fileType == DownloadFileType.AUDIO) getAudioDownloadDir() else getVideoDownloadDir()
-                if (externalDir.canWrite()) externalDir else getInternalDownloadDir()
-            } catch (e: Exception) {
-                Log.w(TAG, "External storage not available, using internal", e)
-                getInternalDownloadDir()
-            }
-
-        /** Get the display name for the current download location */
-        fun getDownloadLocationDisplayName(): String {
-            customDownloadPath?.let { custom ->
-                val file = File(custom)
-                if (file.exists()) return file.absolutePath
-            }
-            return try {
-                if (hasAllFilesAccess()) {
-                    val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-                    File(moviesDir, VIDEO_DIR).absolutePath
+        private fun defaultDirectories(fileType: DownloadFileType): List<File> =
+            buildList {
+                if (fileType == DownloadFileType.AUDIO) {
+                    publicDirectory(Environment.DIRECTORY_MUSIC, AUDIO_DIR)?.let(::add)
+                    publicDirectory(Environment.DIRECTORY_DOWNLOADS, AUDIO_DIR)?.let(::add)
+                    context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)?.let { add(File(it, AUDIO_DIR)) }
                 } else {
-                    File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), VIDEO_DIR).absolutePath
+                    publicDirectory(Environment.DIRECTORY_DOWNLOADS, VIDEO_DIR)?.let(::add)
+                    if (hasAllFilesAccess()) publicDirectory(Environment.DIRECTORY_MOVIES, VIDEO_DIR)?.let(::add)
+                    context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)?.let { add(File(it, VIDEO_DIR)) }
                 }
-            } catch (e: Exception) {
-                "Internal App Storage"
+                add(File(context.filesDir, INTERNAL_DIR))
             }
-        }
+
+        private fun publicDirectory(
+            type: String,
+            folder: String,
+        ): File? = runCatching { File(Environment.getExternalStoragePublicDirectory(type), folder) }.getOrNull()
+
+        private fun isUsableDirectory(directory: File): Boolean =
+            runCatching { (directory.mkdirs() || directory.isDirectory) && directory.canWrite() }.getOrDefault(false)
 
         // ===== Database Operations =====
 
@@ -329,7 +262,7 @@ class VideoDownloadManager
                             .filter { dwi ->
                                 dwi.overallStatus == DownloadItemStatus.COMPLETED &&
                                     !dwi.isAudioOnly &&
-                                    dwi.primaryFilePath?.let { File(it).exists() } == true
+                                    dwi.primaryFilePath?.let { DownloadFiles.exists(context, it) } == true
                             }.map { toDownloadedVideo(it) }
                     }.flowOn(Dispatchers.IO)
 
@@ -458,8 +391,17 @@ class VideoDownloadManager
                     .getDownloadWithItems(videoId)
                     ?.takeIf { it.overallStatus == DownloadItemStatus.COMPLETED && !it.isAudioOnly }
                     ?.primaryFilePath
-                    ?.takeIf { File(it).exists() }
+                    ?.takeIf { DownloadFiles.exists(context, it) }
             }
+
+        /** Points a finished item at where its file ended up, such as a document in a picked folder. */
+        suspend fun updateItemLocation(
+            itemId: Int,
+            filePath: String,
+            fileName: String,
+        ) {
+            downloadDao.updateItemLocation(itemId, filePath, fileName)
+        }
 
         /**
          * Removes [videoId]'s row and partial files before returning, unlike [deleteDownload], so a
@@ -502,7 +444,7 @@ class VideoDownloadManager
                             if (fileGone) {
                                 recentlyDeletedPaths.remove(path)
                                 tombstonePrefs.edit().remove(path).apply()
-                                MediaScannerConnection.scanFile(context, arrayOf(path), null, null)
+                                if (!DownloadFiles.isDocument(path)) MediaScannerConnection.scanFile(context, arrayOf(path), null, null)
                                 Log.d(TAG, "Deleted: $path")
                             } else {
                                 tombstonePrefs.edit().putBoolean(path, true).apply()
@@ -545,7 +487,8 @@ class VideoDownloadManager
                 deleted
             }
 
-        private fun artifactPathsFor(path: String): List<String> = listOf(path, "$path.video.tmp", "$path.audio.tmp")
+        private fun artifactPathsFor(path: String): List<String> =
+            if (DownloadFiles.isDocument(path)) listOf(path) else listOf(path, "$path.video.tmp", "$path.audio.tmp")
 
         /**
          * Delete a single file from disk.
@@ -553,6 +496,7 @@ class VideoDownloadManager
          * or removed via MediaStore fallback on Android Q+).
          */
         private fun deleteFileFromDisk(path: String): Boolean {
+            if (DownloadFiles.isDocument(path)) return DownloadFiles.deleteDocument(context, path)
             val file = File(path)
             if (!file.exists()) return true
             if (file.delete()) return true
@@ -638,296 +582,16 @@ class VideoDownloadManager
             return "${safeTitle}_$quality.$extension"
         }
 
-        /** Set once a scan has run in this process; the Downloads screen scans again only on pull to refresh. */
-        @Volatile
-        var hasScannedThisSession: Boolean = false
-            private set
+        /** Whether [path] belongs to a download being deleted, which a folder scan must not bring back. */
+        internal fun isBeingDeleted(path: String): Boolean = path in recentlyDeletedPaths
 
         /**
-         * Scans all known download directories for video/audio files that are not tracked in the
-         * database (e.g. after a database wipe) and re-inserts them as completed downloads so they
-         * appear in the Downloads screen and can be played back locally.
-         *
-         * Safe to call repeatedly — files already recorded in the DB are skipped.
+         * True when [path] is a file the user deleted but that could not be removed at the time. The
+         * removal is retried, and the file is never recovered as a download.
          */
-        suspend fun scanAndRecoverDownloads() =
-            withContext(Dispatchers.IO) {
-                hasScannedThisSession = true
-                try {
-                    val dirsToScan =
-                        buildList {
-                            customDownloadPath?.let { add(File(it)) }
-                            add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), VIDEO_DIR))
-                            add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), VIDEO_DIR))
-                            add(File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), VIDEO_DIR))
-                            add(File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), VIDEO_DIR))
-                        }
-
-                    val videoExtensions = setOf("mp4", "webm", "mkv", "avi", "mov")
-                    val audioExtensions = setOf("m4a", "mp3", "aac", "opus", "ogg")
-
-                    for (dir in dirsToScan.distinctBy { it.canonicalPath }) {
-                        if (!dir.exists() || !dir.isDirectory) continue
-                        val files = dir.listFiles() ?: continue
-
-                        for (file in files) {
-                            if (!file.isFile) continue
-                            val ext = file.extension.lowercase()
-                            val isVideo = ext in videoExtensions
-                            val isAudio = ext in audioExtensions
-                            if (!isVideo && !isAudio) continue
-
-                            val filePath = file.absolutePath
-                            if (downloadDao.existsByFilePath(filePath)) continue
-                            if (recentlyDeletedPaths.contains(filePath)) continue
-
-                            if (tombstonePrefs.contains(filePath)) {
-                                if (deleteFileFromDisk(filePath)) {
-                                    tombstonePrefs.edit().remove(filePath).apply()
-                                }
-                                continue
-                            }
-
-                            val pseudoId = "recovered_${filePath.hashCode().toLong() and 0xFFFFFFFFL}"
-
-                            val mmr = android.media.MediaMetadataRetriever()
-                            var title = file.nameWithoutExtension
-                            var artist = "Local File"
-                            var durationMs = 0L
-                            try {
-                                mmr.setDataSource(filePath)
-                                mmr
-                                    .extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?.let { title = it }
-                                mmr
-                                    .extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?.let { artist = it }
-                                mmr
-                                    .extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
-                                    ?.toLongOrNull()
-                                    ?.let { durationMs = it }
-                            } catch (_: Exception) {
-                            } finally {
-                                try {
-                                    mmr.release()
-                                } catch (_: Exception) {
-                                }
-                            }
-
-                            val fileType = if (isVideo) DownloadFileType.VIDEO else DownloadFileType.AUDIO
-
-                            val thumbnailUrl: String =
-                                if (isVideo) {
-                                    try {
-                                        val mmr2 = android.media.MediaMetadataRetriever()
-                                        mmr2.setDataSource(filePath)
-                                        val bmp =
-                                            mmr2.getFrameAtTime(
-                                                1_000_000L,
-                                                android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                                            ) ?: mmr2.getFrameAtTime(0L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                                        mmr2.release()
-                                        if (bmp != null) {
-                                            val thumbFile = java.io.File(context.cacheDir, "thumb_$pseudoId.jpg")
-                                            thumbFile.outputStream().use {
-                                                bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it)
-                                            }
-                                            bmp.recycle()
-                                            if (thumbFile.exists() && thumbFile.length() > 0) "file://${thumbFile.absolutePath}" else ""
-                                        } else {
-                                            ""
-                                        }
-                                    } catch (_: Exception) {
-                                        ""
-                                    }
-                                } else {
-                                    ""
-                                }
-
-                            downloadDao.insertDownload(
-                                DownloadEntity(
-                                    videoId = pseudoId,
-                                    title = title,
-                                    uploader = artist,
-                                    duration = durationMs / 1000,
-                                    thumbnailUrl = thumbnailUrl,
-                                    createdAt = file.lastModified(),
-                                ),
-                            )
-                            downloadDao.insertItem(
-                                DownloadItemEntity(
-                                    videoId = pseudoId,
-                                    fileType = fileType,
-                                    fileName = file.name,
-                                    filePath = filePath,
-                                    format = ext,
-                                    quality = "Local",
-                                    mimeType = if (isVideo) "video/mp4" else "audio/mp4",
-                                    downloadedBytes = file.length(),
-                                    totalBytes = file.length(),
-                                    status = DownloadItemStatus.COMPLETED,
-                                ),
-                            )
-
-                            Log.i(TAG, "scanAndRecoverDownloads: recovered '${file.name}' as $pseudoId")
-                        }
-                    }
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        scanViaMediaStore(videoExtensions, audioExtensions)
-                    } else {
-                        Unit
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "scanAndRecoverDownloads failed", e)
-                }
-            }
-
-        /**
-         * MediaStore-based recovery scan.  Queries the system media index for video and audio files
-         * stored in any folder named [VIDEO_DIR] ("Flow").  Works with only READ_MEDIA_VIDEO /
-         * READ_MEDIA_AUDIO — no MANAGE_EXTERNAL_STORAGE needed.  Safe to call repeatedly.
-         * Scans: Downloads/Flow, Movies/Flow, app-private external dirs, and the user's custom path.
-         */
-        @androidx.annotation.RequiresApi(Build.VERSION_CODES.Q)
-        private suspend fun scanViaMediaStore(
-            videoExtensions: Set<String>,
-            audioExtensions: Set<String>,
-        ) = withContext(Dispatchers.IO) {
-            val projection =
-                arrayOf(
-                    MediaStore.MediaColumns.DATA,
-                    MediaStore.MediaColumns.DISPLAY_NAME,
-                    MediaStore.MediaColumns.SIZE,
-                    MediaStore.MediaColumns.DURATION,
-                )
-
-            val pathPrefixes =
-                buildList {
-                    Environment
-                        .getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                        ?.let { File(it, VIDEO_DIR).canonicalPath }
-                        ?.let { add(it) }
-                    Environment
-                        .getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-                        ?.let { File(it, VIDEO_DIR).canonicalPath }
-                        ?.let { add(it) }
-                    context
-                        .getExternalFilesDir(Environment.DIRECTORY_MOVIES)
-                        ?.canonicalPath
-                        ?.let { add(it) }
-                    context
-                        .getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-                        ?.canonicalPath
-                        ?.let { add(it) }
-                    customDownloadPath?.let { add(File(it).canonicalPath) }
-                }
-
-            if (pathPrefixes.isEmpty()) return@withContext
-
-            val collections =
-                listOf(
-                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                )
-
-            for (collectionUri in collections) {
-                try {
-                    context.contentResolver
-                        .query(
-                            collectionUri,
-                            projection,
-                            null,
-                            null,
-                            null,
-                        )?.use { cursor ->
-                            val dataIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
-                            val nameIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
-                            val sizeIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                            val durIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION)
-
-                            while (cursor.moveToNext()) {
-                                val filePath = cursor.getString(dataIdx) ?: continue
-                                val fileName = cursor.getString(nameIdx) ?: continue
-                                val fileSize = cursor.getLong(sizeIdx)
-                                val durationMs = cursor.getLong(durIdx)
-                                if (pathPrefixes.none { prefix -> filePath.startsWith(prefix) }) continue
-
-                                val ext = fileName.substringAfterLast('.', "").lowercase()
-                                val isVideo = ext in videoExtensions
-                                val isAudio = ext in audioExtensions
-                                if (!isVideo && !isAudio) continue
-
-                                if (downloadDao.existsByFilePath(filePath)) continue
-                                if (recentlyDeletedPaths.contains(filePath)) continue
-                                if (tombstonePrefs.contains(filePath)) {
-                                    if (deleteFileFromDisk(filePath)) tombstonePrefs.edit().remove(filePath).apply()
-                                    continue
-                                }
-
-                                val file = File(filePath)
-                                val pseudoId = "recovered_${filePath.hashCode().toLong() and 0xFFFFFFFFL}"
-
-                                val thumbnailUrl: String =
-                                    if (isVideo) {
-                                        try {
-                                            val mmr = android.media.MediaMetadataRetriever()
-                                            mmr.setDataSource(filePath)
-                                            val bmp =
-                                                mmr.getFrameAtTime(1_000_000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                                                    ?: mmr.getFrameAtTime(0L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                                            mmr.release()
-                                            if (bmp != null) {
-                                                val thumbFile = File(context.cacheDir, "thumb_$pseudoId.jpg")
-                                                thumbFile.outputStream().use {
-                                                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it)
-                                                }
-                                                bmp.recycle()
-                                                if (thumbFile.exists() && thumbFile.length() > 0) "file://${thumbFile.absolutePath}" else ""
-                                            } else {
-                                                ""
-                                            }
-                                        } catch (_: Exception) {
-                                            ""
-                                        }
-                                    } else {
-                                        ""
-                                    }
-
-                                val fileType = if (isVideo) DownloadFileType.VIDEO else DownloadFileType.AUDIO
-
-                                downloadDao.insertDownload(
-                                    DownloadEntity(
-                                        videoId = pseudoId,
-                                        title = fileName.substringBeforeLast('.'),
-                                        uploader = "Local File",
-                                        duration = durationMs / 1000,
-                                        thumbnailUrl = thumbnailUrl,
-                                        createdAt = if (file.exists()) file.lastModified() else System.currentTimeMillis(),
-                                    ),
-                                )
-                                downloadDao.insertItem(
-                                    DownloadItemEntity(
-                                        videoId = pseudoId,
-                                        fileType = fileType,
-                                        fileName = fileName,
-                                        filePath = filePath,
-                                        format = ext,
-                                        quality = "Local",
-                                        mimeType = if (isVideo) "video/mp4" else "audio/mp4",
-                                        downloadedBytes = fileSize,
-                                        totalBytes = fileSize,
-                                        status = DownloadItemStatus.COMPLETED,
-                                    ),
-                                )
-                                Log.i(TAG, "scanViaMediaStore: recovered '$fileName' as $pseudoId")
-                            }
-                        }
-                } catch (e: Exception) {
-                    Log.w(TAG, "scanViaMediaStore: query failed for $collectionUri", e)
-                }
-            }
+        internal fun retryTombstonedDelete(path: String): Boolean {
+            if (!tombstonePrefs.contains(path)) return false
+            if (deleteFileFromDisk(path)) tombstonePrefs.edit().remove(path).apply()
+            return true
         }
     }

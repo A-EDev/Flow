@@ -47,6 +47,14 @@ data class FlowDownloadMission(
     @Volatile
     var gatedHttp403: Boolean = false
 
+    /** The picked folder the finished file is copied into; the download itself is written to [savePath]. */
+    @Volatile
+    var exportTreeUri: String? = null
+
+    /** Set when the chosen folder could not be used, to the folder the file was saved to instead. */
+    @Volatile
+    var fallbackFolder: String? = null
+
     /** Paused by the Wi-Fi only setting rather than by the user, so Wi-Fi coming back resumes it. */
     @Volatile
     var waitingForWifi: Boolean = false
