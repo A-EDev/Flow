@@ -644,6 +644,8 @@ class VideoPlayerViewModel
             skippedMs: Long,
         ) = videoStats.onSponsorSkip(category, skippedMs)
 
+        fun reloadSponsorSegments(videoId: String) = playerManager.reloadSponsorSegments(videoId)
+
         fun toggleSubscription(
             channelId: String,
             channelName: String,

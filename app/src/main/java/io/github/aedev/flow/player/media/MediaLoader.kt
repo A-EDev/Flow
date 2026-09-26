@@ -14,10 +14,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.LoadEventInfo
-import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.source.MediaSource
-import androidx.media3.exoplayer.source.MediaSourceEventListener
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
@@ -43,7 +40,6 @@ import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 import java.io.File
-import java.io.IOException
 import java.util.Locale
 
 /**
@@ -475,7 +471,9 @@ class MediaLoader(
                     .also { source ->
                         source.addEventListener(
                             Handler(Looper.getMainLooper()),
-                            subtitleLoadFailureReporter(index, label),
+                            subtitleLoadFailureReporter(index, label, subtitleUrl) { failedIndex, failedLabel ->
+                                onSubtitleLoadFailed?.invoke(failedIndex, failedLabel)
+                            },
                         )
                     }
             }
@@ -490,36 +488,6 @@ class MediaLoader(
             *subtitleSources.toTypedArray(),
         )
     }
-
-    /**
-     * Reports a subtitle fetch that has run out of retries.
-     *
-     * `treatLoadErrorsAsEndOfStream` turns that failure into an empty track, so without this the
-     * user picks a language and simply gets nothing, with no clue that anything went wrong.
-     * `wasCanceled` is Media3's signal that the loader chose not to retry, i.e. this is final.
-     */
-    private fun subtitleLoadFailureReporter(
-        index: Int,
-        label: String,
-    ): MediaSourceEventListener =
-        object : MediaSourceEventListener {
-            override fun onLoadError(
-                windowIndex: Int,
-                mediaPeriodId: MediaSource.MediaPeriodId?,
-                loadEventInfo: LoadEventInfo,
-                mediaLoadData: MediaLoadData,
-                error: IOException,
-                wasCanceled: Boolean,
-            ) {
-                val status = (error as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-                if (!wasCanceled) {
-                    Log.d(TAG, "Subtitle '$label' load failed (status=$status), retrying")
-                    return
-                }
-                Log.w(TAG, "Subtitle '$label' gave up after retries (status=$status): ${error.message}")
-                onSubtitleLoadFailed?.invoke(index, label)
-            }
-        }
 
     private fun resolveSubtitleMimeType(subtitleStream: SubtitlesStream): String {
         val url = subtitleStream.getContent().lowercase(Locale.ROOT)
