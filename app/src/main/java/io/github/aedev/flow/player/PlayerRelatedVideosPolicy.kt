@@ -33,4 +33,11 @@ object PlayerRelatedVideosPolicy {
             .filter { shortsEnabled || !it.isShort }
             .filterNot { exclusions.hidesFromRecommendations(it) }
             .distinctBy { it.id }
+
+    /** [sanitize] against a live [source]; a null source hides nothing. */
+    suspend fun sanitizeHidden(
+        videoId: String,
+        candidates: List<Video>,
+        source: FeedExclusionsSource?,
+    ): List<Video> = sanitize(videoId, candidates, exclusions = source?.current() ?: FeedExclusions.NONE)
 }

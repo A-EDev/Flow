@@ -222,7 +222,7 @@ class PlaybackLoadResolver
             if (request.escalateToSabr && innerTubeResult == null) {
                 Log.e(TAG, "Forced-SABR reload for $videoId produced no playable session — giving up on this attempt")
                 if (isCurrent()) {
-                    onStep(ResolvedPlayback.Failed(PlaybackFailure.EXTRACTION, cause = null, relatedVideos = null))
+                    onStep(ResolvedPlayback.Failed(PlaybackFailure.EXTRACTION, extractionFailureCause(videoId), relatedVideos = null))
                 }
                 return
             }
@@ -261,7 +261,9 @@ class PlaybackLoadResolver
                 )
             } else {
                 Log.e(TAG, "InnerTube resolved nothing playable for $videoId and no offline copy found.")
-                onStep(upcomingOrFailure(videoId, PlaybackFailure.EXTRACTION, null, relatedVideos, resolveUpcoming))
+                onStep(
+                    upcomingOrFailure(videoId, PlaybackFailure.EXTRACTION, extractionFailureCause(videoId), relatedVideos, resolveUpcoming),
+                )
             }
         }
 
@@ -279,6 +281,9 @@ class PlaybackLoadResolver
                 ResolvedPlayback.Failed(failure, cause, relatedVideos)
             }
         }
+
+        private fun extractionFailureCause(videoId: String): Throwable? =
+            InnerTubeVideoStreamExtractor.blockOf(videoId)?.let(::PlaybackBlockedException)
 
         private suspend fun extractInnerTube(
             videoId: String,

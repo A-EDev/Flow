@@ -23,8 +23,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -32,6 +35,10 @@ object InnerTubeVideoStreamExtractor {
     private const val TAG = "InnerTubeVideoExtractor"
     private const val PER_CLIENT_TIMEOUT_MS = 6000L
     private const val WEB_PLAYER_TIMEOUT_MS = 10000L
+
+    // A cold player script is a 3 MB download. Past this the web request goes without a signature
+    // timestamp and the download keeps running for the next extraction.
+    private const val SIGNATURE_TIMESTAMP_WAIT_MS = 4000L
 
     // How long a confirmed winner will wait for the streaming pot before shipping its
     // URLs pot-less. The mint starts alongside the ladder, so a warm session is ready well before
@@ -129,6 +136,7 @@ object InnerTubeVideoStreamExtractor {
             Log.w(TAG, "Extraction start for $videoId (forceSabr=$forceSabr)")
             PlayerDiagnostics.logWarning(TAG, "extract start $videoId forceSabr=$forceSabr")
             dropGatesOnIdentityChange()
+            blockedVideoIds.remove(videoId)
             val failureReasons = mutableListOf<String>()
             val liveDetected = booleanArrayOf(false)
 
@@ -140,6 +148,7 @@ object InnerTubeVideoStreamExtractor {
                 }
                 Log.e(TAG, "Forced SABR extraction failed for $videoId. Reasons: ${failureReasons.joinToString(" | ")}")
                 PlayerDiagnostics.logError(TAG, "forced SABR FAILED $videoId: ${failureReasons.joinToString(" | ")}")
+                recordBlock(videoId, failureReasons)
                 return@withContext null
             }
 
@@ -154,7 +163,15 @@ object InnerTubeVideoStreamExtractor {
                     "fast path SKIPPED $videoId — gated clients: ${ClientGateTracker.gatedClients().joinToString()}",
                 )
             } else {
-                tryDirectClients(videoId, fastClients, failureReasons, liveDetected = liveDetected)?.let { direct ->
+                // A cold start pays DNS and TLS inside the first request, which can outlast the
+                // per-client timeout; one retry on the warm connection beats falling to the web path.
+                tryDirectClients(
+                    videoId,
+                    fastClients,
+                    failureReasons,
+                    liveDetected = liveDetected,
+                    retryTimeoutOnce = true,
+                )?.let { direct ->
                     val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
                     Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
                     PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}")
@@ -220,6 +237,7 @@ object InnerTubeVideoStreamExtractor {
             Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")
             PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
             if (PlayabilityVerdict.isGone(failureReasons)) goneVideoIds += videoId
+            recordBlock(videoId, failureReasons)
             null
         }
 
@@ -229,6 +247,18 @@ object InnerTubeVideoStreamExtractor {
             .newKeySet()
 
     fun isGone(videoId: String): Boolean = videoId in goneVideoIds
+
+    private val blockedVideoIds = java.util.concurrent.ConcurrentHashMap<String, PlaybackBlock>()
+
+    /** Why the last extraction of [videoId] failed, when YouTube refused the viewer rather than the video. */
+    fun blockOf(videoId: String): PlaybackBlock? = blockedVideoIds[videoId]
+
+    private fun recordBlock(
+        videoId: String,
+        failureReasons: List<String>,
+    ) {
+        PlayabilityVerdict.block(failureReasons)?.let { blockedVideoIds[videoId] = it }
+    }
 
     /** The clients GVS is not currently refusing to serve. See [ClientGateTracker]. */
     private fun List<YouTubeClient>.ungated(): List<YouTubeClient> = filterNot { ClientGateTracker.isGated(it.clientName) }
@@ -278,9 +308,13 @@ object InnerTubeVideoStreamExtractor {
             TAG,
             "Direct ladder for $videoId capped at ${directMaxHeight}p (< ${SabrRoutingPolicy.QUALITY_UPGRADE_FLOOR}p); attempting SABR upgrade",
         )
-        val sabr = trySabrClients(videoId, failureReasons) ?: return direct
-        val sabrHeight = sabr.sabrInfo?.videoHeight ?: 0
-        return if (sabr.sabrInfo != null && sabrHeight > directMaxHeight) {
+        val sabr =
+            withTimeoutOrNull(SabrRoutingPolicy.UPGRADE_BUDGET_MS) { trySabrClients(videoId, failureReasons) }
+                ?: return direct.also {
+                    PlayerDiagnostics.logWarning(TAG, "SABR upgrade unavailable or out of budget for $videoId, playing direct")
+                }
+        val sabrHeight = sabr.sabrInfo?.videoHeight
+        return if (SabrRoutingPolicy.upgradeReplacesDirect(directMaxHeight, sabrHeight)) {
             Log.w(TAG, "Upgraded $videoId: ${directMaxHeight}p direct → ${sabrHeight}p SABR")
             sabr
         } else {
@@ -325,6 +359,7 @@ object InnerTubeVideoStreamExtractor {
         failureReasons: MutableList<String>,
         allowUntransformedN: Boolean = false,
         liveDetected: BooleanArray? = null,
+        retryTimeoutOnce: Boolean = false,
     ): VideoExtractionResult? =
         coroutineScope {
             val sts: Int? =
@@ -375,22 +410,30 @@ object InnerTubeVideoStreamExtractor {
                     val webAttested = client.attestation == AttestationPlatform.WEB
                     val clientPoToken = if (webAttested) awaitMint()?.playerRequestPoToken else null
 
-                    val playerResponse =
+                    suspend fun requestPlayer(): Result<PlayerResponse>? =
                         withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
                             // Force en-US extraction locale so the response is deterministic across regions.
                             // Route video extraction to www.youtube.com (not the music host): the main site
                             // serves usable ANDROID_VR direct adaptive formats that survive GVS enforcement,
                             // instead of the SABR-only responses the music endpoint returns for these clients.
-                            YouTube
-                                .player(
-                                    videoId,
-                                    client = client,
-                                    signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
-                                    poToken = clientPoToken,
-                                    localeOverride = YouTubeLocale.EXTRACTION,
-                                    apiUrl = YouTubeClient.API_URL_YOUTUBE,
-                                ).getOrNull()
+                            YouTube.player(
+                                videoId,
+                                client = client,
+                                signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
+                                poToken = clientPoToken,
+                                localeOverride = YouTubeLocale.EXTRACTION,
+                                apiUrl = YouTubeClient.API_URL_YOUTUBE,
+                            )
                         }
+
+                    var attempt = requestPlayer()
+                    if (retryTimeoutOnce && attempt.isTimeout()) {
+                        currentCoroutineContext().ensureActive()
+                        Log.w(TAG, "${client.clientName} timed out for $videoId, retrying once")
+                        PlayerDiagnostics.logWarning(TAG, "${client.clientName} timed out for $videoId, retrying once")
+                        attempt = requestPlayer()
+                    }
+                    val playerResponse = attempt?.getOrNull()
 
                     if (playerResponse == null) {
                         failureReasons.add("${client.clientName}: timeout or null response")
@@ -404,7 +447,7 @@ object InnerTubeVideoStreamExtractor {
                     val status = playerResponse.playabilityStatus.status
                     if (status != "OK") {
                         val reason = playerResponse.playabilityStatus.reason
-                        val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                        val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
                         failureReasons.add("${client.clientName}: $tag, reason=$reason")
                         Log.w(TAG, "${client.clientName}: $tag, reason=$reason")
                         PlayerDiagnostics.logWarning(
@@ -584,7 +627,7 @@ object InnerTubeVideoStreamExtractor {
                 Log.w(TAG, "$label+SABR: PoToken mint returned null (WebView missing/broken?)")
                 return null
             }
-            val sts = CipherDeobfuscator.ensureSignatureTimestamp()
+            val sts = withTimeoutOrNull(SIGNATURE_TIMESTAMP_WAIT_MS) { CipherDeobfuscator.ensureSignatureTimestamp() }
 
             val playerResponse =
                 withTimeoutOrNull(WEB_PLAYER_TIMEOUT_MS) {
@@ -609,7 +652,7 @@ object InnerTubeVideoStreamExtractor {
             val status = playerResponse.playabilityStatus.status
             if (status != "OK") {
                 val reason = playerResponse.playabilityStatus.reason
-                val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
                 failureReasons.add("$label: $tag, reason=$reason")
                 Log.w(TAG, "$label: $tag, reason=$reason")
                 return null
@@ -784,6 +827,9 @@ object InnerTubeVideoStreamExtractor {
         return null
     }
 
+    /** A status refusal is an answer; only a request that never came back is worth repeating. */
+    private fun Result<PlayerResponse>?.isTimeout(): Boolean = this == null || exceptionOrNull() is TimeoutCancellationException
+
     private fun PlayerResponse.isLiveNow(): Boolean =
         LiveDetectionRules.isLiveNow(
             isLive = videoDetails?.isLive,
@@ -821,14 +867,6 @@ object InnerTubeVideoStreamExtractor {
         val challenge = renderer.challenge ?: return "empty"
         val shared = if (renderer.useSharedChallenge == true) ",shared" else ""
         return "yes(${challenge.length}c$shared)"
-    }
-
-    private fun isBotWall(reason: String?): Boolean {
-        if (reason == null) return false
-        return reason.contains("Sign in to confirm", ignoreCase = true) ||
-            reason.contains("confirm you", ignoreCase = true) ||
-            reason.contains("not a bot", ignoreCase = true) ||
-            reason.contains("Inicia sesión", ignoreCase = true) // localized "sign in"
     }
 
     private suspend fun PlayerResponse.StreamingData.Format.toPlayableFormat(

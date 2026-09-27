@@ -42,6 +42,7 @@ import io.github.aedev.flow.ui.screens.notifications.NotificationScreen
 import io.github.aedev.flow.ui.screens.onboarding.OnboardingScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.shouldExpandInsteadOfPlaying
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.recap.RecapRoutes
@@ -861,25 +862,23 @@ fun NavGraphBuilder.flowAppGraph(
         // Use passed state
         val playerUiState = playerUiStateResult.value
         LaunchedEffect(effectiveVideoId) {
-            val isAlreadyPlayingThis =
-                playerUiState.cachedVideo?.id == effectiveVideoId &&
-                    !playerUiState.isRestoredSession
-            if (!isAlreadyPlayingThis) {
-                val placeholder =
-                    Video(
-                        id = effectiveVideoId,
-                        title = "",
-                        channelName = "",
-                        channelId = "",
-                        thumbnailUrl = "",
-                        duration = 0,
-                        viewCount = 0L,
-                        uploadDate = "",
-                        description = "",
-                        channelThumbnailUrl = "",
-                    )
-                playerViewModel.playVideo(placeholder)
-                GlobalPlayerState.setCurrentVideo(placeholder)
+            if (!playerUiState.shouldExpandInsteadOfPlaying(effectiveVideoId)) {
+                val video =
+                    playerUiState.cachedVideo?.takeIf { it.id == effectiveVideoId }
+                        ?: Video(
+                            id = effectiveVideoId,
+                            title = "",
+                            channelName = "",
+                            channelId = "",
+                            thumbnailUrl = "",
+                            duration = 0,
+                            viewCount = 0L,
+                            uploadDate = "",
+                            description = "",
+                            channelThumbnailUrl = "",
+                        )
+                playerViewModel.playVideo(video)
+                GlobalPlayerState.setCurrentVideo(video)
             } else {
                 playerViewModel.showVideoPlayer()
                 playerVisibleState.value = true

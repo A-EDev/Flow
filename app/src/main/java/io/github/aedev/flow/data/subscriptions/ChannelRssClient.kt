@@ -1,6 +1,6 @@
 package io.github.aedev.flow.data.subscriptions
 
-import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.network.ProxyAwareClient
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -23,7 +23,12 @@ class ChannelRssClient internal constructor(
     private val sleep: suspend (Long) -> Unit,
 ) {
     @Inject
-    constructor() : this(ProxyAwareClient()::get, { delay(it) })
+    constructor() : this(
+        ProxyAwareClient {
+            connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS).readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        }::get,
+        { delay(it) },
+    )
 
     /**
      * A [Result] rather than a nullable feed: the callers distinguish "this channel has nothing
@@ -85,37 +90,6 @@ class ChannelRssClient internal constructor(
             ?.times(1000L)
             ?.coerceIn(DEFAULT_RETRY_DELAY_MS, MAX_RETRY_DELAY_MS)
             ?: DEFAULT_RETRY_DELAY_MS
-
-    /**
-     * Rebuilt only when the proxy configuration changes, so a refresh over hundreds of channels
-     * reuses one connection pool while a proxy switch still takes effect without a restart.
-     */
-    private class ProxyAwareClient {
-        private val lock = Any()
-
-        @Volatile
-        private var cachedClient: OkHttpClient? = null
-
-        @Volatile
-        private var cachedProxySignature: String? = null
-
-        fun get(): OkHttpClient {
-            val signature = AppProxyManager.currentSignature()
-            cachedClient?.let { if (cachedProxySignature == signature) return it }
-            return synchronized(lock) {
-                cachedClient?.let { if (cachedProxySignature == signature) return it }
-                AppProxyManager
-                    .applyTo(OkHttpClient.Builder())
-                    .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                    .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                    .build()
-                    .also {
-                        cachedClient = it
-                        cachedProxySignature = signature
-                    }
-            }
-        }
-    }
 
     private companion object {
         const val RSS_URL_FORMAT = "https://www.youtube.com/feeds/videos.xml?channel_id=%s"

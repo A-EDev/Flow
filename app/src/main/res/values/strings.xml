@@ -2449,6 +2449,10 @@
     <string name="error_channel_terminated_hint">This channel no longer exists on YouTube.</string>
     <string name="error_captcha">YouTube CAPTCHA required</string>
     <string name="error_captcha_hint">YouTube is asking for bot verification. Please open YouTube in a browser and solve the CAPTCHA, then try again.</string>
+    <string name="error_bot_wall">YouTube is blocking this network</string>
+    <string name="error_bot_wall_hint">Try another network or turn off your VPN.</string>
+    <string name="error_login_required">Sign-in required</string>
+    <string name="error_login_required_hint">YouTube only plays this video for signed-in accounts.</string>
     <string name="error_not_available">Video not available</string>
     <string name="error_not_available_hint">This video may have been deleted, made private, or removed by YouTube.</string>
     <string name="error_not_supported">Content type not supported</string>
