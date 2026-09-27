@@ -19,6 +19,8 @@ import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.RelatedMusic
+import io.github.aedev.flow.data.music.model.audioMusicOnly
+import io.github.aedev.flow.data.music.model.isAudioMusicCandidate
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
@@ -108,13 +110,6 @@ class MusicViewModel
                 )
 
         private fun isUiVisible(): Boolean = _uiState.subscriptionCount.value > 0
-
-        private fun MusicTrack.isAudioMusicCandidate(): Boolean {
-            val usableDuration = duration == 0 || duration in 30..1200
-            return itemType == MusicItemType.SONG && !isVideoSong && videoId.isNotBlank() && usableDuration
-        }
-
-        private fun List<MusicTrack>.audioMusicOnly(): List<MusicTrack> = filter { it.isAudioMusicCandidate() }.distinctBy { it.videoId }
 
         init {
             loadMusicContent()

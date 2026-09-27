@@ -10,6 +10,8 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.music.model.audioMusicOnly
+import io.github.aedev.flow.ui.musicPlayerRoute
 import io.github.aedev.flow.widget.core.FlowGlanceTheme
 import io.github.aedev.flow.widget.core.WIDGET_HERO_CORNER_DP
 import io.github.aedev.flow.widget.core.WIDGET_HERO_HEIGHT_PX
@@ -31,6 +33,9 @@ import kotlinx.coroutines.withContext
 class OnRepeatWidget : GlanceAppWidget() {
     companion object {
         private const val MAX_ITEMS = 8
+
+        // The same pool the Music page filters its On Repeat shelf from.
+        private const val SHELF_POOL = 16
     }
 
     override suspend fun provideGlance(
@@ -41,14 +46,15 @@ class OnRepeatWidget : GlanceAppWidget() {
         val thumbWidthPx = (WIDGET_THUMB_WIDTH.value * density).toInt()
         val thumbHeightPx = (WIDGET_THUMB_HEIGHT.value * density).toInt()
 
-        // Rows open the Music tab, where the shelf leads the page.
         val openMusic = WidgetDeepLink.openRoute(context, WidgetDeepLink.ROUTE_MUSIC)
 
         val items =
             withContext(Dispatchers.IO) {
                 widgetEntryPoint(context)
                     .musicBrainEngine()
-                    .heavyRotationTracks(MAX_ITEMS)
+                    .heavyRotationTracks(SHELF_POOL)
+                    .audioMusicOnly()
+                    .take(MAX_ITEMS)
                     .mapIndexed { index, track ->
                         WidgetVideoItem(
                             videoId = track.videoId,
@@ -78,7 +84,7 @@ class OnRepeatWidget : GlanceAppWidget() {
                                 } else {
                                     null
                                 },
-                            openIntent = openMusic,
+                            openIntent = WidgetDeepLink.openRoute(context, musicPlayerRoute(track.videoId)),
                         )
                     }
             }
