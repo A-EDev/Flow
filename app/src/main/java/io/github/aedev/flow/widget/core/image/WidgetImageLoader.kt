@@ -28,6 +28,7 @@ object WidgetImageLoader {
         heightPx: Int = widthPx,
         cornerRadiusPx: Float = 0f,
         shape: WidgetShape? = null,
+        holeFraction: Float = 0f,
     ): Bitmap? {
         if (url.isNullOrBlank()) return null
         return withContext(Dispatchers.IO) {
@@ -41,7 +42,7 @@ object WidgetImageLoader {
                         .allowHardware(false)
                         .apply {
                             when {
-                                shape != null -> transformations(WidgetShapeTransformation(shape))
+                                shape != null -> transformations(WidgetShapeTransformation(shape, holeFraction))
                                 cornerRadiusPx > 0f -> transformations(RoundedCornersTransformation(cornerRadiusPx))
                             }
                         }.build()

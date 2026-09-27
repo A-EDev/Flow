@@ -23,6 +23,8 @@ data class NowPlayingSnapshot(
     val isLiked: Boolean,
     val positionMs: Long,
     val durationMs: Long,
+    /** `SystemClock.elapsedRealtime()` when [positionMs] was read, so a running clock can start from it. */
+    val capturedAtElapsedMs: Long = 0L,
 )
 
 private val Context.nowPlayingWidgetStore by preferencesDataStore(name = "now_playing_widget")
@@ -36,6 +38,7 @@ private object Keys {
     val IS_LIKED = booleanPreferencesKey("is_liked")
     val POSITION_MS = longPreferencesKey("position_ms")
     val DURATION_MS = longPreferencesKey("duration_ms")
+    val CAPTURED_AT_ELAPSED_MS = longPreferencesKey("captured_at_elapsed_ms")
 }
 
 fun Context.nowPlayingSnapshotFlow(): Flow<NowPlayingSnapshot?> =
@@ -50,6 +53,7 @@ fun Context.nowPlayingSnapshotFlow(): Flow<NowPlayingSnapshot?> =
             isLiked = prefs[Keys.IS_LIKED] ?: false,
             positionMs = prefs[Keys.POSITION_MS] ?: 0L,
             durationMs = prefs[Keys.DURATION_MS] ?: 0L,
+            capturedAtElapsedMs = prefs[Keys.CAPTURED_AT_ELAPSED_MS] ?: 0L,
         )
     }
 
@@ -63,6 +67,7 @@ suspend fun Context.writeNowPlayingSnapshot(snapshot: NowPlayingSnapshot) {
         prefs[Keys.IS_LIKED] = snapshot.isLiked
         prefs[Keys.POSITION_MS] = snapshot.positionMs
         prefs[Keys.DURATION_MS] = snapshot.durationMs
+        prefs[Keys.CAPTURED_AT_ELAPSED_MS] = snapshot.capturedAtElapsedMs
     }
 }
 

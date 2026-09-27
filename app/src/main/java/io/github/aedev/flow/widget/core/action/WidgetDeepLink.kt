@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import io.github.aedev.flow.MainActivity
+import io.github.aedev.flow.ui.ON_REPEAT_SHUFFLE_ROUTE
+import io.github.aedev.flow.ui.musicPlayerRoute
 
 /**
  * Single source of truth for widget-tap intents into [MainActivity].
@@ -20,6 +22,9 @@ object WidgetDeepLink {
     const val ROUTE_HISTORY = "history"
     const val ROUTE_RECOGNIZE = "musicRecognize"
     const val ROUTE_MUSIC = "music"
+    const val ROUTE_SHORTS = "shorts"
+    const val ROUTE_SUBSCRIPTIONS = "subscriptions"
+    const val ROUTE_LIBRARY = "library"
 
     fun openApp(context: Context): Intent = base(context, "open")
 
@@ -31,6 +36,13 @@ object WidgetDeepLink {
         context: Context,
         route: String,
     ): Intent = base(context, "route/$route").putExtra(EXTRA_WIDGET_ROUTE, route)
+
+    fun playSong(
+        context: Context,
+        videoId: String,
+    ): Intent = openRoute(context, musicPlayerRoute(videoId))
+
+    fun shuffleOnRepeat(context: Context): Intent = openRoute(context, ON_REPEAT_SHUFFLE_ROUTE)
 
     /** Opens the video player on [videoId] via the existing deeplink playback path. */
     fun playVideo(

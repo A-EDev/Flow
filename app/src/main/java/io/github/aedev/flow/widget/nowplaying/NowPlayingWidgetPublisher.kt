@@ -1,6 +1,7 @@
 package io.github.aedev.flow.widget.nowplaying
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.glance.appwidget.updateAll
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -48,6 +49,7 @@ class NowPlayingWidgetPublisher @Inject constructor(
                     isLiked = EnhancedMusicPlayerManager.isLiked.value,
                     positionMs = player.currentPosition.coerceAtLeast(0L),
                     durationMs = player.duration.takeIf { d -> d != C.TIME_UNSET } ?: 0L,
+                    capturedAtElapsedMs = SystemClock.elapsedRealtime(),
                 )
             }
         publishJob?.cancel()

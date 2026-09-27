@@ -7,7 +7,11 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.Shader
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
@@ -18,52 +22,32 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.layout.size
 import androidx.glance.unit.ColorProvider
-import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
-import androidx.graphics.shapes.star
 import androidx.graphics.shapes.toPath
 import coil3.size.Size
 import coil3.transform.Transformation
 import kotlin.math.min
 
 /**
- * M3 Expressive decorative shapes for widgets, built on the same RoundedPolygon
- * geometry as the Material shape library. Rendered into bitmaps because
- * RemoteViews can only clip to rounded rectangles natively.
+ * The Material 3 Expressive shapes the app uses, rasterised because RemoteViews can only clip to
+ * rounded rectangles. Cookie12 marks actions, Cookie9 artists, as in FlowShapes.
  */
-enum class WidgetShape(
-    internal val polygon: RoundedPolygon,
-) {
-    /** Scallop-edged disc — the expressive "cookie". Used for the turntable record. */
-    COOKIE(
-        RoundedPolygon
-            .star(
-                numVerticesPerRadius = 12,
-                innerRadius = 0.85f,
-                rounding = CornerRounding(radius = 0.18f, smoothing = 1f),
-            ).normalized(),
-    ),
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+enum class WidgetShape {
+    COOKIE_12,
+    COOKIE_9,
+    SUNNY,
+    CLOVER,
+    ;
 
-    /** Soft eight-point sun. Used for Now Playing artwork. */
-    SUNNY(
-        RoundedPolygon
-            .star(
-                numVerticesPerRadius = 8,
-                innerRadius = 0.78f,
-                rounding = CornerRounding(radius = 0.2f, smoothing = 1f),
-            ).normalized(),
-    ),
-
-    /** Four-leaf clover. Used for placeholder discs and decorative accents. */
-    CLOVER(
-        RoundedPolygon
-            .star(
-                numVerticesPerRadius = 4,
-                innerRadius = 0.55f,
-                rounding = CornerRounding(radius = 0.45f, smoothing = 1f),
-                innerRounding = CornerRounding(radius = 0.45f, smoothing = 1f),
-            ).normalized(),
-    ),
+    internal val polygon: RoundedPolygon by lazy {
+        when (this) {
+            COOKIE_12 -> MaterialShapes.Cookie12Sided
+            COOKIE_9 -> MaterialShapes.Cookie9Sided
+            SUNNY -> MaterialShapes.Sunny
+            CLOVER -> MaterialShapes.Clover4Leaf
+        }.normalized()
+    }
 }
 
 private fun WidgetShape.scaledPath(sizePx: Int): Path {
@@ -73,11 +57,15 @@ private fun WidgetShape.scaledPath(sizePx: Int): Path {
     return path
 }
 
-/** Coil transformation that clips an image to an expressive [WidgetShape]. */
+/**
+ * Clips an image to [shape]. A [holeFraction] above zero punches a transparent spindle hole, so the
+ * widget's own day/night background shows through instead of a colour baked into the bitmap.
+ */
 class WidgetShapeTransformation(
     private val shape: WidgetShape,
+    private val holeFraction: Float = 0f,
 ) : Transformation() {
-    override val cacheKey: String = "widgetShape:${shape.name}"
+    override val cacheKey: String = "widgetShape:${shape.name}:$holeFraction"
 
     override suspend fun transform(
         input: Bitmap,
@@ -100,6 +88,10 @@ class WidgetShapeTransformation(
                 shader = BitmapShader(squared, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
             }
         canvas.drawPath(shape.scaledPath(side), paint)
+        if (holeFraction > 0f) {
+            val clear = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) }
+            canvas.drawCircle(side / 2f, side / 2f, side * holeFraction / 2f, clear)
+        }
         if (squared !== input) squared.recycle()
         return output
     }
