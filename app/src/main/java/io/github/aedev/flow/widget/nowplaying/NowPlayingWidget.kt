@@ -21,6 +21,18 @@ import kotlinx.coroutines.flow.first
 class NowPlayingWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(NowPlayingLayout.sizes)
 
+    override val previewSizeMode = SizeMode.Responsive(setOf(NowPlayingLayout.STRIP.size, NowPlayingLayout.CARD.size))
+
+    // Picker previews are one static render without artwork, which would only weigh down the preview.
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int,
+    ) {
+        val snapshot = context.nowPlayingSnapshotFlow().first()?.copy(isPlaying = false)
+        val colors = widgetColorsFlow(context).first()
+        provideContent { FlowGlanceTheme(colors) { NowPlayingContent(snapshot = snapshot, artwork = null) } }
+    }
+
     override suspend fun provideGlance(
         context: Context,
         id: GlanceId,

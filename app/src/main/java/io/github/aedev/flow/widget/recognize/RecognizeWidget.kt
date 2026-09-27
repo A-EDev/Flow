@@ -45,6 +45,14 @@ import kotlinx.coroutines.flow.first
 class RecognizeWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(TILE, LABELLED))
 
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int,
+    ) {
+        val colors = widgetColorsFlow(context).first()
+        provideContent { FlowGlanceTheme(colors) { RecognizeContent() } }
+    }
+
     override suspend fun provideGlance(
         context: Context,
         id: GlanceId,

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -54,6 +55,20 @@ import kotlinx.coroutines.withContext
 /** Downloaded videos and songs, newest first, with how many are still downloading. */
 class DownloadsWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
+
+    // Exact sizing has no size of its own in the picker, so the preview names the one it draws.
+    override val previewSizeMode = SizeMode.Responsive(setOf(DpSize(320.dp, 260.dp)))
+
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int,
+    ) {
+        val downloads = withContext(Dispatchers.IO) { widgetEntryPoint(context).downloadsSource().load() }
+        val colors = widgetColorsFlow(context).first()
+        provideContent {
+            FlowGlanceTheme(colors) { DownloadsContent(downloads.items.map { it.toItem(context, emptyMap()) }, downloads.inProgress) }
+        }
+    }
 
     override suspend fun provideGlance(
         context: Context,

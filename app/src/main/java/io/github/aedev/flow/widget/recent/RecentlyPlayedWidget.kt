@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -56,6 +57,18 @@ import kotlinx.coroutines.withContext
 class RecentlyPlayedWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
+    // Exact sizing has no size of its own in the picker, so the preview names the one it draws.
+    override val previewSizeMode = SizeMode.Responsive(setOf(DpSize(320.dp, 260.dp)))
+
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int,
+    ) {
+        val entries = withContext(Dispatchers.IO) { widgetEntryPoint(context).recentlyPlayedSource().entries() }
+        val colors = widgetColorsFlow(context).first()
+        provideContent { FlowGlanceTheme(colors) { ContinueWatchingContent(entries.map { it.toItem(context, emptyMap()) }) } }
+    }
+
     override suspend fun provideGlance(
         context: Context,
         id: GlanceId,
@@ -87,7 +100,13 @@ class RecentlyPlayedWidget : GlanceAppWidget() {
             if (index == 0) {
                 WidgetImageSpec(entry.videoId, entry.thumbnailUrl, heroWidth, heroWidth * 9 / 16, corner)
             } else {
-                WidgetImageSpec(entry.videoId, entry.thumbnailUrl, context.dpToPx(WidgetRowThumb.width.value), context.dpToPx(WidgetRowThumb.height.value), corner)
+                WidgetImageSpec(
+                    entry.videoId,
+                    entry.thumbnailUrl,
+                    context.dpToPx(WidgetRowThumb.width.value),
+                    context.dpToPx(WidgetRowThumb.height.value),
+                    corner,
+                )
             }
         }
     }
@@ -128,9 +147,15 @@ private fun ContinueWatchingContent(items: List<WidgetMediaItem>) {
     val size = LocalSize.current
     val openHistory: Action = actionStartActivity(WidgetDeepLink.openRoute(context, WidgetDeepLink.ROUTE_HISTORY))
     when {
-        size.height < PanelMinHeight && size.width < WideMinWidth -> SingleHero(items.firstOrNull(), openHistory)
-        size.height < PanelMinHeight -> WideRow(items, openHistory)
-        else ->
+        size.height < PanelMinHeight && size.width < WideMinWidth -> {
+            SingleHero(items.firstOrNull(), openHistory)
+        }
+
+        size.height < PanelMinHeight -> {
+            WideRow(items, openHistory)
+        }
+
+        else -> {
             WidgetPanel(
                 title = context.getString(R.string.widget_recently_played),
                 icon = R.drawable.ic_widget_history,
@@ -148,6 +173,7 @@ private fun ContinueWatchingContent(items: List<WidgetMediaItem>) {
                     }
                 }
             }
+        }
     }
 }
 

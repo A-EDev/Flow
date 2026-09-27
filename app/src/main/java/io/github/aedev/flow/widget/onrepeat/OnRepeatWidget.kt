@@ -57,6 +57,18 @@ import kotlinx.coroutines.withContext
 class OnRepeatWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
+    // Exact sizing has no size of its own in the picker, so the preview names the one it draws.
+    override val previewSizeMode = SizeMode.Responsive(setOf(DpSize(320.dp, 260.dp)))
+
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int,
+    ) {
+        val tracks = withContext(Dispatchers.IO) { widgetEntryPoint(context).onRepeatSource().tracks() }
+        val colors = widgetColorsFlow(context).first()
+        provideContent { FlowGlanceTheme(colors) { OnRepeatContent(tracks.map { it.toItem(context, emptyMap()) }) } }
+    }
+
     override suspend fun provideGlance(
         context: Context,
         id: GlanceId,

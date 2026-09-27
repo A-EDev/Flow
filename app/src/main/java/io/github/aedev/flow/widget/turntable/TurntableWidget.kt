@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
@@ -50,6 +51,18 @@ import kotlin.math.min
  */
 class TurntableWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
+
+    // Exact sizing has no size of its own in the picker, so the preview names the one it draws.
+    override val previewSizeMode = SizeMode.Responsive(setOf(DpSize(170.dp, 170.dp)))
+
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int,
+    ) {
+        val snapshot = context.nowPlayingSnapshotFlow().first()?.copy(isPlaying = true)
+        val colors = widgetColorsFlow(context).first()
+        provideContent { FlowGlanceTheme(colors) { TurntableContent(snapshot = snapshot, disc = null) } }
+    }
 
     override suspend fun provideGlance(
         context: Context,

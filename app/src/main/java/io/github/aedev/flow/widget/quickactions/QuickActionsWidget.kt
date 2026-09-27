@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.Preferences
 import androidx.glance.ColorFilter
@@ -46,6 +47,17 @@ import kotlinx.coroutines.flow.first
 /** A search pill and the shortcuts chosen for this widget, as many as its width holds. */
 class QuickActionsWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
+
+    // Exact sizing has no size of its own in the picker, so the preview names the one it draws.
+    override val previewSizeMode = SizeMode.Responsive(setOf(DpSize(340.dp, 72.dp)))
+
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int,
+    ) {
+        val colors = widgetColorsFlow(context).first()
+        provideContent { FlowGlanceTheme(colors) { QuickActionsContent(QuickShortcut.DEFAULT) } }
+    }
 
     override suspend fun provideGlance(
         context: Context,
