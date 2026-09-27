@@ -5,6 +5,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -44,11 +45,19 @@ internal object FlowNavTransitions {
             )
     }
 
-    // Without these NavHost falls back to its fade + scale(0.7) default for predictive back.
+    // A back gesture seeks these by its progress, so every part shares one linear duration and
+    // follows the finger; a spring's open-ended duration let the fades finish a quarter of the way
+    // in and left a cancelled gesture's state behind for the next one (#1069).
     val predictivePopEnter: AnimatedContentTransitionScope<NavBackStackEntry>.(Int) -> EnterTransition = {
-        popEnter()
+        fadeIn(animationSpec = tween(PREDICTIVE_BACK_DURATION_MS, easing = LinearEasing))
     }
     val predictivePopExit: AnimatedContentTransitionScope<NavBackStackEntry>.(Int) -> ExitTransition = {
-        popExit()
+        fadeOut(animationSpec = tween(PREDICTIVE_BACK_DURATION_MS, easing = LinearEasing)) +
+            slideOutHorizontally(
+                targetOffsetX = { (it * 0.06f).toInt() },
+                animationSpec = tween(PREDICTIVE_BACK_DURATION_MS, easing = LinearEasing),
+            )
     }
 }
+
+private const val PREDICTIVE_BACK_DURATION_MS = 300
