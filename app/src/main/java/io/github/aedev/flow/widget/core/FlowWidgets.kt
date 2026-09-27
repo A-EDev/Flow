@@ -22,6 +22,8 @@ import io.github.aedev.flow.widget.nowplaying.NowPlayingWidget
 import io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetReceiver
 import io.github.aedev.flow.widget.onrepeat.OnRepeatWidget
 import io.github.aedev.flow.widget.onrepeat.OnRepeatWidgetReceiver
+import io.github.aedev.flow.widget.playlist.PlaylistWidget
+import io.github.aedev.flow.widget.playlist.PlaylistWidgetReceiver
 import io.github.aedev.flow.widget.quickactions.QuickActionsWidget
 import io.github.aedev.flow.widget.quickactions.QuickActionsWidgetReceiver
 import io.github.aedev.flow.widget.recent.RecentlyPlayedWidget
@@ -111,6 +113,14 @@ object FlowWidgets {
                 label = R.string.widget_on_repeat_label,
                 description = R.string.widget_on_repeat_description,
                 icon = R.drawable.ic_repeat,
+            ),
+            FlowWidgetEntry(
+                id = "playlist",
+                receiver = PlaylistWidgetReceiver::class,
+                widget = ::PlaylistWidget,
+                label = R.string.widget_playlist_label,
+                description = R.string.widget_playlist_description,
+                icon = R.drawable.ic_widget_library,
             ),
             FlowWidgetEntry(
                 id = "continue_watching",

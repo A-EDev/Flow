@@ -1,11 +1,15 @@
 package io.github.aedev.flow.widget.core.action
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.ui.ON_REPEAT_SHUFFLE_ROUTE
+import io.github.aedev.flow.ui.musicCollectionRoute
 import io.github.aedev.flow.ui.musicPlayerRoute
+import io.github.aedev.flow.ui.widgetPlaylistRoute
+import io.github.aedev.flow.widget.config.WidgetConfigActivity
 
 /**
  * Single source of truth for widget-tap intents into [MainActivity].
@@ -43,6 +47,30 @@ object WidgetDeepLink {
     ): Intent = openRoute(context, musicPlayerRoute(videoId))
 
     fun shuffleOnRepeat(context: Context): Intent = openRoute(context, ON_REPEAT_SHUFFLE_ROUTE)
+
+    fun playPlaylist(
+        context: Context,
+        playlistId: String,
+        shuffle: Boolean,
+    ): Intent = openRoute(context, widgetPlaylistRoute(playlistId, shuffle))
+
+    /** The playlist's own page: music playlists open in the music collection page. */
+    fun openPlaylist(
+        context: Context,
+        playlistId: String,
+        isMusic: Boolean,
+    ): Intent = openRoute(context, if (isMusic) musicCollectionRoute(playlistId) ?: ROUTE_LIBRARY else "playlist/$playlistId")
+
+    /** The launcher's configure screen for one widget, reached from the widget itself. */
+    fun configure(
+        context: Context,
+        appWidgetId: Int,
+    ): Intent =
+        Intent(context, WidgetConfigActivity::class.java).apply {
+            data = Uri.parse("flow://widget/configure/$appWidgetId")
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
 
     /** Opens the video player on [videoId] via the existing deeplink playback path. */
     fun playVideo(

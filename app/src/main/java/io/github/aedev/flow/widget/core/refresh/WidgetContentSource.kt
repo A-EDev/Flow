@@ -20,4 +20,5 @@ enum class WidgetContentKey {
     RECENTLY_PLAYED,
     DOWNLOADS,
     ON_REPEAT,
+    PLAYLISTS,
 }

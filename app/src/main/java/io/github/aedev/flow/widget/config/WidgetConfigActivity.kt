@@ -8,16 +8,20 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import dagger.hilt.android.AndroidEntryPoint
 import io.github.aedev.flow.data.local.LocalDataManager
+import io.github.aedev.flow.ui.screens.widgets.PlaylistConfigScreen
 import io.github.aedev.flow.ui.screens.widgets.QuickActionsConfigScreen
 import io.github.aedev.flow.ui.startup.FlowTheme
 import io.github.aedev.flow.ui.startup.themeSettings
+import io.github.aedev.flow.widget.playlist.PlaylistWidgetReceiver
 import io.github.aedev.flow.widget.quickactions.QuickActionsWidgetReceiver
 
 /**
  * The launcher opens this when a configurable widget is placed or long-pressed to reconfigure.
  * Every choice is saved as it is made, so leaving always reports success.
  */
+@AndroidEntryPoint
 class WidgetConfigActivity : ComponentActivity() {
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
@@ -27,7 +31,12 @@ class WidgetConfigActivity : ComponentActivity() {
         appWidgetId = intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
             ?: AppWidgetManager.INVALID_APPWIDGET_ID
         setResult(RESULT_CANCELED, result())
-        val provider = AppWidgetManager.getInstance(this).getAppWidgetInfo(appWidgetId)?.provider?.className
+        val provider =
+            AppWidgetManager
+                .getInstance(this)
+                .getAppWidgetInfo(appWidgetId)
+                ?.provider
+                ?.className
         if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID || provider == null) {
             finish()
             return
@@ -39,6 +48,7 @@ class WidgetConfigActivity : ComponentActivity() {
             FlowTheme(settings) {
                 when (provider) {
                     QuickActionsWidgetReceiver::class.java.name -> QuickActionsConfigScreen(glanceId, onDone = ::done)
+                    PlaylistWidgetReceiver::class.java.name -> PlaylistConfigScreen(glanceId, onDone = ::done)
                     else -> done()
                 }
             }

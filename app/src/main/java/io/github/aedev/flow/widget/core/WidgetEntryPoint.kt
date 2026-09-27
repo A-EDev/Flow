@@ -8,6 +8,7 @@ import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.widget.core.refresh.WidgetContentSync
 import io.github.aedev.flow.widget.downloads.DownloadsSource
 import io.github.aedev.flow.widget.onrepeat.OnRepeatSource
+import io.github.aedev.flow.widget.playlist.PlaylistWidgetSource
 import io.github.aedev.flow.widget.recent.RecentlyPlayedSource
 
 /**
@@ -22,6 +23,8 @@ interface WidgetEntryPoint {
     fun downloadsSource(): DownloadsSource
 
     fun onRepeatSource(): OnRepeatSource
+
+    fun playlistWidgetSource(): PlaylistWidgetSource
 
     fun widgetContentSync(): WidgetContentSync
 }

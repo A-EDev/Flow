@@ -2915,6 +2915,19 @@
     <string name="widget_open_music">Open Music</string>
     <string name="widget_config_shortcuts">Shortcuts</string>
     <string name="widget_config_shortcuts_footer">Choose up to four. Search is always there.</string>
+    <string name="widget_playlist_label">Playlist</string>
+    <string name="widget_playlist_description">Play or shuffle a playlist you choose</string>
+    <string name="widget_choose_playlist">Choose a playlist</string>
+    <string name="widget_config_playlist">Your playlists</string>
+    <string name="widget_no_playlists">Make a playlist in Flow first, then come back to pick it.</string>
+    <plurals name="widget_playlist_songs">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
+    <plurals name="widget_playlist_videos">
+        <item quantity="one">%d video</item>
+        <item quantity="other">%d videos</item>
+    </plurals>
     <string name="settings_widgets_title">Widgets</string>
     <string name="settings_widgets_summary">Put Flow on your home screen</string>
     <string name="settings_widgets_add_header">Add to home screen</string>

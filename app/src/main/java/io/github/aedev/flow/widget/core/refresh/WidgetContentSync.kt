@@ -10,6 +10,7 @@ import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.widget.downloads.DownloadsSource
 import io.github.aedev.flow.widget.onrepeat.OnRepeatSource
+import io.github.aedev.flow.widget.playlist.PlaylistWidgetSource
 import io.github.aedev.flow.widget.recent.RecentlyPlayedSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -51,8 +52,9 @@ class WidgetContentSync
         recentlyPlayed: RecentlyPlayedSource,
         downloads: DownloadsSource,
         onRepeat: OnRepeatSource,
+        playlists: PlaylistWidgetSource,
     ) {
-        private val sources = listOf(recentlyPlayed, downloads, onRepeat)
+        private val sources = listOf(recentlyPlayed, downloads, onRepeat, playlists)
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         private val placementChanged = MutableSharedFlow<Unit>(replay = 1).apply { tryEmit(Unit) }
         private val requests = MutableSharedFlow<WidgetContentKey>(extraBufferCapacity = 8)

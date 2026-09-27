@@ -8,27 +8,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
-import androidx.glance.Image
-import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.Action
-import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
-import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
-import androidx.glance.layout.size
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.widget.core.action.WidgetDeepLink
@@ -36,10 +29,9 @@ import io.github.aedev.flow.widget.core.component.WidgetCoverGrid
 import io.github.aedev.flow.widget.core.component.WidgetEmptyState
 import io.github.aedev.flow.widget.core.component.WidgetMediaItem
 import io.github.aedev.flow.widget.core.component.WidgetPanel
+import io.github.aedev.flow.widget.core.component.WidgetShuffleButton
 import io.github.aedev.flow.widget.core.component.coverSizeFor
-import io.github.aedev.flow.widget.core.image.ShapeDecor
 import io.github.aedev.flow.widget.core.image.WidgetImageSpec
-import io.github.aedev.flow.widget.core.image.WidgetShape
 import io.github.aedev.flow.widget.core.image.preloadWidgetImages
 import io.github.aedev.flow.widget.core.image.rememberWidgetImages
 import io.github.aedev.flow.widget.core.theme.FlowGlanceTheme
@@ -150,31 +142,13 @@ private fun OnRepeatContent(items: List<WidgetMediaItem>) {
         title = context.getString(R.string.widget_on_repeat),
         icon = R.drawable.ic_repeat,
         onTitleClick = openMusic,
-        actions = { if (items.size > 1) ShuffleButton() },
+        actions = { if (items.size > 1) WidgetShuffleButton(actionStartActivity(WidgetDeepLink.shuffleOnRepeat(context))) },
     ) {
         if (items.isEmpty()) {
             Empty(openMusic)
         } else {
             WidgetCoverGrid(items, grid.columns, grid.coverSize, showLabels = true)
         }
-    }
-}
-
-/** Shuffle on the Cookie12 action shape, the one the app gives shuffle and radio. */
-@Composable
-private fun ShuffleButton() {
-    val context = LocalContext.current
-    Box(
-        modifier = GlanceModifier.size(WidgetDimens.TouchTarget).clickable(actionStartActivity(WidgetDeepLink.shuffleOnRepeat(context))),
-        contentAlignment = Alignment.Center,
-    ) {
-        ShapeDecor(WidgetShape.COOKIE_12, GlanceTheme.colors.primary, 44.dp)
-        Image(
-            provider = ImageProvider(R.drawable.ic_shuffle),
-            contentDescription = context.getString(R.string.widget_shuffle),
-            modifier = GlanceModifier.size(22.dp),
-            colorFilter = ColorFilter.tint(GlanceTheme.colors.onPrimary),
-        )
     }
 }
 
