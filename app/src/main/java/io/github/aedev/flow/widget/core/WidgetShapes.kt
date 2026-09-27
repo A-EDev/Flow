@@ -10,8 +10,8 @@ import android.graphics.Path
 import android.graphics.Shader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
 import androidx.glance.ImageProvider
@@ -105,21 +105,19 @@ class WidgetShapeTransformation(
     }
 }
 
-private fun solidShapeBitmap(
+private fun shapeMask(
     shape: WidgetShape,
-    argb: Int,
     sizePx: Int,
 ): Bitmap {
     val output = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(output)
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = argb }
-    canvas.drawPath(shape.scaledPath(sizePx), paint)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
+    Canvas(output).drawPath(shape.scaledPath(sizePx), paint)
     return output
 }
 
 /**
- * A solid tonal expressive shape (decorative element per the M3 shape library).
- * Cheap to draw and cached per shape+color+size across recompositions.
+ * A solid tonal expressive shape. The bitmap is a white mask tinted at render time, so the colour
+ * stays a day/night pair the launcher switches with dark mode instead of one baked-in value.
  */
 @Composable
 fun ShapeDecor(
@@ -128,12 +126,12 @@ fun ShapeDecor(
     size: Dp,
 ) {
     val context: Context = LocalContext.current
-    val argb = color.getColor(context).toArgb()
     val sizePx = (size.value * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
-    val bitmap = remember(shape, argb, sizePx) { solidShapeBitmap(shape, argb, sizePx) }
+    val mask = remember(shape, sizePx) { shapeMask(shape, sizePx) }
     Image(
-        provider = ImageProvider(bitmap),
+        provider = ImageProvider(mask),
         contentDescription = null,
         modifier = GlanceModifier.size(size),
+        colorFilter = ColorFilter.tint(color),
     )
 }
