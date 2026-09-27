@@ -186,6 +186,9 @@ class Media3MusicService : MediaLibraryService() {
     lateinit var musicBrain: MusicBrainEngine
 
     @Inject
+    lateinit var widgetContentSync: dagger.Lazy<io.github.aedev.flow.widget.core.refresh.WidgetContentSync>
+
+    @Inject
     lateinit var equalizerRepository: EqualizerRepository
 
     @Inject
@@ -602,6 +605,7 @@ class Media3MusicService : MediaLibraryService() {
         // Engine-scoped, NOT lifecycleScope: the finalize from onDestroy runs after
         // this service's scope is already cancelled, and the session must still land.
         musicBrain.onListenSessionAsync(track, playedMs.toDouble() / durationMs, pinnedGenre, playedMs)
+        widgetContentSync.get().request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.ON_REPEAT)
     }
 
     /**

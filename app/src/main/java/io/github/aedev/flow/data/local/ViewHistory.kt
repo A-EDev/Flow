@@ -248,6 +248,12 @@ class ViewHistory private constructor(
         includeShorts: Boolean,
     ): List<VideoHistoryEntry> = dao.getRecentVideoHistory(limit, includeShorts).map { it.toDomain() }
 
+    /** [getRecentVideoHistory], read again whenever the history table changes. */
+    fun observeRecentVideoHistory(
+        limit: Int,
+        includeShorts: Boolean,
+    ): Flow<List<VideoHistoryEntry>> = observe { getRecentVideoHistory(limit, includeShorts) }
+
     private fun observeHistory(
         isMusic: Int = WatchHistoryDao.ANY,
         isLocal: Int = WatchHistoryDao.ANY,

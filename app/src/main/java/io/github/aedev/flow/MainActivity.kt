@@ -105,6 +105,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var videoPlayerManager: dagger.Lazy<EnhancedPlayerManager>
 
+    @Inject
+    lateinit var widgetContentSync: dagger.Lazy<io.github.aedev.flow.widget.core.refresh.WidgetContentSync>
+
     // A recreated activity gets its launch intent again; a playlist file in it was already imported.
     private var isRestoringState = false
 
@@ -194,6 +197,7 @@ class MainActivity : ComponentActivity() {
             io.github.aedev.flow.widget.core.FlowWidgets
                 .observeThemeChanges(applicationContext)
         }
+        lifecycleScope.launch(Dispatchers.Default) { widgetContentSync.get().startIfPlaced() }
 
         isRestoringState = savedInstanceState != null
         handleIntent(intent)

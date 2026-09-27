@@ -5,8 +5,10 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
-import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.widget.core.refresh.WidgetContentSync
+import io.github.aedev.flow.widget.downloads.DownloadsSource
+import io.github.aedev.flow.widget.onrepeat.OnRepeatSource
+import io.github.aedev.flow.widget.recent.RecentlyPlayedSource
 
 /**
  * Glance widgets can't use constructor injection (the framework instantiates them),
@@ -15,9 +17,13 @@ import io.github.aedev.flow.data.video.VideoDownloadManager
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface WidgetEntryPoint {
-    fun videoDownloadManager(): VideoDownloadManager
+    fun recentlyPlayedSource(): RecentlyPlayedSource
 
-    fun musicBrainEngine(): MusicBrainEngine
+    fun downloadsSource(): DownloadsSource
+
+    fun onRepeatSource(): OnRepeatSource
+
+    fun widgetContentSync(): WidgetContentSync
 }
 
 fun widgetEntryPoint(context: Context): WidgetEntryPoint =

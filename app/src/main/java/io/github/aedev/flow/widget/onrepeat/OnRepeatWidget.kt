@@ -10,7 +10,6 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.music.model.audioMusicOnly
 import io.github.aedev.flow.ui.musicPlayerRoute
 import io.github.aedev.flow.widget.core.FlowGlanceTheme
 import io.github.aedev.flow.widget.core.WIDGET_HERO_CORNER_DP
@@ -31,13 +30,6 @@ import kotlinx.coroutines.withContext
 
 /** The music brain's On Repeat shelf on the home screen — zero network to render. */
 class OnRepeatWidget : GlanceAppWidget() {
-    companion object {
-        private const val MAX_ITEMS = 8
-
-        // The same pool the Music page filters its On Repeat shelf from.
-        private const val SHELF_POOL = 16
-    }
-
     override suspend fun provideGlance(
         context: Context,
         id: GlanceId,
@@ -51,10 +43,8 @@ class OnRepeatWidget : GlanceAppWidget() {
         val items =
             withContext(Dispatchers.IO) {
                 widgetEntryPoint(context)
-                    .musicBrainEngine()
-                    .heavyRotationTracks(SHELF_POOL)
-                    .audioMusicOnly()
-                    .take(MAX_ITEMS)
+                    .onRepeatSource()
+                    .tracks()
                     .mapIndexed { index, track ->
                         WidgetVideoItem(
                             videoId = track.videoId,
@@ -112,4 +102,14 @@ class OnRepeatWidget : GlanceAppWidget() {
 
 class OnRepeatWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = OnRepeatWidget()
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        widgetEntryPoint(context).widgetContentSync().onPlacementChanged()
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        widgetEntryPoint(context).widgetContentSync().onPlacementChanged()
+    }
 }
