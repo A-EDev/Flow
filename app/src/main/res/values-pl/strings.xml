@@ -2115,4 +2115,7 @@
     <string name="onboarding_step_interests">Zainteresowania</string>
     <string name="onboarding_step_channels">Twórcy</string>
     <string name="onboarding_step_import">Import</string>
+    <string name="top_bar_close_search">Zamknij wyszukiwanie</string>
+    <string name="onboarding_channels_results_header">Kanały</string>
+    <string name="onboarding_import_source_youtube">YouTube</string>
 </resources>
