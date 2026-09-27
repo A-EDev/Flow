@@ -58,7 +58,10 @@ class SavedShortsLoader(
     override suspend fun more(cursor: String?): ShortsQueuePage = exhaustedPage()
 }
 
-/** [exclusions] keeps reels marked not interested and blocked channels out, as the Subscriptions feed does. */
+/**
+ * [exclusions] keeps reels marked not interested and blocked channels out, as the Subscriptions feed
+ * does. The tapped reel is exempt from every filter: the user just chose it.
+ */
 class SubscriptionShortsLoader(
     private val subscriptionFeedRepository: SubscriptionFeedRepository,
     private val playerPreferences: PlayerPreferences,
@@ -68,17 +71,18 @@ class SubscriptionShortsLoader(
 ) : ShortsQueueLoader {
     override suspend fun initial(): ShortsQueuePage {
         val excludedChannelIds = playerPreferences.subscriptionShortsExcludedChannels.first()
-        val watchedIds = watchedVideos.ids.first()
+        val watchedIds = watchedVideos.shortIds.first()
         val hidden = exclusions()
         val items =
             subscriptionFeedRepository
                 .observeFeed()
                 .first()
                 .asSequence()
-                .filter { it.isShort && it.id.isNotBlank() }
-                .filter { it.channelId !in excludedChannelIds && !hidden.hides(it) }
-                .filter { it.id == anchorVideoId || it.id !in watchedIds }
-                .sortedByDescending { it.timestamp }
+                .filter { it.id.isNotBlank() }
+                .filter {
+                    it.id == anchorVideoId ||
+                        (it.isShort && it.channelId !in excludedChannelIds && !hidden.hides(it) && it.id !in watchedIds)
+                }.sortedByDescending { it.timestamp }
                 .map { it.toShortVideo() }
                 .toList()
         return ShortsQueuePage(spreadChannels(items, ShortVideo::channelId), cursor = null, exhausted = true)

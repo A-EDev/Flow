@@ -51,7 +51,7 @@ class SubscriptionShortsLoaderTest {
         val preferences: PlayerPreferences = mockk(relaxed = true)
         every { preferences.subscriptionShortsExcludedChannels } returns flowOf(excluded)
         val watchedVideos: SubscriptionWatchedVideos = mockk(relaxed = true)
-        every { watchedVideos.ids } returns flowOf(watched)
+        every { watchedVideos.shortIds } returns flowOf(watched)
         return SubscriptionShortsLoader(repository, preferences, watchedVideos, anchorVideoId) { hidden }
     }
 
@@ -137,5 +137,26 @@ class SubscriptionShortsLoaderTest {
                 ).initial()
 
             assertEquals(listOf("seen", "unseen"), page.items.map { it.id })
+        }
+
+    // #1123: a tapped reel from a muted or hidden channel, or one the cache had not classified as a
+    // Short yet, was filtered out and the queue opened on a different reel.
+    @Test
+    fun `the tapped reel survives every filter`() =
+        runTest {
+            val feed =
+                listOf(
+                    reel("muted", channelId = "UCmuted", timestamp = 4L),
+                    reel("hidden", timestamp = 3L),
+                    reel("unclassified", timestamp = 2L, isShort = false),
+                    reel("other", timestamp = 1L),
+                )
+            val hidden = FeedExclusions(suppressedVideoIds = setOf("hidden"))
+
+            listOf("muted", "hidden", "unclassified").forEach { anchor ->
+                val page = loader(feed, excluded = setOf("UCmuted"), hidden = hidden, anchorVideoId = anchor).initial()
+
+                assertEquals(listOf(anchor, "other"), page.items.map { it.id })
+            }
         }
 }

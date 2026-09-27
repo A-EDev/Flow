@@ -29,6 +29,7 @@ class ContentSettingsViewModel
         val subsCheckedCount = preferences.subscriptionShowCheckedVideoCount.asState(true)
 
         val shortsContent = preferences.shortsContentEnabled.asState(true)
+        val hideWatchedShorts = preferences.hideWatchedShorts.asState(true)
         val removeWatchedWatchLater = preferences.removeWatchedFromWatchLater.asState(false)
         val watchedThreshold = preferences.watchedThreshold.asState(WatchedThreshold.ALMOST_FINISHED)
 
@@ -64,6 +65,8 @@ class ContentSettingsViewModel
         fun setSubsCheckedCount(value: Boolean) = write { preferences.setSubscriptionShowCheckedVideoCount(value) }
 
         fun setShortsContent(value: Boolean) = write { preferences.setShortsContentEnabled(value) }
+
+        fun setHideWatchedShorts(value: Boolean) = write { preferences.setHideWatchedShorts(value) }
 
         fun setRemoveWatchedWatchLater(value: Boolean) = write { preferences.setRemoveWatchedFromWatchLater(value) }
 

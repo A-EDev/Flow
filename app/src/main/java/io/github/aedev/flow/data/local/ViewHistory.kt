@@ -261,10 +261,9 @@ class ViewHistory private constructor(
             .mapLatest { read() }
             .flowOn(Dispatchers.IO)
 
-    suspend fun getWatchedShortIdsAboveThreshold(
-        minPercent: Float = 99f,
-        maxRemainingMs: Long = Long.MAX_VALUE,
-    ): Set<String> = dao.getWatchedShortIdsAboveThreshold(minPercent, maxRemainingMs).toHashSet()
+    suspend fun getWatchedShortIds(threshold: WatchedThreshold): Set<String> = dao.readShortProgress().watchedIds(threshold)
+
+    suspend fun getWatchProgress(videoId: String): WatchProgress? = dao.getProgress(videoId)
 
     /** Efficient count without loading all rows — use this instead of list.size. */
     fun getVideoCount(): Flow<Int> = dao.getVideoCount()

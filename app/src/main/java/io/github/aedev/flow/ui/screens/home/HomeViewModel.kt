@@ -42,7 +42,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.Page
 import javax.inject.Inject
 
 private data class Wave1FeedResults(
@@ -100,7 +99,6 @@ class HomeViewModel
                     initialValue = _uiState.value.withUniqueLazyContent(),
                 )
 
-        private var currentPage: Page? = null
         private var isInitialized = false
         private val homePrefetchQueue =
             FeedPrefetchQueue(
@@ -118,6 +116,7 @@ class HomeViewModel
         private var savedInterestJob: Job? = null
 
         private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
+        private val watchedShortIds = MutableStateFlow<Set<String>>(emptySet())
 
         init {
             if (HomeFeedCache.isFresh()) {
@@ -146,18 +145,21 @@ class HomeViewModel
                     playerPreferences.hideWatchedVideosFromHome,
                     playerPreferences.watchedThreshold,
                     playerPreferences.continueWatchingEnabled,
-                ) { history, hideWatched, threshold, continueWatchingEnabled ->
+                    playerPreferences.hideWatchedShorts,
+                ) { history, hideWatched, threshold, continueWatchingEnabled, hideWatchedShorts ->
                     filterHomeHistory(
                         history = history,
                         hideWatchedVideos = hideWatched,
                         watchedThreshold = threshold,
                         continueWatchingEnabled = continueWatchingEnabled,
+                        hideWatchedShorts = hideWatchedShorts,
                     )
                 }.collect { result ->
                     watchedVideoIds.value = result.watchedVideoIds
+                    watchedShortIds.value = result.watchedShortIds
                     _uiState.update { state ->
                         val videos = state.videos.filterWatched(result.watchedVideoIds)
-                        val shorts = state.shorts.filterWatched(result.watchedVideoIds)
+                        val shorts = state.shorts.filterWatched(result.watchedShortIds)
                         if (videos != state.videos || shorts != state.shorts) {
                             HomeFeedCache.update(videos, shorts)
                         }
@@ -408,14 +410,13 @@ class HomeViewModel
             val newShorts = if (playerPreferences.effectiveHomeShortsShelfEnabled.first()) reels else emptyList()
 
             _uiState.update { state ->
-                val watched = watchedVideoIds.value
                 val updatedVideos = if (append) (state.videos + regularVideos) else regularVideos
                 state.copy(
-                    videos = updatedVideos.distinctBy { it.id }.filterWatched(watched),
+                    videos = updatedVideos.distinctBy { it.id }.filterWatched(watchedVideoIds.value),
                     shorts =
                         (state.shorts + newShorts)
                             .distinctBy { it.id }
-                            .filterWatched(watched)
+                            .filterWatched(watchedShortIds.value)
                             .sortedByDescending { it.timestamp },
                 )
             }
@@ -522,7 +523,7 @@ class HomeViewModel
                     val feedShorts =
                         (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
                             .distinctBy { it.id }
-                            .filterWatched(watchedVideoIds.value)
+                            .filterWatched(watchedShortIds.value)
                             .filterRecentHomeSuggestion(now)
                     if (feedShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
                         val rankedShorts = FlowNeuroEngine.rank(feedShorts, userSubs)
@@ -900,7 +901,7 @@ class HomeViewModel
                 val moreShorts =
                     rawVideos
                         .extractShorts()
-                        .filterWatched(watchedVideoIds.value)
+                        .filterWatched(watchedShortIds.value)
                         .filterRecentHomeSuggestion(now)
                 if (moreShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
                     val rankedMore = FlowNeuroEngine.rank(moreShorts, userSubs)
@@ -1089,7 +1090,6 @@ class HomeViewModel
          * offers a refresh instead of filling itself with unrelated content.
          */
         private fun settleWithoutFeed() {
-            currentPage = null
             _uiState.update {
                 it.copy(
                     isLoading = false,

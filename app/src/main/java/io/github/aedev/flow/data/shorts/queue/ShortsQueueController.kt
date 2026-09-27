@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.shorts.queue
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.shorts.deferChannelRuns
 import io.github.aedev.flow.data.shorts.mergeDiscoveryCandidates
+import io.github.aedev.flow.innertube.pages.reel.reelPosterUrl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,6 +68,9 @@ class ShortsQueueController(
     private var legIndex = 0
     private var legStarted = false
 
+    /** The short the user opened the queue on. */
+    private var anchorId: String? = null
+
     /** False only once every loader is done, which is what stops the pager asking for more. */
     val hasMore: Boolean
         get() = legIndex < legs.size
@@ -90,8 +94,9 @@ class ShortsQueueController(
         _items.value = items
 
         val anchor = startVideoId?.takeIf { it.isNotBlank() }
+        anchorId = anchor
         _currentIndex.value = anchor?.let(::indexOf) ?: 0
-        if (anchor != null && indexOf(anchor) == null) pageToAnchor(anchor)
+        if (anchor != null && indexOf(anchor) == null && !pageToAnchor(anchor)) openOnPlaceholder(anchor)
     }
 
     /**
@@ -99,21 +104,32 @@ class ShortsQueueController(
      *
      * A paginated source can hold the tapped short well past page one — a channel's Shorts grid
      * pages as the user scrolls, so a tap forty items down resolves to nothing on the first page.
-     * Without this the queue silently opens at position 0 and plays a short the user did not pick.
      *
-     * Bounded: if it is not found, opening at the top is still better than paging a channel forever.
+     * Bounded, and only ever through [primary]: the tap came from that source, so fetching a
+     * continuation to look for it only delays the open. [openOnPlaceholder] covers the miss.
      */
-    private suspend fun pageToAnchor(anchor: String) {
+    private suspend fun pageToAnchor(anchor: String): Boolean {
         repeat(MAX_ANCHOR_PAGES) {
-            if (!hasMore) return
+            if (legIndex > 0 || !hasMore) return false
             val before = _items.value.size
             loadMore()
-            if (_items.value.size == before) return
+            if (_items.value.size == before) return false
             indexOf(anchor)?.let { found ->
                 _currentIndex.value = found
-                return
+                return true
             }
         }
+        return false
+    }
+
+    /**
+     * The tapped short opens the queue even when the source never returned it (#1123): an id is
+     * all playback needs, and `/player` names the reel as it resolves.
+     */
+    private fun openOnPlaceholder(anchor: String) {
+        seenIds += anchor
+        _items.value = listOf(ShortVideo(id = anchor, thumbnailUrl = reelPosterUrl(anchor))) + _items.value
+        _currentIndex.value = 0
     }
 
     private fun indexOf(id: String): Int? = _items.value.indexOfFirst { it.id == id }.takeIf { it >= 0 }
@@ -157,6 +173,12 @@ class ShortsQueueController(
      * or it keeps playing the one that was just rejected.
      */
     fun remove(id: String): ShortsQueueChange = removeAll { it.id == id }
+
+    /**
+     * Drops a reel an automatic filter rejected once it resolved, except the one the queue opened
+     * on: the user picked that one, and removing it would slide a different short under the tap.
+     */
+    fun dropFiltered(id: String): ShortsQueueChange = if (id == anchorId) ShortsQueueChange.None else remove(id)
 
     /** Drops every short of a channel — "Don't show this channel". */
     fun removeChannel(channelId: String): ShortsQueueChange {

@@ -11,6 +11,7 @@ internal data class SubscriptionFeedFilters(
     val showShorts: Boolean = true,
     val showLive: Boolean = true,
     val watchedVideoIds: Set<String> = emptySet(),
+    val watchedShortIds: Set<String> = emptySet(),
     val unplayableVideoIds: Set<String> = emptySet(),
     /** The selected group's channels; null when no group is selected. */
     val allowedChannelIds: Set<String>? = null,
@@ -60,7 +61,7 @@ internal fun subscriptionFeedSections(
                 .withRelativeUploadDates(now),
         shorts =
             latestShortPerChannel
-                .filter { it.id !in filters.watchedVideoIds && it.inSelectedGroup() }
+                .filter { it.id !in filters.watchedShortIds && it.inSelectedGroup() }
                 .filter { it.channelId !in filters.excludedShortsChannelIds }
                 .withRelativeUploadDates(now),
     )

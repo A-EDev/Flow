@@ -83,14 +83,75 @@ class ShortsQueueControllerTest {
             assertEquals(0, controller.currentIndex.value)
         }
 
+    // #1123: opening at the top played a short the user never tapped.
     @Test
-    fun `unknown start short falls back to the top`() =
+    fun `a start short the source does not hold opens as a placeholder`() =
         runTest {
             val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
 
             controller.loadInitial(startVideoId = "missing")
 
+            assertEquals(listOf("missing", "a", "b"), ids(controller))
+            assertEquals("missing", controller.currentItem?.id)
+            assertEquals("https://i.ytimg.com/vi/missing/oar2.jpg", controller.currentItem?.thumbnailUrl)
+        }
+
+    @Test
+    fun `an empty source still opens on the tapped short`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(emptyList())))
+
+            controller.loadInitial(startVideoId = "tapped")
+
+            assertEquals(listOf("tapped"), ids(controller))
             assertEquals(0, controller.currentIndex.value)
+        }
+
+    @Test
+    fun `the anchor is never searched for in a continuation`() =
+        runTest {
+            val feed = FakeLoader(listOf(shorts("f1", "f2")))
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a"))), continuations = listOf(feed))
+
+            controller.loadInitial(startVideoId = "missing")
+
+            assertEquals(0, feed.initialCalls)
+            assertEquals("missing", controller.currentItem?.id)
+        }
+
+    @Test
+    fun `a placeholder anchor is not appended again when a later page returns it`() =
+        runTest {
+            val feed = FakeLoader(listOf(shorts("missing", "f1")))
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a"))), continuations = listOf(feed))
+            controller.loadInitial(startVideoId = "missing")
+
+            controller.loadMore()
+
+            assertEquals(listOf("missing", "a", "f1"), ids(controller))
+        }
+
+    // #1123: the tapped reel resolved to a blocked channel and was removed, so another played instead.
+    @Test
+    fun `a resolve-time filter never removes the short the queue opened on`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b", "c"))))
+            controller.loadInitial(startVideoId = "b")
+
+            assertEquals(ShortsQueueChange.None, controller.dropFiltered("b"))
+            assertEquals(ShortsQueueChange.ListOnly, controller.dropFiltered("c"))
+
+            assertEquals(listOf("a", "b"), ids(controller))
+            assertEquals("b", controller.currentItem?.id)
+        }
+
+    @Test
+    fun `a user removal still takes the short the queue opened on`() =
+        runTest {
+            val controller = ShortsQueueController(FakeLoader(listOf(shorts("a", "b"))))
+            controller.loadInitial(startVideoId = "b")
+
+            assertEquals(ShortsQueueChange.CurrentItemChanged, controller.remove("b"))
         }
 
     @Test
@@ -420,14 +481,15 @@ class ShortsQueueControllerTest {
         }
 
     @Test
-    fun `gives up paging and opens at the top when the start short never appears`() =
+    fun `gives up paging and opens on a placeholder when the start short never appears`() =
         runTest {
             val loader = FakeLoader(listOf(shorts("a"), shorts("b"), shorts("c"), shorts("d"), shorts("e")))
             val controller = ShortsQueueController(loader)
 
             controller.loadInitial(startVideoId = "zzz")
 
+            assertEquals(3, loader.moreCalls)
             assertEquals(0, controller.currentIndex.value)
-            assertEquals("a", controller.currentItem?.id)
+            assertEquals(listOf("zzz", "a", "b", "c", "d"), ids(controller))
         }
 }

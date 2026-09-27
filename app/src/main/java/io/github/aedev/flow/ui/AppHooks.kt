@@ -55,9 +55,9 @@ fun HandleDeepLinks(
         val videoId = deeplinkVideoId ?: return@LaunchedEffect
         navController.awaitGraph()
         if (isShort) {
-            navController.openShorts(ShortsQueueSource.SeededFeed(videoId)) {
-                launchSingleTop = true
-            }
+            // Every Shorts queue shares one route, so single-top would reuse whichever Shorts screen
+            // is on top and keep its old queue instead of opening the linked short.
+            navController.openShorts(ShortsQueueSource.SeededFeed(videoId))
         } else {
             navController.navigate("player/$videoId") {
                 launchSingleTop = true

@@ -290,6 +290,7 @@ class PlayerPreferences(
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
         val HIDE_WATCHED_HOME_FEED = booleanPreferencesKey("hide_watched_home_feed")
         val HIDE_WATCHED_SUBSCRIPTIONS = booleanPreferencesKey("hide_watched_subscriptions")
+        val HIDE_WATCHED_SHORTS = booleanPreferencesKey("hide_watched_shorts")
         val WATCHED_THRESHOLD = stringPreferencesKey("watched_threshold")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
         val SHOW_SHORTS_PLAYER_PROMPT = booleanPreferencesKey("show_shorts_player_prompt")
@@ -2102,6 +2103,17 @@ class PlayerPreferences(
         }
     }
 
+    /** Watched Shorts leave the Home and Subscriptions shelves and every Shorts queue, whatever the video settings say. */
+    val hideWatchedShorts: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.HIDE_WATCHED_SHORTS] ?: true }
+
+    suspend fun setHideWatchedShorts(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HIDE_WATCHED_SHORTS] = enabled
+        }
+    }
+
     // Defaults to ALMOST_FINISHED so long videos only disappear in their final minute instead of at a flat 90%.
     val watchedThreshold: Flow<WatchedThreshold> =
         context.playerPreferencesDataStore.data
@@ -3305,29 +3317,6 @@ enum class HomeFeedColumns(
 enum class PlayerRelatedCardStyle {
     COMPACT,
     FULL_WIDTH,
-}
-
-enum class WatchedThreshold(
-    val minPercent: Float,
-    val maxRemainingMs: Long,
-) {
-    PERCENT_90(90f, Long.MAX_VALUE),
-    PERCENT_95(95f, Long.MAX_VALUE),
-    PERCENT_99(99f, Long.MAX_VALUE),
-    ALMOST_FINISHED(99f, 60_000L),
-    ;
-
-    fun isWatched(
-        positionMs: Long,
-        durationMs: Long,
-    ): Boolean {
-        if (positionMs <= 0L || durationMs <= 0L) return false
-        val percent = positionMs.toFloat() / durationMs.toFloat() * 100f
-        return when (this) {
-            ALMOST_FINISHED -> durationMs - positionMs <= maxRemainingMs
-            else -> percent >= minPercent
-        }
-    }
 }
 
 const val LYRICS_ALIGN_LEFT = "left"
