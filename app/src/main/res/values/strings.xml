@@ -2913,6 +2913,8 @@
     <string name="widget_shuffle">Shuffle</string>
     <string name="widget_identify_song">Identify song</string>
     <string name="widget_open_music">Open Music</string>
+    <string name="widget_config_shortcuts">Shortcuts</string>
+    <string name="widget_config_shortcuts_footer">Choose up to four. Search is always there.</string>
     <!-- Localization follow-up (#738) -->
     <string name="ui_open_in_youtube">Open in YouTube</string>
     <string name="ui_playback_error">Playback error</string>
