@@ -46,6 +46,8 @@ class OnboardingViewModelTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         every { backup.operation } returns operation
+        every { backup.importNewPipe(any()) } returns true
+        every { backup.importNewPipeWatchHistory(any()) } returns true
         coEvery { channelSearch.search(any()) } returns listOf(channel)
         coEvery { completer.complete(any()) } returns Unit
         every { preferences.notifNewVideosEnabled } returns flowOf(true)

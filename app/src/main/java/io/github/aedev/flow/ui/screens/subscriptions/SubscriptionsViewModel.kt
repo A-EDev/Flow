@@ -1,10 +1,10 @@
 package io.github.aedev.flow.ui.screens.subscriptions
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.backup.BackupCoordinator
 import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -36,11 +36,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlinx.coroutines.channels.Channel as EventChannel
 
 @HiltViewModel
 class SubscriptionsViewModel
@@ -52,6 +54,7 @@ class SubscriptionsViewModel
         private val subscriptionGroupDao: SubscriptionGroupDao,
         private val subscriptionWatchedVideos: SubscriptionWatchedVideos,
         private val neuroEngine: FlowNeuroEngine,
+        private val backupCoordinator: BackupCoordinator,
     ) : ViewModel() {
         companion object {
             private const val TAG = "SubsViewModel"
@@ -490,17 +493,12 @@ class SubscriptionsViewModel
             viewModelScope.launch(PerformanceDispatcher.diskIO) { subscriptionGroupDao.moveGroup(fromIndex, toIndex) }
         }
 
-        fun importNewPipeBackup(
-            uri: android.net.Uri,
-            context: Context,
-        ) {
-            viewModelScope.launch(PerformanceDispatcher.diskIO) {
-                try {
-                    val json = context.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() } ?: return@launch
-                    parseNewPipeSubscriptionExport(json).forEach { subscriptionRepository.subscribe(it) }
-                } catch (e: Exception) {
-                    Log.e(TAG, "NewPipe backup import failed", e)
-                }
+        private val _importMessages = EventChannel<String>(EventChannel.BUFFERED)
+        val importMessages = _importMessages.receiveAsFlow()
+
+        fun importNewPipeBackup(uri: android.net.Uri) {
+            viewModelScope.launch {
+                backupCoordinator.importNewPipeForResult(uri).takeIf { it.isNotEmpty() }?.let { _importMessages.send(it) }
             }
         }
 

@@ -87,7 +87,7 @@ fun SubscriptionsScreen(
     val importLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
-                viewModel.importNewPipeBackup(it, context)
+                viewModel.importNewPipeBackup(it)
                 scope.launch {
                     snackbarHostState.showSnackbar(context.getString(R.string.importing_from_backup))
                 }
@@ -95,6 +95,7 @@ fun SubscriptionsScreen(
         }
 
     LaunchedEffect(viewModel) { viewModel.ensureStarted() }
+    LaunchedEffect(viewModel) { viewModel.importMessages.collect { snackbarHostState.showSnackbar(it) } }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(viewModel, lifecycleOwner) {

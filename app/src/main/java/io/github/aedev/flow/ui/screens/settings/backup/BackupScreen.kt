@@ -15,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsTabs
 import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowProgressBanner
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -60,6 +62,9 @@ internal fun BackupScreen(
     var pendingExport by rememberSaveable { mutableStateOf<ExportKind?>(null) }
     var pendingImport by rememberSaveable { mutableStateOf<ImportKind?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val busy = stringResource(R.string.backup_busy)
+    val start: (Boolean) -> Unit = { started -> if (!started) scope.launch { snackbarHostState.showSnackbar(busy) } }
 
     LaunchedEffect(operation) {
         val message =
@@ -75,7 +80,7 @@ internal fun BackupScreen(
     val onExported: (Uri?) -> Unit = { uri ->
         val kind = pendingExport
         pendingExport = null
-        if (uri != null && kind != null) kind.start(viewModel.coordinator, uri)
+        if (uri != null && kind != null) start(kind.start(viewModel.coordinator, uri))
     }
     val jsonExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json"), onExported)
     val zipExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip"), onExported)
@@ -83,7 +88,7 @@ internal fun BackupScreen(
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             val kind = pendingImport
             pendingImport = null
-            if (uri != null && kind != null) kind.start(viewModel.coordinator, uri)
+            if (uri != null && kind != null) start(kind.start(viewModel.coordinator, uri))
         }
     val folderPicker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->

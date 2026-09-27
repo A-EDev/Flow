@@ -2422,9 +2422,14 @@
     <string name="export_data_section_header">Choose Export Type</string>
     <string name="export_data_section_subtitle">Select what you want to export and save to your device</string>
     <string name="export_newpipe_subs_title">Export subscriptions (NewPipe format)</string>
-    <string name="export_newpipe_subs_desc">Export your subscriptions as a NewPipe-compatible JSON file.</string>
+    <string name="export_newpipe_subs_desc">A NewPipe JSON file. In NewPipe, use Import from previous export.</string>
     <string name="export_newpipe_subs_success">NewPipe subscriptions exported successfully</string>
     <string name="export_newpipe_subs_failed">Failed to export NewPipe subscriptions</string>
+    <plurals name="export_newpipe_subs_skipped">
+        <item quantity="one">Exported, but %1$d channel without a channel ID was left out</item>
+        <item quantity="other">Exported, but %1$d channels without a channel ID were left out</item>
+    </plurals>
+    <string name="backup_busy">Another import or export is still running</string>
     <string name="export_app_data_title">App Data Backup</string>
     <string name="export_app_data_desc">Export your subscriptions, watch history, playlists, and settings</string>
     <!-- Video Player Errors -->

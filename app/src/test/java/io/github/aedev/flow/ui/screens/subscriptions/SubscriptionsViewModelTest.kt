@@ -74,6 +74,7 @@ class SubscriptionsViewModelTest {
                 subscriptionGroupDao = subscriptionGroupDao,
                 subscriptionWatchedVideos = SubscriptionWatchedVideos(viewHistory, playerPreferences, database),
                 neuroEngine = neuroEngine,
+                backupCoordinator = mockk(relaxed = true),
             )
     }
 

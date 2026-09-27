@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.settings.taste
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,7 +47,8 @@ internal fun TasteScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmReset by rememberSaveable { mutableStateOf<ResetKind?>(null) }
     val resetDone = stringResource(R.string.taste_reset_done)
-    var resetMessage by remember { mutableStateOf<String?>(null) }
+    val busy = stringResource(R.string.backup_busy)
+    var notice by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(operation) {
         val message =
@@ -59,21 +61,22 @@ internal fun TasteScreen(
         viewModel.reload()
         snackbarHostState.showSnackbar(message)
     }
-    LaunchedEffect(resetMessage) {
-        resetMessage?.let {
+    LaunchedEffect(notice) {
+        notice?.let {
             snackbarHostState.showSnackbar(it)
-            resetMessage = null
+            notice = null
         }
     }
 
+    val start: (Uri?, (Uri) -> Boolean) -> Unit = { uri, action -> if (uri != null && !action(uri)) notice = busy }
     val exportVideo =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(JSON)) { uri -> uri?.let(viewModel::exportVideoProfile) }
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(JSON)) { uri -> start(uri, viewModel::exportVideoProfile) }
     val exportMusic =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(JSON)) { uri -> uri?.let(viewModel::exportMusicProfile) }
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(JSON)) { uri -> start(uri, viewModel::exportMusicProfile) }
     val importVideo =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(viewModel::importVideoProfile) }
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> start(uri, viewModel::importVideoProfile) }
     val importMusic =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(viewModel::importMusicProfile) }
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> start(uri, viewModel::importMusicProfile) }
     val hiddenLabel = hiddenCountLabel(state.hidden.count)
     val noQueriesLabel = stringResource(R.string.diagnostics_engine_queries_none)
 
@@ -120,7 +123,7 @@ internal fun TasteScreen(
                     onClick = {
                         if (video) viewModel.resetVideoProfile() else viewModel.resetMusicProfile()
                         confirmReset = null
-                        resetMessage = resetDone
+                        notice = resetDone
                     },
                 ) { Text(stringResource(R.string.reset_profile_confirm)) }
             },
