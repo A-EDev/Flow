@@ -40,4 +40,22 @@ class PlayerImmersivePolicyTest {
             isImmersivePlayer(isExpanded = false, isFullscreen = false, isLandscape = true, isLargeWindow = false),
         ).isFalse()
     }
+
+    @Test
+    fun `swipe up reaches fullscreen from a landscape tablet but not a landscape phone`() {
+        assertThat(canSwipeUpToFullscreen(isFullscreen = false, isLandscape = true, isLargeWindow = true)).isTrue()
+        assertThat(canSwipeUpToFullscreen(isFullscreen = false, isLandscape = true, isLargeWindow = false)).isFalse()
+    }
+
+    @Test
+    fun `swipe up reaches fullscreen from portrait on any window`() {
+        assertThat(canSwipeUpToFullscreen(isFullscreen = false, isLandscape = false, isLargeWindow = false)).isTrue()
+        assertThat(canSwipeUpToFullscreen(isFullscreen = false, isLandscape = false, isLargeWindow = true)).isTrue()
+    }
+
+    @Test
+    fun `swipe up does nothing once fullscreen`() {
+        assertThat(canSwipeUpToFullscreen(isFullscreen = true, isLandscape = true, isLargeWindow = true)).isFalse()
+        assertThat(canSwipeUpToFullscreen(isFullscreen = true, isLandscape = false, isLargeWindow = false)).isFalse()
+    }
 }

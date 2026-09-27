@@ -12,6 +12,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import io.github.aedev.flow.ui.components.videoplayer.PlayerDraggableState
+import io.github.aedev.flow.ui.components.videoplayer.canSwipeUpToFullscreen
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -67,8 +68,11 @@ internal class DraggablePlayerGestureHandler(
 
         val canSwipeToFullscreen =
             isCollapseDrag &&
-                !metrics.isLandscape &&
-                !metrics.isFullscreen &&
+                canSwipeUpToFullscreen(
+                    isFullscreen = metrics.isFullscreen,
+                    isLandscape = metrics.isLandscape,
+                    isLargeWindow = metrics.isLargeScreen,
+                ) &&
                 metrics.onFullscreenGesture != null
 
         var fingerPath = Offset.Zero
