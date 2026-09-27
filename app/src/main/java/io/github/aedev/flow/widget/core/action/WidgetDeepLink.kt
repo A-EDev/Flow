@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.action
 
 import android.content.Context
 import android.content.Intent

@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.theme
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit

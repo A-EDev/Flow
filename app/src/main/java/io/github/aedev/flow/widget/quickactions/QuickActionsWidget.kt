@@ -33,10 +33,10 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.widget.core.FlowGlanceTheme
-import io.github.aedev.flow.widget.core.WidgetDeepLink
-import io.github.aedev.flow.widget.core.widgetColorsFlow
-import io.github.aedev.flow.widget.core.widgetSurface
+import io.github.aedev.flow.widget.core.action.WidgetDeepLink
+import io.github.aedev.flow.widget.core.theme.FlowGlanceTheme
+import io.github.aedev.flow.widget.core.theme.widgetColorsFlow
+import io.github.aedev.flow.widget.core.theme.widgetSurface
 import kotlinx.coroutines.flow.first
 
 /**

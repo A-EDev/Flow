@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.nowplaying
+package io.github.aedev.flow.widget.core.component
 
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
@@ -26,13 +26,14 @@ import androidx.glance.layout.height
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import io.github.aedev.flow.R
-import io.github.aedev.flow.widget.core.NextTrackAction
-import io.github.aedev.flow.widget.core.PlayPauseAction
-import io.github.aedev.flow.widget.core.PreviousTrackAction
-import io.github.aedev.flow.widget.core.ShapeDecor
-import io.github.aedev.flow.widget.core.ToggleLikeAction
-import io.github.aedev.flow.widget.core.WidgetDeepLink
-import io.github.aedev.flow.widget.core.WidgetShape
+import io.github.aedev.flow.widget.core.action.NextTrackAction
+import io.github.aedev.flow.widget.core.action.PlayPauseAction
+import io.github.aedev.flow.widget.core.action.PreviousTrackAction
+import io.github.aedev.flow.widget.core.action.ToggleLikeAction
+import io.github.aedev.flow.widget.core.action.WidgetDeepLink
+import io.github.aedev.flow.widget.core.image.ShapeDecor
+import io.github.aedev.flow.widget.core.image.WidgetShape
+import io.github.aedev.flow.widget.core.image.WidgetShapeTransformation
 
 /**
  * Artwork clipped to an expressive shape at load time (see WidgetShapeTransformation).

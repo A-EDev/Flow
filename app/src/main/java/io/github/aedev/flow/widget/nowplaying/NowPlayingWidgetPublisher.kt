@@ -1,17 +1,17 @@
 package io.github.aedev.flow.widget.nowplaying
 
 import android.content.Context
+import androidx.glance.appwidget.updateAll
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
-import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
-import io.github.aedev.flow.widget.core.NowPlayingSnapshot
-import io.github.aedev.flow.widget.core.clearNowPlayingSnapshot
-import io.github.aedev.flow.widget.core.markNowPlayingStopped
-import io.github.aedev.flow.widget.core.writeNowPlayingSnapshot
+import io.github.aedev.flow.widget.core.state.NowPlayingSnapshot
+import io.github.aedev.flow.widget.core.state.clearNowPlayingSnapshot
+import io.github.aedev.flow.widget.core.state.markNowPlayingStopped
+import io.github.aedev.flow.widget.core.state.writeNowPlayingSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

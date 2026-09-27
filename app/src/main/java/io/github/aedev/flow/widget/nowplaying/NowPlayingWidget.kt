@@ -11,11 +11,11 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
-import io.github.aedev.flow.widget.core.FlowGlanceTheme
-import io.github.aedev.flow.widget.core.WidgetImageLoader
-import io.github.aedev.flow.widget.core.WidgetShape
-import io.github.aedev.flow.widget.core.nowPlayingSnapshotFlow
-import io.github.aedev.flow.widget.core.widgetColorsFlow
+import io.github.aedev.flow.widget.core.image.WidgetImageLoader
+import io.github.aedev.flow.widget.core.image.WidgetShape
+import io.github.aedev.flow.widget.core.state.nowPlayingSnapshotFlow
+import io.github.aedev.flow.widget.core.theme.FlowGlanceTheme
+import io.github.aedev.flow.widget.core.theme.widgetColorsFlow
 import kotlinx.coroutines.flow.first
 
 class NowPlayingWidget : GlanceAppWidget() {

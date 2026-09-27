@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.action
 
 import android.content.ComponentName
 import android.content.Context
@@ -27,29 +27,33 @@ private const val TAG = "WidgetActions"
  * then releases it. A widget-button PendingIntent counts as a user interaction, so this
  * is an allowed foreground-service start even from a cold process (Android 12+).
  */
-private suspend fun withMusicController(context: Context, block: (MediaController) -> Unit) {
+private suspend fun withMusicController(
+    context: Context,
+    block: (MediaController) -> Unit,
+) {
     // ActionCallbacks run inside a BroadcastReceiver whose context cannot bind services
     // (ReceiverCallNotAllowedException) — the MediaController must use the app context.
     val appContext = context.applicationContext
     // MediaController is bound to the application's main looper — connect and command on Main.
     withContext(Dispatchers.Main) {
-        val controller = try {
-            suspendCancellableCoroutine<MediaController> { continuation ->
-                val token = SessionToken(appContext, ComponentName(appContext, Media3MusicService::class.java))
-                val future = MediaController.Builder(appContext, token).buildAsync()
-                future.addListener({
-                    try {
-                        continuation.resume(future.get())
-                    } catch (e: Exception) {
-                        continuation.resumeWithException(e)
-                    }
-                }, ContextCompat.getMainExecutor(appContext))
-                continuation.invokeOnCancellation { MediaController.releaseFuture(future) }
+        val controller =
+            try {
+                suspendCancellableCoroutine<MediaController> { continuation ->
+                    val token = SessionToken(appContext, ComponentName(appContext, Media3MusicService::class.java))
+                    val future = MediaController.Builder(appContext, token).buildAsync()
+                    future.addListener({
+                        try {
+                            continuation.resume(future.get())
+                        } catch (e: Exception) {
+                            continuation.resumeWithException(e)
+                        }
+                    }, ContextCompat.getMainExecutor(appContext))
+                    continuation.invokeOnCancellation { MediaController.releaseFuture(future) }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to connect widget MediaController: ${e.message}")
+                return@withContext
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to connect widget MediaController: ${e.message}")
-            return@withContext
-        }
         try {
             block(controller)
         } finally {
@@ -60,26 +64,42 @@ private suspend fun withMusicController(context: Context, block: (MediaControlle
 
 class PlayPauseAction : ActionCallback {
     @OptIn(UnstableApi::class)
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters,
+    ) {
         // Prepares from IDLE and restarts from ENDED, where a bare play() does nothing.
         withMusicController(context) { Util.handlePlayPauseButtonAction(it) }
     }
 }
 
 class NextTrackAction : ActionCallback {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters,
+    ) {
         withMusicController(context) { it.seekToNext() }
     }
 }
 
 class PreviousTrackAction : ActionCallback {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters,
+    ) {
         withMusicController(context) { it.seekToPrevious() }
     }
 }
 
 class ToggleLikeAction : ActionCallback {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters,
+    ) {
         withMusicController(context) { controller ->
             controller.sendCustomCommand(
                 SessionCommand(Media3MusicService.ACTION_TOGGLE_LIKE, Bundle.EMPTY),

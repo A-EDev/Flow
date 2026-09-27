@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.theme
 
 import android.content.Context
 import android.os.Build
@@ -71,7 +71,6 @@ data class WidgetThemeSignature(
 /** The wallpaper accents, so a baked Material You palette re-renders when the wallpaper changes. */
 private fun dynamicAccentsOf(context: Context): String =
     "${dynamicLightColorScheme(context).primary.toArgb()},${dynamicDarkColorScheme(context).primary.toArgb()}"
-
 
 fun widgetThemeSignatureFlow(context: Context): Flow<WidgetThemeSignature> {
     val dataManager = LocalDataManager(context.applicationContext)

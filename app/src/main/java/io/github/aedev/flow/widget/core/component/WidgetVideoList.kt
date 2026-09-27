@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.component
 
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
@@ -34,6 +34,8 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import io.github.aedev.flow.R
+import io.github.aedev.flow.widget.core.action.WidgetDeepLink
+import io.github.aedev.flow.widget.core.theme.widgetSurface
 
 /**
  * Display model for the content widgets. The first item may carry a hero image.

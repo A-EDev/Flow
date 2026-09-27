@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.image
 
 import android.content.Context
 import android.graphics.Bitmap

@@ -18,15 +18,15 @@ import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
-import io.github.aedev.flow.widget.core.FlowGlanceTheme
-import io.github.aedev.flow.widget.core.NowPlayingSnapshot
-import io.github.aedev.flow.widget.core.WidgetImageLoader
-import io.github.aedev.flow.widget.core.WidgetShape
-import io.github.aedev.flow.widget.core.nowPlayingSnapshotFlow
-import io.github.aedev.flow.widget.core.widgetColorsFlow
-import io.github.aedev.flow.widget.core.widgetSurface
-import io.github.aedev.flow.widget.nowplaying.ShapedArtwork
-import io.github.aedev.flow.widget.nowplaying.WidePlayPauseButton
+import io.github.aedev.flow.widget.core.component.ShapedArtwork
+import io.github.aedev.flow.widget.core.component.WidePlayPauseButton
+import io.github.aedev.flow.widget.core.image.WidgetImageLoader
+import io.github.aedev.flow.widget.core.image.WidgetShape
+import io.github.aedev.flow.widget.core.state.NowPlayingSnapshot
+import io.github.aedev.flow.widget.core.state.nowPlayingSnapshotFlow
+import io.github.aedev.flow.widget.core.theme.FlowGlanceTheme
+import io.github.aedev.flow.widget.core.theme.widgetColorsFlow
+import io.github.aedev.flow.widget.core.theme.widgetSurface
 import kotlinx.coroutines.flow.first
 
 /**

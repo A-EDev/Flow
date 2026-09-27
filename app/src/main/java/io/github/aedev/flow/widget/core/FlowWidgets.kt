@@ -2,6 +2,9 @@ package io.github.aedev.flow.widget.core
 
 import android.content.Context
 import androidx.glance.appwidget.updateAll
+import io.github.aedev.flow.widget.core.theme.lastWidgetThemeSignature
+import io.github.aedev.flow.widget.core.theme.widgetThemeSignatureFlow
+import io.github.aedev.flow.widget.core.theme.writeWidgetThemeSignature
 import io.github.aedev.flow.widget.downloads.DownloadsWidget
 import io.github.aedev.flow.widget.nowplaying.NowPlayingWidget
 import io.github.aedev.flow.widget.onrepeat.OnRepeatWidget

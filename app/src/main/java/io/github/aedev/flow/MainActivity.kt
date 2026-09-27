@@ -382,10 +382,10 @@ class MainActivity : ComponentActivity() {
 
         val widgetRoute =
             intent.getStringExtra(
-                io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE,
+                io.github.aedev.flow.widget.core.action.WidgetDeepLink.EXTRA_WIDGET_ROUTE,
             )
         if (widgetRoute != null) {
-            intent.removeExtra(io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
+            intent.removeExtra(io.github.aedev.flow.widget.core.action.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
             _pendingRoute.value = widgetRoute
             return
         }

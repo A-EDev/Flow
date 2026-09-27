@@ -31,12 +31,17 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.widget.core.NextTrackAction
-import io.github.aedev.flow.widget.core.NowPlayingSnapshot
-import io.github.aedev.flow.widget.core.ShapeDecor
-import io.github.aedev.flow.widget.core.WidgetDeepLink
-import io.github.aedev.flow.widget.core.WidgetShape
-import io.github.aedev.flow.widget.core.widgetSurface
+import io.github.aedev.flow.widget.core.action.NextTrackAction
+import io.github.aedev.flow.widget.core.action.WidgetDeepLink
+import io.github.aedev.flow.widget.core.component.ConnectedPlaybackControls
+import io.github.aedev.flow.widget.core.component.LikeButton
+import io.github.aedev.flow.widget.core.component.PlaybackSegment
+import io.github.aedev.flow.widget.core.component.ShapedArtwork
+import io.github.aedev.flow.widget.core.component.WidePlayPauseButton
+import io.github.aedev.flow.widget.core.image.ShapeDecor
+import io.github.aedev.flow.widget.core.image.WidgetShape
+import io.github.aedev.flow.widget.core.state.NowPlayingSnapshot
+import io.github.aedev.flow.widget.core.theme.widgetSurface
 
 /**
  * Material 3 Expressive player: sunny-shaped artwork, emphasized type, and the same
