@@ -31,6 +31,7 @@ suspend fun NavController.awaitGraph() {
 fun HandlePendingRoute(
     pendingRoute: String?,
     navController: NavController,
+    startRoute: String,
     onConsumed: () -> Unit,
     onBeforeNavigate: () -> Unit = {},
 ) {
@@ -38,7 +39,11 @@ fun HandlePendingRoute(
         pendingRoute?.let { route ->
             navController.awaitGraph()
             onBeforeNavigate()
-            navController.navigate(route)
+            val tab = flowTabForRoute(route)
+            when {
+                tab != null -> navController.navigateToTab(tab, startRoute)
+                navController.currentBackStackEntry?.destination?.route != route -> navController.navigate(route)
+            }
             onConsumed()
         }
     }

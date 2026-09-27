@@ -31,6 +31,15 @@ class NavigationDestinationsTest {
     }
 
     @Test
+    fun routesFromOutsideTheGraphResolveToTheirTab() {
+        assertEquals(FlowTab.Search, flowTabForRoute("search"))
+        assertEquals(FlowTab.Music, flowTabForRoute("music"))
+        listOf("downloads", "history", "musicRecognize", "musicPlayer/abc", "settings").forEach { route ->
+            assertNull(flowTabForRoute(route))
+        }
+    }
+
+    @Test
     fun searchIsTheOnlyTabWithoutTheBar() {
         FlowTab.entries.forEach { tab -> assertEquals(tab != FlowTab.Search, tab.showsNavigationBar()) }
         assertFalse((null as FlowTab?).showsNavigationBar())
