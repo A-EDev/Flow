@@ -848,6 +848,8 @@ fun NavGraphBuilder.flowAppGraph(
         }
     }
 
+    widgetPlaybackRoutes(navController, currentRoute, defaultStartRoute, playerViewModel, onMusicStarted)
+
     composable(
         route = "player/{videoId}",
         arguments = listOf(navArgument("videoId") { type = NavType.StringType }),
@@ -889,15 +891,5 @@ fun NavGraphBuilder.flowAppGraph(
         }
 
         Box(modifier = Modifier.fillMaxSize())
-    }
-}
-
-private fun NavHostController.popTransientRouteOrNavigateStart(defaultStartRoute: String) {
-    if (previousBackStackEntry != null) {
-        popBackStack()
-    } else {
-        navigate(defaultStartRoute) {
-            launchSingleTop = true
-        }
     }
 }

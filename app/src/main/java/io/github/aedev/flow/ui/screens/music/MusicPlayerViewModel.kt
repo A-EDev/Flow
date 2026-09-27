@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.music.model.MUSIC_GENRE_SOURCE_PREFIX
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.recommendation.music.onRepeatShelf
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.Job
@@ -385,6 +386,12 @@ class MusicPlayerViewModel
                 InnertubeMusicService.fetchQueue(videoIds = listOf(videoId)).firstOrNull()
                     ?: MusicTrack(videoId = videoId, title = "", artist = "", thumbnailUrl = "", duration = 0)
             loadAndPlayTrack(track)
+        }
+
+        /** Plays the On Repeat shelf in a shuffled order, as the widget's Shuffle asks. */
+        suspend fun shuffleOnRepeat(sourceName: String) {
+            val tracks = musicBrain.onRepeatShelf().shuffled()
+            loadAndPlayTrack(tracks.firstOrNull() ?: return, tracks, sourceName)
         }
 
         /**

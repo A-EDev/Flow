@@ -29,6 +29,7 @@ import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
 import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.data.recommendation.music.graph.MusicGraphStore
 import io.github.aedev.flow.data.recommendation.music.musicArtistKey
+import io.github.aedev.flow.data.recommendation.music.onRepeatShelf
 import io.github.aedev.flow.data.recommendation.music.primaryArtistKey
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
@@ -485,7 +486,7 @@ class MusicViewModel
          */
         private suspend fun refreshLocalShelves() {
             try {
-                val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
+                val onRepeat = musicBrain.onRepeatShelf()
                 val onRepeatIds = onRepeat.mapTo(HashSet()) { it.videoId }
                 val rotation =
                     musicBrain
