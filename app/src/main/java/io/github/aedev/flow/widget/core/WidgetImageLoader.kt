@@ -2,6 +2,7 @@ package io.github.aedev.flow.widget.core
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
@@ -9,21 +10,16 @@ import coil3.request.transformations
 import coil3.size.Scale
 import coil3.toBitmap
 import coil3.transform.RoundedCornersTransformation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Loads artwork/thumbnails for widgets as software bitmaps (RemoteViews cannot render
- * hardware bitmaps). Results are memory-capped and LRU-cached so transport events that
- * re-render a widget don't re-decode the same artwork.
+ * Loads artwork/thumbnails for widgets as software bitmaps (RemoteViews cannot render hardware
+ * bitmaps). Coil's memory cache keys on URL, size and transformations, so re-renders reuse decodes.
  */
 object WidgetImageLoader {
-    private const val MAX_CACHE_ENTRIES = 8
-
-    private val cache =
-        object : LinkedHashMap<String, Bitmap>(MAX_CACHE_ENTRIES, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>?): Boolean = size > MAX_CACHE_ENTRIES
-        }
+    private const val TAG = "WidgetImageLoader"
 
     suspend fun load(
         context: Context,
@@ -34,9 +30,6 @@ object WidgetImageLoader {
         shape: WidgetShape? = null,
     ): Bitmap? {
         if (url.isNullOrBlank()) return null
-        val key = "$url|$widthPx|$heightPx|$cornerRadiusPx|${shape?.name}"
-        synchronized(cache) { cache[key] }?.let { return it }
-
         return withContext(Dispatchers.IO) {
             try {
                 val request =
@@ -48,26 +41,19 @@ object WidgetImageLoader {
                         .allowHardware(false)
                         .apply {
                             when {
-                                shape != null -> {
-                                    transformations(WidgetShapeTransformation(shape))
-                                }
-
-                                cornerRadiusPx > 0f -> {
-                                    transformations(RoundedCornersTransformation(cornerRadiusPx))
-                                }
+                                shape != null -> transformations(WidgetShapeTransformation(shape))
+                                cornerRadiusPx > 0f -> transformations(RoundedCornersTransformation(cornerRadiusPx))
                             }
                         }.build()
-                val bitmap =
-                    SingletonImageLoader
-                        .get(context)
-                        .execute(request)
-                        .image
-                        ?.toBitmap()
-                if (bitmap != null) {
-                    synchronized(cache) { cache[key] = bitmap }
-                }
-                bitmap
+                SingletonImageLoader
+                    .get(context)
+                    .execute(request)
+                    .image
+                    ?.toBitmap()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Artwork load failed: ${e.message}")
                 null
             }
         }
