@@ -1,21 +1,19 @@
 package io.github.aedev.flow.innertube.pages
 
-import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.google.common.truth.Truth.assertWithMessage
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
 
 /**
  * The platform's CLDR suffixes against counts as YouTube printed them (captured 2026-09-27 from
- * search and channel responses, with the no-break spaces YouTube sends).
+ * search and channel responses, with the no-break spaces YouTube sends). Runs on a device: the
+ * platform ICU data needs a native library Robolectric cannot load on the Linux CI runner.
  */
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [34], application = Application::class)
 class IcuCompactSuffixSourceTest {
     @Test
-    fun `abbreviated counts read in every language YouTube prints them in`() {
+    fun abbreviatedCountsReadInEveryLanguageYouTubePrintsThemIn() {
         val cases =
             listOf(
                 Triple("es", "2,4 M de visualizaciones", 2_400_000L),
@@ -43,13 +41,13 @@ class IcuCompactSuffixSourceTest {
                 Triple("en", "2.4M views", 2_400_000L),
             )
         for ((hl, text, expected) in cases) {
-            assertWithMessage("$hl: $text").that(YouTubeCountParser.parse(text, hl)).isEqualTo(expected)
+            assertEquals("$hl: $text", expected, YouTubeCountParser.parse(text, hl))
         }
     }
 
     @Test
-    fun `exact counts need no table`() {
-        assertWithMessage("de").that(YouTubeCountParser.parse("334.435 Aufrufe", "de")).isEqualTo(334_435L)
-        assertWithMessage("ru").that(YouTubeCountParser.parse("2 488 417 просмотров", "ru")).isEqualTo(2_488_417L)
+    fun exactCountsNeedNoTable() {
+        assertEquals("de", 334_435L, YouTubeCountParser.parse("334.435 Aufrufe", "de"))
+        assertEquals("ru", 2_488_417L, YouTubeCountParser.parse("2 488 417 просмотров", "ru"))
     }
 }
