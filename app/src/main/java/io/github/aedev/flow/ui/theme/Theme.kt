@@ -207,18 +207,8 @@ fun resolveFlowColorScheme(
     systemDarkThemeMode: ThemeMode,
     systemDarkThemeVariant: ThemeVariant,
 ): ColorScheme {
-    val effectiveThemeMode =
-        themeMode.resolveSystemDefault(
-            isSystemDark = isSystemDark,
-            systemLightThemeMode = systemLightThemeMode,
-            systemDarkThemeMode = systemDarkThemeMode,
-        )
-    val effectiveVariant =
-        if (themeMode == ThemeMode.SYSTEM) {
-            if (isSystemDark) systemDarkThemeVariant else ThemeVariant.LIGHT
-        } else {
-            themeVariant
-        }
+    val (effectiveThemeMode, effectiveVariant) =
+        resolveFlowThemeSlot(isSystemDark, themeMode, themeVariant, systemLightThemeMode, systemDarkThemeMode, systemDarkThemeVariant)
     return when {
         effectiveThemeMode == ThemeMode.MATERIAL_YOU && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             when (effectiveVariant) {
@@ -237,6 +227,30 @@ fun resolveFlowColorScheme(
         }
     }
 }
+
+/** The palette and variant the app shows while the system is in one night mode. */
+data class FlowThemeSlot(
+    val mode: ThemeMode,
+    val variant: ThemeVariant,
+)
+
+fun resolveFlowThemeSlot(
+    isSystemDark: Boolean,
+    themeMode: ThemeMode,
+    themeVariant: ThemeVariant,
+    systemLightThemeMode: ThemeMode,
+    systemDarkThemeMode: ThemeMode,
+    systemDarkThemeVariant: ThemeVariant,
+): FlowThemeSlot =
+    FlowThemeSlot(
+        mode = themeMode.resolveSystemDefault(isSystemDark, systemLightThemeMode, systemDarkThemeMode),
+        variant =
+            if (themeMode == ThemeMode.SYSTEM) {
+                if (isSystemDark) systemDarkThemeVariant else ThemeVariant.LIGHT
+            } else {
+                themeVariant
+            },
+    )
 
 /**
  * The system's dynamic scheme is already a complete, tuned Material 3 scheme, so it is used as the
