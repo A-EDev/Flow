@@ -43,4 +43,12 @@ internal object FlowNavTransitions {
                     ),
             )
     }
+
+    // Without these NavHost falls back to its fade + scale(0.7) default for predictive back.
+    val predictivePopEnter: AnimatedContentTransitionScope<NavBackStackEntry>.(Int) -> EnterTransition = {
+        popEnter()
+    }
+    val predictivePopExit: AnimatedContentTransitionScope<NavBackStackEntry>.(Int) -> ExitTransition = {
+        popExit()
+    }
 }

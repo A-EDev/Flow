@@ -17,16 +17,17 @@ import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.innertube.models.response.VideoHeatmapParser
 import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
+import io.github.aedev.flow.innertube.pages.YouTubeCountParser
+import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.utils.PerformanceDispatcher
-import io.github.aedev.flow.utils.RelativeUploadDateParser
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.avatarImageIdentityKey
 import io.github.aedev.flow.utils.bestImageUrl
 import io.github.aedev.flow.utils.distinctBestImageUrls
 import io.github.aedev.flow.utils.newPipeLocalization
-import io.github.aedev.flow.utils.parseRelativeToTimestamp
 import io.github.aedev.flow.utils.parseToTimestamp
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -1122,8 +1123,8 @@ class YouTubeRepository
                     channelName = resp.channelName(),
                     channelId = resp.channelId(),
                     channelAvatarUrl = resp.channelAvatarUrl(),
-                    subscriberCount = parseAbbreviatedCount(resp.subscriberCountText()),
-                    viewCount = parseAbbreviatedCount(resp.viewCountText()),
+                    subscriberCount = YouTubeCountParser.parse(resp.subscriberCountText(), YouTube.locale.hl),
+                    viewCount = YouTubeCountParser.parse(resp.viewCountText(), YouTube.locale.hl),
                     description = resp.description(),
                     relatedVideos = related,
                 )
@@ -1353,12 +1354,8 @@ class YouTubeRepository
             textualDate: String?,
         ): Long {
             absoluteMillis?.let { if (it > 0L) return it }
-            // Shared parser: the old private copy carried the plural-"s" bug
-            // ("3 days" matched the seconds branch), which stamped every
-            // plural-dated subs video as seconds old — stale uploads then won
-            // the recency sort and the fresh-subs slots over genuinely new ones.
-            val parsed = RelativeUploadDateParser.parse(textualDate)
-            return parsed ?: System.currentTimeMillis()
+            // 0 is unknown: stamping an unreadable date as now made stale uploads win every recency sort.
+            return RelativeUploadDateParser.parse(textualDate, YouTube.locale.hl) ?: 0L
         }
 
         private fun <T> takeRotatingWindow(
@@ -1421,7 +1418,7 @@ internal fun mergeWatchMetadata(
     // The relative form first: the absolute one is a date with no time, so on its own it places
     // every upload at midnight and reads back as however long the day has been running.
     val timestamp =
-        response.relativeUploadDate()?.let { parseRelativeToTimestamp(it) }
+        response.relativeUploadDate()?.let { RelativeUploadDateParser.parse(it, YouTube.locale.hl) }
             ?: parseToTimestamp(uploadDate)
             ?: video.timestamp
     val avatarUrl = response.channelAvatarUrl().orEmpty().ifBlank { video.channelThumbnailUrl }
@@ -1429,8 +1426,8 @@ internal fun mergeWatchMetadata(
         title = response.title().orEmpty().ifBlank { video.title },
         channelName = response.channelName().orEmpty().ifBlank { video.channelName },
         channelId = response.channelId().orEmpty().ifBlank { video.channelId },
-        viewCount = parseAbbreviatedCount(response.viewCountText()) ?: video.viewCount,
-        likeCount = parseAbbreviatedCount(response.likeCountText()) ?: video.likeCount,
+        viewCount = YouTubeCountParser.parse(response.viewCountText(), YouTube.locale.hl) ?: video.viewCount,
+        likeCount = YouTubeCountParser.parse(response.likeCountText(), YouTube.locale.hl) ?: video.likeCount,
         uploadDate = uploadDate,
         timestamp = timestamp,
         description = response.description().orEmpty().ifBlank { video.description },
@@ -1442,20 +1439,6 @@ internal fun mergeWatchMetadata(
                 video.channelThumbnailUrls
             },
     )
-}
-
-internal fun parseAbbreviatedCount(text: String?): Long? {
-    if (text.isNullOrBlank()) return null
-    val match = Regex("""([\d.,]+)\s*([KkMmBb])?""").find(text) ?: return null
-    val number = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
-    val mult =
-        when (match.groupValues[2].lowercase(Locale.US)) {
-            "k" -> 1_000.0
-            "m" -> 1_000_000.0
-            "b" -> 1_000_000_000.0
-            else -> 1.0
-        }
-    return (number * mult).toLong()
 }
 
 internal fun parseDurationTextToSeconds(text: String?): Int {
@@ -1510,7 +1493,7 @@ internal fun decodeWatchMetadata(raw: JsonElement): WatchMetadataResponse? =
 
 internal object WatchMetadataVideoMapper {
     fun relatedVideos(resp: WatchMetadataResponse): List<Video> =
-        resp.relatedVideos().mapNotNull { cv ->
+        resp.relatedVideos(YouTube.locale.hl).mapNotNull { cv ->
             val id = cv.videoId ?: return@mapNotNull null
             val viewText = cv.viewCountText?.text()
             val isLive = cv.isLive || viewText.isLiveViewCountText()
@@ -1526,12 +1509,12 @@ internal object WatchMetadataVideoMapper {
                 channelThumbnailUrl =
                     cv.channelAvatarUrl?.let(ThumbnailUrlResolver::resolveChannelAvatar).orEmpty(),
                 duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
-                viewCount = parseAbbreviatedCount(viewText) ?: 0L,
+                viewCount = parseYouTubeViewCount(viewText),
                 uploadDate = uploadDateText,
                 // Video.timestamp defaults to now(), which made every related item
                 // look brand new — defeating the age filter and shorts-shelf sort.
                 // Parse the real age; 0 means unknown (callers fall back to text).
-                timestamp = RelativeUploadDateParser.parse(uploadDateText) ?: 0L,
+                timestamp = RelativeUploadDateParser.parse(uploadDateText, YouTube.locale.hl) ?: 0L,
                 isLive = isLive,
             )
         }

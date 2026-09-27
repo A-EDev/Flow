@@ -3,24 +3,10 @@ package io.github.aedev.flow.ui.components.library
 import androidx.annotation.StringRes
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 
-private const val MILLIS_PER_SECOND = 1_000L
-private const val MILLIS_PER_MINUTE = 60_000L
-private const val MILLIS_PER_HOUR = 3_600_000L
-private const val MILLIS_PER_DAY = 86_400_000L
-private const val DAYS_PER_WEEK = 7L
-private const val DAYS_PER_MONTH = 30L
-private const val DAYS_PER_YEAR = 365L
 private const val TIMESTAMP_TOLERANCE_MS = 30L * 60L * 1000L
-
-private val DigitsRegex = Regex("""(\d+)""")
-private val SecondsShorthand = Regex(""".*\d+\s*s$""")
-private val MinutesShorthand = Regex(""".*\d+\s*m$""")
-private val HoursShorthand = Regex(""".*\d+\s*h$""")
-private val DaysShorthand = Regex(""".*\d+\s*d$""")
-private val WeeksShorthand = Regex(""".*\d+\s*w$""")
-private val MonthsShorthand = Regex(""".*\d+\s*mo$""")
-private val YearsShorthand = Regex(""".*\d+\s*y$""")
 
 enum class PlaylistSortOrder(
     val storageValue: String,
@@ -82,49 +68,8 @@ private fun List<Video>.sortedByPublishDate(descending: Boolean): List<Video> {
 }
 
 private fun Video.effectivePlaylistUploadTimestamp(now: Long): Long {
-    val relativeDuration = parseRelativeDurationMillis(uploadDate)
-    if (timestamp <= 0L) {
-        return relativeDuration?.let { now - it } ?: 0L
-    }
-    if (relativeDuration == null) return timestamp
-
-    val timestampAge = now - timestamp
-    return if (timestampAge > relativeDuration + TIMESTAMP_TOLERANCE_MS) {
-        timestamp
-    } else {
-        now - relativeDuration
-    }
-}
-
-private fun parseRelativeDurationMillis(text: String): Long? {
-    val normalized =
-        text
-            .lowercase()
-            .replace("streamed", "")
-            .replace("premiered", "")
-            .replace("ago", "")
-            .trim()
-    if (normalized.isBlank() || normalized == "unknown") return null
-    if (normalized.contains("just now") || normalized == "today") return 0L
-    if (normalized.contains("yesterday")) return MILLIS_PER_DAY
-
-    val value =
-        DigitsRegex
-            .find(normalized)
-            ?.groupValues
-            ?.getOrNull(1)
-            ?.toLongOrNull()
-            ?: return null
-    val unit =
-        when {
-            normalized.contains("second") || SecondsShorthand.matches(normalized) -> MILLIS_PER_SECOND
-            normalized.contains("minute") || MinutesShorthand.matches(normalized) -> MILLIS_PER_MINUTE
-            normalized.contains("hour") || HoursShorthand.matches(normalized) -> MILLIS_PER_HOUR
-            normalized.contains("day") || DaysShorthand.matches(normalized) -> MILLIS_PER_DAY
-            normalized.contains("week") || WeeksShorthand.matches(normalized) -> DAYS_PER_WEEK * MILLIS_PER_DAY
-            normalized.contains("month") || MonthsShorthand.matches(normalized) -> DAYS_PER_MONTH * MILLIS_PER_DAY
-            normalized.contains("year") || YearsShorthand.matches(normalized) -> DAYS_PER_YEAR * MILLIS_PER_DAY
-            else -> return null
-        }
-    return value * unit
+    val relative = RelativeUploadDateParser.parse(uploadDate, YouTube.locale.hl, now)
+    if (timestamp <= 0L) return relative ?: 0L
+    if (relative == null) return timestamp
+    return if (timestamp < relative - TIMESTAMP_TOLERANCE_MS) timestamp else relative
 }

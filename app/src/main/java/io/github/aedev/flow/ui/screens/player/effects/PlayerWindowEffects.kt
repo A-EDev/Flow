@@ -30,6 +30,7 @@ internal fun FullscreenEffect(
     suppressFullscreenRequest: Boolean = false,
     isPortrait: Boolean = false,
     isLargeWindow: Boolean = false,
+    hideSystemBars: Boolean,
 ) {
     var resumeTrigger by remember { mutableIntStateOf(0) }
     val currentIsLargeWindow by rememberUpdatedState(isLargeWindow)
@@ -55,11 +56,6 @@ internal fun FullscreenEffect(
                         else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }
                 act.requestedOrientation = orientation
-
-                WindowCompat.setDecorFitsSystemWindows(act.window, false)
-                val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
                 fullscreenBrightnessLevel()?.let { brightnessLevel ->
                     val layoutParams = act.window.attributes
@@ -110,11 +106,22 @@ internal fun FullscreenEffect(
                 val layoutParams = act.window.attributes
                 layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
                 act.window.attributes = layoutParams
-
-                WindowCompat.setDecorFitsSystemWindows(act.window, false)
-                val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
+        }
+    }
+
+    // Keyed on the immersive layout rather than isFullscreen: a compact landscape window shows
+    // that layout on expand without ever entering fullscreen, and left the bars over the video.
+    LaunchedEffect(hideSystemBars, resumeTrigger) {
+        val act = activity ?: return@LaunchedEffect
+        if (act.isInPictureInPictureMode) return@LaunchedEffect
+        WindowCompat.setDecorFitsSystemWindows(act.window, false)
+        val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
+        if (hideSystemBars) {
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 

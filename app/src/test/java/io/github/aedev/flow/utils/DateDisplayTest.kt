@@ -1,6 +1,7 @@
 package io.github.aedev.flow.utils
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -75,6 +76,45 @@ class DateDisplayTest {
                 date = "2 years ago",
                 timestampFallbackMs = now,
                 nowMillis = now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a localized age resolves in the host language it was fetched in`() {
+        val now = 2_000_000_000_000L
+
+        assertEquals(
+            now - 21L * 24L * 60L * 60L * 1000L,
+            resolveDisplayUploadTimestamp(
+                date = "hace 3 semanas",
+                timestampFallbackMs = 0L,
+                nowMillis = now,
+                hl = "es",
+            ),
+        )
+    }
+
+    @Test
+    fun `text no language reads is not guessed into a timestamp`() {
+        assertNull(
+            resolveDisplayUploadTimestamp(
+                date = "hace 3 semanas",
+                timestampFallbackMs = 0L,
+                hl = "en",
+            ),
+        )
+    }
+
+    @Test
+    fun `relative mode shows the server wording when nothing dates the video`() {
+        assertEquals(
+            "hace 3 semanas",
+            formatUploadDateConfigured(
+                date = "hace 3 semanas",
+                mode = DateDisplayMode.RELATIVE,
+                style = DateFormatStyle.SYSTEM,
+                hl = "en",
             ),
         )
     }

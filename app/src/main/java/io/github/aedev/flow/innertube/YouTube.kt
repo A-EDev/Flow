@@ -86,6 +86,7 @@ import io.github.aedev.flow.innertube.pages.explore.VideoChartsPage
 import io.github.aedev.flow.innertube.pages.explore.exploreShelves
 import io.github.aedev.flow.innertube.pages.explore.toExploreDestinationShell
 import io.github.aedev.flow.innertube.pages.explore.toVideoChartsPage
+import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
 import io.github.aedev.flow.innertube.pages.reel.ReelLockup
 import io.github.aedev.flow.innertube.pages.reel.ReelOverlay
 import io.github.aedev.flow.innertube.pages.reel.ReelParams
@@ -97,6 +98,7 @@ import io.github.aedev.flow.innertube.pages.renderer.CommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.CommunityPostsPage
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
+import io.github.aedev.flow.innertube.pages.renderer.lockupDateAndViews
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityCommentsPage
 import io.github.aedev.flow.innertube.pages.renderer.toCommunityPostsPage
 import io.github.aedev.flow.innertube.pages.search.SearchResultsPage
@@ -110,6 +112,7 @@ import io.github.aedev.flow.innertube.pages.toVideoPlaylistPage
 import io.github.aedev.flow.innertube.pages.videoCommentsContinuation
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.avatarImageIdentityKey
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
@@ -1233,14 +1236,7 @@ object YouTube {
                 ?.metadataParts
                 ?.mapNotNull { it.text?.content?.takeIf(String::isNotBlank) }
                 .orEmpty()
-        val viewsText =
-            parts.firstOrNull { it.contains("view", ignoreCase = true) || it.contains("watching", ignoreCase = true) }
-                ?: parts.firstOrNull()
-        val uploadText =
-            parts
-                .firstOrNull {
-                    !it.contains("view", ignoreCase = true) && !it.contains("watching", ignoreCase = true)
-                }.orEmpty()
+        val (viewsText, uploadText, uploadTimestamp) = lockupDateAndViews(parts, locale.hl)
 
         return io.github.aedev.flow.data.model.Video(
             id = videoId,
@@ -1249,9 +1245,9 @@ object YouTube {
             channelId = channelId,
             thumbnailUrl = thumbnail,
             duration = parseLengthText(durationText),
-            viewCount = parseViewCountText(viewsText),
+            viewCount = parseYouTubeViewCount(viewsText),
             uploadDate = uploadText,
-            timestamp = parseRelativeUploadDate(uploadText) ?: 0L,
+            timestamp = uploadTimestamp ?: 0L,
             channelThumbnailUrl = channelThumbnailUrl,
             isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
         )
@@ -1282,9 +1278,9 @@ object YouTube {
             channelId = channelId,
             thumbnailUrl = thumbnail,
             duration = parseLengthText(r.lengthText?.textValue()),
-            viewCount = parseViewCountText(viewsText),
+            viewCount = parseYouTubeViewCount(viewsText),
             uploadDate = uploadText,
-            timestamp = parseRelativeUploadDate(uploadText) ?: 0L,
+            timestamp = RelativeUploadDateParser.parse(uploadText, locale.hl) ?: 0L,
             channelThumbnailUrl = avatarUrls.firstOrNull().orEmpty(),
             channelThumbnailUrls = avatarUrls,
             isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
@@ -1430,7 +1426,7 @@ object YouTube {
                 ?.url
                 ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
         val duration = parseLengthText(r.lengthText?.simpleText)
-        val viewCount = parseViewCountText(r.viewCountText?.simpleText)
+        val viewCount = parseYouTubeViewCount(r.viewCountText?.simpleText)
         val avatarUrls = r.channelAvatarUrls(channelThumbnailUrl)
         return io.github.aedev.flow.data.model.Video(
             id = videoId,
@@ -1487,70 +1483,6 @@ object YouTube {
             2 -> parts[0] * 60 + parts[1]
             else -> 0
         }
-    }
-
-    private fun parseViewCountText(text: String?): Long {
-        if (text.isNullOrBlank()) return 0L
-        val normalized =
-            text
-                .lowercase(Locale.US)
-                .replace(",", "")
-                .replace("views", "")
-                .replace("view", "")
-                .replace("watching", "")
-                .trim()
-        val number =
-            Regex("""(\d+(?:\.\d+)?)""")
-                .find(normalized)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toDoubleOrNull()
-                ?: return 0L
-        val multiplier =
-            when {
-                normalized.contains("b") -> 1_000_000_000.0
-                normalized.contains("m") -> 1_000_000.0
-                normalized.contains("k") -> 1_000.0
-                else -> 1.0
-            }
-        return (number * multiplier).toLong()
-    }
-
-    private fun parseRelativeUploadDate(text: String?): Long? {
-        val normalized =
-            text
-                ?.lowercase(Locale.US)
-                ?.replace("streamed", "")
-                ?.replace("premiered", "")
-                ?.replace("live", "")
-                ?.replace("ago", "")
-                ?.trim()
-                ?: return null
-
-        if (normalized.isBlank()) return null
-        if (normalized.contains("just now") || normalized.contains("today")) return System.currentTimeMillis()
-        if (normalized.contains("yesterday")) return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
-
-        val value =
-            Regex("""(\d+)""")
-                .find(normalized)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toLongOrNull()
-                ?: return null
-        val unitMillis =
-            when {
-                normalized.contains("second") || normalized.endsWith("s") -> 1_000L
-                normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
-                normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
-                normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
-                normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
-                normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
-                normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
-                else -> return null
-            }
-
-        return System.currentTimeMillis() - (value * unitMillis)
     }
 
     suspend fun album(

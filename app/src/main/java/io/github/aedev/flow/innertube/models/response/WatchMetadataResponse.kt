@@ -1,5 +1,6 @@
 package io.github.aedev.flow.innertube.models.response
 
+import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -126,12 +127,12 @@ data class WatchMetadataResponse(
         val itemSectionRenderer: ItemSection? = null,
         val lockupViewModel: LockupViewModel? = null,
     ) {
-        fun videos(): List<CompactVideo> =
+        fun videos(hl: String? = null): List<CompactVideo> =
             buildList {
                 compactVideoRenderer?.let(::add)
-                compactAutoplayRenderer?.contents?.flatMapTo(this) { it.videos() }
-                itemSectionRenderer?.contents?.flatMapTo(this) { it.videos() }
-                lockupViewModel?.toCompactVideo()?.let(::add)
+                compactAutoplayRenderer?.contents?.flatMapTo(this) { it.videos(hl) }
+                itemSectionRenderer?.contents?.flatMapTo(this) { it.videos(hl) }
+                lockupViewModel?.toCompactVideo(hl)?.let(::add)
             }
     }
 
@@ -171,7 +172,7 @@ data class WatchMetadataResponse(
         val contentImage: LockupContentImage? = null,
         val metadata: LockupMetadataWrap? = null,
     ) {
-        fun toCompactVideo(): CompactVideo? {
+        fun toCompactVideo(hl: String? = null): CompactVideo? {
             if (contentId.isNullOrBlank()) return null
             if (contentType != null && contentType != "LOCKUP_CONTENT_TYPE_VIDEO") return null
 
@@ -195,7 +196,18 @@ data class WatchMetadataResponse(
             val viewsPart = metadataParts.firstOrNull { it.isViewCount }
             val views = viewsPart?.content() ?: metadataTexts.firstOrNull { it.looksLikeViewCount() }
             val remaining = metadataTexts.filter { it != views }
-            val published = remaining.firstOrNull { it.looksLikeDateOrDuration() && !it.contains(":") }
+            // The first row is the byline, and a channel name can read as an age ("5-Minute Crafts").
+            val laterRowTexts =
+                metadataModel
+                    ?.metadata
+                    ?.contentMetadataViewModel
+                    ?.metadataRows
+                    ?.drop(1)
+                    ?.flatMap { row -> row.metadataParts.mapNotNull { it.content() } }
+                    .orEmpty()
+            val published =
+                remaining.firstOrNull { it.looksLikeDateOrDuration() && !it.contains(":") }
+                    ?: laterRowTexts.firstOrNull { it != views && RelativeUploadDateParser.parse(it, hl) != null }
             val byline =
                 remaining.firstOrNull { text ->
                     text != published &&
@@ -552,13 +564,13 @@ data class WatchMetadataResponse(
             ?.subscriberCountText
             ?.text()
 
-    fun relatedVideos(): List<CompactVideo> =
+    fun relatedVideos(hl: String? = null): List<CompactVideo> =
         contents
             ?.twoColumnWatchNextResults
             ?.secondaryResults
             ?.secondaryResults
             ?.results
-            ?.flatMap { it.videos() }
+            ?.flatMap { it.videos(hl) }
             ?.filter { !it.videoId.isNullOrBlank() }
             ?.distinctBy { it.videoId }
             .orEmpty()
