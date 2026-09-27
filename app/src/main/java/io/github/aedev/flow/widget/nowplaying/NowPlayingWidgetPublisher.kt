@@ -3,10 +3,13 @@ package io.github.aedev.flow.widget.nowplaying
 import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.widget.core.NowPlayingSnapshot
+import io.github.aedev.flow.widget.core.clearNowPlayingSnapshot
 import io.github.aedev.flow.widget.core.markNowPlayingStopped
 import io.github.aedev.flow.widget.core.writeNowPlayingSnapshot
 import kotlinx.coroutines.CoroutineScope
@@ -30,26 +33,28 @@ class NowPlayingWidgetPublisher @Inject constructor(
     private var publishJob: Job? = null
 
     /** Must be called on the player's application thread (service listener callbacks are). */
+    @OptIn(UnstableApi::class)
     fun publish(player: Player) {
-        val item = player.currentMediaItem ?: return
-        val snapshot = NowPlayingSnapshot(
-            mediaId = item.mediaId,
-            title = item.mediaMetadata.title?.toString().orEmpty(),
-            artist = item.mediaMetadata.artist?.toString().orEmpty(),
-            artworkUrl = item.mediaMetadata.artworkUri?.toString(),
-            // playWhenReady (not isPlaying) so brief buffering still shows the pause glyph
-            isPlaying = player.playWhenReady &&
-                player.playbackState != Player.STATE_ENDED &&
-                player.playbackState != Player.STATE_IDLE,
-            isLiked = EnhancedMusicPlayerManager.isLiked.value,
-            positionMs = player.currentPosition.coerceAtLeast(0L),
-            durationMs = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L,
-        )
+        val item = player.currentMediaItem
+        val snapshot =
+            item?.let {
+                NowPlayingSnapshot(
+                    mediaId = it.mediaId,
+                    title = it.mediaMetadata.title?.toString().orEmpty(),
+                    artist = it.mediaMetadata.artist?.toString().orEmpty(),
+                    artworkUrl = it.mediaMetadata.artworkUri?.toString(),
+                    // Buffering still shows pause, matching the notification's own button.
+                    isPlaying = !Util.shouldShowPlayButton(player),
+                    isLiked = EnhancedMusicPlayerManager.isLiked.value,
+                    positionMs = player.currentPosition.coerceAtLeast(0L),
+                    durationMs = player.duration.takeIf { d -> d != C.TIME_UNSET } ?: 0L,
+                )
+            }
         publishJob?.cancel()
         publishJob = scope.launch {
             // Debounce bursts (transition + state + isPlaying often fire together)
             delay(150)
-            context.writeNowPlayingSnapshot(snapshot)
+            if (snapshot == null) context.clearNowPlayingSnapshot() else context.writeNowPlayingSnapshot(snapshot)
             updatePlayerWidgets()
         }
     }

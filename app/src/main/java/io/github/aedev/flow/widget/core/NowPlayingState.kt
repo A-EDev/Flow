@@ -70,3 +70,8 @@ suspend fun Context.writeNowPlayingSnapshot(snapshot: NowPlayingSnapshot) {
 suspend fun Context.markNowPlayingStopped() {
     nowPlayingWidgetStore.edit { prefs -> prefs[Keys.IS_PLAYING] = false }
 }
+
+/** The queue emptied, so the widget shows its "Nothing playing" state. */
+suspend fun Context.clearNowPlayingSnapshot() {
+    nowPlayingWidgetStore.edit { prefs -> prefs.clear() }
+}

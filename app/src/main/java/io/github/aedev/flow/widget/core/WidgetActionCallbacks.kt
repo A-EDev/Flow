@@ -8,6 +8,8 @@ import androidx.core.content.ContextCompat
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -57,10 +59,10 @@ private suspend fun withMusicController(context: Context, block: (MediaControlle
 }
 
 class PlayPauseAction : ActionCallback {
+    @OptIn(UnstableApi::class)
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        withMusicController(context) { controller ->
-            if (controller.playWhenReady) controller.pause() else controller.play()
-        }
+        // Prepares from IDLE and restarts from ENDED, where a bare play() does nothing.
+        withMusicController(context) { Util.handlePlayPauseButtonAction(it) }
     }
 }
 
