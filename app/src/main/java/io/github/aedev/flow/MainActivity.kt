@@ -51,9 +51,11 @@ import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.tv.FlowTvApp
 import io.github.aedev.flow.updater.ApkUpdateHelper
 import io.github.aedev.flow.utils.AppLanguageManager
+import io.github.aedev.flow.utils.ClipboardVideoLinkReader
 import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.UpdateInfo
 import io.github.aedev.flow.utils.UpdateManager
+import io.github.aedev.flow.utils.YouTubeLinkParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -75,6 +77,9 @@ class MainActivity : ComponentActivity() {
     private val _isDeeplinkShort = mutableStateOf(false)
     val isDeeplinkShort: State<Boolean> = _isDeeplinkShort
 
+    private val _deeplinkStartPositionMs = mutableStateOf<Long?>(null)
+    val deeplinkStartPositionMs: State<Long?> = _deeplinkStartPositionMs
+
     private val _pendingUpdateInfo = mutableStateOf<UpdateInfo?>(null)
     val pendingUpdateInfo: State<UpdateInfo?> = _pendingUpdateInfo
 
@@ -91,6 +96,8 @@ class MainActivity : ComponentActivity() {
     private var pendingAutoPip = false
     private var cachedAppUiRoot = AppUiRoot.MOBILE
     private var suppressForegroundVideoRestoreOnResume = false
+    private var suppressClipboardReadOnNextResume = false
+    private var clipboardLinkReadJob: Job? = null
 
     private fun videoPlaybackStateName(state: Int?): String =
         when (state) {
@@ -180,6 +187,7 @@ class MainActivity : ComponentActivity() {
         }
 
         suppressForegroundVideoRestoreOnResume = intentRequestsContentNavigation(intent)
+        suppressClipboardReadOnNextResume = intentRequestsContentNavigation(intent)
         handleIntent(intent)
 
         // Check for updates (only in release builds, only in github flavor)
@@ -324,8 +332,16 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Request notification permission for Android 13+ (skip during benchmark/test runs)
+                // Request notification permission for Android 13+ (skip during benchmark/test runs).
+                //
+                // Deferred when the launch intent is going to open something (share, deep link,
+                // notification): GrantPermissionsActivity is a separate task that takes focus
+                // away from this window, and the deep-link navigation queued on the main looper
+                // never ran to completion behind it, so the shared video silently failed to open.
+                // Prompting on the next ordinary launch costs nothing and keeps the first
+                // share-into-Flow reliable.
                 val isBypassMode = intent?.getBooleanExtra(EXTRA_BENCHMARK_BYPASS_ONBOARDING, false) == true
+                val launchedWithContentIntent = intentRequestsContentNavigation(intent)
                 if (!isBypassMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val permissionLauncher =
                         androidx.activity.compose.rememberLauncherForActivityResult(
@@ -340,6 +356,13 @@ class MainActivity : ComponentActivity() {
                         }
 
                     LaunchedEffect(Unit) {
+                        if (launchedWithContentIntent) {
+                            android.util.Log.d(
+                                "MainActivity",
+                                "Deferring notification permission: launch intent opens content",
+                            )
+                            return@LaunchedEffect
+                        }
                         if (androidx.core.content.ContextCompat.checkSelfPermission(
                                 context,
                                 android.Manifest.permission.POST_NOTIFICATIONS,
@@ -364,6 +387,7 @@ class MainActivity : ComponentActivity() {
                         // This loads *behind* the splash screen immediately.
                         // By the time splash fades, this is ready.
                         val deeplinkVideoId by this@MainActivity.deeplinkVideoId
+                        val deeplinkStartPositionMs by this@MainActivity.deeplinkStartPositionMs
                         val isDeeplinkShort by this@MainActivity.isDeeplinkShort
                         val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
                         val pendingWidgetRoute by this@MainActivity.pendingWidgetRoute
@@ -419,6 +443,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 deeplinkVideoId = deeplinkVideoId,
+                                deeplinkStartPositionMs = deeplinkStartPositionMs,
                                 isShort = isDeeplinkShort,
                                 openMusicPlayerRequest = openMusicPlayerRequest,
                                 onDeeplinkConsumed = {
@@ -477,21 +502,37 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // MainActivity is singleTask, so reaching here means Android already cleared whatever
+        // was stacked above it (permission dialog, share sheet) and brought this task forward.
+        // Reusing the instance is what keeps repeated shares from stacking activities.
         setIntent(intent)
+        val requestsContentNavigation = intentRequestsContentNavigation(intent)
         suppressForegroundVideoRestoreOnResume =
             !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
-            intentRequestsContentNavigation(intent)
+            requestsContentNavigation
+        suppressClipboardReadOnNextResume =
+            suppressClipboardReadOnNextResume ||
+            (
+                !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
+                    requestsContentNavigation
+            )
+        if (requestsContentNavigation) {
+            clipboardLinkReadJob?.cancel()
+        }
         handleIntent(intent)
     }
 
-    private fun intentRequestsContentNavigation(intent: Intent): Boolean =
-        intent.getBooleanExtra("open_music_player", false) ||
-            intent.getBooleanExtra("open_video_player", false) ||
-            intent.hasExtra("notification_video_id") ||
-            intent.hasExtra("video_id") ||
-            intent.hasExtra("open_video_id") ||
-            intent.action == Intent.ACTION_VIEW ||
-            intent.action == Intent.ACTION_SEND
+    private fun intentRequestsContentNavigation(intent: Intent?): Boolean =
+        intent != null &&
+            (
+                intent.getBooleanExtra("open_music_player", false) ||
+                    intent.getBooleanExtra("open_video_player", false) ||
+                    intent.hasExtra("notification_video_id") ||
+                    intent.hasExtra("video_id") ||
+                    intent.hasExtra("open_video_id") ||
+                    intent.action == Intent.ACTION_VIEW ||
+                    intent.action == Intent.ACTION_SEND
+            )
 
     private fun handleIntent(intent: Intent) {
         val data = intent.data
@@ -530,26 +571,20 @@ class MainActivity : ComponentActivity() {
         // Reset shorts flag
         _isDeeplinkShort.value = false
 
-        val videoId =
+        val parsedLink =
             if (data != null && intent.action == Intent.ACTION_VIEW) {
-                val urlString = data.toString()
-                if (urlString.contains("shorts/")) {
-                    _isDeeplinkShort.value = true
-                }
-                extractVideoId(urlString)
+                YouTubeLinkParser.parseVideoLink(data.toString())
             } else if (intent.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                if (sharedText != null) {
-                    if (sharedText.contains("shorts/")) {
-                        _isDeeplinkShort.value = true
-                    }
-                    extractVideoId(sharedText)
-                } else {
-                    null
-                }
+                YouTubeLinkParser.parseVideoLink(intent.getStringExtra(Intent.EXTRA_TEXT))
             } else {
-                notificationVideoId
+                null
             }
+        if (parsedLink != null) {
+            _isDeeplinkShort.value = parsedLink.isShort
+            _deeplinkStartPositionMs.value = parsedLink.startPositionMs
+        }
+
+        val videoId = parsedLink?.videoId ?: notificationVideoId
         // Check extra
         if (intent.getBooleanExtra("is_short", false) || intent.getBooleanExtra("is_shorts", false)) {
             _isDeeplinkShort.value = true
@@ -572,22 +607,7 @@ class MainActivity : ComponentActivity() {
     fun consumeDeeplink() {
         _deeplinkVideoId.value = null
         _isDeeplinkShort.value = false
-    }
-
-    private fun extractVideoId(url: String): String? {
-        val patterns =
-            listOf(
-                Regex("v=([^&]+)"),
-                Regex("shorts/([^/?]+)"),
-                Regex("youtu.be/([^/?]+)"),
-                Regex("embed/([^/?]+)"),
-                Regex("v/([^/?]+)"),
-            )
-        for (pattern in patterns) {
-            val match = pattern.find(url)
-            if (match != null) return match.groupValues[1]
-        }
-        return url.substringAfterLast("/").substringBefore("?").ifEmpty { null }
+        _deeplinkStartPositionMs.value = null
     }
 
     override fun onPictureInPictureModeChanged(
@@ -659,6 +679,41 @@ class MainActivity : ComponentActivity() {
         if (restoreVideo) {
             GlobalPlayerState.requestForegroundVideoRestore()
         }
+
+        val suppressClipboardRead = suppressClipboardReadOnNextResume
+        suppressClipboardReadOnNextResume = false
+        if (!suppressClipboardRead) {
+            openClipboardVideoLinkIfPresent()
+        }
+    }
+
+    /**
+     * Picks up a link the user copied from another YouTube client and opens it in the player.
+     *
+     * Runs on every foreground resume, not just cold start, so bringing Flow back from Recents
+     * after copying a link still works. Three things keep it from hijacking playback:
+     * it is gated on the user preference, pending navigation gets the next resume, and
+     * [ClipboardVideoLinkReader] reports each distinct clipboard entry at most once.
+     */
+    private fun openClipboardVideoLinkIfPresent() {
+        clipboardLinkReadJob?.cancel()
+        if (_deeplinkVideoId.value != null) return
+        clipboardLinkReadJob =
+            lifecycleScope.launch {
+                val settings = lifecyclePlaybackPreferences.awaitLoadedSettings()
+                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || _deeplinkVideoId.value != null) {
+                    return@launch
+                }
+                if (!settings.clipboardLinkOpenEnabled) return@launch
+                // Reading the clipboard is a binder call into another process.
+                val link =
+                    withContext(Dispatchers.IO) {
+                        ClipboardVideoLinkReader.consumeVideoLink(applicationContext)
+                    } ?: return@launch
+                _deeplinkVideoId.value = link.videoId
+                _isDeeplinkShort.value = link.isShort
+                _deeplinkStartPositionMs.value = link.startPositionMs
+            }
     }
 
     override fun onKeyDown(

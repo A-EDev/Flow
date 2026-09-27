@@ -174,6 +174,7 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
     val autoplayCountdownSeconds by playerPreferences.autoplayCountdownSeconds.collectAsState(initial = 0)
     val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
     val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
+    val clipboardLinkOpenEnabled by playerPreferences.clipboardLinkOpenEnabled.collectAsState(initial = true)
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
     val shortsBackgroundPlay by playerPreferences.shortsBackgroundPlay.collectAsState(initial = false)
     val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
@@ -287,6 +288,16 @@ fun PlayerSettingsScreen(onNavigateBack: () -> Unit) {
                         subtitle = stringResource(R.string.player_settings_overlay_autoplay_subtitle),
                         checked = overlayAutoplayEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlayAutoplayEnabled(it) } },
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.ContentPaste,
+                        title = stringResource(R.string.player_settings_clipboard_link_title),
+                        subtitle = stringResource(R.string.player_settings_clipboard_link_subtitle),
+                        checked = clipboardLinkOpenEnabled,
+                        onCheckedChange = {
+                            coroutineScope.launch { playerPreferences.setClipboardLinkOpenEnabled(it) }
+                        },
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(

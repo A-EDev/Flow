@@ -20,11 +20,12 @@ import kotlinx.coroutines.delay
 @Composable
 fun HandleDeepLinks(
     deeplinkVideoId: String?,
+    deeplinkStartPositionMs: Long?,
     isShort: Boolean,
     navController: NavController,
     onDeeplinkConsumed: () -> Unit,
 ) {
-    LaunchedEffect(deeplinkVideoId, isShort) {
+    LaunchedEffect(deeplinkVideoId, deeplinkStartPositionMs, isShort) {
         if (deeplinkVideoId != null) {
             val maxAttempts = 30
             var navigated = false
@@ -38,7 +39,16 @@ fun HandleDeepLinks(
                                 launchSingleTop = true
                             }
                         } else {
-                            navController.navigate("player/$deeplinkVideoId") {
+                            // Carried in the route so the start position survives the navigation
+                            // hop; the player screen reads it back off the back stack entry.
+                            val startMs = deeplinkStartPositionMs?.takeIf { it > 0L }
+                            val route =
+                                if (startMs != null) {
+                                    "player/$deeplinkVideoId?startMs=$startMs"
+                                } else {
+                                    "player/$deeplinkVideoId"
+                                }
+                            navController.navigate(route) {
                                 launchSingleTop = true
                             }
                         }

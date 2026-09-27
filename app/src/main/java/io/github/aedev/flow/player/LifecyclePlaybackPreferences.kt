@@ -1,6 +1,7 @@
 package io.github.aedev.flow.player
 
 import io.github.aedev.flow.data.local.PlayerPreferences
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -14,6 +15,7 @@ data class LifecyclePlaybackSettings(
     val backgroundPlayEnabled: Boolean = false,
     val shortsBackgroundPlay: Boolean = false,
     val shortsPipEnabled: Boolean = false,
+    val clipboardLinkOpenEnabled: Boolean = true,
 )
 
 /**
@@ -37,10 +39,21 @@ class LifecyclePlaybackPreferences internal constructor(
     var settings: LifecyclePlaybackSettings = LifecyclePlaybackSettings()
         private set
 
+    private val settingsLoaded = CompletableDeferred<Unit>()
+
+    /** Returns the latest settings snapshot, suspending until the settings flow first emits. */
+    suspend fun awaitLoadedSettings(): LifecyclePlaybackSettings {
+        settingsLoaded.await()
+        return settings
+    }
+
     /** Keeps [settings] current for as long as [scope] lives; the last value outlives the scope. */
     fun observeIn(scope: CoroutineScope) {
         scope.launch {
-            settingsFlow.collect { settings = it }
+            settingsFlow.collect {
+                settings = it
+                settingsLoaded.complete(Unit)
+            }
         }
     }
 }
@@ -51,11 +64,13 @@ private fun PlayerPreferences.lifecyclePlaybackSettings(): Flow<LifecyclePlaybac
         backgroundPlayEnabled,
         shortsBackgroundPlay,
         shortsPipEnabled,
-    ) { autoPip, backgroundPlay, shortsBackgroundPlay, shortsPip ->
+        clipboardLinkOpenEnabled,
+    ) { autoPip, backgroundPlay, shortsBackgroundPlay, shortsPip, clipboardLinkOpen ->
         LifecyclePlaybackSettings(
             autoPipEnabled = autoPip,
             backgroundPlayEnabled = backgroundPlay,
             shortsBackgroundPlay = shortsBackgroundPlay,
             shortsPipEnabled = shortsPip,
+            clipboardLinkOpenEnabled = clipboardLinkOpen,
         )
     }

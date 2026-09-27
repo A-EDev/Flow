@@ -2087,6 +2087,8 @@
     <string name="player_settings_overlay_pip_subtitle">Show PiP button on the video player overlay</string>
     <string name="player_settings_auto_pip_title">Auto Picture-in-Picture</string>
     <string name="player_settings_auto_pip_subtitle">Automatically enter PiP mode when you leave the app. Turn off to use PiP only via the manual button.</string>
+    <string name="player_settings_clipboard_link_title">Open Copied Video Link</string>
+    <string name="player_settings_clipboard_link_subtitle">When the copied text is a YouTube video link, open that video in Flow as soon as you bring the app to the front</string>
     <string name="player_settings_overlay_autoplay">Autoplay Toggle</string>
     <string name="player_settings_overlay_autoplay_subtitle">Show autoplay toggle on the video player overlay</string>
     <string name="player_settings_overlay_sleep_timer">Sleep Timer Button</string>

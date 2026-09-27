@@ -71,6 +71,7 @@ class PlayerPreferences(
         val SPONSOR_ON_DEVICE_ENABLED = booleanPreferencesKey("sponsor_on_device_enabled")
         val AUTO_PIP_ENABLED = booleanPreferencesKey("auto_pip_enabled")
         val MANUAL_PIP_BUTTON_ENABLED = booleanPreferencesKey("manual_pip_button_enabled")
+        val CLIPBOARD_LINK_OPEN_ENABLED = booleanPreferencesKey("clipboard_link_open_enabled")
         val STABLE_VOLUME_ENABLED = booleanPreferencesKey("stable_volume_enabled")
 
         // Buffer settings
@@ -1897,6 +1898,18 @@ class PlayerPreferences(
     suspend fun setManualPipButtonEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MANUAL_PIP_BUTTON_ENABLED] = enabled
+        }
+    }
+
+    val clipboardLinkOpenEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.CLIPBOARD_LINK_OPEN_ENABLED] ?: true
+            }
+
+    suspend fun setClipboardLinkOpenEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CLIPBOARD_LINK_OPEN_ENABLED] = enabled
         }
     }
 

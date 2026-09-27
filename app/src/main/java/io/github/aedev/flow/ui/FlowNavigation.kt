@@ -56,6 +56,9 @@ import io.github.aedev.flow.ui.theme.CustomThemePalettes
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.ThemeVariant
 
+/** Sentinel for "the route carried no timestamp", since NavType.Long cannot hold null. */
+private const val NO_START_POSITION_MS = -1L
+
 @UnstableApi
 fun NavGraphBuilder.flowAppGraph(
     navController: NavHostController,
@@ -1310,8 +1313,15 @@ fun NavGraphBuilder.flowAppGraph(
     }
 
     composable(
-        route = "player/{videoId}",
-        arguments = listOf(navArgument("videoId") { type = NavType.StringType }),
+        route = "player/{videoId}?startMs={startMs}",
+        arguments =
+            listOf(
+                navArgument("videoId") { type = NavType.StringType },
+                navArgument("startMs") {
+                    type = NavType.LongType
+                    defaultValue = NO_START_POSITION_MS
+                },
+            ),
         deepLinks =
             listOf(
                 navDeepLink {
@@ -1362,31 +1372,44 @@ fun NavGraphBuilder.flowAppGraph(
                 !videoId.isNullOrEmpty() && videoId != "sample" -> videoId
                 else -> "jNQXAC9IVRw"
             }
+        val requestedStartPositionMs =
+            backStackEntry.arguments
+                ?.getLong("startMs")
+                ?.takeIf { it != NO_START_POSITION_MS && it > 0L }
 
         // Use passed state
         val playerUiState = playerUiStateResult.value
-        LaunchedEffect(effectiveVideoId) {
+        LaunchedEffect(effectiveVideoId, requestedStartPositionMs) {
             val isAlreadyPlayingThis =
                 playerUiState.cachedVideo?.id == effectiveVideoId &&
                     !playerUiState.isRestoredSession
+            val placeholder =
+                Video(
+                    id = effectiveVideoId,
+                    title = "",
+                    channelName = "",
+                    channelId = "",
+                    thumbnailUrl = "",
+                    duration = 0,
+                    viewCount = 0L,
+                    uploadDate = "",
+                    description = "",
+                    channelThumbnailUrl = "",
+                )
             if (!isAlreadyPlayingThis) {
-                val placeholder =
-                    Video(
-                        id = effectiveVideoId,
-                        title = "",
-                        channelName = "",
-                        channelId = "",
-                        thumbnailUrl = "",
-                        duration = 0,
-                        viewCount = 0L,
-                        uploadDate = "",
-                        description = "",
-                        channelThumbnailUrl = "",
-                    )
-                playerViewModel.playVideo(placeholder)
-                GlobalPlayerState.setCurrentVideo(placeholder)
+                playerViewModel.playVideo(
+                    video = placeholder,
+                    startPositionOverrideMs = requestedStartPositionMs,
+                )
             } else {
-                playerViewModel.showVideoPlayer()
+                if (requestedStartPositionMs != null) {
+                    playerViewModel.playVideo(
+                        video = placeholder,
+                        startPositionOverrideMs = requestedStartPositionMs,
+                    )
+                } else {
+                    playerViewModel.showVideoPlayer()
+                }
                 playerVisibleState.value = true
                 playerSheetState.expand()
             }

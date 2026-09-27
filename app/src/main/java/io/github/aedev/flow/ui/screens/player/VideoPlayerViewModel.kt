@@ -824,8 +824,15 @@ class VideoPlayerViewModel
         /**
          * Plays a video by immediately caching metadata and triggering stream load.
          * This ensures the UI shows video info immediately while streams are fetched.
+         *
+         * [startPositionOverrideMs] wins over the saved watch position, for links that already
+         * carry a timestamp (a YouTube "start at 4:12" share). A null value keeps the normal
+         * behaviour of resuming from history.
          */
-        fun playVideo(video: Video) {
+        fun playVideo(
+            video: Video,
+            startPositionOverrideMs: Long? = null,
+        ) {
             val playerManager = EnhancedPlayerManager.getInstance()
             val playbackState = playerManager.playerState.value
             val isMiniPlayerCollapsed =
@@ -835,6 +842,13 @@ class VideoPlayerViewModel
                     playbackState.isPlaying ||
                     playbackState.playWhenReady ||
                     playbackState.isBuffering
+            val requestedPositionMs = startPositionOverrideMs?.takeIf { it > 0L }
+            if (requestedPositionMs != null && playerManager.isPreparedForPlayback(video.id)) {
+                playerManager.seekTo(requestedPositionMs)
+                showVideoPlayer()
+                _expandPlayerRequest.tryEmit(Unit)
+                return
+            }
             if (
                 BackgroundPlaybackPolicy.shouldReopenCurrentVideo(
                     requestedVideoId = video.id,
@@ -844,9 +858,11 @@ class VideoPlayerViewModel
                     hasReusablePlayback = hasReusablePlayback,
                 )
             ) {
-                showVideoPlayer()
-                _expandPlayerRequest.tryEmit(Unit)
-                return
+                if (requestedPositionMs == null) {
+                    showVideoPlayer()
+                    _expandPlayerRequest.tryEmit(Unit)
+                    return
+                }
             }
 
             nextPlaybackLoadToken()
@@ -902,7 +918,12 @@ class VideoPlayerViewModel
                 return
             }
             // Start loading streams
-            loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
+            loadVideoInfo(
+                videoId = video.id,
+                isWifi = detectIsWifi(),
+                forceRefresh = true,
+                resumePositionOverrideMs = startPositionOverrideMs?.takeIf { it > 0L },
+            )
         }
 
         fun playLocalVideo(
