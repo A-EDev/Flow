@@ -51,6 +51,7 @@ class RecentlyPlayedWidget : GlanceAppWidget() {
                             videoId = entry.videoId,
                             title = entry.title,
                             subtitle = entry.channelName,
+                            openIntent = if (entry.isShort) WidgetDeepLink.playShort(context, entry.videoId) else null,
                             thumbnail =
                                 if (index == 0) {
                                     null

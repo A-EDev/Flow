@@ -38,6 +38,15 @@ object WidgetDeepLink {
         videoId: String,
     ): Intent = base(context, "video/$videoId").putExtra("video_id", videoId)
 
+    /** Opens [videoId] in the Shorts player, which continues into the feed like any Shorts link. */
+    fun playShort(
+        context: Context,
+        videoId: String,
+    ): Intent =
+        base(context, "short/$videoId")
+            .putExtra("video_id", videoId)
+            .putExtra("is_short", true)
+
     private fun base(
         context: Context,
         path: String,
