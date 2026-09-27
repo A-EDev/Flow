@@ -2,6 +2,7 @@ package io.github.aedev.flow.widget.core
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.glance.appwidget.GlanceAppWidget
@@ -79,8 +80,11 @@ object FlowWidgets {
             catalog.all { entry ->
                 manager.setWidgetPreviews(entry.receiver) == GlanceAppWidgetManager.SET_WIDGET_PREVIEWS_RESULT_SUCCESS
             }
+        Log.i(TAG, "Widget previews published: $published")
         if (published) context.writeWidgetPreviewStamp(stamp)
     }
+
+    private const val TAG = "FlowWidgets"
 
     val catalog: List<FlowWidgetEntry> =
         listOf(

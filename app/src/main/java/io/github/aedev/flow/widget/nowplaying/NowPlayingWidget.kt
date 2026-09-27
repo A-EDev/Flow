@@ -28,7 +28,7 @@ class NowPlayingWidget : GlanceAppWidget() {
         context: Context,
         widgetCategory: Int,
     ) {
-        val snapshot = context.nowPlayingSnapshotFlow().first()?.copy(isPlaying = false)
+        val snapshot = context.nowPlayingSnapshotFlow { NowPlayingWidgetPublisher.hasPublished }.first()?.copy(isPlaying = false)
         val colors = widgetColorsFlow(context).first()
         provideContent { FlowGlanceTheme(colors) { NowPlayingContent(snapshot = snapshot, artwork = null) } }
     }
@@ -40,7 +40,7 @@ class NowPlayingWidget : GlanceAppWidget() {
         // One bitmap at the largest size this instance draws, shared by every layout in the RemoteViews.
         val artworkPx = context.dpToPx(NowPlayingLayout.artworkDpFor(GlanceAppWidgetManager(context).getAppWidgetSizes(id)))
         val cornerPx = bakedCornerRadiusPx(context)
-        val snapshotFlow = context.nowPlayingSnapshotFlow()
+        val snapshotFlow = context.nowPlayingSnapshotFlow { NowPlayingWidgetPublisher.hasPublished }
         val initialSnapshot = snapshotFlow.first()
         val initialArtwork = WidgetImageLoader.load(context, initialSnapshot?.artworkUrl, artworkPx, cornerRadiusPx = cornerPx)
         val colorsFlow = widgetColorsFlow(context)

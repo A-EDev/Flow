@@ -41,7 +41,8 @@ private object Keys {
     val CAPTURED_AT_ELAPSED_MS = longPreferencesKey("captured_at_elapsed_ms")
 }
 
-fun Context.nowPlayingSnapshotFlow(): Flow<NowPlayingSnapshot?> =
+/** [isLive] is false when no player in this process has published, so "playing" cannot still be true. */
+fun Context.nowPlayingSnapshotFlow(isLive: () -> Boolean): Flow<NowPlayingSnapshot?> =
     nowPlayingWidgetStore.data.map { prefs ->
         val mediaId = prefs[Keys.MEDIA_ID] ?: return@map null
         NowPlayingSnapshot(
@@ -49,7 +50,7 @@ fun Context.nowPlayingSnapshotFlow(): Flow<NowPlayingSnapshot?> =
             title = prefs[Keys.TITLE].orEmpty(),
             artist = prefs[Keys.ARTIST].orEmpty(),
             artworkUrl = prefs[Keys.ARTWORK_URL],
-            isPlaying = prefs[Keys.IS_PLAYING] ?: false,
+            isPlaying = (prefs[Keys.IS_PLAYING] ?: false) && isLive(),
             isLiked = prefs[Keys.IS_LIKED] ?: false,
             positionMs = prefs[Keys.POSITION_MS] ?: 0L,
             durationMs = prefs[Keys.DURATION_MS] ?: 0L,

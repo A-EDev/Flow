@@ -38,6 +38,7 @@ import io.github.aedev.flow.widget.core.image.WidgetImageLoader
 import io.github.aedev.flow.widget.core.image.WidgetShape
 import io.github.aedev.flow.widget.core.state.NowPlayingSnapshot
 import io.github.aedev.flow.widget.core.state.nowPlayingSnapshotFlow
+import io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetPublisher
 import io.github.aedev.flow.widget.core.theme.FlowGlanceTheme
 import io.github.aedev.flow.widget.core.theme.dpToPx
 import io.github.aedev.flow.widget.core.theme.widgetColorsFlow
@@ -59,7 +60,7 @@ class TurntableWidget : GlanceAppWidget() {
         context: Context,
         widgetCategory: Int,
     ) {
-        val snapshot = context.nowPlayingSnapshotFlow().first()?.copy(isPlaying = true)
+        val snapshot = context.nowPlayingSnapshotFlow { NowPlayingWidgetPublisher.hasPublished }.first()?.copy(isPlaying = true)
         val colors = widgetColorsFlow(context).first()
         provideContent { FlowGlanceTheme(colors) { TurntableContent(snapshot = snapshot, disc = null) } }
     }
@@ -75,7 +76,7 @@ class TurntableWidget : GlanceAppWidget() {
                 ?.coerceIn(MIN_DISC_DP, MAX_DISC_DP)
                 ?: MIN_DISC_DP
         val discPx = context.dpToPx(discDp)
-        val snapshotFlow = context.nowPlayingSnapshotFlow()
+        val snapshotFlow = context.nowPlayingSnapshotFlow { NowPlayingWidgetPublisher.hasPublished }
         val initialSnapshot = snapshotFlow.first()
         val initialDisc = loadDisc(context, initialSnapshot?.artworkUrl, discPx)
         val colorsFlow = widgetColorsFlow(context)
