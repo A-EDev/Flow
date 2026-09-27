@@ -10,9 +10,12 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
+import androidx.glance.color.ColorProviders
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.widget.core.image.WidgetImageLoader
 import io.github.aedev.flow.widget.core.state.nowPlayingSnapshotFlow
 import io.github.aedev.flow.widget.core.theme.FlowGlanceTheme
+import io.github.aedev.flow.widget.core.theme.artworkColorProviders
 import io.github.aedev.flow.widget.core.theme.bakedCornerRadiusPx
 import io.github.aedev.flow.widget.core.theme.dpToPx
 import io.github.aedev.flow.widget.core.theme.widgetColorsFlow
@@ -45,6 +48,9 @@ class NowPlayingWidget : GlanceAppWidget() {
         val initialArtwork = WidgetImageLoader.load(context, initialSnapshot?.artworkUrl, artworkPx, cornerRadiusPx = cornerPx)
         val colorsFlow = widgetColorsFlow(context)
         val initialColors = colorsFlow.first()
+        val styleFlow = PlayerPreferences(context).musicPlayerBackgroundStyle
+        val initialStyle = styleFlow.first()
+        val initialArtworkColors = artworkColorProviders(context, initialSnapshot?.artworkUrl, initialStyle, initialColors)
 
         provideContent {
             val snapshot by snapshotFlow.collectAsState(initialSnapshot)
@@ -52,7 +58,11 @@ class NowPlayingWidget : GlanceAppWidget() {
                 value = WidgetImageLoader.load(context, snapshot?.artworkUrl, artworkPx, cornerRadiusPx = cornerPx)
             }
             val colors by colorsFlow.collectAsState(initialColors)
-            FlowGlanceTheme(colors) {
+            val style by styleFlow.collectAsState(initialStyle)
+            val artworkColors by produceState<ColorProviders?>(initialArtworkColors, snapshot?.artworkUrl, style, colors) {
+                value = artworkColorProviders(context, snapshot?.artworkUrl, style, colors)
+            }
+            FlowGlanceTheme(artworkColors ?: colors) {
                 NowPlayingContent(snapshot = snapshot, artwork = artwork)
             }
         }

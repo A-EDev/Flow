@@ -5,8 +5,8 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.runtime.produceState
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -22,6 +22,7 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
+import androidx.glance.color.ColorProviders
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.ContentScale
@@ -30,6 +31,7 @@ import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.widget.core.action.WidgetDeepLink
 import io.github.aedev.flow.widget.core.component.WidePlayPauseButton
 import io.github.aedev.flow.widget.core.component.WidgetEmptyState
@@ -38,11 +40,12 @@ import io.github.aedev.flow.widget.core.image.WidgetImageLoader
 import io.github.aedev.flow.widget.core.image.WidgetShape
 import io.github.aedev.flow.widget.core.state.NowPlayingSnapshot
 import io.github.aedev.flow.widget.core.state.nowPlayingSnapshotFlow
-import io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetPublisher
 import io.github.aedev.flow.widget.core.theme.FlowGlanceTheme
+import io.github.aedev.flow.widget.core.theme.artworkColorProviders
 import io.github.aedev.flow.widget.core.theme.dpToPx
 import io.github.aedev.flow.widget.core.theme.widgetColorsFlow
 import io.github.aedev.flow.widget.core.theme.widgetSurface
+import io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetPublisher
 import kotlinx.coroutines.flow.first
 import kotlin.math.min
 
@@ -81,12 +84,19 @@ class TurntableWidget : GlanceAppWidget() {
         val initialDisc = loadDisc(context, initialSnapshot?.artworkUrl, discPx)
         val colorsFlow = widgetColorsFlow(context)
         val initialColors = colorsFlow.first()
+        val styleFlow = PlayerPreferences(context).musicPlayerBackgroundStyle
+        val initialStyle = styleFlow.first()
+        val initialArtworkColors = artworkColorProviders(context, initialSnapshot?.artworkUrl, initialStyle, initialColors)
 
         provideContent {
             val snapshot by snapshotFlow.collectAsState(initialSnapshot)
             val disc by produceState(initialDisc, snapshot?.artworkUrl) { value = loadDisc(context, snapshot?.artworkUrl, discPx) }
             val colors by colorsFlow.collectAsState(initialColors)
-            FlowGlanceTheme(colors) {
+            val style by styleFlow.collectAsState(initialStyle)
+            val artworkColors by produceState<ColorProviders?>(initialArtworkColors, snapshot?.artworkUrl, style, colors) {
+                value = artworkColorProviders(context, snapshot?.artworkUrl, style, colors)
+            }
+            FlowGlanceTheme(artworkColors ?: colors) {
                 TurntableContent(snapshot = snapshot, disc = disc)
             }
         }

@@ -41,7 +41,7 @@ fun rememberMusicPlayerColorScheme(
  * come from the cover, but every role gets a fixed tone re-clamped against the surface, so
  * readability no longer depends on how light or dark the extracted swatches happen to be.
  */
-private fun paletteColorScheme(
+internal fun paletteColorScheme(
     palette: MediaPalette,
     appError: Color,
 ): ColorScheme {
