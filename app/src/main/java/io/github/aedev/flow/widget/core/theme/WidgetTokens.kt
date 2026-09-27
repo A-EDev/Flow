@@ -30,6 +30,9 @@ internal object WidgetDimens {
 /** The app's own type scale for widgets. Glance draws only system families, which is what the app uses. */
 internal object WidgetText {
     @Composable
+    fun headline(color: ColorProvider = GlanceTheme.colors.onSurface) = Typography.headlineLargeEmphasized.toGlance(color)
+
+    @Composable
     fun titleMedium(color: ColorProvider = GlanceTheme.colors.onSurface) = Typography.titleMedium.toGlance(color)
 
     @Composable
@@ -72,6 +75,12 @@ internal fun GlanceModifier.innerCorners(): GlanceModifier =
 
 /** Below Android 12 nothing clips an image, so its corners are rounded into the bitmap instead. */
 internal fun bakedCornerRadiusPx(context: Context): Float =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0f else WidgetDimens.InnerCornerFallback.value * context.resources.displayMetrics.density
+    if (Build.VERSION.SDK_INT >=
+        Build.VERSION_CODES.S
+    ) {
+        0f
+    } else {
+        WidgetDimens.InnerCornerFallback.value * context.resources.displayMetrics.density
+    }
 
 internal fun Context.dpToPx(dp: Float): Int = (dp * resources.displayMetrics.density).toInt().coerceAtLeast(1)

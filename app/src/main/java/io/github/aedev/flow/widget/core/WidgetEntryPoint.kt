@@ -10,6 +10,7 @@ import io.github.aedev.flow.widget.downloads.DownloadsSource
 import io.github.aedev.flow.widget.onrepeat.OnRepeatSource
 import io.github.aedev.flow.widget.playlist.PlaylistWidgetSource
 import io.github.aedev.flow.widget.recent.RecentlyPlayedSource
+import io.github.aedev.flow.widget.week.WeekSource
 
 /**
  * Glance widgets can't use constructor injection (the framework instantiates them),
@@ -25,6 +26,8 @@ interface WidgetEntryPoint {
     fun onRepeatSource(): OnRepeatSource
 
     fun playlistWidgetSource(): PlaylistWidgetSource
+
+    fun weekSource(): WeekSource
 
     fun widgetContentSync(): WidgetContentSync
 }

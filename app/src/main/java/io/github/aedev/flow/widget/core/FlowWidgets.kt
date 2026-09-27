@@ -32,6 +32,8 @@ import io.github.aedev.flow.widget.recognize.RecognizeWidget
 import io.github.aedev.flow.widget.recognize.RecognizeWidgetReceiver
 import io.github.aedev.flow.widget.turntable.TurntableWidget
 import io.github.aedev.flow.widget.turntable.TurntableWidgetReceiver
+import io.github.aedev.flow.widget.week.WeekWidget
+import io.github.aedev.flow.widget.week.WeekWidgetReceiver
 import kotlin.reflect.KClass
 
 /** Registry of every Flow widget: re-renders them on theme changes, publishes previews, lists them in Settings. */
@@ -121,6 +123,14 @@ object FlowWidgets {
                 label = R.string.widget_playlist_label,
                 description = R.string.widget_playlist_description,
                 icon = R.drawable.ic_widget_library,
+            ),
+            FlowWidgetEntry(
+                id = "week",
+                receiver = WeekWidgetReceiver::class,
+                widget = ::WeekWidget,
+                label = R.string.widget_week_label,
+                description = R.string.widget_week_description,
+                icon = R.drawable.ic_widget_history,
             ),
             FlowWidgetEntry(
                 id = "continue_watching",

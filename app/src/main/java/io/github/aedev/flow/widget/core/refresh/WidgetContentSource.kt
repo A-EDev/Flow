@@ -21,4 +21,5 @@ enum class WidgetContentKey {
     DOWNLOADS,
     ON_REPEAT,
     PLAYLISTS,
+    WEEK,
 }

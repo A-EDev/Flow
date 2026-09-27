@@ -12,6 +12,7 @@ import io.github.aedev.flow.widget.downloads.DownloadsSource
 import io.github.aedev.flow.widget.onrepeat.OnRepeatSource
 import io.github.aedev.flow.widget.playlist.PlaylistWidgetSource
 import io.github.aedev.flow.widget.recent.RecentlyPlayedSource
+import io.github.aedev.flow.widget.week.WeekSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,8 +54,9 @@ class WidgetContentSync
         downloads: DownloadsSource,
         onRepeat: OnRepeatSource,
         playlists: PlaylistWidgetSource,
+        week: WeekSource,
     ) {
-        private val sources = listOf(recentlyPlayed, downloads, onRepeat, playlists)
+        private val sources = listOf(recentlyPlayed, downloads, onRepeat, playlists, week)
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         private val placementChanged = MutableSharedFlow<Unit>(replay = 1).apply { tryEmit(Unit) }
         private val requests = MutableSharedFlow<WidgetContentKey>(extraBufferCapacity = 8)
@@ -95,8 +97,7 @@ class WidgetContentSync
                     } else {
                         emptyFlow()
                     }
-                }
-                .debounce(SETTLE_MS)
+                }.debounce(SETTLE_MS)
                 .collect { renderIfChanged(source) }
         }
 

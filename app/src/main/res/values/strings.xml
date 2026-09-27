@@ -2928,6 +2928,10 @@
         <item quantity="one">%d video</item>
         <item quantity="other">%d videos</item>
     </plurals>
+    <string name="widget_week_label">Your week</string>
+    <string name="widget_week_description">Your watching and listening over the last seven days</string>
+    <string name="widget_week_title">Last 7 days</string>
+    <string name="widget_week_top_artist">Top artist this month</string>
     <string name="settings_widgets_title">Widgets</string>
     <string name="settings_widgets_summary">Put Flow on your home screen</string>
     <string name="settings_widgets_add_header">Add to home screen</string>

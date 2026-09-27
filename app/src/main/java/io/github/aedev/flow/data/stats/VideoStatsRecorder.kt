@@ -12,6 +12,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -44,6 +47,10 @@ class VideoStatsRecorder
         private var ledger = VideoStatsLedger()
         private var initialized = false
         private var pendingSave: Job? = null
+        private val saved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+        /** Emits after each save of the ledger, for readers that show its totals outside the app. */
+        val changes: Flow<Unit> = saved.asSharedFlow()
 
         /** A finished view. [video] supplies the topics; without it the view still counts, topic-less. */
         fun onView(
@@ -152,6 +159,7 @@ class VideoStatsRecorder
                             knownKeys = ledger.seedChannels,
                         ) { ledger.months.filterKeys { it != currentKey }.mapValues { it.value.toRecord() } }
                     }
+                    saved.tryEmit(Unit)
                 }
         }
 
