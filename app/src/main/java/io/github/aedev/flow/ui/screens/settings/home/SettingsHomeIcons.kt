@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.VolunteerActivism
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.outlined.WorkHistory
 import androidx.compose.ui.graphics.vector.ImageVector
 import io.github.aedev.flow.ui.components.settings.SettingsDestination
@@ -46,6 +47,7 @@ internal fun destinationIcon(destination: SettingsDestination): ImageVector =
         SettingsDestination.NOTIFICATIONS -> Icons.Outlined.NotificationsNone
         SettingsDestination.NETWORK -> Icons.Outlined.Public
         SettingsDestination.WELLBEING -> Icons.Outlined.SelfImprovement
+        SettingsDestination.WIDGETS -> Icons.Outlined.Widgets
         SettingsDestination.ABOUT -> Icons.Outlined.Info
         SettingsDestination.DIAGNOSTICS -> Icons.Outlined.BugReport
         else -> Icons.Outlined.Settings

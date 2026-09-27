@@ -85,6 +85,7 @@ object FlowWidgets {
     val catalog: List<FlowWidgetEntry> =
         listOf(
             FlowWidgetEntry(
+                id = "now_playing",
                 receiver = NowPlayingWidgetReceiver::class,
                 widget = ::NowPlayingWidget,
                 label = R.string.widget_now_playing_label,
@@ -92,6 +93,7 @@ object FlowWidgets {
                 icon = R.drawable.ic_widget_music,
             ),
             FlowWidgetEntry(
+                id = "turntable",
                 receiver = TurntableWidgetReceiver::class,
                 widget = ::TurntableWidget,
                 label = R.string.widget_turntable_label,
@@ -99,6 +101,7 @@ object FlowWidgets {
                 icon = R.drawable.ic_music_note,
             ),
             FlowWidgetEntry(
+                id = "on_repeat",
                 receiver = OnRepeatWidgetReceiver::class,
                 widget = ::OnRepeatWidget,
                 label = R.string.widget_on_repeat_label,
@@ -106,6 +109,7 @@ object FlowWidgets {
                 icon = R.drawable.ic_repeat,
             ),
             FlowWidgetEntry(
+                id = "continue_watching",
                 receiver = RecentlyPlayedWidgetReceiver::class,
                 widget = ::RecentlyPlayedWidget,
                 label = R.string.widget_recently_played_label,
@@ -113,6 +117,7 @@ object FlowWidgets {
                 icon = R.drawable.ic_widget_history,
             ),
             FlowWidgetEntry(
+                id = "downloads",
                 receiver = DownloadsWidgetReceiver::class,
                 widget = ::DownloadsWidget,
                 label = R.string.widget_downloads_label,
@@ -120,6 +125,7 @@ object FlowWidgets {
                 icon = R.drawable.ic_widget_download,
             ),
             FlowWidgetEntry(
+                id = "quick_actions",
                 receiver = QuickActionsWidgetReceiver::class,
                 widget = ::QuickActionsWidget,
                 label = R.string.widget_quick_actions_label,
@@ -127,6 +133,7 @@ object FlowWidgets {
                 icon = R.drawable.ic_widget_search,
             ),
             FlowWidgetEntry(
+                id = "recognize",
                 receiver = RecognizeWidgetReceiver::class,
                 widget = ::RecognizeWidget,
                 label = R.string.widget_recognize_label,
@@ -138,6 +145,7 @@ object FlowWidgets {
 
 /** One widget as Settings lists it: what to pin, and how to describe it. */
 class FlowWidgetEntry(
+    val id: String,
     val receiver: KClass<out GlanceAppWidgetReceiver>,
     val widget: () -> GlanceAppWidget,
     @StringRes val label: Int,

@@ -2915,6 +2915,12 @@
     <string name="widget_open_music">Open Music</string>
     <string name="widget_config_shortcuts">Shortcuts</string>
     <string name="widget_config_shortcuts_footer">Choose up to four. Search is always there.</string>
+    <string name="settings_widgets_title">Widgets</string>
+    <string name="settings_widgets_summary">Put Flow on your home screen</string>
+    <string name="settings_widgets_add_header">Add to home screen</string>
+    <string name="settings_widgets_footer">Tap one to place it, or long-press your home screen.</string>
+    <string name="settings_widgets_unsupported">Your launcher can\'t add widgets for apps. Long-press your home screen to add one.</string>
+    <string name="settings_keywords_widgets">home screen, launcher, widget, now playing, turntable</string>
     <!-- Localization follow-up (#738) -->
     <string name="ui_open_in_youtube">Open in YouTube</string>
     <string name="ui_playback_error">Playback error</string>
