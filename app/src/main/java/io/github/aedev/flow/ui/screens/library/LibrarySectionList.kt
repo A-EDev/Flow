@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.library
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -10,6 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.library.LibraryNavigationRow
+import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 
 @Composable
 internal fun LibrarySectionList(
@@ -23,7 +25,7 @@ internal fun LibrarySectionList(
     onNavigateToSavedShorts: () -> Unit,
     onNavigateToDownloads: () -> Unit,
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+    Column(modifier = Modifier.widthIn(max = FlowMaxContentWidth).padding(horizontal = 16.dp)) {
         LibrarySectionHeader(stringResource(R.string.library_section_header))
         LibrarySectionRow(LibrarySection.HISTORY, counts, onNavigateToHistory)
         LibrarySectionRow(LibrarySection.PLAYLISTS, counts, onNavigateToPlaylists)
