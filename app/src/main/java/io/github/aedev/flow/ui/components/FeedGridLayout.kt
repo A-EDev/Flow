@@ -11,10 +11,10 @@ import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import io.github.aedev.flow.ui.theme.Dimensions
 
 /**
- * Narrowest a grid cell may be before the grid drops a column. Picked so the counts the per-screen
- * width tables produced at 700 dp, 900 dp and 1200 dp survive.
+ * Narrowest a grid cell may be before the grid drops a column: a 260 dp card plus the 12 dp gutter
+ * the grid used to add between cells, so the counts the per-screen width tables produced survive.
  */
-private val FeedCardMinWidth = 260.dp
+private val FeedCardMinWidth = 272.dp
 
 /** Widest a capped cell may grow before a very wide window adds a column anyway. */
 private val FeedCardMaxWidth = 460.dp

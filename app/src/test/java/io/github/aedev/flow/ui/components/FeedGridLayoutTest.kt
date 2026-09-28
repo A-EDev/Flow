@@ -48,6 +48,8 @@ class FeedGridLayoutTest {
     @Test
     fun `the counts the width tables produced survive at their own breakpoints`() {
         assertThat(columnsAt(700.dp)).isEqualTo(2)
+        assertThat(columnsAt(800.dp)).isEqualTo(2)
+        assertThat(columnsAt(745.dp)).isEqualTo(2)
         assertThat(columnsAt(900.dp)).isEqualTo(3)
         assertThat(columnsAt(1200.dp)).isEqualTo(4)
     }
