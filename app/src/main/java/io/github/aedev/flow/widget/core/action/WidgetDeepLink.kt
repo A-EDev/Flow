@@ -48,11 +48,13 @@ object WidgetDeepLink {
 
     fun shuffleOnRepeat(context: Context): Intent = openRoute(context, ON_REPEAT_SHUFFLE_ROUTE)
 
+    /** Plays a playlist from the top, or from [startVideoId] when a row of it was tapped. */
     fun playPlaylist(
         context: Context,
         playlistId: String,
         shuffle: Boolean,
-    ): Intent = openRoute(context, widgetPlaylistRoute(playlistId, shuffle))
+        startVideoId: String? = null,
+    ): Intent = openRoute(context, widgetPlaylistRoute(playlistId, shuffle, startVideoId))
 
     /** The playlist's own page: music playlists open in the music collection page. */
     fun openPlaylist(

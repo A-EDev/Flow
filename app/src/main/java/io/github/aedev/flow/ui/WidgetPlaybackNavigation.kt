@@ -19,12 +19,15 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.widgets.WidgetPlaybackViewModel
 
 internal const val ON_REPEAT_SHUFFLE_ROUTE = "onRepeatShuffle"
-private const val WIDGET_PLAYLIST_ROUTE = "widgetPlaylist/{playlistId}?shuffle={shuffle}"
+private const val WIDGET_PLAYLIST_ROUTE = "widgetPlaylist/{playlistId}?shuffle={shuffle}&start={start}"
 
 internal fun widgetPlaylistRoute(
     playlistId: String,
     shuffle: Boolean,
-): String = "widgetPlaylist/${Uri.encode(playlistId)}?shuffle=$shuffle"
+    startVideoId: String? = null,
+): String =
+    "widgetPlaylist/${Uri.encode(playlistId)}?shuffle=$shuffle" +
+        startVideoId?.let { "&start=${Uri.encode(it)}" }.orEmpty()
 
 /** Routes a home-screen widget opens to start playback; each plays, then leaves at once. */
 internal fun NavGraphBuilder.widgetPlaybackRoutes(
@@ -57,23 +60,33 @@ internal fun NavGraphBuilder.widgetPlaybackRoutes(
                     type = NavType.BoolType
                     defaultValue = false
                 },
+                navArgument("start") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
             ),
     ) { entry ->
         currentRoute.value = "musicPlayer"
         val playlistId = entry.arguments?.getString("playlistId").orEmpty()
         val shuffle = entry.arguments?.getBoolean("shuffle") ?: false
+        val startVideoId = entry.arguments?.getString("start")
         val musicPlayerViewModel = sharedMusicPlayerViewModel()
         val playlists: WidgetPlaybackViewModel = hiltViewModel()
-        LaunchedEffect(playlistId, shuffle) {
+        LaunchedEffect(playlistId, shuffle, startVideoId) {
             val (playlist, videos) = playlists.playlist(playlistId)
             if (playlist != null && videos.isNotEmpty()) {
-                if (playlist.isMusic) {
+                val start = videos.indexOfFirst { it.id == startVideoId }.coerceAtLeast(0)
+                // A tapped row decides the player, as on the playlist page: Watch later mixes songs and videos.
+                val music = if (startVideoId != null) videos[start].isMusic else playlist.isMusic
+                if (music) {
                     if (playerViewModel.uiState.value.cachedVideo != null) GlobalPlayerState.requestDismiss()
-                    val tracks = videos.map { it.toMusicTrack() }.let { if (shuffle) it.shuffled() else it }
-                    musicPlayerViewModel.loadAndPlayTrack(tracks.first(), tracks, playlist.name)
+                    val tracks = videos.filter { it.isMusic }.map { it.toMusicTrack() }.let { if (shuffle) it.shuffled() else it }
+                    val first = if (startVideoId != null) videos[start].toMusicTrack() else tracks.first()
+                    musicPlayerViewModel.loadAndPlayTrack(first, tracks, playlist.name)
                     onMusicStarted()
                 } else {
-                    playerViewModel.playPlaylist(videos, 0, playlist.name, shuffle)
+                    playerViewModel.playPlaylist(videos, start, playlist.name, shuffle)
                 }
             }
             withFrameNanos { }

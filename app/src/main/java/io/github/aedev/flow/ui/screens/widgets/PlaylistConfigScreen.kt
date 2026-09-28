@@ -15,9 +15,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.settings.SettingsPage
-import io.github.aedev.flow.ui.components.settings.notice
 import io.github.aedev.flow.ui.components.shared.FlowSelectionRow
 import io.github.aedev.flow.widget.playlist.PlaylistWidgetConfig
+import io.github.aedev.flow.widget.playlist.PlaylistWidgetSource
 import kotlinx.coroutines.launch
 
 /** Picks the playlist one Playlist widget shows; choosing one saves it and closes. */
@@ -31,11 +31,10 @@ internal fun PlaylistConfigScreen(
     val scope = rememberCoroutineScope()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     var current by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(glanceId) { current = PlaylistWidgetConfig.load(context, glanceId) }
+    LaunchedEffect(glanceId) { current = PlaylistWidgetConfig.load(context, glanceId) ?: PlaylistWidgetSource.DEFAULT_PLAYLIST_ID }
     val options = playlists ?: return
 
     SettingsPage(title = stringResource(R.string.widget_playlist_label), onBack = onDone) {
-        if (options.isEmpty()) notice("playlist.none", text = { stringResource(R.string.widget_no_playlists) })
         group(key = "playlist.choose", header = R.string.widget_config_playlist) {
             options.forEach { playlist ->
                 row("playlist.${playlist.id}") { shape ->

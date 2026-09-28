@@ -2916,10 +2916,11 @@
     <string name="widget_config_shortcuts">Shortcuts</string>
     <string name="widget_config_shortcuts_footer">Choose up to four. Search is always there.</string>
     <string name="widget_playlist_label">Playlist</string>
-    <string name="widget_playlist_description">Play or shuffle a playlist you choose</string>
+    <string name="widget_playlist_description">Watch later or any playlist, one tap from playing</string>
     <string name="widget_choose_playlist">Choose a playlist</string>
     <string name="widget_config_playlist">Your playlists</string>
-    <string name="widget_no_playlists">Make a playlist in Flow first, then come back to pick it.</string>
+    <string name="widget_playlist_empty">Nothing here yet</string>
+    <string name="widget_refresh">Refresh</string>
     <plurals name="widget_playlist_songs">
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>
