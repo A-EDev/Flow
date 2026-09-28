@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.playlists
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -19,6 +21,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.library.PlaylistVideoRow
+import io.github.aedev.flow.ui.components.library.libraryListThumbnailWidth
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.ReorderableLazyListState
@@ -53,64 +56,68 @@ internal fun PlaylistDetailList(
     contentPadding: PaddingValues = PaddingValues(bottom = flowBottomContentPadding()),
     header: (@Composable () -> Unit)? = null,
 ) {
-    LazyColumn(state = listState, modifier = modifier.fillMaxSize(), contentPadding = contentPadding) {
-        if (header != null) item(key = "playlist-header", contentType = "header") { header() }
-        if (videos.isEmpty() && mode.searchQuery.isNotBlank()) {
-            item(key = "playlist-no-results", contentType = "empty") {
-                FlowEmptyState(
-                    title = stringResource(R.string.playlist_search_no_results, mode.searchQuery.trim()),
-                    icon = Icons.Outlined.SearchOff,
-                )
-            }
-        } else if (videos.isEmpty() && !isLoadingMore) {
-            item(key = "playlist-empty", contentType = "empty") {
-                when {
-                    mode.isLikes -> {
-                        FlowEmptyState(
-                            title = stringResource(R.string.liked_videos_empty_title),
-                            subtitle = stringResource(R.string.liked_videos_empty_body),
-                            icon = Icons.Outlined.ThumbUp,
-                        )
-                    }
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val thumbnailWidth = remember(maxWidth) { libraryListThumbnailWidth(maxWidth) }
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = contentPadding) {
+            if (header != null) item(key = "playlist-header", contentType = "header") { header() }
+            if (videos.isEmpty() && mode.searchQuery.isNotBlank()) {
+                item(key = "playlist-no-results", contentType = "empty") {
+                    FlowEmptyState(
+                        title = stringResource(R.string.playlist_search_no_results, mode.searchQuery.trim()),
+                        icon = Icons.Outlined.SearchOff,
+                    )
+                }
+            } else if (videos.isEmpty() && !isLoadingMore) {
+                item(key = "playlist-empty", contentType = "empty") {
+                    when {
+                        mode.isLikes -> {
+                            FlowEmptyState(
+                                title = stringResource(R.string.liked_videos_empty_title),
+                                subtitle = stringResource(R.string.liked_videos_empty_body),
+                                icon = Icons.Outlined.ThumbUp,
+                            )
+                        }
 
-                    mode.isWatchLater -> {
-                        FlowEmptyState(
-                            title = stringResource(R.string.no_videos_saved),
-                            subtitle = stringResource(R.string.no_videos_saved_body),
-                            icon = Icons.Default.WatchLater,
-                        )
-                    }
+                        mode.isWatchLater -> {
+                            FlowEmptyState(
+                                title = stringResource(R.string.no_videos_saved),
+                                subtitle = stringResource(R.string.no_videos_saved_body),
+                                icon = Icons.Default.WatchLater,
+                            )
+                        }
 
-                    else -> {
-                        FlowEmptyState(
-                            title = stringResource(R.string.playlist_empty_title),
-                            subtitle = stringResource(R.string.playlist_empty_desc),
-                            icon = Icons.AutoMirrored.Filled.PlaylistPlay,
-                        )
+                        else -> {
+                            FlowEmptyState(
+                                title = stringResource(R.string.playlist_empty_title),
+                                subtitle = stringResource(R.string.playlist_empty_desc),
+                                icon = Icons.AutoMirrored.Filled.PlaylistPlay,
+                            )
+                        }
                     }
                 }
             }
-        }
-        itemsIndexed(items = videos, key = { _, video -> video.id }, contentType = { _, _ -> "playlist-video" }) { index, video ->
-            PlaylistVideoRow(
-                modifier = if (mode.canReorder) Modifier else animateMediaListItem(),
-                video = video,
-                isSelected = video.id in mode.selectedIds,
-                inSelectionMode = mode.selectionMode,
-                canModify = mode.canModify,
-                reorderModifier = if (mode.canReorder) reorderState.itemModifier(index) else Modifier,
-                dragHandleModifier = if (mode.canReorder && !mode.selectionMode) reorderState.handleModifier(index) else Modifier,
-                showDragHandle = mode.canReorder,
-                showAddedDate = mode.showAddedDate,
-                isWatchLater = mode.isWatchLater,
-                isLikes = mode.isLikes,
-                onRemove = { onRemove(video) },
-                onClick = { onVideoClick(index, video) },
-            )
-        }
-        if (isLoadingMore) {
-            item(key = "playlist-loading-more", contentType = "loading") {
-                FlowLoadingIndicator(modifier = Modifier.padding(vertical = 24.dp))
+            itemsIndexed(items = videos, key = { _, video -> video.id }, contentType = { _, _ -> "playlist-video" }) { index, video ->
+                PlaylistVideoRow(
+                    modifier = if (mode.canReorder) Modifier else animateMediaListItem(),
+                    video = video,
+                    isSelected = video.id in mode.selectedIds,
+                    inSelectionMode = mode.selectionMode,
+                    canModify = mode.canModify,
+                    reorderModifier = if (mode.canReorder) reorderState.itemModifier(index) else Modifier,
+                    dragHandleModifier = if (mode.canReorder && !mode.selectionMode) reorderState.handleModifier(index) else Modifier,
+                    showDragHandle = mode.canReorder,
+                    showAddedDate = mode.showAddedDate,
+                    isWatchLater = mode.isWatchLater,
+                    isLikes = mode.isLikes,
+                    onRemove = { onRemove(video) },
+                    onClick = { onVideoClick(index, video) },
+                    thumbnailWidth = thumbnailWidth,
+                )
+            }
+            if (isLoadingMore) {
+                item(key = "playlist-loading-more", contentType = "loading") {
+                    FlowLoadingIndicator(modifier = Modifier.padding(vertical = 24.dp))
+                }
             }
         }
     }
