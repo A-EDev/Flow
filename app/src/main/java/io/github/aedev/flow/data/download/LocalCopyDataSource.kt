@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.download
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
@@ -12,7 +13,7 @@ import androidx.media3.datasource.TransferListener
  * bytes under the same id, and everything else goes to [remote]. Media3 routes data sources by
  * URI scheme only, never by a lookup, so this one just picks between the two it is given.
  */
-@UnstableApi
+@OptIn(UnstableApi::class)
 internal class LocalCopyDataSource(
     private val local: DataSource,
     private val remote: DataSource,

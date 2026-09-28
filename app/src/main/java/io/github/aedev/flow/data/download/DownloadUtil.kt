@@ -5,36 +5,23 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
 import androidx.media3.common.C
-import androidx.media3.database.DatabaseProvider
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
-import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
-import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadManager
-import androidx.media3.exoplayer.offline.DownloadNotificationHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.di.DownloadCache
 import io.github.aedev.flow.di.PlayerCache
 import io.github.aedev.flow.network.AppProxyManager
-import io.github.aedev.flow.service.ExoDownloadService
 import io.github.aedev.flow.utils.MusicPlayerUtils
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.io.File
-import java.io.IOException
-import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,7 +31,6 @@ class DownloadUtil
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
-        private val databaseProvider: DatabaseProvider,
         @DownloadCache private val downloadCache: SimpleCache,
         @PlayerCache private val playerCache: SimpleCache,
         private val downloadDao: DownloadDao,
@@ -57,104 +43,11 @@ class DownloadUtil
 
         private val songUrlCache = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, Long>>()
 
-        // Download-specific cache storing range-appended URLs for full-speed downloads
-        private val downloadUrlCache = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, Long>>()
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
-
         private val okHttpClient: OkHttpClient by lazy {
             AppProxyManager
                 .applyTo(OkHttpClient.Builder())
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
-                .build()
-        }
-
-        /**
-         * DataSource factory for DOWNLOADS - writes to downloadCache.
-         * Used by DownloadManager for downloading tracks for offline playback.
-         */
-        val dataSourceFactory: ResolvingDataSource.Factory
-            get() =
-                ResolvingDataSource.Factory(
-                    CacheDataSource
-                        .Factory()
-                        .setCache(downloadCache)
-                        .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(downloadCache))
-                        .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
-                        .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR),
-                ) { dataSpec ->
-                    resolveDataSpec(dataSpec, "Download")
-                }
-
-        /**
-         * Resolve DataSpec by looking up cached URL or fetching from network.
-         */
-        private fun resolveDataSpec(
-            dataSpec: DataSpec,
-            source: String,
-        ): DataSpec {
-            if (dataSpec.uri.scheme in setOf("file", "content", "android.resource")) {
-                return dataSpec
-            }
-
-            val mediaId = dataSpec.key ?: error("No media id (key) in dataSpec")
-
-            Log.d(TAG, "[$source] Resolving for $mediaId")
-
-            try {
-                val cachedSpans = downloadCache.getCachedSpans(mediaId)
-                if (cachedSpans.isNotEmpty()) {
-                    val totalCached = cachedSpans.sumOf { it.length }
-                    Log.d(TAG, "[$source] $mediaId found in downloadCache (${totalCached / 1024}KB)")
-                    return dataSpec
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "[$source] Error checking downloadCache for $mediaId: ${e.message}")
-            }
-            // Check download-specific cache (stores range-appended URLs for full-speed downloads)
-            downloadUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
-                Log.d(TAG, "[$source] Using cached download URL for $mediaId")
-                return dataSpec
-                    .buildUpon()
-                    .setUri(url.toUri())
-                    .setHttpRequestHeaders(mapOf("User-Agent" to ua))
-                    .build()
-            }
-
-            Log.d(TAG, "[$source] Resolving URL from network for $mediaId")
-            val playbackData =
-                runBlocking(Dispatchers.IO) {
-                    MusicPlayerUtils.playerResponseForPlayback(mediaId)
-                }.getOrElse { e ->
-                    Log.e(TAG, "[$source] Failed to resolve $mediaId: ${e.message}")
-                    throw IOException("Could not resolve URL for $mediaId: ${e.message}", e)
-                }
-
-            val streamUrl = playbackData.streamUrl
-            val userAgent = playbackData.usedClient.userAgent
-            val expiration = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds - 60) * 1000L
-
-            songUrlCache[mediaId] = Triple(streamUrl, userAgent, expiration)
-
-            // Append &range=0-{contentLength} so YouTube CDN serves the full file at full speed
-            // Without this, WEB_REMIX streams are throttled to ~real-time playback speed
-            val contentLength = playbackData.format.contentLength
-            val downloadUrl =
-                if (contentLength != null) {
-                    val sep = if ("?" in streamUrl) "&" else "?"
-                    "${streamUrl}${sep}range=0-$contentLength"
-                } else {
-                    streamUrl
-                }
-
-            downloadUrlCache[mediaId] = Triple(downloadUrl, userAgent, expiration)
-            Log.d(TAG, "[$source] Resolved $mediaId via ${playbackData.usedClient.clientName}, contentLength=$contentLength")
-
-            return dataSpec
-                .buildUpon()
-                .setUri(downloadUrl.toUri())
-                .setHttpRequestHeaders(mapOf("User-Agent" to userAgent))
                 .build()
         }
 
@@ -286,7 +179,6 @@ class DownloadUtil
          */
         fun invalidateUrlCache(mediaId: String) {
             songUrlCache.remove(mediaId)
-            downloadUrlCache.remove(mediaId)
             Log.d(TAG, "Invalidated URL cache for $mediaId")
         }
 
@@ -295,7 +187,6 @@ class DownloadUtil
          */
         fun clearUrlCache() {
             songUrlCache.clear()
-            downloadUrlCache.clear()
             Log.d(TAG, "Cleared all URL cache entries")
         }
 
@@ -316,81 +207,4 @@ class DownloadUtil
 
             MusicPlayerUtils.forceRefreshForVideo(mediaId)
         }
-
-        /**
-         * Check if a track is fully downloaded and available offline.
-         */
-        fun isFullyDownloaded(mediaId: String): Boolean {
-            val download = downloads.value[mediaId] ?: return false
-            return download.state == Download.STATE_COMPLETED
-        }
-
-        /**
-         * Check if a track's audio is in the downloadCache and available for offline playback.
-         * This checks the actual cache content, not just the download state.
-         */
-        fun isCachedForOffline(mediaId: String): Boolean =
-            try {
-                val spans = downloadCache.getCachedSpans(mediaId)
-                if (spans.isEmpty()) {
-                    false
-                } else {
-                    val totalCached = spans.sumOf { it.length }
-                    Log.d(TAG, "[CacheCheck] $mediaId has ${totalCached / 1024}KB in cache")
-                    totalCached >= 100 * 1024
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "[CacheCheck] Error checking cache for $mediaId: ${e.message}")
-                false
-            }
-
-        val downloadNotificationHelper = DownloadNotificationHelper(context, ExoDownloadService.CHANNEL_ID)
-
-        val downloadManager: DownloadManager =
-            DownloadManager(
-                context,
-                databaseProvider,
-                downloadCache,
-                dataSourceFactory,
-                Executor(Runnable::run),
-            ).apply {
-                maxParallelDownloads = 3
-                addListener(
-                    object : DownloadManager.Listener {
-                        override fun onDownloadChanged(
-                            downloadManager: DownloadManager,
-                            download: Download,
-                            finalException: Exception?,
-                        ) {
-                            downloads.update { it.toMutableMap().apply { set(download.request.id, download) } }
-                        }
-
-                        override fun onDownloadRemoved(
-                            downloadManager: DownloadManager,
-                            download: Download,
-                        ) {
-                            downloads.update { it - download.request.id }
-                        }
-                    },
-                )
-            }
-
-        init {
-            scope.launch {
-                val result = mutableMapOf<String, Download>()
-                try {
-                    downloadManager.downloadIndex.getDownloads().use { cursor ->
-                        while (cursor.moveToNext()) {
-                            val download = cursor.download
-                            result[download.request.id] = download
-                        }
-                    }
-                    downloads.value = result
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to load the download index", e)
-                }
-            }
-        }
-
-        fun getDownloadManagerInstance() = downloadManager
     }

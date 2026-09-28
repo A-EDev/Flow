@@ -237,16 +237,6 @@
             android:name=".data.video.downloader.work.DownloadActionReceiver"
             android:exported="false" />
 
-        <!-- ExoPlayer Download Service -->
-        <service
-            android:name=".service.ExoDownloadService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync">
-            <intent-filter>
-                <action android:name="androidx.media3.exoplayer.downloadService.action.INIT"/>
-            </intent-filter>
-        </service>
-
         <!-- Device Sync (FLOW-SYNC/1) foreground service: keeps the LAN WebSocket
              transfer alive while the screen is off / app is backgrounded. -->
         <service

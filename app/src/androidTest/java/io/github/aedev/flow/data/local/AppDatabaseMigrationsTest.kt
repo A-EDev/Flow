@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,6 +28,13 @@ class AppDatabaseMigrationsTest {
             driver = AndroidSQLiteDriver(),
             file = instrumentation.targetContext.getDatabasePath(testDb),
         )
+
+    // Both tests build the same file, and a database left at the newest version by one would make
+    // the other's older creation fail.
+    @Before
+    fun deleteLeftoverDatabase() {
+        instrumentation.targetContext.deleteDatabase(testDb)
+    }
 
     @Test
     fun migrateAll() =
@@ -86,8 +94,4 @@ class AppDatabaseMigrationsTest {
                 }
             }
         }
-
-    companion object {
-        private const val TEST_DB = "migration-test"
-    }
 }
