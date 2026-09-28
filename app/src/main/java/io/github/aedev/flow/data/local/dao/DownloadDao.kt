@@ -188,7 +188,7 @@ interface DownloadDao {
     @Query(
         """
         UPDATE download_items SET filePath = :filePath, fileName = :fileName, format = :format, mimeType = :mimeType,
-            downloadedBytes = :size, totalBytes = :size, status = 'COMPLETED'
+            quality = :quality, downloadedBytes = :size, totalBytes = :size, status = 'COMPLETED'
         WHERE id = :itemId
         """,
     )
@@ -198,6 +198,7 @@ interface DownloadDao {
         fileName: String,
         format: String,
         mimeType: String,
+        quality: String,
         size: Long,
     )
 
@@ -249,12 +250,15 @@ interface DownloadDao {
     @Query("SELECT EXISTS(SELECT 1 FROM download_items WHERE status IN ('PENDING', 'DOWNLOADING'))")
     suspend fun hasQueuedDownloads(): Boolean
 
-    /** The queue as the download work drains it: every row not finished, failed or cancelled, oldest first. */
+    /**
+     * Every download as the queue work sees it, oldest first. Finished and failed rows are included
+     * on purpose: a row that left the waiting states still has a running job that must be let finish,
+     * and only a row that is paused, cancelled or gone asks for its job to stop.
+     */
     @Query(
         """
         SELECT d.videoId AS videoId, MIN(d.createdAt) AS createdAt, di.status AS status FROM downloads d
         INNER JOIN download_items di ON d.videoId = di.videoId
-        WHERE di.status IN ('PENDING', 'DOWNLOADING', 'PAUSED')
         GROUP BY d.videoId
         ORDER BY createdAt
         """,

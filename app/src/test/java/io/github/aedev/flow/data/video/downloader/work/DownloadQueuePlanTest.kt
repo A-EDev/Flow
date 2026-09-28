@@ -33,15 +33,15 @@ class DownloadQueuePlanTest {
     }
 
     @Test
-    fun `a paused or removed download is stopped and frees its slot`() {
+    fun `a paused, cancelled or removed download is stopped and frees its slot`() {
         val plan =
             DownloadQueuePlan.of(
-                listOf(row("a", DownloadItemStatus.PAUSED), row("c")),
-                running = setOf("a", "b"),
+                listOf(row("a", DownloadItemStatus.PAUSED), row("d", DownloadItemStatus.CANCELLED), row("c")),
+                running = setOf("a", "b", "d"),
                 limit = 1,
             )
 
-        assertThat(plan.toStop).containsExactly("a", "b")
+        assertThat(plan.toStop).containsExactly("a", "b", "d")
         assertThat(plan.toStart).containsExactly("c")
     }
 
@@ -56,5 +56,28 @@ class DownloadQueuePlanTest {
 
         assertThat(plan.toStop).isEmpty()
         assertThat(plan.toStart).isEmpty()
+    }
+
+    @Test
+    fun `a download that just finished or failed is left to complete its own work`() {
+        val plan =
+            DownloadQueuePlan.of(
+                listOf(row("done", DownloadItemStatus.COMPLETED), row("bad", DownloadItemStatus.FAILED)),
+                running = setOf("done", "bad"),
+                limit = 3,
+            )
+
+        assertThat(plan.toStop).isEmpty()
+        assertThat(plan.toStart).isEmpty()
+    }
+
+    @Test
+    fun `a stop never sends a finished download back to the queue`() {
+        assertThat(stopActionFor(DownloadItemStatus.COMPLETED)).isEqualTo(StopAction.NOTHING)
+        assertThat(stopActionFor(DownloadItemStatus.FAILED)).isEqualTo(StopAction.NOTHING)
+        assertThat(stopActionFor(DownloadItemStatus.PAUSED)).isEqualTo(StopAction.KEEP_PAUSED)
+        assertThat(stopActionFor(DownloadItemStatus.CANCELLED)).isEqualTo(StopAction.DISCARD)
+        assertThat(stopActionFor(null)).isEqualTo(StopAction.DISCARD)
+        assertThat(stopActionFor(DownloadItemStatus.DOWNLOADING)).isEqualTo(StopAction.WAIT)
     }
 }

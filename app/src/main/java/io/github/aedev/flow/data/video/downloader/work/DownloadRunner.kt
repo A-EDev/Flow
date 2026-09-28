@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.video.DownloadProgressUpdate
+import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.downloader.request.DownloadRequest
@@ -132,7 +133,7 @@ class DownloadRunner
                 fail(request, staging, context.getString(R.string.download_failed_save), keepParts = true)
                 return
             }
-            withContext(NonCancellable) { commit(request, staging, itemId, placed, extension, size, cover) }
+            withContext(NonCancellable) { commit(request, staging, itemId, placed, extension, size, qualityOf(fetched), cover) }
         }
 
         private suspend fun commit(
@@ -142,11 +143,12 @@ class DownloadRunner
             placed: PlacedFile,
             extension: String,
             size: Long,
+            quality: String,
             cover: ByteArray?,
         ) {
             val path = placed.path
             val mimeType = if (request.wantsAudioOnly) "audio/mp4" else "video/mp4"
-            downloadDao.completeItem(itemId, path, placed.fileName, extension, mimeType, size)
+            downloadDao.completeItem(itemId, path, placed.fileName, extension, mimeType, quality, size)
             cover?.let { saveCover(request.videoId, it) }?.let { downloadDao.updateThumbnailPath(request.videoId, it) }
             if (!DownloadFiles.isDocument(path)) downloads.scanFile(path, mimeType)
             downloads.emitProgress(DownloadProgressUpdate(request.videoId, itemId, size, size, DownloadItemStatus.COMPLETED))
@@ -156,6 +158,13 @@ class DownloadRunner
                 saveSponsorBlockSegments(request.videoId)
                 runCatching { subtitles.saveForVideo(request.videoId) }.onFailure { Log.w(TAG, "captions not saved", it) }
             }
+        }
+
+        /** What the row shows for the stream it holds: "VP9 1080p60" for a video, "128 kbps" for audio. */
+        private fun qualityOf(fetched: FetchOutcome.Fetched): String {
+            val streams = fetched.streams ?: return ""
+            return streams.video?.let { DownloadStreamPolicy.videoQualityLabel(it, context.getString(R.string.download_quality_hdr)) }
+                ?: "${DownloadStreamPolicy.audioBitrateKbps(streams.audio)} ${context.getString(R.string.kbps)}"
         }
 
         /** Covers live in app storage, so a download shows its artwork offline and after a cache clear. */
@@ -191,26 +200,30 @@ class DownloadRunner
         }
 
         /**
-         * A run stopped from outside. Its row says why: paused (keep the blocks), still queued (the
-         * system stopped the work; keep the blocks and wait), or gone (cancelled; delete everything).
+         * A run stopped from outside. Its row says why: paused (keep the blocks), cancelled or gone
+         * (delete everything), finished or failed (nothing to undo), or still waiting because the
+         * system stopped the work (keep the blocks and wait for the next run).
          */
         private suspend fun onStopped(
             videoId: String,
             request: DownloadRequest,
             staging: DownloadStaging,
         ) {
-            val status = downloadDao.getDownloadWithItems(videoId)?.overallStatus
-            when (status) {
-                null, DownloadItemStatus.CANCELLED -> {
+            when (stopActionFor(downloadDao.getDownloadWithItems(videoId)?.overallStatus)) {
+                StopAction.DISCARD -> {
                     staging.clear()
                     notifier.dismiss(videoId)
                 }
 
-                DownloadItemStatus.PAUSED -> {
+                StopAction.KEEP_PAUSED -> {
                     notifier.show(videoId, request.tags.title, DownloadPhase.Paused)
                 }
 
-                else -> {
+                StopAction.NOTHING -> {
+                    Unit
+                }
+
+                StopAction.WAIT -> {
                     downloadDao.updateAllItemsStatus(videoId, DownloadItemStatus.PENDING)
                     notifier.show(videoId, request.tags.title, DownloadPhase.Queued)
                 }
@@ -232,4 +245,20 @@ class DownloadRunner
             const val TAG = "DownloadRunner"
             const val COVERS_DIR = "download_covers"
         }
+    }
+
+/** What a download stopped from outside leaves behind, by the state its row is in. */
+internal enum class StopAction {
+    DISCARD,
+    KEEP_PAUSED,
+    NOTHING,
+    WAIT,
+}
+
+internal fun stopActionFor(status: DownloadItemStatus?): StopAction =
+    when (status) {
+        null, DownloadItemStatus.CANCELLED -> StopAction.DISCARD
+        DownloadItemStatus.PAUSED -> StopAction.KEEP_PAUSED
+        DownloadItemStatus.COMPLETED, DownloadItemStatus.FAILED -> StopAction.NOTHING
+        DownloadItemStatus.PENDING, DownloadItemStatus.DOWNLOADING -> StopAction.WAIT
     }

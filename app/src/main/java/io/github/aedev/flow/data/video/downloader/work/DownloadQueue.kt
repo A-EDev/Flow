@@ -99,13 +99,16 @@ internal data class DownloadQueuePlan(
     val toStop: List<String>,
 ) {
     companion object {
+        // A job whose row finished or failed is completing on its own and is never stopped.
+        private val STOP_REQUESTS = setOf(DownloadItemStatus.PAUSED, DownloadItemStatus.CANCELLED)
+
         fun of(
             rows: List<QueuedDownload>,
             running: Set<String>,
             limit: Int,
         ): DownloadQueuePlan {
-            val wanted = rows.filter { it.status != DownloadItemStatus.PAUSED }.map { it.videoId }.toSet()
-            val toStop = running.filterNot { it in wanted }
+            val statuses = rows.associate { it.videoId to it.status }
+            val toStop = running.filter { statuses[it] == null || statuses[it] in STOP_REQUESTS }
             val stillRunning = running.size - toStop.size
             val toStart =
                 rows

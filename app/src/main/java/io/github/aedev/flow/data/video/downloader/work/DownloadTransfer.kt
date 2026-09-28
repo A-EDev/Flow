@@ -7,6 +7,7 @@ import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.downloader.request.DownloadRequest
 import io.github.aedev.flow.data.video.downloader.resolve.DownloadStreamResolver
 import io.github.aedev.flow.data.video.downloader.resolve.ResolveOutcome
+import io.github.aedev.flow.data.video.downloader.resolve.ResolvedStreams
 import io.github.aedev.flow.data.video.downloader.transfer.RangeDownloader
 import io.github.aedev.flow.data.video.downloader.transfer.StreamRole
 import io.github.aedev.flow.data.video.downloader.transfer.TransferFailure
@@ -46,6 +47,8 @@ sealed interface FetchOutcome {
         val videoPart: File?,
         val audioPart: File,
         val durationMs: Long,
+        /** The streams it came from, for the quality the row shows; null after a SABR fallback. */
+        val streams: ResolvedStreams? = null,
     ) : FetchOutcome
 
     data class Failed(
@@ -116,7 +119,7 @@ class DownloadTransfer
                     }
                 when (result) {
                     TransferResult.Completed -> {
-                        return FetchOutcome.Fetched(video?.let { staging.videoPart }, staging.audioPart, streams.durationMs)
+                        return FetchOutcome.Fetched(video?.let { staging.videoPart }, staging.audioPart, streams.durationMs, streams)
                     }
 
                     TransferResult.Stopped -> {
