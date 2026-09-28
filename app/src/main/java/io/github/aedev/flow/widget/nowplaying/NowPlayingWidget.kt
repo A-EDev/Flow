@@ -22,7 +22,8 @@ import io.github.aedev.flow.widget.core.theme.widgetColorsFlow
 import kotlinx.coroutines.flow.first
 
 class NowPlayingWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(NowPlayingLayout.sizes)
+    // Exact, so the card's artwork can match the widget's real height.
+    override val sizeMode = SizeMode.Exact
 
     override val previewSizeMode = SizeMode.Responsive(setOf(NowPlayingLayout.STRIP.size, NowPlayingLayout.CARD.size))
 

@@ -1,5 +1,10 @@
 package io.github.aedev.flow.widget.core.component
 
+import android.app.PendingIntent
+import android.os.Build
+import android.util.TypedValue
+import android.widget.RemoteViews
+import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -11,7 +16,9 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.action.Action
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionSendBroadcast
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
 import androidx.glance.layout.Alignment
@@ -22,41 +29,83 @@ import androidx.glance.layout.height
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import io.github.aedev.flow.R
-import io.github.aedev.flow.widget.core.action.NextTrackAction
-import io.github.aedev.flow.widget.core.action.PlayPauseAction
-import io.github.aedev.flow.widget.core.action.PreviousTrackAction
 import io.github.aedev.flow.widget.core.action.ToggleLikeAction
+import io.github.aedev.flow.widget.core.action.WidgetPlaybackCommand
 import io.github.aedev.flow.widget.core.theme.WidgetDimens
 
+/** The resting shape of a pressable button; each squares off further while it is pressed. */
+enum class WidgetButtonShape(
+    @DrawableRes val background: Int,
+) {
+    ROUND(R.drawable.widget_button_round),
+    SQUARE(R.drawable.widget_button_square),
+}
+
 /**
- * One stadium segment of the in-app player's connected button group (PlayerControls.kt): play is
- * the filled dominant one and only its glyph changes with state.
+ * A button the launcher draws as a platform view, so its shape tightens under the finger the way
+ * M3 Expressive buttons do. Before Android 12 a platform view cannot take a theme tint, so it falls
+ * back to a plain Glance button.
  */
 @Composable
-internal fun PlaybackSegment(
-    iconRes: Int,
+internal fun WidgetPressButton(
+    @DrawableRes icon: Int,
     contentDescription: String,
-    onClick: Action,
+    pendingIntent: PendingIntent,
+    fallback: Action,
     modifier: GlanceModifier,
     filled: Boolean = false,
-    height: Dp = WidgetDimens.TouchTarget,
+    shape: WidgetButtonShape = WidgetButtonShape.ROUND,
+    iconSize: Dp = 24.dp,
 ) {
-    Box(
-        modifier =
-            modifier
-                .height(height)
-                .background(if (filled) GlanceTheme.colors.primary else GlanceTheme.colors.secondaryContainer)
-                .cornerRadius(height / 2)
-                .clickable(onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Image(
-            provider = ImageProvider(iconRes),
-            contentDescription = contentDescription,
-            modifier = GlanceModifier.size(height * if (filled) 0.55f else 0.5f),
-            colorFilter = ColorFilter.tint(if (filled) GlanceTheme.colors.onPrimary else GlanceTheme.colors.onSecondaryContainer),
-        )
+    val context = LocalContext.current
+    val container = if (filled) GlanceTheme.colors.primary else GlanceTheme.colors.secondaryContainer
+    val content = if (filled) GlanceTheme.colors.onPrimary else GlanceTheme.colors.onSecondaryContainer
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val views =
+            RemoteViews(context.packageName, R.layout.widget_playback_button).apply {
+                setInt(R.id.widget_button, "setBackgroundResource", shape.background)
+                setColorProvider(R.id.widget_button, "setBackgroundTintList", container, context)
+                setImageViewResource(R.id.widget_button_icon, icon)
+                setColorProvider(R.id.widget_button_icon, "setImageTintList", content, context)
+                setViewLayoutWidth(R.id.widget_button_icon, iconSize.value, TypedValue.COMPLEX_UNIT_DIP)
+                setViewLayoutHeight(R.id.widget_button_icon, iconSize.value, TypedValue.COMPLEX_UNIT_DIP)
+                setContentDescription(R.id.widget_button, contentDescription)
+                setOnClickPendingIntent(R.id.widget_button, pendingIntent)
+            }
+        AndroidRemoteViews(views, modifier)
+    } else {
+        Box(modifier = modifier.background(container).clickable(fallback), contentAlignment = Alignment.Center) {
+            Image(
+                provider = ImageProvider(icon),
+                contentDescription = contentDescription,
+                modifier = GlanceModifier.size(iconSize),
+                colorFilter = ColorFilter.tint(content),
+            )
+        }
     }
+}
+
+@Composable
+internal fun PlaybackCommandButton(
+    command: WidgetPlaybackCommand,
+    @DrawableRes icon: Int,
+    contentDescription: String,
+    modifier: GlanceModifier,
+    filled: Boolean = false,
+    shape: WidgetButtonShape = WidgetButtonShape.ROUND,
+    iconSize: Dp = 24.dp,
+) {
+    val context = LocalContext.current
+    WidgetPressButton(
+        icon = icon,
+        contentDescription = contentDescription,
+        pendingIntent = command.pendingIntent(context),
+        fallback = actionSendBroadcast(command.intent(context)),
+        modifier = modifier,
+        filled = filled,
+        shape = shape,
+        iconSize = iconSize,
+    )
 }
 
 /** Wide filled play/pause; it keeps its width in both states, as the owner chose for the app player. */
@@ -67,22 +116,50 @@ internal fun WidePlayPauseButton(
     height: Dp = WidgetDimens.TouchTarget,
 ) {
     val context = LocalContext.current
-    PlaybackSegment(
-        iconRes = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+    PlaybackCommandButton(
+        command = WidgetPlaybackCommand.PLAY_PAUSE,
+        icon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
         contentDescription = context.getString(if (isPlaying) R.string.widget_pause else R.string.widget_play),
-        onClick = actionRunCallback<PlayPauseAction>(),
-        modifier = modifier,
+        modifier = modifier.height(height),
         filled = true,
-        height = height,
+        iconSize = height * 0.55f,
+    )
+}
+
+/** The dominant rounded-square play/pause of the card layout. */
+@Composable
+internal fun SquarePlayPauseButton(
+    isPlaying: Boolean,
+    size: Dp,
+) {
+    val context = LocalContext.current
+    PlaybackCommandButton(
+        command = WidgetPlaybackCommand.PLAY_PAUSE,
+        icon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+        contentDescription = context.getString(if (isPlaying) R.string.widget_pause else R.string.widget_play),
+        modifier = GlanceModifier.size(size),
+        filled = true,
+        shape = WidgetButtonShape.SQUARE,
+        iconSize = size * 0.5f,
     )
 }
 
 @Composable
-internal fun NextSegment(modifier: GlanceModifier) {
-    PlaybackSegment(
-        iconRes = R.drawable.ic_next,
+internal fun NextButton(modifier: GlanceModifier) {
+    PlaybackCommandButton(
+        command = WidgetPlaybackCommand.NEXT,
+        icon = R.drawable.ic_next,
         contentDescription = LocalContext.current.getString(R.string.widget_next),
-        onClick = actionRunCallback<NextTrackAction>(),
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun PreviousButton(modifier: GlanceModifier) {
+    PlaybackCommandButton(
+        command = WidgetPlaybackCommand.PREVIOUS,
+        icon = R.drawable.ic_previous,
+        contentDescription = LocalContext.current.getString(R.string.widget_previous),
         modifier = modifier,
     )
 }
@@ -95,16 +172,11 @@ internal fun ConnectedPlaybackControls(
     sideWidth: Dp,
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        PlaybackSegment(
-            iconRes = R.drawable.ic_previous,
-            contentDescription = LocalContext.current.getString(R.string.widget_previous),
-            onClick = actionRunCallback<PreviousTrackAction>(),
-            modifier = GlanceModifier.width(sideWidth),
-        )
+        PreviousButton(GlanceModifier.width(sideWidth).height(WidgetDimens.TouchTarget))
         Spacer(GlanceModifier.width(SegmentGap))
         WidePlayPauseButton(isPlaying = isPlaying, modifier = GlanceModifier.defaultWeight())
         Spacer(GlanceModifier.width(SegmentGap))
-        NextSegment(GlanceModifier.width(sideWidth))
+        NextButton(GlanceModifier.width(sideWidth).height(WidgetDimens.TouchTarget))
     }
 }
 

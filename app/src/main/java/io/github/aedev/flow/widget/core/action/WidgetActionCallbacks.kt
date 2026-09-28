@@ -8,8 +8,6 @@ import androidx.core.content.ContextCompat
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.common.util.Util
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
@@ -27,7 +25,7 @@ private const val TAG = "WidgetActions"
  * then releases it. A widget-button PendingIntent counts as a user interaction, so this
  * is an allowed foreground-service start even from a cold process (Android 12+).
  */
-private suspend fun withMusicController(
+internal suspend fun withMusicController(
     context: Context,
     block: (MediaController) -> Unit,
 ) {
@@ -59,38 +57,6 @@ private suspend fun withMusicController(
         } finally {
             controller.release()
         }
-    }
-}
-
-class PlayPauseAction : ActionCallback {
-    @OptIn(UnstableApi::class)
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters,
-    ) {
-        // Prepares from IDLE and restarts from ENDED, where a bare play() does nothing.
-        withMusicController(context) { Util.handlePlayPauseButtonAction(it) }
-    }
-}
-
-class NextTrackAction : ActionCallback {
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters,
-    ) {
-        withMusicController(context) { it.seekToNext() }
-    }
-}
-
-class PreviousTrackAction : ActionCallback {
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters,
-    ) {
-        withMusicController(context) { it.seekToPrevious() }
     }
 }
 

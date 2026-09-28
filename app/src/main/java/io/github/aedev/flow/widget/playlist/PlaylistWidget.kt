@@ -1,5 +1,6 @@
 package io.github.aedev.flow.widget.playlist
 
+import android.app.PendingIntent
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
@@ -36,9 +37,9 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.Text
 import io.github.aedev.flow.R
 import io.github.aedev.flow.widget.core.action.WidgetDeepLink
-import io.github.aedev.flow.widget.core.component.PlaybackSegment
 import io.github.aedev.flow.widget.core.component.WidgetArtwork
 import io.github.aedev.flow.widget.core.component.WidgetEmptyState
+import io.github.aedev.flow.widget.core.component.WidgetPressButton
 import io.github.aedev.flow.widget.core.component.WidgetShuffleButton
 import io.github.aedev.flow.widget.core.image.WidgetImageLoader
 import io.github.aedev.flow.widget.core.theme.FlowGlanceTheme
@@ -174,11 +175,19 @@ private fun PlaylistTitle(
 private fun PlaylistActions(playlist: WidgetPlaylist) {
     val context = LocalContext.current
     Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        PlaybackSegment(
-            iconRes = R.drawable.ic_play,
+        val play = WidgetDeepLink.playPlaylist(context, playlist.id, shuffle = false)
+        WidgetPressButton(
+            icon = R.drawable.ic_play,
             contentDescription = context.getString(R.string.widget_play),
-            onClick = actionStartActivity(WidgetDeepLink.playPlaylist(context, playlist.id, shuffle = false)),
-            modifier = GlanceModifier.defaultWeight(),
+            pendingIntent =
+                PendingIntent.getActivity(
+                    context,
+                    playlist.id.hashCode(),
+                    play,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                ),
+            fallback = actionStartActivity(play),
+            modifier = GlanceModifier.defaultWeight().height(WidgetDimens.TouchTarget),
             filled = true,
         )
         Spacer(GlanceModifier.width(WidgetDimens.ItemGap))

@@ -1,5 +1,6 @@
 package io.github.aedev.flow.widget.nowplaying
 
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
@@ -18,12 +19,22 @@ internal enum class NowPlayingLayout(
     companion object {
         val sizes: Set<DpSize> = entries.mapTo(LinkedHashSet()) { it.size }
 
-        /** The layout Glance picks for a widget of [size]: the largest declared size that fits. */
+        /**
+         * The layout for a widget of [size]. The poster needs a portrait-ish widget: a wide one gets
+         * the card even when it is tall enough, since the card is the landscape layout.
+         */
         fun forSize(size: DpSize): NowPlayingLayout =
-            entries
-                .filter { it.size.width <= size.width && it.size.height <= size.height }
-                .maxByOrNull { it.size.width.value * it.size.height.value }
-                ?: SMALL
+            when {
+                size.fits(POSTER.size) && size.height >= size.width * POSTER_MIN_ASPECT -> POSTER
+                size.fits(CARD.size) -> CARD
+                size.fits(SQUARE.size) -> SQUARE
+                size.fits(STRIP.size) -> STRIP
+                else -> SMALL
+            }
+
+        private fun DpSize.fits(other: DpSize) = width >= other.width && height >= other.height
+
+        private const val POSTER_MIN_ASPECT = 0.8f
 
         /** The artwork edge, in dp, that the largest layout among [sizes] draws. */
         fun artworkDpFor(sizes: List<DpSize>): Float =
@@ -31,13 +42,21 @@ internal enum class NowPlayingLayout(
                 .maxOfOrNull { size ->
                     when (forSize(size)) {
                         POSTER -> min(size.width.value - POSTER_INSET_DP, size.height.value - POSTER_CHROME_DP)
-                        CARD -> CARD_ART_DP
+                        CARD -> cardArtDp(size).value
                         SQUARE -> SQUARE_ART_DP
                         STRIP -> STRIP_ART_DP
                         SMALL -> 0f
                     }
                 }?.coerceIn(STRIP_ART_DP, MAX_ART_DP)
                 ?: CARD_ART_DP
+
+        /** The card's artwork fills its height, as the reference design does, up to a share of the width. */
+        fun cardArtDp(size: DpSize): Dp =
+            minOf(size.height - CARD_INSET * 2, size.width * CARD_ART_WIDTH_SHARE, CardArtMax).coerceAtLeast(CARD_ART_DP.dp)
+
+        val CARD_INSET = 12.dp
+        private const val CARD_ART_WIDTH_SHARE = 0.42f
+        private val CardArtMax = 180.dp
 
         const val STRIP_ART_DP = 52f
         const val SQUARE_ART_DP = 56f

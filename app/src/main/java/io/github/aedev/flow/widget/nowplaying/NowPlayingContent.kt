@@ -18,6 +18,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -31,11 +32,14 @@ import io.github.aedev.flow.utils.formatDurationMillis
 import io.github.aedev.flow.widget.core.action.WidgetDeepLink
 import io.github.aedev.flow.widget.core.component.ConnectedPlaybackControls
 import io.github.aedev.flow.widget.core.component.LikeButton
-import io.github.aedev.flow.widget.core.component.NextSegment
+import io.github.aedev.flow.widget.core.component.NextButton
+import io.github.aedev.flow.widget.core.component.PreviousButton
+import io.github.aedev.flow.widget.core.component.SquarePlayPauseButton
 import io.github.aedev.flow.widget.core.component.WidePlayPauseButton
 import io.github.aedev.flow.widget.core.component.WidgetArtwork
 import io.github.aedev.flow.widget.core.component.WidgetElapsedTime
 import io.github.aedev.flow.widget.core.component.WidgetEmptyState
+import io.github.aedev.flow.widget.core.component.WidgetWave
 import io.github.aedev.flow.widget.core.state.NowPlayingSnapshot
 import io.github.aedev.flow.widget.core.theme.WidgetDimens
 import io.github.aedev.flow.widget.core.theme.WidgetText
@@ -120,7 +124,7 @@ private fun StripLayout(
         Spacer(GlanceModifier.width(WidgetDimens.ItemGap))
         WidePlayPauseButton(snapshot.isPlaying, GlanceModifier.width(76.dp))
         Spacer(GlanceModifier.width(6.dp))
-        NextSegment(GlanceModifier.width(WidgetDimens.TouchTarget))
+        NextButton(GlanceModifier.size(WidgetDimens.TouchTarget))
     }
 }
 
@@ -142,23 +146,64 @@ private fun SquareLayout(
     }
 }
 
+/** Artwork on the left filling the card, the track centred beside it over the wave and the controls. */
 @Composable
 private fun CardLayout(
     snapshot: NowPlayingSnapshot,
     artwork: Bitmap?,
 ) {
-    Column(modifier = GlanceModifier.fillMaxSize().padding(horizontal = 14.dp, vertical = WidgetDimens.ContentPadding)) {
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            PlayerArtwork(artwork, NowPlayingLayout.CARD_ART_DP.dp)
-            Spacer(GlanceModifier.width(14.dp))
-            TrackText(snapshot, GlanceModifier.defaultWeight(), WidgetText.titleMedium())
-            Spacer(GlanceModifier.width(WidgetDimens.SmallGap))
-            LikeButton(snapshot.isLiked)
+    val size = LocalSize.current
+    val tight = size.height < CardRoomyHeight
+    Row(
+        modifier = GlanceModifier.fillMaxSize().padding(if (tight) WidgetDimens.ItemGap else NowPlayingLayout.CARD_INSET),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PlayerArtwork(artwork, NowPlayingLayout.cardArtDp(size) - if (tight) WidgetDimens.SmallGap * 2 else 0.dp)
+        Spacer(GlanceModifier.width(WidgetDimens.ContentPadding + WidgetDimens.SmallGap))
+        Column(
+            modifier = GlanceModifier.defaultWeight().fillMaxHeight(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            TrackText(snapshot, GlanceModifier.fillMaxWidth(), WidgetText.centered(WidgetText.titleMedium()), centered = true)
+            if (!tight) {
+                Spacer(GlanceModifier.height(WidgetDimens.ItemGap))
+                WaveRow(snapshot)
+            }
+            Spacer(GlanceModifier.height(WidgetDimens.ItemGap))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PreviousButton(GlanceModifier.size(SideButton))
+                Spacer(GlanceModifier.width(WidgetDimens.ContentPadding))
+                SquarePlayPauseButton(snapshot.isPlaying, if (tight) WidgetDimens.TouchTarget else PlayButton)
+                Spacer(GlanceModifier.width(WidgetDimens.ContentPadding))
+                NextButton(GlanceModifier.size(SideButton))
+            }
         }
-        Spacer(GlanceModifier.defaultWeight())
-        PlaybackTime(snapshot, GlanceModifier.fillMaxWidth().padding(horizontal = WidgetDimens.SmallGap))
-        Spacer(GlanceModifier.height(WidgetDimens.ItemGap))
-        ConnectedPlaybackControls(snapshot.isPlaying, GlanceModifier.fillMaxWidth(), sideWidth = 64.dp)
+    }
+}
+
+/** The playing indicator between the live elapsed time and the track length. */
+@Composable
+private fun WaveRow(snapshot: NowPlayingSnapshot) {
+    Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (snapshot.durationMs > 0L) {
+            WidgetElapsedTime(
+                positionMs = snapshot.positionMs,
+                capturedAtElapsedMs = snapshot.capturedAtElapsedMs,
+                isRunning = snapshot.isPlaying,
+                style = WidgetText.labelSmall(GlanceTheme.colors.onSurfaceVariant),
+            )
+            Spacer(GlanceModifier.width(WidgetDimens.ItemGap))
+        }
+        WidgetWave(playing = snapshot.isPlaying, modifier = GlanceModifier.defaultWeight())
+        if (snapshot.durationMs > 0L) {
+            Spacer(GlanceModifier.width(WidgetDimens.ItemGap))
+            Text(
+                text = formatDurationMillis(snapshot.durationMs),
+                style = WidgetText.labelSmall(GlanceTheme.colors.onSurfaceVariant),
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -211,12 +256,24 @@ private fun TrackText(
     snapshot: NowPlayingSnapshot,
     modifier: GlanceModifier,
     titleStyle: TextStyle,
+    centered: Boolean = false,
 ) {
     val context = LocalContext.current
-    Column(modifier = modifier.clickable(actionStartActivity(WidgetDeepLink.openMusicPlayer(context)))) {
+    val artistStyle =
+        if (centered) {
+            WidgetText.centered(
+                WidgetText.bodyMedium(GlanceTheme.colors.onSurfaceVariant),
+            )
+        } else {
+            WidgetText.bodySmall()
+        }
+    Column(
+        modifier = modifier.clickable(actionStartActivity(WidgetDeepLink.openMusicPlayer(context))),
+        horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
+    ) {
         Text(text = snapshot.title, style = titleStyle, maxLines = 1)
         if (snapshot.artist.isNotBlank()) {
-            Text(text = snapshot.artist, style = WidgetText.bodySmall(), maxLines = 1)
+            Text(text = snapshot.artist, style = artistStyle, maxLines = 1)
         }
     }
 }
@@ -238,3 +295,8 @@ private fun PlaybackTime(
         Text(text = formatDurationMillis(snapshot.durationMs), style = WidgetText.labelMedium(), maxLines = 1)
     }
 }
+
+// Below this the card drops the wave and shrinks play so everything still fits two rows.
+private val CardRoomyHeight = 140.dp
+private val SideButton = 48.dp
+private val PlayButton = 56.dp
