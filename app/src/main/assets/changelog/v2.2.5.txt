@@ -91,6 +91,9 @@ IMPROVEMENTS
 - Downloads and Local media put search, the Videos and Music switch and sort on one row on tablets and unfolded foldables
 - The music mini player now sits on its own at the bottom and moves with the navigation bar, new songs start there unless you turn on the full player in Playback settings, and on tablets and foldables it is a centred card that no longer covers the navigation rail
 - Pages now scroll under the navigation bar, the mini player and the gesture area and stop clear of them, instead of ending above a blank band
+- Every video grid and list now lays out like Search on tablets and foldables: at most three columns until cards grow past a comfortable size, the same margins and gaps everywhere, and a row the grid cannot fill turns into full-width rows lined up with the grid above
+- List mode on a wide screen is now one column with large thumbnails on Home, Subscriptions, channels, History and playlists, and Subscriptions now follows your cards-per-row setting
+- Channel playlists, the Playlists screen, Downloads and Local media show cards in a grid sized to the space they have, and related videos on an upright tablet use the same columns as the rest of the app
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -104,6 +107,7 @@ PERFORMANCE
 
 FIXES AND STABILITY
 - Fix a video without chapters showing the chapters, most-replayed curve and scrub preview of the video played before it (#1111)
+- Fix Continue watching cards being cut off on narrow phones, and loading placeholders not matching list mode on wide screens
 - Fix the comment count under the player showing the previous video's count when the next video has none
 - Fix the video queue always being called Playlist instead of the playlist's name, and the queue dock covering the last related video
 - Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
