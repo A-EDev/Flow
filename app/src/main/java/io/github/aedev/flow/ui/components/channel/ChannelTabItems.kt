@@ -37,6 +37,7 @@ import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
 import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
@@ -148,15 +149,12 @@ internal fun ChannelTabItems(
                     }
 
                     is FeedItem.PlaylistItem -> {
+                        val asRow = plan.isListCard(index) || feedLayout.isCompact
                         PlaylistCard(
                             playlist = item.playlist,
                             onClick = { onPlaylistClick(item.playlist.id) },
-                            layout =
-                                if (plan.isListCard(index) || feedLayout.isCompact) {
-                                    PlaylistCardLayout.LIST
-                                } else {
-                                    PlaylistCardLayout.SHELF
-                                },
+                            layout = if (asRow) PlaylistCardLayout.LIST else PlaylistCardLayout.SHELF,
+                            modifier = if (asRow) Modifier else Modifier.padding(horizontal = VideoCardDefaults.Inset),
                         )
                     }
 

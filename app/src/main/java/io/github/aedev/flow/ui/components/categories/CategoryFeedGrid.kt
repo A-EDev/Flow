@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.categories
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -25,6 +26,7 @@ import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
@@ -107,6 +109,7 @@ internal fun CategoryPagedGrid(
                         playlist = item.playlist,
                         onClick = { onPlaylistClick(item.playlist.id) },
                         layout = if (plan.isListCard(index)) PlaylistCardLayout.LIST else PlaylistCardLayout.SHELF,
+                        modifier = if (plan.isListCard(index)) Modifier else Modifier.padding(horizontal = VideoCardDefaults.Inset),
                     )
                 }
 
