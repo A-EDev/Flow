@@ -29,8 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.data.music.model.audioMusicOnly
 import io.github.aedev.flow.innertube.pages.MoodAndGenres
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
@@ -48,13 +48,6 @@ import kotlinx.coroutines.flow.filter
 import java.util.Random
 
 private val FeedBottomClearance = 96.dp
-
-private fun MusicTrack.isAudioMusicCandidate(): Boolean {
-    val usableDuration = duration == 0 || duration in 30..1200
-    return itemType == MusicItemType.SONG && !isVideoSong && videoId.isNotBlank() && usableDuration
-}
-
-private fun List<MusicTrack>.audioMusicOnly(): List<MusicTrack> = filter { it.isAudioMusicCandidate() }.distinctBy { it.videoId }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable

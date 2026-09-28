@@ -57,6 +57,7 @@ internal object DestinationIndex {
             SettingsDestination.NOTIFICATIONS -> R.string.settings_item_notifications_subtitle
             SettingsDestination.NETWORK -> R.string.settings_network_summary
             SettingsDestination.WELLBEING -> R.string.settings_wellbeing_summary
+            SettingsDestination.WIDGETS -> R.string.settings_widgets_summary
             SettingsDestination.ABOUT -> R.string.settings_about_summary
             SettingsDestination.DIAGNOSTICS -> R.string.settings_item_diagnostics_subtitle
         }

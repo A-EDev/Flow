@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.theme
 
 import androidx.compose.ui.graphics.Color
 import com.google.common.truth.Truth.assertThat

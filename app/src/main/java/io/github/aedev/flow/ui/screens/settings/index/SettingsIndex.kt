@@ -28,6 +28,7 @@ internal object SettingsIndex {
             NetworkIndex.all +
             HistoryIndex.all +
             WellbeingIndex.all +
+            WidgetsIndex.all +
             DiagnosticsIndex.all +
             AboutIndex.all
     }

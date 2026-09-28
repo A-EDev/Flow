@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.theme
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
@@ -15,4 +15,12 @@ internal suspend fun Context.lastWidgetThemeSignature(): String? = widgetThemeSt
 
 internal suspend fun Context.writeWidgetThemeSignature(signature: String) {
     widgetThemeStore.edit { prefs -> prefs[LAST_SIGNATURE] = signature }
+}
+
+private val PREVIEW_STAMP = stringPreferencesKey("preview_stamp")
+
+internal suspend fun Context.lastWidgetPreviewStamp(): String? = widgetThemeStore.data.map { it[PREVIEW_STAMP] }.first()
+
+internal suspend fun Context.writeWidgetPreviewStamp(stamp: String) {
+    widgetThemeStore.edit { prefs -> prefs[PREVIEW_STAMP] = stamp }
 }

@@ -105,6 +105,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var videoPlayerManager: dagger.Lazy<EnhancedPlayerManager>
 
+    @Inject
+    lateinit var widgetContentSync: dagger.Lazy<io.github.aedev.flow.widget.core.refresh.WidgetContentSync>
+
+    @Inject
+    lateinit var nowPlayingWidgetPublisher: dagger.Lazy<io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetPublisher>
+
     // A recreated activity gets its launch intent again; a playlist file in it was already imported.
     private var isRestoringState = false
 
@@ -193,6 +199,10 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             io.github.aedev.flow.widget.core.FlowWidgets
                 .observeThemeChanges(applicationContext)
+        }
+        lifecycleScope.launch(Dispatchers.Default) {
+            widgetContentSync.get().startIfPlaced()
+            nowPlayingWidgetPublisher.get().repairStalePlayback()
         }
 
         isRestoringState = savedInstanceState != null
@@ -378,10 +388,10 @@ class MainActivity : ComponentActivity() {
 
         val widgetRoute =
             intent.getStringExtra(
-                io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE,
+                io.github.aedev.flow.widget.core.action.WidgetDeepLink.EXTRA_WIDGET_ROUTE,
             )
         if (widgetRoute != null) {
-            intent.removeExtra(io.github.aedev.flow.widget.core.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
+            intent.removeExtra(io.github.aedev.flow.widget.core.action.WidgetDeepLink.EXTRA_WIDGET_ROUTE)
             _pendingRoute.value = widgetRoute
             return
         }

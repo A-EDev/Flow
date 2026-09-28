@@ -29,6 +29,7 @@ import io.github.aedev.flow.ui.screens.settings.taste.HiddenContentScreen
 import io.github.aedev.flow.ui.screens.settings.taste.TasteScreen
 import io.github.aedev.flow.ui.screens.settings.topics.TopicPreferencesScreen
 import io.github.aedev.flow.ui.screens.settings.wellbeing.WellbeingScreen
+import io.github.aedev.flow.ui.screens.settings.widgets.WidgetsSettingsScreen
 import io.github.aedev.flow.ui.screens.sync.SyncScreen
 
 /**
@@ -147,6 +148,10 @@ internal fun SettingsDetail(
 
         SettingsDestination.WELLBEING -> {
             WellbeingScreen(onBack = onBack, highlight = target.highlight)
+        }
+
+        SettingsDestination.WIDGETS -> {
+            WidgetsSettingsScreen(onBack = onBack, highlight = target.highlight)
         }
 
         SettingsDestination.ABOUT -> {

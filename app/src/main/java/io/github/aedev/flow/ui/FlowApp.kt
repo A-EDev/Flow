@@ -221,7 +221,13 @@ fun FlowApp(
             }
         val mediaNavigator = remember(navController, collapseExpandedPlayers) { FlowMediaNavigator(navController, collapseExpandedPlayers) }
         // A page opened from another app would otherwise land under an expanded player.
-        HandlePendingRoute(pendingRoute, navController, onPendingRouteConsumed, onBeforeNavigate = collapseExpandedPlayers)
+        HandlePendingRoute(
+            pendingRoute,
+            navController,
+            defaultStartRoute,
+            onPendingRouteConsumed,
+            onBeforeNavigate = collapseExpandedPlayers,
+        )
 
         val activeVideo = playerUiState.cachedVideo
 
@@ -469,13 +475,7 @@ fun FlowApp(
                     TabScrollEventBus.emitScrollToTop(tab.route)
                 } else {
                     currentRoute.value = tab.route
-                    navController.navigate(tab.route) {
-                        popUpTo(defaultStartRoute) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    navController.navigateToTab(tab, defaultStartRoute)
                 }
             },
             barVisible = showBottomNav && navScrollState.isBarVisible,

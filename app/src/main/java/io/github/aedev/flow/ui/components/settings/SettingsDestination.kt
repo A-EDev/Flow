@@ -25,6 +25,7 @@ enum class SettingsDestination(
     DATE_TIME("date_time", R.string.settings_item_datetime, APPEARANCE),
     PLAYER_APPEARANCE("player_appearance", R.string.player_appearance_title, APPEARANCE),
     LANGUAGE_REGION("language_region", R.string.settings_language_region_title),
+    WIDGETS("widgets", R.string.settings_widgets_title),
     PLAYBACK("playback", R.string.settings_playback_title),
     BUFFER("buffer", R.string.buffer_settings_title, PLAYBACK),
     EQUALIZER("equalizer", R.string.equalizer, PLAYBACK),

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui
 
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import java.net.URI
@@ -18,6 +19,21 @@ internal fun flowTabForDestination(
     }
 
 internal fun NavBackStackEntry.flowTab(): FlowTab? = flowTabForDestination(destination.route, arguments?.getString(SHORTS_ROUTE_ARG))
+
+/** The tab a route handed in from outside the graph (a widget, a shortcut) names, if any. */
+internal fun flowTabForRoute(route: String): FlowTab? = FlowTab.entries.firstOrNull { it.route == route }
+
+/** Switches tabs the way the bar does: one copy per tab, each keeping its own saved state. */
+internal fun NavController.navigateToTab(
+    tab: FlowTab,
+    startRoute: String,
+) {
+    navigate(tab.route) {
+        popUpTo(startRoute) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
 
 /** Search is a tab, but it keeps the back-button layout of the other search screens, so no bar. */
 internal fun FlowTab?.showsNavigationBar(): Boolean = this != null && this != FlowTab.Search

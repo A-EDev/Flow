@@ -274,6 +274,16 @@
             android:exported="false" />
 
         <!-- Home-screen widgets (Jetpack Glance) -->
+        <activity
+            android:name=".widget.config.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Flow">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
         <receiver
             android:name=".widget.nowplaying.NowPlayingWidgetReceiver"
             android:exported="true"
@@ -339,6 +349,28 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_on_repeat_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.playlist.PlaylistWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_playlist_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_playlist_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.week.WeekWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_week_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week_info" />
         </receiver>
         <receiver
             android:name=".widget.downloads.DownloadsWidgetReceiver"

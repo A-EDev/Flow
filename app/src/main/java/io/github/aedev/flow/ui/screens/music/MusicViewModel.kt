@@ -19,6 +19,8 @@ import io.github.aedev.flow.data.music.model.MusicItemType
 import io.github.aedev.flow.data.music.model.MusicPlaylist
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.RelatedMusic
+import io.github.aedev.flow.data.music.model.audioMusicOnly
+import io.github.aedev.flow.data.music.model.isAudioMusicCandidate
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
@@ -27,6 +29,7 @@ import io.github.aedev.flow.data.recommendation.music.MusicQuickPicks
 import io.github.aedev.flow.data.recommendation.music.MusicTimeBucket
 import io.github.aedev.flow.data.recommendation.music.graph.MusicGraphStore
 import io.github.aedev.flow.data.recommendation.music.musicArtistKey
+import io.github.aedev.flow.data.recommendation.music.onRepeatShelf
 import io.github.aedev.flow.data.recommendation.music.primaryArtistKey
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.BrowseEndpoint
@@ -108,13 +111,6 @@ class MusicViewModel
                 )
 
         private fun isUiVisible(): Boolean = _uiState.subscriptionCount.value > 0
-
-        private fun MusicTrack.isAudioMusicCandidate(): Boolean {
-            val usableDuration = duration == 0 || duration in 30..1200
-            return itemType == MusicItemType.SONG && !isVideoSong && videoId.isNotBlank() && usableDuration
-        }
-
-        private fun List<MusicTrack>.audioMusicOnly(): List<MusicTrack> = filter { it.isAudioMusicCandidate() }.distinctBy { it.videoId }
 
         init {
             loadMusicContent()
@@ -490,7 +486,7 @@ class MusicViewModel
          */
         private suspend fun refreshLocalShelves() {
             try {
-                val onRepeat = musicBrain.heavyRotationTracks(16).audioMusicOnly()
+                val onRepeat = musicBrain.onRepeatShelf()
                 val onRepeatIds = onRepeat.mapTo(HashSet()) { it.videoId }
                 val rotation =
                     musicBrain

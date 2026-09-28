@@ -87,6 +87,7 @@ internal fun SettingsListScope.homeContent(
     group(key = "home.look", header = R.string.settings_group_look) {
         page(SettingsDestination.APPEARANCE)
         page(SettingsDestination.LANGUAGE_REGION)
+        page(SettingsDestination.WIDGETS)
     }
     group(key = "home.watching", header = R.string.settings_group_watching) {
         page(SettingsDestination.PLAYBACK)

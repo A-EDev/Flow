@@ -1,4 +1,4 @@
-package io.github.aedev.flow.widget.core
+package io.github.aedev.flow.widget.core.state
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -23,6 +23,8 @@ data class NowPlayingSnapshot(
     val isLiked: Boolean,
     val positionMs: Long,
     val durationMs: Long,
+    /** `SystemClock.elapsedRealtime()` when [positionMs] was read, so a running clock can start from it. */
+    val capturedAtElapsedMs: Long = 0L,
 )
 
 private val Context.nowPlayingWidgetStore by preferencesDataStore(name = "now_playing_widget")
@@ -36,9 +38,11 @@ private object Keys {
     val IS_LIKED = booleanPreferencesKey("is_liked")
     val POSITION_MS = longPreferencesKey("position_ms")
     val DURATION_MS = longPreferencesKey("duration_ms")
+    val CAPTURED_AT_ELAPSED_MS = longPreferencesKey("captured_at_elapsed_ms")
 }
 
-fun Context.nowPlayingSnapshotFlow(): Flow<NowPlayingSnapshot?> =
+/** [isLive] is false when no player in this process has published, so "playing" cannot still be true. */
+fun Context.nowPlayingSnapshotFlow(isLive: () -> Boolean): Flow<NowPlayingSnapshot?> =
     nowPlayingWidgetStore.data.map { prefs ->
         val mediaId = prefs[Keys.MEDIA_ID] ?: return@map null
         NowPlayingSnapshot(
@@ -46,10 +50,11 @@ fun Context.nowPlayingSnapshotFlow(): Flow<NowPlayingSnapshot?> =
             title = prefs[Keys.TITLE].orEmpty(),
             artist = prefs[Keys.ARTIST].orEmpty(),
             artworkUrl = prefs[Keys.ARTWORK_URL],
-            isPlaying = prefs[Keys.IS_PLAYING] ?: false,
+            isPlaying = (prefs[Keys.IS_PLAYING] ?: false) && isLive(),
             isLiked = prefs[Keys.IS_LIKED] ?: false,
             positionMs = prefs[Keys.POSITION_MS] ?: 0L,
             durationMs = prefs[Keys.DURATION_MS] ?: 0L,
+            capturedAtElapsedMs = prefs[Keys.CAPTURED_AT_ELAPSED_MS] ?: 0L,
         )
     }
 
@@ -63,10 +68,16 @@ suspend fun Context.writeNowPlayingSnapshot(snapshot: NowPlayingSnapshot) {
         prefs[Keys.IS_LIKED] = snapshot.isLiked
         prefs[Keys.POSITION_MS] = snapshot.positionMs
         prefs[Keys.DURATION_MS] = snapshot.durationMs
+        prefs[Keys.CAPTURED_AT_ELAPSED_MS] = snapshot.capturedAtElapsedMs
     }
 }
 
 /** Keeps the last track visible but paused — used when the music service is destroyed. */
 suspend fun Context.markNowPlayingStopped() {
     nowPlayingWidgetStore.edit { prefs -> prefs[Keys.IS_PLAYING] = false }
+}
+
+/** The queue emptied, so the widget shows its "Nothing playing" state. */
+suspend fun Context.clearNowPlayingSnapshot() {
+    nowPlayingWidgetStore.edit { prefs -> prefs.clear() }
 }

@@ -33,6 +33,7 @@ import io.github.aedev.flow.player.sabr.integration.SabrDownloadEngine
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import io.github.aedev.flow.widget.core.refresh.WidgetContentSync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -63,6 +64,9 @@ class FlowDownloadService : Service() {
 
     @Inject
     lateinit var sponsorBlockRepository: SponsorBlockRepository
+
+    @Inject
+    lateinit var widgetContentSync: dagger.Lazy<WidgetContentSync>
 
     @Inject
     lateinit var offlineSubtitleStore: OfflineSubtitleStore
@@ -290,6 +294,7 @@ class FlowDownloadService : Service() {
         super.onCreate()
         notifications.createChannel()
         serviceScope.launch { preferences.concurrentDownloads.collect(downloadSlots::setLimit) }
+        serviceScope.launch { widgetContentSync.get().startIfPlaced() }
     }
 
     override fun onStartCommand(
