@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.categories
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -18,10 +19,14 @@ import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
+import io.github.aedev.flow.ui.components.shared.FeedGridSkeleton
+import io.github.aedev.flow.ui.components.shared.FeedGridTopPadding
 import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
@@ -44,7 +49,7 @@ internal fun CategoryPagedGrid(
     if (pagingItems.itemCount == 0) {
         when {
             refresh is LoadState.Loading -> {
-                CategoryShimmer(feedLayout = feedLayout, isListView = isListView, modifier = modifier)
+                FeedGridSkeleton(layout = feedLayout, listMode = isListView, modifier = modifier)
             }
 
             refresh is LoadState.Error -> {
@@ -79,9 +84,8 @@ internal fun CategoryPagedGrid(
         columns = plan.cells,
         state = gridState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = plan.contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(plan.gutter),
-        verticalArrangement = Arrangement.spacedBy(plan.gutter),
+        contentPadding = plan.contentPadding(top = FeedGridTopPadding, bottom = flowBottomContentPadding()),
+        verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
     ) {
         items(
             count = pagingItems.itemCount,
@@ -105,6 +109,7 @@ internal fun CategoryPagedGrid(
                         playlist = item.playlist,
                         onClick = { onPlaylistClick(item.playlist.id) },
                         layout = if (plan.isListCard(index)) PlaylistCardLayout.LIST else PlaylistCardLayout.SHELF,
+                        modifier = if (plan.isListCard(index)) Modifier else Modifier.padding(horizontal = VideoCardDefaults.Inset),
                     )
                 }
 
@@ -148,9 +153,8 @@ internal fun CategoryChartGrid(
         columns = plan.cells,
         state = gridState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = plan.contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(plan.gutter),
-        verticalArrangement = Arrangement.spacedBy(plan.gutter),
+        contentPadding = plan.contentPadding(top = FeedGridTopPadding, bottom = flowBottomContentPadding()),
+        verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
     ) {
         itemsIndexed(
             items = entries,

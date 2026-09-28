@@ -45,7 +45,6 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.SearchResultItem
 import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.ui.OnTabReselected
-import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
@@ -53,11 +52,11 @@ import io.github.aedev.flow.ui.components.search.SearchFilterBar
 import io.github.aedev.flow.ui.components.search.SearchFilterDialog
 import io.github.aedev.flow.ui.components.search.SearchResultActions
 import io.github.aedev.flow.ui.components.search.SearchResults
-import io.github.aedev.flow.ui.components.search.SearchResultsShimmer
 import io.github.aedev.flow.ui.components.search.SearchShortsGrid
 import io.github.aedev.flow.ui.components.search.SearchSuggestionsPanel
 import io.github.aedev.flow.ui.components.search.SearchTopBar
 import io.github.aedev.flow.ui.components.search.SearchTopBarActions
+import io.github.aedev.flow.ui.components.shared.FeedGridSkeleton
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionsViewModel
@@ -198,7 +197,7 @@ fun SearchScreen(
 
             val refreshState = pagingItems.loadState.refresh
             BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns, FEED_MAX_AUTO_COLUMNS)
+                val feedLayout = rememberFeedGridLayout(maxWidth, state.feedColumns)
                 val actions =
                     remember(feedLayout, subscribedIds) {
                         SearchResultActions(
@@ -218,7 +217,7 @@ fun SearchScreen(
 
                 when {
                     refreshState is LoadState.Loading -> {
-                        SearchResultsShimmer(state.isGridMode, feedLayout)
+                        FeedGridSkeleton(layout = feedLayout, listMode = state.isGridMode)
                     }
 
                     refreshState is LoadState.Error && pagingItems.itemCount == 0 -> {
@@ -236,7 +235,7 @@ fun SearchScreen(
                     }
 
                     uiState.filters.contentType == ContentType.SHORTS -> {
-                        SearchShortsGrid(pagingItems, gridState, actions)
+                        SearchShortsGrid(pagingItems, gridState, feedLayout, actions)
                     }
 
                     else -> {

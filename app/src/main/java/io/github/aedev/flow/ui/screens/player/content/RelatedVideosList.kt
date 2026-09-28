@@ -1,9 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.content
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
@@ -12,6 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.FeedGridLayout
+import io.github.aedev.flow.ui.components.partialRowIndices
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 
@@ -49,49 +49,61 @@ internal fun LazyListScope.relatedVideosContent(
 }
 
 /**
- * Related videos grid content for LazyListScope.
+ * The related list on a wide single-pane player: the shared feed grid's columns, chunked into rows
+ * of a [androidx.compose.foundation.lazy.LazyColumn] so the video details above keep their own
+ * padding. A row the grid cannot fill, and every row in the compact style, is a thumbnail-left card
+ * whose thumbnail is one grid column wide.
  */
 internal fun LazyListScope.relatedVideosGridContent(
     relatedVideos: List<Video>,
-    columns: Int,
+    layout: FeedGridLayout,
     onVideoClick: (Video) -> Unit,
     cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH,
 ) {
-    val chunkedVideos = relatedVideos.chunked(columns)
+    val columns = if (cardStyle == PlayerRelatedCardStyle.COMPACT) 1 else layout.columns
+    val rows = relatedGridRows(relatedVideos.size, columns)
 
     items(
-        count = chunkedVideos.size,
-        key = { index -> chunkedVideos[index].joinToString { it.id } },
+        count = rows.size,
+        key = { index -> rows[index].joinToString { relatedVideos[it].id } },
+        contentType = { index -> if (rows[index].size == 1) "related_row" else "related_grid_row" },
     ) { index ->
-        val rowVideos = chunkedVideos[index]
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            for (video in rowVideos) {
-                Box(modifier = Modifier.weight(1f)) {
-                    when (cardStyle) {
-                        PlayerRelatedCardStyle.COMPACT -> {
-                            MediaVideoCard(
-                                video = video,
-                                layout = VideoCardLayout.Row,
-                                onClick = { onVideoClick(video) },
-                            )
-                        }
-
-                        PlayerRelatedCardStyle.FULL_WIDTH -> {
-                            MediaVideoCard(
-                                video = video,
-                                onClick = { onVideoClick(video) },
-                            )
-                        }
+        val row = rows[index]
+        if (row.size == 1) {
+            val video = relatedVideos[row.single()]
+            MediaVideoCard(
+                video = video,
+                layout = VideoCardLayout.Row,
+                onClick = { onVideoClick(video) },
+                thumbnailWidth = layout.thumbnailWidth,
+                modifier = Modifier.padding(horizontal = layout.contentPadding),
+            )
+        } else {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = layout.contentPadding, vertical = GridRowVerticalPadding),
+            ) {
+                row.forEach { videoIndex ->
+                    val video = relatedVideos[videoIndex]
+                    Box(modifier = Modifier.weight(1f)) {
+                        MediaVideoCard(video = video, onClick = { onVideoClick(video) })
                     }
                 }
-            }
-            val emptySpaces = columns - rowVideos.size
-            for (i in 0 until emptySpaces) {
-                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
 }
+
+/** Full rows of [columns] indices, then each index a full row cannot hold on a row of its own. */
+internal fun relatedGridRows(
+    count: Int,
+    columns: Int,
+): List<List<Int>> {
+    val partial = partialRowIndices(List(count) { false }, columns)
+    val full = (0 until count).filterNot { it in partial }.chunked(columns.coerceAtLeast(1))
+    return full + partial.sorted().map(::listOf)
+}
+
+private val GridRowVerticalPadding = 6.dp

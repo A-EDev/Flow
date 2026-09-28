@@ -10,10 +10,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
+import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
@@ -35,6 +37,7 @@ internal fun PlaylistVideoRow(
     isLikes: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    thumbnailWidth: Dp = MediaThumbnailDefaults.VideoWidth,
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
 
@@ -72,6 +75,7 @@ internal fun PlaylistVideoRow(
             thumbnailUrl = video.thumbnailUrl,
             durationSeconds = video.duration,
             showWatchProgress = true,
+            width = thumbnailWidth,
         )
     }
 

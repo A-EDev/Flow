@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -13,6 +14,7 @@ import io.github.aedev.flow.ui.components.music.item.MusicTrackItem
 import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
+import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 
 /**
@@ -35,6 +37,7 @@ internal fun LibraryMediaListRow(
     subtitle: String? = null,
     thumbnailUrl: String? = null,
     durationSeconds: Int? = null,
+    thumbnailWidth: Dp = MediaThumbnailDefaults.VideoWidth,
     action: @Composable () -> Unit,
 ) {
     val isLocal = LocalMediaIds.isLocal(track.videoId)
@@ -63,6 +66,7 @@ internal fun LibraryMediaListRow(
                 thumbnailUrl = thumbnailUrl,
                 durationSeconds = durationSeconds,
                 showWatchProgress = true,
+                width = thumbnailWidth,
             )
         }
         if (showMenu) {

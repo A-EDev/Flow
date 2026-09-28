@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.library
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
@@ -56,29 +58,31 @@ fun SavedShortsGridScreen(
                 icon = Icons.Default.PlayArrow,
             )
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(ShortCardDefaults.MinWidth),
-                contentPadding =
-                    PaddingValues(
-                        start = GridPadding,
-                        top = GridPadding,
-                        end = GridPadding,
-                        bottom = flowBottomContentPadding(GridPadding),
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
-                verticalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
-                modifier = Modifier.padding(padding),
-            ) {
-                items(
-                    items = savedShorts,
-                    key = Video::id,
-                    contentType = { "short" },
-                ) { video ->
-                    MediaShortCard(
-                        video = video,
-                        onClick = { onVideoClick(video.id) },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+            BoxWithConstraints(modifier = Modifier.padding(padding)) {
+                val sidePadding = ShortCardDefaults.gridPadding(rememberFeedGridLayout(maxWidth), compactPadding = GridPadding)
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(ShortCardDefaults.MinWidth),
+                    contentPadding =
+                        PaddingValues(
+                            start = sidePadding,
+                            top = GridPadding,
+                            end = sidePadding,
+                            bottom = flowBottomContentPadding(GridPadding),
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
+                    verticalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
+                ) {
+                    items(
+                        items = savedShorts,
+                        key = Video::id,
+                        contentType = { "short" },
+                    ) { video ->
+                        MediaShortCard(
+                            video = video,
+                            onClick = { onVideoClick(video.id) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }

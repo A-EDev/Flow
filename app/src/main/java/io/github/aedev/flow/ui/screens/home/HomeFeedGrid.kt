@@ -1,35 +1,37 @@
 package io.github.aedev.flow.ui.screens.home
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridItemScope
-import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.home.ContinueWatchingShelf
+import io.github.aedev.flow.ui.components.home.ContinueWatchingShelfDefaults
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.shared.FlowFeedProgress
 import io.github.aedev.flow.ui.components.shared.MediaShortsShelf
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
+import io.github.aedev.flow.ui.components.shared.feedStripCardWidth
+import io.github.aedev.flow.ui.components.shared.rememberFeedGridPlan
 
 private const val FEED_FOOTER_MIN_VIDEOS = 100
+private val FeedTopPadding = 4.dp
 
 @Composable
 internal fun HomeFeedGrid(
     uiState: HomeUiState,
-    layoutConfig: HomeLayoutConfig,
+    feedLayout: FeedGridLayout,
     isListView: Boolean,
     gridState: LazyGridState,
     onVideoClick: (Video) -> Unit,
@@ -42,39 +44,60 @@ internal fun HomeFeedGrid(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val videos = uiState.videos
+    val rows =
+        remember(videos, feedLayout.columns, uiState.continueWatchingVideos.isNotEmpty(), uiState.shorts.isNotEmpty()) {
+            homeFeedRows(
+                videos = videos,
+                columns = feedLayout.columns,
+                showContinueWatching = uiState.continueWatchingVideos.isNotEmpty(),
+                showShorts = uiState.shorts.isNotEmpty(),
+            )
+        }
+    val plan =
+        rememberFeedGridPlan(
+            layout = feedLayout,
+            listMode = isListView,
+            itemCount = rows.size,
+            spansOwnRow = { rows[it].spansRow },
+            includeLastRun = !uiState.hasMorePages,
+            itemsKey = rows,
+            compactRowSpacing = if (isListView) 0.dp else feedLayout.cardSpacing,
+        )
+    val stripCardWidth = feedStripCardWidth(feedLayout.rowWidth, ContinueWatchingShelfDefaults.CardWidth)
+
     LazyVerticalGrid(
-        columns = if (isListView) GridCells.Fixed(1) else layoutConfig.cells,
+        columns = plan.cells,
         modifier =
             modifier
                 .fillMaxSize()
                 .testTag("home_feed"),
         state = gridState,
-        contentPadding =
-            PaddingValues(
-                start = if (isListView) 0.dp else layoutConfig.contentPadding,
-                end = if (isListView) 0.dp else layoutConfig.contentPadding,
-                top = 4.dp,
-                bottom = flowBottomContentPadding(),
-            ),
-        horizontalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
-        verticalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
+        contentPadding = plan.contentPadding(top = FeedTopPadding, bottom = flowBottomContentPadding()),
+        verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
     ) {
-        val videos = uiState.videos
-        if (videos.isNotEmpty()) {
-            val insertShortsAfter = layoutConfig.shortsShelfAfterIndex.coerceAtMost(videos.size)
+        itemsIndexed(
+            items = rows,
+            key = { _, row -> row.key },
+            contentType = { _, row -> row::class },
+            span = { index, row -> plan.span(index, row.spansRow, maxLineSpan) },
+        ) { index, row ->
+            when (row) {
+                is HomeFeedRow.VideoCard -> {
+                    LaunchedEffect(row.video.id, row.video.channelId, row.video.channelThumbnailUrl) {
+                        onEnrichChannelMetadata(row.video)
+                    }
+                    MediaVideoCard(
+                        video = row.video,
+                        layout = if (plan.isListCard(index)) VideoCardLayout.Row else VideoCardLayout.Stacked,
+                        onClick = { onVideoClick(row.video) },
+                        useInternalPadding = !feedLayout.isCompact,
+                        thumbnailWidth = plan.listThumbnailWidth,
+                        modifier = Modifier.testTag("home_video_card"),
+                    )
+                }
 
-            feedVideos(
-                videos = videos.take(insertShortsAfter),
-                isListView = isListView,
-                onVideoClick = onVideoClick,
-                onEnrichChannelMetadata = onEnrichChannelMetadata,
-            )
-
-            if (uiState.continueWatchingVideos.isNotEmpty()) {
-                item(
-                    span = { GridItemSpan(maxLineSpan) },
-                    key = "continue_watching_shelf",
-                ) {
+                HomeFeedRow.ContinueWatching -> {
                     ContinueWatchingShelf(
                         entries = uiState.continueWatchingVideos,
                         onVideoClick = { videoId ->
@@ -84,16 +107,12 @@ internal fun HomeFeedGrid(
                         },
                         onRemove = onContinueWatchingRemove,
                         onSeeAllClick = onSeeAllHistory,
+                        cardWidth = stripCardWidth,
                         modifier = Modifier.testTag("home_continue_watching_shelf"),
                     )
                 }
-            }
 
-            if (uiState.shorts.isNotEmpty()) {
-                item(
-                    span = { GridItemSpan(maxLineSpan) },
-                    key = "shorts_shelf",
-                ) {
+                HomeFeedRow.Shorts -> {
                     MediaShortsShelf(
                         shorts = uiState.shorts,
                         onShortClick = onShortClick,
@@ -102,13 +121,6 @@ internal fun HomeFeedGrid(
                     )
                 }
             }
-
-            feedVideos(
-                videos = videos.drop(insertShortsAfter),
-                isListView = isListView,
-                onVideoClick = onVideoClick,
-                onEnrichChannelMetadata = onEnrichChannelMetadata,
-            )
         }
 
         if (uiState.isLoadingMore) {
@@ -131,51 +143,5 @@ internal fun HomeFeedGrid(
                 )
             }
         }
-    }
-}
-
-private fun LazyGridScope.feedVideos(
-    videos: List<Video>,
-    isListView: Boolean,
-    onVideoClick: (Video) -> Unit,
-    onEnrichChannelMetadata: (Video) -> Unit,
-) {
-    items(
-        items = videos,
-        key = { it.id },
-    ) { video ->
-        HomeFeedVideoItem(
-            video = video,
-            isListView = isListView,
-            onVideoClick = onVideoClick,
-            onEnrichChannelMetadata = onEnrichChannelMetadata,
-        )
-    }
-}
-
-@Composable
-private fun LazyGridItemScope.HomeFeedVideoItem(
-    video: Video,
-    isListView: Boolean,
-    onVideoClick: (Video) -> Unit,
-    onEnrichChannelMetadata: (Video) -> Unit,
-) {
-    LaunchedEffect(video.id, video.channelId, video.channelThumbnailUrl) {
-        onEnrichChannelMetadata(video)
-    }
-    if (isListView) {
-        MediaVideoCard(
-            video = video,
-            layout = VideoCardLayout.Row,
-            onClick = { onVideoClick(video) },
-            modifier = Modifier.testTag("home_video_card"),
-        )
-    } else {
-        MediaVideoCard(
-            video = video,
-            onClick = { onVideoClick(video) },
-            useInternalPadding = false,
-            modifier = Modifier.testTag("home_video_card"),
-        )
     }
 }

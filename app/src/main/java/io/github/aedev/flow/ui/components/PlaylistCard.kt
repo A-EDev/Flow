@@ -127,17 +127,22 @@ private fun PlaylistCardContent(
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f),
             )
-            PlaylistCardText(
-                title = title,
-                metadata = metadata,
-                description = "",
-                compact = true,
-            )
+            Row(verticalAlignment = Alignment.Top) {
+                PlaylistCardText(
+                    title = title,
+                    metadata = metadata,
+                    description = "",
+                    compact = true,
+                    modifier = Modifier.weight(1f),
+                )
+                if (onDeleteClick != null) {
+                    PlaylistCardMenu(onOpen = onClick, onDelete = onDeleteClick)
+                }
+            }
         }
         return
     }
 
-    var showMenu by remember { mutableStateOf(false) }
     Row(
         modifier =
             modifier
@@ -172,42 +177,51 @@ private fun PlaylistCardContent(
         )
 
         if (onDeleteClick != null) {
-            Box {
-                IconButton(onClick = { showMenu = true }) {
+            PlaylistCardMenu(onOpen = onClick, onDelete = onDeleteClick)
+        }
+    }
+}
+
+@Composable
+private fun PlaylistCardMenu(
+    onOpen: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { showMenu = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.open)) },
+                onClick = {
+                    showMenu = false
+                    onOpen()
+                },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_delete)) },
+                onClick = {
+                    showMenu = false
+                    onDelete()
+                },
+                leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
                     )
-                }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.open)) },
-                        onClick = {
-                            showMenu = false
-                            onClick()
-                        },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_delete)) },
-                        onClick = {
-                            showMenu = false
-                            onDeleteClick()
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                    )
-                }
-            }
+                },
+            )
         }
     }
 }

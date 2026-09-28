@@ -82,6 +82,7 @@ internal fun VideoDownloadItem(
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
+    rowThumbnailWidth: Dp = MediaThumbnailDefaults.VideoWidth,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val supporting = downloadSupportingLine(video.quality, video.fileSize, video.downloadedAt)
@@ -123,7 +124,7 @@ internal fun VideoDownloadItem(
                 thumbnailUrl = video.video.thumbnailUrl,
                 durationSeconds = video.video.duration,
                 showWatchProgress = true,
-                width = MediaThumbnailDefaults.VideoWidth,
+                width = rowThumbnailWidth,
             )
         }
     }

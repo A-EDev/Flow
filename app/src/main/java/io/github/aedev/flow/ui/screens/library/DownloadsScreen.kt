@@ -162,7 +162,6 @@ fun DownloadsScreen(
                     },
                     trailing = if (sortInHeader) sortChip else null,
                 )
-                val videoColumns = flowGridColumns(compact = 1, medium = 2, expanded = 3)
                 val musicColumns = flowGridColumns(compact = 1, medium = 1, expanded = 2)
                 Crossfade(
                     targetState = selectedKind,
@@ -179,7 +178,6 @@ fun DownloadsScreen(
                                 incomplete = uiState.incompleteVideoDownloads,
                                 progress = uiState.progress,
                                 mergingIds = uiState.mergingVideoIds,
-                                columns = videoColumns,
                                 query = uiState.query,
                                 selection = selection,
                                 activeActions = activeActions,

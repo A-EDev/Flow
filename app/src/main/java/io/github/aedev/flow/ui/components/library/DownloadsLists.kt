@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.library
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -40,16 +42,17 @@ import io.github.aedev.flow.ui.components.shared.MediaKind
 import io.github.aedev.flow.ui.components.shared.animateMediaGridItem
 
 private val GridSpacing = 12.dp
+private val MusicGridPadding = 16.dp
 
 /** Rows carry their own side padding, so content above them is inset to match; cards use the grid's. */
 private fun rowInset(columns: Int): Dp = if (columns > 1) 0.dp else 16.dp
 
 /** Rows carry their own side padding; cards need the grid's. */
 @Composable
-private fun listPadding(columns: Int) =
+private fun listPadding(side: Dp) =
     PaddingValues(
-        start = if (columns > 1) 16.dp else 0.dp,
-        end = if (columns > 1) 16.dp else 0.dp,
+        start = side,
+        end = side,
         top = 4.dp,
         bottom = flowBottomContentPadding(),
     )
@@ -72,7 +75,7 @@ internal class ActiveDownloadActions(
 
 /**
  * Video downloads under the screen's [header]: what is still downloading, then what is finished,
- * as rows on a phone and as cards over [columns] columns on wider windows.
+ * as rows on a phone and as cards on wider windows, as many columns as the space holds.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,7 +86,6 @@ internal fun VideosDownloadsList(
     incomplete: List<DownloadWithItems>,
     progress: Map<String, DownloadProgressUpdate>,
     mergingIds: Set<String>,
-    columns: Int,
     query: String,
     selection: LibrarySelection,
     activeActions: ActiveDownloadActions,
@@ -104,31 +106,43 @@ internal fun VideosDownloadsList(
             DownloadsEmptyState(kind = MediaKind.Videos, onHomeClick = onHomeClick)
             return@FlowPullToRefreshBox
         }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            contentPadding = listPadding(columns),
-            horizontalArrangement = Arrangement.spacedBy(GridSpacing),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            fullWidth("header") { Box(Modifier.padding(horizontal = rowInset(columns))) { header() } }
-            activeSection(incomplete, progress, mergingIds, activeActions, rowInset(columns))
-            if (videos.isNotEmpty()) {
-                fullWidth(
-                    "section_done",
-                ) { DownloadsSectionHeader(stringResource(R.string.downloads_section_downloaded), videos.size, rowInset(columns)) }
-            } else if (query.isNotBlank()) {
-                fullWidth("no_results") { NoResults(query) }
-            }
-            itemsIndexed(videos, key = { _, video -> video.video.id }, contentType = { _, _ -> "video" }) { index, video ->
-                VideoDownloadItem(
-                    video = video,
-                    asCard = columns > 1,
-                    selectionMode = selection.active,
-                    selected = video.video.id in selection.ids,
-                    onClick = { if (selection.active) selection.onToggle(video.video.id) else onVideoClick(videos, index) },
-                    onDeleteClick = { onDelete(video.video.id, video.video.title) },
-                    modifier = animateMediaGridItem().padding(bottom = if (columns > 1) GridSpacing else 0.dp),
-                )
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val grid = remember(maxWidth) { libraryGridLayoutFor(maxWidth) }
+            val columns = grid.columns
+            val partialRows = remember(videos.size, grid) { grid.partialRows(videos.size) }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                contentPadding = listPadding(grid.padding),
+                horizontalArrangement = Arrangement.spacedBy(grid.spacing),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                fullWidth("header") { Box(Modifier.padding(horizontal = rowInset(columns))) { header() } }
+                activeSection(incomplete, progress, mergingIds, activeActions, rowInset(columns))
+                if (videos.isNotEmpty()) {
+                    fullWidth(
+                        "section_done",
+                    ) { DownloadsSectionHeader(stringResource(R.string.downloads_section_downloaded), videos.size, rowInset(columns)) }
+                } else if (query.isNotBlank()) {
+                    fullWidth("no_results") { NoResults(query) }
+                }
+                itemsIndexed(
+                    items = videos,
+                    key = { _, video -> video.video.id },
+                    contentType = { index, _ -> if (grid.isGrid && index !in partialRows) "video_card" else "video_row" },
+                    span = { index, _ -> GridItemSpan(if (index in partialRows) maxLineSpan else 1) },
+                ) { index, video ->
+                    val asCard = grid.isGrid && index !in partialRows
+                    VideoDownloadItem(
+                        video = video,
+                        asCard = asCard,
+                        selectionMode = selection.active,
+                        selected = video.video.id in selection.ids,
+                        onClick = { if (selection.active) selection.onToggle(video.video.id) else onVideoClick(videos, index) },
+                        onDeleteClick = { onDelete(video.video.id, video.video.title) },
+                        rowThumbnailWidth = grid.rowThumbnailWidth,
+                        modifier = animateMediaGridItem().padding(bottom = if (asCard) GridSpacing else 0.dp),
+                    )
+                }
             }
         }
     }
@@ -165,7 +179,7 @@ internal fun MusicDownloadsList(
         }
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
-            contentPadding = listPadding(columns),
+            contentPadding = listPadding(if (columns > 1) MusicGridPadding else 0.dp),
             horizontalArrangement = Arrangement.spacedBy(GridSpacing),
             modifier = Modifier.fillMaxSize(),
         ) {

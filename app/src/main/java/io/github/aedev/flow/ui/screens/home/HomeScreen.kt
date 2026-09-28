@@ -43,6 +43,8 @@ import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.TabScrollEventBus
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
+import io.github.aedev.flow.ui.components.rememberFeedGridLayout
+import io.github.aedev.flow.ui.components.shared.FeedGridSkeleton
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import kotlinx.coroutines.FlowPreview
@@ -53,6 +55,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 private const val IMPRESSION_DEBOUNCE_MS = 500L
+private const val SKELETON_CARD_COUNT = 12
 private const val MILLIS_PER_SECOND = 1000L
 
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
@@ -183,7 +186,7 @@ fun HomeScreen(
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val isListView = homeViewMode == HomeViewMode.LIST
-                val layoutConfig = rememberHomeLayoutConfig(maxWidth, homeFeedColumns)
+                val feedLayout = rememberFeedGridLayout(maxWidth, homeFeedColumns)
 
                 when {
                     !homeFeedEnabled -> {
@@ -191,7 +194,13 @@ fun HomeScreen(
                     }
 
                     uiState.isLoading && uiState.videos.isEmpty() -> {
-                        HomeFeedShimmer(layoutConfig = layoutConfig, isListView = isListView)
+                        FeedGridSkeleton(
+                            layout = feedLayout,
+                            listMode = isListView,
+                            stackedInset = !feedLayout.isCompact,
+                            placeholderCount = SKELETON_CARD_COUNT,
+                            compactRowSpacing = if (isListView) 0.dp else feedLayout.cardSpacing,
+                        )
                     }
 
                     uiState.error != null && uiState.videos.isEmpty() -> {
@@ -210,7 +219,7 @@ fun HomeScreen(
 
                         HomeFeedGrid(
                             uiState = uiState,
-                            layoutConfig = layoutConfig,
+                            feedLayout = feedLayout,
                             isListView = isListView,
                             gridState = gridState,
                             onVideoClick = onVideoClick,
