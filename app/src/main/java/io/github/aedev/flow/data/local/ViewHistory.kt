@@ -267,7 +267,7 @@ class ViewHistory private constructor(
             .mapLatest { read() }
             .flowOn(Dispatchers.IO)
 
-    suspend fun getWatchedShortIds(threshold: WatchedThreshold): Set<String> = dao.readShortProgress().watchedIds(threshold)
+    suspend fun getShortProgress(): List<WatchProgress> = dao.readShortProgress()
 
     suspend fun getWatchProgress(videoId: String): WatchProgress? = dao.getProgress(videoId)
 

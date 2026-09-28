@@ -24,13 +24,15 @@ class SubscriptionWatchedVideosTest {
     private fun watched(
         hideWatchedShorts: Boolean,
         hideWatchedVideos: Boolean,
+        threshold: WatchedThreshold = WatchedThreshold.ALMOST_FINISHED,
+        rows: List<WatchProgress> = history,
     ): SubscriptionWatchedVideos {
         val viewHistory: ViewHistory = mockk(relaxed = true)
-        every { viewHistory.getVideoWatchProgress() } returns flowOf(history)
+        every { viewHistory.getVideoWatchProgress() } returns flowOf(rows)
         val preferences: PlayerPreferences = mockk(relaxed = true)
         every { preferences.hideWatchedShorts } returns flowOf(hideWatchedShorts)
         every { preferences.hideWatchedVideosFromSubscriptions } returns flowOf(hideWatchedVideos)
-        every { preferences.watchedThreshold } returns flowOf(WatchedThreshold.ALMOST_FINISHED)
+        every { preferences.watchedThreshold } returns flowOf(threshold)
         val database: AppDatabase = mockk(relaxed = true)
         every { database.downloadDao().getVideoDownloads() } returns flowOf(emptyList())
         return SubscriptionWatchedVideos(viewHistory, preferences, database)
@@ -40,6 +42,16 @@ class SubscriptionWatchedVideosTest {
     fun `finished reels are hidden while the Shorts setting is on`() =
         runTest {
             assertThat(watched(hideWatchedShorts = true, hideWatchedVideos = false).shortIds.first()).containsExactly("finished-reel")
+        }
+
+    @Test
+    fun `a reel the badge shows as watched is hidden under a stricter video threshold`() =
+        runTest {
+            val rows = listOf(WatchProgress("reel-92", position = 27_600L, duration = 30_000L, timestamp = 0L))
+            val watched = watched(hideWatchedShorts = true, hideWatchedVideos = true, threshold = WatchedThreshold.PERCENT_99, rows = rows)
+
+            assertThat(watched.shortIds.first()).containsExactly("reel-92")
+            assertThat(watched.ids.first()).isEmpty()
         }
 
     @Test

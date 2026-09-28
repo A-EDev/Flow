@@ -4,17 +4,16 @@ import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.dao.WatchProgress
 import org.junit.Test
 
-/**
- * #979: the Shorts feed decided "watched" in SQL (99 % and under a minute left) while Home and
- * Subscriptions used [WatchedThreshold.isWatched] (under a minute left, any percent), so a Short
- * saved at 92 % was watched on one surface and not on the other. Both now read the one definition.
- */
+/** #979: every watched video filter reads [WatchedThreshold.isWatched] rather than restating it in SQL. */
 class WatchedThresholdTest {
     private fun progress(
         id: String,
         positionMs: Long,
         durationMs: Long,
     ) = WatchProgress(videoId = id, position = positionMs, duration = durationMs, timestamp = 0L)
+
+    private fun List<WatchProgress>.watchedIds(threshold: WatchedThreshold) =
+        filter { threshold.isWatched(it.position, it.duration) }.map { it.videoId }
 
     private val matrix =
         listOf(
@@ -29,15 +28,6 @@ class WatchedThresholdTest {
             progress("unknown-length", 5_000L, 0L),
             progress("unplayed", 0L, 30_000L),
         )
-
-    @Test
-    fun `the id filter and isWatched agree for every threshold`() {
-        WatchedThreshold.entries.forEach { threshold ->
-            val expected = matrix.filter { threshold.isWatched(it.position, it.duration) }.map { it.videoId }.toSet()
-
-            assertThat(matrix.watchedIds(threshold)).isEqualTo(expected)
-        }
-    }
 
     @Test
     fun `almost finished is the last minute of a long video and 90 percent of a short one`() {
