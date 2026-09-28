@@ -63,8 +63,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
-import org.schabi.newpipe.extractor.stream.VideoStream
 
 private const val MIN_THREADS = 1
 private const val MAX_THREADS = 8
@@ -87,7 +85,6 @@ private fun codecOptionLabel(
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun MediaDownloadDialogCompact(
-    streamInfo: StreamInfo?,
     streamSizes: Map<String, Long>,
     innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
     innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
@@ -124,18 +121,18 @@ fun MediaDownloadDialogCompact(
         }
 
     val videoStreams =
-        remember(innerTubeVideoFormats, streamInfo) {
+        remember(innerTubeVideoFormats) {
             DownloadStreamPolicy.buildDownloadVideoStreams(
                 innerTubeStreams = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats),
-                videoOnlyStreams = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
-                muxedStreams = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
+                videoOnlyStreams = emptyList(),
+                muxedStreams = emptyList(),
             )
         }
     val audioStreams =
-        remember(innerTubeAudioFormats, streamInfo) {
+        remember(innerTubeAudioFormats) {
             DownloadStreamPolicy.mergeAudioDownloadStreams(
                 InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats),
-                streamInfo?.audioStreams ?: emptyList(),
+                emptyList(),
             )
         }
     val heights =

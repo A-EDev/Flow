@@ -7,9 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Guards the download dialog's size column. Both extraction stacks feed it and neither is
- * guaranteed to carry `contentLength`, so the cases below pin the fallbacks rather than the happy
- * path alone.
+ * Guards the download dialog's size column. The formats are not guaranteed to carry
+ * `contentLength`, so the cases below pin the fallbacks rather than the happy path alone.
  */
 class StreamSizeEstimatorTest {
     private val audioMp4 = audioFormat(itag = 140, mimeType = MP4_AUDIO, bitrate = 128_000, contentLength = 1_000_000L)
@@ -95,29 +94,6 @@ class StreamSizeEstimatorTest {
 
         assertEquals(20_000_000L, sizes[VideoCodecUtils.streamSizeKey(1080, "h264")])
         assertNull(sizes[VideoCodecUtils.streamSizeKey(1920, "h264")])
-    }
-
-    @Test
-    fun `merge keeps the largest estimate for a resolution and codec pair`() {
-        val key = VideoCodecUtils.streamSizeKey(1080, "h264")
-
-        val merged = StreamSizeEstimator.merge(mapOf(key to 10L), mapOf(key to 25L), mapOf(key to 5L))
-
-        assertEquals(25L, merged[key])
-    }
-
-    @Test
-    fun `sizes derived from converted InnerTube streams match the ones derived from the formats`() {
-        val video = videoFormat(itag = 137, mimeType = MP4_VIDEO, height = 1080, contentLength = 50_000_000L)
-        val formatSizes = StreamSizeEstimator.fromInnerTubeFormats(listOf(video), listOf(audioMp4))
-
-        val streamSizes =
-            StreamSizeEstimator.fromExtractorStreams(
-                InnerTubeStreamBridge.convertVideoFormats(listOf(video)),
-                InnerTubeStreamBridge.convertAudioFormats(listOf(audioMp4)),
-            )
-
-        assertEquals(formatSizes, streamSizes)
     }
 
     private companion object {

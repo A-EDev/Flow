@@ -1,9 +1,6 @@
 package io.github.aedev.flow.player.stream
 
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
-import org.schabi.newpipe.extractor.services.youtube.ItagItem
-import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.VideoStream
 
 object StreamSizeEstimator {
     private const val BITS_PER_BYTE = 8
@@ -48,69 +45,6 @@ object StreamSizeEstimator {
         return sizes
     }
 
-    /**
-     * @param durationSeconds the video's duration, used only for streams whose itag carries neither
-     *   a content length nor an approximate duration. Pass 0 when unknown.
-     */
-    fun fromExtractorStreams(
-        videoStreams: List<VideoStream>,
-        audioStreams: List<AudioStream>,
-        durationSeconds: Long = 0L,
-    ): Map<String, Long> {
-        if (videoStreams.isEmpty()) return emptyMap()
-        val fallbackDurationMs = durationSeconds.coerceAtLeast(0L) * 1000L
-
-        fun sizeOf(
-            itag: ItagItem?,
-            bitrate: Int,
-        ): Long {
-            itag?.contentLength?.takeIf { it > 0L }?.let { return it }
-            val durationMs = itag?.approxDurationMs?.takeIf { it > 0L } ?: fallbackDurationMs
-            return estimateBytes(bitrate, durationMs)
-        }
-
-        val bestMp4Audio =
-            audioStreams
-                .filter { isMp4(audioMimeType(it)) }
-                .maxByOrNull { audioBitrate(it) }
-                ?.let { sizeOf(it.itagItem, audioBitrate(it)) } ?: 0L
-        val bestWebmAudio =
-            audioStreams
-                .filterNot { isMp4(audioMimeType(it)) }
-                .maxByOrNull { audioBitrate(it) }
-                ?.let { sizeOf(it.itagItem, audioBitrate(it)) } ?: 0L
-        val bestAnyAudio =
-            audioStreams
-                .maxByOrNull { audioBitrate(it) }
-                ?.let { sizeOf(it.itagItem, audioBitrate(it)) } ?: 0L
-
-        val sizes = mutableMapOf<String, Long>()
-        videoStreams.forEach { stream ->
-            val videoBytes = sizeOf(stream.itagItem, stream.bitrate)
-            if (videoBytes <= 0L) return@forEach
-            val codecKey = VideoCodecUtils.codecKeyFromStream(stream)
-            // A muxed stream already carries its audio; only a video-only stream needs one added.
-            val audioBytes =
-                if (stream.isVideoOnly) {
-                    muxedAudioBytes(codecKey == "h264" || codecKey == "hevc", bestMp4Audio, bestWebmAudio, bestAnyAudio)
-                } else {
-                    0L
-                }
-            sizes.keepLargest(
-                key = VideoCodecUtils.streamSizeKey(VideoCodecUtils.qualityHeightFromStream(stream), codecKey),
-                bytes = videoBytes + audioBytes,
-            )
-        }
-        return sizes
-    }
-
-    /** Combines per-source maps, keeping the largest estimate for each `(resolution, codec)` pair. */
-    fun merge(vararg sources: Map<String, Long>): Map<String, Long> {
-        val merged = mutableMapOf<String, Long>()
-        sources.forEach { source -> source.forEach { (key, bytes) -> merged.keepLargest(key, bytes) } }
-        return merged
-    }
-
     private fun muxedAudioBytes(
         isMp4Video: Boolean,
         bestMp4Audio: Long,
@@ -141,8 +75,4 @@ object StreamSizeEstimator {
         }
 
     private fun isMp4(mimeType: String): Boolean = mimeType.contains("mp4", ignoreCase = true)
-
-    private fun audioMimeType(stream: AudioStream): String = stream.format?.mimeType.orEmpty()
-
-    private fun audioBitrate(stream: AudioStream): Int = stream.averageBitrate.takeIf { it > 0 } ?: stream.bitrate
 }

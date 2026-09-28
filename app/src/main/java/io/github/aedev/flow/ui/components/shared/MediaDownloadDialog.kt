@@ -29,12 +29,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.stream.VideoStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaDownloadDialog(
-    streamInfo: org.schabi.newpipe.extractor.stream.StreamInfo?,
     streamSizes: Map<String, Long>,
     innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
     innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
@@ -96,13 +94,13 @@ fun MediaDownloadDialog(
                     }
 
                 val effectiveAudioForDownload: List<org.schabi.newpipe.extractor.stream.AudioStream> =
-                    DownloadStreamPolicy.mergeAudioDownloadStreams(innerTubeAudioStreams, streamInfo?.audioStreams ?: emptyList())
+                    DownloadStreamPolicy.mergeAudioDownloadStreams(innerTubeAudioStreams, emptyList())
 
                 val distinctStreams =
                     DownloadStreamPolicy.buildDownloadVideoStreams(
                         innerTubeStreams = innerTubeVideoStreams,
-                        videoOnlyStreams = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
-                        muxedStreams = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
+                        videoOnlyStreams = emptyList(),
+                        muxedStreams = emptyList(),
                     )
 
                 LazyColumn(

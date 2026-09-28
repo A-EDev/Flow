@@ -62,7 +62,6 @@ class DownloadDialogsTest {
             MaterialTheme {
                 if (showCompact) {
                     MediaDownloadDialogCompact(
-                        streamInfo = null,
                         streamSizes = emptyMap(),
                         innerTubeVideoFormats = fakeVideoFormats(),
                         innerTubeAudioFormats = fakeAudioFormats(),
@@ -71,7 +70,6 @@ class DownloadDialogsTest {
                     )
                 } else {
                     MediaDownloadDialog(
-                        streamInfo = null,
                         streamSizes = emptyMap(),
                         innerTubeVideoFormats = fakeVideoFormats(),
                         innerTubeAudioFormats = fakeAudioFormats(),
