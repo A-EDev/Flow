@@ -1,18 +1,15 @@
 package io.github.aedev.flow.data.download
 
-import android.app.Application
 import android.net.Uri
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
 import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], application = Application::class)
+/** Plain JVM: the data source reads only a URI's scheme and host, so mocks stand in for the framework's Uri. */
 class LocalCopyDataSourceTest {
     private class RecordingSource(
         private val name: String,
@@ -42,13 +39,22 @@ class LocalCopyDataSourceTest {
 
     private val local = RecordingSource("local")
     private val remote = RecordingSource("remote")
-    private val file = Uri.parse("file:///storage/Music/Flow/song.m4a")
+    private val file = uri("file", host = null)
+
+    private fun uri(
+        scheme: String,
+        host: String?,
+    ): Uri =
+        mockk {
+            every { this@mockk.scheme } returns scheme
+            every { this@mockk.host } returns host
+        }
 
     private fun source(downloaded: Set<String> = setOf("abc")) =
         LocalCopyDataSource(local, remote) { id -> file.takeIf { id in downloaded } }
 
     private fun spec(
-        uri: String,
+        uri: Uri,
         key: String? = null,
     ) = DataSpec
         .Builder()
@@ -59,9 +65,9 @@ class LocalCopyDataSourceTest {
 
     @Test
     fun `a downloaded song opens its file, without the stream's cache key`() {
-        source().open(spec("music://abc", key = "abc"))
+        source().open(spec(uri("music", "abc"), key = "abc"))
 
-        assertThat(local.opened?.uri).isEqualTo(file)
+        assertThat(local.opened?.uri).isSameInstanceAs(file)
         assertThat(local.opened?.key).isNull()
         assertThat(local.opened?.position).isEqualTo(4)
         assertThat(remote.opened).isNull()
@@ -69,7 +75,7 @@ class LocalCopyDataSourceTest {
 
     @Test
     fun `a song without a download resolves through the stream chain unchanged`() {
-        val spec = spec("music://xyz", key = "xyz")
+        val spec = spec(uri("music", "xyz"), key = "xyz")
 
         source().open(spec)
 
@@ -79,25 +85,25 @@ class LocalCopyDataSourceTest {
 
     @Test
     fun `an item with no cache key is looked up by its id`() {
-        source().open(spec("music://abc"))
+        source().open(spec(uri("music", "abc")))
 
-        assertThat(local.opened?.uri).isEqualTo(file)
+        assertThat(local.opened?.uri).isSameInstanceAs(file)
     }
 
     @Test
     fun `device files skip the caches`() {
-        val sut = source(downloaded = emptySet())
+        val content = uri("content", "media")
 
-        sut.open(spec("content://media/external/audio/media/7", key = "local_7"))
+        source(downloaded = emptySet()).open(spec(content, key = "local_7"))
 
-        assertThat(local.opened?.uri.toString()).isEqualTo("content://media/external/audio/media/7")
+        assertThat(local.opened?.uri).isSameInstanceAs(content)
         assertThat(remote.opened).isNull()
     }
 
     @Test
     fun `reads and close go to the source that was opened`() {
         val sut = source()
-        sut.open(spec("https://example.com/a"))
+        sut.open(spec(uri("https", "example.com")))
 
         assertThat(sut.read(ByteArray(8), 0, 8)).isEqualTo("remote".length)
         sut.close()
