@@ -45,8 +45,8 @@ class NowPlayingContentTest {
             provideComposable { NowPlayingContent(snapshot(), artwork = null) }
             onNode(hasTextEqualTo("Midnight Transit")).assertExists()
             onNode(hasTextEqualTo("Harbor Lights")).assertExists()
-            onNode(hasTextEqualTo("1:05")).assertExists()
-            onNode(hasTextEqualTo("3:00")).assertExists()
+            onNode(hasTextEqualTo("01:05")).assertExists()
+            onNode(hasTextEqualTo("03:00")).assertExists()
         }
 
     @Test
@@ -55,8 +55,8 @@ class NowPlayingContentTest {
             setAppWidgetSize(RoomyCard)
             setContext(context)
             provideComposable { NowPlayingContent(snapshot(isPlaying = true), artwork = null) }
-            onNode(hasTextEqualTo("1:05")).assertDoesNotExist()
-            onNode(hasTextEqualTo("3:00")).assertExists()
+            onNode(hasTextEqualTo("01:05")).assertDoesNotExist()
+            onNode(hasTextEqualTo("03:00")).assertExists()
         }
 
     @Test

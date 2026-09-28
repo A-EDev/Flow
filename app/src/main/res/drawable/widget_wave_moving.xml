@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The M3 Expressive wavy line, scrolling one wavelength per cycle. It is an indeterminate
+     ProgressBar's drawable, so the launcher starts and runs it; the app does no per-frame work, and
+     the platform stops it whenever the widget is not on screen. A white mask tinted at runtime. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="660dp"
+            android:height="12dp"
+            android:viewportWidth="660"
+            android:viewportHeight="12">
+            <group android:name="wave">
+                <path
+                    android:pathData="M2,6 q7,-6 14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0 t14,0"
+                    android:strokeWidth="3.5"
+                    android:strokeColor="@android:color/white"
+                    android:strokeLineCap="round"
+                    android:strokeLineJoin="round" />
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="wave">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="1200"
+                android:interpolator="@android:interpolator/linear"
+                android:propertyName="translateX"
+                android:repeatCount="infinite"
+                android:repeatMode="restart"
+                android:valueFrom="0"
+                android:valueTo="-28"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+</animated-vector>

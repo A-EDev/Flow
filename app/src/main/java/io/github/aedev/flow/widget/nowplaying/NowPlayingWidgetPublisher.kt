@@ -36,6 +36,7 @@ class NowPlayingWidgetPublisher
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private var publishJob: Job? = null
+        private val progressTicker = NowPlayingProgressTicker(context, scope)
 
         /** Must be called on the player's application thread (service listener callbacks are). */
         @OptIn(UnstableApi::class)
@@ -61,6 +62,7 @@ class NowPlayingWidgetPublisher
                         positionMs = player.currentPosition.coerceAtLeast(0L),
                         durationMs = player.duration.takeIf { d -> d != C.TIME_UNSET } ?: 0L,
                         capturedAtElapsedMs = SystemClock.elapsedRealtime(),
+                        speed = player.playbackParameters.speed,
                     )
                 }
             publishJob?.cancel()
@@ -70,12 +72,14 @@ class NowPlayingWidgetPublisher
                     delay(150)
                     if (snapshot == null) context.clearNowPlayingSnapshot() else context.writeNowPlayingSnapshot(snapshot)
                     updatePlayerWidgets()
+                    progressTicker.follow(snapshot)
                 }
         }
 
         /** Service is going away — keep the last track on the widget, but shown paused. */
         fun publishStopped() {
             publishJob?.cancel()
+            progressTicker.follow(null)
             publishJob =
                 scope.launch {
                     context.markNowPlayingStopped()

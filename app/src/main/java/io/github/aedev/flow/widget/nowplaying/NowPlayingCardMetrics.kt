@@ -18,7 +18,7 @@ internal data class CardMetrics(
     val inset: Dp,
     val art: Dp,
     val controls: CardControls,
-    val showWave: Boolean,
+    val showProgress: Boolean,
 )
 
 /**
@@ -38,7 +38,7 @@ internal fun cardMetrics(size: DpSize): CardMetrics {
         inset = inset,
         art = if (art >= MinArt) art else 0.dp,
         controls = fitting,
-        showWave = roomy,
+        showProgress = roomy,
     )
 }
 

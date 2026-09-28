@@ -30,7 +30,7 @@ class NowPlayingCardMetricsTest {
         val metrics = cardMetrics(DpSize(340.dp, 176.dp))
         assertEquals(124.dp, metrics.art)
         assertEquals(56.dp, metrics.controls.play)
-        assertTrue(metrics.showWave)
+        assertTrue(metrics.showProgress)
     }
 
     @Test
@@ -46,7 +46,7 @@ class NowPlayingCardMetricsTest {
     }
 
     @Test
-    fun aShortCardDropsTheWave() {
-        assertFalse(cardMetrics(DpSize(340.dp, 110.dp)).showWave)
+    fun aShortCardDropsTheProgressRow() {
+        assertFalse(cardMetrics(DpSize(340.dp, 110.dp)).showProgress)
     }
 }

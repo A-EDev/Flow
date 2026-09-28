@@ -5,6 +5,7 @@ import android.util.TypedValue
 import android.widget.RemoteViews
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.toArgb
+import androidx.glance.GlanceModifier
 import androidx.glance.LocalContext
 import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.text.Text
@@ -22,9 +23,11 @@ internal fun WidgetElapsedTime(
     capturedAtElapsedMs: Long,
     isRunning: Boolean,
     style: TextStyle,
+    modifier: GlanceModifier = GlanceModifier,
 ) {
     if (!isRunning || capturedAtElapsedMs <= 0L) {
-        Text(text = formatDurationMillis(positionMs), style = style, maxLines = 1)
+        // Padded like the Chronometer's own "00:07", so pausing does not shift the digits.
+        Text(text = formatDurationMillis(positionMs, padMinutes = true), style = style, maxLines = 1, modifier = modifier)
         return
     }
     val context = LocalContext.current
@@ -40,5 +43,6 @@ internal fun WidgetElapsedTime(
                 }
             }
         }
-    AndroidRemoteViews(views)
+    // Unsized, an embedded platform view fills its row and pushes its neighbours out of sight.
+    AndroidRemoteViews(views, modifier)
 }

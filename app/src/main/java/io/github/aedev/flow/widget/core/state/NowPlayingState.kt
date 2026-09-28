@@ -3,6 +3,7 @@ package io.github.aedev.flow.widget.core.state
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -25,6 +26,7 @@ data class NowPlayingSnapshot(
     val durationMs: Long,
     /** `SystemClock.elapsedRealtime()` when [positionMs] was read, so a running clock can start from it. */
     val capturedAtElapsedMs: Long = 0L,
+    val speed: Float = 1f,
 )
 
 private val Context.nowPlayingWidgetStore by preferencesDataStore(name = "now_playing_widget")
@@ -39,6 +41,7 @@ private object Keys {
     val POSITION_MS = longPreferencesKey("position_ms")
     val DURATION_MS = longPreferencesKey("duration_ms")
     val CAPTURED_AT_ELAPSED_MS = longPreferencesKey("captured_at_elapsed_ms")
+    val SPEED = floatPreferencesKey("speed")
 }
 
 /** [isLive] is false when no player in this process has published, so "playing" cannot still be true. */
@@ -55,6 +58,7 @@ fun Context.nowPlayingSnapshotFlow(isLive: () -> Boolean): Flow<NowPlayingSnapsh
             positionMs = prefs[Keys.POSITION_MS] ?: 0L,
             durationMs = prefs[Keys.DURATION_MS] ?: 0L,
             capturedAtElapsedMs = prefs[Keys.CAPTURED_AT_ELAPSED_MS] ?: 0L,
+            speed = prefs[Keys.SPEED] ?: 1f,
         )
     }
 
@@ -69,6 +73,7 @@ suspend fun Context.writeNowPlayingSnapshot(snapshot: NowPlayingSnapshot) {
         prefs[Keys.POSITION_MS] = snapshot.positionMs
         prefs[Keys.DURATION_MS] = snapshot.durationMs
         prefs[Keys.CAPTURED_AT_ELAPSED_MS] = snapshot.capturedAtElapsedMs
+        prefs[Keys.SPEED] = snapshot.speed
     }
 }
 
