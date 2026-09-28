@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
 import io.github.aedev.flow.ui.components.feedGridLayoutFor
 import io.github.aedev.flow.ui.components.partialRowIndices
+import io.github.aedev.flow.ui.components.shared.feedStripCardWidth
 import org.junit.Test
 
 /**
@@ -34,9 +35,10 @@ class SearchResultLayoutTest {
     }
 
     @Test
-    fun `a wide window carries at most three cards a row`() {
-        assertThat(columns(widthDp = 1600)).isAtMost(FEED_MAX_AUTO_COLUMNS)
+    fun `a tablet carries three cards a row and only a desktop-wide window more`() {
+        assertThat(columns(widthDp = 1184)).isEqualTo(FEED_MAX_AUTO_COLUMNS)
         assertThat(columns(widthDp = 1200)).isEqualTo(FEED_MAX_AUTO_COLUMNS)
+        assertThat(columns(widthDp = 1600)).isEqualTo(FEED_MAX_AUTO_COLUMNS + 1)
     }
 
     @Test
@@ -71,8 +73,8 @@ class SearchResultLayoutTest {
 
     @Test
     fun `the creator strip sizes its cards from the window`() {
-        val phone = stripCardWidth(387.dp)
-        val tablet = stripCardWidth(1128.dp)
+        val phone = feedStripCardWidth(387.dp)
+        val tablet = feedStripCardWidth(1128.dp)
 
         assertThat(phone.value).isLessThan(tablet.value)
         assertThat(phone.value).isAtLeast(260f)
@@ -82,7 +84,7 @@ class SearchResultLayoutTest {
     @Test
     fun `a thumbnail-left row on a tablet is as wide as one grid column`() {
         val layout = feedGridLayoutFor(1200.dp, HomeFeedColumns.AUTO, FEED_MAX_AUTO_COLUMNS)
-        val spanned = layout.cardWidth * layout.columns + layout.cardSpacing * (layout.columns - 1)
+        val spanned = layout.cardWidth * layout.columns
 
         assertThat(spanned.value).isWithin(TOLERANCE).of((1200.dp - layout.contentPadding * 2).value)
     }
@@ -97,7 +99,14 @@ class SearchResultLayoutTest {
 
     @Test
     fun `the creator strip never shows a card the window cannot hold`() {
-        assertThat(stripCardWidth(320.dp).value).isAtMost(320f)
+        assertThat(feedStripCardWidth(320.dp).value).isAtMost(320f)
+    }
+
+    @Test
+    fun `a strip pinned on a phone keeps its width while a peek still fits`() {
+        assertThat(feedStripCardWidth(411.dp, compactWidth = 350.dp)).isEqualTo(350.dp)
+        assertThat(feedStripCardWidth(360.dp, compactWidth = 350.dp)).isEqualTo(300.dp)
+        assertThat(feedStripCardWidth(1176.dp, compactWidth = 350.dp)).isEqualTo(380.dp)
     }
 
     private companion object {

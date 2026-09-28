@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
 import io.github.aedev.flow.ui.components.shared.ShimmerBone
@@ -29,10 +30,11 @@ fun VideoCardSkeleton(
     modifier: Modifier = Modifier,
     layout: VideoCardLayout = VideoCardLayout.Stacked,
     useInternalPadding: Boolean = true,
+    thumbnailWidth: Dp = VideoCardDefaults.RowThumbnailWidth,
 ) {
     when (layout) {
         VideoCardLayout.Stacked -> StackedSkeleton(useInternalPadding, modifier)
-        VideoCardLayout.Row -> RowSkeleton(modifier)
+        VideoCardLayout.Row -> RowSkeleton(thumbnailWidth, modifier)
     }
 }
 
@@ -62,7 +64,10 @@ private fun StackedSkeleton(
 }
 
 @Composable
-private fun RowSkeleton(modifier: Modifier) {
+private fun RowSkeleton(
+    thumbnailWidth: Dp,
+    modifier: Modifier,
+) {
     Row(
         modifier =
             modifier
@@ -71,7 +76,7 @@ private fun RowSkeleton(modifier: Modifier) {
         horizontalArrangement = Arrangement.spacedBy(VideoCardDefaults.Inset),
     ) {
         ShimmerBone(
-            modifier = Modifier.width(VideoCardDefaults.RowThumbnailWidth).aspectRatio(MediaThumbnailDefaults.VideoAspectRatio),
+            modifier = Modifier.width(thumbnailWidth).aspectRatio(MediaThumbnailDefaults.VideoAspectRatio),
             shape = MaterialTheme.shapes.medium,
         )
         TextLines(modifier = Modifier.weight(1f))

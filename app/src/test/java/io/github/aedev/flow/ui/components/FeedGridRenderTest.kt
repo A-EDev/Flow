@@ -53,7 +53,6 @@ class FeedGridRenderTest {
                     columns = layout.cells,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = layout.contentPadding),
-                    horizontalArrangement = Arrangement.spacedBy(layout.cardSpacing),
                     verticalArrangement = Arrangement.spacedBy(layout.cardSpacing),
                 ) {
                     items(items = (0 until 24).toList(), key = { it }) {

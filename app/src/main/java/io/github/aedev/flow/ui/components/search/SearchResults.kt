@@ -22,6 +22,7 @@ import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
+import io.github.aedev.flow.ui.components.shared.FeedGridTopPadding
 import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.MediaShortCard
 import io.github.aedev.flow.ui.components.shared.ShortCardDefaults
@@ -66,9 +67,8 @@ fun SearchResults(
         columns = plan.cells,
         state = gridState,
         modifier = modifier.fillMaxSize().dismissKeyboardOnPress(actions.dismissKeyboard),
-        contentPadding = plan.contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(plan.gutter),
-        verticalArrangement = Arrangement.spacedBy(plan.gutter),
+        contentPadding = plan.contentPadding(top = FeedGridTopPadding, bottom = flowBottomContentPadding()),
+        verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
     ) {
         items(
             count = pagingItems.itemCount,
@@ -138,18 +138,20 @@ fun SearchResults(
 fun SearchShortsGrid(
     pagingItems: LazyPagingItems<SearchResultItem>,
     gridState: LazyGridState,
+    feedLayout: FeedGridLayout,
     actions: SearchResultActions,
     modifier: Modifier = Modifier,
 ) {
+    val sidePadding = ShortCardDefaults.gridPadding(feedLayout)
     LazyVerticalGrid(
         columns = GridCells.Adaptive(ShortCardDefaults.MinWidth),
         state = gridState,
         modifier = modifier.fillMaxSize().dismissKeyboardOnPress(actions.dismissKeyboard),
         contentPadding =
             PaddingValues(
-                start = ShortGridPadding,
-                end = ShortGridPadding,
-                top = TopPadding,
+                start = sidePadding,
+                end = sidePadding,
+                top = FeedGridTopPadding,
                 bottom = flowBottomContentPadding(),
             ),
         horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.Spacing),
@@ -182,15 +184,6 @@ fun SearchShortsGrid(
 private fun LazyPagingItems<SearchResultItem>.loadedShorts(): List<Video> =
     (0 until itemCount).mapNotNull { (peek(it) as? SearchResultItem.VideoResult)?.video }
 
-private fun Video.asChannel(channelId: String) =
-    Channel(
-        id = channelId,
-        name = channelName,
-        thumbnailUrl = channelThumbnailUrl,
-        subscriberCount = 0,
-        url = "https://www.youtube.com/channel/$channelId",
-    )
-
 /** The hero card and every strip own their row; only results share one. */
 private fun SearchResultItem?.spansRow(): Boolean =
     when (this) {
@@ -216,6 +209,3 @@ private fun SearchResultItem?.contentType(): Any =
         is SearchResultItem.ShelfResult -> "shelf:${kind.name}"
         null -> "placeholder"
     }
-
-private val TopPadding = 8.dp
-private val ShortGridPadding = 12.dp

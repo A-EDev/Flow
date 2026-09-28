@@ -5,6 +5,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.HomeFeedColumns
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import org.junit.Test
 
 /**
@@ -13,7 +14,9 @@ import org.junit.Test
  * derivation rather than by a table of widths.
  */
 class FeedGridLayoutTest {
-    private fun columnsAt(width: Dp) = feedGridLayoutFor(width).columns
+    private fun columnsAt(width: Dp) = feedGridLayoutFor(width, maxAutoColumns = Int.MAX_VALUE).columns
+
+    private fun cappedColumnsAt(width: Dp) = feedGridLayoutFor(width).columns
 
     @Test
     fun `a compact window is one edge to edge column`() {
@@ -27,17 +30,18 @@ class FeedGridLayoutTest {
     }
 
     @Test
-    fun `a medium window gains a second column and gutters`() {
+    fun `a medium window gains a second column and puts thumbnails on the sixteen dp margin`() {
         val layout = feedGridLayoutFor(600.dp)
 
         assertThat(layout.columns).isEqualTo(2)
-        assertThat(layout.contentPadding).isEqualTo(16.dp)
+        assertThat(layout.contentPadding + VideoCardDefaults.Inset).isEqualTo(16.dp)
     }
 
     @Test
     fun `wide windows let the platform derive the count`() {
         listOf(600.dp, 840.dp, 1200.dp).forEach { width ->
-            assertThat(feedGridLayoutFor(width).cells).isInstanceOf(GridCells.Adaptive::class.java)
+            assertThat(feedGridLayoutFor(width, maxAutoColumns = Int.MAX_VALUE).cells)
+                .isInstanceOf(GridCells.Adaptive::class.java)
         }
     }
 
@@ -51,19 +55,28 @@ class FeedGridLayoutTest {
     @Test
     fun `a wider window never renders fewer columns`() {
         var previous = 0
+        var previousCapped = 0
         var width = 200
         while (width <= 2400) {
             val columns = columnsAt(width.dp)
+            val capped = cappedColumnsAt(width.dp)
             assertThat(columns).isAtLeast(previous)
+            assertThat(capped).isAtLeast(previousCapped)
             previous = columns
+            previousCapped = capped
             width++
         }
     }
 
     @Test
-    fun `a very wide window keeps filling with cards instead of stretching four of them`() {
-        assertThat(columnsAt(1600.dp)).isEqualTo(5)
-        assertThat(columnsAt(2000.dp)).isEqualTo(7)
+    fun `a capped grid adds a column once its cards would pass the maximum width`() {
+        assertThat(cappedColumnsAt(1184.dp)).isEqualTo(3)
+        assertThat(cappedColumnsAt(1600.dp)).isEqualTo(4)
+        assertThat(cappedColumnsAt(1824.dp)).isEqualTo(4)
+        assertThat(cappedColumnsAt(2000.dp)).isEqualTo(5)
+        listOf(900.dp, 1184.dp, 1600.dp, 1824.dp, 2400.dp).forEach { width ->
+            assertThat(feedGridLayoutFor(width).cardWidth.value).isAtMost(460f)
+        }
     }
 
     @Test
@@ -79,7 +92,7 @@ class FeedGridLayoutTest {
         assertThat(feedGridLayoutFor(900.dp, maxAutoColumns = 3).cells).isInstanceOf(GridCells.Adaptive::class.java)
         assertThat(feedGridLayoutFor(1200.dp, maxAutoColumns = 3).columns).isEqualTo(3)
         assertThat(feedGridLayoutFor(1200.dp, maxAutoColumns = 3).cells).isEqualTo(GridCells.Fixed(3))
-        assertThat(feedGridLayoutFor(2000.dp, maxAutoColumns = 3).columns).isEqualTo(3)
+        assertThat(feedGridLayoutFor(1600.dp, maxAutoColumns = 3).columns).isEqualTo(4)
     }
 
     @Test
@@ -97,7 +110,17 @@ class FeedGridLayoutTest {
     fun `the large window band keeps its wider gutters`() {
         val layout = feedGridLayoutFor(1200.dp)
 
-        assertThat(layout.contentPadding).isEqualTo(24.dp)
+        assertThat(layout.contentPadding + VideoCardDefaults.Inset).isEqualTo(24.dp)
         assertThat(layout.cardSpacing).isEqualTo(16.dp)
+    }
+
+    @Test
+    fun `cells sit edge to edge and a thumbnail is a cell less both insets`() {
+        listOf(745.dp, 1184.dp, 1824.dp).forEach { width ->
+            val layout = feedGridLayoutFor(width)
+
+            assertThat(layout.rowWidth.value).isWithin(0.01f).of((width - layout.contentPadding * 2).value)
+            assertThat(layout.thumbnailWidth).isEqualTo(layout.cardWidth - VideoCardDefaults.Inset * 2)
+        }
     }
 }

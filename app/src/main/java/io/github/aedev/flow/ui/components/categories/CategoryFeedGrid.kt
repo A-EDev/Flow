@@ -18,6 +18,9 @@ import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
+import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
+import io.github.aedev.flow.ui.components.shared.FeedGridSkeleton
+import io.github.aedev.flow.ui.components.shared.FeedGridTopPadding
 import io.github.aedev.flow.ui.components.shared.FeedPagingFooter
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowErrorState
@@ -44,7 +47,7 @@ internal fun CategoryPagedGrid(
     if (pagingItems.itemCount == 0) {
         when {
             refresh is LoadState.Loading -> {
-                CategoryShimmer(feedLayout = feedLayout, isListView = isListView, modifier = modifier)
+                FeedGridSkeleton(layout = feedLayout, listMode = isListView, modifier = modifier)
             }
 
             refresh is LoadState.Error -> {
@@ -79,9 +82,8 @@ internal fun CategoryPagedGrid(
         columns = plan.cells,
         state = gridState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = plan.contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(plan.gutter),
-        verticalArrangement = Arrangement.spacedBy(plan.gutter),
+        contentPadding = plan.contentPadding(top = FeedGridTopPadding, bottom = flowBottomContentPadding()),
+        verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
     ) {
         items(
             count = pagingItems.itemCount,
@@ -148,9 +150,8 @@ internal fun CategoryChartGrid(
         columns = plan.cells,
         state = gridState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = plan.contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(plan.gutter),
-        verticalArrangement = Arrangement.spacedBy(plan.gutter),
+        contentPadding = plan.contentPadding(top = FeedGridTopPadding, bottom = flowBottomContentPadding()),
+        verticalArrangement = Arrangement.spacedBy(plan.rowSpacing),
     ) {
         itemsIndexed(
             items = entries,
