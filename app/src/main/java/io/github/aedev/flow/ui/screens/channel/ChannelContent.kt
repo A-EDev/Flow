@@ -213,7 +213,7 @@ internal fun ChannelContent(
     val playlistsListState = rememberLazyGridState()
     val postsListState = rememberLazyListState()
     val homeListState = rememberLazyGridState()
-    val searchListState = rememberLazyListState()
+    val searchListState = rememberLazyGridState()
     val aboutListState = rememberLazyListState()
     val genericListState = rememberLazyGridState()
 
@@ -292,6 +292,7 @@ internal fun ChannelContent(
                         contentPadding = listPadding,
                         topInset = visibleHeaderHeightDp,
                         isGridView = isGridView,
+                        columnPreference = columnPreference,
                         onVideoClick = onVideoClick,
                         onRetry = { onSearchQueryChange(uiState.searchQuery) },
                     )
