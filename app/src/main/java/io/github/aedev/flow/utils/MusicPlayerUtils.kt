@@ -22,6 +22,7 @@ import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.player.stream.preferNonDrc
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import io.github.aedev.flow.utils.potoken.PoTokenGenerator
 import io.github.aedev.flow.utils.potoken.PoTokenResult
@@ -593,11 +594,12 @@ object MusicPlayerUtils {
         val adaptiveFormats = response.streamingData?.adaptiveFormats ?: emptyList()
 
         val audioFormats =
-            adaptiveFormats.filter { format ->
-                format.mimeType.startsWith("audio/") &&
-                    format.audioTrack?.isAutoDubbed != true &&
-                    (!requireDirectUrl || !format.url.isNullOrEmpty())
-            }
+            adaptiveFormats
+                .filter { format ->
+                    format.mimeType.startsWith("audio/") &&
+                        format.audioTrack?.isAutoDubbed != true &&
+                        (!requireDirectUrl || !format.url.isNullOrEmpty())
+                }.preferNonDrc()
 
         if (audioFormats.isEmpty()) {
             Log.d(TAG, "No audio formats found")
