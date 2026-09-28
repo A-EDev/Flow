@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.download
 
+import android.app.Application
 import android.net.Uri
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
@@ -8,8 +9,10 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], application = Application::class)
 class LocalCopyDataSourceTest {
     private class RecordingSource(
         private val name: String,
