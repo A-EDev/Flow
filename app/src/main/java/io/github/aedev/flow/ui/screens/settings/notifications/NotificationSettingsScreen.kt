@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
+import io.github.aedev.flow.notification.BackgroundWorkPolicy
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.switch
@@ -79,7 +80,15 @@ internal fun NotificationSettingsScreen(
         highlight = highlight,
     ) {
         group(key = "notifications.schedule", header = R.string.notif_check_interval_section_header) {
-            switch(NotificationsIndex.enabled, enabled, viewModel::setEnabled, icon = Icons.Outlined.NotificationsActive)
+            switch(
+                NotificationsIndex.enabled,
+                enabled,
+                { on ->
+                    viewModel.setEnabled(on)
+                    if (on && !backgroundAllowed) BackgroundWorkPolicy.requestUnrestrictedBackgroundWork(context)
+                },
+                icon = Icons.Outlined.NotificationsActive,
+            )
             if (enabled && !backgroundAllowed) {
                 row("notifications.restricted") { shape ->
                     FlowNavRow(
@@ -88,7 +97,7 @@ internal fun NotificationSettingsScreen(
                         leadingIcon = Icons.Outlined.BatteryAlert,
                         showChevron = false,
                         shape = shape,
-                        onClick = viewModel::requestUnrestrictedBackgroundWork,
+                        onClick = { BackgroundWorkPolicy.requestUnrestrictedBackgroundWork(context) },
                     )
                 }
             }
