@@ -1,6 +1,7 @@
 package io.github.aedev.flow.widget.nowplaying
 
 import android.graphics.Bitmap
+import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -18,6 +19,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -31,21 +33,29 @@ import io.github.aedev.flow.utils.formatDurationMillis
 import io.github.aedev.flow.widget.core.action.WidgetDeepLink
 import io.github.aedev.flow.widget.core.component.ConnectedPlaybackControls
 import io.github.aedev.flow.widget.core.component.LikeButton
-import io.github.aedev.flow.widget.core.component.NextSegment
+import io.github.aedev.flow.widget.core.component.NextButton
+import io.github.aedev.flow.widget.core.component.PreviousButton
+import io.github.aedev.flow.widget.core.component.SquarePlayPauseButton
 import io.github.aedev.flow.widget.core.component.WidePlayPauseButton
 import io.github.aedev.flow.widget.core.component.WidgetArtwork
 import io.github.aedev.flow.widget.core.component.WidgetElapsedTime
 import io.github.aedev.flow.widget.core.component.WidgetEmptyState
+import io.github.aedev.flow.widget.core.component.WidgetWavyProgress
+import io.github.aedev.flow.widget.core.component.widgetProgressAt
 import io.github.aedev.flow.widget.core.state.NowPlayingSnapshot
 import io.github.aedev.flow.widget.core.theme.WidgetDimens
 import io.github.aedev.flow.widget.core.theme.WidgetText
 import io.github.aedev.flow.widget.core.theme.widgetSurface
 
-/** The music player on the home screen, laid out for whichever [NowPlayingLayout] fits. */
+/**
+ * The music player on the home screen, laid out for whichever [NowPlayingLayout] fits. [nowElapsedMs]
+ * places the progress bar; the widget passes the ticker's clock so each tick re-renders it.
+ */
 @Composable
 internal fun NowPlayingContent(
     snapshot: NowPlayingSnapshot?,
     artwork: Bitmap?,
+    nowElapsedMs: Long = SystemClock.elapsedRealtime(),
 ) {
     val layout = NowPlayingLayout.forSize(LocalSize.current)
     Box(modifier = GlanceModifier.fillMaxSize().widgetSurface()) {
@@ -55,8 +65,8 @@ internal fun NowPlayingContent(
             layout == NowPlayingLayout.SMALL -> SmallLayout(snapshot)
             layout == NowPlayingLayout.STRIP -> StripLayout(snapshot, artwork)
             layout == NowPlayingLayout.SQUARE -> SquareLayout(snapshot, artwork)
-            layout == NowPlayingLayout.CARD -> CardLayout(snapshot, artwork)
-            else -> PosterLayout(snapshot, artwork)
+            layout == NowPlayingLayout.CARD -> CardLayout(snapshot, artwork, nowElapsedMs)
+            else -> PosterLayout(snapshot, artwork, nowElapsedMs)
         }
     }
 }
@@ -114,13 +124,16 @@ private fun StripLayout(
         modifier = GlanceModifier.fillMaxSize().padding(start = WidgetDimens.ContentPadding, end = WidgetDimens.ItemGap + 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlayerArtwork(artwork, NowPlayingLayout.STRIP_ART_DP.dp)
-        Spacer(GlanceModifier.width(WidgetDimens.ContentPadding))
+        // At the narrowest strip the artwork would push Next off the edge, so it goes first.
+        if (LocalSize.current.width >= StripArtMinWidth) {
+            PlayerArtwork(artwork, NowPlayingLayout.STRIP_ART_DP.dp)
+            Spacer(GlanceModifier.width(WidgetDimens.ContentPadding))
+        }
         TrackText(snapshot, GlanceModifier.defaultWeight(), WidgetText.titleSmall())
         Spacer(GlanceModifier.width(WidgetDimens.ItemGap))
         WidePlayPauseButton(snapshot.isPlaying, GlanceModifier.width(76.dp))
         Spacer(GlanceModifier.width(6.dp))
-        NextSegment(GlanceModifier.width(WidgetDimens.TouchTarget))
+        NextButton(GlanceModifier.size(WidgetDimens.TouchTarget))
     }
 }
 
@@ -142,23 +155,86 @@ private fun SquareLayout(
     }
 }
 
+/** Artwork on the left filling the card, the track centred beside it over the wave and the controls. */
 @Composable
 private fun CardLayout(
     snapshot: NowPlayingSnapshot,
     artwork: Bitmap?,
+    nowElapsedMs: Long,
 ) {
-    Column(modifier = GlanceModifier.fillMaxSize().padding(horizontal = 14.dp, vertical = WidgetDimens.ContentPadding)) {
-        Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            PlayerArtwork(artwork, NowPlayingLayout.CARD_ART_DP.dp)
-            Spacer(GlanceModifier.width(14.dp))
-            TrackText(snapshot, GlanceModifier.defaultWeight(), WidgetText.titleMedium())
-            Spacer(GlanceModifier.width(WidgetDimens.SmallGap))
-            LikeButton(snapshot.isLiked)
+    val size = LocalSize.current
+    val card = cardMetrics(size)
+    val column = size.width - card.inset * 2 - if (card.art > 0.dp) card.art + ArtGap else 0.dp
+    Row(
+        modifier = GlanceModifier.fillMaxSize().padding(card.inset),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (card.art > 0.dp) {
+            PlayerArtwork(artwork, card.art)
+            Spacer(GlanceModifier.width(ArtGap))
         }
-        Spacer(GlanceModifier.defaultWeight())
-        PlaybackTime(snapshot, GlanceModifier.fillMaxWidth().padding(horizontal = WidgetDimens.SmallGap))
-        Spacer(GlanceModifier.height(WidgetDimens.ItemGap))
-        ConnectedPlaybackControls(snapshot.isPlaying, GlanceModifier.fillMaxWidth(), sideWidth = 64.dp)
+        Column(
+            modifier = GlanceModifier.defaultWeight().fillMaxHeight(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            TrackText(snapshot, GlanceModifier.fillMaxWidth(), WidgetText.centered(WidgetText.titleMedium()), centered = true)
+            if (card.showProgress) {
+                Spacer(GlanceModifier.height(WidgetDimens.ItemGap))
+                ProgressRow(snapshot, nowElapsedMs, column)
+            }
+            Spacer(GlanceModifier.height(WidgetDimens.ItemGap))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PreviousButton(GlanceModifier.size(card.controls.side))
+                Spacer(GlanceModifier.width(card.controls.gap))
+                SquarePlayPauseButton(snapshot.isPlaying, card.controls.play)
+                Spacer(GlanceModifier.width(card.controls.gap))
+                NextButton(GlanceModifier.size(card.controls.side))
+            }
+        }
+    }
+}
+
+/** The wavy progress bar between the live elapsed time and the track length, [width] across in all. */
+@Composable
+private fun ProgressRow(
+    snapshot: NowPlayingSnapshot,
+    nowElapsedMs: Long,
+    width: Dp,
+    modifier: GlanceModifier = GlanceModifier.fillMaxWidth(),
+) {
+    val progress =
+        widgetProgressAt(
+            positionMs = snapshot.positionMs,
+            durationMs = snapshot.durationMs,
+            capturedAtElapsedMs = snapshot.capturedAtElapsedMs,
+            isPlaying = snapshot.isPlaying,
+            speed = snapshot.speed,
+            nowElapsedMs = nowElapsedMs,
+        )
+    val timed = snapshot.durationMs > 0L
+    val barWidth = if (timed) width - (TimeLabelWidth + WidgetDimens.ItemGap) * 2 else width
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        if (timed) {
+            WidgetElapsedTime(
+                positionMs = snapshot.positionMs,
+                capturedAtElapsedMs = snapshot.capturedAtElapsedMs,
+                isRunning = snapshot.isPlaying,
+                style = WidgetText.labelSmall(GlanceTheme.colors.onSurfaceVariant),
+                modifier = GlanceModifier.width(TimeLabelWidth),
+            )
+            Spacer(GlanceModifier.width(WidgetDimens.ItemGap))
+        }
+        WidgetWavyProgress(progress = progress, playing = snapshot.isPlaying, width = barWidth.coerceAtLeast(0.dp))
+        if (timed) {
+            Spacer(GlanceModifier.width(WidgetDimens.ItemGap))
+            Text(
+                text = formatDurationMillis(snapshot.durationMs, padMinutes = true),
+                style = WidgetText.labelSmall(GlanceTheme.colors.onSurfaceVariant),
+                maxLines = 1,
+                modifier = GlanceModifier.width(TimeLabelWidth),
+            )
+        }
     }
 }
 
@@ -166,8 +242,10 @@ private fun CardLayout(
 private fun PosterLayout(
     snapshot: NowPlayingSnapshot,
     artwork: Bitmap?,
+    nowElapsedMs: Long,
 ) {
     val context = LocalContext.current
+    val row = LocalSize.current.width - WidgetDimens.ContentPadding * 2 - WidgetDimens.SmallGap * 2
     Column(modifier = GlanceModifier.fillMaxSize().padding(WidgetDimens.ContentPadding)) {
         WidgetArtwork(
             bitmap = artwork,
@@ -187,7 +265,12 @@ private fun PosterLayout(
             TrackText(snapshot, GlanceModifier.defaultWeight(), WidgetText.titleMedium())
             LikeButton(snapshot.isLiked)
         }
-        PlaybackTime(snapshot, GlanceModifier.fillMaxWidth().padding(horizontal = WidgetDimens.SmallGap, vertical = WidgetDimens.SmallGap))
+        ProgressRow(
+            snapshot,
+            nowElapsedMs,
+            row,
+            GlanceModifier.fillMaxWidth().padding(horizontal = WidgetDimens.SmallGap, vertical = WidgetDimens.SmallGap),
+        )
         ConnectedPlaybackControls(snapshot.isPlaying, GlanceModifier.fillMaxWidth(), sideWidth = 56.dp)
     }
 }
@@ -211,30 +294,29 @@ private fun TrackText(
     snapshot: NowPlayingSnapshot,
     modifier: GlanceModifier,
     titleStyle: TextStyle,
+    centered: Boolean = false,
 ) {
     val context = LocalContext.current
-    Column(modifier = modifier.clickable(actionStartActivity(WidgetDeepLink.openMusicPlayer(context)))) {
+    val artistStyle =
+        if (centered) {
+            WidgetText.centered(
+                WidgetText.bodyMedium(GlanceTheme.colors.onSurfaceVariant),
+            )
+        } else {
+            WidgetText.bodySmall()
+        }
+    Column(
+        modifier = modifier.clickable(actionStartActivity(WidgetDeepLink.openMusicPlayer(context))),
+        horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
+    ) {
         Text(text = snapshot.title, style = titleStyle, maxLines = 1)
         if (snapshot.artist.isNotBlank()) {
-            Text(text = snapshot.artist, style = WidgetText.bodySmall(), maxLines = 1)
+            Text(text = snapshot.artist, style = artistStyle, maxLines = 1)
         }
     }
 }
 
-@Composable
-private fun PlaybackTime(
-    snapshot: NowPlayingSnapshot,
-    modifier: GlanceModifier,
-) {
-    if (snapshot.durationMs <= 0L) return
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        WidgetElapsedTime(
-            positionMs = snapshot.positionMs,
-            capturedAtElapsedMs = snapshot.capturedAtElapsedMs,
-            isRunning = snapshot.isPlaying,
-            style = WidgetText.labelMedium(GlanceTheme.colors.onSurface),
-        )
-        Spacer(GlanceModifier.defaultWeight())
-        Text(text = formatDurationMillis(snapshot.durationMs), style = WidgetText.labelMedium(), maxLines = 1)
-    }
-}
+private val StripArtMinWidth = 260.dp
+
+// Fits "1:05:03" at the label size; fixed, so the bar keeps its width as the digits change.
+private val TimeLabelWidth = 44.dp

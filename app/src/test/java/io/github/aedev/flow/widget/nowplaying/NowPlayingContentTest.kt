@@ -2,6 +2,8 @@ package io.github.aedev.flow.widget.nowplaying
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.testing.unit.runGlanceAppWidgetUnitTest
 import androidx.glance.testing.unit.hasContentDescriptionEqualTo
 import androidx.glance.testing.unit.hasText
@@ -38,31 +40,29 @@ class NowPlayingContentTest {
     @Test
     fun aPausedCardShowsTheTrackAndAStillClock() =
         runGlanceAppWidgetUnitTest {
-            setAppWidgetSize(NowPlayingLayout.CARD.size)
+            setAppWidgetSize(RoomyCard)
             setContext(context)
             provideComposable { NowPlayingContent(snapshot(), artwork = null) }
             onNode(hasTextEqualTo("Midnight Transit")).assertExists()
             onNode(hasTextEqualTo("Harbor Lights")).assertExists()
-            onNode(hasTextEqualTo("1:05")).assertExists()
-            onNode(hasTextEqualTo("3:00")).assertExists()
-            onNode(hasContentDescriptionEqualTo("Play")).assertExists()
-            onNode(hasContentDescriptionEqualTo("Like")).assertExists()
+            onNode(hasTextEqualTo("01:05")).assertExists()
+            onNode(hasTextEqualTo("03:00")).assertExists()
         }
 
     @Test
     fun whilePlayingTheElapsedTimeIsLeftToTheLaunchersClock() =
         runGlanceAppWidgetUnitTest {
-            setAppWidgetSize(NowPlayingLayout.CARD.size)
+            setAppWidgetSize(RoomyCard)
             setContext(context)
             provideComposable { NowPlayingContent(snapshot(isPlaying = true), artwork = null) }
-            onNode(hasTextEqualTo("1:05")).assertDoesNotExist()
-            onNode(hasContentDescriptionEqualTo("Pause")).assertExists()
+            onNode(hasTextEqualTo("01:05")).assertDoesNotExist()
+            onNode(hasTextEqualTo("03:00")).assertExists()
         }
 
     @Test
     fun aLikedTrackOffersToRemoveTheLike() =
         runGlanceAppWidgetUnitTest {
-            setAppWidgetSize(NowPlayingLayout.CARD.size)
+            setAppWidgetSize(NowPlayingLayout.POSTER.size)
             setContext(context)
             provideComposable { NowPlayingContent(snapshot(isLiked = true), artwork = null) }
             onNode(hasContentDescriptionEqualTo("Remove from liked")).assertExists()
@@ -86,3 +86,5 @@ class NowPlayingContentTest {
             onNode(hasText("Nothing playing")).assertExists()
         }
 }
+
+private val RoomyCard = DpSize(340.dp, 176.dp)

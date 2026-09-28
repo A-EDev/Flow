@@ -1,6 +1,7 @@
 package io.github.aedev.flow.widget.nowplaying
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -22,7 +23,8 @@ import io.github.aedev.flow.widget.core.theme.widgetColorsFlow
 import kotlinx.coroutines.flow.first
 
 class NowPlayingWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(NowPlayingLayout.sizes)
+    // Exact, so the card's artwork can match the widget's real height.
+    override val sizeMode = SizeMode.Exact
 
     override val previewSizeMode = SizeMode.Responsive(setOf(NowPlayingLayout.STRIP.size, NowPlayingLayout.CARD.size))
 
@@ -62,8 +64,10 @@ class NowPlayingWidget : GlanceAppWidget() {
             val artworkColors by produceState<ColorProviders?>(initialArtworkColors, snapshot?.artworkUrl, style, colors) {
                 value = artworkColorProviders(context, snapshot?.artworkUrl, style, colors)
             }
+            // Read so each progress tick recomposes; the bar itself is placed from the clock right now.
+            NowPlayingProgressTicker.clock.collectAsState().value
             FlowGlanceTheme(artworkColors ?: colors) {
-                NowPlayingContent(snapshot = snapshot, artwork = artwork)
+                NowPlayingContent(snapshot = snapshot, artwork = artwork, nowElapsedMs = SystemClock.elapsedRealtime())
             }
         }
     }
