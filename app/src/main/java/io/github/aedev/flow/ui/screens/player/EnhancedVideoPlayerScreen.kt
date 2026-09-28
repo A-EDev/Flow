@@ -25,6 +25,7 @@ import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueueDock
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueueDockDefaults
 import io.github.aedev.flow.ui.components.videoplayer.sheet.PlaylistQueuePaneCard
@@ -199,10 +200,11 @@ internal fun EnhancedVideoPlayerScreen(
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Column(Modifier.fillMaxSize()) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val relatedLayout = rememberFeedGridLayout(maxWidth)
                 if (!screenState.isFullscreen && !isInPipMode) {
                     LazyColumn(
-                        Modifier.weight(1f),
+                        Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = maxOf(ListEndPadding, dockReserve + QueueDockGap)),
                     ) {
                         item {
@@ -225,7 +227,7 @@ internal fun EnhancedVideoPlayerScreen(
                             if (isMediumLayout) {
                                 relatedVideosGridContent(
                                     relatedVideos = uiState.relatedVideos,
-                                    columns = 2,
+                                    layout = relatedLayout,
                                     onVideoClick = onVideoClick,
                                     cardStyle = relatedCardStyle,
                                 )
