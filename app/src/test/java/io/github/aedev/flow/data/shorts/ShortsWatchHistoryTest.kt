@@ -34,6 +34,9 @@ class ShortsWatchHistoryTest {
         } answers {
             row.progress = WatchProgress("reel", secondArg(), thirdArg(), 0L)
         }
+        coEvery { viewHistory.markCompleted("reel", any()) } answers {
+            row.progress = WatchProgress("reel", secondArg(), secondArg(), 0L)
+        }
         return viewHistory
     }
 
@@ -73,6 +76,32 @@ class ShortsWatchHistoryTest {
                 viewHistory.touchHistoryEntry("reel", "Reel", "thumb", "Chan", "UC", 30_000L, true)
             }
         }
+
+    @Test
+    fun `a Short an older build saved at 92 percent is stored as finished on its next playback`() =
+        runTest {
+            val row = Row().apply { progress = WatchProgress("reel", 27_600L, 30_000L, 0L) }
+            val viewHistory = history(row)
+
+            ShortsWatchHistory(viewHistory).save(short, positionMs = 1_500L, durationMs = 30_000L)
+
+            assertEquals(30_000L, row.progress?.position)
+            coVerify(exactly = 1) { viewHistory.markCompleted("reel", 30_000L) }
+        }
+
+    @Test
+    fun `the Shorts filters hide a reel past ninety percent whatever the video threshold`() {
+        val rows =
+            listOf(
+                WatchProgress("reel-92", 27_600L, 30_000L, 0L),
+                WatchProgress("reel-done", 30_000L, 30_000L, 0L),
+                WatchProgress("reel-half", 15_000L, 30_000L, 0L),
+                WatchProgress("unknown-length", 5_000L, 0L, 0L),
+            )
+
+        assertEquals(setOf("reel-92", "reel-done"), rows.finishedShortIds())
+        assertFalse(WatchedThreshold.PERCENT_99.isWatched(27_600L, 30_000L))
+    }
 
     @Test
     fun `an unfinished Short keeps its real progress`() =

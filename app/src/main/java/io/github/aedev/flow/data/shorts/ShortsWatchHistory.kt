@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.shorts
 
 import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.model.ShortVideo
 import javax.inject.Inject
 
@@ -11,6 +12,14 @@ internal fun isShortComplete(
     positionMs: Long,
     durationMs: Long,
 ): Boolean = durationMs > 0L && positionMs >= (durationMs * SHORT_COMPLETE_FRACTION).toLong()
+
+/**
+ * The reels every Shorts filter hides. It is the same line the card badge and [ShortsWatchHistory]
+ * draw, not the video watched threshold: under 95 or 99 % a reel saved at 92 % showed as watched
+ * but stayed on the shelf (#979).
+ */
+internal fun List<WatchProgress>.finishedShortIds(): Set<String> =
+    filter { isShortComplete(it.position, it.duration) }.mapTo(HashSet()) { it.videoId }
 
 /** The position history stores: the whole length once the Short is finished. */
 internal fun shortHistoryPosition(
@@ -36,6 +45,8 @@ class ShortsWatchHistory
             if (durationMs <= 0L) return
             val existing = viewHistory.getWatchProgress(short.id)
             if (existing != null && isShortComplete(existing.position, existing.duration)) {
+                // Rows an older build saved short of the end are finished too; store them as such.
+                if (existing.position < existing.duration) viewHistory.markCompleted(short.id, existing.duration)
                 viewHistory.touchHistoryEntry(
                     videoId = short.id,
                     title = short.title,

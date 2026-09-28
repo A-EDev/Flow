@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.home
 
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.WatchedThreshold
+import io.github.aedev.flow.data.shorts.isShortComplete
 
 internal data class HomeHistoryFilterResult(
     val watchedVideoIds: Set<String>,
@@ -46,6 +47,11 @@ internal fun filterHomeHistory(
     return HomeHistoryFilterResult(
         watchedVideoIds = watchedVideoIds,
         continueWatchingVideos = continueWatchingVideos,
-        watchedShortIds = if (hideWatchedShorts) watchedIds else emptySet(),
+        watchedShortIds =
+            if (hideWatchedShorts) {
+                history.filter { isShortComplete(it.position, it.duration) }.mapTo(HashSet()) { it.videoId }
+            } else {
+                emptySet()
+            },
     )
 }

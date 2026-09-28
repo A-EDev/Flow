@@ -40,10 +40,6 @@ class NotificationSettingsViewModel
             _backgroundAllowed.value = allowed
         }
 
-        fun requestUnrestrictedBackgroundWork() {
-            BackgroundWorkPolicy.requestUnrestrictedBackgroundWork(context)
-        }
-
         fun setEnabled(value: Boolean) =
             write {
                 preferences.setNotificationsEnabled(value)
@@ -54,7 +50,6 @@ class NotificationSettingsViewModel
                         reschedule = true,
                     )
                     if (BuildConfig.UPDATER_ENABLED) UpdateCheckWorker.schedulePeriodicCheck(context, reschedule = true)
-                    if (!_backgroundAllowed.value) requestUnrestrictedBackgroundWork()
                 } else {
                     SubscriptionCheckWorker.cancelScheduledChecks(context)
                     UpdateCheckWorker.cancelScheduledChecks(context)

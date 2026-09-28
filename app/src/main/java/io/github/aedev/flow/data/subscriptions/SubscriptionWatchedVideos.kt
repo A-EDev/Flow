@@ -3,7 +3,7 @@ package io.github.aedev.flow.data.subscriptions
 import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
-import io.github.aedev.flow.data.local.watchedIds
+import io.github.aedev.flow.data.shorts.finishedShortIds
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -39,8 +39,7 @@ class SubscriptionWatchedVideos
             combine(
                 viewHistory.getVideoWatchProgress(),
                 playerPreferences.hideWatchedShorts,
-                playerPreferences.watchedThreshold,
-            ) { history, hideWatched, threshold ->
-                if (hideWatched) history.watchedIds(threshold) else emptySet()
+            ) { history, hideWatched ->
+                if (hideWatched) history.finishedShortIds() else emptySet()
             }.distinctUntilChanged()
     }

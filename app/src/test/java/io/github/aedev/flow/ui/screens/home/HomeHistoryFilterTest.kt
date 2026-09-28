@@ -80,6 +80,21 @@ class HomeHistoryFilterTest {
     }
 
     @Test
+    fun `a reel past ninety percent leaves the Shorts shelf under a stricter video threshold`() {
+        val result =
+            filterHomeHistory(
+                listOf(entry("reel-92", position = 27_600, duration = 30_000, timestamp = 1, isShort = true)),
+                hideWatchedVideos = true,
+                watchedThreshold = WatchedThreshold.PERCENT_99,
+                continueWatchingEnabled = false,
+                hideWatchedShorts = true,
+            )
+
+        assertThat(result.watchedShortIds).containsExactly("reel-92")
+        assertThat(result.watchedVideoIds).isEmpty()
+    }
+
+    @Test
     fun `almost finished threshold means less than one minute remains`() {
         assertThat(WatchedThreshold.ALMOST_FINISHED.isWatched(570_000, 600_000)).isTrue()
         assertThat(WatchedThreshold.ALMOST_FINISHED.isWatched(539_000, 600_000)).isFalse()
