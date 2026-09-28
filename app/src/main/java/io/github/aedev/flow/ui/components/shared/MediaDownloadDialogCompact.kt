@@ -56,13 +56,12 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import org.schabi.newpipe.extractor.stream.AudioStream
 
 private const val MIN_THREADS = 1
 private const val MAX_THREADS = 8
@@ -79,7 +78,7 @@ private fun containerForCodec(codecKey: String): String =
 private fun codecOptionLabel(
     codecKey: String,
     separator: String,
-): String = "${VideoPlayerUtils.codecLabelFromKey(codecKey)}$separator${containerForCodec(codecKey)}"
+): String = "${VideoCodecUtils.codecLabelFromKey(codecKey)}$separator${containerForCodec(codecKey)}"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -94,6 +93,7 @@ fun MediaDownloadDialogCompact(
 ) {
     val context = LocalContext.current
     val separatorDot = stringResource(R.string.list_separator_dot)
+    val hdrLabel = stringResource(R.string.download_quality_hdr)
     val audioLabelStrings =
         AudioLabelStrings(
             unknownFormat = stringResource(R.string.audio_format_unknown),
@@ -117,27 +117,16 @@ fun MediaDownloadDialogCompact(
                 .getPlayer()
                 ?.videoFormat
                 ?.sampleMimeType
-                ?.let { VideoPlayerUtils.codecKeyFromMimeType(it) }
+                ?.let { VideoCodecUtils.codecKeyFromMimeType(it) }
         }
 
     val videoStreams =
-        remember(innerTubeVideoFormats) {
-            DownloadStreamPolicy.buildDownloadVideoStreams(
-                innerTubeStreams = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats),
-                videoOnlyStreams = emptyList(),
-                muxedStreams = emptyList(),
-            )
-        }
+        remember(innerTubeVideoFormats) { DownloadStreamPolicy.buildDownloadVideoFormats(innerTubeVideoFormats) }
     val audioStreams =
-        remember(innerTubeAudioFormats) {
-            DownloadStreamPolicy.mergeAudioDownloadStreams(
-                InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats),
-                emptyList(),
-            )
-        }
+        remember(innerTubeAudioFormats) { DownloadStreamPolicy.buildDownloadAudioFormats(innerTubeAudioFormats) }
     val heights =
         remember(videoStreams) {
-            videoStreams.map { VideoPlayerUtils.qualityHeightFromStream(it) }.distinct().sortedDescending()
+            videoStreams.map(DownloadStreamPolicy::videoHeight).distinct().sortedDescending()
         }
 
     val hasVideo = videoStreams.isNotEmpty()
@@ -158,8 +147,8 @@ fun MediaDownloadDialogCompact(
     }
     val codecsForHeight =
         videoStreams
-            .filter { VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight }
-            .map { VideoPlayerUtils.codecKeyFromStream(it) }
+            .filter { DownloadStreamPolicy.videoHeight(it) == selectedHeight }
+            .map(DownloadStreamPolicy::videoCodecKey)
             .distinct()
             .sortedBy { DownloadStreamPolicy.DOWNLOAD_CODEC_PRIORITY[it] ?: UNRANKED_CODEC }
     var selectedCodec by remember(selectedHeight, lastCodec, preferredDownloadCodecKey) {
@@ -178,7 +167,7 @@ fun MediaDownloadDialogCompact(
         )
     }
 
-    val selectedSizeText = approxDownloadSizeLabel(streamSizes[VideoPlayerUtils.streamSizeKey(selectedHeight, selectedCodec)])
+    val selectedSizeText = approxDownloadSizeLabel(streamSizes[VideoCodecUtils.streamSizeKey(selectedHeight, selectedCodec)])
 
     fun confirmDownload() {
         val finalTitle = title.trim().ifBlank { video.title }
@@ -202,21 +191,20 @@ fun MediaDownloadDialogCompact(
 
         val stream =
             videoStreams.firstOrNull {
-                VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
-                    VideoPlayerUtils.codecKeyFromStream(it) == selectedCodec
+                DownloadStreamPolicy.videoHeight(it) == selectedHeight &&
+                    DownloadStreamPolicy.videoCodecKey(it) == selectedCodec
             } ?: return
-        val downloadUrl = stream.getContent().takeIf { it.isNotBlank() } ?: return
-        val codecLabel = VideoPlayerUtils.codecLabelFromKey(selectedCodec)
-        val qualityLabel = "$codecLabel ${selectedHeight}p"
+        val downloadUrl = stream.url?.takeIf { it.isNotBlank() } ?: return
+        val qualityLabel = DownloadStreamPolicy.videoQualityLabel(stream, hdrLabel)
 
-        var audioUrl: String? = null
-        if (stream.isVideoOnly) {
-            val compatible = DownloadStreamPolicy.pickCompatibleAudioForVideo(selectedCodec, audioStreams, preferredLang)
-            audioUrl = compatible?.getContent()?.takeIf { it.isNotBlank() }
-            if (audioUrl == null) {
-                Toast.makeText(context, context.getString(R.string.download_no_compatible_audio), Toast.LENGTH_LONG).show()
-                return
-            }
+        val audioUrl =
+            DownloadStreamPolicy
+                .pickCompatibleAudioForVideo(selectedCodec, audioStreams, preferredLang)
+                ?.url
+                ?.takeIf { it.isNotBlank() }
+        if (audioUrl == null) {
+            Toast.makeText(context, context.getString(R.string.download_no_compatible_audio), Toast.LENGTH_LONG).show()
+            return
         }
 
         var fallbackUrl: String? = null
@@ -226,22 +214,18 @@ fun MediaDownloadDialogCompact(
         if (selectedCodec == "av1") {
             val fb =
                 videoStreams.firstOrNull {
-                    VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight &&
-                        VideoPlayerUtils.codecKeyFromStream(it) != "av1"
+                    DownloadStreamPolicy.videoHeight(it) == selectedHeight &&
+                        DownloadStreamPolicy.videoCodecKey(it) != "av1"
                 }
-            val fbUrl = fb?.getContent()?.takeIf { it.isNotBlank() }
+            val fbUrl = fb?.url?.takeIf { it.isNotBlank() }
             if (fb != null && fbUrl != null) {
-                val fbCodecKey = VideoPlayerUtils.codecKeyFromStream(fb)
+                val fbCodecKey = DownloadStreamPolicy.videoCodecKey(fb)
                 val fbAudio =
-                    if (fb.isVideoOnly) {
-                        DownloadStreamPolicy
-                            .pickCompatibleAudioForVideo(fbCodecKey, audioStreams, preferredLang)
-                            ?.getContent()
-                            ?.takeIf { it.isNotBlank() }
-                    } else {
-                        null
-                    }
-                if (!fb.isVideoOnly || fbAudio != null) {
+                    DownloadStreamPolicy
+                        .pickCompatibleAudioForVideo(fbCodecKey, audioStreams, preferredLang)
+                        ?.url
+                        ?.takeIf { it.isNotBlank() }
+                if (fbAudio != null) {
                     fallbackUrl = fbUrl
                     fallbackAudioUrl = fbAudio
                     fallbackCodec =
@@ -249,7 +233,7 @@ fun MediaDownloadDialogCompact(
                             "vp9", "vp8" -> fbCodecKey
                             else -> null
                         }
-                    fallbackQuality = "${VideoPlayerUtils.codecLabelFromKey(fbCodecKey)} ${selectedHeight}p"
+                    fallbackQuality = DownloadStreamPolicy.videoQualityLabel(fb, hdrLabel)
                 }
             }
         }
@@ -447,7 +431,7 @@ private data class AudioLabelStrings(
 )
 
 private fun audioOptionLabel(
-    stream: AudioStream,
+    stream: PlayerResponse.StreamingData.Format,
     strings: AudioLabelStrings,
 ): String {
     val format = DownloadStreamPolicy.audioFormatLabel(stream, strings.unknownFormat)

@@ -24,8 +24,9 @@ object StreamSizeEstimator {
 
         val audible = audioFormats.filter { it.isAudio }
         val bestMp4Audio = audible.filter { isMp4(it.mimeType) }.maxByOrNull { it.bitrate }?.let(::sizeOf) ?: 0L
-        val bestWebmAudio = audible.filterNot { isMp4(it.mimeType) }.maxByOrNull { it.bitrate }?.let(::sizeOf) ?: 0L
         val bestAnyAudio = audible.maxByOrNull { it.bitrate }?.let(::sizeOf) ?: 0L
+        // Downloads mux AAC next to every video codec and fall back to other audio only without it.
+        val pairedAudio = if (bestMp4Audio > 0L) bestMp4Audio else bestAnyAudio
 
         val sizes = mutableMapOf<String, Long>()
         videoFormats.forEach { format ->
@@ -39,23 +40,11 @@ object StreamSizeEstimator {
                         VideoCodecUtils.qualityHeightFromFormat(format.qualityLabel, height),
                         VideoCodecUtils.codecKeyFromMimeType(format.mimeType),
                     ),
-                bytes = videoBytes + muxedAudioBytes(isMp4(format.mimeType), bestMp4Audio, bestWebmAudio, bestAnyAudio),
+                bytes = videoBytes + pairedAudio,
             )
         }
         return sizes
     }
-
-    private fun muxedAudioBytes(
-        isMp4Video: Boolean,
-        bestMp4Audio: Long,
-        bestWebmAudio: Long,
-        bestAnyAudio: Long,
-    ): Long =
-        when {
-            isMp4Video && bestMp4Audio > 0L -> bestMp4Audio
-            !isMp4Video && bestWebmAudio > 0L -> bestWebmAudio
-            else -> bestAnyAudio
-        }
 
     private fun MutableMap<String, Long>.keepLargest(
         key: String,

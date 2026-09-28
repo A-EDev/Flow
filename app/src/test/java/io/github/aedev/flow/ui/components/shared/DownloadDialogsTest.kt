@@ -19,7 +19,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
-import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.ui.screens.player.fakeAudioFormats
 import io.github.aedev.flow.ui.screens.player.fakeVideo
 import io.github.aedev.flow.ui.screens.player.fakeVideoFormats
@@ -106,7 +105,7 @@ class DownloadDialogsTest {
     }
 
     @Test
-    fun fullDialogPicksTheAudioTheSharedHelperPicks() {
+    fun fullDialogPairsEveryCodecWithTheAacTheSharedHelperPicks() {
         mockkObject(VideoPlayerUtils)
         val audioUrls = mutableListOf<String?>()
         every {
@@ -131,17 +130,13 @@ class DownloadDialogsTest {
         rule.onNode(hasText("VP9 1080p") and hasClickAction()).performClick()
         rule.waitForIdle()
 
-        val merged =
-            DownloadStreamPolicy.mergeAudioDownloadStreams(
-                InnerTubeStreamBridge.convertAudioFormats(fakeAudioFormats()),
-                emptyList(),
-            )
+        val audio = DownloadStreamPolicy.buildDownloadAudioFormats(fakeAudioFormats())
         val expected =
             listOf("h264", "vp9").map { codec ->
-                DownloadStreamPolicy.pickCompatibleAudioForVideo(codec, merged, "")?.getContent()
+                DownloadStreamPolicy.pickCompatibleAudioForVideo(codec, audio, "")?.url
             }
-        assertThat(expected.filterNotNull()).hasSize(2)
-        assertThat(expected[0]).isNotEqualTo(expected[1])
+        val aac = fakeAudioFormats().single { it.mimeType.startsWith("audio/mp4") }.url
+        assertThat(expected).containsExactly(aac, aac)
         assertThat(audioUrls).isEqualTo(expected)
     }
 

@@ -24,10 +24,19 @@ class StreamSizeEstimatorTest {
     }
 
     @Test
-    fun `webm video pairs with the webm audio track`() {
+    fun `webm video also pairs with the aac track`() {
         val video = videoFormat(itag = 248, mimeType = WEBM_VIDEO, height = 1080, contentLength = 40_000_000L)
 
         val sizes = StreamSizeEstimator.fromInnerTubeFormats(listOf(video), listOf(audioMp4, audioWebm))
+
+        assertEquals(41_000_000L, sizes[VideoCodecUtils.streamSizeKey(1080, "vp9")])
+    }
+
+    @Test
+    fun `without aac the video pairs with the best audio there is`() {
+        val video = videoFormat(itag = 248, mimeType = WEBM_VIDEO, height = 1080, contentLength = 40_000_000L)
+
+        val sizes = StreamSizeEstimator.fromInnerTubeFormats(listOf(video), listOf(audioWebm))
 
         assertEquals(41_500_000L, sizes[VideoCodecUtils.streamSizeKey(1080, "vp9")])
     }

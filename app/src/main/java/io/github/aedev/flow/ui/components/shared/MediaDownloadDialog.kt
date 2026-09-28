@@ -24,6 +24,7 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.player.*
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -82,32 +83,21 @@ fun MediaDownloadDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val innerTubeVideoStreams =
-                    remember(innerTubeVideoFormats) {
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertVideoFormats(innerTubeVideoFormats)
+                val effectiveAudioForDownload =
+                    remember(innerTubeAudioFormats) { DownloadStreamPolicy.buildDownloadAudioFormats(innerTubeAudioFormats) }
+                val audioFormats =
+                    remember(effectiveAudioForDownload) {
+                        effectiveAudioForDownload.sortedByDescending { it.averageBitrate ?: it.bitrate }
                     }
-                val innerTubeAudioStreams =
-                    remember(innerTubeAudioFormats) {
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertAudioFormats(innerTubeAudioFormats)
-                    }
-
-                val effectiveAudioForDownload: List<org.schabi.newpipe.extractor.stream.AudioStream> =
-                    DownloadStreamPolicy.mergeAudioDownloadStreams(innerTubeAudioStreams, emptyList())
-
-                val distinctStreams =
-                    DownloadStreamPolicy.buildDownloadVideoStreams(
-                        innerTubeStreams = innerTubeVideoStreams,
-                        videoOnlyStreams = emptyList(),
-                        muxedStreams = emptyList(),
-                    )
+                val distinctFormats =
+                    remember(innerTubeVideoFormats) { DownloadStreamPolicy.buildDownloadVideoFormats(innerTubeVideoFormats) }
+                val hdrLabel = stringResource(R.string.download_quality_hdr)
 
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 400.dp),
                 ) {
-                    if (distinctStreams.isEmpty()) {
+                    if (distinctFormats.isEmpty()) {
                         item {
                             Text(stringResource(R.string.no_download_streams), modifier = Modifier.padding(16.dp))
                         }
@@ -127,14 +117,13 @@ fun MediaDownloadDialog(
                         }
                     }
 
-                    itemsIndexed(distinctStreams) { streamIndex, stream ->
-                        val codecKey = VideoPlayerUtils.codecKeyFromStream(stream)
-                        val codecLabel = VideoPlayerUtils.codecLabelFromKey(codecKey)
-                        val qualityHeight = VideoPlayerUtils.qualityHeightFromStream(stream)
-                        val qualityLabel = "$codecLabel ${qualityHeight}p"
+                    itemsIndexed(distinctFormats) { streamIndex, format ->
+                        val codecKey = DownloadStreamPolicy.videoCodecKey(format)
+                        val qualityHeight = DownloadStreamPolicy.videoHeight(format)
+                        val qualityLabel = DownloadStreamPolicy.videoQualityLabel(format, hdrLabel)
 
                         val sizeText =
-                            approxDownloadSizeLabel(streamSizes[VideoPlayerUtils.streamSizeKey(qualityHeight, codecKey)])
+                            approxDownloadSizeLabel(streamSizes[VideoCodecUtils.streamSizeKey(qualityHeight, codecKey)])
 
                         val resBadge =
                             when {
@@ -147,27 +136,24 @@ fun MediaDownloadDialog(
                         Surface(
                             onClick = downloadVideo@{
                                 onDismiss()
-                                val downloadUrl = stream.getContent().takeIf { it.isNotBlank() }
+                                val downloadUrl = format.url?.takeIf { it.isNotBlank() }
                                 if (downloadUrl != null) {
-                                    var audioUrl: String? = null
-                                    if (stream.isVideoOnly) {
-                                        val compatibleAudio =
-                                            DownloadStreamPolicy.pickCompatibleAudioForVideo(
-                                                videoCodecKey = codecKey,
-                                                allAudio = effectiveAudioForDownload,
-                                                preferredLang = preferredLang,
-                                            )
-                                        if (compatibleAudio == null) {
-                                            Toast
-                                                .makeText(
-                                                    context,
-                                                    context.getString(R.string.download_no_compatible_audio),
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                            return@downloadVideo
-                                        }
-                                        audioUrl = compatibleAudio.getContent().takeIf { it.isNotBlank() }
+                                    val compatibleAudio =
+                                        DownloadStreamPolicy.pickCompatibleAudioForVideo(
+                                            videoCodecKey = codecKey,
+                                            allAudio = effectiveAudioForDownload,
+                                            preferredLang = preferredLang,
+                                        )
+                                    if (compatibleAudio == null) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.download_no_compatible_audio),
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                        return@downloadVideo
                                     }
+                                    val audioUrl = compatibleAudio.url?.takeIf { it.isNotBlank() }
 
                                     VideoPlayerUtils.startDownload(
                                         context,
@@ -189,7 +175,7 @@ fun MediaDownloadDialog(
                                         ).show()
                                 }
                             },
-                            shape = flowRowGroupShape(streamIndex, distinctStreams.size),
+                            shape = flowRowGroupShape(streamIndex, distinctFormats.size),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -228,8 +214,7 @@ fun MediaDownloadDialog(
                     }
 
                     // ===== Audio-Only Section =====
-                    val audioStreams = effectiveAudioForDownload.sortedByDescending { it.averageBitrate }
-                    if (audioStreams.isNotEmpty()) {
+                    if (audioFormats.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -243,7 +228,7 @@ fun MediaDownloadDialog(
                             )
                         }
 
-                        itemsIndexed(audioStreams) { audioIndex, audioStream ->
+                        itemsIndexed(audioFormats) { audioIndex, audioStream ->
                             val bitrate = DownloadStreamPolicy.audioBitrateKbps(audioStream)
                             val bitrateLabel = "$bitrate${stringResource(R.string.kbps)}"
                             val audioFormat =
@@ -251,7 +236,7 @@ fun MediaDownloadDialog(
                             val languageLabel = DownloadStreamPolicy.audioLanguageLabel(audioStream)
                             val trackTypeLabel =
                                 DownloadStreamPolicy.audioTrackTypeLabel(
-                                    stream = audioStream,
+                                    format = audioStream,
                                     originalLabel = stringResource(R.string.audio_track_original),
                                     dubbedLabel = stringResource(R.string.audio_track_dubbed),
                                 )
@@ -268,7 +253,7 @@ fun MediaDownloadDialog(
                                             ).show()
                                     }
                                 },
-                                shape = flowRowGroupShape(audioIndex, audioStreams.size),
+                                shape = flowRowGroupShape(audioIndex, audioFormats.size),
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
