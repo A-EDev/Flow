@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -49,13 +50,14 @@ import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelfStyle
-import io.github.aedev.flow.ui.components.FEED_MAX_AUTO_COLUMNS
+import io.github.aedev.flow.ui.components.FeedGridLayout
 import io.github.aedev.flow.ui.components.PlaylistCard
 import io.github.aedev.flow.ui.components.PlaylistCardLayout
-import io.github.aedev.flow.ui.components.feedCardsFormGrid
 import io.github.aedev.flow.ui.components.feedShelfPreviewCount
+import io.github.aedev.flow.ui.components.partialRowIndices
 import io.github.aedev.flow.ui.components.rememberFeedGridLayout
 import io.github.aedev.flow.ui.components.shared.card.MediaVideoCard
+import io.github.aedev.flow.ui.components.shared.card.VideoCardDefaults
 import io.github.aedev.flow.ui.components.shared.card.VideoCardLayout
 
 /** Every callback a shelf page needs, threaded through one object rather than a dozen parameters. */
@@ -114,20 +116,28 @@ fun FeedShelfSections(
     val expanded = remember(renderable) { mutableStateMapOf<String, Boolean>() }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference, FEED_MAX_AUTO_COLUMNS)
-        val columns = feedLayout.columns
+        val feedLayout = rememberFeedGridLayout(maxWidth, columnPreference)
+        val padding =
+            remember(contentPadding, feedLayout.contentPadding) {
+                PaddingValues(
+                    start = feedLayout.contentPadding,
+                    end = feedLayout.contentPadding,
+                    top = contentPadding.calculateTopPadding(),
+                    bottom = contentPadding.calculateBottomPadding(),
+                )
+            }
         LazyVerticalGrid(
             columns = feedLayout.cells,
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(if (columns > 1) feedLayout.cardSpacing else 0.dp),
+            contentPadding = padding,
+            verticalArrangement = Arrangement.spacedBy(if (feedLayout.columns > 1) feedLayout.cardSpacing else 0.dp),
         ) {
             fullSpanItem(key = "top_gap") { Spacer(Modifier.height(8.dp)) }
             renderable.forEach { section ->
                 shelfSection(
                     section = section,
-                    columns = columns,
+                    layout = feedLayout,
                     isExpanded = expanded[section.id] == true,
                     onToggleExpanded = { expanded[section.id] = expanded[section.id] != true },
                     actions = actions,
@@ -152,22 +162,25 @@ private fun FeedShelf.hasRenderableItems(slots: FeedShelfSlots): Boolean =
 
 private fun LazyGridScope.shelfSection(
     section: FeedShelf,
-    columns: Int,
+    layout: FeedGridLayout,
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     actions: FeedShelfActions,
     slots: FeedShelfSlots,
     showChannelInfo: Boolean,
 ) {
+    val columns = layout.columns
+    val rowThumbnailWidth = if (layout.isCompact) VideoCardDefaults.RowThumbnailWidth else layout.thumbnailWidth
     if (section.style == FeedShelfStyle.Trailer) {
         val trailer = section.items.filterIsInstance<FeedItem.VideoItem>().firstOrNull() ?: return
         fullSpanItem(key = section.id) {
-            if (columns > 1) {
+            if (!layout.isCompact) {
                 MediaVideoCard(
                     video = trailer.video,
                     layout = VideoCardLayout.Row,
                     showChannel = showChannelInfo,
                     onClick = { actions.onVideoClick(trailer.video) },
+                    thumbnailWidth = rowThumbnailWidth,
                 )
             } else {
                 MediaVideoCard(
@@ -205,20 +218,26 @@ private fun LazyGridScope.shelfSection(
         return
     }
 
-    val gridCards = feedCardsFormGrid(columns, section.items.size)
     val previewCount = feedShelfPreviewCount(columns, section.items.size)
     val visible = if (isExpanded) section.items else section.items.take(previewCount)
-    items(
+    val partialRows = partialRowIndices(visible.map { it is FeedItem.PostItem }, columns)
+    itemsIndexed(
         items = visible,
-        key = { "${section.id}:${it.shelfKey()}" },
-        span = { item ->
-            if (gridCards && item !is FeedItem.PostItem) GridItemSpan(1) else GridItemSpan(maxLineSpan)
+        key = { _, item -> "${section.id}:${item.shelfKey()}" },
+        contentType = { _, item -> item::class },
+        span = { index, item ->
+            if (columns > 1 && item !is FeedItem.PostItem && index !in partialRows) {
+                GridItemSpan(1)
+            } else {
+                GridItemSpan(maxLineSpan)
+            }
         },
-    ) { item ->
+    ) { index, item ->
         Box(modifier = shelfItemMotion()) {
             ShelfItem(
                 item = item,
-                gridCards = gridCards,
+                gridCard = columns > 1 && index !in partialRows,
+                rowThumbnailWidth = rowThumbnailWidth,
                 actions = actions,
                 slots = slots,
                 showChannelInfo = showChannelInfo,
@@ -238,176 +257,6 @@ private fun LazyGridScope.shelfSection(
     }
 }
 
-@Composable
-private fun ShelfItem(
-    item: FeedItem,
-    gridCards: Boolean,
-    actions: FeedShelfActions,
-    slots: FeedShelfSlots,
-    showChannelInfo: Boolean,
-) {
-    when (item) {
-        is FeedItem.VideoItem -> {
-            ShelfVideoCard(
-                video = item.video,
-                gridCard = gridCards,
-                showChannelInfo = showChannelInfo,
-                onClick = { actions.onVideoClick(item.video) },
-            )
-        }
-
-        is FeedItem.ShortItem -> {
-            ShelfVideoCard(
-                video = item.video,
-                gridCard = gridCards,
-                showChannelInfo = showChannelInfo,
-                onClick = { actions.onShortClick(item.video.id) },
-            )
-        }
-
-        is FeedItem.PlaylistItem -> {
-            if (gridCards) {
-                PlaylistCard(
-                    playlist = item.playlist,
-                    onClick = { actions.onPlaylistClick(item.playlist.id) },
-                    layout = PlaylistCardLayout.SHELF,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                )
-            } else {
-                PlaylistCard(playlist = item.playlist, onClick = { actions.onPlaylistClick(item.playlist.id) })
-            }
-        }
-
-        is FeedItem.RelatedChannelItem -> {
-            slots.channelRow?.invoke(item.channel, item.channel.id in actions.subscribedChannelIds)
-        }
-
-        is FeedItem.PostItem -> {
-            slots.post?.invoke(item.post, false)
-        }
-    }
-}
-
-/** Expanding a shelf slides the rows below it down and fades the new cards in, on the theme's springs. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun LazyGridItemScope.shelfItemMotion(): Modifier {
-    val motion = MaterialTheme.motionScheme
-    return Modifier.animateItem(
-        fadeInSpec = motion.defaultEffectsSpec(),
-        placementSpec = motion.defaultSpatialSpec(),
-        fadeOutSpec = motion.fastEffectsSpec(),
-    )
-}
-
-@Composable
-private fun ShelfVideoCard(
-    video: Video,
-    gridCard: Boolean,
-    showChannelInfo: Boolean,
-    onClick: () -> Unit,
-) {
-    if (gridCard) {
-        MediaVideoCard(
-            video = video,
-            showChannel = showChannelInfo,
-            onClick = onClick,
-        )
-    } else {
-        MediaVideoCard(
-            video = video,
-            layout = VideoCardLayout.Row,
-            showChannel = showChannelInfo,
-            onClick = onClick,
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PostsShelf(
-    posts: List<CommunityPost>,
-    post: @Composable (post: CommunityPost, compact: Boolean) -> Unit,
-) {
-    val shape = MaterialTheme.shapes.medium
-    HorizontalMultiBrowseCarousel(
-        state = rememberCarouselState { posts.size },
-        preferredItemWidth = PostShelfCardWidth,
-        itemSpacing = 12.dp,
-        contentPadding = PaddingValues(horizontal = 12.dp),
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(PostShelfHeight),
-    ) { index ->
-        val item = posts[index]
-        Card(
-            shape = shape,
-            colors = CardDefaults.outlinedCardColors(),
-            modifier =
-                Modifier
-                    .fillMaxHeight()
-                    .maskClip(shape)
-                    .maskBorder(CardDefaults.outlinedCardBorder(), shape),
-        ) {
-            post(item, true)
-        }
-    }
-}
-
-@Composable
-private fun ShelfHeader(
-    title: String?,
-    hasMore: Boolean,
-    onClick: () -> Unit,
-) {
-    if (title.isNullOrBlank()) return
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .then(if (hasMore) Modifier.clickable(onClick = onClick) else Modifier)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (hasMore) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun ShelfExpander(
-    isExpanded: Boolean,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
-    ) {
-        IconButton(onClick = onClick, shapes = IconButtonDefaults.shapes()) {
-            Icon(
-                imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
 private fun LazyGridScope.fullSpanItem(
     key: String,
     content: @Composable () -> Unit,
@@ -421,8 +270,3 @@ private fun FeedItem.shelfKey(): String =
         is FeedItem.RelatedChannelItem -> "c_${channel.id}"
         is FeedItem.PostItem -> "b_${post.id}"
     }
-
-private val PostShelfCardWidth = 380.dp
-
-/** Header, four lines of text, a 16:9 crop of the item width and the action row. */
-private val PostShelfHeight = 440.dp
