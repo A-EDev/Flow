@@ -1,9 +1,11 @@
 package io.github.aedev.flow.data.video
 
+import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.stream.preferNonDrc
 import java.util.Locale
+import kotlin.math.abs
 
 /**
  * Which formats a download offers and which audio track it pairs with a video track. Pure policy:
@@ -21,6 +23,7 @@ object DownloadStreamPolicy {
     private const val UNRANKED_CODEC = 99
     private const val AUDIO_MP4 = "audio/mp4"
     private const val AUDIO_WEBM = "audio/webm"
+    private const val MEDIUM_BITRATE = 128_000
     private val VIDEO_CONTAINERS = setOf("video/mp4", "video/webm", "video/3gpp")
 
     /** Codecs the MP4 muxer takes only with AAC; the Matroska writer takes any audio. */
@@ -109,13 +112,15 @@ object DownloadStreamPolicy {
             )
 
     /**
-     * The AAC audio muxed with a video download, which is always an MP4: the chosen language's AAC
-     * when it has one, otherwise any AAC, otherwise none. Opus is never paired, because Opus in MP4
-     * loses its first 300 ms in Media3 (androidx/media#3431).
+     * The AAC audio of a download, which is always an MP4 or M4A: the chosen language's AAC when it
+     * has one, otherwise any AAC, otherwise none. Opus is never taken, because Opus in MP4 loses its
+     * first 300 ms in Media3 (androidx/media#3431). The best one wins, unless [quality] asks for
+     * Medium (nearest 128 kbps) or Low (the smallest).
      */
     fun pickAacAudio(
         allAudio: List<Format>,
         preferredLang: String?,
+        quality: MusicAudioQuality = MusicAudioQuality.HIGH,
     ): Format? {
         val aac = allAudio.filter(::isAacFormat)
         if (aac.isEmpty()) return null
@@ -129,7 +134,12 @@ object DownloadStreamPolicy {
             } else {
                 aac.filter { it.isOriginal }
             }
-        return inLanguage.ifEmpty { aac }.maxByOrNull(::audioBitrate)
+        val candidates = inLanguage.ifEmpty { aac }
+        return when (quality) {
+            MusicAudioQuality.MEDIUM -> candidates.minByOrNull { abs(audioBitrate(it) - MEDIUM_BITRATE) }
+            MusicAudioQuality.LOW -> candidates.minByOrNull(::audioBitrate)
+            MusicAudioQuality.HIGH, MusicAudioQuality.AUTO -> candidates.maxByOrNull(::audioBitrate)
+        }
     }
 
     fun isAacFormat(format: Format): Boolean = containerOf(format.mimeType) == AUDIO_MP4

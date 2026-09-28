@@ -37,6 +37,13 @@ internal object DownloadsIndex {
             summary = R.string.settings_quick_download_quality_summary,
         )
     val codec = entry("codec", R.string.default_download_codec_label, R.string.settings_section_download_defaults)
+    val musicQuality =
+        entry(
+            "music_quality",
+            R.string.settings_music_download_quality,
+            R.string.settings_section_download_defaults,
+            summary = R.string.settings_music_download_quality_summary,
+        )
     val menuStyle =
         entry(
             "menu_style",
@@ -89,6 +96,7 @@ internal object DownloadsIndex {
             cacheSize,
             quickQuality,
             codec,
+            musicQuality,
             menuStyle,
             wifiOnly,
             concurrentDownloads,

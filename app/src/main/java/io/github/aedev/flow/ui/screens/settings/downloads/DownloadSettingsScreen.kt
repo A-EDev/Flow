@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.MAX_CONCURRENT_DOWNLOADS
+import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.data.video.storage.DownloadLocation
@@ -64,11 +65,13 @@ import io.github.aedev.flow.ui.components.shared.FlowChoiceDialog
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.screens.settings.index.DestinationIndex
 import io.github.aedev.flow.ui.screens.settings.index.DownloadsIndex
+import io.github.aedev.flow.ui.screens.settings.quality.MusicQualities
 import io.github.aedev.flow.ui.screens.settings.quality.VideoQualities
 import io.github.aedev.flow.ui.screens.settings.quality.codecLabel
+import io.github.aedev.flow.ui.screens.settings.quality.musicQualityLabel
 import io.github.aedev.flow.ui.screens.settings.quality.videoQualityLabel
 
-private enum class DownloadPicker { QUALITY, CODEC, CACHE }
+private enum class DownloadPicker { QUALITY, CODEC, MUSIC_QUALITY, CACHE }
 
 private const val MAX_THREADS = 8
 private val UsageSpacing = 8.dp
@@ -85,6 +88,7 @@ internal fun DownloadSettingsScreen(
     val context = LocalContext.current
     val locations by viewModel.locations.collectAsStateWithLifecycle()
     val quickQuality by viewModel.quickQuality.collectAsStateWithLifecycle()
+    val musicQuality by viewModel.musicQuality.collectAsStateWithLifecycle()
     val codec by viewModel.codec.collectAsStateWithLifecycle()
     val menuStyle by viewModel.menuStyle.collectAsStateWithLifecycle()
     val threads by viewModel.threads.collectAsStateWithLifecycle()
@@ -166,6 +170,9 @@ internal fun DownloadSettingsScreen(
                 stringResource(videoQualityLabel(quickQuality))
             }
             choice(DownloadsIndex.codec, onClick = { picker = DownloadPicker.CODEC }) { codecLabel(codec) }
+            choice(DownloadsIndex.musicQuality, onClick = { picker = DownloadPicker.MUSIC_QUALITY }) {
+                stringResource(musicQualityLabel(musicQuality))
+            }
             toggleGroup(DownloadsIndex.menuStyle, menuStyles, menuStyle, viewModel::setMenuStyle)
             switch(DownloadsIndex.wifiOnly, viewModel.wifiOnly, viewModel::setWifiOnly)
         }
@@ -274,6 +281,22 @@ internal fun DownloadSettingsScreen(
                     },
                 selected = codec,
                 onSelect = viewModel::setCodec,
+                onDismiss = { picker = null },
+            )
+        }
+
+        DownloadPicker.MUSIC_QUALITY -> {
+            FlowChoiceDialog(
+                title = stringResource(R.string.settings_music_download_quality),
+                options =
+                    MusicQualities.filter { it != MusicAudioQuality.AUTO }.map {
+                        FlowChoice(
+                            it,
+                            stringResource(musicQualityLabel(it)),
+                        )
+                    },
+                selected = musicQuality,
+                onSelect = viewModel::setMusicQuality,
                 onDismiss = { picker = null },
             )
         }

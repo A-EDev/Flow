@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.video.downloader.resolve
 
+import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.video.DefaultDownloadSelection
@@ -59,12 +60,14 @@ class DownloadStreamResolver
                         .takeIf { it != VideoCodec.AUTO }
                         ?.codecKey,
                 language = preferences.preferredAudioLanguage.first(),
+                musicQuality = preferences.musicDownloadQuality.first(),
             )
 
         internal data class SelectionDefaults(
             val height: Int,
             val codec: String?,
             val language: String?,
+            val musicQuality: MusicAudioQuality = MusicAudioQuality.HIGH,
         )
 
         internal companion object {
@@ -81,15 +84,17 @@ class DownloadStreamResolver
                         .filterNot { it.itag in avoidItags }
                 val language = request.audioLanguage ?: defaults.language
                 val durationMs = result.durationMs()
+                // A song is only its audio, so it is the one download the song quality setting shapes.
+                val quality = if (request.wantsAudioOnly) defaults.musicQuality else MusicAudioQuality.HIGH
 
                 val audio =
                     request.audioItag
                         ?.let { itag -> audioFormats.firstOrNull { it.itag == itag } }
                         ?.takeIf { DownloadStreamPolicy.isAacFormat(it) }
                         ?: request.audioTrackId?.let { id ->
-                            DownloadStreamPolicy.pickAacAudio(audioFormats.filter { it.audioTrack?.id == id }, language)
+                            DownloadStreamPolicy.pickAacAudio(audioFormats.filter { it.audioTrack?.id == id }, language, quality)
                         }
-                        ?: DownloadStreamPolicy.pickAacAudio(audioFormats, language)
+                        ?: DownloadStreamPolicy.pickAacAudio(audioFormats, language, quality)
                         ?: return if (result.audioFormats.any { !it.url.isNullOrBlank() }) {
                             ResolveOutcome.NoCompatibleAudio
                         } else {

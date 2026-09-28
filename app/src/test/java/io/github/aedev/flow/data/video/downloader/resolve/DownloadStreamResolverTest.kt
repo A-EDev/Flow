@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.video.downloader.resolve
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.video.downloader.request.DownloadRequest
 import io.github.aedev.flow.data.video.downloader.tags.DownloadKind
 import io.github.aedev.flow.data.video.downloader.tags.DownloadTags
@@ -47,6 +48,26 @@ class DownloadStreamResolverTest {
     ) = DownloadStreamResolver.select(request, result(video, audio), avoid, defaults)
 
     private fun streams(outcome: ResolveOutcome) = (outcome as ResolveOutcome.Resolved).streams
+
+    @Test
+    fun `a song follows the song download quality, a video always takes the best aac`() {
+        val low = format(139, "audio/mp4; codecs=\"mp4a.40.5\"", bitrate = 48_000)
+        val high = format(141, "audio/mp4; codecs=\"mp4a.40.2\"", bitrate = 256_000)
+        val audio = listOf(low, AAC, high)
+
+        fun pick(
+            request: DownloadRequest,
+            quality: MusicAudioQuality,
+        ) = streams(
+            DownloadStreamResolver.select(request, result(LADDER, audio), emptySet(), defaults.copy(musicQuality = quality)),
+        ).audio.itag
+        val song = request(kind = DownloadKind.MUSIC, audioOnly = true)
+
+        assertThat(pick(song, MusicAudioQuality.HIGH)).isEqualTo(141)
+        assertThat(pick(song, MusicAudioQuality.MEDIUM)).isEqualTo(140)
+        assertThat(pick(song, MusicAudioQuality.LOW)).isEqualTo(139)
+        assertThat(pick(request(), MusicAudioQuality.LOW)).isEqualTo(141)
+    }
 
     @Test
     fun `the default quality and aac are taken when nothing was picked`() {
