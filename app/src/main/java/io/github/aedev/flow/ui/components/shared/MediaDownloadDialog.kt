@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.shared
 
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,16 +19,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
-import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.models.YouTubeClient
-import io.github.aedev.flow.player.*
-import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.stream.VideoCodecUtils
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,13 +92,10 @@ fun MediaDownloadDialog(
                             Text(stringResource(R.string.no_download_streams), modifier = Modifier.padding(16.dp))
                         }
                         item {
-                            val scope = rememberCoroutineScope()
                             Button(
                                 onClick = {
                                     onDismiss()
-                                    scope.launch {
-                                        trySabrDownloadFromDialog(context, video)
-                                    }
+                                    DownloadLauncher.startSabrDownload(context, video)
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -155,7 +142,7 @@ fun MediaDownloadDialog(
                                     }
                                     val audioUrl = compatibleAudio.url?.takeIf { it.isNotBlank() }
 
-                                    VideoPlayerUtils.startDownload(
+                                    DownloadLauncher.startVideoDownload(
                                         context,
                                         video,
                                         downloadUrl,
@@ -167,12 +154,6 @@ fun MediaDownloadDialog(
                                                 else -> null
                                             },
                                     )
-                                    Toast
-                                        .makeText(
-                                            context,
-                                            context.getString(R.string.downloading_template, qualityLabel),
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
                                 }
                             },
                             shape = flowRowGroupShape(streamIndex, distinctFormats.size),
@@ -244,7 +225,7 @@ fun MediaDownloadDialog(
                             Surface(
                                 onClick = {
                                     onDismiss()
-                                    if (startAudioOnlyDownload(context, video, audioStream)) {
+                                    if (DownloadLauncher.startAudioOnlyDownload(context, video, audioStream)) {
                                         Toast
                                             .makeText(
                                                 context,
@@ -313,47 +294,5 @@ fun MediaDownloadDialog(
                 }
             }
         }
-    }
-}
-
-private suspend fun trySabrDownloadFromDialog(
-    context: Context,
-    video: Video,
-) {
-    try {
-        Toast.makeText(context, context.getString(R.string.toast_trying_sabr_download), Toast.LENGTH_SHORT).show()
-        val sabrInfo =
-            withContext(Dispatchers.IO) {
-                withTimeoutOrNull(8000L) {
-                    val playerResponse =
-                        YouTube
-                            .player(video.id, client = YouTubeClient.ANDROID)
-                            .getOrNull() ?: return@withTimeoutOrNull null
-                    SabrUrlResolver.resolve(playerResponse)
-                }
-            }
-        if (sabrInfo != null) {
-            val codecHint = if (sabrInfo.videoItag in listOf(313, 271, 308, 248, 303, 247, 302, 244, 243, 242)) "vp9" else null
-            io.github.aedev.flow.data.video.downloader.FlowDownloadService.startSabrDownload(
-                context = context,
-                video = video,
-                quality = context.getString(R.string.download_quality_best),
-                sabrStreamingUrl = sabrInfo.streamingUrl,
-                audioItag = sabrInfo.audioItag,
-                audioLmt = sabrInfo.audioLmt,
-                videoItag = sabrInfo.videoItag,
-                videoLmt = sabrInfo.videoLmt,
-                poToken = sabrInfo.poToken,
-                visitorId = sabrInfo.visitorId,
-                ustreamerConfig = sabrInfo.ustreamerConfig,
-                durationMs = sabrInfo.durationMs,
-                videoCodec = codecHint,
-            )
-            Toast.makeText(context, context.getString(R.string.toast_sabr_download_started), Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(context, context.getString(R.string.toast_no_download_source), Toast.LENGTH_SHORT).show()
-        }
-    } catch (e: Exception) {
-        Toast.makeText(context, context.getString(R.string.toast_sabr_download_failed, e.message), Toast.LENGTH_SHORT).show()
     }
 }

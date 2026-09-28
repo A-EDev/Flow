@@ -20,12 +20,7 @@ import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,7 +52,6 @@ import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.stream.VideoCodecUtils
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,17 +62,6 @@ private const val MAX_THREADS = 8
 private val downloadPrefsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 private const val UNRANKED_CODEC = 99
-
-private fun containerForCodec(codecKey: String): String =
-    when (codecKey) {
-        "vp9", "vp8" -> "WebM"
-        else -> "MP4"
-    }
-
-private fun codecOptionLabel(
-    codecKey: String,
-    separator: String,
-): String = "${VideoCodecUtils.codecLabelFromKey(codecKey)}$separator${containerForCodec(codecKey)}"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -174,7 +157,7 @@ fun MediaDownloadDialogCompact(
         val taggedVideo = video.copy(title = finalTitle)
         if (isAudioMode) {
             val stream = audioStreams.getOrNull(selectedAudioIndex) ?: return
-            if (!startAudioOnlyDownload(context, taggedVideo, stream, threads)) return
+            if (!DownloadLauncher.startAudioOnlyDownload(context, taggedVideo, stream, threads)) return
             Toast
                 .makeText(
                     context,
@@ -238,7 +221,7 @@ fun MediaDownloadDialogCompact(
             }
         }
 
-        VideoPlayerUtils.startDownload(
+        DownloadLauncher.startVideoDownload(
             context = context,
             video = taggedVideo,
             url = downloadUrl,
@@ -255,7 +238,6 @@ fun MediaDownloadDialogCompact(
             fallbackCodec = fallbackCodec,
             fallbackQuality = fallbackQuality,
         )
-        Toast.makeText(context, context.getString(R.string.downloading_template, qualityLabel), Toast.LENGTH_SHORT).show()
         downloadPrefsScope.launch {
             prefs.setLastDownloadVideoChoice(selectedHeight, selectedCodec)
             prefs.setDownloadThreads(threads)
@@ -419,63 +401,6 @@ fun MediaDownloadDialogCompact(
                         enabled = (isAudioMode && hasAudio) || (!isAudioMode && hasVideo && selectedCodec.isNotEmpty()),
                     ) { Text(stringResource(R.string.download)) }
                 }
-            }
-        }
-    }
-}
-
-private data class AudioLabelStrings(
-    val unknownFormat: String,
-    val kbps: String,
-    val separator: String,
-)
-
-private fun audioOptionLabel(
-    stream: PlayerResponse.StreamingData.Format,
-    strings: AudioLabelStrings,
-): String {
-    val format = DownloadStreamPolicy.audioFormatLabel(stream, strings.unknownFormat)
-    val bitrate = DownloadStreamPolicy.audioBitrateKbps(stream)
-    val lang = DownloadStreamPolicy.audioLanguageLabel(stream)
-    return listOfNotNull("$format${strings.separator}$bitrate${strings.kbps}", lang).joinToString(strings.separator)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DownloadDropdownRow(
-    label: String,
-    value: String,
-    options: List<Pair<String, () -> Unit>>,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            options.forEach { (optLabel, onSelect) ->
-                DropdownMenuItem(
-                    text = { Text(optLabel, style = MaterialTheme.typography.bodyLarge) },
-                    onClick = {
-                        onSelect()
-                        expanded = false
-                    },
-                )
             }
         }
     }

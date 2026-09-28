@@ -22,7 +22,6 @@ import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.ui.screens.player.fakeAudioFormats
 import io.github.aedev.flow.ui.screens.player.fakeVideo
 import io.github.aedev.flow.ui.screens.player.fakeVideoFormats
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
@@ -106,10 +105,10 @@ class DownloadDialogsTest {
 
     @Test
     fun fullDialogPairsEveryCodecWithTheAacTheSharedHelperPicks() {
-        mockkObject(VideoPlayerUtils)
+        mockkObject(DownloadLauncher)
         val audioUrls = mutableListOf<String?>()
         every {
-            VideoPlayerUtils.startDownload(
+            DownloadLauncher.startVideoDownload(
                 any(),
                 any(),
                 any(),
