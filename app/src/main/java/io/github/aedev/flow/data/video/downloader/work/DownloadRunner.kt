@@ -17,6 +17,7 @@ import io.github.aedev.flow.data.video.downloader.tags.CoverArtLoader
 import io.github.aedev.flow.data.video.downloader.tags.DownloadKind
 import io.github.aedev.flow.data.video.downloader.tags.Mp4Remuxer
 import io.github.aedev.flow.data.video.downloader.tags.Mp4TagWriter
+import io.github.aedev.flow.data.video.storage.DownloadCovers
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.data.video.storage.DownloadPlacement
 import io.github.aedev.flow.data.video.storage.PlacedFile
@@ -149,7 +150,7 @@ class DownloadRunner
             val path = placed.path
             val mimeType = if (request.wantsAudioOnly) "audio/mp4" else "video/mp4"
             downloadDao.completeItem(itemId, path, placed.fileName, extension, mimeType, quality, size)
-            cover?.let { saveCover(request.videoId, it) }?.let { downloadDao.updateThumbnailPath(request.videoId, it) }
+            cover?.let { DownloadCovers.save(context, request.videoId, it) }?.let { downloadDao.updateThumbnailPath(request.videoId, it) }
             if (!DownloadFiles.isDocument(path)) downloads.scanFile(path, mimeType)
             downloads.emitProgress(DownloadProgressUpdate(request.videoId, itemId, size, size, DownloadItemStatus.COMPLETED))
             notifier.show(request.videoId, request.tags.title, DownloadPhase.Complete(placed.fellBackTo))
@@ -166,18 +167,6 @@ class DownloadRunner
             return streams.video?.let { DownloadStreamPolicy.videoQualityLabel(it, context.getString(R.string.download_quality_hdr)) }
                 ?: "${DownloadStreamPolicy.audioBitrateKbps(streams.audio)} ${context.getString(R.string.kbps)}"
         }
-
-        /** Covers live in app storage, so a download shows its artwork offline and after a cache clear. */
-        private fun saveCover(
-            videoId: String,
-            cover: ByteArray,
-        ): String? =
-            runCatching {
-                val directory = File(context.filesDir, COVERS_DIR).apply { mkdirs() }
-                File(directory, "${videoId.replace(Regex("[^A-Za-z0-9_-]"), "_")}.jpg")
-                    .apply { writeBytes(cover) }
-                    .absolutePath
-            }.getOrNull()
 
         /** Only when the user has SponsorBlock on: otherwise no video id is sent to its API at all. */
         private suspend fun saveSponsorBlockSegments(videoId: String) {
@@ -243,7 +232,6 @@ class DownloadRunner
 
         private companion object {
             const val TAG = "DownloadRunner"
-            const val COVERS_DIR = "download_covers"
         }
     }
 
