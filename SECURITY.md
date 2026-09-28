@@ -18,7 +18,7 @@ Always update to the newest release before reporting a security issue.
 
 Report privately through
 [GitHub Security Advisories](https://github.com/A-EDev/Flow/security/advisories/new).
-If you cannot use that form, email <flow.aedev@gmail.com>.
+If you cannot use that form, email <contact@flow-tube.org>.
 
 Please include:
 
