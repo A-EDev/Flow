@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.local.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import io.github.aedev.flow.data.video.downloader.tags.DownloadKind
 
 /**
  * Represents a downloaded media item (video or audio-only).
@@ -44,9 +45,3 @@ data class DownloadEntity(
     /** The serialized request, so a retry or a resume after the app was killed asks for the same thing. */
     val requestJson: String? = null,
 )
-
-enum class DownloadKind {
-    VIDEO,
-    MUSIC,
-    SHORT,
-}

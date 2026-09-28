@@ -20,16 +20,11 @@ fun approxDownloadSizeLabel(bytes: Long?): String? {
     return stringResource(R.string.download_size_estimate, Formatter.formatShortFileSize(context, bytes))
 }
 
-private fun containerForCodec(codecKey: String): String =
-    when (codecKey) {
-        "vp9", "vp8" -> "WebM"
-        else -> "MP4"
-    }
-
+// Every video download is written as an MP4, whatever its codec.
 internal fun codecOptionLabel(
     codecKey: String,
     separator: String,
-): String = "${VideoCodecUtils.codecLabelFromKey(codecKey)}$separator${containerForCodec(codecKey)}"
+): String = "${VideoCodecUtils.codecLabelFromKey(codecKey)}${separator}MP4"
 
 internal data class AudioLabelStrings(
     val unknownFormat: String,

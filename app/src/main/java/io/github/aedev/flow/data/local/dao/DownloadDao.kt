@@ -13,6 +13,13 @@ import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import kotlinx.coroutines.flow.Flow
 
+/** One row of the download queue. */
+data class QueuedDownload(
+    val videoId: String,
+    val createdAt: Long,
+    val status: DownloadItemStatus,
+)
+
 @Dao
 interface DownloadDao {
     // ===== Download (parent) =====
@@ -176,6 +183,87 @@ interface DownloadDao {
     """,
     )
     suspend fun isDownloaded(videoId: String): Boolean
+
+    /** A finished download's file row: where it ended up, what it is, and that it is complete. */
+    @Query(
+        """
+        UPDATE download_items SET filePath = :filePath, fileName = :fileName, format = :format, mimeType = :mimeType,
+            downloadedBytes = :size, totalBytes = :size, status = 'COMPLETED'
+        WHERE id = :itemId
+        """,
+    )
+    suspend fun completeItem(
+        itemId: Int,
+        filePath: String,
+        fileName: String,
+        format: String,
+        mimeType: String,
+        size: Long,
+    )
+
+    @Query("UPDATE downloads SET thumbnailPath = :path WHERE videoId = :videoId")
+    suspend fun updateThumbnailPath(
+        videoId: String,
+        path: String,
+    )
+
+    /** What the watch page added to a download's metadata, so a retry does not ask again. */
+    @Query(
+        """
+        UPDATE downloads SET title = :title, uploader = :uploader, channelId = :channelId, description = :description,
+            releaseDate = :releaseDate, viewCount = :viewCount, likeCount = :likeCount, requestJson = :requestJson
+        WHERE videoId = :videoId
+        """,
+    )
+    suspend fun updateMetadata(
+        videoId: String,
+        title: String,
+        uploader: String,
+        channelId: String,
+        description: String,
+        releaseDate: String?,
+        viewCount: Long,
+        likeCount: Long,
+        requestJson: String,
+    )
+
+    /** A song's album and artists, moved in from where older versions kept them. */
+    @Query(
+        """
+        UPDATE downloads SET kind = :kind, album = COALESCE(:album, album), albumId = COALESCE(:albumId, albumId),
+            artistsJson = COALESCE(:artistsJson, artistsJson), channelId = :channelId, uploader = :uploader
+        WHERE videoId = :videoId
+        """,
+    )
+    suspend fun updateMusicMetadata(
+        videoId: String,
+        kind: io.github.aedev.flow.data.video.downloader.tags.DownloadKind,
+        album: String?,
+        albumId: String?,
+        artistsJson: String?,
+        channelId: String,
+        uploader: String,
+    )
+
+    /** Whether anything is waiting for, or in the middle of, a transfer. */
+    @Query("SELECT EXISTS(SELECT 1 FROM download_items WHERE status IN ('PENDING', 'DOWNLOADING'))")
+    suspend fun hasQueuedDownloads(): Boolean
+
+    /** The queue as the download work drains it: every row not finished, failed or cancelled, oldest first. */
+    @Query(
+        """
+        SELECT d.videoId AS videoId, MIN(d.createdAt) AS createdAt, di.status AS status FROM downloads d
+        INNER JOIN download_items di ON d.videoId = di.videoId
+        WHERE di.status IN ('PENDING', 'DOWNLOADING', 'PAUSED')
+        GROUP BY d.videoId
+        ORDER BY createdAt
+        """,
+    )
+    fun observeQueue(): Flow<List<QueuedDownload>>
+
+    /** A download the app was killed in the middle of goes back to waiting, so the queue picks it up. */
+    @Query("UPDATE download_items SET status = 'PENDING' WHERE status = 'DOWNLOADING'")
+    suspend fun requeueInterrupted()
 
     /** Get total download storage size */
     @Query("SELECT COALESCE(SUM(totalBytes), 0) FROM download_items WHERE status = 'COMPLETED'")

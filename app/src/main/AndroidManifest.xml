@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -226,13 +227,15 @@
             </intent-filter>
         </service>
 
-        <!-- Flow Parallel Download Service -->
+        <!-- The download queue runs as WorkManager work; its foreground service carries dataSync. -->
         <service
-            android:name=".data.video.downloader.FlowDownloadService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync">
-        </service>
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
+        <receiver
+            android:name=".data.video.downloader.work.DownloadActionReceiver"
+            android:exported="false" />
 
         <!-- ExoPlayer Download Service -->
         <service

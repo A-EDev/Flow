@@ -177,67 +177,12 @@ fun MediaDownloadDialogCompact(
                 DownloadStreamPolicy.videoHeight(it) == selectedHeight &&
                     DownloadStreamPolicy.videoCodecKey(it) == selectedCodec
             } ?: return
-        val downloadUrl = stream.url?.takeIf { it.isNotBlank() } ?: return
-        val qualityLabel = DownloadStreamPolicy.videoQualityLabel(stream, hdrLabel)
-
-        val audioUrl =
-            DownloadStreamPolicy
-                .pickCompatibleAudioForVideo(selectedCodec, audioStreams, preferredLang)
-                ?.url
-                ?.takeIf { it.isNotBlank() }
-        if (audioUrl == null) {
+        val audio = DownloadStreamPolicy.pickAacAudio(audioStreams, preferredLang)
+        if (audio == null) {
             Toast.makeText(context, context.getString(R.string.download_no_compatible_audio), Toast.LENGTH_LONG).show()
             return
         }
-
-        var fallbackUrl: String? = null
-        var fallbackAudioUrl: String? = null
-        var fallbackCodec: String? = null
-        var fallbackQuality: String? = null
-        if (selectedCodec == "av1") {
-            val fb =
-                videoStreams.firstOrNull {
-                    DownloadStreamPolicy.videoHeight(it) == selectedHeight &&
-                        DownloadStreamPolicy.videoCodecKey(it) != "av1"
-                }
-            val fbUrl = fb?.url?.takeIf { it.isNotBlank() }
-            if (fb != null && fbUrl != null) {
-                val fbCodecKey = DownloadStreamPolicy.videoCodecKey(fb)
-                val fbAudio =
-                    DownloadStreamPolicy
-                        .pickCompatibleAudioForVideo(fbCodecKey, audioStreams, preferredLang)
-                        ?.url
-                        ?.takeIf { it.isNotBlank() }
-                if (fbAudio != null) {
-                    fallbackUrl = fbUrl
-                    fallbackAudioUrl = fbAudio
-                    fallbackCodec =
-                        when (fbCodecKey) {
-                            "vp9", "vp8" -> fbCodecKey
-                            else -> null
-                        }
-                    fallbackQuality = DownloadStreamPolicy.videoQualityLabel(fb, hdrLabel)
-                }
-            }
-        }
-
-        DownloadLauncher.startVideoDownload(
-            context = context,
-            video = taggedVideo,
-            url = downloadUrl,
-            qualityLabel = qualityLabel,
-            audioUrl = audioUrl,
-            videoCodec =
-                when (selectedCodec) {
-                    "vp9", "vp8", "av1" -> selectedCodec
-                    else -> null
-                },
-            threads = threads,
-            fallbackUrl = fallbackUrl,
-            fallbackAudioUrl = fallbackAudioUrl,
-            fallbackCodec = fallbackCodec,
-            fallbackQuality = fallbackQuality,
-        )
+        DownloadLauncher.startVideoDownload(context, taggedVideo, stream, audio, threads)
         downloadPrefsScope.launch {
             prefs.setLastDownloadVideoChoice(selectedHeight, selectedCodec)
             prefs.setDownloadThreads(threads)

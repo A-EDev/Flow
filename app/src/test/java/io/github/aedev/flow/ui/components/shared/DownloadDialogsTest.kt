@@ -22,9 +22,7 @@ import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.ui.screens.player.fakeAudioFormats
 import io.github.aedev.flow.ui.screens.player.fakeVideo
 import io.github.aedev.flow.ui.screens.player.fakeVideoFormats
-import io.mockk.Runs
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
 import org.junit.After
@@ -106,22 +104,10 @@ class DownloadDialogsTest {
     @Test
     fun fullDialogPairsEveryCodecWithTheAacTheSharedHelperPicks() {
         mockkObject(DownloadLauncher)
-        val audioUrls = mutableListOf<String?>()
+        val audioItags = mutableListOf<Int>()
         every {
-            DownloadLauncher.startVideoDownload(
-                any(),
-                any(),
-                any(),
-                any(),
-                captureNullable(audioUrls),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
-        } just Runs
+            DownloadLauncher.startVideoDownload(any(), any(), any(), capture(audioFormats), any())
+        } answers { audioItags += audioFormats.last().itag }
 
         setDialogs()
         rule.onNode(hasText("H264 1080p") and hasClickAction()).performClick()
@@ -129,15 +115,12 @@ class DownloadDialogsTest {
         rule.onNode(hasText("VP9 1080p") and hasClickAction()).performClick()
         rule.waitForIdle()
 
-        val audio = DownloadStreamPolicy.buildDownloadAudioFormats(fakeAudioFormats())
-        val expected =
-            listOf("h264", "vp9").map { codec ->
-                DownloadStreamPolicy.pickCompatibleAudioForVideo(codec, audio, "")?.url
-            }
-        val aac = fakeAudioFormats().single { it.mimeType.startsWith("audio/mp4") }.url
-        assertThat(expected).containsExactly(aac, aac)
-        assertThat(audioUrls).isEqualTo(expected)
+        val aac = DownloadStreamPolicy.pickAacAudio(DownloadStreamPolicy.buildDownloadAudioFormats(fakeAudioFormats()), "")
+        assertThat(aac?.mimeType).startsWith("audio/mp4")
+        assertThat(audioItags).containsExactly(aac?.itag, aac?.itag)
     }
+
+    private val audioFormats = mutableListOf<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format>()
 
     @Test
     @Ignore(

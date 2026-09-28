@@ -20,6 +20,7 @@ import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.video.downloader.work.DownloadStaging
 import io.github.aedev.flow.data.video.storage.DownloadDestination
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.data.video.storage.DownloadLocation
@@ -191,6 +192,9 @@ class VideoDownloadManager
             }
         }
 
+        /** App-private working space for downloads in progress, never visible to other apps. */
+        fun stagingDirectory(): File = File(context.getExternalFilesDir(null) ?: context.filesDir, STAGING_DIR).apply { mkdirs() }
+
         /** The folder the user chose for a music or a video download. */
         suspend fun savedLocation(isMusic: Boolean): DownloadLocation =
             DownloadLocation.forDownload(
@@ -207,7 +211,7 @@ class VideoDownloadManager
             resolveDownloadDestination(
                 chosen = location,
                 defaults = defaultDirectories(fileType),
-                staging = File(context.getExternalFilesDir(null) ?: context.filesDir, STAGING_DIR).apply { mkdirs() },
+                staging = stagingDirectory(),
                 isUsableDirectory = ::isUsableDirectory,
                 hasTreeAccess = { DownloadFiles.hasTreeAccess(context, it) },
             )
@@ -415,6 +419,7 @@ class VideoDownloadManager
                             }
                         }
                         offlineSubtitleStore.delete(videoId)
+                        DownloadStaging(stagingDirectory(), videoId).clear()
                     }
                     true
                 } catch (e: Exception) {
@@ -501,12 +506,13 @@ class VideoDownloadManager
                         id = dwi.download.videoId,
                         title = dwi.download.title,
                         channelName = dwi.download.uploader,
-                        channelId = "",
-                        thumbnailUrl = dwi.download.thumbnailUrl,
+                        channelId = dwi.download.channelId,
+                        thumbnailUrl = dwi.download.thumbnailPath?.let { "file://$it" } ?: dwi.download.thumbnailUrl,
                         duration = dwi.download.duration.toInt(),
-                        viewCount = 0,
+                        viewCount = dwi.download.viewCount,
                         uploadDate = "",
-                        description = "",
+                        description = dwi.download.description,
+                        likeCount = dwi.download.likeCount,
                     ),
                 filePath = dwi.primaryFilePath ?: "",
                 downloadedAt = dwi.download.createdAt,

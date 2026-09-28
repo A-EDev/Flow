@@ -1,28 +1,19 @@
 package io.github.aedev.flow.data.video
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.data.local.PlayerPreferences
-import io.github.aedev.flow.data.local.VideoCodec
-import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.toMusicTrack
-import io.github.aedev.flow.data.video.downloader.FlowDownloadService
-import io.github.aedev.flow.player.stream.VideoCodecUtils
-import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.data.video.downloader.request.toDownloadRequest
+import io.github.aedev.flow.data.video.downloader.work.DownloadController
+import io.github.aedev.flow.data.video.downloader.work.EnqueueOutcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,35 +43,29 @@ enum class QueueOutcome {
 }
 
 /**
- * Starts downloads with no dialog, at the default download quality and codec: "Download all" on a
- * playlist, Retry on a failed download, and a resume the service can no longer continue.
+ * Queues downloads with no dialog, at the default download quality and codec: "Download all" on a
+ * playlist or album. Queueing only writes the request; streams are resolved when each download's
+ * turn comes, so a long batch never runs on URLs that expired while it waited.
  */
 @Singleton
 class BackgroundDownloadQueuer
     @Inject
     constructor(
-        @param:ApplicationContext private val context: Context,
-        private val optionsLoader: VideoDownloadOptionsLoader,
-        private val videoDownloadManager: VideoDownloadManager,
-        private val musicDownloadManager: DownloadManager,
-        private val preferences: PlayerPreferences,
+        private val controller: DownloadController,
     ) {
         // Outlives the screen that asked, so leaving a playlist doesn't drop the rest of its videos.
-        private val scope = CoroutineScope(SupervisorJob() + PerformanceDispatcher.networkIO)
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         private val _batches = MutableStateFlow<Map<String, DownloadBatch>>(emptyMap())
         val batches: StateFlow<Map<String, DownloadBatch>> = _batches.asStateFlow()
 
-        /**
-         * Queues every video of a collection in the background, [BATCH_WORKERS] lookups at a time, skipping
-         * what is already downloaded or downloading. A second request for a running batch is ignored.
-         */
+        /** Queues every video of a collection, skipping what is already downloaded or queued. */
         fun queueAll(
             collectionId: String,
             videos: List<Video>,
         ) = runBatch(collectionId, videos.distinctBy { it.id }) { queue(it) }
 
-        /** [queueAll] for songs, which keep their album and artists through the music downloader. */
+        /** [queueAll] for songs, which keep their album and artists in their tags. */
         fun queueSongs(
             collectionId: String,
             tracks: List<MusicTrack>,
@@ -103,17 +88,12 @@ class BackgroundDownloadQueuer
                 }
             }
             if (!accepted) return
-            val pending = Channel<T>(Channel.UNLIMITED)
-            items.forEach(pending::trySend)
-            pending.close()
-            repeat(BATCH_WORKERS) {
-                scope.launch {
-                    for (item in pending) {
-                        val outcome = runCatching { work(item) }.getOrDefault(QueueOutcome.UNAVAILABLE)
-                        _batches.update { batches ->
-                            val batch = batches[collectionId] ?: return@update batches
-                            batches + (collectionId to batch.record(outcome))
-                        }
+            scope.launch {
+                items.forEach { item ->
+                    val outcome = runCatching { work(item) }.getOrDefault(QueueOutcome.UNAVAILABLE)
+                    _batches.update { batches ->
+                        val batch = batches[collectionId] ?: return@update batches
+                        batches + (collectionId to batch.record(outcome))
                     }
                 }
             }
@@ -124,82 +104,15 @@ class BackgroundDownloadQueuer
             _batches.update { batches -> if (batches[collectionId]?.isFinished == true) batches - collectionId else batches }
         }
 
-        /**
-         * Queues [video]. Songs go through the music library's downloader so they show under Music.
-         * With [replaceExisting], a failed or stalled download of the same video is started over.
-         */
-        suspend fun queue(
-            video: Video,
-            replaceExisting: Boolean = false,
-        ): QueueOutcome {
-            if (video.isMusic) return queueSong(video)
-            val existing = videoDownloadManager.getDownloadWithItems(video.id)
-            if (existing != null) {
-                val finished = existing.overallStatus == DownloadItemStatus.COMPLETED
-                if (finished || !replaceExisting) return QueueOutcome.ALREADY_PRESENT
+        /** Queues [video]; a song goes in as music, so it lands in the music folder with its tags. */
+        suspend fun queue(video: Video): QueueOutcome =
+            if (video.isMusic) queueSong(video.toMusicTrack()) else controller.enqueue(video.toDownloadRequest()).toQueueOutcome()
+
+        private suspend fun queueSong(track: MusicTrack): QueueOutcome = controller.enqueue(track.toDownloadRequest()).toQueueOutcome()
+
+        private fun EnqueueOutcome.toQueueOutcome(): QueueOutcome =
+            when (this) {
+                EnqueueOutcome.QUEUED -> QueueOutcome.QUEUED
+                EnqueueOutcome.ALREADY_DOWNLOADED, EnqueueOutcome.ALREADY_QUEUED -> QueueOutcome.ALREADY_PRESENT
             }
-            val options = optionsLoader.load(video) ?: return QueueOutcome.UNAVAILABLE
-            val choice = choose(options) ?: return QueueOutcome.UNAVAILABLE
-            withContext(Dispatchers.Main) {
-                FlowDownloadService.startDownload(
-                    context = context,
-                    video = video,
-                    url = choice.videoUrl,
-                    quality = choice.qualityLabel,
-                    audioUrl = choice.audioUrl,
-                    videoCodec = choice.videoCodec,
-                )
-            }
-            return QueueOutcome.QUEUED
-        }
-
-        private suspend fun queueSong(video: Video): QueueOutcome = queueSong(video.toMusicTrack())
-
-        private suspend fun queueSong(track: MusicTrack): QueueOutcome {
-            if (musicDownloadManager.isDownloaded(track.videoId)) return QueueOutcome.ALREADY_PRESENT
-            return if (musicDownloadManager.downloadTrack(track).isSuccess) QueueOutcome.QUEUED else QueueOutcome.UNAVAILABLE
-        }
-
-        private suspend fun choose(options: VideoDownloadOptions): Choice? {
-            val targetHeight = preferences.defaultDownloadQuality.first().height
-            val codec =
-                preferences.defaultDownloadCodec
-                    .first()
-                    .takeIf { it != VideoCodec.AUTO }
-                    ?.codecKey
-            val language = preferences.preferredAudioLanguage.first()
-            val videoFormats = DownloadStreamPolicy.buildDownloadVideoFormats(options.videoFormats)
-            val audioFormats = DownloadStreamPolicy.buildDownloadAudioFormats(options.audioFormats)
-            val height =
-                DefaultDownloadSelection.pickHeight(videoFormats.map(DownloadStreamPolicy::videoHeight), targetHeight)
-                    ?: return null
-            val atHeight = videoFormats.filter { DownloadStreamPolicy.videoHeight(it) == height }
-            for (codecKey in DefaultDownloadSelection.rankCodecs(atHeight.map(DownloadStreamPolicy::videoCodecKey), codec)) {
-                val format = atHeight.first { DownloadStreamPolicy.videoCodecKey(it) == codecKey }
-                val url = format.url?.takeIf { it.isNotBlank() } ?: continue
-                val audioUrl =
-                    DownloadStreamPolicy
-                        .pickCompatibleAudioForVideo(codecKey, audioFormats, language)
-                        ?.url
-                        ?.takeIf { it.isNotBlank() } ?: continue
-                return Choice(
-                    videoUrl = url,
-                    audioUrl = audioUrl,
-                    qualityLabel = "${VideoCodecUtils.codecLabelFromKey(codecKey)} ${height}p",
-                    videoCodec = codecKey.takeIf { it == "vp9" || it == "vp8" || it == "av1" },
-                )
-            }
-            return null
-        }
-
-        private companion object {
-            const val BATCH_WORKERS = 2
-        }
-
-        private data class Choice(
-            val videoUrl: String,
-            val audioUrl: String?,
-            val qualityLabel: String,
-            val videoCodec: String?,
-        )
     }

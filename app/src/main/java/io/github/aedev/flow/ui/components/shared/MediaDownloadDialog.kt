@@ -95,7 +95,7 @@ fun MediaDownloadDialog(
                             Button(
                                 onClick = {
                                     onDismiss()
-                                    DownloadLauncher.startSabrDownload(context, video)
+                                    DownloadLauncher.startDefaultDownload(context, video)
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -123,38 +123,21 @@ fun MediaDownloadDialog(
                         Surface(
                             onClick = downloadVideo@{
                                 onDismiss()
-                                val downloadUrl = format.url?.takeIf { it.isNotBlank() }
-                                if (downloadUrl != null) {
-                                    val compatibleAudio =
-                                        DownloadStreamPolicy.pickCompatibleAudioForVideo(
-                                            videoCodecKey = codecKey,
-                                            allAudio = effectiveAudioForDownload,
-                                            preferredLang = preferredLang,
-                                        )
-                                    if (compatibleAudio == null) {
-                                        Toast
-                                            .makeText(
-                                                context,
-                                                context.getString(R.string.download_no_compatible_audio),
-                                                Toast.LENGTH_LONG,
-                                            ).show()
-                                        return@downloadVideo
-                                    }
-                                    val audioUrl = compatibleAudio.url?.takeIf { it.isNotBlank() }
-
-                                    DownloadLauncher.startVideoDownload(
-                                        context,
-                                        video,
-                                        downloadUrl,
-                                        qualityLabel,
-                                        audioUrl,
-                                        videoCodec =
-                                            when (codecKey) {
-                                                "vp9", "vp8", "av1" -> codecKey
-                                                else -> null
-                                            },
+                                val compatibleAudio =
+                                    DownloadStreamPolicy.pickAacAudio(
+                                        allAudio = effectiveAudioForDownload,
+                                        preferredLang = preferredLang,
                                     )
+                                if (compatibleAudio == null) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            context.getString(R.string.download_no_compatible_audio),
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    return@downloadVideo
                                 }
+                                DownloadLauncher.startVideoDownload(context, video, format, compatibleAudio)
                             },
                             shape = flowRowGroupShape(streamIndex, distinctFormats.size),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,

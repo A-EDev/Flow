@@ -21,11 +21,9 @@ object DownloadStreamPolicy {
     private const val UNRANKED_CODEC = 99
     private const val AUDIO_MP4 = "audio/mp4"
     private const val AUDIO_WEBM = "audio/webm"
-    private val AUDIO_CONTAINERS = setOf(AUDIO_MP4, AUDIO_WEBM)
     private val VIDEO_CONTAINERS = setOf("video/mp4", "video/webm", "video/3gpp")
 
     /** Codecs the MP4 muxer takes only with AAC; the Matroska writer takes any audio. */
-    private val AAC_ONLY_VIDEO_CODECS = setOf("h264", "hevc")
 
     fun videoHeight(format: Format): Int = VideoCodecUtils.qualityHeightFromFormat(format.qualityLabel, format.height ?: 0)
 
@@ -78,11 +76,6 @@ object DownloadStreamPolicy {
             else -> unknownLabel
         }
 
-    fun audioFileExtension(format: Format): String = if (containerOf(format.mimeType) == AUDIO_WEBM) "webm" else "m4a"
-
-    /** The container type the download service records, without the codecs parameter. */
-    fun audioContainerMimeType(format: Format): String = containerOf(format.mimeType)
-
     fun audioLanguageLabel(format: Format): String? =
         format.audioTrack?.displayName?.takeIf { it.isNotBlank() }
             ?: audioLocale(format)?.displayLanguage?.takeIf { it.isNotBlank() }
@@ -94,64 +87,52 @@ object DownloadStreamPolicy {
         dubbedLabel: String,
     ): String = if (format.isOriginal) originalLabel else dubbedLabel
 
-    private fun audioFormatSortRank(format: Format): Int = if (containerOf(format.mimeType) == AUDIO_WEBM) 0 else 1
-
     /**
-     * The audio formats a download can use: DRC twins dropped, URL-less and unknown containers
-     * dropped, one entry per (format, bitrate, track, language, role), Opus first, then by bitrate.
+     * The audio formats a download can use: AAC only, since every download is an MP4 or M4A and
+     * Media3 cuts the start of Opus in MP4. DRC twins and URL-less formats are dropped, one entry
+     * per (bitrate, track, language, role), highest bitrate first.
      */
     fun buildDownloadAudioFormats(formats: List<Format>): List<Format> =
         formats
             .preferNonDrc()
-            .filter { !it.url.isNullOrBlank() && containerOf(it.mimeType) in AUDIO_CONTAINERS }
+            .filter { !it.url.isNullOrBlank() && isAacFormat(it) }
             .distinctBy { format ->
                 listOf(
-                    audioFormatLabel(format),
                     audioBitrateKbps(format).toString(),
                     format.audioTrack?.id.orEmpty(),
                     audioLocale(format)?.toLanguageTag().orEmpty(),
                     format.isOriginal.toString(),
                 ).joinToString("|")
             }.sortedWith(
-                compareBy<Format> { audioFormatSortRank(it) }
-                    .thenByDescending { audioBitrateKbps(it) }
+                compareByDescending<Format> { audioBitrateKbps(it) }
                     .thenBy { audioLocale(it)?.displayLanguage.orEmpty() },
             )
 
     /**
-     * The audio muxed with a video download. AAC is preferred for every video codec so the file can
-     * be an MP4; Opus is taken only when the chosen language has no AAC and the video codec is one
-     * the Matroska writer muxes, since the MP4 muxer rejects Opus next to h264/hevc.
+     * The AAC audio muxed with a video download, which is always an MP4: the chosen language's AAC
+     * when it has one, otherwise any AAC, otherwise none. Opus is never paired, because Opus in MP4
+     * loses its first 300 ms in Media3 (androidx/media#3431).
      */
-    fun pickCompatibleAudioForVideo(
-        videoCodecKey: String,
+    fun pickAacAudio(
         allAudio: List<Format>,
         preferredLang: String?,
     ): Format? {
-        if (allAudio.isEmpty()) return null
-
-        val langFilteredAudio =
+        val aac = allAudio.filter(::isAacFormat)
+        if (aac.isEmpty()) return null
+        val inLanguage =
             if (!preferredLang.isNullOrEmpty() && preferredLang != "original") {
-                val langMatches =
-                    allAudio.filter {
-                        val locale = audioLocale(it)
-                        locale?.language.equals(preferredLang, ignoreCase = true) ||
-                            locale?.toLanguageTag().equals(preferredLang, ignoreCase = true)
-                    }
-                langMatches.ifEmpty { allAudio }
+                aac.filter {
+                    val locale = audioLocale(it)
+                    locale?.language.equals(preferredLang, ignoreCase = true) ||
+                        locale?.toLanguageTag().equals(preferredLang, ignoreCase = true)
+                }
             } else {
-                allAudio.filter { it.isOriginal }.ifEmpty { allAudio }
+                aac.filter { it.isOriginal }
             }
-
-        val aac = langFilteredAudio.filter(::isAac).maxByOrNull(::audioBitrate)
-        return if (videoCodecKey in AAC_ONLY_VIDEO_CODECS) {
-            aac ?: allAudio.filter(::isAac).maxByOrNull(::audioBitrate)
-        } else {
-            aac ?: langFilteredAudio.maxByOrNull(::audioBitrate)
-        }
+        return inLanguage.ifEmpty { aac }.maxByOrNull(::audioBitrate)
     }
 
-    private fun isAac(format: Format): Boolean = containerOf(format.mimeType) == AUDIO_MP4
+    fun isAacFormat(format: Format): Boolean = containerOf(format.mimeType) == AUDIO_MP4
 
     private fun containerOf(mimeType: String): String = mimeType.substringBefore(';').trim().lowercase()
 

@@ -3256,6 +3256,13 @@
     <string name="download_waiting_for_wifi">Waiting for WiFi</string>
     <string name="notification_download_saved_elsewhere">Saved to %1$s. The chosen folder can\'t be used.</string>
     <string name="download_failed_try_again">Download failed. Please try again.</string>
+    <string name="download_failed_unavailable">This video can\'t be downloaded right now</string>
+    <string name="download_failed_no_audio">No audio this download can use</string>
+    <string name="download_failed_refused">YouTube refused the download. Try again later.</string>
+    <string name="download_failed_disk_full">Not enough storage space</string>
+    <string name="download_failed_unreadable">The downloaded file could not be read</string>
+    <string name="download_failed_save">Could not save to the download folder</string>
+    <string name="download_failed_merge">Could not finish the file. Try again.</string>
     <string name="download_merging_audio_video">Merging audio &amp; video…</string>
     <string name="download_muxing_incompatible">Muxing failed - audio format incompatible with video container. Try re-downloading.</string>
     <string name="download_muxing_failed_retry">Muxing failed — try re-downloading.</string>

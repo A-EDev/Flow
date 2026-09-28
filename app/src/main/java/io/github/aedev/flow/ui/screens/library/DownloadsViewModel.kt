@@ -1,11 +1,10 @@
 package io.github.aedev.flow.ui.screens.library
 
-import android.content.Context
 import android.os.StatFs
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.local.entity.DownloadFileType
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.music.DownloadedTrack
@@ -13,7 +12,7 @@ import io.github.aedev.flow.data.video.DownloadProgressUpdate
 import io.github.aedev.flow.data.video.DownloadRecoveryScanner
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
-import io.github.aedev.flow.data.video.downloader.FlowDownloadService
+import io.github.aedev.flow.data.video.downloader.work.DownloadController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +34,7 @@ class DownloadsViewModel
         private val videoDownloadManager: VideoDownloadManager,
         private val recoveryScanner: DownloadRecoveryScanner,
         private val musicDownloadManager: MusicDownloadManager,
-        @param:ApplicationContext private val appContext: Context,
+        private val downloadController: DownloadController,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(DownloadsUiState())
         val uiState: StateFlow<DownloadsUiState> = _uiState.asStateFlow()
@@ -53,6 +52,7 @@ class DownloadsViewModel
 
         init {
             observeDownloads()
+            downloadController.ensureQueueRunning()
             if (!recoveryScanner.hasScannedThisSession) rescan()
         }
 
@@ -101,7 +101,7 @@ class DownloadsViewModel
                     videos.sumOf { it.fileSize } to
                         tracks.sumOf { it.fileSize }
                 }.collect { (videoBytes, musicBytes) ->
-                    val free = withContext(Dispatchers.IO) { freeBytes() }
+                    val free = freeBytes()
                     _uiState.update { it.copy(storage = DownloadStorage(videoBytes, musicBytes, free)) }
                 }
             }
@@ -136,14 +136,20 @@ class DownloadsViewModel
             }
         }
 
-        private fun freeBytes(): Long =
-            runCatching { StatFs((appContext.getExternalFilesDir(null) ?: appContext.filesDir).path).availableBytes }
-                .getOrDefault(0L)
+        /** Free space on the volume downloads are actually saved to, which may be a card or a picked folder. */
+        private suspend fun freeBytes(): Long =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val folder =
+                        videoDownloadManager.resolveDestination(
+                            DownloadFileType.VIDEO,
+                            videoDownloadManager.savedLocation(isMusic = false),
+                        )
+                    StatFs(folder.directory.path).availableBytes
+                }.getOrDefault(0L)
+            }
 
-        /**
-         * A finished download is deleted here; one still running is cancelled through the service,
-         * which waits for its writes to stop before deleting, so the file can't be recreated.
-         */
+        /** A finished download is deleted here; one still in the queue is cancelled, which stops it first. */
         fun deleteVideoDownload(videoId: String) {
             pendingDeleteIds.update { it + videoId }
             viewModelScope.launch {
@@ -151,7 +157,7 @@ class DownloadsViewModel
                 if (download?.overallStatus == DownloadItemStatus.COMPLETED) {
                     videoDownloadManager.deleteDownload(videoId)
                 } else {
-                    FlowDownloadService.cancelDownload(appContext, videoId)
+                    downloadController.cancel(videoId)
                 }
             }
         }
@@ -166,19 +172,25 @@ class DownloadsViewModel
             ids.forEach { id -> if (id in musicIds) deleteMusicDownload(id) else deleteVideoDownload(id) }
         }
 
-        fun pauseVideoDownload(videoId: String) = FlowDownloadService.pauseDownload(appContext, videoId)
+        fun pauseVideoDownload(videoId: String) {
+            downloadController.pause(videoId)
+        }
 
-        fun resumeVideoDownload(videoId: String) = FlowDownloadService.resumeDownload(appContext, videoId)
+        fun resumeVideoDownload(videoId: String) {
+            downloadController.resume(videoId)
+        }
 
-        fun retryVideoDownload(videoId: String) = FlowDownloadService.retryDownload(appContext, videoId)
+        fun retryVideoDownload(videoId: String) {
+            downloadController.retry(videoId)
+        }
 
-        /** Cancels the incomplete downloads of one tab; the service deletes each once it has stopped. */
+        /** Cancels the incomplete downloads of one tab; each is stopped before its files are deleted. */
         fun removeIncompleteDownloads(audioOnly: Boolean) {
             val state = _uiState.value
             val ids = (if (audioOnly) state.incompleteMusicDownloads else state.incompleteVideoDownloads).map { it.download.videoId }
             if (ids.isEmpty()) return
             pendingDeleteIds.update { it + ids }
-            ids.forEach { videoId -> FlowDownloadService.cancelDownload(appContext, videoId) }
+            ids.forEach { videoId -> downloadController.cancel(videoId) }
         }
 
         fun rescan() {

@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.local.entity.DownloadFileType
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.data.video.downloader.work.DownloadController
 import io.github.aedev.flow.data.video.storage.DownloadDestination
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.data.video.storage.DownloadLocation
@@ -66,6 +67,7 @@ class DownloadSettingsViewModel
         @ApplicationContext private val context: Context,
         private val preferences: PlayerPreferences,
         private val downloadManager: VideoDownloadManager,
+        private val downloadController: DownloadController,
     ) : SettingsViewModel() {
         private val refreshTick = MutableStateFlow(0)
 
@@ -124,7 +126,12 @@ class DownloadSettingsViewModel
 
         fun setMenuStyle(value: DownloadDialogStyle) = write { preferences.setDownloadDialogStyle(value) }
 
-        fun setWifiOnly(value: Boolean) = write { preferences.setDownloadOverWifiOnly(value) }
+        // Queued downloads wait on the network the setting allowed when they were queued, so it is re-applied.
+        fun setWifiOnly(value: Boolean) =
+            write {
+                preferences.setDownloadOverWifiOnly(value)
+                downloadController.applyNetworkPolicy()
+            }
 
         fun setThreads(value: Int) = write { preferences.setDownloadThreads(value) }
 

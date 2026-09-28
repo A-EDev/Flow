@@ -93,10 +93,9 @@ class DownloadStreamPolicyTest {
     private fun kbps(format: Format) = DownloadStreamPolicy.audioBitrateKbps(format)
 
     private fun pick(
-        codec: String,
         audio: List<Format>,
         preferredLang: String? = null,
-    ) = DownloadStreamPolicy.pickCompatibleAudioForVideo(codec, audio, preferredLang)
+    ) = DownloadStreamPolicy.pickAacAudio(audio, preferredLang)
 
     private fun ladder(vararg formats: Format) = DownloadStreamPolicy.buildDownloadVideoFormats(formats.toList())
 
@@ -117,21 +116,11 @@ class DownloadStreamPolicyTest {
     }
 
     @Test
-    fun `format labels and extensions follow the container and codec`() {
+    fun `format labels follow the container and codec`() {
         assertThat(DownloadStreamPolicy.audioFormatLabel(audio(251, mimeType = OPUS))).isEqualTo("OPUS")
         assertThat(DownloadStreamPolicy.audioFormatLabel(audio(171, mimeType = VORBIS))).isEqualTo("WEBM")
         assertThat(DownloadStreamPolicy.audioFormatLabel(audio(140))).isEqualTo("M4A")
         assertThat(DownloadStreamPolicy.audioFormatLabel(audio(0, mimeType = "audio/mpeg"), unknownLabel = "?")).isEqualTo("?")
-
-        assertThat(DownloadStreamPolicy.audioFileExtension(audio(251, mimeType = OPUS))).isEqualTo("webm")
-        assertThat(DownloadStreamPolicy.audioFileExtension(audio(171, mimeType = VORBIS))).isEqualTo("webm")
-        assertThat(DownloadStreamPolicy.audioFileExtension(audio(140))).isEqualTo("m4a")
-    }
-
-    @Test
-    fun `the recorded mime type is the container without the codecs parameter`() {
-        assertThat(DownloadStreamPolicy.audioContainerMimeType(audio(140))).isEqualTo("audio/mp4")
-        assertThat(DownloadStreamPolicy.audioContainerMimeType(audio(251, mimeType = OPUS))).isEqualTo("audio/webm")
     }
 
     @Test
@@ -153,12 +142,18 @@ class DownloadStreamPolicyTest {
     }
 
     @Test
-    fun `the audio list drops formats without a url and unknown containers`() {
-        val kept = audio(251, mimeType = OPUS, averageBitrate = 160_000)
+    fun `the audio list keeps only aac with a url, since every download is an mp4 or m4a`() {
+        val kept = audio(141, averageBitrate = 256_000)
 
         assertThat(
             DownloadStreamPolicy.buildDownloadAudioFormats(
-                listOf(audio(140, url = null), audio(139, url = ""), audio(0, mimeType = "audio/mpeg"), kept),
+                listOf(
+                    audio(140, url = null),
+                    audio(139, url = ""),
+                    audio(0, mimeType = "audio/mpeg"),
+                    audio(251, mimeType = OPUS, averageBitrate = 160_000),
+                    kept,
+                ),
             ),
         ).containsExactly(kept)
     }
@@ -181,54 +176,39 @@ class DownloadStreamPolicyTest {
 
     @Test
     fun `the audio list drops a DRC format whose normal twin is present`() {
-        val normal = audio(251, mimeType = OPUS, averageBitrate = 130_000)
-        val drc = audio(251, mimeType = OPUS, averageBitrate = 130_010, isDrc = true)
+        val normal = audio(140, averageBitrate = 130_000)
+        val drc = audio(140, averageBitrate = 130_010, isDrc = true)
 
         assertThat(DownloadStreamPolicy.buildDownloadAudioFormats(listOf(drc, normal))).containsExactly(normal)
     }
 
     @Test
-    fun `the audio list orders webm then m4a and higher bitrates first within a format`() {
-        val m4aLow = audio(139, averageBitrate = 48_000)
-        val m4aHigh = audio(141, averageBitrate = 256_000)
-        val opus = audio(251, mimeType = OPUS, averageBitrate = 160_000)
+    fun `the audio list puts higher bitrates first`() {
+        val low = audio(139, averageBitrate = 48_000)
+        val high = audio(141, averageBitrate = 256_000)
+        val mid = audio(140, averageBitrate = 128_000)
 
-        assertThat(DownloadStreamPolicy.buildDownloadAudioFormats(listOf(m4aLow, m4aHigh, opus)))
-            .containsExactly(opus, m4aHigh, m4aLow)
+        assertThat(DownloadStreamPolicy.buildDownloadAudioFormats(listOf(low, high, mid)))
+            .containsExactly(high, mid, low)
             .inOrder()
     }
 
     @Test
-    fun `every video codec takes aac even when opus has the higher bitrate`() {
+    fun `aac is taken even when opus has the higher bitrate`() {
         val opus = audio(251, mimeType = OPUS, bitrate = 160_000)
         val aac = audio(140, bitrate = 128_000)
 
-        listOf("h264", "hevc", "vp9", "av1", "vp8").forEach { codec ->
-            assertThat(pick(codec, listOf(opus, aac))).isSameInstanceAs(aac)
-        }
+        assertThat(pick(listOf(opus, aac))).isSameInstanceAs(aac)
     }
 
     @Test
-    fun `matroska codecs fall back to opus when there is no aac`() {
-        val opus = audio(251, mimeType = OPUS, bitrate = 160_000)
-
-        listOf("vp9", "av1", "vp8").forEach { codec ->
-            assertThat(pick(codec, listOf(opus))).isSameInstanceAs(opus)
-        }
+    fun `opus alone is never paired`() {
+        assertThat(pick(listOf(audio(251, mimeType = OPUS, bitrate = 160_000)))).isNull()
     }
 
     @Test
-    fun `mp4 codecs never take opus`() {
-        val opus = audio(251, mimeType = OPUS, bitrate = 160_000)
-
-        assertThat(pick("h264", listOf(opus))).isNull()
-        assertThat(pick("hevc", listOf(opus))).isNull()
-    }
-
-    @Test
-    fun `an empty list yields nothing for every codec`() {
-        assertThat(pick("h264", emptyList())).isNull()
-        assertThat(pick("vp9", emptyList())).isNull()
+    fun `an empty list yields nothing`() {
+        assertThat(pick(emptyList())).isNull()
     }
 
     @Test
@@ -236,7 +216,7 @@ class DownloadStreamPolicyTest {
         val low = audio(139, averageBitrate = 48_000, bitrate = 300_000)
         val high = audio(141, bitrate = 256_000)
 
-        assertThat(pick("h264", listOf(low, high))).isSameInstanceAs(high)
+        assertThat(pick(listOf(low, high))).isSameInstanceAs(high)
     }
 
     @Test
@@ -244,8 +224,8 @@ class DownloadStreamPolicyTest {
         val en = audio(140, bitrate = 128_000, trackId = "en.4")
         val fr = audio(140, bitrate = 128_000, trackId = "fr.3", isAutoDubbed = true)
 
-        assertThat(pick("h264", listOf(en, fr), preferredLang = "fr")).isSameInstanceAs(fr)
-        assertThat(pick("h264", listOf(en, fr), preferredLang = "FR")).isSameInstanceAs(fr)
+        assertThat(pick(listOf(en, fr), preferredLang = "fr")).isSameInstanceAs(fr)
+        assertThat(pick(listOf(en, fr), preferredLang = "FR")).isSameInstanceAs(fr)
     }
 
     @Test
@@ -256,8 +236,8 @@ class DownloadStreamPolicyTest {
         val fr = audio(140, bitrate = 128_000, trackId = "fr.3", isAutoDubbed = true)
         val frFr = audio(140, bitrate = 64_000, trackId = "fr-FR.3", isAutoDubbed = true)
 
-        assertThat(pick("h264", listOf(en, fr), preferredLang = "fr-FR")).isSameInstanceAs(en)
-        assertThat(pick("h264", listOf(en, fr, frFr), preferredLang = "fr-FR")).isSameInstanceAs(frFr)
+        assertThat(pick(listOf(en, fr), preferredLang = "fr-FR")).isSameInstanceAs(en)
+        assertThat(pick(listOf(en, fr, frFr), preferredLang = "fr-FR")).isSameInstanceAs(frFr)
     }
 
     @Test
@@ -265,7 +245,7 @@ class DownloadStreamPolicyTest {
         val en = audio(140, bitrate = 128_000, trackId = "en.4")
         val frLoud = audio(141, bitrate = 256_000, trackId = "fr.3", isAutoDubbed = true)
 
-        assertThat(pick("h264", listOf(en, frLoud), preferredLang = "de")).isSameInstanceAs(frLoud)
+        assertThat(pick(listOf(en, frLoud), preferredLang = "de")).isSameInstanceAs(frLoud)
     }
 
     @Test
@@ -274,19 +254,17 @@ class DownloadStreamPolicyTest {
         val dubbed = audio(141, bitrate = 256_000, trackId = "fr.3", isAutoDubbed = true)
 
         listOf(null, "", "original").forEach { preference ->
-            assertThat(pick("h264", listOf(dubbed, original), preference)).isSameInstanceAs(original)
+            assertThat(pick(listOf(dubbed, original), preference)).isSameInstanceAs(original)
         }
-        assertThat(pick("h264", listOf(dubbed))).isSameInstanceAs(dubbed)
+        assertThat(pick(listOf(dubbed))).isSameInstanceAs(dubbed)
     }
 
     @Test
-    fun `the language outranks opus but an mp4 codec crosses languages for aac`() {
+    fun `a language with only opus crosses to another language's aac`() {
         val frOpus = audio(251, mimeType = OPUS, bitrate = 160_000, trackId = "fr.3", isAutoDubbed = true)
         val enAac = audio(140, bitrate = 128_000, trackId = "en.4")
 
-        assertThat(pick("vp9", listOf(frOpus, enAac), preferredLang = "fr")).isSameInstanceAs(frOpus)
-        assertThat(pick("vp9", listOf(frOpus, enAac), preferredLang = "en")).isSameInstanceAs(enAac)
-        assertThat(pick("h264", listOf(frOpus, enAac), preferredLang = "fr")).isSameInstanceAs(enAac)
+        assertThat(pick(listOf(frOpus, enAac), preferredLang = "fr")).isSameInstanceAs(enAac)
     }
 
     @Test
