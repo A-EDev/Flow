@@ -115,6 +115,15 @@ class FeedGridLayoutTest {
     }
 
     @Test
+    fun `a wide window pinned to one column keeps row thumbnails one automatic column wide`() {
+        val pinned = feedGridLayoutFor(1184.dp, HomeFeedColumns.ONE)
+        val auto = feedGridLayoutFor(1184.dp)
+
+        assertThat(pinned.columns).isEqualTo(1)
+        assertThat(pinned.thumbnailWidth).isEqualTo(auto.thumbnailWidth)
+    }
+
+    @Test
     fun `cells sit edge to edge and a thumbnail is a cell less both insets`() {
         listOf(745.dp, 1184.dp, 1824.dp).forEach { width ->
             val layout = feedGridLayoutFor(width)

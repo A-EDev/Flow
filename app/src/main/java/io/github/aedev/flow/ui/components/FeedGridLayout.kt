@@ -50,10 +50,12 @@ data class FeedGridLayout(
     val isCompact: Boolean,
     /** How wide one cell of this grid is, inset included. */
     val cardWidth: Dp,
+    /**
+     * The thumbnail of an inset card in one cell, for rows that have to line up with the grid. A
+     * wide grid pinned to one column sizes it to the automatic column instead of the whole width.
+     */
+    val thumbnailWidth: Dp = cardWidth - VideoCardDefaults.Inset * 2,
 ) {
-    /** The thumbnail of an inset card in one cell, for rows that have to line up with the grid. */
-    val thumbnailWidth: Dp get() = cardWidth - VideoCardDefaults.Inset * 2
-
     /** The width between the grid's own padding, for strips that span a whole row. */
     val rowWidth: Dp get() = cardWidth * columns
 }
@@ -77,7 +79,9 @@ fun feedGridLayoutFor(
     val contentPadding = (spacing.margin - VideoCardDefaults.Inset).coerceAtLeast(0.dp)
     val availableWidth = (maxWidth - contentPadding * 2).coerceAtLeast(0.dp)
     val autoColumns = if (isCompact) 1 else adaptiveColumnsFor(availableWidth)
-    val columns = columnPreference.fixedCount ?: cappedColumns(availableWidth, autoColumns, maxAutoColumns)
+    val automaticColumns = cappedColumns(availableWidth, autoColumns, maxAutoColumns)
+    val columns = columnPreference.fixedCount ?: automaticColumns
+    val alignedColumns = if (columns == 1 && !isCompact) automaticColumns else columns
     val cells =
         if (columnPreference.fixedCount != null || isCompact || columns < autoColumns) {
             GridCells.Fixed(columns)
@@ -91,6 +95,7 @@ fun feedGridLayoutFor(
         cardSpacing = spacing.rowSpacing,
         isCompact = isCompact,
         cardWidth = availableWidth / columns,
+        thumbnailWidth = availableWidth / alignedColumns - VideoCardDefaults.Inset * 2,
     )
 }
 
