@@ -37,7 +37,6 @@ private val HeaderVerticalPadding = 8.dp
 private val HeaderIconSize = 24.dp
 private val HeaderIconSpacing = 8.dp
 private val StripContentPadding = PaddingValues(horizontal = 12.dp)
-private val StripSpacing = 10.dp
 
 /**
  * A horizontal strip of reels under the Shorts heading. [title] is the server's shelf title where
@@ -92,7 +91,7 @@ fun MediaShortsShelf(
 
         LazyRow(
             contentPadding = StripContentPadding,
-            horizontalArrangement = Arrangement.spacedBy(StripSpacing),
+            horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.StripSpacing),
         ) {
             items(uniqueShorts, key = { it.id }) { short ->
                 MediaShortCard(video = short, onClick = { onShortClick(uniqueShorts, short) })

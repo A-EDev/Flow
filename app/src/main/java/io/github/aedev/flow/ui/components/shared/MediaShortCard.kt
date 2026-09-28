@@ -41,6 +41,9 @@ import io.github.aedev.flow.utils.formatViewCount
 object ShortCardDefaults {
     val MinWidth = 160.dp
     val Spacing = 12.dp
+
+    /** The gap between reels in a horizontal strip, a little tighter than a grid's. */
+    val StripSpacing = 10.dp
     const val ASPECT_RATIO = 9f / 16f
 
     /** A Shorts grid's side padding: its own on a phone, the feed's margin once the window widens. */
