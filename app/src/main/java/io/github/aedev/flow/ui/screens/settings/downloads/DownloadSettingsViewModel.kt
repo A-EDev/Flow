@@ -80,6 +80,11 @@ class DownloadSettingsViewModel
         val threads = preferences.downloadThreads.asState(DEFAULT_THREADS)
         val concurrentDownloads = preferences.concurrentDownloads.asState(DEFAULT_CONCURRENT_DOWNLOADS)
         val cacheSizeMb = preferences.mediaCacheSizeMb.asState(DEFAULT_CACHE_MB)
+        val retagStatus = downloadController.retagStatus.asState(null)
+
+        init {
+            downloadController.scheduleRetagOnce()
+        }
 
         /** Both locations resolved the way a download resolves them, off the main thread. */
         val locations =

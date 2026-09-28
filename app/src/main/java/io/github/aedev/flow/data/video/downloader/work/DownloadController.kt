@@ -21,7 +21,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
@@ -105,6 +108,17 @@ class DownloadController
             scope.launch {
                 if (downloadDao.hasQueuedDownloads()) kick()
             }
+
+        /** Queues the one pass that tags older downloads, unless it has already run. */
+        fun scheduleRetagOnce(): Job = scope.launch { DownloadRetagWorker.scheduleOnce(context, preferences) }
+
+        val retagStatus: Flow<RetagStatus> by lazy {
+            combine(
+                WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(DownloadRetagWorker.UNIQUE_NAME).map { it.firstOrNull() },
+                preferences.downloadRetagResult,
+                RetagStatus::of,
+            )
+        }
 
         /** Runs the queue work unless it is running already, with the network the settings allow. */
         suspend fun kick() {

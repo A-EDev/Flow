@@ -56,6 +56,7 @@ class DownloadsViewModel
         init {
             observeDownloads()
             downloadController.ensureQueueRunning()
+            downloadController.scheduleRetagOnce()
             if (!recoveryScanner.hasScannedThisSession) rescan()
         }
 

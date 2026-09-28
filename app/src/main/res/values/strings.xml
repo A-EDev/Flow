@@ -3478,6 +3478,10 @@
     <string name="settings_quick_download_quality_summary">Used when you download straight from a video card</string>
     <string name="settings_music_download_quality">Song download quality</string>
     <string name="settings_music_download_quality_summary">Used for songs, albums and music playlists</string>
+    <string name="download_retag_title">Tags for older downloads</string>
+    <string name="download_retag_waiting">Waiting to start</string>
+    <string name="download_retag_progress">Adding tags, %1$d of %2$d</string>
+    <string name="download_retag_result">%1$d tagged, %2$d skipped</string>
     <string name="settings_section_download_defaults">Download defaults</string>
     <string name="settings_section_storage_access">Storage access</string>
     <string name="settings_storage_access_summary">Also lets Local media list files saved by other apps</string>
