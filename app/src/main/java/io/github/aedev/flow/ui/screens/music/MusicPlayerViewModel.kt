@@ -79,7 +79,7 @@ class MusicPlayerViewModel
             )
 
         init {
-            EnhancedMusicPlayerManager.initialize(context)
+            EnhancedMusicPlayerManager.initialize(context, downloadManager::isDownloaded)
             initializeObservers()
             viewModelScope.launch {
                 playerPreferences.lyricsTextAlign.collect { align ->

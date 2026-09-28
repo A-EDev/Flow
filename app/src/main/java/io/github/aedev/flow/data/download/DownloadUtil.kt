@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.download
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
 import androidx.media3.common.C
@@ -16,6 +17,8 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadNotificationHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.local.dao.DownloadDao
+import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.di.DownloadCache
 import io.github.aedev.flow.di.PlayerCache
 import io.github.aedev.flow.network.AppProxyManager
@@ -29,6 +32,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import java.io.File
 import java.io.IOException
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -43,6 +47,7 @@ class DownloadUtil
         private val databaseProvider: DatabaseProvider,
         @DownloadCache private val downloadCache: SimpleCache,
         @PlayerCache private val playerCache: SimpleCache,
+        private val downloadDao: DownloadDao,
     ) {
         companion object {
             private const val TAG = "DownloadUtil"
@@ -177,54 +182,67 @@ class DownloadUtil
                 downloadCacheFactory
                     .setUpstreamDataSourceFactory(playerCacheFactory)
 
-            return ResolvingDataSource.Factory(cachedDataSourceFactory) { dataSpec ->
-                if (dataSpec.uri.scheme in setOf("file", "content", "android.resource")) {
-                    return@Factory dataSpec
-                }
-
-                val mediaId = dataSpec.key ?: error("No media id (key) in dataSpec")
-
-                try {
-                    if (downloadCache.isCached(mediaId, dataSpec.position, maxOf(dataSpec.length, 1))) {
-                        Log.d(TAG, "[Player] Serving from downloadCache: $mediaId")
+            val resolvingFactory =
+                ResolvingDataSource.Factory(cachedDataSourceFactory) { dataSpec ->
+                    if (dataSpec.uri.scheme in setOf("file", "content", "android.resource")) {
                         return@Factory dataSpec
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "[Player] downloadCache check error for $mediaId", e)
+
+                    val mediaId = dataSpec.key ?: error("No media id (key) in dataSpec")
+
                     try {
-                        downloadCache.removeResource(mediaId)
-                    } catch (_: Exception) {
+                        if (downloadCache.isCached(mediaId, dataSpec.position, maxOf(dataSpec.length, 1))) {
+                            Log.d(TAG, "[Player] Serving from downloadCache: $mediaId")
+                            return@Factory dataSpec
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "[Player] downloadCache check error for $mediaId", e)
+                        try {
+                            downloadCache.removeResource(mediaId)
+                        } catch (_: Exception) {
+                        }
                     }
-                }
 
-                try {
-                    if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
-                        Log.d(TAG, "[Player] Serving from playerCache: $mediaId")
-                        return@Factory dataSpec
+                    try {
+                        if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
+                            Log.d(TAG, "[Player] Serving from playerCache: $mediaId")
+                            return@Factory dataSpec
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "[Player] playerCache check error for $mediaId", e)
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "[Player] playerCache check error for $mediaId", e)
+
+                    songUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
+                        Log.d(TAG, "[Player] Using cached URL for $mediaId")
+                        return@Factory buildPlaybackDataSpec(dataSpec, url, ua)
+                    }
+
+                    val playbackData =
+                        runBlocking(Dispatchers.IO) {
+                            MusicPlayerUtils.playerResponseForPlayback(mediaId)
+                        }.getOrThrow()
+
+                    val streamUrl = playbackData.streamUrl
+                    val userAgent = playbackData.usedClient.userAgent
+                    val expiration = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds - 60) * 1000L
+
+                    songUrlCache[mediaId] = Triple(streamUrl, userAgent, expiration)
+                    Log.d(TAG, "[Player] Resolved $mediaId via ${playbackData.usedClient.clientName}")
+
+                    buildPlaybackDataSpec(dataSpec, streamUrl, userAgent)
                 }
+            return LocalCopyDataSource.Factory(DefaultDataSource.Factory(context), resolvingFactory, ::downloadedSongUri)
+        }
 
-                songUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
-                    Log.d(TAG, "[Player] Using cached URL for $mediaId")
-                    return@Factory buildPlaybackDataSpec(dataSpec, url, ua)
-                }
-
-                val playbackData =
-                    runBlocking(Dispatchers.IO) {
-                        MusicPlayerUtils.playerResponseForPlayback(mediaId)
-                    }.getOrThrow()
-
-                val streamUrl = playbackData.streamUrl
-                val userAgent = playbackData.usedClient.userAgent
-                val expiration = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds - 60) * 1000L
-
-                songUrlCache[mediaId] = Triple(streamUrl, userAgent, expiration)
-                Log.d(TAG, "[Player] Resolved $mediaId via ${playbackData.usedClient.clientName}")
-
-                buildPlaybackDataSpec(dataSpec, streamUrl, userAgent)
-            }
+        /** The saved file of a finished song download, while it is still there. */
+        private fun downloadedSongUri(videoId: String): Uri? {
+            val path =
+                runCatching { downloadDao.completedAudioPathBlocking(videoId) }
+                    .onFailure { Log.w(TAG, "[Player] download lookup failed for $videoId", it) }
+                    .getOrNull()
+                    ?.takeIf { DownloadFiles.exists(context, it) } ?: return null
+            Log.d(TAG, "[Player] Playing the download of $videoId")
+            return if (DownloadFiles.isDocument(path)) path.toUri() else Uri.fromFile(File(path))
         }
 
         private fun buildPlaybackDataSpec(

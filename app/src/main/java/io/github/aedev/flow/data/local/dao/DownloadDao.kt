@@ -173,6 +173,20 @@ interface DownloadDao {
     )
     fun getActiveDownloads(): Flow<List<DownloadWithItems>>
 
+    /**
+     * Where the finished audio-only download of [videoId] was saved. Blocking, for the player's
+     * loader thread, which has to answer before it opens the stream.
+     */
+    @Query(
+        """
+        SELECT filePath FROM download_items
+        WHERE videoId = :videoId AND fileType = 'AUDIO' AND status = 'COMPLETED'
+        AND videoId NOT IN (SELECT videoId FROM download_items WHERE fileType = 'VIDEO')
+        LIMIT 1
+    """,
+    )
+    fun completedAudioPathBlocking(videoId: String): String?
+
     /** Check if a completed download exists for a video */
     @Query(
         """
