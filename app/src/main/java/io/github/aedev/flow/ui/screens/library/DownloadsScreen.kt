@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,8 +74,8 @@ fun DownloadsScreen(
     var pendingDeletion by remember { mutableStateOf<PendingDeletion?>(null) }
     var removeIncompleteOf by remember { mutableStateOf<MediaKind?>(null) }
     var removingCollection by remember { mutableStateOf<DownloadCollectionSummary?>(null) }
-    var selectionMode by remember { mutableStateOf(false) }
-    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectionMode by rememberSaveable { mutableStateOf(false) }
+    var selectedIds by rememberSaveable(stateSaver = SelectionSaver) { mutableStateOf(emptySet<String>()) }
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
     val exitSelection = {
@@ -306,6 +307,8 @@ private fun DeleteDownloadsDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
+
+private val SelectionSaver = listSaver<Set<String>, String>(save = { it.toList() }, restore = { it.toSet() })
 
 /** What a confirmed delete removes: one download named by [title], or a selection. */
 private data class PendingDeletion(
