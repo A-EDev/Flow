@@ -265,12 +265,12 @@ class VideoDownloadManager
                             }.map { toDownloadedVideo(it) }
                     }.flowOn(Dispatchers.IO)
 
-        /** Save a new download with its items */
+        /** Save a new download with its items, replacing the file rows of an earlier attempt. */
         suspend fun saveDownload(
             video: Video,
             items: List<DownloadItemEntity>,
         ) {
-            downloadDao.insertDownload(
+            downloadDao.replaceDownload(
                 DownloadEntity(
                     videoId = video.id,
                     title = video.title,
@@ -279,52 +279,7 @@ class VideoDownloadManager
                     thumbnailUrl = video.thumbnailUrl,
                     createdAt = System.currentTimeMillis(),
                 ),
-            )
-            downloadDao.insertItems(items)
-        }
-
-        /** Save download with a single muxed file (simplified for completed downloads) */
-        suspend fun saveCompletedDownload(
-            video: Video,
-            filePath: String,
-            quality: String,
-            fileSize: Long,
-            fileType: DownloadFileType = DownloadFileType.VIDEO,
-        ) {
-            val fileName = File(filePath).name
-            downloadDao.insertDownload(
-                DownloadEntity(
-                    videoId = video.id,
-                    title = video.title,
-                    uploader = video.channelName,
-                    duration = video.duration.toLong(),
-                    thumbnailUrl = video.thumbnailUrl,
-                    createdAt = System.currentTimeMillis(),
-                ),
-            )
-            downloadDao.insertItem(
-                DownloadItemEntity(
-                    videoId = video.id,
-                    fileType = fileType,
-                    fileName = fileName,
-                    filePath = filePath,
-                    format = if (fileType == DownloadFileType.VIDEO) "mp4" else "m4a",
-                    quality = quality,
-                    downloadedBytes = fileSize,
-                    totalBytes = fileSize,
-                    status = DownloadItemStatus.COMPLETED,
-                ),
-            )
-        }
-
-        /** Legacy compat — wraps saveCompletedDownload for callers using DownloadedVideo */
-        suspend fun saveDownloadedVideo(downloadedVideo: DownloadedVideo) {
-            saveCompletedDownload(
-                video = downloadedVideo.video,
-                filePath = downloadedVideo.filePath,
-                quality = downloadedVideo.quality,
-                fileSize = downloadedVideo.fileSize,
-                fileType = DownloadFileType.VIDEO,
+                items,
             )
         }
 

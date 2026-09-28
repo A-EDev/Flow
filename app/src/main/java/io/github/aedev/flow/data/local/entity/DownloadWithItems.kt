@@ -11,9 +11,9 @@ data class DownloadWithItems(
     @Embedded val download: DownloadEntity,
     @Relation(
         parentColumn = "videoId",
-        entityColumn = "videoId"
+        entityColumn = "videoId",
     )
-    val items: List<DownloadItemEntity>
+    val items: List<DownloadItemEntity>,
 ) {
     /** Whether this download has a VIDEO file */
     val hasVideo: Boolean get() = items.any { it.fileType == DownloadFileType.VIDEO }
@@ -23,15 +23,16 @@ data class DownloadWithItems(
 
     /** Overall status — worst status wins */
     val overallStatus: DownloadItemStatus
-        get() = when {
-            items.any { it.status == DownloadItemStatus.DOWNLOADING } -> DownloadItemStatus.DOWNLOADING
-            items.any { it.status == DownloadItemStatus.FAILED } -> DownloadItemStatus.FAILED
-            items.any { it.status == DownloadItemStatus.PAUSED } -> DownloadItemStatus.PAUSED
-            items.any { it.status == DownloadItemStatus.PENDING } -> DownloadItemStatus.PENDING
-            items.all { it.status == DownloadItemStatus.COMPLETED } -> DownloadItemStatus.COMPLETED
-            items.any { it.status == DownloadItemStatus.CANCELLED } -> DownloadItemStatus.CANCELLED
-            else -> DownloadItemStatus.PENDING
-        }
+        get() =
+            when {
+                items.any { it.status == DownloadItemStatus.DOWNLOADING } -> DownloadItemStatus.DOWNLOADING
+                items.any { it.status == DownloadItemStatus.FAILED } -> DownloadItemStatus.FAILED
+                items.any { it.status == DownloadItemStatus.PAUSED } -> DownloadItemStatus.PAUSED
+                items.any { it.status == DownloadItemStatus.PENDING } -> DownloadItemStatus.PENDING
+                items.isNotEmpty() && items.all { it.status == DownloadItemStatus.COMPLETED } -> DownloadItemStatus.COMPLETED
+                items.any { it.status == DownloadItemStatus.CANCELLED } -> DownloadItemStatus.CANCELLED
+                else -> DownloadItemStatus.PENDING
+            }
 
     /** Total file size across all items */
     val totalSize: Long get() = items.sumOf { it.totalBytes }
@@ -48,6 +49,7 @@ data class DownloadWithItems(
 
     /** The primary file path (VIDEO file if present, otherwise first AUDIO file) */
     val primaryFilePath: String?
-        get() = items.firstOrNull { it.fileType == DownloadFileType.VIDEO }?.filePath
-            ?: items.firstOrNull { it.fileType == DownloadFileType.AUDIO }?.filePath
+        get() =
+            items.firstOrNull { it.fileType == DownloadFileType.VIDEO }?.filePath
+                ?: items.firstOrNull { it.fileType == DownloadFileType.AUDIO }?.filePath
 }

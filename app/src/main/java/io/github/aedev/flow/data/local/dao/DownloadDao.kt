@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import io.github.aedev.flow.data.local.entity.DownloadEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
@@ -16,8 +17,24 @@ import kotlinx.coroutines.flow.Flow
 interface DownloadDao {
     // ===== Download (parent) =====
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // An upsert, never REPLACE: REPLACE deletes the row first, and the foreign key cascades that
+    // delete to every file row of the download.
+    @Upsert
     suspend fun insertDownload(download: DownloadEntity)
+
+    /** Starts [download] over with [items], dropping the file rows of any earlier attempt. */
+    @Transaction
+    suspend fun replaceDownload(
+        download: DownloadEntity,
+        items: List<DownloadItemEntity>,
+    ) {
+        deleteItemsFor(download.videoId)
+        insertDownload(download)
+        insertItems(items)
+    }
+
+    @Query("DELETE FROM download_items WHERE videoId = :videoId")
+    suspend fun deleteItemsFor(videoId: String)
 
     @Query("DELETE FROM downloads WHERE videoId = :videoId")
     suspend fun deleteDownload(videoId: String)
@@ -39,10 +56,11 @@ interface DownloadDao {
 
     // ===== Download Items (children) =====
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // ABORT: two downloads resolving to one path must fail loudly, not delete each other's rows.
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertItem(item: DownloadItemEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertItems(items: List<DownloadItemEntity>)
 
     @Update
