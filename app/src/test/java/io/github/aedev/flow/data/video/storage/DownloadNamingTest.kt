@@ -52,4 +52,9 @@ class DownloadNamingTest {
         assertThat(DownloadNaming.unique("Fresh.m4a") { it in taken }).isEqualTo("Fresh.m4a")
         assertThat(DownloadNaming.unique("Folder") { it == "Folder" }).isEqualTo("Folder (2)")
     }
+
+    @Test
+    fun `a folder title with a dot is suffixed at its end, not before the dot`() {
+        assertThat(DownloadNaming.unique("Vol. 2", hasExtension = false) { it == "Vol. 2" }).isEqualTo("Vol. 2 (2)")
+    }
 }

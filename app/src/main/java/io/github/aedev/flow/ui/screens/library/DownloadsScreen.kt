@@ -37,14 +37,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.dao.DownloadCollectionSummary
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.ActiveDownloadActions
+import io.github.aedev.flow.ui.components.library.DownloadCollectionsShelf
 import io.github.aedev.flow.ui.components.library.DownloadsStorageCard
 import io.github.aedev.flow.ui.components.library.LibraryKindHeader
 import io.github.aedev.flow.ui.components.library.LibrarySelection
 import io.github.aedev.flow.ui.components.library.MusicDownloadsList
+import io.github.aedev.flow.ui.components.library.RemoveDownloadCollectionDialog
 import io.github.aedev.flow.ui.components.library.VideosDownloadsList
 import io.github.aedev.flow.ui.components.library.libraryHeaderIsOneRow
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
@@ -60,6 +63,7 @@ fun DownloadsScreen(
     onBackClick: () -> Unit,
     onVideoClick: (videos: List<DownloadedVideo>, startIndex: Int) -> Unit,
     onMusicClick: (List<DownloadedTrack>, Int) -> Unit,
+    onOpenCollection: (DownloadCollectionSummary) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DownloadsViewModel = hiltViewModel(),
@@ -68,6 +72,7 @@ fun DownloadsScreen(
     var selectedKind by rememberSaveable { mutableStateOf(MediaKind.Videos) }
     var pendingDeletion by remember { mutableStateOf<PendingDeletion?>(null) }
     var removeIncompleteOf by remember { mutableStateOf<MediaKind?>(null) }
+    var removingCollection by remember { mutableStateOf<DownloadCollectionSummary?>(null) }
     var selectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val haptic = LocalHapticFeedback.current
@@ -173,6 +178,12 @@ fun DownloadsScreen(
                         MediaKind.Videos -> {
                             VideosDownloadsList(
                                 header = listHeader,
+                                shelf = {
+                                    DownloadCollectionsShelf(uiState.videoCollections, onOpenCollection, onRemove = {
+                                        removingCollection =
+                                            it
+                                    })
+                                },
                                 videos = uiState.downloadedVideos,
                                 totalCount = uiState.totalVideoCount,
                                 incomplete = uiState.incompleteVideoDownloads,
@@ -192,6 +203,12 @@ fun DownloadsScreen(
                         MediaKind.Music -> {
                             MusicDownloadsList(
                                 header = listHeader,
+                                shelf = {
+                                    DownloadCollectionsShelf(uiState.musicCollections, onOpenCollection, onRemove = {
+                                        removingCollection =
+                                            it
+                                    })
+                                },
                                 tracks = uiState.downloadedMusic,
                                 totalCount = uiState.totalMusicCount,
                                 incomplete = uiState.incompleteMusicDownloads,
@@ -233,6 +250,19 @@ fun DownloadsScreen(
                 pendingDeletion = null
                 exitSelection()
             },
+        )
+    }
+
+    removingCollection?.let { summary ->
+        val remove = { deleteFiles: Boolean ->
+            viewModel.removeCollection(summary.collection.id, deleteFiles)
+            removingCollection = null
+        }
+        RemoveDownloadCollectionDialog(
+            title = summary.collection.title,
+            onDeleteFiles = { remove(true) },
+            onKeepFiles = { remove(false) },
+            onDismiss = { removingCollection = null },
         )
     }
 

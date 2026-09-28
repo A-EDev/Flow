@@ -71,14 +71,16 @@ object DownloadNaming {
 
     /**
      * [name] itself when nothing holds it yet, otherwise "Name (2).ext", "Name (3).ext" and so on.
-     * [isTaken] is asked about each candidate, so a caller can check the disk and the database.
+     * [isTaken] is asked about each candidate, so a caller can check the disk and the database. A
+     * folder name passes [hasExtension] false, so a dot in its title is not read as one.
      */
     inline fun unique(
         name: String,
+        hasExtension: Boolean = true,
         isTaken: (String) -> Boolean,
     ): String {
         if (!isTaken(name)) return name
-        val dot = name.lastIndexOf('.').takeIf { it > 0 }
+        val dot = name.lastIndexOf('.').takeIf { hasExtension && it > 0 }
         val stem = dot?.let { name.substring(0, it) } ?: name
         val extension = dot?.let { name.substring(it) }.orEmpty()
         var index = 2

@@ -83,7 +83,7 @@ private fun LibraryShelfHeader(
 internal fun LibraryShelf(
     title: String,
     icon: ImageVector,
-    onTitleClick: () -> Unit,
+    onTitleClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     content: LazyListScope.(cardWidth: Dp) -> Unit,
 ) {
@@ -93,8 +93,8 @@ internal fun LibraryShelf(
             LibraryShelfHeader(
                 title = title,
                 icon = icon,
-                showChevron = true,
-                modifier = Modifier.clickable(onClick = onTitleClick),
+                showChevron = onTitleClick != null,
+                modifier = if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier,
             )
 
             LazyRow(

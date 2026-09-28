@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
@@ -77,6 +78,8 @@ internal data class CollectionHeaderState(
     val canSave: Boolean,
     val canShare: Boolean,
     val downloadProgress: Float?,
+    /** Saved as a downloaded collection; downloading again picks up only what is new. */
+    val isDownloaded: Boolean = false,
 )
 
 /** One entry of the header's ⋮ menu. */
@@ -281,7 +284,10 @@ private fun CollectionSecondaryActions(
             if (progress != null) {
                 CircularProgressIndicator(progress = { progress }, modifier = Modifier.size(DownloadProgressSize))
             } else {
-                Icon(Icons.Rounded.Download, contentDescription = stringResource(R.string.download_all))
+                Icon(
+                    imageVector = if (state.isDownloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                    contentDescription = stringResource(if (state.isDownloaded) R.string.downloaded else R.string.download_all),
+                )
             }
         }
         if (state.canShare) {

@@ -126,7 +126,7 @@ class DownloadPlacement
         ): String {
             if (collection.folderLocation != null) return collection.folderName
             val others = collectionDao.folderNames().toSet() - collection.folderName
-            return DownloadNaming.unique(collection.folderName) { it in others || isOccupied(it) }
+            return DownloadNaming.unique(collection.folderName, hasExtension = false) { it in others || isOccupied(it) }
         }
 
         private suspend fun isTaken(path: String): Boolean = File(path).exists() || downloadDao.existsByFilePath(path)

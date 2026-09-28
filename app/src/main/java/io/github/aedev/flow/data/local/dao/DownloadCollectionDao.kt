@@ -16,7 +16,10 @@ data class DownloadCollectionSummary(
     val wantedCount: Int,
     val downloadedCount: Int,
     val downloadedBytes: Long,
-)
+) {
+    /** Every song or video the collection still wants is on the device. */
+    val isComplete: Boolean get() = wantedCount > 0 && downloadedCount >= wantedCount
+}
 
 @Dao
 interface DownloadCollectionDao {

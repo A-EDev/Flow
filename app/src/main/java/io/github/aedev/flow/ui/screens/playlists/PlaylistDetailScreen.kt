@@ -65,6 +65,7 @@ fun PlaylistDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val sortedVideos by viewModel.sortedVideos.collectAsStateWithLifecycle()
     val downloadBatch by viewModel.downloadBatch.collectAsStateWithLifecycle()
+    val downloadedCollection by viewModel.downloadedCollection.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val mergeTargets by viewModel.userCreatedPlaylists.collectAsStateWithLifecycle()
     val quickActions = sharedQuickActionsViewModel()
@@ -129,7 +130,14 @@ fun PlaylistDetailScreen(
     BackHandler(enabled = isSearching && !selectionMode) { searchQuery = null }
 
     val showCollapsedTitle by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
-    val headerState = rememberPlaylistHeaderState(uiState, displayVideos, downloadBatch)
+    val headerState =
+        rememberPlaylistHeaderState(
+            uiState,
+            displayVideos,
+            downloadBatch,
+            isDownloaded =
+                downloadedCollection?.isComplete == true,
+        )
     val headerActions =
         PlaylistHeaderActions(
             onPlayAll = { if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0, false, uiState.playlistName) },

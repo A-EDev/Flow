@@ -3263,6 +3263,12 @@
     <string name="download_failed_unreadable">The downloaded file could not be read</string>
     <string name="download_failed_save">Could not save to the download folder</string>
     <string name="download_failed_merge">Could not finish the file. Try again.</string>
+    <string name="downloads_collections_title">Playlists and albums</string>
+    <string name="download_collection_progress">%1$d of %2$d downloaded</string>
+    <string name="download_collection_remove_title">Remove %1$s?</string>
+    <string name="download_collection_remove_body">Its downloads are deleted too, unless another downloaded playlist holds them.</string>
+    <string name="download_collection_delete_files">Delete downloads</string>
+    <string name="download_collection_keep_files">Keep files</string>
     <string name="download_merging_audio_video">Merging audio &amp; video…</string>
     <string name="download_muxing_incompatible">Muxing failed - audio format incompatible with video container. Try re-downloading.</string>
     <string name="download_muxing_failed_retry">Muxing failed — try re-downloading.</string>

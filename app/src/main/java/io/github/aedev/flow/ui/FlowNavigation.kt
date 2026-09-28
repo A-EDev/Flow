@@ -481,6 +481,13 @@ fun NavGraphBuilder.flowAppGraph(
                 musicPlayerViewModel.loadAndPlayTrack(selectedTrack, musicTracks, downloadsTitle)
                 onMusicStarted()
             },
+            onOpenCollection = { summary ->
+                if (summary.collection.kind.isMusic) {
+                    mediaNavigator.openMusicPlaylist(summary.collection.id)
+                } else {
+                    navController.navigate("playlist/${summary.collection.id}")
+                }
+            },
             onHomeClick = {
                 navController.navigate("home") {
                     popUpTo("home") { inclusive = true }

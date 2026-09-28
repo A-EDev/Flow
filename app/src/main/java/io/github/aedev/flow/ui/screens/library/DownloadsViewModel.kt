@@ -4,6 +4,7 @@ import android.os.StatFs
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.local.dao.DownloadCollectionSummary
 import io.github.aedev.flow.data.local.entity.DownloadFileType
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
@@ -12,6 +13,7 @@ import io.github.aedev.flow.data.video.DownloadProgressUpdate
 import io.github.aedev.flow.data.video.DownloadRecoveryScanner
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.data.video.downloader.collection.DownloadedCollections
 import io.github.aedev.flow.data.video.downloader.work.DownloadController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,6 +37,7 @@ class DownloadsViewModel
         private val recoveryScanner: DownloadRecoveryScanner,
         private val musicDownloadManager: MusicDownloadManager,
         private val downloadController: DownloadController,
+        private val collections: DownloadedCollections,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(DownloadsUiState())
         val uiState: StateFlow<DownloadsUiState> = _uiState.asStateFlow()
@@ -124,6 +127,12 @@ class DownloadsViewModel
                     }
             }
             viewModelScope.launch {
+                collections.summaries.collect { summaries ->
+                    val (music, videos) = summaries.partition { it.collection.kind.isMusic }
+                    _uiState.update { it.copy(videoCollections = videos, musicCollections = music) }
+                }
+            }
+            viewModelScope.launch {
                 videoDownloadManager.progressUpdates.collect { update ->
                     _uiState.update { state ->
                         state.copy(
@@ -193,6 +202,13 @@ class DownloadsViewModel
             ids.forEach { videoId -> downloadController.cancel(videoId) }
         }
 
+        fun removeCollection(
+            id: String,
+            deleteFiles: Boolean,
+        ) {
+            viewModelScope.launch { collections.remove(id, deleteFiles) }
+        }
+
         fun rescan() {
             viewModelScope.launch {
                 _uiState.update { it.copy(isScanning = true) }
@@ -217,6 +233,8 @@ data class DownloadsUiState(
     val totalMusicCount: Int = 0,
     val incompleteVideoDownloads: List<DownloadWithItems> = emptyList(),
     val incompleteMusicDownloads: List<DownloadWithItems> = emptyList(),
+    val videoCollections: List<DownloadCollectionSummary> = emptyList(),
+    val musicCollections: List<DownloadCollectionSummary> = emptyList(),
     val progress: Map<String, DownloadProgressUpdate> = emptyMap(),
     val mergingVideoIds: Set<String> = emptySet(),
     val storage: DownloadStorage = DownloadStorage(),
