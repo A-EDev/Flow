@@ -57,6 +57,7 @@ internal fun LocalMediaRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    thumbnailWidth: Dp = MediaThumbnailDefaults.VideoWidth,
 ) {
     MediaRow(
         title = item.title,
@@ -71,7 +72,7 @@ internal fun LocalMediaRow(
         leading = if (selectionMode) ({ Checkbox(checked = selected, onCheckedChange = { onClick() }) }) else null,
     ) {
         if (item.isVideo) {
-            LocalVideoThumbnail(item, isNew, Modifier, MediaThumbnailDefaults.VideoWidth)
+            LocalVideoThumbnail(item, isNew, Modifier, thumbnailWidth)
         } else {
             ArtworkThumbnail(thumbnailUrl = item.artworkUri, placeholder = Icons.Outlined.MusicNote)
         }

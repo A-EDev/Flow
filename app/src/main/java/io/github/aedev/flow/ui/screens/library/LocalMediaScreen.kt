@@ -190,9 +190,8 @@ fun LocalMediaScreen(
     LaunchedEffect(twoPaneFolders, state.folders) {
         if (twoPaneFolders && openFolder == null) state.folders.firstOrNull()?.let { viewModel.openFolder(it.id) }
     }
-    val gridColumns = flowGridColumns(compact = 2, medium = 3, expanded = 3)
-    val asGrid = isVideos && (state.settings.videosAsGrid ?: (gridColumns > 2))
-    val columns = if (asGrid) (if (twoPaneFolders) gridColumns - 1 else gridColumns) else 1
+    val wideWindow = flowGridColumns(compact = 1, medium = 2, expanded = 2) > 1
+    val asGrid = isVideos && (state.settings.videosAsGrid ?: wideWindow)
     val selection =
         LibrarySelection(selectionMode, selectedIds) { id ->
             selectedIds =
@@ -308,7 +307,7 @@ fun LocalMediaScreen(
                                 LocalMediaContent(
                                     state = state,
                                     showFolders = showFolders && openFolder == null && !twoPaneFolders,
-                                    columns = columns,
+                                    asGrid = asGrid,
                                     selection = selection,
                                     actions = contentActions,
                                     isRefreshing = isRefreshing,

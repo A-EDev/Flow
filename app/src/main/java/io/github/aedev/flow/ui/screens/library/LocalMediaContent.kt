@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.library
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -39,14 +41,17 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.localmedia.LocalMediaItem
 import io.github.aedev.flow.ui.components.layout.flowBottomContentPadding
 import io.github.aedev.flow.ui.components.library.LibrarySelection
+import io.github.aedev.flow.ui.components.library.libraryGridLayoutFor
 import io.github.aedev.flow.ui.components.shared.FlowEmptyState
 import io.github.aedev.flow.ui.components.shared.FlowPullToRefreshBox
 import io.github.aedev.flow.ui.components.shared.FlowSegmentedGap
 import io.github.aedev.flow.ui.components.shared.MediaKind
+import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
 import io.github.aedev.flow.ui.components.shared.animateMediaGridItem
 
 private val GridSpacing = 12.dp
 private val LaneCardWidth = 200.dp
+private const val PHONE_GRID_COLUMNS = 2
 
 /** How the viewer acts on files from the list; the screen decides what each does. */
 internal class LocalContentActions(
@@ -58,15 +63,15 @@ internal class LocalContentActions(
 
 /**
  * The files of the current tab under [banner]: Continue watching, a count with Play all and
- * Shuffle, then the files as rows or as cards over [columns]. With [showFolders], the folders
- * instead, unless one is open.
+ * Shuffle, then the files as rows, or with [asGrid] as cards over as many columns as the pane
+ * holds. With [showFolders], the folders instead, unless one is open.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LocalMediaContent(
     state: LocalMediaUiState,
     showFolders: Boolean,
-    columns: Int,
+    asGrid: Boolean,
     selection: LibrarySelection,
     actions: LocalContentActions,
     isRefreshing: Boolean,
@@ -82,107 +87,113 @@ internal fun LocalMediaContent(
         state = rememberPullToRefreshState(),
         modifier = modifier.fillMaxSize(),
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(if (showFolders) 1 else columns),
-            contentPadding =
-                PaddingValues(
-                    start = inset(columns, showFolders),
-                    end = inset(columns, showFolders),
-                    bottom = flowBottomContentPadding(),
-                ),
-            horizontalArrangement = Arrangement.spacedBy(GridSpacing),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            banner?.let { content ->
-                fullWidth("banner") { Box(Modifier.padding(horizontal = rowInset(columns, showFolders), vertical = 8.dp)) { content() } }
-            }
-            if (showFolders) {
-                itemsIndexed(state.folders, key = { _, folder -> "folder_${folder.id}" }) { index, folder ->
-                    Box(
-                        Modifier.padding(
-                            start = 12.dp,
-                            end = 12.dp,
-                            bottom =
-                                if (index <
-                                    state.folders.lastIndex
-                                ) {
-                                    FlowSegmentedGap
-                                } else {
-                                    0.dp
-                                },
-                        ),
-                    ) {
-                        LocalFolderRow(folder, index, state.folders.size, isVideos, selected = false) { actions.onOpenFolder(folder.id) }
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val grid = remember(maxWidth) { libraryGridLayoutFor(maxWidth, compactColumns = PHONE_GRID_COLUMNS) }
+            val columns = if (asGrid) grid.columns else 1
+            val gridPadding = if (columns > 1 && !showFolders) grid.padding else 0.dp
+            val partialRows =
+                remember(state.items.size, grid, asGrid) { if (asGrid) grid.partialRows(state.items.size) else emptySet() }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(if (showFolders) 1 else columns),
+                contentPadding = PaddingValues(start = gridPadding, end = gridPadding, bottom = flowBottomContentPadding()),
+                horizontalArrangement = Arrangement.spacedBy(grid.spacing),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                banner?.let { content ->
+                    fullWidth("banner") {
+                        Box(Modifier.padding(horizontal = rowInset(columns, showFolders), vertical = 8.dp)) { content() }
                     }
                 }
-            } else {
-                val showLane = isVideos && state.openFolder == null && filters.query.isBlank() && !filters.isFiltering
-                if (showLane && state.continueWatching.isNotEmpty()) {
-                    fullWidth("continue") { ContinueWatchingLane(state, actions) }
-                }
-                if (state.items.isNotEmpty()) {
-                    fullWidth("summary") { PlayAllRow(state.items, isVideos, rowInset(columns, showFolders), actions) }
-                } else if (state.totalCount == 0) {
-                    fullWidth("empty") {
-                        FlowEmptyState(
-                            title =
-                                stringResource(
-                                    R.string.local_media_empty_title,
-                                    stringResource(if (isVideos) R.string.tab_videos else R.string.tab_music),
-                                ),
-                            subtitle = stringResource(R.string.local_media_empty_body),
-                            icon = if (isVideos) Icons.Outlined.VideoLibrary else Icons.Outlined.MusicNote,
-                            modifier = Modifier.padding(top = 48.dp),
-                        )
+                if (showFolders) {
+                    itemsIndexed(state.folders, key = { _, folder -> "folder_${folder.id}" }) { index, folder ->
+                        Box(
+                            Modifier.padding(
+                                start = 12.dp,
+                                end = 12.dp,
+                                bottom =
+                                    if (index <
+                                        state.folders.lastIndex
+                                    ) {
+                                        FlowSegmentedGap
+                                    } else {
+                                        0.dp
+                                    },
+                            ),
+                        ) {
+                            LocalFolderRow(folder, index, state.folders.size, isVideos, selected = false) {
+                                actions.onOpenFolder(folder.id)
+                            }
+                        }
                     }
                 } else {
-                    fullWidth("no_results") {
-                        FlowEmptyState(
-                            title =
-                                stringResource(
-                                    R.string.local_media_empty_title,
-                                    stringResource(if (isVideos) R.string.tab_videos else R.string.tab_music),
-                                ),
-                            icon = Icons.Outlined.SearchOff,
-                            modifier = Modifier.padding(top = 48.dp),
-                        )
+                    val showLane = isVideos && state.openFolder == null && filters.query.isBlank() && !filters.isFiltering
+                    if (showLane && state.continueWatching.isNotEmpty()) {
+                        fullWidth("continue") { ContinueWatchingLane(state, actions) }
+                    }
+                    if (state.items.isNotEmpty()) {
+                        fullWidth("summary") { PlayAllRow(state.items, isVideos, rowInset(columns, showFolders), actions) }
+                    } else if (state.totalCount == 0) {
+                        fullWidth("empty") {
+                            FlowEmptyState(
+                                title =
+                                    stringResource(
+                                        R.string.local_media_empty_title,
+                                        stringResource(if (isVideos) R.string.tab_videos else R.string.tab_music),
+                                    ),
+                                subtitle = stringResource(R.string.local_media_empty_body),
+                                icon = if (isVideos) Icons.Outlined.VideoLibrary else Icons.Outlined.MusicNote,
+                                modifier = Modifier.padding(top = 48.dp),
+                            )
+                        }
+                    } else {
+                        fullWidth("no_results") {
+                            FlowEmptyState(
+                                title =
+                                    stringResource(
+                                        R.string.local_media_empty_title,
+                                        stringResource(if (isVideos) R.string.tab_videos else R.string.tab_music),
+                                    ),
+                                icon = Icons.Outlined.SearchOff,
+                                modifier = Modifier.padding(top = 48.dp),
+                            )
+                        }
+                    }
+                    itemsIndexed(
+                        items = state.items,
+                        key = { _, item -> item.id },
+                        contentType = { index, _ -> if (columns > 1 && index !in partialRows) "card" else "row" },
+                        span = { index, _ -> GridItemSpan(if (index in partialRows) maxLineSpan else 1) },
+                    ) { index, item ->
+                        val isNew = item.watchState(state.playback, state.nowMs) == WatchState.NEW
+                        val onClick = {
+                            if (selection.active) selection.onToggle(item.mediaId) else actions.onPlay(state.items, index, false)
+                        }
+                        if (isVideos && columns > 1 && index !in partialRows) {
+                            LocalMediaCard(
+                                item = item,
+                                isNew = isNew,
+                                selected = item.mediaId in selection.ids,
+                                onClick = onClick,
+                                onLongClick = if (selection.active) null else ({ actions.onLongClick(item) }),
+                                modifier = animateMediaGridItem().padding(bottom = GridSpacing),
+                            )
+                        } else {
+                            LocalMediaRow(
+                                item = item,
+                                isNew = isNew,
+                                selectionMode = selection.active,
+                                selected = item.mediaId in selection.ids,
+                                onClick = onClick,
+                                onLongClick = { actions.onLongClick(item) },
+                                thumbnailWidth = if (columns > 1) grid.rowThumbnailWidth else MediaThumbnailDefaults.VideoWidth,
+                                modifier = animateMediaGridItem(),
+                            )
+                        }
                     }
                 }
-                itemsIndexed(state.items, key = { _, item -> item.id }, contentType = { _, _ ->
-                    if (columns >
-                        1
-                    ) {
-                        "card"
-                    } else {
-                        "row"
-                    }
-                }) { index, item ->
-                    val isNew = item.watchState(state.playback, state.nowMs) == WatchState.NEW
-                    val onClick = { if (selection.active) selection.onToggle(item.mediaId) else actions.onPlay(state.items, index, false) }
-                    if (isVideos && columns > 1) {
-                        LocalMediaCard(
-                            item = item,
-                            isNew = isNew,
-                            selected = item.mediaId in selection.ids,
-                            onClick = onClick,
-                            onLongClick = if (selection.active) null else ({ actions.onLongClick(item) }),
-                            modifier = animateMediaGridItem().padding(bottom = GridSpacing),
-                        )
-                    } else {
-                        LocalMediaRow(
-                            item = item,
-                            isNew = isNew,
-                            selectionMode = selection.active,
-                            selected = item.mediaId in selection.ids,
-                            onClick = onClick,
-                            onLongClick = { actions.onLongClick(item) },
-                            modifier = animateMediaGridItem(),
-                        )
-                    }
+                if (state.hiddenCount > 0 && state.openFolder == null) {
+                    fullWidth("hidden") { HiddenFilesNote(state.hiddenCount, actions.onManageHidden) }
                 }
-            }
-            if (state.hiddenCount > 0 && state.openFolder == null) {
-                fullWidth("hidden") { HiddenFilesNote(state.hiddenCount, actions.onManageHidden) }
             }
         }
     }
@@ -193,11 +204,6 @@ private fun rowInset(
     columns: Int,
     showFolders: Boolean,
 ): Dp = if (columns > 1 && !showFolders) 0.dp else 16.dp
-
-private fun inset(
-    columns: Int,
-    showFolders: Boolean,
-): Dp = if (columns > 1 && !showFolders) 16.dp else 0.dp
 
 private fun LazyGridScope.fullWidth(
     key: String,
