@@ -3500,4 +3500,17 @@
     <string name="settings_color_hex">اللون السداسي</string>
     <string name="settings_value_pair">%1$s · %2$s</string>
     <string name="settings_shorts_tab_disabled_summary">تم إيقاف المقاطع القصيرة في الخلاصات والمحتوى</string>
+    <string name="settings_section_player_buttons">أزرار المشغّل</string>
+    <string name="settings_section_pip">صورة داخل صورة والمشغّل المصغّر</string>
+    <string name="settings_section_language_captions">اللغة والترجمات</string>
+    <string name="settings_section_shorts_player">مشغّل المقاطع القصيرة</string>
+    <string name="settings_section_music">الموسيقى</string>
+    <string name="settings_keywords_autoplay">الفيديو التالي، التالي، التشغيل المستمر</string>
+    <string name="settings_keywords_gestures">السحب، النقر المزدوج، اللمس</string>
+    <string name="settings_speed_preset_hint">مثل ١.٣٥</string>
+    <string name="settings_speed_preset_add">إضافة إعداد مسبق</string>
+    <string name="settings_section_music_player">مشغّل الموسيقى</string>
+    <string name="settings_section_video_player">مشغّل الفيديو</string>
+    <string name="settings_section_mini_player">المشغّل المصغّر</string>
+    <string name="settings_section_speed">السرعة</string>
 </resources>
