@@ -46,6 +46,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.HomeFeedColumns
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.SubscriptionGroup
 import io.github.aedev.flow.data.model.Video
@@ -73,6 +75,9 @@ fun SubscriptionsScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val columnPreference by remember(context) { PlayerPreferences(context) }
+        .homeFeedColumns
+        .collectAsStateWithLifecycle(HomeFeedColumns.AUTO)
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val feedGridState = rememberLazyGridState()
@@ -266,6 +271,7 @@ fun SubscriptionsScreen(
                         videos = videos,
                         topChannels = topChannels,
                         gridState = feedGridState,
+                        columnPreference = columnPreference,
                         onRefresh = viewModel::refreshFeed,
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
