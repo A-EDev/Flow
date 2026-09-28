@@ -1,20 +1,16 @@
 package io.github.aedev.flow.player.stream
 
-import android.content.Context
 import android.util.Log
-import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.VideoDownloadManager
-import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.di.IoDispatcher
 import io.github.aedev.flow.di.NetworkIoDispatcher
-import io.github.aedev.flow.player.error.PlayerDiagnostics
-import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -22,11 +18,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -43,20 +36,15 @@ internal data class StreamPreferences(
 /**
  * Turns a video id into something the player screen can play.
  *
- * It runs both extraction stacks against each other, takes whichever resolves playback first,
- * escalates to a SABR session when expired URLs force it, folds NewPipe and InnerTube into one set
- * of streams, and falls back to a downloaded copy or a premiere countdown when nothing plays. It
- * owns every network call the load makes and holds no player-screen state: results are handed back
- * as [ResolvedPlayback] steps, in the order the screen has to act on them.
- *
- * The "play now, enrich later" hand-off is why this hands steps to a callback rather than returning
- * one value: an InnerTube result that can start playback is emitted while NewPipe is still running,
- * and that step carries the still-pending NewPipe leg so the caller can replace the metadata later.
+ * A finished download wins outright and costs no network; otherwise it runs the InnerTube client
+ * ladder, escalates to a SABR session when expired URLs force it, and falls back to a premiere
+ * countdown when nothing plays. It owns every network call the load makes and holds no player-screen
+ * state: results are handed back as [ResolvedPlayback] steps, in the order the screen has to act on
+ * them.
  */
 class PlaybackLoadResolver
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
         private val repository: YouTubeRepository,
         private val viewHistory: ViewHistory,
         private val playerPreferences: PlayerPreferences,
@@ -66,8 +54,7 @@ class PlaybackLoadResolver
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) {
         /**
-         * @param scope the caller's load job, which owns the two extraction legs so a NewPipe leg
-         *   that outlives the resolution (the late-metadata case) stays tied to that job.
+         * @param scope the caller's load job, which owns the extraction so it ends with that job.
          * @param isCurrent whether the load that started this resolution is still the current one.
          * @param resolveUpcoming the caller's premiere lookup, kept there because the decision reads
          *   the video the screen already has cached.
@@ -80,10 +67,25 @@ class PlaybackLoadResolver
             onStep: suspend (ResolvedPlayback) -> Unit,
         ) {
             val videoId = request.videoId
-            var isOfflineAvailable = false
-            var offlineLocalPath: String? = null
 
             try {
+                val localCopy = localCopyOf(videoId)
+                currentCoroutineContext().ensureActive()
+                if (localCopy != null) {
+                    Log.d(TAG, "Found offline video at ${localCopy.filePath}")
+                    val storedSponsorBlockJson = videoDownloadManager.getSponsorBlockData(videoId)
+                    if (!isCurrent()) return
+                    onStep(
+                        ResolvedPlayback.LocalCopyReady(
+                            localFilePath = localCopy.filePath,
+                            offlineSegments = sponsorBlockRepository.parseSegments(storedSponsorBlockJson),
+                            needsSponsorBlockBackfill = storedSponsorBlockJson == null,
+                            downloadedVideo = localCopy.video,
+                        ),
+                    )
+                    return
+                }
+
                 val innerTubeDeferred =
                     scope.async(networkDispatcher) { extractInnerTube(videoId, forceSabr = request.escalateToSabr) }
 
@@ -95,46 +97,13 @@ class PlaybackLoadResolver
                             ?: viewHistory.getPlaybackPosition(videoId).first()
                     }
                 val autoplayDeferred = scope.async(ioDispatcher) { playerPreferences.autoplayEnabled.first() }
-
-                val (preferences, localCopy) =
-                    supervisorScope {
-                        val prefsDeferred = async(ioDispatcher) { readStreamPreferences(request.isWifi) }
-                        val localCopyDeferred = async { localCopyOf(videoId) }
-                        prefsDeferred.await() to localCopyDeferred.await()
-                    }
-
-                offlineLocalPath = localCopy
-                isOfflineAvailable = offlineLocalPath != null
-
-                if (isOfflineAvailable) {
-                    Log.d(TAG, "Found offline video at $offlineLocalPath")
-                    val storedSponsorBlockJson = videoDownloadManager.getSponsorBlockData(videoId)
-                    val offlineSegments = sponsorBlockRepository.parseSegments(storedSponsorBlockJson)
-                    currentCoroutineContext().ensureActive()
-                    if (!isCurrent()) return
-                    offlineLocalPath?.let {
-                        onStep(
-                            ResolvedPlayback.LocalCopyReady(
-                                localFilePath = it,
-                                offlineSegments = offlineSegments,
-                                needsSponsorBlockBackfill = storedSponsorBlockJson == null,
-                            ),
-                        )
-                    }
-
-                    // A download is never live, and nothing from the extraction is applied to it, so
-                    // letting it finish online only spends a request.
-                    innerTubeDeferred.cancel()
-                    return
-                }
+                val preferences = withContext(ioDispatcher) { readStreamPreferences(request.isWifi) }
 
                 val playbackLoadTimeoutMs = if (request.escalateToSabr) SABR_LOAD_TIMEOUT_MS else LOAD_TIMEOUT_MS
                 withTimeout(playbackLoadTimeoutMs) {
                     resolveStreams(
                         request = request,
                         preferences = preferences,
-                        offlineLocalPath = offlineLocalPath,
-                        isOfflineAvailable = isOfflineAvailable,
                         innerTubeDeferred = innerTubeDeferred,
                         savedPositionDeferred = savedPositionDeferred,
                         autoplayDeferred = autoplayDeferred,
@@ -145,41 +114,15 @@ class PlaybackLoadResolver
                 }
             } catch (e: TimeoutCancellationException) {
                 Log.e(TAG, "Video info load timed out for $videoId", e)
-                if (isCurrent() && isOfflineAvailable) {
-                    Log.d(TAG, "Ignoring timeout, playing offline video")
-                    onStep(
-                        ResolvedPlayback.LocalCopyAfterFailure(
-                            localFilePath = offlineLocalPath,
-                            offlineSegments = offlineLocalPath?.let { storedSponsorBlockSegments(videoId) },
-                        ),
-                    )
-                } else if (isCurrent()) {
+                if (isCurrent()) {
                     onStep(upcomingOrFailure(videoId, PlaybackFailure.TIMEOUT, null, null, resolveUpcoming))
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Exception loading video $videoId", e)
-                if (isCurrent() && isOfflineAvailable) {
-                    Log.d(TAG, "Ignoring exception, playing offline video")
-                    val localPath = localCopyOf(videoId)
-                    onStep(
-                        ResolvedPlayback.LocalCopyAfterFailure(
-                            localFilePath = localPath,
-                            offlineSegments = localPath?.let { storedSponsorBlockSegments(videoId) },
-                        ),
-                    )
-                } else if (isCurrent()) {
-                    // Final fallback if everything fails
-                    val localPath = localCopyOf(videoId)
-                    if (localPath != null) {
-                        onStep(
-                            ResolvedPlayback.LocalCopyReady(
-                                localFilePath = localPath,
-                                offlineSegments = storedSponsorBlockSegments(videoId),
-                            ),
-                        )
-                    } else {
-                        onStep(upcomingOrFailure(videoId, PlaybackFailure.UNEXPECTED, e, null, resolveUpcoming))
-                    }
+                if (isCurrent()) {
+                    onStep(upcomingOrFailure(videoId, PlaybackFailure.UNEXPECTED, e, null, resolveUpcoming))
                 }
             }
         }
@@ -187,8 +130,6 @@ class PlaybackLoadResolver
         private suspend fun resolveStreams(
             request: PlaybackResolutionRequest,
             preferences: StreamPreferences,
-            offlineLocalPath: String?,
-            isOfflineAvailable: Boolean,
             innerTubeDeferred: Deferred<InnerTubeVideoStreamExtractor.VideoExtractionResult?>,
             savedPositionDeferred: Deferred<Long>,
             autoplayDeferred: Deferred<Boolean>,
@@ -238,15 +179,6 @@ class PlaybackLoadResolver
 
             if (liveFromInnerTube && innerTubeResult != null) {
                 onStep(ResolvedPlayback.Live(innerTubeResult, relatedVideos))
-            } else if (isOfflineAvailable) {
-                Log.d(TAG, "Using offline video for $videoId (Network fetch failed)")
-                onStep(
-                    ResolvedPlayback.OfflineFallback(
-                        localFilePath = offlineLocalPath,
-                        offlineSegments = storedSponsorBlockSegments(videoId),
-                        relatedVideos = relatedVideos,
-                    ),
-                )
             } else if (innerTubeResult != null && innerTubeHasPlayableVod(innerTubeResult)) {
                 onStep(
                     ResolvedPlayback.VodFromInnerTube(
@@ -317,24 +249,15 @@ class PlaybackLoadResolver
                 subtitleLanguage = playerPreferences.preferredSubtitleLanguage.first(),
             )
 
-        private suspend fun localCopyOf(videoId: String): String? =
-            withContext(ioDispatcher) {
-                findDownloadedVideo(videoId)?.filePath?.takeIf { DownloadFiles.exists(context, it) }
-            }
-
-        private suspend fun findDownloadedVideo(videoId: String) =
+        private suspend fun localCopyOf(videoId: String): DownloadedVideo? =
             try {
-                videoDownloadManager.downloadedVideos
-                    .map { list -> list.find { it.video.id == videoId } }
-                    .first()
+                videoDownloadManager.findLocalCopy(videoId)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Local copy lookup failed for $videoId", e)
                 null
             }
-
-        private suspend fun storedSponsorBlockSegments(videoId: String) =
-            sponsorBlockRepository.parseSegments(videoDownloadManager.getSponsorBlockData(videoId))
 
         internal companion object {
             const val TAG = "PlaybackLoadResolver"

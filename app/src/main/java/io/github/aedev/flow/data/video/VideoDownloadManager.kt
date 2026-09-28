@@ -12,7 +12,6 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.entity.DownloadEntity
@@ -384,15 +383,18 @@ class VideoDownloadManager
         /** Get download with items */
         suspend fun getDownloadWithItems(videoId: String): DownloadWithItems? = downloadDao.getDownloadWithItems(videoId)
 
-        /** Path of the finished video download of [videoId] when its file is still on disk. */
-        suspend fun localCopyPath(videoId: String): String? =
+        /** The finished video download of [videoId] when its file is still on disk. */
+        suspend fun findLocalCopy(videoId: String): DownloadedVideo? =
             withContext(Dispatchers.IO) {
                 downloadDao
                     .getDownloadWithItems(videoId)
                     ?.takeIf { it.overallStatus == DownloadItemStatus.COMPLETED && !it.isAudioOnly }
-                    ?.primaryFilePath
-                    ?.takeIf { DownloadFiles.exists(context, it) }
+                    ?.takeIf { download -> download.primaryFilePath?.let { DownloadFiles.exists(context, it) } == true }
+                    ?.let(::toDownloadedVideo)
             }
+
+        /** Path of the finished video download of [videoId] when its file is still on disk. */
+        suspend fun localCopyPath(videoId: String): String? = findLocalCopy(videoId)?.filePath
 
         /** Points a finished item at where its file ended up, such as a document in a picked folder. */
         suspend fun updateItemLocation(
@@ -544,12 +546,12 @@ class VideoDownloadManager
                         id = dwi.download.videoId,
                         title = dwi.download.title,
                         channelName = dwi.download.uploader,
-                        channelId = "local",
+                        channelId = "",
                         thumbnailUrl = dwi.download.thumbnailUrl,
                         duration = dwi.download.duration.toInt(),
                         viewCount = 0,
-                        uploadDate = dwi.download.createdAt.toString(),
-                        description = context.getString(R.string.fallback_downloaded_locally),
+                        uploadDate = "",
+                        description = "",
                     ),
                 filePath = dwi.primaryFilePath ?: "",
                 downloadedAt = dwi.download.createdAt,
