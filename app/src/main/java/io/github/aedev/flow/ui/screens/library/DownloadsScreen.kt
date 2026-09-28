@@ -114,6 +114,7 @@ fun DownloadsScreen(
             onSelected = viewModel::setSort,
         )
     }
+    val onRemoveCollection: (DownloadCollectionSummary) -> Unit = { removingCollection = it }
     val sortInHeader = libraryHeaderIsOneRow()
     val listHeader: @Composable () -> Unit = {
         Column {
@@ -178,11 +179,8 @@ fun DownloadsScreen(
                         MediaKind.Videos -> {
                             VideosDownloadsList(
                                 header = listHeader,
-                                shelf = {
-                                    DownloadCollectionsShelf(uiState.videoCollections, onOpenCollection, onRemove = {
-                                        removingCollection =
-                                            it
-                                    })
+                                shelf = { inset ->
+                                    DownloadCollectionsShelf(uiState.videoCollections, onOpenCollection, onRemoveCollection, inset)
                                 },
                                 videos = uiState.downloadedVideos,
                                 totalCount = uiState.totalVideoCount,
@@ -203,11 +201,8 @@ fun DownloadsScreen(
                         MediaKind.Music -> {
                             MusicDownloadsList(
                                 header = listHeader,
-                                shelf = {
-                                    DownloadCollectionsShelf(uiState.musicCollections, onOpenCollection, onRemove = {
-                                        removingCollection =
-                                            it
-                                    })
+                                shelf = { inset ->
+                                    DownloadCollectionsShelf(uiState.musicCollections, onOpenCollection, onRemoveCollection, inset)
                                 },
                                 tracks = uiState.downloadedMusic,
                                 totalCount = uiState.totalMusicCount,

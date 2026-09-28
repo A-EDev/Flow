@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.dao.DownloadCollectionSummary
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
@@ -23,6 +24,7 @@ internal fun DownloadCollectionsShelf(
     collections: List<DownloadCollectionSummary>,
     onOpen: (DownloadCollectionSummary) -> Unit,
     onRemove: (DownloadCollectionSummary) -> Unit,
+    horizontalInset: Dp,
     modifier: Modifier = Modifier,
 ) {
     if (collections.isEmpty()) return
@@ -32,6 +34,7 @@ internal fun DownloadCollectionsShelf(
         icon = Icons.Outlined.FolderOpen,
         onTitleClick = null,
         modifier = modifier,
+        horizontalInset = horizontalInset,
     ) { cardWidth ->
         items(collections, key = { it.collection.id }, contentType = { "download_collection" }) { summary ->
             LibraryAlbumCard(
