@@ -1,6 +1,5 @@
 package io.github.aedev.flow.ui.components.shared
 
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,21 +19,11 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
-import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.models.YouTubeClient
-import io.github.aedev.flow.player.*
-import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.stream.VideoStream
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaDownloadDialog(
-    streamInfo: org.schabi.newpipe.extractor.stream.StreamInfo?,
     streamSizes: Map<String, Long>,
     innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
     innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
@@ -84,43 +73,29 @@ fun MediaDownloadDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val innerTubeVideoStreams =
-                    remember(innerTubeVideoFormats) {
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertVideoFormats(innerTubeVideoFormats)
+                val effectiveAudioForDownload =
+                    remember(innerTubeAudioFormats) { DownloadStreamPolicy.buildDownloadAudioFormats(innerTubeAudioFormats) }
+                val audioFormats =
+                    remember(effectiveAudioForDownload) {
+                        effectiveAudioForDownload.sortedByDescending { it.averageBitrate ?: it.bitrate }
                     }
-                val innerTubeAudioStreams =
-                    remember(innerTubeAudioFormats) {
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertAudioFormats(innerTubeAudioFormats)
-                    }
-
-                val effectiveAudioForDownload: List<org.schabi.newpipe.extractor.stream.AudioStream> =
-                    DownloadStreamPolicy.mergeAudioDownloadStreams(innerTubeAudioStreams, streamInfo?.audioStreams ?: emptyList())
-
-                val distinctStreams =
-                    DownloadStreamPolicy.buildDownloadVideoStreams(
-                        innerTubeStreams = innerTubeVideoStreams,
-                        videoOnlyStreams = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
-                        muxedStreams = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList(),
-                    )
+                val distinctFormats =
+                    remember(innerTubeVideoFormats) { DownloadStreamPolicy.buildDownloadVideoFormats(innerTubeVideoFormats) }
+                val hdrLabel = stringResource(R.string.download_quality_hdr)
 
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 400.dp),
                 ) {
-                    if (distinctStreams.isEmpty()) {
+                    if (distinctFormats.isEmpty()) {
                         item {
                             Text(stringResource(R.string.no_download_streams), modifier = Modifier.padding(16.dp))
                         }
                         item {
-                            val scope = rememberCoroutineScope()
                             Button(
                                 onClick = {
                                     onDismiss()
-                                    scope.launch {
-                                        trySabrDownloadFromDialog(context, video)
-                                    }
+                                    DownloadLauncher.startSabrDownload(context, video)
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -129,14 +104,13 @@ fun MediaDownloadDialog(
                         }
                     }
 
-                    itemsIndexed(distinctStreams) { streamIndex, stream ->
-                        val codecKey = VideoPlayerUtils.codecKeyFromStream(stream)
-                        val codecLabel = VideoPlayerUtils.codecLabelFromKey(codecKey)
-                        val qualityHeight = VideoPlayerUtils.qualityHeightFromStream(stream)
-                        val qualityLabel = "$codecLabel ${qualityHeight}p"
+                    itemsIndexed(distinctFormats) { streamIndex, format ->
+                        val codecKey = DownloadStreamPolicy.videoCodecKey(format)
+                        val qualityHeight = DownloadStreamPolicy.videoHeight(format)
+                        val qualityLabel = DownloadStreamPolicy.videoQualityLabel(format, hdrLabel)
 
                         val sizeText =
-                            approxDownloadSizeLabel(streamSizes[VideoPlayerUtils.streamSizeKey(qualityHeight, codecKey)])
+                            approxDownloadSizeLabel(streamSizes[VideoCodecUtils.streamSizeKey(qualityHeight, codecKey)])
 
                         val resBadge =
                             when {
@@ -149,29 +123,26 @@ fun MediaDownloadDialog(
                         Surface(
                             onClick = downloadVideo@{
                                 onDismiss()
-                                val downloadUrl = stream.getContent().takeIf { it.isNotBlank() }
+                                val downloadUrl = format.url?.takeIf { it.isNotBlank() }
                                 if (downloadUrl != null) {
-                                    var audioUrl: String? = null
-                                    if (stream.isVideoOnly) {
-                                        val compatibleAudio =
-                                            DownloadStreamPolicy.pickCompatibleAudioForVideo(
-                                                videoCodecKey = codecKey,
-                                                allAudio = effectiveAudioForDownload,
-                                                preferredLang = preferredLang,
-                                            )
-                                        if (compatibleAudio == null) {
-                                            Toast
-                                                .makeText(
-                                                    context,
-                                                    context.getString(R.string.download_no_compatible_audio),
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                            return@downloadVideo
-                                        }
-                                        audioUrl = compatibleAudio.getContent().takeIf { it.isNotBlank() }
+                                    val compatibleAudio =
+                                        DownloadStreamPolicy.pickCompatibleAudioForVideo(
+                                            videoCodecKey = codecKey,
+                                            allAudio = effectiveAudioForDownload,
+                                            preferredLang = preferredLang,
+                                        )
+                                    if (compatibleAudio == null) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.download_no_compatible_audio),
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                        return@downloadVideo
                                     }
+                                    val audioUrl = compatibleAudio.url?.takeIf { it.isNotBlank() }
 
-                                    VideoPlayerUtils.startDownload(
+                                    DownloadLauncher.startVideoDownload(
                                         context,
                                         video,
                                         downloadUrl,
@@ -183,15 +154,9 @@ fun MediaDownloadDialog(
                                                 else -> null
                                             },
                                     )
-                                    Toast
-                                        .makeText(
-                                            context,
-                                            context.getString(R.string.downloading_template, qualityLabel),
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
                                 }
                             },
-                            shape = flowRowGroupShape(streamIndex, distinctStreams.size),
+                            shape = flowRowGroupShape(streamIndex, distinctFormats.size),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -230,8 +195,7 @@ fun MediaDownloadDialog(
                     }
 
                     // ===== Audio-Only Section =====
-                    val audioStreams = effectiveAudioForDownload.sortedByDescending { it.averageBitrate }
-                    if (audioStreams.isNotEmpty()) {
+                    if (audioFormats.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -245,7 +209,7 @@ fun MediaDownloadDialog(
                             )
                         }
 
-                        itemsIndexed(audioStreams) { audioIndex, audioStream ->
+                        itemsIndexed(audioFormats) { audioIndex, audioStream ->
                             val bitrate = DownloadStreamPolicy.audioBitrateKbps(audioStream)
                             val bitrateLabel = "$bitrate${stringResource(R.string.kbps)}"
                             val audioFormat =
@@ -253,7 +217,7 @@ fun MediaDownloadDialog(
                             val languageLabel = DownloadStreamPolicy.audioLanguageLabel(audioStream)
                             val trackTypeLabel =
                                 DownloadStreamPolicy.audioTrackTypeLabel(
-                                    stream = audioStream,
+                                    format = audioStream,
                                     originalLabel = stringResource(R.string.audio_track_original),
                                     dubbedLabel = stringResource(R.string.audio_track_dubbed),
                                 )
@@ -261,7 +225,7 @@ fun MediaDownloadDialog(
                             Surface(
                                 onClick = {
                                     onDismiss()
-                                    if (startAudioOnlyDownload(context, video, audioStream)) {
+                                    if (DownloadLauncher.startAudioOnlyDownload(context, video, audioStream)) {
                                         Toast
                                             .makeText(
                                                 context,
@@ -270,7 +234,7 @@ fun MediaDownloadDialog(
                                             ).show()
                                     }
                                 },
-                                shape = flowRowGroupShape(audioIndex, audioStreams.size),
+                                shape = flowRowGroupShape(audioIndex, audioFormats.size),
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
@@ -330,47 +294,5 @@ fun MediaDownloadDialog(
                 }
             }
         }
-    }
-}
-
-private suspend fun trySabrDownloadFromDialog(
-    context: Context,
-    video: Video,
-) {
-    try {
-        Toast.makeText(context, context.getString(R.string.toast_trying_sabr_download), Toast.LENGTH_SHORT).show()
-        val sabrInfo =
-            withContext(Dispatchers.IO) {
-                withTimeoutOrNull(8000L) {
-                    val playerResponse =
-                        YouTube
-                            .player(video.id, client = YouTubeClient.ANDROID)
-                            .getOrNull() ?: return@withTimeoutOrNull null
-                    SabrUrlResolver.resolve(playerResponse)
-                }
-            }
-        if (sabrInfo != null) {
-            val codecHint = if (sabrInfo.videoItag in listOf(313, 271, 308, 248, 303, 247, 302, 244, 243, 242)) "vp9" else null
-            io.github.aedev.flow.data.video.downloader.FlowDownloadService.startSabrDownload(
-                context = context,
-                video = video,
-                quality = context.getString(R.string.download_quality_best),
-                sabrStreamingUrl = sabrInfo.streamingUrl,
-                audioItag = sabrInfo.audioItag,
-                audioLmt = sabrInfo.audioLmt,
-                videoItag = sabrInfo.videoItag,
-                videoLmt = sabrInfo.videoLmt,
-                poToken = sabrInfo.poToken,
-                visitorId = sabrInfo.visitorId,
-                ustreamerConfig = sabrInfo.ustreamerConfig,
-                durationMs = sabrInfo.durationMs,
-                videoCodec = codecHint,
-            )
-            Toast.makeText(context, context.getString(R.string.toast_sabr_download_started), Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(context, context.getString(R.string.toast_no_download_source), Toast.LENGTH_SHORT).show()
-        }
-    } catch (e: Exception) {
-        Toast.makeText(context, context.getString(R.string.toast_sabr_download_failed, e.message), Toast.LENGTH_SHORT).show()
     }
 }

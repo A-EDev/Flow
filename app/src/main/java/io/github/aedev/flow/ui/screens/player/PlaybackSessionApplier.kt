@@ -21,6 +21,7 @@ import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.StoryboardSpec
 import io.github.aedev.flow.player.stream.UpcomingDetails
+import io.github.aedev.flow.player.stream.toSubtitlesStreams
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CancellationException
@@ -528,7 +529,7 @@ internal class PlaybackSessionApplier(
 
     private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
         if (LocalMediaIds.isLocal(videoId)) return emptyList()
-        val stored = offlineSubtitleStore.load(videoId)
+        val stored = offlineSubtitleStore.load(videoId).toSubtitlesStreams()
         if (stored.isEmpty() && !offlineSubtitleStore.isResolved(videoId) && NetworkState.isOnline(context)) {
             scope.launch(networkDispatcher) {
                 offlineSubtitleStore.saveForVideo(videoId)

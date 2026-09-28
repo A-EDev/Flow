@@ -19,11 +19,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
-import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.ui.screens.player.fakeAudioFormats
 import io.github.aedev.flow.ui.screens.player.fakeVideo
 import io.github.aedev.flow.ui.screens.player.fakeVideoFormats
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
@@ -62,7 +60,6 @@ class DownloadDialogsTest {
             MaterialTheme {
                 if (showCompact) {
                     MediaDownloadDialogCompact(
-                        streamInfo = null,
                         streamSizes = emptyMap(),
                         innerTubeVideoFormats = fakeVideoFormats(),
                         innerTubeAudioFormats = fakeAudioFormats(),
@@ -71,7 +68,6 @@ class DownloadDialogsTest {
                     )
                 } else {
                     MediaDownloadDialog(
-                        streamInfo = null,
                         streamSizes = emptyMap(),
                         innerTubeVideoFormats = fakeVideoFormats(),
                         innerTubeAudioFormats = fakeAudioFormats(),
@@ -108,11 +104,11 @@ class DownloadDialogsTest {
     }
 
     @Test
-    fun fullDialogPicksTheAudioTheSharedHelperPicks() {
-        mockkObject(VideoPlayerUtils)
+    fun fullDialogPairsEveryCodecWithTheAacTheSharedHelperPicks() {
+        mockkObject(DownloadLauncher)
         val audioUrls = mutableListOf<String?>()
         every {
-            VideoPlayerUtils.startDownload(
+            DownloadLauncher.startVideoDownload(
                 any(),
                 any(),
                 any(),
@@ -133,17 +129,13 @@ class DownloadDialogsTest {
         rule.onNode(hasText("VP9 1080p") and hasClickAction()).performClick()
         rule.waitForIdle()
 
-        val merged =
-            DownloadStreamPolicy.mergeAudioDownloadStreams(
-                InnerTubeStreamBridge.convertAudioFormats(fakeAudioFormats()),
-                emptyList(),
-            )
+        val audio = DownloadStreamPolicy.buildDownloadAudioFormats(fakeAudioFormats())
         val expected =
             listOf("h264", "vp9").map { codec ->
-                DownloadStreamPolicy.pickCompatibleAudioForVideo(codec, merged, "")?.getContent()
+                DownloadStreamPolicy.pickCompatibleAudioForVideo(codec, audio, "")?.url
             }
-        assertThat(expected.filterNotNull()).hasSize(2)
-        assertThat(expected[0]).isNotEqualTo(expected[1])
+        val aac = fakeAudioFormats().single { it.mimeType.startsWith("audio/mp4") }.url
+        assertThat(expected).containsExactly(aac, aac)
         assertThat(audioUrls).isEqualTo(expected)
     }
 

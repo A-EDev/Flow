@@ -8,7 +8,6 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.models.response.VideoHeatmap
 import io.github.aedev.flow.player.stream.StoryboardLevel
 import org.schabi.newpipe.extractor.stream.AudioStream
-import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamSegment
 import org.schabi.newpipe.extractor.stream.VideoStream
 

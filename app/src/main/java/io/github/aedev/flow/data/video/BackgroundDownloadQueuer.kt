@@ -10,7 +10,6 @@ import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.video.downloader.FlowDownloadService
-import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -169,29 +168,20 @@ class BackgroundDownloadQueuer
                     .takeIf { it != VideoCodec.AUTO }
                     ?.codecKey
             val language = preferences.preferredAudioLanguage.first()
-            val videoStreams =
-                DownloadStreamPolicy.buildDownloadVideoStreams(
-                    innerTubeStreams = InnerTubeStreamBridge.convertVideoFormats(options.videoFormats),
-                    videoOnlyStreams = emptyList(),
-                    muxedStreams = emptyList(),
-                )
-            val audioStreams = InnerTubeStreamBridge.convertAudioFormats(options.audioFormats)
+            val videoFormats = DownloadStreamPolicy.buildDownloadVideoFormats(options.videoFormats)
+            val audioFormats = DownloadStreamPolicy.buildDownloadAudioFormats(options.audioFormats)
             val height =
-                DefaultDownloadSelection.pickHeight(videoStreams.map(VideoCodecUtils::qualityHeightFromStream), targetHeight)
+                DefaultDownloadSelection.pickHeight(videoFormats.map(DownloadStreamPolicy::videoHeight), targetHeight)
                     ?: return null
-            val atHeight = videoStreams.filter { VideoCodecUtils.qualityHeightFromStream(it) == height }
-            for (codecKey in DefaultDownloadSelection.rankCodecs(atHeight.map(VideoCodecUtils::codecKeyFromStream), codec)) {
-                val stream = atHeight.first { VideoCodecUtils.codecKeyFromStream(it) == codecKey }
-                val url = stream.getContent().takeIf { it.isNotBlank() } ?: continue
+            val atHeight = videoFormats.filter { DownloadStreamPolicy.videoHeight(it) == height }
+            for (codecKey in DefaultDownloadSelection.rankCodecs(atHeight.map(DownloadStreamPolicy::videoCodecKey), codec)) {
+                val format = atHeight.first { DownloadStreamPolicy.videoCodecKey(it) == codecKey }
+                val url = format.url?.takeIf { it.isNotBlank() } ?: continue
                 val audioUrl =
-                    if (stream.isVideoOnly) {
-                        DownloadStreamPolicy
-                            .pickCompatibleAudioForVideo(codecKey, audioStreams, language)
-                            ?.getContent()
-                            ?.takeIf { it.isNotBlank() } ?: continue
-                    } else {
-                        null
-                    }
+                    DownloadStreamPolicy
+                        .pickCompatibleAudioForVideo(codecKey, audioFormats, language)
+                        ?.url
+                        ?.takeIf { it.isNotBlank() } ?: continue
                 return Choice(
                     videoUrl = url,
                     audioUrl = audioUrl,
