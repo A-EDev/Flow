@@ -118,8 +118,11 @@ private fun StripLayout(
         modifier = GlanceModifier.fillMaxSize().padding(start = WidgetDimens.ContentPadding, end = WidgetDimens.ItemGap + 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlayerArtwork(artwork, NowPlayingLayout.STRIP_ART_DP.dp)
-        Spacer(GlanceModifier.width(WidgetDimens.ContentPadding))
+        // At the narrowest strip the artwork would push Next off the edge, so it goes first.
+        if (LocalSize.current.width >= StripArtMinWidth) {
+            PlayerArtwork(artwork, NowPlayingLayout.STRIP_ART_DP.dp)
+            Spacer(GlanceModifier.width(WidgetDimens.ContentPadding))
+        }
         TrackText(snapshot, GlanceModifier.defaultWeight(), WidgetText.titleSmall())
         Spacer(GlanceModifier.width(WidgetDimens.ItemGap))
         WidePlayPauseButton(snapshot.isPlaying, GlanceModifier.width(76.dp))
@@ -152,31 +155,32 @@ private fun CardLayout(
     snapshot: NowPlayingSnapshot,
     artwork: Bitmap?,
 ) {
-    val size = LocalSize.current
-    val tight = size.height < CardRoomyHeight
+    val card = cardMetrics(LocalSize.current)
     Row(
-        modifier = GlanceModifier.fillMaxSize().padding(if (tight) WidgetDimens.ItemGap else NowPlayingLayout.CARD_INSET),
+        modifier = GlanceModifier.fillMaxSize().padding(card.inset),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlayerArtwork(artwork, NowPlayingLayout.cardArtDp(size) - if (tight) WidgetDimens.SmallGap * 2 else 0.dp)
-        Spacer(GlanceModifier.width(WidgetDimens.ContentPadding + WidgetDimens.SmallGap))
+        if (card.art > 0.dp) {
+            PlayerArtwork(artwork, card.art)
+            Spacer(GlanceModifier.width(ArtGap))
+        }
         Column(
             modifier = GlanceModifier.defaultWeight().fillMaxHeight(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             TrackText(snapshot, GlanceModifier.fillMaxWidth(), WidgetText.centered(WidgetText.titleMedium()), centered = true)
-            if (!tight) {
+            if (card.showWave) {
                 Spacer(GlanceModifier.height(WidgetDimens.ItemGap))
                 WaveRow(snapshot)
             }
             Spacer(GlanceModifier.height(WidgetDimens.ItemGap))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                PreviousButton(GlanceModifier.size(SideButton))
-                Spacer(GlanceModifier.width(WidgetDimens.ContentPadding))
-                SquarePlayPauseButton(snapshot.isPlaying, if (tight) WidgetDimens.TouchTarget else PlayButton)
-                Spacer(GlanceModifier.width(WidgetDimens.ContentPadding))
-                NextButton(GlanceModifier.size(SideButton))
+                PreviousButton(GlanceModifier.size(card.controls.side))
+                Spacer(GlanceModifier.width(card.controls.gap))
+                SquarePlayPauseButton(snapshot.isPlaying, card.controls.play)
+                Spacer(GlanceModifier.width(card.controls.gap))
+                NextButton(GlanceModifier.size(card.controls.side))
             }
         }
     }
@@ -296,7 +300,4 @@ private fun PlaybackTime(
     }
 }
 
-// Below this the card drops the wave and shrinks play so everything still fits two rows.
-private val CardRoomyHeight = 140.dp
-private val SideButton = 48.dp
-private val PlayButton = 56.dp
+private val StripArtMinWidth = 260.dp

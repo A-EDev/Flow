@@ -1,6 +1,5 @@
 package io.github.aedev.flow.widget.nowplaying
 
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
@@ -42,21 +41,13 @@ internal enum class NowPlayingLayout(
                 .maxOfOrNull { size ->
                     when (forSize(size)) {
                         POSTER -> min(size.width.value - POSTER_INSET_DP, size.height.value - POSTER_CHROME_DP)
-                        CARD -> cardArtDp(size).value
+                        CARD -> cardMetrics(size).art.value
                         SQUARE -> SQUARE_ART_DP
                         STRIP -> STRIP_ART_DP
                         SMALL -> 0f
                     }
                 }?.coerceIn(STRIP_ART_DP, MAX_ART_DP)
                 ?: CARD_ART_DP
-
-        /** The card's artwork fills its height, as the reference design does, up to a share of the width. */
-        fun cardArtDp(size: DpSize): Dp =
-            minOf(size.height - CARD_INSET * 2, size.width * CARD_ART_WIDTH_SHARE, CardArtMax).coerceAtLeast(CARD_ART_DP.dp)
-
-        val CARD_INSET = 12.dp
-        private const val CARD_ART_WIDTH_SHARE = 0.42f
-        private val CardArtMax = 180.dp
 
         const val STRIP_ART_DP = 52f
         const val SQUARE_ART_DP = 56f

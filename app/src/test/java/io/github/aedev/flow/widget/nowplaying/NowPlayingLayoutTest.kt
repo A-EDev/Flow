@@ -24,9 +24,9 @@ class NowPlayingLayoutTest {
 
     @Test
     fun artworkLoadsAtTheLargestLayoutDrawnAndNoBigger() {
-        // The card's artwork fills its height, up to 42 % of the width.
+        // The card's artwork fills its height, less the width its controls need.
         assertEquals(152f, NowPlayingLayout.artworkDpFor(listOf(DpSize(400.dp, 176.dp))), 0.01f)
-        assertEquals(142.8f, NowPlayingLayout.artworkDpFor(listOf(DpSize(340.dp, 176.dp))), 0.01f)
+        assertEquals(124f, NowPlayingLayout.artworkDpFor(listOf(DpSize(340.dp, 176.dp))), 0.01f)
         assertEquals(236f, NowPlayingLayout.artworkDpFor(listOf(DpSize(260.dp, 400.dp))), 0.01f)
         assertEquals(256f, NowPlayingLayout.artworkDpFor(listOf(DpSize(500.dp, 600.dp))), 0.01f)
         assertEquals(NowPlayingLayout.STRIP_ART_DP, NowPlayingLayout.artworkDpFor(listOf(DpSize(150.dp, 60.dp))), 0.01f)
