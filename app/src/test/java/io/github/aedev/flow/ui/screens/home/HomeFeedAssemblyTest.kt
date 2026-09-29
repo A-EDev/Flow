@@ -8,6 +8,7 @@ package io.github.aedev.flow.ui.screens.home
 
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -51,7 +52,8 @@ class HomeFeedAssemblyTest {
         related: List<GraphCandidate> = emptyList(),
         rss: List<Video> = emptyList(),
         watched: Set<String> = emptySet(),
-        excluded: Set<String> = emptySet(),
+        exclusions: FeedExclusions = FeedExclusions.NONE,
+        shown: Set<String> = emptySet(),
         freshSlots: Int = 3,
         avatars: Map<String, String> = emptyMap(),
     ) = buildHomeFeedLanes(
@@ -61,7 +63,8 @@ class HomeFeedAssemblyTest {
         rawRelated = related,
         rssFeed = rss,
         watched = watched,
-        excludedChannels = excluded,
+        exclusions = exclusions,
+        isRecentlyShown = { it in shown },
         taste = taste,
         now = now,
         freshSlotTarget = freshSlots,
@@ -95,9 +98,52 @@ class HomeFeedAssemblyTest {
             val blocked = video("blocked", channelId = "bad", ageMs = hour, uploadDate = "1 hour ago")
             val allowed = video("allowed", channelId = "good", ageMs = hour, uploadDate = "1 hour ago")
 
-            val result = lanes(subs = listOf(blocked, allowed), excluded = setOf("bad"))
+            val result = lanes(subs = listOf(blocked, allowed), exclusions = FeedExclusions(blockedChannelIds = setOf("bad")))
 
             assertThat((result.pinnedFresh + result.overflowFresh).map { it.id }).containsExactly("allowed")
+        }
+
+    @Test
+    fun `a not interested video leaves the fresh lane and the subs backlog`() =
+        runTest {
+            val hidden = video("hidden", channelId = "sub", ageMs = hour, uploadDate = "1 hour ago")
+            val kept = video("kept", channelId = "sub2", ageMs = hour, uploadDate = "1 hour ago")
+
+            val result =
+                lanes(
+                    subs = listOf(hidden, kept),
+                    rss = listOf(hidden),
+                    exclusions = FeedExclusions(suppressedVideoIds = setOf("hidden")),
+                )
+            val mix = assembleHomeFeed(result, onScreenIds = emptySet(), subCount = 2, totalInteractions = 100)
+
+            assertThat((result.pinnedFresh + result.overflowFresh).map { it.id }).containsExactly("kept")
+            assertThat(result.subsByRecency.map { it.id }).doesNotContain("hidden")
+            assertThat(mix.subsBacklog.map { it.id }).doesNotContain("hidden")
+        }
+
+    @Test
+    fun `a blocked topic is dropped from the subscription lanes`() =
+        runTest {
+            val result =
+                lanes(
+                    subs = listOf(video("topic"), video("other")),
+                    exclusions = FeedExclusions(blockedText = { title, _ -> title == "title-topic" }),
+                )
+
+            assertThat(result.bestSubs.map { it.id }).containsExactly("other")
+        }
+
+    @Test
+    fun `an upload shown recently loses its pinned slot but stays in the ranked subs lane`() =
+        runTest {
+            val seen = video("seen", channelId = "a", ageMs = hour, uploadDate = "1 hour ago")
+            val fresh = video("fresh", channelId = "b", ageMs = 2 * hour, uploadDate = "2 hours ago")
+
+            val result = lanes(subs = listOf(seen, fresh), shown = setOf("seen"))
+
+            assertThat((result.pinnedFresh + result.overflowFresh).map { it.id }).containsExactly("fresh")
+            assertThat(result.bestSubs.map { it.id }).contains("seen")
         }
 
     @Test

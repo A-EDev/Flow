@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.home
 
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 
 internal const val HOME_TARGET_SIZE = 40
 
@@ -63,22 +64,21 @@ internal suspend fun buildHomeFeedLanes(
     rawRelated: List<GraphCandidate>,
     rssFeed: List<Video>,
     watched: Set<String>,
-    excludedChannels: Set<String>,
+    exclusions: FeedExclusions,
+    isRecentlyShown: (videoId: String) -> Boolean,
     taste: FeedTasteProfile,
     now: Long,
     freshSlotTarget: Int,
     subAvatarMap: Map<String, String>,
     rank: suspend (List<Video>) -> List<Video>,
 ): HomeFeedLanes {
-    fun Video.isAllowedChannel(): Boolean = channelId.isBlank() || channelId !in excludedChannels
-
-    // The fresh-subs lane bypasses rank(): exclude blocked/suppressed channels here so they
-    // cannot resurface through it.
+    // The fresh-subs lane and the subs backlog bypass rank(), so hidden videos, channels and
+    // topics are dropped here or they would resurface through them.
     val subsPool =
         rawSubs
             .filterValid()
             .filterWatched(watched)
-            .filter { it.isAllowedChannel() }
+            .filterNot(exclusions::hidesFromRecommendations)
             .enrichAvatars(subAvatarMap)
     val discoveryPool =
         rawDiscovery
@@ -101,11 +101,14 @@ internal suspend fun buildHomeFeedLanes(
             .asSequence()
             .filter { !it.isShort && !it.isUpcoming && (it.duration > 0 || it.isLive) }
             .filter { (now - it.timestamp) in 0..FRESH_SUB_WINDOW_MS }
-            .filter { it.isAllowedChannel() }
+            .filterNot(exclusions::hidesFromRecommendations)
             .toList()
+    // An upload already shown recently loses its fresh slot and competes in the ranked SUBS lane,
+    // so the same card is not pinned to the top of every launch for three days.
     val freshSubsLane =
         (rssFresh + subsByRecency.filter { isFreshSubscribedCandidate(it, now) })
             .filterWatched(watched)
+            .filterNot { isRecentlyShown(it.id) }
             .distinctBy { it.id }
             .sortedByDescending { it.timestamp }
             // One fresh slot per channel — a channel that uploaded three times today must not

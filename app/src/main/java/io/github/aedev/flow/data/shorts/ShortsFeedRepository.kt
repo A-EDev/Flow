@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
 import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.ShortsSeedInput
 import io.github.aedev.flow.data.recommendation.ShortsSeedSource
@@ -142,7 +143,7 @@ class ShortsFeedRepository
         private suspend fun loadReserve(): List<ShortsLaneItem> =
             runCatching {
                 homeFeedCache
-                    .loadShortsReserve(HomeFeedCacheFilters(watchedVideoIds = watchedReelIds(), blockedChannelIds = excludedChannelIds()))
+                    .loadShortsReserve(HomeFeedCacheFilters(watchedVideoIds = watchedReelIds(), exclusions = feedExclusions()))
                     .mapNotNull { cached ->
                         ShortsFeedLane.entries
                             .firstOrNull { it.name == cached.source }
@@ -152,6 +153,9 @@ class ShortsFeedRepository
 
         private suspend fun excludedChannelIds(): Set<String> =
             runCatching { FlowNeuroEngine.getExcludedChannelIds() }.getOrDefault(emptySet())
+
+        private suspend fun feedExclusions(): FeedExclusions =
+            runCatching { FlowNeuroEngine.feedExclusions() }.getOrDefault(FeedExclusions.NONE)
 
         private suspend fun blockedTextMatcher(): (String, String) -> Boolean =
             runCatching { FlowNeuroEngine.blockedContentMatcher() }.getOrElse { { _, _ -> false } }
@@ -199,16 +203,10 @@ class ShortsFeedRepository
 
                 override suspend fun filters(): ShortsFeedFilters {
                     val brain = runCatching { FlowNeuroEngine.getBrainSnapshot() }.getOrNull()
-                    val suppressionCutoff = System.currentTimeMillis() - VIDEO_SUPPRESSION_MS
                     return ShortsFeedFilters(
                         watchedIds = watchedReelIds(),
                         seenIds = runCatching { FlowNeuroEngine.getRecentlySeenShorts() }.getOrDefault(emptySet()),
-                        suppressedIds =
-                            brain
-                                ?.suppressedVideoIds
-                                ?.filterValues { it > suppressionCutoff }
-                                ?.keys
-                                .orEmpty(),
+                        suppressedIds = brain?.suppressedVideoIds?.keys.orEmpty(),
                         excludedChannelIds = excludedChannelIds(),
                         isBlockedText = blockedTextMatcher(),
                     )
@@ -260,6 +258,5 @@ class ShortsFeedRepository
             const val COLD_START_INTERACTIONS = 30
             const val SEED_HISTORY_MAX = 40
             const val SEED_SOURCE_MAX = 40
-            const val VIDEO_SUPPRESSION_MS = 30L * 24L * 60L * 60L * 1000L
         }
     }

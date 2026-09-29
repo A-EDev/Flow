@@ -49,6 +49,9 @@ internal fun List<GraphCandidate>.filterValidGraph(): List<GraphCandidate> =
  */
 internal fun List<Video>.extractShorts(): List<Video> = this.filter { it.isShort }
 
+/** Keeps the ranked order but moves what was shown recently to the back, so a shelf rotates. */
+internal fun List<Video>.recentlyShownLast(isRecentlyShown: (videoId: String) -> Boolean): List<Video> = sortedBy { isRecentlyShown(it.id) }
+
 internal fun List<Video>.filterRecentHomeSuggestion(now: Long): List<Video> = filter { video -> isRecentHomeSuggestion(video, now) }
 
 internal fun List<GraphCandidate>.filterRecentHomeSuggestionGraph(now: Long): List<GraphCandidate> =

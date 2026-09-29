@@ -17,8 +17,10 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
+import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsFeedRepository
@@ -189,6 +191,7 @@ class HomeViewModel
 
                         is FeedInvalidationBus.Event.NotInterested -> {
                             HomeFeedCache.filterOut(videoId = event.videoId)
+                            subsBacklog = subsBacklog.filter { it.id != event.videoId && it.channelId != event.channelId }
                             viewModelScope.launch(PerformanceDispatcher.networkIO) {
                                 persistentHomeFeedCache.deleteVideo(event.videoId)
                             }
@@ -366,15 +369,11 @@ class HomeViewModel
             shortsRepository.evictChannel(channelId)
         }
 
-        private suspend fun cacheFilters(): HomeFeedCacheFilters {
-            val brain = runCatching { FlowNeuroEngine.getBrainSnapshot() }.getOrElse { UserBrain() }
-            return HomeFeedCacheFilters(
-                watchedVideoIds = watchedVideoIds.value,
-                suppressedVideoIds = brain.suppressedVideoIds.keys,
-                blockedChannelIds = brain.blockedChannels,
-                suppressedChannelIds = brain.suppressedChannels.keys,
-            )
-        }
+        private suspend fun feedExclusions(): FeedExclusions =
+            runCatching { FlowNeuroEngine.feedExclusions() }.getOrDefault(FeedExclusions.NONE)
+
+        private suspend fun cacheFilters(): HomeFeedCacheFilters =
+            HomeFeedCacheFilters(watchedVideoIds = watchedVideoIds.value, exclusions = feedExclusions())
 
         private fun hydratePersistentHomeFeed() {
             viewModelScope.launch(PerformanceDispatcher.networkIO) {
@@ -399,26 +398,6 @@ class HomeViewModel
                 enrichVisibleChannelMetadata(hydratedCached)?.let {
                     persistentHomeFeedCache.saveLastFeed(it)
                 }
-            }
-        }
-
-        private suspend fun updateVideosAndShorts(
-            newVideos: List<Video>,
-            append: Boolean = false,
-        ) {
-            val (reels, regularVideos) = newVideos.partition { it.isShort }
-            val newShorts = if (playerPreferences.effectiveHomeShortsShelfEnabled.first()) reels else emptyList()
-
-            _uiState.update { state ->
-                val updatedVideos = if (append) (state.videos + regularVideos) else regularVideos
-                state.copy(
-                    videos = updatedVideos.distinctBy { it.id }.filterWatched(watchedVideoIds.value),
-                    shorts =
-                        (state.shorts + newShorts)
-                            .distinctBy { it.id }
-                            .filterWatched(watchedShortIds.value)
-                            .sortedByDescending { it.timestamp },
-                )
             }
         }
 
@@ -526,15 +505,16 @@ class HomeViewModel
                             .filterWatched(watchedShortIds.value)
                             .filterRecentHomeSuggestion(now)
                     if (feedShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
-                        val rankedShorts = FlowNeuroEngine.rank(feedShorts, userSubs)
-                        _uiState.update { state ->
-                            state.copy(shorts = (state.shorts + rankedShorts).distinctBy { it.id })
-                        }
+                        // A refresh replaces the shelf; appending kept the same reels at its front.
+                        val rankedShorts =
+                            FlowNeuroEngine
+                                .rank(feedShorts, userSubs)
+                                .recentlyShownLast { NeuroScoring.isRecentlySeen(brain.feedHistory[it], now) }
+                        _uiState.update { state -> state.copy(shorts = rankedShorts) }
                     }
 
                     val watched = watchedVideoIds.value
-                    val excludedChannels =
-                        runCatching { FlowNeuroEngine.getExcludedChannelIds() }.getOrDefault(emptySet())
+                    val exclusions = feedExclusions()
                     val lanes =
                         buildHomeFeedLanes(
                             rawSubs = rawSubs,
@@ -545,7 +525,8 @@ class HomeViewModel
                                 runCatching { subscriptionFeedRepository.observeFeed().first() }
                                     .getOrDefault(emptyList()),
                             watched = watched,
-                            excludedChannels = excludedChannels,
+                            exclusions = exclusions,
+                            isRecentlyShown = { id -> NeuroScoring.isRecentlySeen(brain.feedHistory[id], now) },
                             taste = taste,
                             now = now,
                             freshSlotTarget = dynamicFreshSubSlots(userSubs.size),
@@ -904,7 +885,10 @@ class HomeViewModel
                         .filterWatched(watchedShortIds.value)
                         .filterRecentHomeSuggestion(now)
                 if (moreShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
-                    val rankedMore = FlowNeuroEngine.rank(moreShorts, userSubs)
+                    val rankedMore =
+                        FlowNeuroEngine
+                            .rank(moreShorts, userSubs)
+                            .recentlyShownLast { NeuroScoring.isRecentlySeen(brain.feedHistory[it], now) }
                     _uiState.update { state ->
                         state.copy(shorts = (state.shorts + rankedMore).distinctBy { it.id })
                     }
@@ -931,6 +915,8 @@ class HomeViewModel
                 }
 
                 if (page.size < MIN_PAGE_SIZE && subsBacklog.isNotEmpty()) {
+                    val exclusions = feedExclusions()
+                    subsBacklog = subsBacklog.filterNot(exclusions::hidesFromRecommendations)
                     addUniquePageVideos(
                         candidates = subsBacklog,
                         targetList = page,
@@ -1225,6 +1211,13 @@ class HomeViewModel
                         Log.d(TAG, "Saved-interest enrichment failed: ${e.message}")
                     }
                 }
+        }
+
+        fun recordShelfImpressions(visibleIds: List<String>) {
+            val knownIds = _uiState.value.shorts.mapTo(HashSet()) { it.id }
+            val ids = feedImpressionIds(visibleIds, knownIds)
+            if (ids.isEmpty()) return
+            viewModelScope.launch { FlowNeuroEngine.recordFeedImpressions(ids) }
         }
 
         // Viewport impressions: count only items actually scrolled into view.

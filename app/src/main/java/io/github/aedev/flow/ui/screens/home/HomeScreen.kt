@@ -231,6 +231,7 @@ fun HomeScreen(
                             },
                             onSeeAllHistory = onNavigateToHistory,
                             onOpenShortsFeed = onOpenShortsFeed,
+                            onShortsShown = viewModel::recordShelfImpressions,
                             onRefresh = { viewModel.refreshFeed() },
                         )
                     }

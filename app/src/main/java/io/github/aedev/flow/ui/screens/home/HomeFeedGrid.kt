@@ -41,6 +41,7 @@ internal fun HomeFeedGrid(
     onShortClick: (List<Video>, Video) -> Unit,
     onSeeAllHistory: () -> Unit,
     onOpenShortsFeed: () -> Unit,
+    onShortsShown: (ids: List<String>) -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -117,6 +118,7 @@ internal fun HomeFeedGrid(
                         shorts = uiState.shorts,
                         onShortClick = onShortClick,
                         onSeeAllClick = onOpenShortsFeed,
+                        onShortsShown = onShortsShown,
                         modifier = Modifier.testTag("home_shorts_shelf"),
                     )
                 }

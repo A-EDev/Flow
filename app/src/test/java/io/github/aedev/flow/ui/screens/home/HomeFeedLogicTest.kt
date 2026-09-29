@@ -480,4 +480,25 @@ class HomeFeedLogicTest {
         val empty = SavedSeedSources(emptyList(), emptyList(), emptyList())
         assertThat(savedInterestSeedInputs(empty, cooldown = emptySet())).isEmpty()
     }
+
+    @Test
+    fun `the shorts shelf keeps rank order but moves recently shown reels to the back`() {
+        val shelf =
+            listOf("a", "b", "c", "d").map { id ->
+                Video(
+                    id = id,
+                    title = id,
+                    channelName = "",
+                    channelId = "",
+                    thumbnailUrl = "",
+                    duration = 30,
+                    viewCount = 0,
+                    uploadDate = "",
+                )
+            }
+
+        val rotated = shelf.recentlyShownLast { it == "a" || it == "c" }
+
+        assertThat(rotated.map { it.id }).containsExactly("b", "d", "a", "c").inOrder()
+    }
 }
