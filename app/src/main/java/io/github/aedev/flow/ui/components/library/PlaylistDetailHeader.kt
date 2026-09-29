@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.SaveAs
@@ -82,6 +83,8 @@ internal data class PlaylistHeaderState(
     val canEdit: Boolean = false,
     val canExport: Boolean = false,
     val downloadProgress: Float? = null,
+    /** Saved as a downloaded collection; downloading again picks up only what is new. */
+    val isDownloaded: Boolean = false,
 )
 
 /** What the header's buttons do; a missing capability in [PlaylistHeaderState] hides its button. */
@@ -245,7 +248,10 @@ private fun PlaylistSecondaryActions(
             if (progress != null) {
                 CircularProgressIndicator(progress = { progress }, modifier = Modifier.size(DownloadProgressSize))
             } else {
-                Icon(Icons.Outlined.Download, contentDescription = stringResource(R.string.download_all))
+                Icon(
+                    imageVector = if (state.isDownloaded) Icons.Outlined.DownloadDone else Icons.Outlined.Download,
+                    contentDescription = stringResource(if (state.isDownloaded) R.string.downloaded else R.string.download_all),
+                )
             }
         }
         if (state.canSave) {

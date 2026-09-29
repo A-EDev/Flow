@@ -6,6 +6,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.comments.CommentsPageResult
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.state.EnhancedPlayerState
@@ -72,6 +73,33 @@ class VideoPlayerViewModelFetchCountsTest {
     private fun forgetRecordedCalls() {
         clearAllMocks(answers = false, childMocks = false)
     }
+
+    @Test
+    fun `a downloaded video opened by id plays its file, reads the watch page once and never extracts streams`() =
+        runTest {
+            val row = video("vid_dl").copy(title = "Downloaded title", channelId = "")
+            coEvery { harness.videoDownloadManager.findLocalCopy("vid_dl") } returns
+                DownloadedVideo(video = row, filePath = "/tmp/vid_dl.mp4")
+            coEvery { harness.repository.enrichFromWatchMetadata(any()) } answers {
+                firstArg<io.github.aedev.flow.data.model.Video>().copy(title = "Watch title", channelId = "UC_watch")
+            }
+            val viewModel = newViewModel()
+            forgetRecordedCalls()
+
+            viewModel.playVideo(row.copy(title = "", channelName = "", thumbnailUrl = "", duration = 0))
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { InnerTubeVideoStreamExtractor.extract(any(), any()) }
+            coVerify(exactly = 0) { YouTube.player(any(), any(), any(), any(), any(), any(), any()) }
+            coVerify(exactly = 1) { harness.repository.enrichFromWatchMetadata(any()) }
+            coVerify(exactly = 1) { harness.repository.getRelatedCandidates("vid_dl") }
+            coVerify(exactly = 1) { harness.repository.videoChapters("vid_dl") }
+            coVerify(exactly = 1) { harness.repository.videoHeatmap("vid_dl") }
+            coVerify(exactly = 0) { harness.repository.videoCategory(any()) }
+            val state = viewModel.uiState.value
+            assertThat(state.localFilePath).isEqualTo("/tmp/vid_dl.mp4")
+            assertThat(state.cachedVideo?.title).isEqualTo("Watch title")
+        }
 
     @Test
     fun `playVideo resets state then makes 1 InnerTube extraction 1 RYD gate read and 1 premiere probe`() =

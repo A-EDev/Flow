@@ -19,6 +19,7 @@ internal fun rememberPlaylistHeaderState(
     uiState: PlaylistDetailUiState,
     videos: List<Video>,
     downloadBatch: DownloadBatch?,
+    isDownloaded: Boolean,
 ): PlaylistHeaderState {
     val isUserCreated = uiState.isLocalPlaylist && !uiState.isSaved
     val totalSeconds = remember(videos) { videos.sumOf { it.duration.coerceAtLeast(0).toLong() } }
@@ -45,6 +46,16 @@ internal fun rememberPlaylistHeaderState(
         canAddAll = !isUserCreated,
         canEdit = isUserCreated && !uiState.isWatchLater && !uiState.isLikes,
         canExport = uiState.isLocalPlaylist,
-        downloadProgress = downloadBatch?.takeUnless { it.isFinished }?.let { it.processed.toFloat() / it.total },
+        downloadProgress =
+            downloadBatch?.takeUnless { it.isFinished }?.let {
+                if (it.total ==
+                    0
+                ) {
+                    1f
+                } else {
+                    it.processed.toFloat() / it.total
+                }
+            },
+        isDownloaded = isDownloaded,
     )
 }

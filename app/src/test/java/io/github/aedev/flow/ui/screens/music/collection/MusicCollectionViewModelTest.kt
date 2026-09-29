@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.SavedPlaylistSyncStore
+import io.github.aedev.flow.data.local.entity.DownloadCollectionKind
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
 import io.github.aedev.flow.data.model.Video
@@ -17,6 +18,7 @@ import io.github.aedev.flow.data.music.model.PlaylistDetails
 import io.github.aedev.flow.data.recommendation.MusicSection
 import io.github.aedev.flow.data.recommendation.music.DailyMixStore
 import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
+import io.github.aedev.flow.data.video.downloader.collection.DownloadedCollections
 import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -47,6 +49,11 @@ class MusicCollectionViewModelTest {
     private val musicLibrary = mockk<MusicLibrary>(relaxed = true)
     private val likedMedia = mockk<LikedMediaUseCase>(relaxed = true)
     private val syncState = mockk<SavedPlaylistSyncStore>(relaxed = true).also { coEvery { it.syncedAt(any()) } returns null }
+    private val collections =
+        mockk<DownloadedCollections>(relaxed = true).also {
+            every { it.observe(any()) } returns flowOf(null)
+            coEvery { it.offline(any()) } returns null
+        }
     private val downloads =
         mockk<BackgroundDownloadQueuer>(
             relaxed = true,
@@ -77,6 +84,7 @@ class MusicCollectionViewModelTest {
             mockk(relaxed = true),
             mockk(relaxed = true),
             downloads,
+            collections,
             syncState,
         )
 
@@ -306,7 +314,13 @@ class MusicCollectionViewModelTest {
 
         viewModel.download()
 
-        coVerify(timeout = 2_000) { downloads.queueSongs(id, match { songs -> songs.map { it.videoId } == listOf("a", "b") }) }
+        coVerify(timeout = 2_000) {
+            downloads.queueCollectionSongs(
+                match { it.id == id && it.kind == DownloadCollectionKind.MUSIC_PLAYLIST },
+                match { songs -> songs.map { it.videoId } == listOf("a", "b") },
+                complete = true,
+            )
+        }
     }
 
     @Test
@@ -325,6 +339,7 @@ class MusicCollectionViewModelTest {
                 mockk(relaxed = true),
                 mockk(relaxed = true),
                 downloads,
+                collections,
                 syncState,
             )
         assertThat(viewModel.settled().kind).isEqualTo(MusicCollectionKind.DAILY_MIX)

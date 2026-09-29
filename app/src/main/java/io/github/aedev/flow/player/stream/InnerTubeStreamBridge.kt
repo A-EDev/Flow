@@ -66,21 +66,6 @@ object InnerTubeStreamBridge {
         }
     }
 
-    /**
-     * Drop a DRC format when its normal twin is present. YouTube ships both at bitrates that differ
-     * by a handful of bytes/s, so any downstream "highest bitrate wins" pick would otherwise land on
-     * the loudness-flattened copy. Order is preserved so default-track selection is unaffected.
-     */
-    private fun List<PlayerResponse.StreamingData.Format>.preferNonDrc(): List<PlayerResponse.StreamingData.Format> {
-        val normalTwins =
-            filterNot { it.isDynamicRangeCompressed }
-                .mapTo(mutableSetOf()) { it.itag to it.audioTrack?.id }
-        if (normalTwins.isEmpty()) return this
-        return filterNot {
-            it.isDynamicRangeCompressed && (it.itag to it.audioTrack?.id) in normalTwins
-        }
-    }
-
     private fun AudioStream.Builder.applyAudioTrackMetadata(format: PlayerResponse.StreamingData.Format): AudioStream.Builder {
         setAudioTrackType(if (format.isOriginal) AudioTrackType.ORIGINAL else AudioTrackType.DUBBED)
         format.audioTrack?.let { track ->

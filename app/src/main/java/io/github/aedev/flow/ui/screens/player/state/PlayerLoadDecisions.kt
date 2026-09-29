@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.state
 
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
@@ -173,3 +174,12 @@ internal fun VideoPlayerUiState.blocksLatePrepare(): Boolean = isLoading || erro
 
 /** Whether the screen holds [videoId] at all, under any of the three identities it can be under. */
 internal fun VideoPlayerUiState.holdsVideo(videoId: String): Boolean = cachedVideo?.id == videoId || localFileVideoId == videoId
+
+/**
+ * Whether a downloaded copy of [videoId] should still load its watch page: the title, counts,
+ * related lane, chapters and channel all come from there, and the file carries none of them.
+ */
+internal fun shouldLoadOnlineMetadataForLocalCopy(
+    videoId: String,
+    isOnline: Boolean,
+): Boolean = isOnline && !LocalMediaIds.isLocal(videoId)

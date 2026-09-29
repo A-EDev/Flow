@@ -84,19 +84,24 @@ object DownloadFiles {
             documentIdToPath(DocumentsContract.getDocumentId(Uri.parse(path)), primaryRoot())
         }.getOrNull()
 
-    /** Copies [source] into the picked folder [treeUri] and returns the new document, or null. */
+    /**
+     * Copies [source] into the picked folder [treeUri], or into [parentDocument] inside it, as
+     * [displayName], and returns the new document or null. Providers rename on a clash, so the name
+     * that was actually used is read back from the document.
+     */
     fun exportToTree(
         context: Context,
         source: File,
         treeUri: String,
+        displayName: String = source.name,
+        parentDocument: String? = null,
     ): String? {
         val resolver = context.contentResolver
         val target =
             runCatching {
-                val tree = Uri.parse(treeUri)
-                val folder = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
-                DocumentsContract.createDocument(resolver, folder, mimeTypeOf(source), source.name)
-            }.onFailure { Log.w(TAG, "Could not create ${source.name} in $treeUri", it) }
+                val folder = parentDocument?.let(Uri::parse) ?: treeRoot(treeUri)
+                DocumentsContract.createDocument(resolver, folder, mimeTypeOf(File(displayName)), displayName)
+            }.onFailure { Log.w(TAG, "Could not create $displayName in $treeUri", it) }
                 .getOrNull() ?: return null
         val copied =
             runCatching {
@@ -112,19 +117,107 @@ object DownloadFiles {
         return target.toString()
     }
 
-    /** Moves [source] into [directory], copying when a rename cannot cross the two folders. */
+    /** The folder [name] directly inside the picked folder [treeUri], created when missing, or null. */
+    fun ensureTreeDirectory(
+        context: Context,
+        treeUri: String,
+        name: String,
+    ): String? {
+        val resolver = context.contentResolver
+        val tree = Uri.parse(treeUri)
+        return runCatching {
+            val root = treeRoot(treeUri)
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getDocumentId(root))
+            val existing =
+                resolver
+                    .query(
+                        children,
+                        arrayOf(
+                            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                            DocumentsContract.Document.COLUMN_MIME_TYPE,
+                        ),
+                        null,
+                        null,
+                        null,
+                    )?.use { cursor ->
+                        var found: String? = null
+                        while (found == null && cursor.moveToNext()) {
+                            if (cursor.getString(1) == name && cursor.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR) {
+                                found = cursor.getString(0)
+                            }
+                        }
+                        found
+                    }
+            existing?.let { DocumentsContract.buildDocumentUriUsingTree(tree, it).toString() }
+                ?: DocumentsContract.createDocument(resolver, root, DocumentsContract.Document.MIME_TYPE_DIR, name)?.toString()
+        }.onFailure { Log.w(TAG, "Could not open folder $name in $treeUri", it) }
+            .getOrNull()
+    }
+
+    /** Whether a document named [name] already sits in [parentDocument], or at the root of [treeUri]. */
+    fun treeHasChild(
+        context: Context,
+        treeUri: String,
+        parentDocument: String?,
+        name: String,
+    ): Boolean {
+        val tree = Uri.parse(treeUri)
+        return runCatching {
+            val parent = parentDocument?.let(Uri::parse) ?: treeRoot(treeUri)
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getDocumentId(parent))
+            context.contentResolver
+                .query(children, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    var hit = false
+                    while (!hit && cursor.moveToNext()) hit = cursor.getString(0) == name
+                    hit
+                } == true
+        }.getOrDefault(false)
+    }
+
+    /** Deletes a folder once nothing is left in it; true when it is gone afterwards. */
+    fun deleteIfEmpty(
+        context: Context,
+        location: String,
+    ): Boolean {
+        if (!isDocument(location)) {
+            val folder = File(location)
+            return !folder.exists() || (folder.listFiles()?.isEmpty() == true && folder.delete())
+        }
+        val uri = Uri.parse(location)
+        val empty =
+            runCatching {
+                val children = DocumentsContract.buildChildDocumentsUriUsingTree(uri, DocumentsContract.getDocumentId(uri))
+                context.contentResolver.query(children, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID), null, null, null)?.use {
+                    it.count == 0
+                } == true
+            }.getOrDefault(false)
+        if (!empty) return false
+        return runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }.getOrDefault(false)
+    }
+
+    /** Moves [source] into [directory] as [name], copying when a rename cannot cross the two folders. */
     fun moveInto(
         source: File,
         directory: File,
+        name: String = source.name,
     ): File? {
-        val target = File(directory, source.name)
+        directory.mkdirs()
+        val target = File(directory, name)
+        if (target.exists()) return null
         if (source.renameTo(target)) return target
         return runCatching {
-            source.copyTo(target, overwrite = true)
+            source.copyTo(target, overwrite = false)
             source.delete()
             target
         }.onFailure { Log.w(TAG, "Could not move ${source.name} to $directory", it) }
             .getOrNull()
+    }
+
+    private fun treeRoot(treeUri: String): Uri {
+        val tree = Uri.parse(treeUri)
+        return DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
     }
 
     // The provider checks the display name's extension against this type, so it must come from the

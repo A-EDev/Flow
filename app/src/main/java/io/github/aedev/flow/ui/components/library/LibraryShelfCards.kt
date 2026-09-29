@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.components.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -111,12 +112,13 @@ internal fun LibraryAlbumCard(
     isDownloaded: Boolean = false,
     modifier: Modifier = Modifier,
     artworkSize: Dp = LibraryShelfArtworkHeight,
+    onLongClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier =
             modifier
                 .width(artworkSize)
-                .clickable(onClick = onClick)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

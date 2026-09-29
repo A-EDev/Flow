@@ -4,9 +4,13 @@ import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.room.useReaderConnection
 import androidx.sqlite.driver.AndroidSQLiteDriver
+import androidx.sqlite.execSQL
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +28,13 @@ class AppDatabaseMigrationsTest {
             driver = AndroidSQLiteDriver(),
             file = instrumentation.targetContext.getDatabasePath(testDb),
         )
+
+    // Both tests build the same file, and a database left at the newest version by one would make
+    // the other's older creation fail.
+    @Before
+    fun deleteLeftoverDatabase() {
+        instrumentation.targetContext.deleteDatabase(testDb)
+    }
 
     @Test
     fun migrateAll() =
@@ -50,7 +61,37 @@ class AppDatabaseMigrationsTest {
             db.close()
         }
 
-    companion object {
-        private const val TEST_DB = "migration-test"
-    }
+    @Test
+    fun migrate27To28KeepsDownloadsAndFillsDefaults() =
+        runTest {
+            helper.createDatabase(27).use { connection ->
+                connection.execSQL(
+                    "INSERT INTO downloads (videoId, title, uploader, duration, thumbnailUrl, createdAt) " +
+                        "VALUES ('v1', 'Title', 'Uploader', 10, '', 1)",
+                )
+                connection.execSQL(
+                    "INSERT INTO download_items (videoId, fileType, fileName, filePath, url, format, quality, mimeType, " +
+                        "downloadedBytes, totalBytes, status) VALUES ('v1', 'VIDEO', 'a.mp4', '/a.mp4', '', 'mp4', '720p', '', 5, 5, 'COMPLETED')",
+                )
+            }
+
+            helper.runMigrationsAndValidate(28).use { connection ->
+                connection.prepare("SELECT title, kind, channelId, viewCount, requestJson FROM downloads WHERE videoId = 'v1'").use {
+                    assertTrue(it.step())
+                    assertEquals("Title", it.getText(0))
+                    assertEquals("VIDEO", it.getText(1))
+                    assertEquals("", it.getText(2))
+                    assertEquals(0L, it.getLong(3))
+                    assertTrue(it.isNull(4))
+                }
+                connection.prepare("SELECT COUNT(*) FROM download_items WHERE videoId = 'v1'").use {
+                    assertTrue(it.step())
+                    assertEquals(1L, it.getLong(0))
+                }
+                connection.prepare("SELECT COUNT(*) FROM download_collections").use {
+                    assertTrue(it.step())
+                    assertEquals(0L, it.getLong(0))
+                }
+            }
+        }
 }

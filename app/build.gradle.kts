@@ -275,6 +275,8 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer.dash)
     implementation(libs.androidx.media3.datasource)
     implementation(libs.androidx.media3.datasource.okhttp)
+    implementation(libs.androidx.media3.muxer)
+    implementation(libs.androidx.media3.inspector)
     implementation(libs.androidx.media)
 
     // --- Database & Storage ---

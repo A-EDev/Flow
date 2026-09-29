@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room.databaseBuilder
 import androidx.room.RoomDatabase
 import io.github.aedev.flow.data.local.dao.CacheDao
+import io.github.aedev.flow.data.local.dao.DownloadCollectionDao
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.dao.HomeFeedCacheDao
 import io.github.aedev.flow.data.local.dao.MusicGraphDao
@@ -17,6 +18,8 @@ import io.github.aedev.flow.data.local.dao.SyncLogDao
 import io.github.aedev.flow.data.local.dao.SyncPeerDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.local.entity.DownloadCollectionEntity
+import io.github.aedev.flow.data.local.entity.DownloadCollectionItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
@@ -64,13 +67,16 @@ import io.github.aedev.flow.data.local.migrations.Migration24To25
         MusicGraphPlaylistEntity::class,
         MusicGraphEdgeEntity::class,
         NoteEntity::class,
+        DownloadCollectionEntity::class,
+        DownloadCollectionItemEntity::class,
     ],
     autoMigrations = [
         AutoMigration(from = 24, to = 25, spec = Migration24To25::class),
         AutoMigration(from = 25, to = 26),
         AutoMigration(from = 26, to = 27),
+        AutoMigration(from = 27, to = 28),
     ],
-    version = 27,
+    version = 28,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -85,6 +91,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun cacheDao(): CacheDao
 
     abstract fun downloadDao(): DownloadDao
+
+    abstract fun downloadCollectionDao(): DownloadCollectionDao
 
     abstract fun watchHistoryDao(): WatchHistoryDao
 

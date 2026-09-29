@@ -9,14 +9,17 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.entity.DownloadCollectionKind
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.model.PlaylistInfo
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.music.model.PlaylistDetails
+import io.github.aedev.flow.data.music.model.toMusicTrack
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.video.BackgroundDownloadQueuer
+import io.github.aedev.flow.data.video.downloader.collection.CollectionSpec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -41,7 +44,7 @@ class MusicPlaylistsViewModel
     constructor(
         @ApplicationContext private val context: Context,
         private val playlistRepository: PlaylistRepository,
-        private val downloadManager: DownloadManager,
+        private val downloadQueuer: BackgroundDownloadQueuer,
         private val youTubeRepository: YouTubeRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(MusicPlaylistsUiState())
@@ -164,81 +167,34 @@ class MusicPlaylistsViewModel
             }
         }
 
-        private val _playlistDownloadProgress = MutableStateFlow<Float>(0f)
-        val playlistDownloadProgress = _playlistDownloadProgress.asStateFlow()
-
-        private val _isDownloadingPlaylist = MutableStateFlow(false)
-        val isDownloadingPlaylist = _isDownloadingPlaylist.asStateFlow()
-
+        /**
+         * Downloads one of your music playlists as one item in its own folder. The queue keeps
+         * going after this screen closes; a second download picks up only what is new.
+         */
         fun downloadPlaylist(playlist: PlaylistInfo) {
             viewModelScope.launch {
-                if (_isDownloadingPlaylist.value) return@launch
-
-                _isDownloadingPlaylist.value = true
+                val videos = playlistRepository.getPlaylistVideosFlow(playlist.id).first()
+                if (videos.isEmpty()) {
+                    Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
                 Toast
                     .makeText(
                         context,
                         context.getString(R.string.toast_starting_playlist_download, playlist.name),
                         Toast.LENGTH_SHORT,
                     ).show()
-
-                try {
-                    val videos = playlistRepository.getPlaylistVideosFlow(playlist.id).first()
-                    val totalTracks = videos.size
-
-                    if (totalTracks == 0) {
-                        Toast.makeText(context, context.getString(R.string.ui_playlist_empty), Toast.LENGTH_SHORT).show()
-                        _isDownloadingPlaylist.value = false
-                        return@launch
-                    }
-
-                    var successCount = 0
-                    var processedCount = 0
-
-                    videos.forEach { video ->
-                        try {
-                            val musicTrack =
-                                MusicTrack(
-                                    videoId = video.id,
-                                    title = video.title,
-                                    artist = video.channelName,
-                                    thumbnailUrl = video.thumbnailUrl,
-                                    duration = video.duration,
-                                    sourceUrl = "",
-                                )
-
-                            val result = downloadManager.downloadTrack(musicTrack)
-                            if (result.isSuccess) successCount++
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-
-                        processedCount++
-                        _playlistDownloadProgress.value = processedCount.toFloat() / totalTracks
-                    }
-
-                    if (successCount > 0) {
-                        Toast
-                            .makeText(
-                                context,
-                                context.resources.getQuantityString(
-                                    R.plurals.toast_downloaded_tracks_from_playlist,
-                                    successCount,
-                                    successCount,
-                                    playlist.name,
-                                ),
-                                Toast.LENGTH_LONG,
-                            ).show()
-                    } else {
-                        Toast.makeText(context, context.getString(R.string.toast_failed_to_download_playlist), Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    Log.e("MusicViewModel", "Error downloading playlist", e)
-                    Toast.makeText(context, context.getString(R.string.toast_error_downloading_playlist), Toast.LENGTH_SHORT).show()
-                } finally {
-                    _isDownloadingPlaylist.value = false
-                    _playlistDownloadProgress.value = 0f
-                }
+                downloadQueuer.queueCollectionSongs(
+                    spec =
+                        CollectionSpec(
+                            id = playlist.id,
+                            kind = DownloadCollectionKind.MUSIC_PLAYLIST,
+                            title = playlist.name,
+                            thumbnailUrl = playlist.thumbnailUrl.takeIf { it.isNotBlank() },
+                        ),
+                    tracks = videos.map { it.toMusicTrack() },
+                    complete = true,
+                )
             }
         }
     }

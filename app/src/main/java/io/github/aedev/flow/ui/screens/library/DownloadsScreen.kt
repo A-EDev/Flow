@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,14 +38,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.dao.DownloadCollectionSummary
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 import io.github.aedev.flow.ui.components.library.ActiveDownloadActions
+import io.github.aedev.flow.ui.components.library.DownloadCollectionsShelf
 import io.github.aedev.flow.ui.components.library.DownloadsStorageCard
 import io.github.aedev.flow.ui.components.library.LibraryKindHeader
 import io.github.aedev.flow.ui.components.library.LibrarySelection
 import io.github.aedev.flow.ui.components.library.MusicDownloadsList
+import io.github.aedev.flow.ui.components.library.RemoveDownloadCollectionDialog
 import io.github.aedev.flow.ui.components.library.VideosDownloadsList
 import io.github.aedev.flow.ui.components.library.libraryHeaderIsOneRow
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
@@ -60,6 +64,7 @@ fun DownloadsScreen(
     onBackClick: () -> Unit,
     onVideoClick: (videos: List<DownloadedVideo>, startIndex: Int) -> Unit,
     onMusicClick: (List<DownloadedTrack>, Int) -> Unit,
+    onOpenCollection: (DownloadCollectionSummary) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DownloadsViewModel = hiltViewModel(),
@@ -68,8 +73,9 @@ fun DownloadsScreen(
     var selectedKind by rememberSaveable { mutableStateOf(MediaKind.Videos) }
     var pendingDeletion by remember { mutableStateOf<PendingDeletion?>(null) }
     var removeIncompleteOf by remember { mutableStateOf<MediaKind?>(null) }
-    var selectionMode by remember { mutableStateOf(false) }
-    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var removingCollection by remember { mutableStateOf<DownloadCollectionSummary?>(null) }
+    var selectionMode by rememberSaveable { mutableStateOf(false) }
+    var selectedIds by rememberSaveable(stateSaver = SelectionSaver) { mutableStateOf(emptySet<String>()) }
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
     val exitSelection = {
@@ -109,6 +115,7 @@ fun DownloadsScreen(
             onSelected = viewModel::setSort,
         )
     }
+    val onRemoveCollection: (DownloadCollectionSummary) -> Unit = { removingCollection = it }
     val sortInHeader = libraryHeaderIsOneRow()
     val listHeader: @Composable () -> Unit = {
         Column {
@@ -173,6 +180,9 @@ fun DownloadsScreen(
                         MediaKind.Videos -> {
                             VideosDownloadsList(
                                 header = listHeader,
+                                shelf = { inset ->
+                                    DownloadCollectionsShelf(uiState.videoCollections, onOpenCollection, onRemoveCollection, inset)
+                                },
                                 videos = uiState.downloadedVideos,
                                 totalCount = uiState.totalVideoCount,
                                 incomplete = uiState.incompleteVideoDownloads,
@@ -192,6 +202,9 @@ fun DownloadsScreen(
                         MediaKind.Music -> {
                             MusicDownloadsList(
                                 header = listHeader,
+                                shelf = { inset ->
+                                    DownloadCollectionsShelf(uiState.musicCollections, onOpenCollection, onRemoveCollection, inset)
+                                },
                                 tracks = uiState.downloadedMusic,
                                 totalCount = uiState.totalMusicCount,
                                 incomplete = uiState.incompleteMusicDownloads,
@@ -233,6 +246,19 @@ fun DownloadsScreen(
                 pendingDeletion = null
                 exitSelection()
             },
+        )
+    }
+
+    removingCollection?.let { summary ->
+        val remove = { deleteFiles: Boolean ->
+            viewModel.removeCollection(summary.collection.id, deleteFiles)
+            removingCollection = null
+        }
+        RemoveDownloadCollectionDialog(
+            title = summary.collection.title,
+            onDeleteFiles = { remove(true) },
+            onKeepFiles = { remove(false) },
+            onDismiss = { removingCollection = null },
         )
     }
 
@@ -281,6 +307,8 @@ private fun DeleteDownloadsDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
+
+private val SelectionSaver = listSaver<Set<String>, String>(save = { it.toList() }, restore = { it.toSet() })
 
 /** What a confirmed delete removes: one download named by [title], or a selection. */
 private data class PendingDeletion(

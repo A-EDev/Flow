@@ -115,7 +115,8 @@ private fun CollectionContent(
     viewModel: MusicCollectionViewModel,
     callbacks: MusicCollectionCallbacks,
 ) {
-    val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
+    val downloadProgress by viewModel.downloads.progress.collectAsStateWithLifecycle()
+    val downloadedCollection by viewModel.downloads.downloaded.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val quickActions = sharedQuickActionsViewModel()
@@ -196,7 +197,8 @@ private fun CollectionContent(
             callbacks.onTrackClick(it, queue, details.title)
         }
     }
-    val headerState = rememberCollectionHeaderState(state, tracks, downloadProgress)
+    val headerState =
+        rememberCollectionHeaderState(state, tracks, downloadProgress, isDownloaded = downloadedCollection?.isComplete == true)
     val headerActions =
         CollectionHeaderActions(
             onPlay = { play(0, tracks) },

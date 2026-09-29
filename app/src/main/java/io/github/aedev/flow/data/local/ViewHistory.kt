@@ -153,16 +153,18 @@ class ViewHistory private constructor(
         // erase the length a real playback save had recorded — leaving a row with a position but
         // nothing to measure it against, which is exactly what drops it from the progress map.
         val resolvedDuration = duration.takeIf { it > 0 } ?: dao.getDuration(videoId) ?: 0L
+        // A player opened from only an id knows no title yet; a blank must not erase the one on record.
+        val existing = if (title.isBlank() || channelName.isBlank() || channelId.isBlank()) dao.getEntry(videoId).first() else null
         dao.upsert(
             WatchHistoryEntity(
                 videoId = videoId,
                 position = existingPosition,
                 duration = resolvedDuration,
                 timestamp = System.currentTimeMillis(),
-                title = title,
+                title = title.ifBlank { existing?.title.orEmpty() },
                 thumbnailUrl = thumbnail,
-                channelName = channelName,
-                channelId = channelId,
+                channelName = channelName.ifBlank { existing?.channelName.orEmpty() },
+                channelId = channelId.ifBlank { existing?.channelId.orEmpty() },
                 isMusic = false,
                 isShort = isShort,
                 isLocal = LocalMediaIds.isLocal(videoId),

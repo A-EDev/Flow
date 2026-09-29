@@ -19,6 +19,7 @@ internal fun rememberCollectionHeaderState(
     state: MusicCollectionUiState,
     tracks: List<MusicTrack>,
     downloadProgress: Float?,
+    isDownloaded: Boolean,
 ): CollectionHeaderState {
     val details = requireNotNull(state.details)
     val isAlbum = state.kind == MusicCollectionKind.ALBUM
@@ -47,6 +48,7 @@ internal fun rememberCollectionHeaderState(
         canSave = state.kind in SavableKinds,
         canShare = state.kind != null,
         downloadProgress = downloadProgress,
+        isDownloaded = isDownloaded,
     )
 }
 

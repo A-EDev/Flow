@@ -40,6 +40,10 @@ object DatabaseModule {
     fun provideDownloadDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.DownloadDao = database.downloadDao()
 
     @Provides
+    fun provideDownloadCollectionDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.DownloadCollectionDao =
+        database.downloadCollectionDao()
+
+    @Provides
     fun provideRecognitionHistoryDao(database: AppDatabase): io.github.aedev.flow.data.local.dao.RecognitionHistoryDao =
         database.recognitionHistoryDao()
 

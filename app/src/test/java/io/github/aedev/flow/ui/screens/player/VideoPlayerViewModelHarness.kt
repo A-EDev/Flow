@@ -21,7 +21,6 @@ import io.github.aedev.flow.data.repository.LiveChatRepository
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.transcript.TranscriptRepository
-import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.innertube.YouTube
@@ -98,7 +97,6 @@ internal class VideoPlayerViewModelHarness(
     val autoplayEnabled = MutableStateFlow(true)
     val continueWatchingEnabled = MutableStateFlow(true)
     val rytdEnabled = MutableStateFlow(false)
-    val downloadedVideos = MutableStateFlow<List<DownloadedVideo>>(emptyList())
     val isSubscribed = MutableStateFlow(false)
     val subscription = MutableStateFlow<ChannelSubscription?>(null)
     val likeState = MutableStateFlow<String?>(null)
@@ -167,7 +165,7 @@ internal class VideoPlayerViewModelHarness(
         every { viewHistory.getPlaybackPosition(any()) } returns flowOf(0L)
         coEvery { viewHistory.getSavedPosition(any()) } returns 0L
 
-        every { videoDownloadManager.downloadedVideos } returns downloadedVideos
+        coEvery { videoDownloadManager.findLocalCopy(any()) } returns null
         coEvery { videoDownloadManager.getSponsorBlockData(any()) } returns null
         coEvery { offlineSubtitleStore.load(any()) } returns emptyList()
 
@@ -199,7 +197,6 @@ internal class VideoPlayerViewModelHarness(
             upcomingPremiereProbe = UpcomingPremiereProbe(),
             playbackResolver =
                 PlaybackLoadResolver(
-                    context = context,
                     repository = repository,
                     viewHistory = viewHistory,
                     playerPreferences = playerPreferences,

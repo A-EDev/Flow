@@ -46,13 +46,14 @@ private fun LibraryShelfHeader(
     title: String,
     icon: ImageVector,
     showChevron: Boolean,
+    horizontalInset: Dp,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = horizontalInset, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -83,8 +84,9 @@ private fun LibraryShelfHeader(
 internal fun LibraryShelf(
     title: String,
     icon: ImageVector,
-    onTitleClick: () -> Unit,
+    onTitleClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    horizontalInset: Dp = 16.dp,
     content: LazyListScope.(cardWidth: Dp) -> Unit,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -93,12 +95,13 @@ internal fun LibraryShelf(
             LibraryShelfHeader(
                 title = title,
                 icon = icon,
-                showChevron = true,
-                modifier = Modifier.clickable(onClick = onTitleClick),
+                showChevron = onTitleClick != null,
+                horizontalInset = horizontalInset,
+                modifier = if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier,
             )
 
             LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
+                contentPadding = PaddingValues(horizontal = horizontalInset),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 content(cardWidth)
@@ -233,6 +236,7 @@ internal fun LibraryShelfPlaceholder(
                 title = title,
                 icon = icon,
                 showChevron = false,
+                horizontalInset = 16.dp,
             )
 
             Row(
