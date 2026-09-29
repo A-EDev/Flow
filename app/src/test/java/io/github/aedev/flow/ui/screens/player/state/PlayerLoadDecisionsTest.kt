@@ -49,7 +49,7 @@ class PlayerLoadDecisionsTest {
     }
 
     @Test
-    fun `beginning a load clears the previous video and keeps the avatar this one came with`() {
+    fun `beginning a load clears the previous video and keeps the avatar and engagement this one came with`() {
         val before =
             VideoPlayerUiState(
                 cachedVideo = video("vid_a").copy(channelThumbnailUrl = "avatar.jpg"),
@@ -71,8 +71,8 @@ class PlayerLoadDecisionsTest {
         assertThat(next.error).isNull()
         assertThat(next.relatedVideos).isEmpty()
         assertThat(next.streamSizes).isEmpty()
-        assertThat(next.isSubscribed).isFalse()
-        assertThat(next.likeState).isNull()
+        assertThat(next.isSubscribed).isTrue()
+        assertThat(next.likeState).isEqualTo("LIKED")
         assertThat(next.dislikeCount).isNull()
         assertThat(next.hlsUrl).isNull()
         assertThat(next.isLive).isFalse()
@@ -87,6 +87,44 @@ class PlayerLoadDecisionsTest {
         val before = VideoPlayerUiState(cachedVideo = video("vid_a").copy(channelThumbnailUrl = "avatar.jpg"))
 
         assertThat(before.beginLoadFor("vid_b").channelAvatarUrl).isNull()
+    }
+
+    @Test
+    fun `beginning a load for a different video drops the engagement of the one before`() {
+        val before = VideoPlayerUiState(cachedVideo = video("vid_a"), isSubscribed = true, likeState = "LIKED")
+
+        val next = before.beginLoadFor("vid_b")
+
+        assertThat(next.isSubscribed).isFalse()
+        assertThat(next.likeState).isNull()
+    }
+
+    @Test
+    fun `the next video from the same channel stays subscribed but not liked`() {
+        val before = VideoPlayerUiState(cachedVideo = video("vid_a"), isSubscribed = true, likeState = "LIKED")
+
+        val next = before.resetForVideo(video("vid_b").copy(channelId = "channel_vid_a"))
+
+        assertThat(next.isSubscribed).isTrue()
+        assertThat(next.likeState).isNull()
+    }
+
+    @Test
+    fun `the next video from another or an unknown channel starts unsubscribed`() {
+        val before = VideoPlayerUiState(cachedVideo = video("vid_a").copy(channelId = ""), isSubscribed = true)
+
+        assertThat(before.resetForVideo(video("vid_b")).isSubscribed).isFalse()
+        assertThat(before.resetForVideo(video("vid_b").copy(channelId = "")).isSubscribed).isFalse()
+    }
+
+    @Test
+    fun `replaying the video on screen keeps its subscription and like`() {
+        val before = VideoPlayerUiState(cachedVideo = video("vid_a"), isSubscribed = true, likeState = "LIKED")
+
+        val next = before.resetForVideo(video("vid_a"))
+
+        assertThat(next.isSubscribed).isTrue()
+        assertThat(next.likeState).isEqualTo("LIKED")
     }
 
     @Test

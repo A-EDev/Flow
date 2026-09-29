@@ -42,7 +42,8 @@ internal fun VideoPlayerUiState.loadSkipReason(
 
 /**
  * The state a load runs behind: the previous video's streams, lane, engagement and live chat are
- * gone, and the only thing carried over is the channel avatar this video already came with.
+ * gone, and the only thing carried over is the channel avatar this video already came with. A
+ * reload of the video on screen keeps its engagement, which nothing would re-emit (#1160).
  */
 internal fun VideoPlayerUiState.beginLoadFor(videoId: String): VideoPlayerUiState =
     copy(
@@ -61,8 +62,8 @@ internal fun VideoPlayerUiState.beginLoadFor(videoId: String): VideoPlayerUiStat
                 ?.takeIf { it.isNotBlank() },
         channelSubscriberCount = null,
         dislikeCount = null,
-        isSubscribed = false,
-        likeState = null,
+        isSubscribed = isSubscribed && cachedVideo?.id == videoId,
+        likeState = likeState.takeIf { cachedVideo?.id == videoId },
         hlsUrl = null,
         localFilePath = null,
         localFileVideoId = null,

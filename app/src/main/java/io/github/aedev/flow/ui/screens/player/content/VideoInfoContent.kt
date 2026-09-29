@@ -23,6 +23,7 @@ import io.github.aedev.flow.ui.components.shared.FlowNoteEditorDialog
 import io.github.aedev.flow.ui.components.shared.SaveVideoSheet
 import io.github.aedev.flow.ui.components.shared.rememberVideoShareAction
 import io.github.aedev.flow.ui.components.shared.shareMediaFiles
+import io.github.aedev.flow.ui.components.shared.subscribedCollaboratorIds
 import io.github.aedev.flow.ui.components.videoplayer.info.CommentsPreview
 import io.github.aedev.flow.ui.components.videoplayer.info.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
@@ -100,6 +101,7 @@ internal fun VideoInfoContent(
         channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
         channelAvatarUrls = video.channelThumbnailUrls,
         collaborators = resolvedCollaborators,
+        subscribedCollaboratorIds = if (resolvedCollaborators.size > 1) subscribedCollaboratorIds(resolvedCollaborators) else emptySet(),
         subscriberCount = uiState.channelSubscriberCount,
         isSubscribed = uiState.isSubscribed,
         isNotificationsEnabled = uiState.isNotificationsEnabled,

@@ -3,6 +3,7 @@ package io.github.aedev.flow.innertube.pages.renderer
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.VideoCollaborator
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.arrayOrNull
 import io.github.aedev.flow.innertube.pages.objectOrNull
@@ -77,8 +78,9 @@ private fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
     val title = metadata?.get("title").youtubeText()?.takeIf(String::isNotBlank) ?: return null
     // Outside a channel's own tabs (a playlist, for one) each lockup names its channel as the
     // first metadata part, linked to it; that part is the byline, not an upload date.
-    val byline = metadata.lockupByline()
-    val itemOwner = byline?.let { owner.copy(id = it.id, name = it.name, avatarUrl = "") } ?: owner
+    val collaborators = metadata?.get("image").collaboratorDialog()
+    val byline = metadata.lockupByline() ?: collaborators.bylineOwner(metadata.metadataParts())
+    val itemOwner = byline?.let { owner.copy(id = it.id, name = it.name, avatarUrl = it.avatarUrl) } ?: owner
     val parts = metadata.metadataParts().filterNot { it == byline?.name }
     val badges = lockupBadges()
     val membersOnly = metadata.membersOnlyBadge()
@@ -112,13 +114,13 @@ private fun JsonObject.toLockupItem(owner: FeedItemOwner): FeedItem? {
 
         "LOCKUP_CONTENT_TYPE_SHORTS" -> {
             FeedItem.ShortItem(
-                lockupVideo(contentId, title, parts, badges, itemOwner).copy(isShort = true, duration = 0),
+                lockupVideo(contentId, title, parts, badges, itemOwner, collaborators).copy(isShort = true, duration = 0),
             )
         }
 
         else -> {
             FeedItem.VideoItem(
-                lockupVideo(contentId, title, parts, badges, itemOwner).copy(membersOnlyText = membersOnly),
+                lockupVideo(contentId, title, parts, badges, itemOwner, collaborators).copy(membersOnlyText = membersOnly),
             )
         }
     }
@@ -130,6 +132,7 @@ private fun JsonObject.lockupVideo(
     parts: List<String>,
     badges: List<String>,
     owner: FeedItemOwner,
+    collaborators: List<VideoCollaborator>,
 ): Video {
     val (viewsText, uploadText, uploadTimestamp) = lockupDateAndViews(parts, YouTube.locale.hl)
     val duration = badges.firstNotNullOfOrNull(::parseDurationText) ?: 0
@@ -148,10 +151,21 @@ private fun JsonObject.lockupVideo(
         uploadDate = uploadText,
         timestamp = if (isUpcoming) 0L else uploadTimestamp ?: 0L,
         channelThumbnailUrl = owner.avatarUrl,
+        channelThumbnailUrls = collaborators.avatarUrls(),
+        collaborators = collaborators,
         isLive = isLive,
         isUpcoming = isUpcoming,
     )
 }
+
+/** A collaboration's byline links to no channel, so it is found by the lead collaborator's name instead. */
+private fun List<VideoCollaborator>.bylineOwner(parts: List<String>): FeedItemOwner? {
+    val lead = firstOrNull() ?: return null
+    val name = parts.firstOrNull { lead.name in it } ?: return null
+    return FeedItemOwner(id = lead.channelId, name = name, avatarUrl = lead.thumbnailUrl)
+}
+
+private fun List<VideoCollaborator>.avatarUrls(): List<String> = map { it.thumbnailUrl }.filter(String::isNotBlank)
 
 private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
     val videoId = this["videoId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null
@@ -170,6 +184,7 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
     val (snippet, highlights) = this["detailedMetadataSnippets"].matchedSnippet()
     val isLive = timeStatus == TIME_STATUS_LIVE || this["badges"].hasLiveBadge() || viewsText.mentionsWatching()
     val isUpcoming = upcomingStartMs != null
+    val collaborators = videoRendererCollaborators()
     return FeedItem.VideoItem(
         Video(
             id = videoId,
@@ -179,7 +194,8 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
                 this["ownerText"].bylineChannelId()
                     ?: this["shortBylineText"].bylineChannelId()
                     ?: this["longBylineText"].bylineChannelId()
-                    ?: owner.id,
+                    ?: owner.id.takeIf(String::isNotBlank)
+                    ?: collaborators.firstOrNull()?.channelId.orEmpty(),
             thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, this["thumbnail"].largestImageUrl()),
             duration = parseDurationText(this["lengthText"].youtubeText()) ?: 0,
             // A live row's count is its concurrent viewers, which the card renders in place of the
@@ -188,6 +204,8 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
             uploadDate = upcomingStartMs?.let(::premiereDateText) ?: uploadText,
             timestamp = upcomingStartMs ?: RelativeUploadDateParser.parse(uploadText, YouTube.locale.hl) ?: 0L,
             channelThumbnailUrl = bylineAvatarUrl() ?: owner.avatarUrl,
+            channelThumbnailUrls = collaborators.avatarUrls(),
+            collaborators = collaborators,
             isLive = isLive,
             isUpcoming = isUpcoming,
             isVerifiedChannel = this["ownerBadges"].hasVerifiedBadge(),
@@ -210,6 +228,11 @@ private fun JsonElement?.timeStatusStyle(): String? =
         .stringOrNull()
 
 private fun String?.mentionsWatching(): Boolean = this?.contains("watching", ignoreCase = true) == true
+
+private fun JsonObject.videoRendererCollaborators(): List<VideoCollaborator> =
+    listOf("ownerText", "shortBylineText", "longBylineText", "avatar")
+        .firstNotNullOfOrNull { key -> this[key].collaboratorDialog().takeIf { it.isNotEmpty() } }
+        .orEmpty()
 
 /** `ownerText` is the watch-page byline; a grid row only ever carries the short or long one. */
 private fun JsonObject.bylineName(): String? =
