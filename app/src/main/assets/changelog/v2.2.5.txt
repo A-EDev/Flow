@@ -109,6 +109,9 @@ PERFORMANCE
 - The expanded music player is no longer rebuilt on every song change, and lyrics stop updating while the music is paused
 
 FIXES AND STABILITY
+- Fix collaboration videos showing a blank channel avatar that did nothing when tapped: every collaborator's avatar is shown and opens the list of their channels (#1162)
+- Fix the player's Subscribe button showing you as not subscribed after a reload or on the next video from a channel you follow, and on collaborations it now opens the list of collaborators (#1160)
+- Fix Shorts audio playing on after the picture-in-picture window is closed (#1152)
 - Fix downloaded videos playing without their title, description, related videos or channel (#1129)
 - Fix a video without chapters showing the chapters, most-replayed curve and scrub preview of the video played before it (#1111)
 - Fix Continue watching cards being cut off on narrow phones, and loading placeholders not matching list mode on wide screens
