@@ -125,7 +125,8 @@ class FlowNeuroEngine internal constructor(
         suspend fun selectRelatedSeeds(
             candidates: List<GraphSeedInput>,
             maxSeeds: Int = 4,
-        ): List<String> = requireInstance().selectRelatedSeeds(candidates, maxSeeds)
+            longTermCandidates: List<GraphSeedInput> = emptyList(),
+        ): List<String> = requireInstance().selectRelatedSeeds(candidates, maxSeeds, longTermCandidates)
 
         suspend fun needsOnboarding(): Boolean = requireInstance().needsOnboarding()
 
@@ -1330,9 +1331,14 @@ class FlowNeuroEngine internal constructor(
             }
         }
 
+    /**
+     * With [longTermCandidates], the last of [maxSeeds] goes to a lasting interest none of the
+     * recent seeds covers, so a week of one new hobby cannot push the older ones out of the lane.
+     */
     suspend fun selectRelatedSeeds(
         candidates: List<GraphSeedInput>,
         maxSeeds: Int = 4,
+        longTermCandidates: List<GraphSeedInput> = emptyList(),
     ): List<String> =
         withContext(Dispatchers.Default) {
             if (candidates.isEmpty()) return@withContext emptyList()
@@ -1359,32 +1365,32 @@ class FlowNeuroEngine internal constructor(
             // Map seed topic keys to interest communities so the spread-first pick
             // allocates one related seed per MAJOR interest (mma, android, anime…)
             // before any interest gets a second one.
-            val topicToCommunity =
-                NeuroClusters
-                    .buildClusters(
-                        topicScores = brainSnapshot.globalVector.topics,
-                        affinities = brainSnapshot.topicAffinities,
-                        channelTopicProfiles = brainSnapshot.channelTopicProfiles,
-                        categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
-                        normalizeLemma = tokenizer::normalizeLemma,
-                        tagAffinities = brainSnapshot.tagAffinities,
-                    ).flatMap { cluster -> cluster.topics.map { it to cluster.representative } }
-                    .toMap()
+            val clusters =
+                NeuroClusters.buildClusters(
+                    topicScores = brainSnapshot.globalVector.topics,
+                    affinities = brainSnapshot.topicAffinities,
+                    channelTopicProfiles = brainSnapshot.channelTopicProfiles,
+                    categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
+                    normalizeLemma = tokenizer::normalizeLemma,
+                    tagAffinities = brainSnapshot.tagAffinities,
+                )
+            val topicToCommunity = clusters.flatMap { cluster -> cluster.topics.map { it to cluster.representative } }.toMap()
+            val communityOf = { key: String -> topicToCommunity[NeuroScoring.stripDomainTag(key)] ?: key }
 
             // Seed rotation: newest-first selection kept picking the same seeds every
-            // refresh, making the RELATED lane byte-identical. Cool recently used seeds
-            // down unless that would starve the selection.
-            val rotated = candidates.filterNot { it.id in recentSeedIds }
-            val pool = if (rotated.size >= maxSeeds) rotated else candidates
-
+            // refresh, making the RELATED lane byte-identical. Recently used seeds are
+            // cooled down unless that would starve the selection.
             val selected =
-                GraphSeedSelector.select(
-                    pool,
-                    maxSeeds,
-                    now,
-                    excludedChannelIds,
+                GraphSeedSelector.selectWithLongTerm(
+                    candidates = candidates,
+                    maxSeeds = maxSeeds,
+                    longTermCandidates = longTermCandidates,
+                    communityMass = clusters.associate { it.representative to it.mass },
+                    communityOf = communityOf,
+                    now = now,
+                    cooledIds = recentSeedIds,
+                    excludedChannelIds = excludedChannelIds,
                     topicScores = topicScores,
-                    communityOf = { key -> topicToCommunity[NeuroScoring.stripDomainTag(key)] ?: key },
                 )
             if (selected.isNotEmpty()) {
                 withBrainLock {
@@ -1983,10 +1989,11 @@ class FlowNeuroEngine internal constructor(
             }
 
             // 1. Update global vector
+            val learningVector = if (learningRate > 0) NeuroVectorMath.phraseFirst(videoVector) else videoVector
             var newGlobal =
                 NeuroVectorMath.adjustVector(
                     currentUserBrain.globalVector,
-                    videoVector,
+                    learningVector,
                     learningRate,
                 )
 
@@ -2036,7 +2043,7 @@ class FlowNeuroEngine internal constructor(
             val newBucketVec =
                 NeuroVectorMath.adjustVector(
                     currentBucketVec,
-                    videoVector,
+                    learningVector,
                     learningRate,
                 )
 

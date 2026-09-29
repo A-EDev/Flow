@@ -501,4 +501,25 @@ class HomeFeedLogicTest {
 
         assertThat(rotated.map { it.id }).containsExactly("b", "d", "a", "c").inOrder()
     }
+
+    @Test
+    fun `what a related lane put on screen never seeds the next related lane`() {
+        val feed =
+            listOf("discovery", "related").map { id ->
+                Video(
+                    id = id,
+                    title = id,
+                    channelName = "",
+                    channelId = "",
+                    thumbnailUrl = "",
+                    duration = 600,
+                    viewCount = 0,
+                    uploadDate = "",
+                )
+            }
+
+        val seeds = feedSeedInputs(feed, now = 1L, max = 10, relatedPickIds = setOf("related"))
+
+        assertThat(seeds.map { it.id }).containsExactly("discovery")
+    }
 }

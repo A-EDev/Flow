@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 private data class Wave1FeedResults(
@@ -88,6 +89,8 @@ class HomeViewModel
             private const val LOAD_MORE_FALLBACK_SEEDS = 4
             private const val FEED_SEED_POOL = 30
         }
+
+        private val relatedPickIds = ConcurrentHashMap.newKeySet<String>()
 
         private val channelMetadataEnrichmentInFlight =
             java.util.concurrent.ConcurrentHashMap
@@ -473,8 +476,9 @@ class HomeViewModel
                             val deferredRelated =
                                 async {
                                     val seedInputs = feedSources.historySeedInputs()
-                                    val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_RELATED_SEEDS)
-                                    feedSources.fetchRelatedGraph(seedInputs, seedIds, ::cacheFilters)
+                                    val longTermInputs = feedSources.longTermSeedInputs()
+                                    val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_RELATED_SEEDS, longTermInputs)
+                                    feedSources.fetchRelatedGraph(seedInputs + longTermInputs, seedIds, ::cacheFilters)
                                 }
 
                             Wave1FeedResults(
@@ -567,6 +571,10 @@ class HomeViewModel
                         )
                     val finalMix = mix.videos
                     subsBacklog = mix.subsBacklog
+                    relatedPickIds.clear()
+                    mix.sourceMix.items
+                        .filter { it.source == FeedSource.RELATED }
+                        .mapTo(relatedPickIds) { it.video.id }
 
                     if (finalMix.isEmpty()) {
                         settleWithoutFeed()
@@ -746,15 +754,22 @@ class HomeViewModel
             pageIds: MutableSet<String>,
             now: Long,
         ): Int {
-            val reserveVideos =
+            val reserveRows =
                 try {
-                    persistentHomeFeedCache.loadReservePage(cacheFilters()).map { it.video }
+                    persistentHomeFeedCache.loadReservePage(cacheFilters())
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
                     Log.d(TAG, "Reserve prefetch unavailable: ${error.message}")
                     emptyList()
-                }.filterValid()
+                }
+            reserveRows
+                .filter { it.source == HomeFeedCacheRepository.SOURCE_RELATED }
+                .mapTo(relatedPickIds) { it.video.id }
+            val reserveVideos =
+                reserveRows
+                    .map { it.video }
+                    .filterValid()
                     .filterRecentHomeSuggestion(now)
             val reserveAdded =
                 addUniquePageVideos(
@@ -812,6 +827,7 @@ class HomeViewModel
                 usedVideoIds = pageIds,
                 targetSize = MIN_PAGE_SIZE,
             )
+            page.drop(graphStartIndex).mapTo(relatedPickIds) { it.id }
             persistentHomeFeedCache.saveReserve(
                 cacheRelatedCandidates(graphRanked, graphMetadata, pageIds),
             )
@@ -874,11 +890,9 @@ class HomeViewModel
 
                 val searchQueries = listOfNotNull(queryA, queryB)
 
-                val finalQueries = if (searchQueries.isEmpty()) listOf("Viral") else searchQueries
-
                 val rawVideos =
                     coroutineScope {
-                        finalQueries
+                        searchQueries
                             .map { query ->
                                 async {
                                     withTimeoutOrNull(6_000L) {
@@ -972,6 +986,7 @@ class HomeViewModel
                                 ),
                                 taste,
                             )
+                        val fallbackStartIndex = page.size
                         addUniquePageVideos(
                             candidates = fallbackRanked,
                             targetList = page,
@@ -979,6 +994,7 @@ class HomeViewModel
                             usedVideoIds = pageIds,
                             targetSize = MIN_PAGE_SIZE,
                         )
+                        page.drop(fallbackStartIndex).mapTo(relatedPickIds) { it.id }
                         persistentHomeFeedCache.saveReserve(
                             cacheRelatedCandidates(fallbackRanked, fallbackMetadata, pageIds),
                         )
@@ -1166,7 +1182,7 @@ class HomeViewModel
         private suspend fun loadMoreSeedInputs(): List<GraphSeedInput> =
             (
                 savedInterestSeedInputs(feedSources.gatherSavedSeedSources(), emptySet()) +
-                    feedSeedInputs(_uiState.value.videos, System.currentTimeMillis(), FEED_SEED_POOL)
+                    feedSeedInputs(_uiState.value.videos, System.currentTimeMillis(), FEED_SEED_POOL, relatedPickIds)
             ).distinctBy { it.id }
 
         /**
@@ -1221,6 +1237,7 @@ class HomeViewModel
                                 taste,
                             ).take(SAVED_RELATED_SLOTS)
                         if (enriched.isEmpty()) return@launch
+                        enriched.mapTo(relatedPickIds) { it.id }
 
                         _uiState.update { state ->
                             val visibleEnriched = enriched.filterWatched(watchedVideoIds.value)

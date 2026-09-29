@@ -10,15 +10,15 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class NeuroVectorMathTest {
-
-    private fun vec(vararg topics: Pair<String, Double>) =
-        ContentVector(topics = topics.toMap())
+    private fun vec(vararg topics: Pair<String, Double>) = ContentVector(topics = topics.toMap())
 
     @Test
     fun `identical topic vectors score near 1`() {
-        val sim = NeuroVectorMath.calculateCosineSimilarity(
-            vec("python" to 1.0), vec("python" to 1.0)
-        )
+        val sim =
+            NeuroVectorMath.calculateCosineSimilarity(
+                vec("python" to 1.0),
+                vec("python" to 1.0),
+            )
         assertThat(sim).isWithin(1e-9).of(1.0)
     }
 
@@ -26,27 +26,33 @@ class NeuroVectorMathTest {
     fun `no topic intersection yields a damped scalar-only score`() {
         // Scalars are equal (0.5) so the raw scalar score is 0.30; with no topic
         // overlap it is damped (I-11a) so off-topic content can be floored.
-        val sim = NeuroVectorMath.calculateCosineSimilarity(
-            vec("python" to 1.0), vec("cooking" to 1.0)
-        )
+        val sim =
+            NeuroVectorMath.calculateCosineSimilarity(
+                vec("python" to 1.0),
+                vec("cooking" to 1.0),
+            )
         assertThat(sim).isWithin(1e-9).of(0.30 * NeuroVectorMath.SCALAR_ONLY_DAMP)
     }
 
     @Test
     fun `off-topic similarity now falls below the moderate relevance floor`() {
-        val sim = NeuroVectorMath.calculateCosineSimilarity(
-            vec("python" to 1.0), vec("cooking" to 1.0)
-        )
+        val sim =
+            NeuroVectorMath.calculateCosineSimilarity(
+                vec("python" to 1.0),
+                vec("cooking" to 1.0),
+            )
         assertThat(sim).isLessThan(NeuroScoring.RELEVANCE_FLOOR_MODERATE_THRESHOLD)
     }
 
     @Test
     fun `tagged and untagged topics partial-match below an exact match`() {
-        val partial = NeuroVectorMath.calculateCosineSimilarity(
-            vec("metal" to 1.0), vec("metal:music" to 1.0)
-        )
-        assertThat(partial).isGreaterThan(0.30)   // beats scalar-only
-        assertThat(partial).isLessThan(1.0)        // but below an exact match
+        val partial =
+            NeuroVectorMath.calculateCosineSimilarity(
+                vec("metal" to 1.0),
+                vec("metal:music" to 1.0),
+            )
+        assertThat(partial).isGreaterThan(0.30) // beats scalar-only
+        assertThat(partial).isLessThan(1.0) // but below an exact match
     }
 
     @Test
@@ -60,9 +66,12 @@ class NeuroVectorMathTest {
 
     @Test
     fun `positive learning moves an absent topic toward the target`() {
-        val out = NeuroVectorMath.adjustVector(
-            ContentVector(), ContentVector(topics = mapOf("newtopic" to 1.0)), 0.2
-        )
+        val out =
+            NeuroVectorMath.adjustVector(
+                ContentVector(),
+                ContentVector(topics = mapOf("newtopic" to 1.0)),
+                0.2,
+            )
         assertThat(out.topics["newtopic"]).isNotNull()
         assertThat(out.topics.getValue("newtopic")).isGreaterThan(0.0)
     }
@@ -84,9 +93,31 @@ class NeuroVectorMathTest {
 
     @Test
     fun `title similarity is jaccard over token sets`() {
-        val sim = NeuroVectorMath.calculateTitleSimilarity(
-            setOf("a", "b", "c"), setOf("b", "c", "d")
-        )
+        val sim =
+            NeuroVectorMath.calculateTitleSimilarity(
+                setOf("a", "b", "c"),
+                setOf("b", "c", "d"),
+            )
         assertThat(sim).isWithin(1e-9).of(0.5)
+    }
+
+    @Test
+    fun `words of a phrase learn at a share of their weight and phrases in full`() {
+        val learning =
+            NeuroVectorMath.phraseFirst(
+                vec("google" to 0.4, "pixel" to 0.4, "google pixel" to 0.6, "review" to 0.3),
+            )
+
+        assertThat(learning.topics["google pixel"]).isWithin(1e-9).of(0.6)
+        assertThat(learning.topics["google"]).isWithin(1e-9).of(0.4 * NeuroVectorMath.PHRASE_WORD_SHARE)
+        assertThat(learning.topics["pixel"]).isWithin(1e-9).of(0.4 * NeuroVectorMath.PHRASE_WORD_SHARE)
+        assertThat(learning.topics["review"]).isWithin(1e-9).of(0.3)
+    }
+
+    @Test
+    fun `a title without phrases is learned unchanged`() {
+        val vector = vec("minecraft" to 0.7)
+
+        assertThat(NeuroVectorMath.phraseFirst(vector)).isSameInstanceAs(vector)
     }
 }
