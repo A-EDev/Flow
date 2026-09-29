@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="splash_icon_expressive_scallop" type="drawable">@drawable/ic_launcher_expressive_scallop_nightly_foreground</item>
+    <item name="splash_icon_expressive_segmented" type="drawable">@drawable/ic_launcher_expressive_segmented_nightly_foreground</item>
+    <item name="splash_icon_expressive_play" type="drawable">@drawable/ic_launcher_expressive_play_nightly_foreground</item>
+    <item name="splash_icon_expressive_sky" type="drawable">@drawable/ic_launcher_expressive_sky_nightly_foreground</item>
+    <item name="splash_icon_expressive_mint" type="drawable">@drawable/ic_launcher_expressive_mint_nightly_foreground</item>
+    <item name="splash_icon_expressive_cookie" type="drawable">@drawable/ic_launcher_expressive_cookie_nightly_foreground</item>
+    <item name="splash_icon_expressive_oval" type="drawable">@drawable/ic_launcher_expressive_oval_nightly_foreground</item>
+    <item name="splash_icon_expressive_pill" type="drawable">@drawable/ic_launcher_expressive_pill_nightly_foreground</item>
+    <color name="icon_bg_expressive_scallop">@color/icon_bg_nightly</color>
+    <color name="icon_bg_expressive_segmented">@color/icon_bg_nightly</color>
+    <color name="icon_bg_expressive_play">@color/icon_bg_nightly</color>
+    <color name="icon_bg_expressive_sky">@color/icon_bg_nightly</color>
+    <color name="icon_bg_expressive_mint">@color/icon_bg_nightly</color>
+    <color name="icon_bg_expressive_cookie">@color/icon_bg_nightly</color>
+    <color name="icon_bg_expressive_oval">@color/icon_bg_nightly</color>
+    <color name="icon_bg_expressive_pill">@color/icon_bg_nightly</color>
+</resources>

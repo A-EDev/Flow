@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.util.LauncherIcon
 
 private const val ICON_COLUMNS = 3
 private val IconGridMaxHeight = 320.dp
@@ -98,7 +99,7 @@ internal fun AppIconDialog(
 
 @Composable
 private fun AppIconCell(
-    option: AppIconOption,
+    option: LauncherIcon,
     selected: Boolean,
     onClick: () -> Unit,
 ) {

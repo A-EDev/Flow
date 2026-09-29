@@ -15,6 +15,14 @@
     <color name="icon_bg_flow_play">#FFFFFF</color>
     <color name="icon_bg_material_sky">#D7E3FF</color>
     <color name="icon_bg_material_mint">#C7E8D4</color>
+    <color name="icon_bg_expressive_scallop">#FFDAD4</color>
+    <color name="icon_bg_expressive_segmented">#EB0000</color>
+    <color name="icon_bg_expressive_play">#2B1613</color>
+    <color name="icon_bg_expressive_sky">#D7E3FF</color>
+    <color name="icon_bg_expressive_mint">#C7E8D4</color>
+    <color name="icon_bg_expressive_cookie">#000000</color>
+    <color name="icon_bg_expressive_oval">#EB0000</color>
+    <color name="icon_bg_expressive_pill">#FFF8F6</color>
     <color name="splash_background">#FFFFFF</color>
     <color name="splash_background_light">#FFFFFF</color>
     <color name="splash_background_dark">#0F0F0F</color>
