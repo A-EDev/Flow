@@ -115,6 +115,76 @@ class ReelOverlayPageTest {
         assertEquals("https://yt3.test/first", overlay?.channelAvatarUrl)
     }
 
+    private fun carousel(vararg buttons: String) =
+        parse(
+            """
+            { "overlay": { "reelPlayerOverlayRenderer": { "playerOverlay": { "reelPlayerOverlayViewModel": {
+                "metapanel": { "reelMetapanelViewModel": { "metadataItems": [
+                  { "shortsVideoTitleViewModel": { "text": { "content": "A reel" } } },
+                  { "reelCarouselViewModel": { "buttonViewModels": [ ${buttons.joinToString()} ] } }
+                ] } }
+            } } } } }
+            """.trimIndent(),
+        )
+
+    private fun carouselButton(
+        command: String,
+        extra: String = "",
+    ) = """{ "reelCarouselButtonViewModel": { "buttonViewModel": { "buttonViewModel": {
+          "onTap": { "innertubeCommand": $command }$extra } } } }"""
+
+    private val soundPivot =
+        carouselButton(
+            """{ "showEngagementPanelEndpoint": { "identifier": { "tag": "engagement-panel-shorts-audio-pivot" } } }""",
+            """, "titleFormatted": { "content": "Original sound" }""",
+        )
+
+    @Test
+    fun `the linked video carries its title`() {
+        val overlay =
+            carousel(
+                soundPivot,
+                carouselButton(
+                    """{ "watchEndpoint": { "videoId": "UYpEQKCWfM4" } }""",
+                    """, "accessibilityId": "id.reel_multi_format_link", "accessibilityText": "I Finally got Sponsored by Red Bull",
+                    "titleFormatted": { "content": "I Finally got Sponsored by Red Bull" }""",
+                ),
+            )
+
+        assertEquals("UYpEQKCWfM4", overlay?.companionVideoId)
+        assertEquals("I Finally got Sponsored by Red Bull", overlay?.companionVideoTitle)
+    }
+
+    @Test
+    fun `the linked video title falls back to the accessibility text`() {
+        val overlay =
+            carousel(
+                carouselButton(
+                    """{ "watchEndpoint": { "videoId": "JUZwh0qNTHQ" } }""",
+                    """, "accessibilityText": "Full video" """,
+                ),
+            )
+
+        assertEquals("JUZwh0qNTHQ", overlay?.companionVideoId)
+        assertEquals("Full video", overlay?.companionVideoTitle)
+    }
+
+    @Test
+    fun `a link to another reel is not a linked video`() {
+        val overlay =
+            carousel(
+                soundPivot,
+                carouselButton(
+                    """{ "reelWatchEndpoint": { "videoId": "pW3pyniVQ6Y" } }""",
+                    """, "titleFormatted": { "content": "Another reel" }""",
+                ),
+            )
+
+        assertNotNull(overlay)
+        assertNull(overlay!!.companionVideoId)
+        assertNull(overlay.companionVideoTitle)
+    }
+
     @Test
     fun `an elements overlay is unreadable`() {
         val overlay =

@@ -26,6 +26,7 @@ data class ReelOverlay(
     val soundThumbnailUrl: String? = null,
     val isSubscribed: Boolean? = null,
     val companionVideoId: String? = null,
+    val companionVideoTitle: String? = null,
 )
 
 /**
@@ -61,6 +62,7 @@ private fun ReelOverlay.filledFrom(other: ReelOverlay): ReelOverlay =
         soundThumbnailUrl = soundThumbnailUrl ?: other.soundThumbnailUrl,
         isSubscribed = isSubscribed ?: other.isSubscribed,
         companionVideoId = companionVideoId ?: other.companionVideoId,
+        companionVideoTitle = if (companionVideoId != null) companionVideoTitle else other.companionVideoTitle,
     )
 
 private fun JsonObject.legacyOverlay(header: JsonObject?): ReelOverlay? {
@@ -120,6 +122,7 @@ private fun JsonObject.viewModelOverlay(): ReelOverlay? {
     val likeExact = like?.at("toggledButtonViewModel", "buttonViewModel", "accessibilityText").stringOrNull()
     val likeShort = like?.at("defaultButtonViewModel", "buttonViewModel", "title").stringOrNull()
     val commentText = commentButton?.get("title").stringOrNull()
+    val companion = items?.companionVideo()
 
     return ReelOverlay(
         title = items?.firstNotNullOfOrNull { it.at("shortsVideoTitleViewModel", "text", "content").stringOrNull() },
@@ -145,25 +148,27 @@ private fun JsonObject.viewModelOverlay(): ReelOverlay? {
         commentCountText = commentText,
         soundTitle = pivot?.at("soundAttributionTitle", "content").stringOrNull(),
         soundThumbnailUrl = pivot?.get("thumbnail").largestImageUrl(),
-        companionVideoId =
-            items
-                ?.firstNotNullOfOrNull { it["reelCarouselViewModel"].objectOrNull() }
-                ?.get("buttonViewModels")
-                .arrayOrNull()
-                ?.firstNotNullOfOrNull { button ->
-                    button
-                        .at(
-                            "reelCarouselButtonViewModel",
-                            "buttonViewModel",
-                            "buttonViewModel",
-                            "onTap",
-                            "innertubeCommand",
-                            "watchEndpoint",
-                            "videoId",
-                        ).stringOrNull()
-                },
+        companionVideoId = companion?.first,
+        companionVideoTitle = companion?.second,
     )
 }
+
+/**
+ * The full video a reel links to, with its title. The same carousel also holds the sound pivot and
+ * links to other reels, which open through a `reelWatchEndpoint` instead of a `watchEndpoint`.
+ */
+private fun List<JsonObject>.companionVideo(): Pair<String, String?>? =
+    firstNotNullOfOrNull { it["reelCarouselViewModel"].objectOrNull() }
+        ?.get("buttonViewModels")
+        .arrayOrNull()
+        ?.firstNotNullOfOrNull { entry ->
+            val button = entry.at("reelCarouselButtonViewModel", "buttonViewModel", "buttonViewModel")
+            val videoId = button.at("onTap", "innertubeCommand", "watchEndpoint", "videoId").stringOrNull()
+            videoId?.let {
+                val title = button.at("titleFormatted", "content").stringOrNull() ?: button.at("accessibilityText").stringOrNull()
+                it to title?.trim()?.takeIf(String::isNotEmpty)
+            }
+        }
 
 private fun JsonObject.subscriptionState(): Boolean? =
     at("frameworkUpdates", "entityBatchUpdate", "mutations")
