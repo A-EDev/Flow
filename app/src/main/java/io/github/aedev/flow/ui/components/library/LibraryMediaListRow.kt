@@ -15,6 +15,7 @@ import io.github.aedev.flow.ui.components.music.sheet.LocalMusicMenus
 import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 
 /**
@@ -38,6 +39,7 @@ internal fun LibraryMediaListRow(
     thumbnailUrl: String? = null,
     durationSeconds: Int? = null,
     thumbnailWidth: Dp = MediaThumbnailDefaults.VideoWidth,
+    showWatchProgress: Boolean = LocalVideoCardPreferences.current.showWatchProgress,
     action: @Composable () -> Unit,
 ) {
     val isLocal = LocalMediaIds.isLocal(track.videoId)
@@ -65,7 +67,7 @@ internal fun LibraryMediaListRow(
                 videoId = track.videoId,
                 thumbnailUrl = thumbnailUrl,
                 durationSeconds = durationSeconds,
-                showWatchProgress = true,
+                showWatchProgress = showWatchProgress,
                 width = thumbnailWidth,
             )
         }

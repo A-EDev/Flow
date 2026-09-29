@@ -139,6 +139,7 @@ internal fun AppearanceScreen(
         }
         group(key = "appearance.cards", header = R.string.settings_section_video_cards) {
             switch(AppearanceIndex.cardLikeButtons, cardLikeButtons, viewModel::setCardLikeButtons)
+            switch(AppearanceIndex.cardWatchProgress, viewModel.cardWatchProgress, viewModel::setCardWatchProgress)
             switch(AppearanceIndex.cardMarkWatched, cardMarkWatched, viewModel::setCardMarkWatched)
         }
         group(key = "appearance.more", header = R.string.settings_section_more) {

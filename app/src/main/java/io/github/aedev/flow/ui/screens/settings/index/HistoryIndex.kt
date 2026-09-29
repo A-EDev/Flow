@@ -22,6 +22,15 @@ internal object HistoryIndex {
         destination = page,
     )
 
+    val pauseWatchHistory =
+        SettingEntry(
+            key = "history.pause_watch_history",
+            title = R.string.pause_watch_history_title,
+            summary = R.string.pause_watch_history_subtitle,
+            section = R.string.settings_section_watch_history,
+            keywords = R.string.settings_keywords_history,
+            destination = page,
+        )
     val save = entry("save", R.string.save_search_history_title, R.string.save_searches_subtitle)
     val suggestions = entry("suggestions", R.string.search_suggestions_title, R.string.show_suggestions_subtitle)
     val maxSize = entry("max_size", R.string.max_history_size_title)
@@ -29,5 +38,5 @@ internal object HistoryIndex {
     val retention = entry("retention", R.string.retention_period_title, revealVia = "history.auto_delete")
     val clear = entry("clear", R.string.clear_history_item_title, R.string.remove_all_queries)
 
-    val all = listOf(save, suggestions, maxSize, autoDelete, retention, clear)
+    val all = listOf(pauseWatchHistory, save, suggestions, maxSize, autoDelete, retention, clear)
 }

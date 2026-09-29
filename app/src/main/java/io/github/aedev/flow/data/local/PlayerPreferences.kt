@@ -155,6 +155,9 @@ class PlayerPreferences(
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val LIBRARY_SHELF_PREVIEWS_ENABLED = booleanPreferencesKey("library_shelf_previews_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
+        val HOME_SUBSCRIPTIONS_ENABLED = booleanPreferencesKey("home_subscriptions_enabled")
+        val SHOW_WATCH_PROGRESS = booleanPreferencesKey("show_watch_progress")
+        val WATCH_HISTORY_PAUSED = booleanPreferencesKey("watch_history_paused")
         val HOME_NAVIGATION_ENABLED = booleanPreferencesKey("home_navigation_enabled")
         val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
         val BOTTOM_NAV_HIDE_ON_SCROLL = booleanPreferencesKey("bottom_nav_hide_on_scroll")
@@ -930,6 +933,36 @@ class PlayerPreferences(
     suspend fun setHomeShortsShelfEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.HOME_SHORTS_SHELF_ENABLED] = enabled
+        }
+    }
+
+    val homeSubscriptionsEnabled: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.HOME_SUBSCRIPTIONS_ENABLED] ?: true }
+
+    suspend fun setHomeSubscriptionsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HOME_SUBSCRIPTIONS_ENABLED] = enabled
+        }
+    }
+
+    val showWatchProgress: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.SHOW_WATCH_PROGRESS] ?: true }
+
+    suspend fun setShowWatchProgress(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHOW_WATCH_PROGRESS] = enabled
+        }
+    }
+
+    val watchHistoryPaused: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.WATCH_HISTORY_PAUSED] ?: false }
+
+    suspend fun setWatchHistoryPaused(paused: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.WATCH_HISTORY_PAUSED] = paused
         }
     }
 
@@ -3093,6 +3126,10 @@ class PlayerPreferences(
             preferences[Keys.AUTO_BACKUP_TYPE] = type.name
         }
     }
+
+    /** Whether a watch may be written to history: paused history and Deep Flow both stop it. */
+    suspend fun isWatchHistorySavingBlocked(): Boolean =
+        watchHistoryPaused.first() || (isDeepFlowCurrentlyActive() && !isDeepFlowSaveToHistoryEnabled())
 
     suspend fun isDeepFlowCurrentlyActive(): Boolean {
         val prefs = context.playerPreferencesDataStore.data.first()

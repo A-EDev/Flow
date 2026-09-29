@@ -39,6 +39,14 @@ internal object ContentIndex {
             section = R.string.settings_section_home,
             destination = page,
         )
+    val homeSubscriptions =
+        SettingEntry(
+            key = "content.home.subscriptions",
+            title = R.string.content_settings_home_subscriptions_title,
+            summary = R.string.content_settings_home_subscriptions_subtitle,
+            section = R.string.settings_section_home,
+            destination = page,
+        )
     val hideWatchedHome =
         SettingEntry(
             key = "content.home.hide_watched",
@@ -186,6 +194,7 @@ internal object ContentIndex {
             refreshOnReselect,
             continueWatching,
             homeShortsShelf,
+            homeSubscriptions,
             hideWatchedHome,
             subsVideos,
             subsShorts,

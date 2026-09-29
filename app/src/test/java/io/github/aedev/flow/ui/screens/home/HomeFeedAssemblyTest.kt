@@ -135,6 +135,20 @@ class HomeFeedAssemblyTest {
         }
 
     @Test
+    fun `hidden channels are dropped from discovery and related lanes too`() =
+        runTest {
+            val result =
+                lanes(
+                    discovery = listOf(video("d-sub", channelId = "UCsub"), video("d-other")),
+                    related = listOf(GraphCandidate(video("r-sub", channelId = "UCsub"), "seed", 1.0, 0, "misc", 1)),
+                    exclusions = FeedExclusions().hidingChannels(setOf("UCsub")),
+                )
+
+            assertThat(result.bestDiscovery.map { it.id }).containsExactly("d-other")
+            assertThat(result.bestRelated).isEmpty()
+        }
+
+    @Test
     fun `a blocked topic is dropped from the subscription lanes`() =
         runTest {
             val result =

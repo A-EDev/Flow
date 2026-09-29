@@ -23,6 +23,7 @@ import io.github.aedev.flow.ui.components.shared.ArtworkThumbnail
 import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.utils.formatDurationMillis
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 
@@ -114,7 +115,7 @@ internal fun LocalVideoThumbnail(
         videoId = item.mediaId,
         thumbnailUrl = item.contentUri,
         durationSeconds = (item.durationMs / 1_000L).toInt(),
-        showWatchProgress = true,
+        showWatchProgress = LocalVideoCardPreferences.current.showWatchProgress,
         placeholder = Icons.Outlined.VideoLibrary,
         modifier = modifier,
         width = width,

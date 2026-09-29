@@ -48,6 +48,7 @@ import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaRowAction
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 
@@ -101,7 +102,7 @@ internal fun VideoDownloadItem(
                 videoId = video.video.id,
                 thumbnailUrl = video.video.thumbnailUrl,
                 durationSeconds = video.video.duration,
-                showWatchProgress = true,
+                showWatchProgress = LocalVideoCardPreferences.current.showWatchProgress,
                 modifier = Modifier.fillMaxWidth(),
                 width = Dp.Unspecified,
                 shape = MaterialTheme.shapes.large,
@@ -123,7 +124,7 @@ internal fun VideoDownloadItem(
                 videoId = video.video.id,
                 thumbnailUrl = video.video.thumbnailUrl,
                 durationSeconds = video.video.duration,
-                showWatchProgress = true,
+                showWatchProgress = LocalVideoCardPreferences.current.showWatchProgress,
                 width = rowThumbnailWidth,
             )
         }

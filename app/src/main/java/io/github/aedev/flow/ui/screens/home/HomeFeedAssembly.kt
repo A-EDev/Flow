@@ -89,11 +89,13 @@ internal suspend fun buildHomeFeedLanes(
             .filterValid()
             .filterWatched(watched)
             .filterRecentHomeSuggestion(now)
+            .filterNot(exclusions::hidesFromRecommendations)
     val viralPool =
         rawViral
             .filterValid()
             .filterWatched(watched)
             .filterRecentHomeSuggestion(now)
+            .filterNot(exclusions::hidesFromRecommendations)
 
     val subsByRecency = subsPool.sortedByDescending { it.timestamp }
 
@@ -135,6 +137,7 @@ internal suspend fun buildHomeFeedLanes(
             .filterValidGraph()
             .filterWatchedGraph(watched)
             .filterRecentHomeSuggestionGraph(now)
+            .filterNot { exclusions.hidesFromRecommendations(it.video) }
     val relatedPool = relatedCandidates.map { it.video }
     val relatedMetadata = relatedCandidates.associateBy { it.video.id }
 

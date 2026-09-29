@@ -17,6 +17,7 @@ import io.github.aedev.flow.ui.components.shared.MediaRow
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.MediaThumbnailDefaults
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
@@ -74,7 +75,7 @@ internal fun PlaylistVideoRow(
             videoId = video.id,
             thumbnailUrl = video.thumbnailUrl,
             durationSeconds = video.duration,
-            showWatchProgress = true,
+            showWatchProgress = LocalVideoCardPreferences.current.showWatchProgress,
             width = thumbnailWidth,
         )
     }

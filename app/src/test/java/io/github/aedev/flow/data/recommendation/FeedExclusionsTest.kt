@@ -7,6 +7,7 @@
 package io.github.aedev.flow.data.recommendation
 
 import com.google.common.truth.Truth.assertThat
+import io.github.aedev.flow.data.model.Video
 import org.junit.Test
 
 class FeedExclusionsTest {
@@ -58,4 +59,38 @@ class FeedExclusionsTest {
         assertThat(reset.preferredTopics).isEmpty()
         assertThat(reset.totalInteractions).isEqualTo(0)
     }
+
+    @Test
+    fun `hiding channels adds to the exclusions without dropping any`() {
+        val base =
+            FeedExclusions(
+                suppressedVideoIds = setOf("v1"),
+                blockedChannelIds = setOf("UCblocked"),
+                blockedText = { title, _ -> title == "phonk" },
+            )
+
+        val widened = base.hidingChannels(setOf("UCsub"))
+
+        assertThat(widened.hidesFromRecommendations(video("v2", "UCsub"))).isTrue()
+        assertThat(widened.hidesFromRecommendations(video("v1", "UCother"))).isTrue()
+        assertThat(widened.hidesFromRecommendations(video("v3", "UCblocked"))).isTrue()
+        assertThat(widened.hidesFromRecommendations(video("v4", "UCother", title = "phonk"))).isTrue()
+        assertThat(widened.hidesFromRecommendations(video("v5", "UCother"))).isFalse()
+        assertThat(base.hidingChannels(emptySet())).isSameInstanceAs(base)
+    }
+
+    private fun video(
+        id: String,
+        channelId: String,
+        title: String = "title-$id",
+    ) = Video(
+        id = id,
+        title = title,
+        channelName = channelId,
+        channelId = channelId,
+        thumbnailUrl = "",
+        duration = 600,
+        viewCount = 1,
+        uploadDate = "",
+    )
 }

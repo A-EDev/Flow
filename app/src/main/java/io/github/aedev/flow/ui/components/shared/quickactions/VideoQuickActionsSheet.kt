@@ -46,6 +46,7 @@ import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.SaveVideoSheet
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.card.channelAvatarUrls
 import io.github.aedev.flow.ui.components.shared.card.isWatchedProgress
 import io.github.aedev.flow.ui.components.shared.card.rememberCollaboratorChannelDisplayName
@@ -112,7 +113,7 @@ fun VideoQuickActionsBottomSheet(
                         thumbnailUrl = thumbnailUrl,
                         width = QuickActionsDefaults.VideoArtworkWidth,
                         shape = MaterialTheme.shapes.medium,
-                        showWatchProgress = true,
+                        showWatchProgress = LocalVideoCardPreferences.current.showWatchProgress,
                     )
                 }
                 VideoPrimaryActions(video, viewModel, onSave = { sheet.hideThen { page = VideoMenuPage.Save } }, onDismiss = close)

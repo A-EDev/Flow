@@ -37,6 +37,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -222,6 +224,13 @@ class HomeViewModel
             }
 
             viewModelScope.launch {
+                playerPreferences.homeSubscriptionsEnabled
+                    .distinctUntilChanged()
+                    .drop(1)
+                    .collect { refreshFeed() }
+            }
+
+            viewModelScope.launch {
                 playerPreferences.effectiveHomeShortsShelfEnabled.collect { enabled ->
                     if (!enabled) {
                         _uiState.update { it.copy(shorts = emptyList()) }
@@ -369,8 +378,16 @@ class HomeViewModel
             shortsRepository.evictChannel(channelId)
         }
 
+        private suspend fun subscriptionScope(): HomeSubscriptionScope =
+            HomeSubscriptionScope.of(
+                subscriptions = subscriptionRepository.getAllSubscriptionIds(),
+                showOnHome = playerPreferences.homeSubscriptionsEnabled.first(),
+            )
+
         private suspend fun feedExclusions(): FeedExclusions =
-            runCatching { FlowNeuroEngine.feedExclusions() }.getOrDefault(FeedExclusions.NONE)
+            runCatching { FlowNeuroEngine.feedExclusions() }
+                .getOrDefault(FeedExclusions.NONE)
+                .hidingChannels(subscriptionScope().hidden)
 
         private suspend fun cacheFilters(): HomeFeedCacheFilters =
             HomeFeedCacheFilters(watchedVideoIds = watchedVideoIds.value, exclusions = feedExclusions())
@@ -415,7 +432,7 @@ class HomeViewModel
                     discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries(resetDepth = true))
                     currentQueryIndex = 0
 
-                    val userSubs = subscriptionRepository.getAllSubscriptionIds()
+                    val userSubs = subscriptionScope().boosted
                     val region = playerPreferences.trendingRegion.first()
                     val fetchStart = System.currentTimeMillis()
 
@@ -499,11 +516,13 @@ class HomeViewModel
                     val brain = FlowNeuroEngine.getBrainSnapshot()
                     val taste = feedTasteProfile(brain, FlowNeuroEngine.getPersona(brain))
 
+                    val exclusions = feedExclusions()
                     val feedShorts =
                         (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
                             .distinctBy { it.id }
                             .filterWatched(watchedShortIds.value)
                             .filterRecentHomeSuggestion(now)
+                            .filterNot(exclusions::hidesFromRecommendations)
                     if (feedShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
                         // A refresh replaces the shelf; appending kept the same reels at its front.
                         val rankedShorts =
@@ -514,7 +533,6 @@ class HomeViewModel
                     }
 
                     val watched = watchedVideoIds.value
-                    val exclusions = feedExclusions()
                     val lanes =
                         buildHomeFeedLanes(
                             rawSubs = rawSubs,
@@ -664,6 +682,7 @@ class HomeViewModel
                                     .filterValid()
                                     .filterWatched(wave2Watched)
                                     .filter { !wave2FinalMixIds.contains(it.id) }
+                                    .filterNot(feedExclusions()::hidesFromRecommendations)
                             if (wave2Valid.isEmpty()) return@wave2
 
                             val wave2Ranked =
@@ -819,7 +838,7 @@ class HomeViewModel
         private suspend fun loadNextPrefetchPage(generation: Int): Boolean {
             try {
                 val now = System.currentTimeMillis()
-                val userSubs = subscriptionRepository.getAllSubscriptionIds()
+                val userSubs = subscriptionScope().boosted
                 val brain = FlowNeuroEngine.getBrainSnapshot()
                 val taste = feedTasteProfile(brain, FlowNeuroEngine.getPersona(brain))
                 val currentIds =
@@ -884,6 +903,7 @@ class HomeViewModel
                         .extractShorts()
                         .filterWatched(watchedShortIds.value)
                         .filterRecentHomeSuggestion(now)
+                        .filterNot(feedExclusions()::hidesFromRecommendations)
                 if (moreShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
                     val rankedMore =
                         FlowNeuroEngine
@@ -985,6 +1005,7 @@ class HomeViewModel
             generation: Int,
         ): List<Video>? {
             if (page.isEmpty() || !homePrefetchQueue.isCurrent(generation)) return null
+            val exclusions = feedExclusions()
             var updatedSnapshot: List<Video>? = null
             var appendedPage = emptyList<Video>()
             _uiState.update { state ->
@@ -993,7 +1014,7 @@ class HomeViewModel
                 appendedPage =
                     page
                         .filterWatched(watchedVideoIds.value)
-                        .filterNot { it.id in existingVideoIds }
+                        .filterNot { it.id in existingVideoIds || exclusions.hidesFromRecommendations(it) }
                 if (appendedPage.isEmpty()) return@update state
                 val tailChannels = state.videos.takeLast(2).map { it.channelId }
                 val updated = state.videos + spaceByChannel(appendedPage, seedRecent = tailChannels)
@@ -1174,12 +1195,14 @@ class HomeViewModel
                         if (seeds.isEmpty()) return@launch
                         feedSources.markSeedsUsed(seeds, now)
 
+                        val exclusions = feedExclusions()
                         val relatedCandidates =
                             feedSources
                                 .fetchRelatedGraphCandidates(seedInputs, seeds, ::cacheFilters)
                                 .filterValidGraph()
                                 .filterWatchedGraph(watchedVideoIds.value)
                                 .filterRecentHomeSuggestionGraph(now)
+                                .filterNot { exclusions.hidesFromRecommendations(it.video) }
                         if (relatedCandidates.isEmpty()) return@launch
 
                         val existing = _uiState.value.videos.mapTo(HashSet()) { it.id }

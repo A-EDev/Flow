@@ -31,6 +31,14 @@ class FeedExclusions(
             (video.channelId.isNotBlank() && video.channelId in suppressedChannelIds) ||
             blockedText(video.title, video.channelName)
 
+    /** The same exclusions, also hiding every video from [channelIds]. */
+    fun hidingChannels(channelIds: Set<String>): FeedExclusions =
+        if (channelIds.isEmpty()) {
+            this
+        } else {
+            FeedExclusions(suppressedVideoIds, blockedChannelIds + channelIds, suppressedChannelIds, blockedText)
+        }
+
     companion object {
         val NONE = FeedExclusions()
     }
