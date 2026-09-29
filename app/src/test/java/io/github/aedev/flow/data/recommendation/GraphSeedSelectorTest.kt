@@ -173,4 +173,23 @@ class GraphSeedSelectorTest {
 
         assertThat(selected).containsExactly("q0", "q1", "q2")
     }
+
+    @Test
+    fun `fresh seeds are never topped up with cooled ones`() {
+        val fresh = seed("fresh", title = "guitar lesson")
+        val cooled = listOf("cooking pasta", "chess opening").mapIndexed { i, title -> seed("cooled$i", title = title) }
+
+        val selected =
+            GraphSeedSelector.selectWithLongTerm(
+                candidates = listOf(fresh) + cooled,
+                maxSeeds = 3,
+                longTermCandidates = emptyList(),
+                communityMass = emptyMap(),
+                communityOf = { it },
+                now = now,
+                cooledIds = cooled.mapTo(HashSet()) { it.id },
+            )
+
+        assertThat(selected).containsExactly("fresh")
+    }
 }

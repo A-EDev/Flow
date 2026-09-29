@@ -57,10 +57,10 @@ internal object GraphSeedSelector {
         fun pick(from: List<GraphSeedInput>) =
             select(from, maxSeeds, now, excludedChannelIds, topicScores = topicScores, communityOf = communityOf)
 
-        // Counting only after select(): half-watched history never qualifies, so a size check on the
-        // raw list let a refresh inside the cooldown pick no seed at all.
+        // Cooled seeds come back only when no other seed qualifies: half-watched history never does,
+        // so a size check on the raw list let a refresh inside the cooldown pick no seed at all.
         val fresh = pick(candidates.filterNot { it.id in cooledIds })
-        val recent = if (fresh.size >= maxSeeds) fresh else (fresh + pick(candidates)).distinct().take(maxSeeds)
+        val recent = fresh.ifEmpty { pick(candidates) }
         if (longTermCandidates.isEmpty() || maxSeeds < 2) return recent
         val kept = recent.take(maxSeeds - 1)
         val tokenizer = NeuroTokenizer()

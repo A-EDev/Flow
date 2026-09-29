@@ -147,8 +147,11 @@ class HomeFeedSources
                     } ?: emptyList()
                 }
             ).also {
-                relatedCache[seedId] = CachedRelated(it, ts)
-                homeFeedCache.saveRelated(seedId, it, ts)
+                // A timeout returns nothing; caching that would blank the seed's lane for the whole TTL.
+                if (it.isNotEmpty()) {
+                    relatedCache[seedId] = CachedRelated(it, ts)
+                    homeFeedCache.saveRelated(seedId, it, ts)
+                }
             }
         }
 
