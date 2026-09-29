@@ -123,6 +123,18 @@ class HomeFeedAssemblyTest {
         }
 
     @Test
+    fun `the next unseen upload is pinned when the newest ones were all seen`() =
+        runTest {
+            val seen = (1..3).map { video("seen$it", channelId = "s$it", ageMs = it * hour, uploadDate = "$it hours ago") }
+            val unseen = video("unseen", channelId = "u", ageMs = 10 * hour, uploadDate = "10 hours ago")
+
+            val result = lanes(rss = seen + unseen, shown = seen.mapTo(HashSet()) { it.id }, freshSlots = 3)
+
+            assertThat(result.pinnedFresh.map { it.id }).containsExactly("unseen")
+            assertThat(result.shownFresh.map { it.id }).containsExactly("seen1", "seen2", "seen3").inOrder()
+        }
+
+    @Test
     fun `a blocked topic is dropped from the subscription lanes`() =
         runTest {
             val result =

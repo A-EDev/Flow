@@ -112,11 +112,14 @@ internal suspend fun buildHomeFeedLanes(
             // One fresh slot per channel — a channel that uploaded three times today must not
             // occupy three fresh slots.
             .distinctBy { it.channelId.ifBlank { it.id } }
-            .take(freshSlotTarget)
-    val freshIds = freshSubsLane.map { it.id }.toHashSet()
     // An upload already shown recently stays on Home but goes to the back of the SUBS lane, so the
-    // same card is not pinned to the top of every launch for three days.
-    val (shownFresh, unshownFresh) = freshSubsLane.partition { isRecentlyShown(it.id) }
+    // same card is not pinned to the top of every launch for three days. Splitting before the cap
+    // lets the next unseen upload take the slot.
+    val (shownFresh, unshownFresh) =
+        freshSubsLane
+            .partition { isRecentlyShown(it.id) }
+            .let { (shown, unshown) -> shown.take(freshSlotTarget) to unshown.take(freshSlotTarget) }
+    val freshIds = (shownFresh + unshownFresh).mapTo(HashSet()) { it.id }
 
     val rankedSubs = rank(subsPool)
     val bestSubs =
