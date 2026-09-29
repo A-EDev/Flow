@@ -161,6 +161,20 @@ data class YouTubeClient(
                 useWebPoTokens = true,
             )
 
+        const val ORIGIN_YOUTUBE_CHARTS = "https://charts.youtube.com"
+        const val REFERER_YOUTUBE_CHARTS = "$ORIGIN_YOUTUBE_CHARTS/"
+        const val API_URL_YOUTUBE_CHARTS = "$ORIGIN_YOUTUBE_CHARTS/youtubei/v1/"
+
+        /** The analytics host behind YouTube Charts, which serves the trending video and movie charts. */
+        val WEB_MUSIC_ANALYTICS =
+            YouTubeClient(
+                clientName = "WEB_MUSIC_ANALYTICS",
+                clientVersion = "2.0",
+                clientId = "31",
+                userAgent = USER_AGENT_WEB,
+                originalUrl = ORIGIN_YOUTUBE_CHARTS,
+            )
+
         val WEB_CREATOR =
             YouTubeClient(
                 clientName = "WEB_CREATOR",

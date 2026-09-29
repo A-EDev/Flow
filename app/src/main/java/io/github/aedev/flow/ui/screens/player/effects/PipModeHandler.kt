@@ -6,8 +6,7 @@ import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.BackgroundPlaybackPolicy
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -16,38 +15,13 @@ import io.github.aedev.flow.player.PictureInPictureHelper
 private const val TAG = "PipModeHandler"
 
 /**
- * Effect to detect PiP mode state changes
+ * Effect to register PiP broadcast receiver for playback and background-audio controls.
  */
 @Composable
-fun PipModeDetectionEffect(
-    lifecycleOwner: LifecycleOwner,
-    activity: Activity?,
-    onPipModeChanged: (Boolean) -> Unit,
-) {
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, _ ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
-                    onPipModeChanged(activity.isInPictureInPictureMode)
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-}
-
-/**
- * Effect to register PiP broadcast receiver for headphones, play/pause and next controls.
- */
-@Composable
-fun PipBroadcastReceiverEffect(
+private fun PipBroadcastReceiverEffect(
     context: Context,
-    onNext: () -> Unit = {
-        EnhancedPlayerManager.getInstance().playNext(loadStreamsInPlayer = false)
-    },
-    onBackgroundAudio: () -> Unit = {},
+    onNext: () -> Unit,
+    onBackgroundAudio: () -> Unit,
 ) {
     val latestOnNext by rememberUpdatedState(onNext)
     val latestOnBackgroundAudio by rememberUpdatedState(onBackgroundAudio)
@@ -60,16 +34,12 @@ fun PipBroadcastReceiverEffect(
                 onBackgroundAudio = { latestOnBackgroundAudio() },
             )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(
-                context,
-                receiver,
-                PictureInPictureHelper.getPipIntentFilter(),
-                ContextCompat.RECEIVER_NOT_EXPORTED,
-            )
-        } else {
-            context.registerReceiver(receiver, PictureInPictureHelper.getPipIntentFilter())
-        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            PictureInPictureHelper.getPipIntentFilter(),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
 
         onDispose {
             try {
@@ -85,13 +55,13 @@ fun PipBroadcastReceiverEffect(
  * Effect to update PiP params when playback state changes
  */
 @Composable
-fun PipParamsUpdateEffect(
+private fun PipParamsUpdateEffect(
     isPlaying: Boolean,
     autoPipEnabled: Boolean,
     isBackgroundPlaybackMode: Boolean,
     videoAspectRatio: Float,
     activity: Activity?,
-    hasNext: Boolean = false,
+    hasNext: Boolean,
 ) {
     LaunchedEffect(isPlaying, autoPipEnabled, isBackgroundPlaybackMode, videoAspectRatio, hasNext) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
@@ -130,14 +100,10 @@ fun PipParamsUpdateEffect(
  * Collects PiP preferences from DataStore
  */
 @Composable
-fun rememberPipPreferences(context: Context): PipPreferences {
-    val autoPipEnabled by remember(context) {
-        PlayerPreferences(context).autoPipEnabled
-    }.collectAsState(initial = false)
-
-    val manualPipButtonEnabled by remember(context) {
-        PlayerPreferences(context).manualPipButtonEnabled
-    }.collectAsState(initial = true)
+internal fun rememberPipPreferences(context: Context): PipPreferences {
+    val preferences = remember(context) { PlayerPreferences(context) }
+    val autoPipEnabled by preferences.autoPipEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val manualPipButtonEnabled by preferences.manualPipButtonEnabled.collectAsStateWithLifecycle(initialValue = true)
 
     return PipPreferences(
         autoPipEnabled = autoPipEnabled,
@@ -148,7 +114,7 @@ fun rememberPipPreferences(context: Context): PipPreferences {
 /**
  * Data class holding PiP preferences
  */
-data class PipPreferences(
+internal data class PipPreferences(
     val autoPipEnabled: Boolean,
     val manualPipButtonEnabled: Boolean,
 )
@@ -157,28 +123,17 @@ data class PipPreferences(
  * All-in-one composable that sets up all PiP-related effects
  */
 @Composable
-fun SetupPipEffects(
+internal fun SetupPipEffects(
     context: Context,
     activity: Activity?,
-    lifecycleOwner: LifecycleOwner,
     isPlaying: Boolean,
     isBackgroundPlaybackMode: Boolean,
     videoAspectRatio: Float,
     pipPreferences: PipPreferences,
-    onPipModeChanged: (Boolean) -> Unit,
-    hasNext: Boolean = false,
-    onNext: () -> Unit = {
-        EnhancedPlayerManager.getInstance().playNext(loadStreamsInPlayer = false)
-    },
-    onBackgroundAudio: () -> Unit = {},
+    hasNext: Boolean,
+    onNext: () -> Unit,
+    onBackgroundAudio: () -> Unit,
 ) {
-    // Detect PiP state changes
-    PipModeDetectionEffect(
-        lifecycleOwner = lifecycleOwner,
-        activity = activity,
-        onPipModeChanged = onPipModeChanged,
-    )
-
     // Register broadcast receiver
     PipBroadcastReceiverEffect(
         context = context,

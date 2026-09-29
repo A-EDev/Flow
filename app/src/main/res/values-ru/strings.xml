@@ -362,7 +362,7 @@
     <string name="player_appearance_style_subtitle">Выберите визуальный стиль полосы прокрутки</string>
     <string name="settings_item_player_appearance">Вид плеера</string>
     <string name="settings_item_player_appearance_subtitle">Настройка стиля полосы прокрутки</string>
-    <string name="style_default">Обычный</string>
+    <string name="style_default">Динамический</string>
     <string name="style_metrolist">Толстый</string>
     <string name="style_metrolist_slim">По умолчанию</string>
     <string name="style_squiggly">Волнистый</string>
@@ -901,7 +901,7 @@
     <string name="player_fullscreen_seekbar_width_full">На всю ширину</string>
     <string name="player_fullscreen_seekbar_width_default">По умолчанию</string>
     <string name="player_fullscreen_seekbar_width_custom">Настроить</string>
-    <string name="subscriptions_last_refreshed_time_only_template">Последнее обновление:%1$s</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Последнее обновление %1$s</string>
     <string name="add_to_library">Добавить в библиотеку</string>
     <string name="saved_to_library">Сохранено в библиотеку</string>
     <string name="failed_to_save_to_library">Не удалось сохранить в библиотеку</string>
@@ -2334,4 +2334,216 @@
     <string name="sync_expires_seconds">%1$d сек</string>
     <string name="sync_done_stats_summary">Добавлено: %1$d · Обновлено: %2$d · Пропущено: %3$d</string>
     <string name="sync_scanning_hint">Поместите код другого устройства в рамку.</string>
+    <string name="top_bar_clear_search">Очистить поиск</string>
+    <string name="top_bar_close_search">Закрыть поиск</string>
+    <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="one">Обновлено %1$d из %2$d канала</item>
+        <item quantity="few">Обновлено %1$d из %2$d каналов</item>
+        <item quantity="many">Обновлено %1$d из %2$d каналов</item>
+        <item quantity="other">Обновлено %1$d из %2$d каналов</item>
+    </plurals>
+    <string name="conjunction_and">и</string>
+    <plurals name="queue_track_count">
+        <item quantity="one">%1$d трек</item>
+        <item quantity="few">%1$d трека</item>
+        <item quantity="many">%1$d треков</item>
+        <item quantity="other">%1$d треков</item>
+    </plurals>
+    <string name="lyrics_save_file">Сохранить как LRC-файл</string>
+    <string name="lyrics_saved">Текст песни сохранен</string>
+    <string name="lyrics_save_failed">Не удалось сохранить текст песни</string>
+    <string name="lyrics_choose_source">Выберите источник текста песни</string>
+    <string name="lyrics_synced_badge">Синхронизировано</string>
+    <string name="lyrics_edit">Изменить текст песни</string>
+    <string name="lyrics_copy">Скопировать текст песни</string>
+    <string name="lyrics_copied">Текст песни скопирован</string>
+    <string name="lyrics_alignment">Выравнивание</string>
+    <string name="lyrics_align_left">По левому краю</string>
+    <string name="lyrics_align_center">По центру</string>
+    <string name="lyrics_align_right">По правому краю</string>
+    <string name="lyrics_adjust_sync">Настроить задержку</string>
+    <string name="lyrics_sync_offset_value">%1$sс</string>
+    <string name="lyrics_sync_reset">Сбросить задержку текста</string>
+    <string name="lyrics_searching_sources">Поиск источников…</string>
+    <string name="lyrics_no_sources_found">Не удалось найти текст песни</string>
+    <string name="lyrics_source_edited">Изменено</string>
+    <string name="lyrics_current_source">Текущий источник: %1$s</string>
+    <string name="explicit_badge">E</string>
+    <plurals name="view_replies_template">
+        <item quantity="one">Посмотреть %1$d ответ</item>
+        <item quantity="few">Посмотреть %1$d ответа</item>
+        <item quantity="many">Посмотреть %1$d ответов</item>
+        <item quantity="other">Посмотреть %1$d ответов</item>
+    </plurals>
+    <plurals name="videos_count_template">
+        <item quantity="one">%1$d видео</item>
+        <item quantity="few">%1$d видео</item>
+        <item quantity="many">%1$d видео</item>
+        <item quantity="other">%1$d видео</item>
+    </plurals>
+    <string name="metadata_separator">·</string>
+    <string name="player_time_separator">/</string>
+    <string name="search_voice_prompt">Говорите…</string>
+    <plurals name="deep_flow_duration_hours">
+        <item quantity="one">%1$d час</item>
+        <item quantity="few">%1$d часа</item>
+        <item quantity="many">%1$d часов</item>
+        <item quantity="other">%1$d часов</item>
+    </plurals>
+    <plurals name="appearance_themes_count_all">
+        <item quantity="one">%1$d тема</item>
+        <item quantity="few">%1$d темы</item>
+        <item quantity="many">%1$d тем</item>
+        <item quantity="other">%1$d тем</item>
+    </plurals>
+    <plurals name="player_settings_shorts_auto_scroll_seconds_template">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунды</item>
+        <item quantity="many">%1$d секунд</item>
+        <item quantity="other">%1$d секунд</item>
+    </plurals>
+    <plurals name="player_settings_autoplay_countdown_seconds_template">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунды</item>
+        <item quantity="many">%1$d секунд</item>
+        <item quantity="other">%1$d секунд</item>
+    </plurals>
+    <plurals name="threads_count_label">
+        <item quantity="one">%1$d поток</item>
+        <item quantity="few">%1$d потока</item>
+        <item quantity="many">%1$d потоков</item>
+        <item quantity="other">%1$d потоков</item>
+    </plurals>
+    <string name="queue_position_template">%1$d / %2$d</string>
+    <string name="chart_position_template">#%1$d</string>
+    <string name="next_up_template">%1$s: %2$s</string>
+    <plurals name="download_all_confirmation">
+        <item quantity="one">Скачать %1$d видео? Это может занять много места на устройстве.</item>
+        <item quantity="few">Скачать %1$d видео? Это может занять много места на устройстве.</item>
+        <item quantity="many">Скачать %1$d видео? Это может занять много места на устройстве.</item>
+        <item quantity="other">Скачать %1$d видео? Это может занять много места на устройстве.</item>
+    </plurals>
+    <plurals name="videos_curated_template">
+        <item quantity="one">Подобрано %1$d видео специально для вас</item>
+        <item quantity="few">Подобрано %1$d видео специально для вас</item>
+        <item quantity="many">Подобрано %1$d видео специально для вас</item>
+        <item quantity="other">Подобрано %1$d видео специально для вас</item>
+    </plurals>
+    <plurals name="songs_count_template">
+        <item quantity="one">%1$d трек</item>
+        <item quantity="few">%1$d трека</item>
+        <item quantity="many">%1$d треков</item>
+        <item quantity="other">%1$d треков</item>
+    </plurals>
+    <plurals name="lyrics_providers_enabled">
+        <item quantity="one">Включен %1$d источник из %2$d</item>
+        <item quantity="few">Включено %1$d источника из %2$d</item>
+        <item quantity="many">Включено %1$d источников из %2$d</item>
+        <item quantity="other">Включено %1$d источников из %2$d</item>
+    </plurals>
+    <plurals name="player_settings_shorts_playback_mode_auto_interval_summary">
+        <item quantity="one">Автопрокрутка через %1$d секунду</item>
+        <item quantity="few">Автопрокрутка через %1$d секунды</item>
+        <item quantity="many">Автопрокрутка через %1$d секунд</item>
+        <item quantity="other">Автопрокрутка через %1$d секунд</item>
+    </plurals>
+    <plurals name="player_settings_double_tap_seek_subtitle">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунды</item>
+        <item quantity="many">%1$d секунд</item>
+        <item quantity="other">%1$d секунд</item>
+    </plurals>
+    <plurals name="topics_count_template">
+        <item quantity="one">%1$d тема</item>
+        <item quantity="few">%1$d темы</item>
+        <item quantity="many">%1$d тем</item>
+        <item quantity="other">%1$d тем</item>
+    </plurals>
+    <plurals name="topics_blocked_count_plural">
+        <item quantity="one">%1$d тема</item>
+        <item quantity="few">%1$d темы</item>
+        <item quantity="many">%1$d тем</item>
+        <item quantity="other">%1$d тем</item>
+    </plurals>
+    <plurals name="selected_count_template">
+        <item quantity="one">%1$d выбран</item>
+        <item quantity="few">%1$d выбрано</item>
+        <item quantity="many">%1$d выбрано</item>
+        <item quantity="other">%1$d выбрано</item>
+    </plurals>
+    <plurals name="every_min_template">
+        <item quantity="one">Каждую %1$d мин</item>
+        <item quantity="few">Каждые %1$d мин</item>
+        <item quantity="many">Каждые %1$d мин</item>
+        <item quantity="other">Каждые %1$d мин</item>
+    </plurals>
+    <plurals name="every_minutes_template">
+        <item quantity="one">Каждую %1$d мин</item>
+        <item quantity="few">Каждые %1$d мин</item>
+        <item quantity="many">Каждые %1$d мин</item>
+        <item quantity="other">Каждые %1$d мин</item>
+    </plurals>
+    <plurals name="sleep_timer_minutes">
+        <item quantity="one">%1$d мин</item>
+        <item quantity="few">%1$d мин</item>
+        <item quantity="many">%1$d мин</item>
+        <item quantity="other">%1$d мин</item>
+    </plurals>
+    <plurals name="currently_searches_template">
+        <item quantity="one">Сейчас: %1$d поисковый запрос</item>
+        <item quantity="few">Сейчас: %1$d поисковых запроса</item>
+        <item quantity="many">Сейчас: %1$d поисковых запросов</item>
+        <item quantity="other">Сейчас: %1$d поисковых запросов</item>
+    </plurals>
+    <plurals name="delete_after_days_template">
+        <item quantity="one">Удалять через %1$d день</item>
+        <item quantity="few">Удалять через %1$d дня</item>
+        <item quantity="many">Удалять через %1$d дней</item>
+        <item quantity="other">Удалять через %1$d дней</item>
+    </plurals>
+    <plurals name="delete_older_than_template">
+        <item quantity="one">Удалять поисковые запросы старше %1$d дня</item>
+        <item quantity="few">Удалять поисковые запросы старше %1$d дней</item>
+        <item quantity="many">Удалять поисковые запросы старше %1$d дней</item>
+        <item quantity="other">Удалять поисковые запросы старше %1$d дней</item>
+    </plurals>
+    <plurals name="searches_count_template">
+        <item quantity="one">%1$d поисковый запрос</item>
+        <item quantity="few">%1$d поисковых запроса</item>
+        <item quantity="many">%1$d поисковых запросов</item>
+        <item quantity="other">%1$d поисковых запросов</item>
+    </plurals>
+    <plurals name="days_count_template">
+        <item quantity="one">%1$d день</item>
+        <item quantity="few">%1$d дня</item>
+        <item quantity="many">%1$d дней</item>
+        <item quantity="other">%1$d дней</item>
+    </plurals>
+    <plurals name="threads_per_download_template">
+        <item quantity="one">%1$d поток на загрузку</item>
+        <item quantity="few">%1$d потока на загрузку</item>
+        <item quantity="many">%1$d потоков на загрузку</item>
+        <item quantity="other">%1$d потоков на загрузку</item>
+    </plurals>
+    <string name="playlist_downloads_queued">В очереди загрузки: %1$d из %2$d</string>
+    <plurals name="remove_selected_videos_title">
+        <item quantity="one">Удалить %1$d видео?</item>
+        <item quantity="few">Удалить %1$d видео?</item>
+        <item quantity="many">Удалить %1$d видео?</item>
+        <item quantity="other">Удалить %1$d видео?</item>
+    </plurals>
+    <plurals name="onboarding_channels_added_count">
+        <item quantity="one">%1$d канал добавлен</item>
+        <item quantity="few">%1$d канала добавлено</item>
+        <item quantity="many">%1$d каналов добавлено</item>
+        <item quantity="other">%1$d каналов добавлено</item>
+    </plurals>
+    <string name="onboarding_imported_count">%2$s: %1$d импортировано</string>
+    <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="one">Последнее обновление %1$s - %2$d видео проверено</item>
+        <item quantity="few">Последнее обновление %1$s - %2$d видео проверено</item>
+        <item quantity="many">Последнее обновление %1$s - %2$d видео проверено</item>
+        <item quantity="other">Последнее обновление %1$s - %2$d видео проверено</item>
+    </plurals>
+    <string name="streamed_date_template">Эфир: %1$s</string>
 </resources>

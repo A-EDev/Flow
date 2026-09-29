@@ -1,77 +1,62 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.aedev.flow.data.local.PlayerPreferences
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.player.state.EnhancedPlayerState
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
+import io.github.aedev.flow.ui.components.shared.MediaDownloadDialog
+import io.github.aedev.flow.ui.components.shared.MediaDownloadDialogCompact
+import io.github.aedev.flow.ui.components.videoplayer.DlnaDevicePickerDialog
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
-import io.github.aedev.flow.ui.screens.player.components.*
-import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
-import io.github.aedev.flow.ui.screens.player.state.SubtitleSelection
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerPreferencesState
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
 import kotlinx.coroutines.launch
 
 @Composable
-fun PlayerDialogsContainer(
+internal fun PlayerDialogsContainer(
     screenState: PlayerScreenState,
     playerState: EnhancedPlayerState,
     uiState: VideoPlayerUiState,
     video: Video,
     viewModel: VideoPlayerViewModel,
-    renderSettingsMenu: Boolean = true,
+    prefs: VideoPlayerPreferencesState,
+    hostedInSidePanel: Boolean = false,
     mediaSheetExpandedHeight: Dp? = null,
     mediaSheetCollapsedHeight: Dp = 0.dp,
     onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
-    val context = LocalContext.current
-    val playerPreferences = remember { PlayerPreferences(context) }
-    val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
-    val ambientModeEnabled by playerPreferences.videoAmbientModeEnabled.collectAsState(initial = false)
-    val groupedQualitySelectorEnabled by playerPreferences.groupedQualitySelectorEnabled.collectAsState(initial = false)
+    val playerPreferences = prefs.preferences
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        playerPreferences.subtitleStyle.collect { style ->
-            if (screenState.subtitleStyle != style) {
-                screenState.subtitleStyle = style
-            }
-        }
-    }
-
     // Download Quality Dialog
-    val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = null)
-    if (screenState.showDownloadDialog) {
-        when (downloadDialogStyle) {
+    if (screenState.activeSheet == PlayerSheet.Download) {
+        when (prefs.downloadDialogStyle) {
             io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT -> {
-                DownloadQualityDialogCompact(
-                    streamInfo = uiState.streamInfo,
+                MediaDownloadDialogCompact(
                     streamSizes = uiState.streamSizes,
                     innerTubeVideoFormats = uiState.innerTubeVideoFormats,
                     innerTubeAudioFormats = uiState.innerTubeAudioFormats,
                     video = video,
                     currentPlayingHeight = playerState.effectiveQuality,
-                    onDismiss = { screenState.showDownloadDialog = false },
+                    onDismiss = { screenState.closeSheet() },
                 )
             }
 
             io.github.aedev.flow.data.local.DownloadDialogStyle.FULL -> {
-                DownloadQualityDialog(
-                    streamInfo = uiState.streamInfo,
+                MediaDownloadDialog(
                     streamSizes = uiState.streamSizes,
                     innerTubeVideoFormats = uiState.innerTubeVideoFormats,
                     innerTubeAudioFormats = uiState.innerTubeAudioFormats,
                     video = video,
-                    onDismiss = { screenState.showDownloadDialog = false },
+                    onDismiss = { screenState.closeSheet() },
                 )
             }
 
@@ -79,112 +64,61 @@ fun PlayerDialogsContainer(
         }
     }
 
-    val settingsInitialPage =
-        when {
-            screenState.showQualitySelector -> PlayerSettingsPage.Quality
-            screenState.showAudioTrackSelector -> PlayerSettingsPage.Audio
-            screenState.showPlaybackSpeedSelector -> PlayerSettingsPage.Speed
-            screenState.showSubtitleSelector -> PlayerSettingsPage.Subtitles
-            else -> PlayerSettingsPage.Main
-        }
-    val showSettingsSurface =
-        screenState.showSettingsMenu ||
-            screenState.showQualitySelector ||
-            screenState.showAudioTrackSelector ||
-            screenState.showPlaybackSpeedSelector ||
-            screenState.showSubtitleSelector
-
-    // Settings menu
-    if (showSettingsSurface && renderSettingsMenu) {
-        SettingsMenuDialog(
+    if (screenState.isSettingsOpen && !hostedInSidePanel) {
+        PlayerSettingsSheetHost(
+            screenState = screenState,
             playerState = playerState,
-            autoplayEnabled = uiState.autoplayEnabled,
-            subtitlesEnabled = screenState.subtitlesEnabled,
-            initialPage = settingsInitialPage,
-            onDismiss = {
-                screenState.showSettingsMenu = false
-                screenState.showQualitySelector = false
-                screenState.showAudioTrackSelector = false
-                screenState.showPlaybackSpeedSelector = false
-                screenState.showSubtitleSelector = false
+            uiState = uiState,
+            viewModel = viewModel,
+            playerPreferences = playerPreferences,
+            scope = coroutineScope,
+            rememberPlaybackSpeed = prefs.rememberPlaybackSpeed,
+            ambientModeEnabled = prefs.ambientModeEnabled,
+            groupedQualitySelectorEnabled = prefs.groupedQualitySelectorEnabled,
+            rememberSubtitleLanguage = { language ->
+                coroutineScope.launch { playerPreferences.setPreferredSubtitleLanguage(language) }
             },
-            onQualitySelected = { option ->
-                EnhancedPlayerManager.getInstance().switchQuality(option)
-            },
-            onAudioTrackSelected = { index ->
-                EnhancedPlayerManager.getInstance().switchAudioTrack(index)
-            },
-            onSpeedSelected = { speed ->
-                EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
-                screenState.normalSpeed = speed
-                if (rememberPlaybackSpeed) {
-                    coroutineScope.launch { playerPreferences.setPlaybackSpeed(speed) }
-                }
-            },
-            selectedSubtitleUrl = screenState.selectedSubtitleUrl,
-            onSubtitleSelected = { index, _ ->
-                SubtitleSelection.applyAt(
-                    screenState = screenState,
-                    subtitles = playerState.availableSubtitles,
-                    index = index,
-                    rememberLanguage = { language ->
-                        coroutineScope.launch { playerPreferences.setPreferredSubtitleLanguage(language) }
-                    },
-                )
-            },
-            onDisableSubtitles = { SubtitleSelection.disable(screenState) },
-            onAutoplayToggle = { viewModel.toggleAutoplay(it) },
-            onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
-            onStableVolumeToggle = { viewModel.toggleStableVolume(it) },
-            onShowSubtitleStyle = {
-                screenState.showSettingsMenu = false
-                screenState.showSubtitleStyleCustomizer = true
-            },
-            onLoopToggle = { viewModel.toggleLoop(it) },
-            ambientModeEnabled = ambientModeEnabled,
-            onAmbientModeToggle = { coroutineScope.launch { playerPreferences.setVideoAmbientModeEnabled(it) } },
-            onCastClick = {
-                io.github.aedev.flow.player.dlna.DlnaCastManager
-                    .startDiscovery(context)
-                screenState.showSettingsMenu = false
-                screenState.showDlnaDialog = true
-            },
-            onPipClick = {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-                    io.github.aedev.flow.player.PictureInPictureHelper
-                        .isPlayerPopupSupported(context)
-                ) {
-                    screenState.showSettingsMenu = false
-                    io.github.aedev.flow.player.PictureInPictureHelper.requestPlayerPipMode(
-                        activity = context as androidx.activity.ComponentActivity,
-                        isPlaying = playerState.isPlaying,
-                        hasNext = playerState.hasNext || uiState.relatedVideos.isNotEmpty(),
-                    )
-                }
-            },
-            onSleepTimerClick = {
-                screenState.showSettingsMenu = false
-                screenState.showSleepTimerSheet = true
-            },
+            asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
             collapsedHeight = mediaSheetCollapsedHeight,
-            useGroupedQualitySelector = groupedQualitySelectorEnabled,
+            pipAspectRatio = null,
             onSheetProgressChange = onMediaSheetProgressChange,
+            onDismiss = { screenState.closeSheet() },
         )
     }
 
-    // Subtitle Style Customizer
-    if (screenState.showSubtitleStyleCustomizer) {
-        SubtitleStyleCustomizerDialog(
-            subtitleStyle = screenState.subtitleStyle,
-            onStyleChange = {
-                screenState.subtitleStyle = it
-                coroutineScope.launch { playerPreferences.setSubtitleStyle(it) }
+    if (screenState.activeSheet == PlayerSheet.Dlna) {
+        val dlnaDevices by DlnaCastManager.devices.collectAsStateWithLifecycle()
+        val isDlnaDiscovering by DlnaCastManager.isDiscovering.collectAsStateWithLifecycle()
+        DlnaDevicePickerDialog(
+            devices = dlnaDevices,
+            isDiscovering = isDlnaDiscovering,
+            isCasting = DlnaCastManager.isCasting,
+            videoTitle = video.title,
+            onDeviceSelected = { device ->
+                val currentPlayerUrl =
+                    EnhancedPlayerManager
+                        .getInstance()
+                        .getPlayer()
+                        ?.currentMediaItem
+                        ?.localConfiguration
+                        ?.uri
+                        ?.toString()
+                DlnaCastManager.castStreamInfo(
+                    device = device,
+                    title = video.title,
+                    streamInfo = null,
+                    currentPlayerUrl = currentPlayerUrl,
+                )
+                screenState.closeSheet()
             },
-            onDismiss = { screenState.showSubtitleStyleCustomizer = false },
-            onBack = {
-                screenState.showSubtitleStyleCustomizer = false
-                screenState.showSettingsMenu = true
+            onStopCasting = {
+                DlnaCastManager.disconnect()
+                screenState.closeSheet()
+            },
+            onDismiss = {
+                DlnaCastManager.stopDiscovery()
+                screenState.closeSheet()
             },
         )
     }

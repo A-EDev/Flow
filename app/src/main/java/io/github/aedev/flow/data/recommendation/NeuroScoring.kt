@@ -25,6 +25,9 @@ import kotlin.math.*
 internal object NeuroScoring {
     // ── Scoring Weight Constants ──
     const val SUBSCRIPTION_BOOST = 0.15
+
+    /** The reel feed already carries its own subscription lane; a triple boost here made every page one. */
+    const val SHORTS_SUBSCRIPTION_BOOST_MULTIPLIER = 1.5
     const val SUBSCRIPTION_BOOST_MAX = 0.30
 
     /** Channel-boredom multiplier at the 0.5 starting EMA — the neutral point. */
@@ -324,7 +327,7 @@ internal object NeuroScoring {
         // Subscription boost with freshness amplifier
         val isSub = userSubs.contains(video.channelId)
         if (isSub) {
-            val subBoost = if (video.isShort) SUBSCRIPTION_BOOST * 3.0 else SUBSCRIPTION_BOOST
+            val subBoost = if (video.isShort) SUBSCRIPTION_BOOST * SHORTS_SUBSCRIPTION_BOOST_MULTIPLIER else SUBSCRIPTION_BOOST
 
             val freshnessMultiplier =
                 when {

@@ -31,10 +31,10 @@ const val SPONSOR_BLOCK_SEGMENT_ALPHA = 0.78f
 fun defaultSponsorBlockColor(category: String): Color =
     when (category) {
         SponsorBlockCategories.SPONSOR -> SponsorBlockSponsor
-        SponsorBlockCategories.SELFPROMO -> SponsorBlockSelfPromo
+        SponsorBlockCategories.SELF_PROMO -> SponsorBlockSelfPromo
         SponsorBlockCategories.INTERACTION -> SponsorBlockInteraction
         SponsorBlockCategories.INTRO, SponsorBlockCategories.OUTRO -> SponsorBlockIntroOutro
-        SponsorBlockCategories.MUSIC_OFFTOPIC -> SponsorBlockMusicOffTopic
+        SponsorBlockCategories.MUSIC_OFF_TOPIC -> SponsorBlockMusicOffTopic
         SponsorBlockCategories.FILLER -> SponsorBlockFiller
         SponsorBlockCategories.PREVIEW -> SponsorBlockPreview
         SponsorBlockCategories.EXCLUSIVE_ACCESS -> SponsorBlockExclusiveAccess
@@ -44,11 +44,11 @@ fun defaultSponsorBlockColor(category: String): Color =
 fun sponsorBlockCategoryLabelRes(category: String): Int? =
     when (category) {
         SponsorBlockCategories.SPONSOR -> R.string.sb_category_sponsor
-        SponsorBlockCategories.SELFPROMO -> R.string.sb_category_selfpromo
+        SponsorBlockCategories.SELF_PROMO -> R.string.sb_category_selfpromo
         SponsorBlockCategories.INTERACTION -> R.string.sb_category_interaction
         SponsorBlockCategories.INTRO -> R.string.sb_category_intro
         SponsorBlockCategories.OUTRO -> R.string.sb_category_outro
-        SponsorBlockCategories.MUSIC_OFFTOPIC -> R.string.sb_category_music_offtopic
+        SponsorBlockCategories.MUSIC_OFF_TOPIC -> R.string.sb_category_music_offtopic
         SponsorBlockCategories.FILLER -> R.string.sb_category_filler
         SponsorBlockCategories.PREVIEW -> R.string.sb_category_preview
         SponsorBlockCategories.EXCLUSIVE_ACCESS -> R.string.sb_category_exclusive_access
@@ -56,6 +56,34 @@ fun sponsorBlockCategoryLabelRes(category: String): Int? =
     }
 
 fun sponsorBlockCategoriesAndLabels(): List<Pair<String, Int>> =
-    SponsorBlockCategories.ALL.mapNotNull { category ->
+    SponsorBlockCategories.all.mapNotNull { category ->
         sponsorBlockCategoryLabelRes(category)?.let { category to it }
     }
+
+/** The colours offered when the user picks their own colour for a segment category. */
+val SponsorBlockSegmentPresets: List<Color> =
+    listOf(
+        Color(0xFF00D400),
+        Color(0xFFFFFF00),
+        Color(0xFF0000FF),
+        Color(0xFFFF0000),
+        Color(0xFFFF7700),
+        Color(0xFFFF69B4),
+        Color(0xFF7700FF),
+        Color(0xFF00FFFF),
+        Color(0xFFFFFFFF),
+        Color(0xFF008080),
+        Color(0xFF3F51B5),
+        Color(0xFFFFC107),
+        Color(0xFFCDDC39),
+        Color(0xFF673AB7),
+        Color(0xFFFF5722),
+        Color(0xFFE91E63),
+        Color(0xFF006400),
+        Color(0xFF8B4513),
+        Color(0xFF808080),
+        Color(0xFFC0C0C0),
+        Color(0xFFFFD700),
+        Color(0xFF40E0D0),
+        Color(0xFF4B0082),
+    )

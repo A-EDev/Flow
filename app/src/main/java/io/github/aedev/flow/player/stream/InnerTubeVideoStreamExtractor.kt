@@ -23,8 +23,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -32,6 +35,10 @@ object InnerTubeVideoStreamExtractor {
     private const val TAG = "InnerTubeVideoExtractor"
     private const val PER_CLIENT_TIMEOUT_MS = 6000L
     private const val WEB_PLAYER_TIMEOUT_MS = 10000L
+
+    // A cold player script is a 3 MB download. Past this the web request goes without a signature
+    // timestamp and the download keeps running for the next extraction.
+    private const val SIGNATURE_TIMESTAMP_WAIT_MS = 4000L
 
     // How long a confirmed winner will wait for the streaming pot before shipping its
     // URLs pot-less. The mint starts alongside the ladder, so a warm session is ready well before
@@ -42,6 +49,9 @@ object InnerTubeVideoStreamExtractor {
     private const val STREAM_POT_ATTACH_GRACE_MS = 2500L
     private val N_PARAM_REGEX = Regex("""(?:^|[?&])n=([^&]+)""")
     private val POT_PARAM_REGEX = Regex("""[?&]pot=""")
+
+    @Volatile
+    private var lastSeenIdentityGeneration = WebPoTokenSession.identityGeneration
     private val extractionCoalescer =
         InFlightRequestCoalescer<ExtractionKey, VideoExtractionResult?>(
             CoroutineScope(SupervisorJob() + Dispatchers.IO),
@@ -60,30 +70,24 @@ object InnerTubeVideoStreamExtractor {
             YouTubeClient.VISIONOS,
         )
 
-    private val BOT_RESISTANT_CLIENTS: List<YouTubeClient> =
-        listOf(
-            YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-        )
-
     /**
-     * Direct clients GVS now cuts off after ~60s of media without a PO Token Flow cannot mint
-     * (DroidGuard). Kept below the attested SABR path rather than deleted: they still answer, still
-     * carry a full ladder, and are the difference between degraded playback and none when both
-     * VISIONOS and SABR are unavailable. Never promote these above [SABR_CLIENTS].
+     * Direct clients GVS cuts off without a PO Token Flow cannot mint (DroidGuard). The gate is
+     * bound to the byte offset, not wall-clock time, and measured between media position 60s and
+     * 67s. Never promote these above [SABR_CLIENTS]. 1.65.10 leads as the only build still
+     * answering; the others are kept because a bot wall is reputation-bound, not structural.
      */
     private val GATED_FALLBACK_CLIENTS: List<YouTubeClient> =
         listOf(
+            YouTubeClient.ANDROID_VR_1_65_10,
             YouTubeClient.ANDROID_VR_1_61_48,
             YouTubeClient.ANDROID_VR_NO_AUTH,
-            YouTubeClient.ANDROID_VR_1_65_10,
             YouTubeClient.ANDROID_VR_1_43_32,
         )
 
-    // Last-resort token-free clients, tried after everything else
+    // Last-resort token-free client, tried after everything else.
     private val LAST_RESORT_CLIENTS: List<YouTubeClient> =
         listOf(
             YouTubeClient.MOBILE,
-            YouTubeClient.ANDROID_CREATOR,
         )
 
     // MWEB first: it carries every dubbed audio track and is web-family, so its GVS token is one
@@ -94,11 +98,12 @@ object InnerTubeVideoStreamExtractor {
             YouTubeClient.WEB,
         )
 
+    // ANDROID_VR leads: on a live broadcast it is the only client that returns a DASH manifest
+    // alongside the HLS one, and VISIONOS returns HLS only.
     private val LIVE_MANIFEST_CLIENTS: List<YouTubeClient> =
         listOf(
+            YouTubeClient.ANDROID_VR_1_65_10,
             YouTubeClient.VISIONOS,
-            YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-            YouTubeClient.ANDROID_VR_1_61_48,
         )
 
     data class VideoExtractionResult(
@@ -130,6 +135,8 @@ object InnerTubeVideoStreamExtractor {
         withContext(Dispatchers.IO) {
             Log.w(TAG, "Extraction start for $videoId (forceSabr=$forceSabr)")
             PlayerDiagnostics.logWarning(TAG, "extract start $videoId forceSabr=$forceSabr")
+            dropGatesOnIdentityChange()
+            blockedVideoIds.remove(videoId)
             val failureReasons = mutableListOf<String>()
             val liveDetected = booleanArrayOf(false)
 
@@ -141,15 +148,35 @@ object InnerTubeVideoStreamExtractor {
                 }
                 Log.e(TAG, "Forced SABR extraction failed for $videoId. Reasons: ${failureReasons.joinToString(" | ")}")
                 PlayerDiagnostics.logError(TAG, "forced SABR FAILED $videoId: ${failureReasons.joinToString(" | ")}")
+                recordBlock(videoId, failureReasons)
                 return@withContext null
             }
 
-            // 1) Fast path: token-free clients with direct URLs
-            tryDirectClients(videoId, FAST_CLIENTS, failureReasons, liveDetected = liveDetected)?.let { direct ->
-                val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
-                Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
-                PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}")
-                return@withContext result
+            // 1) Fast path: token-free clients with direct URLs. Skipped while GVS is enforcing
+            // attestation on them — without that memory the ladder walks into the same refusal on
+            // every single video, which is what "every video stops at a minute" looks like.
+            val fastClients = FAST_CLIENTS.ungated()
+            if (fastClients.isEmpty()) {
+                Log.w(TAG, "Fast clients demoted for $videoId (gated: ${ClientGateTracker.gatedClients()}) — starting at the attested path")
+                PlayerDiagnostics.logWarning(
+                    TAG,
+                    "fast path SKIPPED $videoId — gated clients: ${ClientGateTracker.gatedClients().joinToString()}",
+                )
+            } else {
+                // A cold start pays DNS and TLS inside the first request, which can outlast the
+                // per-client timeout; one retry on the warm connection beats falling to the web path.
+                tryDirectClients(
+                    videoId,
+                    fastClients,
+                    failureReasons,
+                    liveDetected = liveDetected,
+                    retryTimeoutOnce = true,
+                )?.let { direct ->
+                    val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
+                    Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
+                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${result.usedClient.clientName} mode=${resultMode(result)}")
+                    return@withContext result
+                }
             }
 
             if (liveDetected[0]) {
@@ -168,15 +195,9 @@ object InnerTubeVideoStreamExtractor {
                 return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
             }
 
-            tryDirectClients(videoId, BOT_RESISTANT_CLIENTS, failureReasons, liveDetected = liveDetected)?.let { direct ->
-                val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
-                Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)})")
-                return@withContext result
-            }
-
             // 3) Gated direct clients. Playable, but GVS stops serving them ~60s in, so they rank
             // below anything attested and are only reached when the paths above are unavailable.
-            tryDirectClients(videoId, GATED_FALLBACK_CLIENTS, failureReasons, liveDetected = liveDetected)?.let { direct ->
+            tryDirectClients(videoId, GATED_FALLBACK_CLIENTS.ungated(), failureReasons, liveDetected = liveDetected)?.let { direct ->
                 val result = maybeUpgradeToSabr(videoId, direct, failureReasons)
                 Log.w(TAG, "Extraction OK for $videoId via ${result.usedClient.clientName} (mode=${resultMode(result)}/gated)")
                 PlayerDiagnostics.logWarning(
@@ -188,16 +209,74 @@ object InnerTubeVideoStreamExtractor {
             }
 
             // 4) Last resort: remaining token-free clients
-            tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons, allowUntransformedN = true, liveDetected = liveDetected)?.let {
+            tryDirectClients(
+                videoId,
+                LAST_RESORT_CLIENTS.ungated(),
+                failureReasons,
+                allowUntransformedN = true,
+                liveDetected = liveDetected,
+            )?.let {
                 Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/last-resort)")
                 PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${it.usedClient.clientName} mode=DIRECT/last-resort")
                 return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
             }
 
+            // 5) Every attested path is gone and the demotion has left nothing to try. A client
+            // that plays a minute beats a client that plays nothing, so the demotions are ignored
+            // for one pass rather than returning a failure the user cannot act on.
+            val demoted = (FAST_CLIENTS + GATED_FALLBACK_CLIENTS + LAST_RESORT_CLIENTS).filter { ClientGateTracker.isGated(it.clientName) }
+            if (demoted.isNotEmpty()) {
+                Log.w(TAG, "Nothing playable for $videoId without the demoted clients — retrying them: ${demoted.map { it.clientName }}")
+                PlayerDiagnostics.logWarning(TAG, "retrying DEMOTED clients for $videoId: ${demoted.joinToString { it.clientName }}")
+                tryDirectClients(videoId, demoted, failureReasons, allowUntransformedN = true, liveDetected = liveDetected)?.let {
+                    PlayerDiagnostics.logWarning(TAG, "extract OK $videoId via ${it.usedClient.clientName} mode=DIRECT/demoted-retry")
+                    return@withContext if (liveDetected[0] && !it.isLive) it.copy(isLive = true) else it
+                }
+            }
+
             Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")
             PlayerDiagnostics.logError(TAG, "ALL clients failed $videoId: ${failureReasons.joinToString(" | ")}")
+            if (PlayabilityVerdict.isGone(failureReasons)) goneVideoIds += videoId
+            recordBlock(videoId, failureReasons)
             null
         }
+
+    /** Videos YouTube reported as removed or unplayable on every client; a queue skips them. */
+    private val goneVideoIds: MutableSet<String> =
+        java.util.concurrent.ConcurrentHashMap
+            .newKeySet()
+
+    fun isGone(videoId: String): Boolean = videoId in goneVideoIds
+
+    private val blockedVideoIds = java.util.concurrent.ConcurrentHashMap<String, PlaybackBlock>()
+
+    /** Why the last extraction of [videoId] failed, when YouTube refused the viewer rather than the video. */
+    fun blockOf(videoId: String): PlaybackBlock? = blockedVideoIds[videoId]
+
+    private fun recordBlock(
+        videoId: String,
+        failureReasons: List<String>,
+    ) {
+        PlayabilityVerdict.block(failureReasons)?.let { blockedVideoIds[videoId] = it }
+    }
+
+    /** The clients GVS is not currently refusing to serve. See [ClientGateTracker]. */
+    private fun List<YouTubeClient>.ungated(): List<YouTubeClient> = filterNot { ClientGateTracker.isGated(it.clientName) }
+
+    /**
+     * A demotion is a verdict GVS reached about one visitor identity. Once that identity has been
+     * replaced the verdict says nothing, so the ladder gets its fast clients back immediately
+     * instead of waiting out the registry's timer.
+     */
+    private fun dropGatesOnIdentityChange() {
+        val generation = WebPoTokenSession.identityGeneration
+        if (generation == lastSeenIdentityGeneration) return
+        lastSeenIdentityGeneration = generation
+        if (ClientGateTracker.gatedClients().isEmpty()) return
+        Log.w(TAG, "Visitor identity rotated — clearing client demotions")
+        PlayerDiagnostics.logWarning(TAG, "visitor identity rotated — client demotions cleared")
+        ClientGateTracker.clear()
+    }
 
     private fun resultMode(r: VideoExtractionResult): String =
         when {
@@ -229,9 +308,13 @@ object InnerTubeVideoStreamExtractor {
             TAG,
             "Direct ladder for $videoId capped at ${directMaxHeight}p (< ${SabrRoutingPolicy.QUALITY_UPGRADE_FLOOR}p); attempting SABR upgrade",
         )
-        val sabr = trySabrClients(videoId, failureReasons) ?: return direct
-        val sabrHeight = sabr.sabrInfo?.videoHeight ?: 0
-        return if (sabr.sabrInfo != null && sabrHeight > directMaxHeight) {
+        val sabr =
+            withTimeoutOrNull(SabrRoutingPolicy.UPGRADE_BUDGET_MS) { trySabrClients(videoId, failureReasons) }
+                ?: return direct.also {
+                    PlayerDiagnostics.logWarning(TAG, "SABR upgrade unavailable or out of budget for $videoId, playing direct")
+                }
+        val sabrHeight = sabr.sabrInfo?.videoHeight
+        return if (SabrRoutingPolicy.upgradeReplacesDirect(directMaxHeight, sabrHeight)) {
             Log.w(TAG, "Upgraded $videoId: ${directMaxHeight}p direct → ${sabrHeight}p SABR")
             sabr
         } else {
@@ -276,22 +359,26 @@ object InnerTubeVideoStreamExtractor {
         failureReasons: MutableList<String>,
         allowUntransformedN: Boolean = false,
         liveDetected: BooleanArray? = null,
+        retryTimeoutOnce: Boolean = false,
     ): VideoExtractionResult? =
         coroutineScope {
             val sts: Int? =
                 if (clients.any { it.useSignatureTimestamp }) {
-                    NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+                    CipherDeobfuscator.ensureSignatureTimestamp()
                 } else {
                     null
                 }
 
             // Attested player requests yield direct URLs that survive GVS enforcement; unattested
             // ones get cut off roughly a minute in (served briefly, then 403 once the buffer drains).
-            val mint = async { WebPoTokenSession.mintBounded(videoId) }
+            // Skipped when no client here can carry the token: minting only to cancel it left the
+            // shared BotGuard session needing a fresh attestation on the next open.
+            val mintable = clients.any { it.attestation == AttestationPlatform.WEB }
+            val mint = if (mintable) async { WebPoTokenSession.mintBounded(videoId) } else null
             var mintLogged = false
 
             suspend fun awaitMint(): PoTokenResult? {
-                val result = mint.await()
+                val result = mint?.await()
                 if (!mintLogged) {
                     mintLogged = true
                     if (result == null) {
@@ -323,22 +410,30 @@ object InnerTubeVideoStreamExtractor {
                     val webAttested = client.attestation == AttestationPlatform.WEB
                     val clientPoToken = if (webAttested) awaitMint()?.playerRequestPoToken else null
 
-                    val playerResponse =
+                    suspend fun requestPlayer(): Result<PlayerResponse>? =
                         withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
                             // Force en-US extraction locale so the response is deterministic across regions.
                             // Route video extraction to www.youtube.com (not the music host): the main site
                             // serves usable ANDROID_VR direct adaptive formats that survive GVS enforcement,
                             // instead of the SABR-only responses the music endpoint returns for these clients.
-                            YouTube
-                                .player(
-                                    videoId,
-                                    client = client,
-                                    signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
-                                    poToken = clientPoToken,
-                                    localeOverride = YouTubeLocale.EXTRACTION,
-                                    apiUrl = YouTubeClient.API_URL_YOUTUBE,
-                                ).getOrNull()
+                            YouTube.player(
+                                videoId,
+                                client = client,
+                                signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
+                                poToken = clientPoToken,
+                                localeOverride = YouTubeLocale.EXTRACTION,
+                                apiUrl = YouTubeClient.API_URL_YOUTUBE,
+                            )
                         }
+
+                    var attempt = requestPlayer()
+                    if (retryTimeoutOnce && attempt.isTimeout()) {
+                        currentCoroutineContext().ensureActive()
+                        Log.w(TAG, "${client.clientName} timed out for $videoId, retrying once")
+                        PlayerDiagnostics.logWarning(TAG, "${client.clientName} timed out for $videoId, retrying once")
+                        attempt = requestPlayer()
+                    }
+                    val playerResponse = attempt?.getOrNull()
 
                     if (playerResponse == null) {
                         failureReasons.add("${client.clientName}: timeout or null response")
@@ -352,7 +447,7 @@ object InnerTubeVideoStreamExtractor {
                     val status = playerResponse.playabilityStatus.status
                     if (status != "OK") {
                         val reason = playerResponse.playabilityStatus.reason
-                        val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                        val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
                         failureReasons.add("${client.clientName}: $tag, reason=$reason")
                         Log.w(TAG, "${client.clientName}: $tag, reason=$reason")
                         PlayerDiagnostics.logWarning(
@@ -366,7 +461,7 @@ object InnerTubeVideoStreamExtractor {
                         // A genuine live manifest wins outright. Live playback never consumes the
                         // mint, so cancel it rather than letting coroutineScope wait it out.
                         playerResponse.toLiveResultOrNull(client)?.let {
-                            mint.cancel()
+                            mint?.cancel()
                             return@coroutineScope it
                         }
 
@@ -407,7 +502,8 @@ object InnerTubeVideoStreamExtractor {
                     PlayerDiagnostics.logWarning(
                         TAG,
                         "probe ${client.clientName} v${client.clientVersion}: adaptive=${adaptiveFormats.size} " +
-                            "hasUrl=$rawUrlCount resolvable=${formatsWithUrl.size} sabr=$sabrPresent pot=${clientPoToken != null}",
+                            "hasUrl=$rawUrlCount resolvable=${formatsWithUrl.size} sabr=$sabrPresent " +
+                            "pot=${clientPoToken != null} attest=${playerResponse.attestationDemand()}",
                     )
                     if (formatsWithUrl.isEmpty()) {
                         failureReasons.add("${client.clientName}: ${adaptiveFormats.size} formats, none resolvable (SABR-only)")
@@ -445,7 +541,7 @@ object InnerTubeVideoStreamExtractor {
                         )
                     }
 
-                    mint.cancel()
+                    mint?.cancel()
 
                     return@coroutineScope VideoExtractionResult(
                         videoFormats = if (urlPot != null) videoFormats.map { it.withUrlPoToken(urlPot) } else videoFormats,
@@ -465,7 +561,7 @@ object InnerTubeVideoStreamExtractor {
                     )
                 }
             }
-            mint.cancel()
+            mint?.cancel()
             null
         }
 
@@ -481,7 +577,16 @@ object InnerTubeVideoStreamExtractor {
         cpn: String = SabrCpn.generate(),
         reloadToken: String? = null,
     ): VideoExtractionResult? {
-        for (client in SABR_CLIENTS) {
+        val clients = SABR_CLIENTS.ungated()
+        if (clients.isEmpty()) {
+            // Returning null rather than retrying a refused client is what lets the forced-SABR
+            // reload fall through to the full ladder in PlaybackLoadResolver, instead of re-minting
+            // a BotGuard token for a client GVS has already refused twice.
+            failureReasons.add("all SABR clients demoted: ${ClientGateTracker.gatedClients().joinToString()}")
+            PlayerDiagnostics.logWarning(TAG, "SABR clients demoted for $videoId — falling through to the direct ladder")
+            return null
+        }
+        for (client in clients) {
             tryWebSabr(
                 videoId = videoId,
                 failureReasons = failureReasons,
@@ -522,9 +627,7 @@ object InnerTubeVideoStreamExtractor {
                 Log.w(TAG, "$label+SABR: PoToken mint returned null (WebView missing/broken?)")
                 return null
             }
-            val sts =
-                NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
-                    ?: CipherDeobfuscator.ensureSignatureTimestamp()
+            val sts = withTimeoutOrNull(SIGNATURE_TIMESTAMP_WAIT_MS) { CipherDeobfuscator.ensureSignatureTimestamp() }
 
             val playerResponse =
                 withTimeoutOrNull(WEB_PLAYER_TIMEOUT_MS) {
@@ -549,7 +652,7 @@ object InnerTubeVideoStreamExtractor {
             val status = playerResponse.playabilityStatus.status
             if (status != "OK") {
                 val reason = playerResponse.playabilityStatus.reason
-                val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                val tag = if (PlayabilityVerdict.isBotWall(reason)) "BOT_WALL" else "status=$status"
                 failureReasons.add("$label: $tag, reason=$reason")
                 Log.w(TAG, "$label: $tag, reason=$reason")
                 return null
@@ -617,16 +720,50 @@ object InnerTubeVideoStreamExtractor {
                     clientUserAgent = client.userAgent,
                 )
 
-            val adaptiveFormats = playerResponse.streamingData?.adaptiveFormats.orEmpty()
-            val videoFormats = adaptiveFormats.filter { !it.isAudio && it.height != null }
-            val audioFormats = adaptiveFormats.filter { it.isAudio }
+            // The SABR session is the point of this path, but these formats are what playback falls
+            // back to whenever it is not the preferred source — and they used to be handed over
+            // exactly as the response carried them: signature-ciphered, n-untransformed and
+            // carrying no `pot`. Anything that reached them answered 403 on the first byte range,
+            // which is the "stream URLs keep expiring" loop. Resolve them the way the direct path
+            // resolves its own, so the fallback is a real fallback.
+            val rawFormats = playerResponse.streamingData?.adaptiveFormats.orEmpty()
+            val decipheredFormats = rawFormats.decipherWhilePossible(videoId)
+            primeRemoteNsigIfNeeded(videoId, decipheredFormats)
+            val streamingPot = poToken.streamingDataPoToken.takeIf { it.isNotEmpty() }
+            val playableFormats =
+                decipheredFormats
+                    .mapNotNull { it.withPlayableUrl(videoId, allowUntransformedN = false) }
+                    .let { formats ->
+                        if (streamingPot == null) formats else formats.map { it.withUrlPoToken(streamingPot) }
+                    }
+            val videoFormats = playableFormats.filter { !it.isAudio && it.height != null }
+            val audioFormats = playableFormats.filter { it.isAudio }
 
             val heights = videoFormats.mapNotNull { it.height }.distinct().sorted()
             Log.w(
                 TAG,
                 "$label+PoToken (SABR) resolved: ${videoFormats.size} video (${heights.joinToString()}p), " +
-                    "${audioFormats.size} audio, sabr=true",
+                    "${audioFormats.size} audio, sabr=true, fallbackAttested=${streamingPot != null} " +
+                    "(${playableFormats.size}/${rawFormats.size} formats playable)",
             )
+            PlayerDiagnostics.logWarning(
+                TAG,
+                "$label+SABR $videoId: session ready, direct fallback ${playableFormats.size}/${rawFormats.size} " +
+                    "formats pot=${streamingPot != null}",
+            )
+
+            // A SABR session on its own cannot play — the server never sends an init segment, so
+            // ExoPlayer has nothing to sniff. Its direct formats are the whole value of this path,
+            // and without them the ladder is better off trying the next client than returning a
+            // result that only looks playable.
+            if (videoFormats.isEmpty() || audioFormats.isEmpty()) {
+                failureReasons.add("$label: SABR resolved but no format survived decipher/n-transform")
+                PlayerDiagnostics.logWarning(
+                    TAG,
+                    "$label+SABR $videoId: session resolved but 0 playable formats — falling through to the next client",
+                )
+                return null
+            }
 
             return VideoExtractionResult(
                 videoFormats = videoFormats,
@@ -650,7 +787,7 @@ object InnerTubeVideoStreamExtractor {
     ): VideoExtractionResult? {
         val sts: Int? =
             if (LIVE_MANIFEST_CLIENTS.any { it.useSignatureTimestamp }) {
-                NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+                CipherDeobfuscator.ensureSignatureTimestamp()
             } else {
                 null
             }
@@ -690,6 +827,9 @@ object InnerTubeVideoStreamExtractor {
         return null
     }
 
+    /** A status refusal is an answer; only a request that never came back is worth repeating. */
+    private fun Result<PlayerResponse>?.isTimeout(): Boolean = this == null || exceptionOrNull() is TimeoutCancellationException
+
     private fun PlayerResponse.isLiveNow(): Boolean =
         LiveDetectionRules.isLiveNow(
             isLive = videoDetails?.isLive,
@@ -715,32 +855,81 @@ object InnerTubeVideoStreamExtractor {
         )
     }
 
-    private fun isBotWall(reason: String?): Boolean {
-        if (reason == null) return false
-        return reason.contains("Sign in to confirm", ignoreCase = true) ||
-            reason.contains("confirm you", ignoreCase = true) ||
-            reason.contains("not a bot", ignoreCase = true) ||
-            reason.contains("Inicia sesión", ignoreCase = true) // localized "sign in"
+    /**
+     * Whether YouTube asked this client to attest for this video, and under what shape.
+     *
+     * Reported next to the format counts because the two together are the question that matters
+     * when a client's URLs are refused: was the response served freely, or did the server already
+     * signal that it wanted proof this client could not give?
+     */
+    internal fun PlayerResponse.attestationDemand(): String {
+        val renderer = attestation?.playerAttestationRenderer ?: return "none"
+        val challenge = renderer.challenge ?: return "empty"
+        val shared = if (renderer.useSharedChallenge == true) ",shared" else ""
+        return "yes(${challenge.length}c$shared)"
     }
 
     private suspend fun PlayerResponse.StreamingData.Format.toPlayableFormat(
         videoId: String,
         allowUntransformedN: Boolean,
-    ): PlayerResponse.StreamingData.Format? {
-        if (!url.isNullOrEmpty()) return withPlayableUrl(videoId, allowUntransformedN)
-        if (!signatureCipher.isNullOrEmpty() || !cipher.isNullOrEmpty()) {
-            val resolved =
-                try {
-                    NewPipeExtractor.getStreamUrl(this, videoId)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "cipher resolve failed for $videoId itag=$itag: ${e.message}")
+    ): PlayerResponse.StreamingData.Format? = withCipherResolvedUrl(videoId)?.withPlayableUrl(videoId, allowUntransformedN)
+
+    /**
+     * Deciphers a whole ladder, and stops trying once one signature fails.
+     *
+     * Whether a `signatureCipher` can be resolved is a property of the player script, not of the
+     * format, so the first failure settles it for all of them. Measured 2026-09-22: without this,
+     * a player script whose signature function the patterns cannot find sent every one of ~30
+     * formats through a failing WebView round trip and blew the whole extraction budget.
+     */
+    private suspend fun List<PlayerResponse.StreamingData.Format>.decipherWhilePossible(
+        videoId: String,
+    ): List<PlayerResponse.StreamingData.Format> {
+        var cipherUsable = true
+        return mapNotNull { format ->
+            when {
+                !format.url.isNullOrEmpty() -> {
+                    format
+                }
+
+                !cipherUsable -> {
                     null
                 }
-            return if (!resolved.isNullOrEmpty()) copy(url = resolved).withPlayableUrl(videoId, allowUntransformedN) else null
+
+                else -> {
+                    format.withCipherResolvedUrl(videoId).also {
+                        if (it == null) {
+                            cipherUsable = false
+                            Log.w(TAG, "Signature deciphering unavailable for $videoId — skipping the remaining ciphered formats")
+                        }
+                    }
+                }
+            }
         }
-        return null
+    }
+
+    /**
+     * The format with a real `url`, deciphered if it only carried a `signatureCipher`, and with the
+     * `n` parameter still untransformed.
+     *
+     * Split out of [toPlayableFormat] so a whole ladder can be deciphered before any of it is
+     * n-transformed: [primeRemoteNsigIfNeeded] can only sample formats that already have a URL, and
+     * on a SABR response almost none of them do until this has run. Priming first collapses what
+     * would otherwise be one remote round trip per format into one for the batch.
+     */
+    private suspend fun PlayerResponse.StreamingData.Format.withCipherResolvedUrl(videoId: String): PlayerResponse.StreamingData.Format? {
+        if (!url.isNullOrEmpty()) return this
+        if (signatureCipher.isNullOrEmpty() && cipher.isNullOrEmpty()) return null
+        val resolved =
+            try {
+                NewPipeExtractor.getStreamUrl(this, videoId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "cipher resolve failed for $videoId itag=$itag: ${e.message}")
+                null
+            }
+        return resolved?.takeIf { it.isNotEmpty() }?.let { copy(url = it) }
     }
 
     /**
@@ -840,6 +1029,12 @@ object InnerTubeVideoStreamExtractor {
             } ?: return
         if (localNTransformOrNull(videoId, sample.first, sample.second) != null) return
         Log.w(TAG, "Local n-decoders failed for $videoId; priming remote decoder for ${urls.size} formats")
+        PlayerDiagnostics.logWarning(
+            TAG,
+            "local n-decoders FAILED for $videoId" +
+                (CipherDeobfuscator.unparseablePlayerHash?.let { " — player JS $it is unreadable to this build" } ?: "") +
+                " — falling back to the remote decoder",
+        )
         PipePipeNsigDecoder.prefetch(urls)
     }
 

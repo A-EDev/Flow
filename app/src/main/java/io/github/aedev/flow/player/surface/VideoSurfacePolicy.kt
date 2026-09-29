@@ -4,15 +4,13 @@ import android.os.Build
 import androidx.media3.common.Player
 
 object VideoSurfacePolicy {
-    fun usesSurfaceView(sdkInt: Int): Boolean =
-        sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+    fun usesSurfaceView(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
 
     fun canRestoreVideoOutput(
         sdkInt: Int,
         isDisplayInteractive: Boolean,
-        isSurfaceValid: Boolean
-    ): Boolean =
-        isDisplayInteractive && (!usesSurfaceView(sdkInt) || isSurfaceValid)
+        isSurfaceValid: Boolean,
+    ): Boolean = isDisplayInteractive && (!usesSurfaceView(sdkInt) || isSurfaceValid)
 
     /**
      * Whether a same-position seek is needed after a destroyed video surface comes back.
@@ -28,8 +26,20 @@ object VideoSurfacePolicy {
     fun shouldResyncOnSurfaceReattach(
         playWhenReady: Boolean,
         isLive: Boolean,
-        playbackState: Int
+        playbackState: Int,
     ): Boolean =
         !playWhenReady && !isLive &&
             (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING)
+
+    /**
+     * Where the resync seek has to land to actually flush anything.
+     *
+     * ExoPlayerImplInternal.seekToInternal returns before it disables the renderers when the
+     * adjusted target rounds to the millisecond the player already reports and the state is READY
+     * or BUFFERING — which is exactly the state [shouldResyncOnSurfaceReattach] asks for. A
+     * same-position seek was therefore bookkeeping and nothing else, and the codec kept its stale
+     * read-ahead. One millisecond is the smallest offset that takes the real path; the caller pairs
+     * it with exact seek parameters so it is not snapped to a sync frame seconds away.
+     */
+    fun resyncSeekTargetMs(positionMs: Long): Long = if (positionMs > 0L) positionMs - 1L else 1L
 }

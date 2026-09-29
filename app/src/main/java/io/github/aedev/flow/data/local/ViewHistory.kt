@@ -8,14 +8,20 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.local.dao.WatchProgress
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 
@@ -28,34 +34,43 @@ private val Context.viewHistoryDataStore: DataStore<Preferences> by safePreferen
 /**
  * Watch-history repository backed by Room SQLite.
 */
-class ViewHistory private constructor(private val context: Context) {
-
-    private val dao = AppDatabase.getDatabase(context).watchHistoryDao()
+class ViewHistory private constructor(
+    private val context: Context,
+) {
+    private val database = AppDatabase.getDatabase(context)
+    private val dao = database.watchHistoryDao()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
         private const val TAG = "ViewHistory"
+        private const val WATCH_HISTORY_TABLE = "watch_history"
 
         @Volatile
-        private var INSTANCE: ViewHistory? = null
+        private var instance: ViewHistory? = null
 
-        fun getInstance(context: Context): ViewHistory {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: ViewHistory(context.applicationContext).also { instance ->
-                    INSTANCE = instance
-                    instance.scope.launch { instance.migrateFromDataStoreIfNeeded() }
+        fun getInstance(context: Context): ViewHistory =
+            instance ?: synchronized(this) {
+                instance ?: ViewHistory(context.applicationContext).also { created ->
+                    instance = created
+                    created.scope.launch { created.migrateFromDataStoreIfNeeded() }
                 }
             }
-        }
 
-        private fun positionKey(id: String)    = longPreferencesKey("video_${id}_position")
-        private fun durationKey(id: String)    = longPreferencesKey("video_${id}_duration")
-        private fun timestampKey(id: String)   = longPreferencesKey("video_${id}_timestamp")
-        private fun titleKey(id: String)       = stringPreferencesKey("video_${id}_title")
-        private fun thumbnailKey(id: String)   = stringPreferencesKey("video_${id}_thumbnail")
+        private fun positionKey(id: String) = longPreferencesKey("video_${id}_position")
+
+        private fun durationKey(id: String) = longPreferencesKey("video_${id}_duration")
+
+        private fun timestampKey(id: String) = longPreferencesKey("video_${id}_timestamp")
+
+        private fun titleKey(id: String) = stringPreferencesKey("video_${id}_title")
+
+        private fun thumbnailKey(id: String) = stringPreferencesKey("video_${id}_thumbnail")
+
         private fun channelNameKey(id: String) = stringPreferencesKey("video_${id}_channel_name")
-        private fun channelIdKey(id: String)   = stringPreferencesKey("video_${id}_channel_id")
-        private fun isMusicKey(id: String)     = booleanPreferencesKey("video_${id}_is_music")
+
+        private fun channelIdKey(id: String) = stringPreferencesKey("video_${id}_channel_id")
+
+        private fun isMusicKey(id: String) = booleanPreferencesKey("video_${id}_is_music")
     }
 
     // ── Writes ───────────────────────────────────────────────────────────────
@@ -74,7 +89,9 @@ class ViewHistory private constructor(private val context: Context) {
         channelId: String = "",
         isMusic: Boolean = false,
         isShort: Boolean = false,
-        isLocal: Boolean = false
+        // A device file's row stays local whichever caller writes it, or it would join the online
+        // history, the engine's signals and sync under an id that names no YouTube video.
+        isLocal: Boolean = LocalMediaIds.isLocal(videoId),
     ) {
         val prefs = PlayerPreferences(context)
         if (prefs.isDeepFlowCurrentlyActive() && !prefs.isDeepFlowSaveToHistoryEnabled()) return
@@ -82,19 +99,33 @@ class ViewHistory private constructor(private val context: Context) {
         val thumbnail = if (isLocal) thumbnailUrl else ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, thumbnailUrl)
         dao.upsert(
             WatchHistoryEntity(
-                videoId      = videoId,
-                position     = position,
-                duration     = duration,
-                timestamp    = System.currentTimeMillis(),
-                title        = title,
+                videoId = videoId,
+                position = position,
+                duration = duration,
+                timestamp = System.currentTimeMillis(),
+                title = title,
                 thumbnailUrl = thumbnail,
-                channelName  = channelName,
-                channelId    = channelId,
-                isMusic      = isMusic,
-                isShort      = isShort,
-                isLocal      = isLocal
-            )
+                channelName = channelName,
+                channelId = channelId,
+                isMusic = isMusic,
+                isShort = isShort,
+                isLocal = isLocal,
+            ),
         )
+    }
+
+    /**
+     * Records that [videoId] played to its end. Its card then shows a full bar until the next
+     * playback of it starts over from the beginning and saves new progress.
+     */
+    suspend fun markCompleted(
+        videoId: String,
+        durationMs: Long,
+    ) {
+        if (durationMs <= 0L) return
+        val prefs = PlayerPreferences(context)
+        if (prefs.isDeepFlowCurrentlyActive() && !prefs.isDeepFlowSaveToHistoryEnabled()) return
+        dao.markCompleted(videoId, durationMs)
     }
 
     suspend fun getSavedPosition(videoId: String): Long = dao.getPosition(videoId) ?: 0L
@@ -111,26 +142,33 @@ class ViewHistory private constructor(private val context: Context) {
         channelName: String = "",
         channelId: String = "",
         duration: Long = 0L,
-        isShort: Boolean = false
+        isShort: Boolean = false,
     ) {
         val prefs = PlayerPreferences(context)
         if (prefs.isDeepFlowCurrentlyActive() && !prefs.isDeepFlowSaveToHistoryEnabled()) return
 
         val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, thumbnailUrl)
-        val existingPosition = dao.getPosition(videoId) ?: 0L  // preserve saved progress
+        val existingPosition = dao.getPosition(videoId) ?: 0L // preserve saved progress
+        // Opening a video before its stream resolves passes no duration, and taking that 0 would
+        // erase the length a real playback save had recorded — leaving a row with a position but
+        // nothing to measure it against, which is exactly what drops it from the progress map.
+        val resolvedDuration = duration.takeIf { it > 0 } ?: dao.getDuration(videoId) ?: 0L
+        // A player opened from only an id knows no title yet; a blank must not erase the one on record.
+        val existing = if (title.isBlank() || channelName.isBlank() || channelId.isBlank()) dao.getEntry(videoId).first() else null
         dao.upsert(
             WatchHistoryEntity(
-                videoId      = videoId,
-                position     = existingPosition,
-                duration     = duration,
-                timestamp    = System.currentTimeMillis(),
-                title        = title,
+                videoId = videoId,
+                position = existingPosition,
+                duration = resolvedDuration,
+                timestamp = System.currentTimeMillis(),
+                title = title.ifBlank { existing?.title.orEmpty() },
                 thumbnailUrl = thumbnail,
-                channelName  = channelName,
-                channelId    = channelId,
-                isMusic      = false,
-                isShort      = isShort
-            )
+                channelName = channelName.ifBlank { existing?.channelName.orEmpty() },
+                channelId = channelId.ifBlank { existing?.channelId.orEmpty() },
+                isMusic = false,
+                isShort = isShort,
+                isLocal = LocalMediaIds.isLocal(videoId),
+            ),
         )
     }
 
@@ -141,20 +179,21 @@ class ViewHistory private constructor(private val context: Context) {
      */
     suspend fun bulkSaveHistoryEntries(entries: List<VideoHistoryEntry>) {
         if (entries.isEmpty()) return
-        val entities = entries.map { entry ->
-            WatchHistoryEntity(
-                videoId      = entry.videoId,
-                position     = entry.position,
-                duration     = entry.duration,
-                timestamp    = entry.timestamp,
-                title        = entry.title,
-                thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(entry.videoId, entry.thumbnailUrl),
-                channelName  = entry.channelName,
-                channelId    = entry.channelId,
-                isMusic      = entry.isMusic,
-                isShort      = entry.isShort
-            )
-        }
+        val entities =
+            entries.map { entry ->
+                WatchHistoryEntity(
+                    videoId = entry.videoId,
+                    position = entry.position,
+                    duration = entry.duration,
+                    timestamp = entry.timestamp,
+                    title = entry.title,
+                    thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(entry.videoId, entry.thumbnailUrl),
+                    channelName = entry.channelName,
+                    channelId = entry.channelId,
+                    isMusic = entry.isMusic,
+                    isShort = entry.isShort,
+                )
+            }
         dao.insertAll(entities)
     }
 
@@ -180,39 +219,70 @@ class ViewHistory private constructor(private val context: Context) {
 
     // ── Reads ────────────────────────────────────────────────────────────────
 
-    fun getPlaybackPosition(videoId: String): Flow<Long> =
-        dao.getEntry(videoId).map { it?.position ?: 0L }
+    fun getPlaybackPosition(videoId: String): Flow<Long> = dao.getEntry(videoId).map { it?.position ?: 0L }
 
-    fun getVideoHistory(videoId: String): Flow<VideoHistoryEntry?> =
-        dao.getEntry(videoId).map { it?.toDomain() }
+    fun getVideoHistory(videoId: String): Flow<VideoHistoryEntry?> = dao.getEntry(videoId).map { it?.toDomain() }
 
     /** All history, newest first. */
-    fun getAllHistory(): Flow<List<VideoHistoryEntry>> =
-        dao.getAllHistory().map { list -> list.map { it.toDomain() } }
+    fun getAllHistory(): Flow<List<VideoHistoryEntry>> = observeHistory()
 
     fun getRecentLibraryHistory(limit: Int): Flow<List<VideoHistoryEntry>> =
         dao.getRecentLibraryHistory(limit).map { list -> list.map { it.toDomain() } }
 
     /** Video (non-music) history, newest first. */
-    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> =
-        dao.getVideoHistory().map { list -> list.map { it.toDomain() } }
+    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isMusic = 0, isLocal = 0)
 
     /** Music history, newest first. */
-    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> =
-        dao.getMusicHistory().map { list -> list.map { it.toDomain() } }
+    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isMusic = 1, isLocal = 0)
 
-    suspend fun getWatchedShortIdsAboveThreshold(minPercent: Float = 99f, maxRemainingMs: Long = Long.MAX_VALUE): Set<String> =
-        dao.getWatchedShortIdsAboveThreshold(minPercent, maxRemainingMs).toHashSet()
+    /** Plays of files on the device, newest first: their progress and when they were last played. */
+    fun getLocalHistoryFlow(): Flow<List<VideoHistoryEntry>> = observeHistory(isLocal = 1)
+
+    /** Position and duration of every entry, for progress bars. */
+    fun getAllWatchProgress(): Flow<List<WatchProgress>> = observe { dao.readProgress() }
+
+    /** Position and duration of every video (non-music, non-local) entry, for watched checks. */
+    fun getVideoWatchProgress(): Flow<List<WatchProgress>> = observe { dao.readProgress(isMusic = 0, isLocal = 0) }
+
+    /** The latest [limit] video entries, newest first, without reading the rest of the table. */
+    suspend fun getRecentVideoHistory(
+        limit: Int,
+        includeShorts: Boolean,
+    ): List<VideoHistoryEntry> = dao.getRecentVideoHistory(limit, includeShorts).map { it.toDomain() }
+
+    /** [getRecentVideoHistory], read again whenever the history table changes. */
+    fun observeRecentVideoHistory(
+        limit: Int,
+        includeShorts: Boolean,
+    ): Flow<List<VideoHistoryEntry>> = observe { getRecentVideoHistory(limit, includeShorts) }
+
+    private fun observeHistory(
+        isMusic: Int = WatchHistoryDao.ANY,
+        isLocal: Int = WatchHistoryDao.ANY,
+    ): Flow<List<VideoHistoryEntry>> = observe { dao.readHistory(isMusic, isLocal).map { it.toDomain() } }
+
+    /** Re-reads on every change to the table, as a Room Flow query would, dropping a read a newer change supersedes. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T> observe(read: suspend () -> T): Flow<T> =
+        database.invalidationTracker
+            .createFlow(WATCH_HISTORY_TABLE)
+            .mapLatest { read() }
+            .flowOn(Dispatchers.IO)
+
+    suspend fun getShortProgress(): List<WatchProgress> = dao.readShortProgress()
+
+    suspend fun getWatchProgress(videoId: String): WatchProgress? = dao.getProgress(videoId)
 
     /** Efficient count without loading all rows — use this instead of list.size. */
     fun getVideoCount(): Flow<Int> = dao.getVideoCount()
+
+    fun getLibraryHistoryCount(): Flow<Int> = dao.getLibraryHistoryCount()
 
     /**
      * Returns the most recently watched unfinished video (<95% complete).
      * Used to restore the "resume" mini player on app launch.
      */
     suspend fun getLatestUnfinishedVideo() = dao.getLatestUnfinishedVideo()
-
 
     /**
      * On the first launch after the 10→11 DB migration the Room table is empty
@@ -236,22 +306,22 @@ class ViewHistory private constructor(private val context: Context) {
 
             Log.i(TAG, "Migrating ${videoIds.size} watch-history entries from DataStore → Room")
 
-            val BATCH = 500
+            val batchSize = 500
             val batch = mutableListOf<WatchHistoryEntity>()
 
             for (videoId in videoIds) {
-                val position = prefs[positionKey(videoId)]    ?: continue
-                val duration = prefs[durationKey(videoId)]    ?: 0L
-                val ts       = prefs[timestampKey(videoId)]   ?: 0L
-                val title    = prefs[titleKey(videoId)]       ?: ""
-                val thumb    = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, prefs[thumbnailKey(videoId)])
-                val chName   = prefs[channelNameKey(videoId)] ?: ""
-                val chId     = prefs[channelIdKey(videoId)]   ?: ""
-                val isMusic  = prefs[isMusicKey(videoId)]     ?: false
+                val position = prefs[positionKey(videoId)] ?: continue
+                val duration = prefs[durationKey(videoId)] ?: 0L
+                val ts = prefs[timestampKey(videoId)] ?: 0L
+                val title = prefs[titleKey(videoId)] ?: ""
+                val thumb = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, prefs[thumbnailKey(videoId)])
+                val chName = prefs[channelNameKey(videoId)] ?: ""
+                val chId = prefs[channelIdKey(videoId)] ?: ""
+                val isMusic = prefs[isMusicKey(videoId)] ?: false
 
                 batch += WatchHistoryEntity(videoId, position, duration, ts, title, thumb, chName, chId, isMusic)
 
-                if (batch.size >= BATCH) {
+                if (batch.size >= batchSize) {
                     dao.insertAll(batch)
                     batch.clear()
                     yield()
@@ -270,15 +340,15 @@ class ViewHistory private constructor(private val context: Context) {
 data class VideoHistoryEntry(
     val videoId: String,
     val position: Long,
-    val duration: Long,   
-    val timestamp: Long,    
+    val duration: Long,
+    val timestamp: Long,
     val title: String,
     val thumbnailUrl: String,
     val channelName: String = "",
     val channelId: String = "",
     val isMusic: Boolean = false,
     val isShort: Boolean = false,
-    val isLocal: Boolean = false
+    val isLocal: Boolean = false,
 ) {
     val progressPercentage: Float
         get() = if (duration > 0) (position.toFloat() / duration.toFloat()) * 100f else 0f

@@ -14,10 +14,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.LoadEventInfo
-import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.source.MediaSource
-import androidx.media3.exoplayer.source.MediaSourceEventListener
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
@@ -33,6 +30,7 @@ import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceResult
 import io.github.aedev.flow.player.sabr.integration.SabrOrchestrator
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
@@ -42,7 +40,6 @@ import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 import java.io.File
-import java.io.IOException
 import java.util.Locale
 
 /**
@@ -74,8 +71,8 @@ class MediaLoader(
     private var lastSourceWasSabr = false
     var onSabrFallbackNeeded: (() -> Unit)? = null
 
-    /** Invoked with a subtitle track's display label once its fetch has finally given up. */
-    var onSubtitleLoadFailed: ((String) -> Unit)? = null
+    /** Invoked with a subtitle track's index and display label once its fetch has finally given up. */
+    var onSubtitleLoadFailed: ((Int, String) -> Unit)? = null
 
     /**
      * Load media with video and audio streams.
@@ -441,6 +438,7 @@ class MediaLoader(
                 val uri = Uri.parse(subtitleUrl)
                 val language = subtitleStream.languageTag ?: subtitleStream.locale?.toLanguageTag()
                 val label = subtitleStream.displayLanguageName ?: language ?: "Unknown"
+                val isTranslated = CaptionTrackResolver.isTranslated(subtitleStream)
                 val subtitleConfig =
                     MediaItem.SubtitleConfiguration
                         .Builder(uri)
@@ -465,7 +463,7 @@ class MediaLoader(
                     }
                 SingleSampleMediaSource
                     .Factory(factory)
-                    .setLoadErrorHandlingPolicy(SubtitleLoadErrorHandlingPolicy())
+                    .setLoadErrorHandlingPolicy(SubtitleLoadErrorHandlingPolicy(isTranslated))
                     // Stays true: a propagated subtitle error would surface as a fatal
                     // ExoPlaybackException and stop the video over a failed sidecar text track.
                     .setTreatLoadErrorsAsEndOfStream(true)
@@ -473,7 +471,9 @@ class MediaLoader(
                     .also { source ->
                         source.addEventListener(
                             Handler(Looper.getMainLooper()),
-                            subtitleLoadFailureReporter(label),
+                            subtitleLoadFailureReporter(index, label, subtitleUrl) { failedIndex, failedLabel ->
+                                onSubtitleLoadFailed?.invoke(failedIndex, failedLabel)
+                            },
                         )
                     }
             }
@@ -488,33 +488,6 @@ class MediaLoader(
             *subtitleSources.toTypedArray(),
         )
     }
-
-    /**
-     * Reports a subtitle fetch that has run out of retries.
-     *
-     * `treatLoadErrorsAsEndOfStream` turns that failure into an empty track, so without this the
-     * user picks a language and simply gets nothing, with no clue that anything went wrong.
-     * `wasCanceled` is Media3's signal that the loader chose not to retry, i.e. this is final.
-     */
-    private fun subtitleLoadFailureReporter(label: String): MediaSourceEventListener =
-        object : MediaSourceEventListener {
-            override fun onLoadError(
-                windowIndex: Int,
-                mediaPeriodId: MediaSource.MediaPeriodId?,
-                loadEventInfo: LoadEventInfo,
-                mediaLoadData: MediaLoadData,
-                error: IOException,
-                wasCanceled: Boolean,
-            ) {
-                val status = (error as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-                if (!wasCanceled) {
-                    Log.d(TAG, "Subtitle '$label' load failed (status=$status), retrying")
-                    return
-                }
-                Log.w(TAG, "Subtitle '$label' gave up after retries (status=$status): ${error.message}")
-                onSubtitleLoadFailed?.invoke(label)
-            }
-        }
 
     private fun resolveSubtitleMimeType(subtitleStream: SubtitlesStream): String {
         val url = subtitleStream.getContent().lowercase(Locale.ROOT)
@@ -560,8 +533,10 @@ class MediaLoader(
  * usually rides it out. Statuses that retrying cannot fix are given up on immediately.
  */
 @UnstableApi
-private class SubtitleLoadErrorHandlingPolicy : DefaultLoadErrorHandlingPolicy() {
-    override fun getMinimumLoadableRetryCount(dataType: Int): Int = MAX_ATTEMPTS
+private class SubtitleLoadErrorHandlingPolicy(
+    private val isTranslated: Boolean,
+) : DefaultLoadErrorHandlingPolicy() {
+    override fun getMinimumLoadableRetryCount(dataType: Int): Int = if (isTranslated) TRANSLATED_MAX_ATTEMPTS else MAX_ATTEMPTS
 
     override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
         val status =
@@ -570,13 +545,22 @@ private class SubtitleLoadErrorHandlingPolicy : DefaultLoadErrorHandlingPolicy()
         val isTransient = status == HTTP_TOO_MANY_REQUESTS || status >= HTTP_SERVER_ERROR
         if (!isTransient) return C.TIME_UNSET
         val exponent = (loadErrorInfo.errorCount - 1).coerceIn(0, MAX_BACKOFF_EXPONENT)
-        return (INITIAL_BACKOFF_MS shl exponent).coerceAtMost(MAX_BACKOFF_MS)
+        val initial = if (isTranslated) TRANSLATED_INITIAL_BACKOFF_MS else INITIAL_BACKOFF_MS
+        val ceiling = if (isTranslated) TRANSLATED_MAX_BACKOFF_MS else MAX_BACKOFF_MS
+        return (initial shl exponent).coerceAtMost(ceiling)
     }
 
     private companion object {
         const val MAX_ATTEMPTS = 6
         const val INITIAL_BACKOFF_MS = 500L
         const val MAX_BACKOFF_MS = 8_000L
+
+        // A tlang fetch is not rate-limited, it is refused by Google's abuse interstitial: no
+        // Retry-After, and it hardens against the IP as attempts continue. Fewer, slower tries
+        // give the block time to lapse while the caller falls back to the source track.
+        const val TRANSLATED_MAX_ATTEMPTS = 3
+        const val TRANSLATED_INITIAL_BACKOFF_MS = 2_000L
+        const val TRANSLATED_MAX_BACKOFF_MS = 20_000L
         const val MAX_BACKOFF_EXPONENT = 4
         const val HTTP_TOO_MANY_REQUESTS = 429
         const val HTTP_SERVER_ERROR = 500

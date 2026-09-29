@@ -93,6 +93,7 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 - Persistent mini player across the app
 - Synchronized lyrics display
 - Fetches tracks from YouTube Music
+- Playback speed control for music playback
 
 ### Recommendations (FlowNeuro Engine)
 - Runs 100% on-device — no server, no telemetry, no account needed
@@ -179,14 +180,15 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
   </table>
 </div>
 
-### Nightly / Debug Build
+### Nightly Build
 > ⚠️ Nightly builds are unstable and may contain bugs. Use at your own risk.
 
+Flow Nightly is built from every commit to `main`. It installs next to the stable app as a separate app called **Flow Nightly**, keeps its own data, and updates itself to each new nightly from inside the app.
+
 <div align="center">
-  <a href="https://nightly.link/A-EDev/Flow/workflows/build/main/flow-nightly-apk.zip">
+  <a href="https://github.com/A-EDev/Flow/releases/tag/nightly">
     <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="75">
   </a>
-  <p><b>No GitHub account required</b> — powered by <a href="https://nightly.link">nightly.link</a></p>
 </div>
 
 ### Requirements 

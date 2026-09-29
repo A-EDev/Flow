@@ -20,6 +20,17 @@ internal enum class QueueAddOutcome {
 }
 
 /**
+ * A video taken out of the queue, with what it takes to put it back: its place in the queue as
+ * shown and in the pre-shuffle order, and which queue it came from.
+ */
+data class RemovedQueueEntry(
+    val video: Video,
+    val index: Int,
+    val originalIndex: Int,
+    val generation: Int,
+)
+
+/**
  * Owns the video playback queue: its order, the current position, and the flows the UI observes.
  *
  * Ordering rules live in [PlaylistQueueOrder] and playback side effects (starting a video,
@@ -48,6 +59,12 @@ internal class PlaybackQueueController {
     var shuffleEnabled: Boolean = false
         private set
 
+    /** The video picked when the queue was set; cleared once playback moves to another item. */
+    private var pickedVideoId: String? = null
+
+    /** Bumped whenever the queue is replaced, so an undo from an older queue does nothing. */
+    private var generation = 0
+
     private val items: List<Video>
         get() = _videos.value
 
@@ -73,6 +90,9 @@ internal class PlaybackQueueController {
 
     fun isCurrent(videoId: String): Boolean = currentVideo?.id == videoId
 
+    /** Whether [videoId] is current because the queue moved to it, rather than because it was picked. */
+    fun isReachedByAdvance(videoId: String): Boolean = isCurrent(videoId) && videoId != pickedVideoId
+
     fun nextIndex(): Int? =
         PlaylistQueueOrder.nextIndex(
             itemCount = items.size,
@@ -83,7 +103,7 @@ internal class PlaybackQueueController {
     fun nextVideo(): Video? = nextIndex()?.let(items::getOrNull)
 
     /**
-     * Replaces the queue, honouring the current shuffle setting.
+     * Replaces the queue, honouring the current shuffle setting unless [shuffle] sets it.
      *
      * @return the video playback should start from, or null when [videos] is empty.
      */
@@ -91,7 +111,9 @@ internal class PlaybackQueueController {
         videos: List<Video>,
         startIndex: Int,
         title: String?,
+        shuffle: Boolean? = null,
     ): Video? {
+        shuffle?.let { shuffleEnabled = it }
         originalItems = videos
         val normalizedStartIndex = startIndex.coerceIn(0, videos.lastIndex.coerceAtLeast(0))
         val ordered =
@@ -101,7 +123,9 @@ internal class PlaybackQueueController {
                 ReorderedQueue(videos, normalizedStartIndex)
             }
         this.title = title
+        generation++
         publish(ordered.items, if (videos.isEmpty()) -1 else ordered.currentIndex)
+        pickedVideoId = currentVideo?.id
         return currentVideo
     }
 
@@ -112,6 +136,7 @@ internal class PlaybackQueueController {
      */
     fun moveTo(index: Int): Video? {
         val video = items.getOrNull(index) ?: return null
+        if (index != currentIndex) pickedVideoId = null
         _currentIndex.value = index
         return video
     }
@@ -152,16 +177,38 @@ internal class PlaybackQueueController {
         return QueueAddOutcome.Inserted
     }
 
-    /** @return whether [index] was a removable position, i.e. in range and not the current one. */
-    fun removeAt(index: Int): Boolean {
-        val removal = PlaylistQueueOrder.removeAt(items, currentIndex, index) ?: return false
-        originalItems =
-            PlaylistQueueOrder.removeMatching(
-                items = originalItems,
-                target = removal.removedItem,
-                keySelector = Video::id,
-            )
+    /** @return what was removed, or null when [index] is out of range or the current video. */
+    fun removeAt(index: Int): RemovedQueueEntry? {
+        val removal = PlaylistQueueOrder.removeAt(items, currentIndex, index) ?: return null
+        val originalIndex = PlaylistQueueOrder.indexMatching(originalItems, removal.removedItem, Video::id)
+        if (originalIndex >= 0) {
+            originalItems = originalItems.toMutableList().apply { removeAt(originalIndex) }
+        }
         publish(removal.queue.items, removal.queue.currentIndex)
+        return RemovedQueueEntry(
+            video = removal.removedItem,
+            index = index,
+            originalIndex = originalIndex.coerceAtLeast(0),
+            generation = generation,
+        )
+    }
+
+    /**
+     * Puts a removed video back where it was, shifting the current position with it.
+     *
+     * @return false when the queue has been replaced since the removal.
+     */
+    fun restore(entry: RemovedQueueEntry): Boolean {
+        if (entry.generation != generation) return false
+
+        val at = entry.index.coerceIn(0, items.size)
+        val restored = items.toMutableList().apply { add(at, entry.video) }
+        val restoredCurrentIndex = if (currentIndex >= at) currentIndex + 1 else currentIndex
+        originalItems =
+            originalItems.toMutableList().apply {
+                add(entry.originalIndex.coerceIn(0, size), entry.video)
+            }
+        publish(restored, restoredCurrentIndex)
         return true
     }
 
@@ -209,10 +256,12 @@ internal class PlaybackQueueController {
     }
 
     fun clear() {
+        generation++
         originalItems = emptyList()
         title = null
         loopEnabled = false
         shuffleEnabled = false
+        pickedVideoId = null
         publish(emptyList(), currentIndex = -1)
     }
 
@@ -221,6 +270,7 @@ internal class PlaybackQueueController {
         video: Video,
     ): QueueAddOutcome {
         if (currentlyPlaying == null) return QueueAddOutcome.NoActiveQueue
+        generation++
         originalItems = listOf(currentlyPlaying, video)
         publish(originalItems, currentIndex = 0)
         return QueueAddOutcome.QueueCreated

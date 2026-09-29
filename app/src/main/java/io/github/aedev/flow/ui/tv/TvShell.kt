@@ -23,9 +23,9 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.ui.screens.home.HomeViewModel
 import io.github.aedev.flow.ui.screens.music.MusicPlayerViewModel
-import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.MusicViewModel
 import io.github.aedev.flow.ui.screens.search.SearchViewModel
 import io.github.aedev.flow.ui.screens.subscriptions.SubscriptionsViewModel
@@ -88,20 +88,20 @@ fun TvShell(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = dimens.railCollapsedWidth)
-                .focusProperties {
-                    @OptIn(ExperimentalComposeUiApi::class)
-                    exit = { direction ->
-                        if (direction == FocusDirection.Left) {
-                            railFocusRequester
-                        } else {
-                            FocusRequester.Default
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(start = dimens.railCollapsedWidth)
+                    .focusProperties {
+                        @OptIn(ExperimentalComposeUiApi::class)
+                        exit = { direction ->
+                            if (direction == FocusDirection.Left) {
+                                railFocusRequester
+                            } else {
+                                FocusRequester.Default
+                            }
                         }
-                    }
-                }
-                .focusGroup(),
+                    }.focusGroup(),
         ) {
             Box(modifier = Modifier.weight(1f)) {
                 TvNavHost(
@@ -129,17 +129,19 @@ fun TvShell(
             onSelected = ::selectTab,
             onFocusChanged = { railHasFocus = it },
             selectedFocusRequester = railFocusRequester,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxHeight(),
+            modifier =
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight(),
         )
 
-        val backAction = TvBackModel.resolve(
-            isOnDetailRoute = isOnDetailRoute,
-            hasTabHistory = tabHistory.isNotEmpty(),
-            currentTab = currentTab,
-            railHasFocus = railHasFocus,
-        )
+        val backAction =
+            TvBackModel.resolve(
+                isOnDetailRoute = isOnDetailRoute,
+                hasTabHistory = tabHistory.isNotEmpty(),
+                currentTab = currentTab,
+                railHasFocus = railHasFocus,
+            )
         BackHandler(enabled = backAction != TvBackAction.EXIT) {
             when (backAction) {
                 TvBackAction.POP_DETAIL -> navController.popBackStack()

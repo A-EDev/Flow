@@ -1,8 +1,13 @@
 package io.github.aedev.flow.ui
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 
 /**
@@ -23,5 +28,17 @@ object TabScrollEventBus {
      */
     fun emitScrollToTop(route: String) {
         _scrollToTopEvents.tryEmit(route)
+    }
+}
+
+/** Runs [onReselect] each time the tab rooted at [route] is tapped while its root is showing. */
+@Composable
+fun OnTabReselected(
+    route: String,
+    onReselect: suspend () -> Unit,
+) {
+    val action by rememberUpdatedState(onReselect)
+    LaunchedEffect(route) {
+        TabScrollEventBus.scrollToTopEvents.filter { it == route }.collectLatest { action() }
     }
 }

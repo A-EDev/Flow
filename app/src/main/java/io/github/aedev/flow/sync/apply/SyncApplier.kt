@@ -12,6 +12,7 @@ import io.github.aedev.flow.data.local.entity.SyncLogEntity
 import io.github.aedev.flow.data.local.entity.SyncPeerEntity
 import io.github.aedev.flow.sync.identity.DeviceIdentity
 import io.github.aedev.flow.sync.merge.LikesMerger
+import io.github.aedev.flow.sync.merge.NotesMerger
 import io.github.aedev.flow.sync.merge.PlaylistMerger
 import io.github.aedev.flow.sync.merge.SettingsMerger
 import io.github.aedev.flow.sync.merge.SubscribedChannelsMerger
@@ -90,8 +91,16 @@ class SyncApplier
                             SyncSerialization.encodeSubscriptions(dataAccess.readSubscriptions(hlc))
                         }
 
+                        SyncCollection.NOTES -> {
+                            SyncSerialization.encodeNotes(dataAccess.readNotes())
+                        }
+
                         SyncCollection.FLOW_NEURO_BRAIN -> {
                             SyncSerialization.encodeBrain(dataAccess.readBrain(node, hlc))
+                        }
+
+                        SyncCollection.MUSIC_BRAIN -> {
+                            SyncSerialization.encodeMusicBrain(dataAccess.readMusicBrain(node, hlc))
                         }
 
                         else -> {
@@ -149,6 +158,14 @@ class SyncApplier
                         dataAccess.writeSubscriptions(merged)
                         stats[SyncCollection.SUBSCRIPTIONS] = statsFor(remote.map { it.name to it.deleted }, local.map { it.name })
                     }
+                    fresh[SyncCollection.NOTES]?.let { rc ->
+                        failedCollection = SyncCollection.NOTES
+                        val remote = SyncSerialization.decodeNotes(rc.lines)
+                        val local = dataAccess.readNotes()
+                        val merged = NotesMerger.merge(local, remote)
+                        dataAccess.writeNotes(merged)
+                        stats[SyncCollection.NOTES] = statsFor(remote.map { it.id to it.deleted }, local.map { it.id })
+                    }
                     fresh[SyncCollection.PLAYLISTS]?.let { rc ->
                         failedCollection = SyncCollection.PLAYLISTS
                         val remote = SyncSerialization.decodePlaylists(rc.lines)
@@ -198,6 +215,15 @@ class SyncApplier
                     SyncSerialization.decodeBrain(rc.lines)?.let { remote ->
                         dataAccess.mergeAndWriteBrain(remote, myDeviceId, hlc)
                         stats[SyncCollection.FLOW_NEURO_BRAIN] = ApplyStats(updated = 1)
+                    }
+                }
+
+                // Music brain: same stateful CRDT pattern, music twin.
+                fresh[SyncCollection.MUSIC_BRAIN]?.let { rc ->
+                    failedCollection = SyncCollection.MUSIC_BRAIN
+                    SyncSerialization.decodeMusicBrain(rc.lines)?.let { remote ->
+                        dataAccess.mergeAndWriteMusicBrain(remote, myDeviceId, hlc)
+                        stats[SyncCollection.MUSIC_BRAIN] = ApplyStats(updated = 1)
                     }
                 }
                 failedCollection = null

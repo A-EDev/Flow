@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.*
@@ -12,177 +11,153 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
-import io.github.aedev.flow.ui.theme.sponsorBlockCategoriesAndLabels
+import io.github.aedev.flow.ui.components.shared.FlowDialogDefaults
+import io.github.aedev.flow.utils.formatDurationMillis
+import io.github.aedev.flow.utils.parseTimestampMs
+import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 import kotlinx.coroutines.launch
-
-/** All SponsorBlock submit categories shown in the dialog dropdown. */
-private val SB_SUBMIT_CATEGORIES = sponsorBlockCategoriesAndLabels()
 
 /**
  * Dialog for submitting a new SponsorBlock segment.
- * End time is pre-filled with the current player position.
+ * End time is pre-filled with the current player position; [onSubmitted] runs once the server accepts it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SbSubmitSegmentDialog(
+internal fun SbSubmitSegmentDialog(
     videoId: String,
     currentPositionMs: Long,
     onDismiss: () -> Unit,
+    onSubmitted: () -> Unit,
     repository: SponsorBlockRepository = remember { SponsorBlockRepository() },
 ) {
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
     val coroutineScope = rememberCoroutineScope()
 
-    fun msToTimestamp(ms: Long): String {
-        val totalSeconds = ms / 1000
-        val h = totalSeconds / 3600
-        val m = (totalSeconds % 3600) / 60
-        val s = totalSeconds % 60
-        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
-    }
-
-    fun timestampToSeconds(ts: String): Float? {
-        val parts = ts.trim().split(":").map { it.trim() }
-        return when (parts.size) {
-            2 -> {
-                val m = parts[0].toFloatOrNull() ?: return null
-                val s = parts[1].toFloatOrNull() ?: return null
-                m * 60 + s
-            }
-
-            3 -> {
-                val h = parts[0].toFloatOrNull() ?: return null
-                val m = parts[1].toFloatOrNull() ?: return null
-                val s = parts[2].toFloatOrNull() ?: return null
-                h * 3600 + m * 60 + s
-            }
-
-            else -> {
-                ts.toFloatOrNull()
-            }
-        }
-    }
-
     var startTime by remember { mutableStateOf("") }
-    var endTime by remember { mutableStateOf(msToTimestamp(currentPositionMs)) }
+    var endTime by remember { mutableStateOf(formatDurationMillis(currentPositionMs, padMinutes = true)) }
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
     var categoryExpanded by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var submitSucceeded by remember { mutableStateOf<Boolean?>(null) }
     var startError by remember { mutableStateOf(false) }
     var endError by remember { mutableStateOf(false) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
             Column(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .padding(
+                            start = FlowDialogDefaults.ContentPadding,
+                            top = FlowDialogDefaults.ContentPadding,
+                            end = FlowDialogDefaults.ContentPadding,
+                            bottom = FlowDialogDefaults.BottomPadding,
+                        ),
+                verticalArrangement = Arrangement.spacedBy(FlowDialogDefaults.ActionsSpacing),
             ) {
-                // Title
-                Text(
-                    text = stringResource(R.string.sb_submit_dialog_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Title
+                    Text(
+                        text = stringResource(R.string.sb_submit_dialog_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
 
-                // Time row
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    OutlinedTextField(
-                        value = startTime,
-                        onValueChange = {
-                            startTime = it
-                            startError = false
-                        },
-                        label = { Text(stringResource(R.string.sb_submit_start_time)) },
-                        isError = startError,
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = {
-                        val tmp = startTime
-                        startTime = endTime
-                        endTime = tmp
-                    }) {
-                        Icon(
-                            imageVector = Icons.Outlined.SwapVert,
-                            contentDescription = stringResource(R.string.sb_submit_swap),
-                        )
-                    }
-                    OutlinedTextField(
-                        value = endTime,
-                        onValueChange = {
-                            endTime = it
-                            endError = false
-                        },
-                        label = { Text(stringResource(R.string.sb_submit_end_time)) },
-                        isError = endError,
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-
-                // Category dropdown
-                ExposedDropdownMenuBox(
-                    expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = it },
-                ) {
-                    OutlinedTextField(
-                        value = stringResource(SB_SUBMIT_CATEGORIES[selectedCategoryIndex].second),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.sb_submit_category)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                    )
-                    ExposedDropdownMenu(
-                        expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false },
+                    // Time row
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        SB_SUBMIT_CATEGORIES.forEachIndexed { idx, (_, labelRes) ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(labelRes), style = MaterialTheme.typography.bodyLarge) },
-                                onClick = {
-                                    selectedCategoryIndex = idx
-                                    categoryExpanded = false
-                                },
+                        OutlinedTextField(
+                            value = startTime,
+                            onValueChange = {
+                                startTime = it
+                                startError = false
+                            },
+                            label = { Text(stringResource(R.string.sb_submit_start_time)) },
+                            isError = startError,
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = {
+                            val tmp = startTime
+                            startTime = endTime
+                            endTime = tmp
+                        }) {
+                            Icon(
+                                imageVector = Icons.Outlined.SwapVert,
+                                contentDescription = stringResource(R.string.sb_submit_swap),
                             )
                         }
+                        OutlinedTextField(
+                            value = endTime,
+                            onValueChange = {
+                                endTime = it
+                                endError = false
+                            },
+                            label = { Text(stringResource(R.string.sb_submit_end_time)) },
+                            isError = endError,
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    // Category dropdown
+                    ExposedDropdownMenuBox(
+                        expanded = categoryExpanded,
+                        onExpandedChange = { categoryExpanded = it },
+                    ) {
+                        OutlinedTextField(
+                            value = submitCategoryLabel(SponsorBlockCategories.submittable[selectedCategoryIndex]),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.sb_submit_category)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                        )
+                        ExposedDropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = { categoryExpanded = false },
+                        ) {
+                            SponsorBlockCategories.submittable.forEachIndexed { idx, category ->
+                                DropdownMenuItem(
+                                    text = { Text(submitCategoryLabel(category), style = MaterialTheme.typography.bodyLarge) },
+                                    onClick = {
+                                        selectedCategoryIndex = idx
+                                        categoryExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    submitSucceeded?.let { succeeded ->
+                        Text(
+                            text = stringResource(if (succeeded) R.string.sb_submit_success else R.string.sb_submit_error),
+                            style = MaterialTheme.typography.bodySmall,
+                            color =
+                                if (succeeded) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                },
+                        )
                     }
                 }
-
-                // Status message
-                statusMessage?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color =
-                            if (it.startsWith("✓")) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                    )
-                }
-
                 // Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -190,13 +165,13 @@ fun SbSubmitSegmentDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.btn_cancel))
+                        Text(stringResource(R.string.cancel))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val start = timestampToSeconds(startTime)
-                            val end = timestampToSeconds(endTime)
+                            val start = parseTimestampMs(startTime)?.let { it / 1000f }
+                            val end = parseTimestampMs(endTime)?.let { it / 1000f }
                             if (start == null) {
                                 startError = true
                                 return@Button
@@ -206,10 +181,10 @@ fun SbSubmitSegmentDialog(
                                 return@Button
                             }
                             isSubmitting = true
-                            statusMessage = null
+                            submitSucceeded = null
                             coroutineScope.launch {
                                 val userId = playerPreferences.getOrCreateSbUserId()
-                                val category = SB_SUBMIT_CATEGORIES[selectedCategoryIndex].first
+                                val category = SponsorBlockCategories.submittable[selectedCategoryIndex]
                                 val success =
                                     repository.submitSegment(
                                         videoId = videoId,
@@ -219,13 +194,11 @@ fun SbSubmitSegmentDialog(
                                         userId = userId,
                                     )
                                 isSubmitting = false
-                                statusMessage =
-                                    if (success) {
-                                        context.getString(R.string.sb_submit_success)
-                                    } else {
-                                        context.getString(R.string.sb_submit_error)
-                                    }
-                                if (success) onDismiss()
+                                submitSucceeded = success
+                                if (success) {
+                                    onSubmitted()
+                                    onDismiss()
+                                }
                             }
                         },
                         enabled = !isSubmitting,
@@ -245,3 +218,6 @@ fun SbSubmitSegmentDialog(
         }
     }
 }
+
+@Composable
+private fun submitCategoryLabel(category: String): String = sponsorCategoryLabelRes(category)?.let { stringResource(it) } ?: category

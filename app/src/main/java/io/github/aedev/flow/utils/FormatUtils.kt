@@ -2,18 +2,52 @@ package io.github.aedev.flow.utils
 
 import android.icu.text.CompactDecimalFormat
 import android.icu.text.RelativeDateTimeFormatter
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
-fun formatDuration(seconds: Int): String {
+/**
+ * Format a duration as `H:MM:SS` or `M:SS`.
+ *
+ * @param padMinutes when true the no-hours form is zero-padded (`MM:SS`), which is what the
+ *   on-video player controls render; every other caller keeps the unpadded default.
+ */
+fun formatDuration(
+    seconds: Int,
+    padMinutes: Boolean = false,
+): String {
     val hours = seconds / 3600
     val minutes = (seconds % 3600) / 60
     val secs = seconds % 60
 
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, secs)
+    return when {
+        hours > 0 -> String.format("%d:%02d:%02d", hours, minutes, secs)
+        padMinutes -> String.format("%02d:%02d", minutes, secs)
+        else -> String.format("%d:%02d", minutes, secs)
+    }
+}
+
+fun formatDurationMillis(
+    millis: Long,
+    padMinutes: Boolean = false,
+): String = formatDuration((millis / 1000L).toInt(), padMinutes)
+
+/**
+ * Format a multiplier as a compact label, e.g. `2x`, `1.5x`, `0.75x`.
+ * Trailing zeros are trimmed and the value is clamped to `0.1..maxValue`.
+ */
+fun formatMultiplierLabel(
+    value: Float,
+    maxValue: Float = 10.0f,
+): String {
+    val clamped = value.coerceIn(0.1f, maxValue)
+    return if (kotlin.math.abs(clamped - clamped.toInt()) < 0.01f) {
+        "${clamped.toInt()}x"
     } else {
-        String.format("%d:%02d", minutes, secs)
+        val rounded = kotlin.math.round(clamped * 100f) / 100f
+        "${rounded.toString().trimEnd('0').trimEnd('.')}x"
     }
 }
 
@@ -34,9 +68,31 @@ fun formatYouTubeRelativeTime(
     timestampMillis: Long,
     nowMillis: Long = System.currentTimeMillis(),
     locale: Locale = Locale.getDefault(),
+): String =
+    formatRelativeSpan(
+        spanMillis = (nowMillis - timestampMillis).coerceAtLeast(0L),
+        direction = RelativeDateTimeFormatter.Direction.LAST,
+        locale = locale,
+    )
+
+/** "in 4 hours" for a moment still ahead: the mirror of [formatYouTubeRelativeTime]. */
+fun formatTimeUntil(
+    timestampMillis: Long,
+    nowMillis: Long = System.currentTimeMillis(),
+    locale: Locale = Locale.getDefault(),
+): String =
+    formatRelativeSpan(
+        spanMillis = (timestampMillis - nowMillis).coerceAtLeast(0L),
+        direction = RelativeDateTimeFormatter.Direction.NEXT,
+        locale = locale,
+    )
+
+private fun formatRelativeSpan(
+    spanMillis: Long,
+    direction: RelativeDateTimeFormatter.Direction,
+    locale: Locale,
 ): String {
-    val diff = (nowMillis - timestampMillis).coerceAtLeast(0L)
-    val seconds = diff / 1000L
+    val seconds = spanMillis / 1000L
     val minutes = seconds / 60L
     val hours = minutes / 60L
     val days = hours / 24L
@@ -46,27 +102,27 @@ fun formatYouTubeRelativeTime(
 
     return when {
         years > 0L -> {
-            formatRelativeTime(years, RelativeDateTimeFormatter.RelativeUnit.YEARS, locale)
+            formatRelativeTime(years, RelativeDateTimeFormatter.RelativeUnit.YEARS, direction, locale)
         }
 
         months > 0L -> {
-            formatRelativeTime(months, RelativeDateTimeFormatter.RelativeUnit.MONTHS, locale)
+            formatRelativeTime(months, RelativeDateTimeFormatter.RelativeUnit.MONTHS, direction, locale)
         }
 
         weeks > 0L -> {
-            formatRelativeTime(weeks, RelativeDateTimeFormatter.RelativeUnit.WEEKS, locale)
+            formatRelativeTime(weeks, RelativeDateTimeFormatter.RelativeUnit.WEEKS, direction, locale)
         }
 
         days > 0L -> {
-            formatRelativeTime(days, RelativeDateTimeFormatter.RelativeUnit.DAYS, locale)
+            formatRelativeTime(days, RelativeDateTimeFormatter.RelativeUnit.DAYS, direction, locale)
         }
 
         hours > 0L -> {
-            formatRelativeTime(hours, RelativeDateTimeFormatter.RelativeUnit.HOURS, locale)
+            formatRelativeTime(hours, RelativeDateTimeFormatter.RelativeUnit.HOURS, direction, locale)
         }
 
         minutes > 0L -> {
-            formatRelativeTime(minutes, RelativeDateTimeFormatter.RelativeUnit.MINUTES, locale)
+            formatRelativeTime(minutes, RelativeDateTimeFormatter.RelativeUnit.MINUTES, direction, locale)
         }
 
         else -> {
@@ -156,18 +212,19 @@ private fun normalizeRelativeTimeText(
             "y", "year", "years" -> RelativeDateTimeFormatter.RelativeUnit.YEARS
             else -> return text
         }
-    val relative = formatRelativeTime(count, unit, locale)
+    val relative = formatRelativeTime(count, unit, RelativeDateTimeFormatter.Direction.LAST, locale)
     return if (prefix != null) "$prefix $relative" else relative
 }
 
 private fun formatRelativeTime(
     value: Long,
     unit: RelativeDateTimeFormatter.RelativeUnit,
+    direction: RelativeDateTimeFormatter.Direction,
     locale: Locale,
 ): String =
     RelativeDateTimeFormatter.getInstance(locale).format(
         value.toDouble(),
-        RelativeDateTimeFormatter.Direction.LAST,
+        direction,
         unit,
     )
 
@@ -186,11 +243,19 @@ fun formatLikeCount(count: Int): String =
  */
 fun formatPremiereDate(dateString: String): String? {
     if (dateString.isBlank()) return null
-    val date = parsePremiereDate(dateString) ?: return null
+    return parsePremiereDate(dateString)?.time?.let(::formatPremiereDate)
+}
+
+fun formatPremiereDate(timestampMs: Long): String {
     val out = java.text.SimpleDateFormat("M/d/yy, h:mm a", java.util.Locale.US)
     out.timeZone = java.util.TimeZone.getDefault()
-    return out.format(date)
+    return out.format(java.util.Date(timestampMs))
 }
+
+/** The form [formatPremiereDate] reads back, in the device's zone. */
+fun premiereDateText(epochMs: Long): String = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(PREMIERE_DATE_FORMAT)
+
+private val PREMIERE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
 fun parsePremiereTimestamp(dateString: String): Long? = parsePremiereDate(dateString)?.time
 

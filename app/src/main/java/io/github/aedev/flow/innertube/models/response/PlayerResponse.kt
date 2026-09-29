@@ -18,7 +18,58 @@ data class PlayerResponse(
     val captions: Captions? = null,
     @SerialName("playbackTracking")
     val playbackTracking: PlaybackTracking?,
+    val storyboards: Storyboards? = null,
+    val microformat: Microformat? = null,
+    val attestation: Attestation? = null,
 ) {
+    /**
+     * The attestation demand YouTube attaches to a player response, as
+     * `a=6&b=<nonce>&c=<issued>&d=<clientId>&e=<videoId>&hh=<binding>`.
+     *
+     * Not interchangeable with the BotGuard challenge the WebView fetches from `/api/jnn/v1/Create`
+     * — that one descrambles to `[wrappedScript, program, globalName]`, the interpreter and program
+     * the VM runs. This is a descriptor of *what* to attest, bound to one video and one client, and
+     * reading it tells us whether YouTube asked this client to prove itself for this video at all.
+     */
+    @Serializable
+    data class Attestation(
+        val playerAttestationRenderer: PlayerAttestationRenderer? = null,
+    ) {
+        @Serializable
+        data class PlayerAttestationRenderer(
+            val challenge: String? = null,
+            /** Set by ANDROID_VR: the same challenge may be reused across requests. */
+            val useSharedChallenge: Boolean? = null,
+        )
+    }
+
+    @Serializable
+    data class Storyboards(
+        val playerStoryboardSpecRenderer: PlayerStoryboardSpecRenderer? = null,
+    ) {
+        @Serializable
+        data class PlayerStoryboardSpecRenderer(
+            val spec: String? = null,
+            val recommendedLevel: Int? = null,
+        )
+    }
+
+    @Serializable
+    data class Microformat(
+        val playerMicroformatRenderer: PlayerMicroformatRenderer? = null,
+    ) {
+        @Serializable
+        data class PlayerMicroformatRenderer(
+            val category: String? = null,
+            val likeCount: String? = null,
+            val viewCount: String? = null,
+            val publishDate: String? = null,
+            val uploadDate: String? = null,
+            val externalChannelId: String? = null,
+            val canonicalUrl: String? = null,
+        )
+    }
+
     @Serializable
     data class Captions(
         val playerCaptionsTracklistRenderer: PlayerCaptionsTracklistRenderer? = null,
@@ -34,14 +85,13 @@ data class PlayerResponse(
             val baseUrl: String? = null,
             val name: Text? = null,
             val languageCode: String? = null,
-            val kind: String? = null,            // "asr" = auto-generated
+            val kind: String? = null, // "asr" = auto-generated
             val isTranslatable: Boolean? = null,
         )
 
         @Serializable
         data class TranslationLanguage(
             val languageCode: String? = null,
-            val languageName: Text? = null,
         )
 
         @Serializable
@@ -50,7 +100,9 @@ data class PlayerResponse(
             val runs: List<Run>? = null,
         ) {
             @Serializable
-            data class Run(val text: String? = null)
+            data class Run(
+                val text: String? = null,
+            )
 
             val text: String? get() = simpleText ?: runs?.joinToString("") { it.text.orEmpty() }
         }
@@ -93,7 +145,19 @@ data class PlayerResponse(
         data class AudioConfig(
             val loudnessDb: Double?,
             val perceptualLoudnessDb: Double?,
-        )
+            val loudnessTargetLkfs: Double? = null,
+            val enablePerFormatLoudness: Boolean? = null,
+            val trackAbsoluteLoudnessLkfs: Double? = null,
+            val loudnessNormalizationConfig: LoudnessNormalizationConfig? = null,
+        ) {
+            @Serializable
+            data class LoudnessNormalizationConfig(
+                val applyStatefulNormalization: Boolean? = null,
+                val preserveStatefulLoudnessTarget: Boolean? = null,
+                val maxStatefulTimeThresholdSec: Int? = null,
+                val minimumLoudnessTargetLkfs: Double? = null,
+            )
+        }
 
         @Serializable
         data class MediaCommonConfig(
@@ -142,6 +206,7 @@ data class PlayerResponse(
             val trackAbsoluteLoudnessLkfs: Double? = null,
             val initRange: Range? = null,
             val indexRange: Range? = null,
+            val colorInfo: ColorInfo? = null,
         ) {
             val isAudio: Boolean
                 get() = width == null
@@ -171,10 +236,12 @@ data class PlayerResponse(
                 }
 
             val audioLanguageTag: String?
-                get() = audioTrack?.id
-                    ?.substringBeforeLast('.', missingDelimiterValue = "")
-                    ?.takeIf { it.isNotBlank() }
-                    ?: audioContentTags["lang"]
+                get() =
+                    audioTrack
+                        ?.id
+                        ?.substringBeforeLast('.', missingDelimiterValue = "")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: audioContentTags["lang"]
 
             private val audioContentTags: Map<String, String>
                 get() = xtags?.takeIf { it.isNotBlank() }?.let(AudioXTags::decode).orEmpty()
@@ -186,6 +253,17 @@ data class PlayerResponse(
                 val isAutoDubbed: Boolean? = null,
                 val audioIsDefault: Boolean? = null,
             )
+
+            @Serializable
+            data class ColorInfo(
+                val transferCharacteristics: String? = null,
+            ) {
+                /** HDR is carried by the transfer curve: PQ (HDR10) or HLG. */
+                val isHdr: Boolean
+                    get() =
+                        transferCharacteristics == "COLOR_TRANSFER_CHARACTERISTICS_SMPTEST2084" ||
+                            transferCharacteristics == "COLOR_TRANSFER_CHARACTERISTICS_ARIB_STD_B67"
+            }
 
             @Serializable
             data class Range(
@@ -201,6 +279,7 @@ data class PlayerResponse(
         val title: String?,
         val author: String?,
         val channelId: String,
+        val shortDescription: String? = null,
         val lengthSeconds: String = "0",
         val musicVideoType: String? = null,
         val viewCount: String? = null,
@@ -209,6 +288,7 @@ data class PlayerResponse(
         val isLiveContent: Boolean? = null,
         val isLiveDvrEnabled: Boolean? = null,
         val isPostLiveDvr: Boolean? = null,
+        val keywords: List<String>? = null,
     )
 
     @Serializable
@@ -225,11 +305,13 @@ data class PlayerResponse(
             @SerialName("baseUrl")
             val baseUrl: String?,
         )
+
         @Serializable
         data class VideostatsWatchtimeUrl(
             @SerialName("baseUrl")
             val baseUrl: String?,
         )
+
         @Serializable
         data class AtrUrl(
             @SerialName("baseUrl")

@@ -10,17 +10,36 @@ import javax.inject.Inject
 
 /** Thin ViewModel over the singleton [SyncManager] (which survives config changes). */
 @HiltViewModel
-class SyncViewModel @Inject constructor(
-    private val manager: SyncManager,
-) : ViewModel() {
+class SyncViewModel
+    @Inject
+    constructor(
+        private val manager: SyncManager,
+    ) : ViewModel() {
+        val state: StateFlow<SyncState> = manager.state
 
-    val state: StateFlow<SyncState> = manager.state
+        fun host(
+            role: SyncRole,
+            collections: List<String>,
+        ) = manager.host(role, collections)
 
-    fun host(role: SyncRole, collections: List<String>) = manager.host(role, collections)
-    fun hostForTv(role: SyncRole, collections: List<String>) = manager.hostForTv(role, collections)
-    fun join(role: SyncRole, qrText: String, collections: List<String>) = manager.join(role, qrText, collections)
-    fun confirmSas(matches: Boolean) = manager.confirmSas(matches)
-    fun confirmConsent(accepted: Boolean) = manager.confirmConsent(accepted)
-    fun cancel() = manager.cancel()
-    fun reset() = manager.reset()
-}
+        fun hostForTv(
+            role: SyncRole,
+            collections: List<String>,
+        ) = manager.hostForTv(role, collections)
+
+        fun join(
+            role: SyncRole,
+            qrText: String,
+            collections: List<String>,
+        ) = manager.join(role, qrText, collections)
+
+        fun extendPairingForManualShare(): String? = manager.extendPairingForManualShare()
+
+        fun confirmSas(matches: Boolean) = manager.confirmSas(matches)
+
+        fun confirmConsent(accepted: Boolean) = manager.confirmConsent(accepted)
+
+        fun cancel() = manager.cancel()
+
+        fun reset() = manager.reset()
+    }

@@ -1,52 +1,42 @@
 package io.github.aedev.flow.ui
 
-import io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
+import io.github.aedev.flow.data.shorts.queue.ShortsQueueSource
+import io.github.aedev.flow.ui.components.layout.navigation.FlowTab
 import java.net.URI
 import java.net.URLEncoder
 
-internal data class NavigationVisibility(
-    val home: Boolean = true,
-    val shorts: Boolean = true,
-    val music: Boolean = true,
-    val search: Boolean = false,
-    val categories: Boolean = false
-)
-
-internal fun visibleNavTabIndices(
-    order: List<Int>,
-    visibility: NavigationVisibility
-): List<Int> {
-    val enabled = buildSet {
-        if (visibility.home) add(0)
-        if (visibility.shorts) add(1)
-        if (visibility.music) add(2)
-        add(3)
-        add(4)
-        if (visibility.search) add(5)
-        if (visibility.categories) add(6)
+/** The tab whose root screen [route] is, or null for every screen that is not a tab root. */
+internal fun flowTabForDestination(
+    route: String?,
+    shortsSourceArg: String?,
+): FlowTab? =
+    when (route) {
+        null -> null
+        SHORTS_ROUTE_PATTERN -> FlowTab.Shorts.takeIf { ShortsQueueSource.decode(shortsSourceArg) == ShortsQueueSource.Feed }
+        else -> FlowTab.entries.firstOrNull { it.route == route }
     }
-    return (order + DEFAULT_NAV_TAB_ORDER).distinct().filter(enabled::contains)
+
+internal fun NavBackStackEntry.flowTab(): FlowTab? = flowTabForDestination(destination.route, arguments?.getString(SHORTS_ROUTE_ARG))
+
+/** The tab a route handed in from outside the graph (a widget, a shortcut) names, if any. */
+internal fun flowTabForRoute(route: String): FlowTab? = FlowTab.entries.firstOrNull { it.route == route }
+
+/** Switches tabs the way the bar does: one copy per tab, each keeping its own saved state. */
+internal fun NavController.navigateToTab(
+    tab: FlowTab,
+    startRoute: String,
+) {
+    navigate(tab.route) {
+        popUpTo(startRoute) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
 }
 
-internal fun resolveDefaultNavTabIndex(
-    preferredIndex: Int,
-    order: List<Int>,
-    visibility: NavigationVisibility
-): Int {
-    val visible = visibleNavTabIndices(order, visibility)
-    return preferredIndex.takeIf(visible::contains) ?: visible.first()
-}
-
-internal fun navRouteForIndex(index: Int): String = when (index) {
-    0 -> "home"
-    1 -> "shorts"
-    2 -> "music"
-    3 -> "subscriptions"
-    4 -> "library"
-    5 -> "search"
-    6 -> "categories"
-    else -> "home"
-}
+/** Search is a tab, but it keeps the back-button layout of the other search screens, so no bar. */
+internal fun FlowTab?.showsNavigationBar(): Boolean = this != null && this != FlowTab.Search
 
 internal fun youtubeChannelUrl(channelIdOrHandle: String): String? {
     val value = channelIdOrHandle.trim()
@@ -59,6 +49,27 @@ internal fun youtubeChannelUrl(channelIdOrHandle: String): String? {
     }
 }
 
+/**
+ * The channel id the nav route carried, or null when it carried an @handle, `/c/` or `/user/` link.
+ * Browse answers 400 to those, so they are resolved to an id first.
+ */
+internal fun youtubeChannelBrowseId(channelIdOrUrl: String): String? {
+    val value = channelIdOrUrl.trim()
+    if (value.isEmpty()) return null
+    if (value.startsWith("UC") && !value.contains('/')) return value
+
+    val segments =
+        youtubeChannelUrl(value)
+            ?.substringAfter("youtube.com/", "")
+            ?.split('/')
+            ?.filter(String::isNotBlank)
+            ?: return null
+    return segments
+        .takeIf { it.firstOrNull() == "channel" }
+        ?.getOrNull(1)
+        ?.takeIf { it.startsWith("UC") }
+}
+
 internal fun youtubeChannelRoute(channelIdOrHandle: String): String? =
     youtubeChannelUrl(channelIdOrHandle)?.let { channelUrl ->
         "channel?url=${URLEncoder.encode(channelUrl, Charsets.UTF_8.name())}"
@@ -69,14 +80,19 @@ private fun normalizeYoutubeChannelUrl(url: String): String {
     val host = uri.host?.lowercase().orEmpty()
     if (host != "youtube.com" && !host.endsWith(".youtube.com")) return url
 
-    val segments = uri.path.orEmpty().split('/').filter(String::isNotBlank)
+    val segments =
+        uri.path
+            .orEmpty()
+            .split('/')
+            .filter(String::isNotBlank)
     if (segments.isEmpty()) return url
 
-    val channelValue = when {
-        segments.first() == "channel" -> segments.getOrNull(1)
-        segments.first().startsWith("@") -> segments.first()
-        else -> null
-    } ?: return url
+    val channelValue =
+        when {
+            segments.first() == "channel" -> segments.getOrNull(1)
+            segments.first().startsWith("@") -> segments.first()
+            else -> null
+        } ?: return url
 
     return when {
         channelValue.startsWith("UC") -> "https://www.youtube.com/channel/$channelValue"

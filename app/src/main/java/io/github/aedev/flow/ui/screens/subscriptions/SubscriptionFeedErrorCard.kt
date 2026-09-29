@@ -17,12 +17,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.utils.FlowDiagnostics
+import io.github.aedev.flow.utils.copyPlainText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** How many channel names are spelled out before the rest are summarised as a count. */
 private const val MAX_NAMED_CHANNELS = 3
@@ -34,13 +42,19 @@ private const val MAX_NAMED_CHANNELS = 3
  * looks complete while it is not.
  */
 @Composable
-fun SubscriptionFeedErrorCard(
+internal fun SubscriptionFeedErrorCard(
     failedChannelNames: List<String>,
+    failedChannelIds: Set<String>,
+    failedChannelReasons: Map<String, String>,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (failedChannelNames.isEmpty()) return
+
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
 
     val named = failedChannelNames.take(MAX_NAMED_CHANNELS).joinToString(", ")
     val remaining = failedChannelNames.size - MAX_NAMED_CHANNELS
@@ -87,6 +101,29 @@ fun SubscriptionFeedErrorCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            val report =
+                                withContext(Dispatchers.IO) {
+                                    buildSubscriptionFailureReport(
+                                        deviceInfo = FlowDiagnostics.buildDeviceInfo(context),
+                                        failedChannelNames = failedChannelNames,
+                                        failedChannelIds = failedChannelIds,
+                                        failedChannelReasons = failedChannelReasons,
+                                        sessionLogs =
+                                            FlowDiagnostics.readSessionLogs(SUBSCRIPTION_FAILURE_LOG_LINES),
+                                    )
+                                }
+                            clipboard.copyPlainText(
+                                label = context.getString(R.string.subscriptions_failed_channels_copy_logs),
+                                text = report,
+                            )
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.subscriptions_failed_channels_copy_logs))
+                }
                 TextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.dismiss))
                 }

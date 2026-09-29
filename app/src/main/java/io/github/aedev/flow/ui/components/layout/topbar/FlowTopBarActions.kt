@@ -95,12 +95,7 @@ private fun FlowNotificationsAction(
     }
 }
 
-/**
- * One entry in a top bar overflow menu.
- *
- * Deliberately not `FlowMenuItemData` — that models the card-list menus rendered inside screen
- * content, while this is a plain Material 3 `DropdownMenuItem`.
- */
+/** One entry in a top bar overflow menu, drawn as a plain Material 3 `DropdownMenuItem`. */
 @Immutable
 data class FlowTopBarMenuItem(
     val label: String,

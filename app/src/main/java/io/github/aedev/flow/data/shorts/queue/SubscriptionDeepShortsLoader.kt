@@ -6,6 +6,7 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.shorts.ChannelShortsFeed
 import io.github.aedev.flow.data.shorts.ChannelShortsFeedPage
 import io.github.aedev.flow.data.shorts.ChannelShortsOwner
@@ -55,16 +56,18 @@ internal fun subscriptionReelChannelOrder(
  * themselves instead, and only as far as the user actually swipes: nothing here is fetched to build
  * a queue, only to extend one.
  *
- * Channels are worked four at a time and drained round-robin, so a page reads like a subscription
- * feed rather than one channel's back catalogue. A channel's Shorts tab carries no upload dates at
- * all, so real date order is not available here — each tab's own newest-first order, interleaved, is
- * the closest honest approximation.
+ * Channels are worked a few at a time, each giving two reels per visit, and then parked behind the
+ * channels not yet visited — so a page alternates between channels and the next page moves on to
+ * new ones instead of draining the same few. A channel's Shorts tab carries no upload dates at all,
+ * so real date order is not available here — each tab's own newest-first order, interleaved, is the
+ * closest honest approximation.
  */
 class SubscriptionDeepShortsLoader(
     private val subscriptionFeedRepository: SubscriptionFeedRepository,
     private val subscriptionRepository: SubscriptionRepository,
     private val playerPreferences: PlayerPreferences,
     private val watchedVideos: SubscriptionWatchedVideos,
+    private val exclusions: suspend () -> FeedExclusions = { FeedExclusions.NONE },
     private val fetchFirstPage: suspend (String) -> ChannelShortsFeedPage? = { ChannelShortsFeed.initial(it) },
     private val fetchNextPage: suspend (String, ChannelShortsOwner) -> ChannelShortsFeedPage? =
         { continuation, owner -> ChannelShortsFeed.more(continuation, owner) },
@@ -86,6 +89,9 @@ class SubscriptionDeepShortsLoader(
     }
 
     private val pending = ArrayDeque<String>()
+
+    /** Channels already visited that still have reels to give, in the order they will be revisited. */
+    private val parked = ArrayDeque<ChannelPager>()
     private val active = mutableListOf<ChannelPager>()
 
     /**
@@ -98,6 +104,7 @@ class SubscriptionDeepShortsLoader(
      * what would otherwise send it back for more pages it did not need.
      */
     private var skipIds: Set<String> = emptySet()
+    private var hidden = FeedExclusions.NONE
     private var prepared = false
 
     override suspend fun initial(): ShortsQueuePage {
@@ -119,26 +126,28 @@ class SubscriptionDeepShortsLoader(
         if (prepared) return
         prepared = true
         val excluded = playerPreferences.subscriptionShortsExcludedChannels.first()
+        hidden = exclusions()
         val feed = subscriptionFeedRepository.observeFeed().first()
         skipIds =
             buildSet {
-                addAll(watchedVideos.ids.first())
+                addAll(watchedVideos.shortIds.first())
                 feed.forEach { video -> if (video.isShort && video.id.isNotBlank()) add(video.id) }
             }
         subscriptionReelChannelOrder(
             feed = feed,
             subscribedChannelIds = subscriptionRepository.getAllSubscriptions().first().map { it.channelId },
-        ).forEach { channelId -> if (channelId !in excluded) pending.addLast(channelId) }
+        ).forEach { channelId -> if (channelId !in excluded && !hidden.hidesChannel(channelId)) pending.addLast(channelId) }
         Log.d(TAG, "Deep subscription tier ready with ${pending.size} channels")
     }
 
     private suspend fun nextPage(): ShortsQueuePage {
         fill()
         val items = drain()
-        active.removeAll { it.isSpent }
-        // A channel still in the working set is holding either buffered reels or another page, so
-        // an empty working set with nothing pending is the end — no extra round trip to discover it.
-        val exhausted = active.isEmpty() && pending.isEmpty()
+        active.forEach { if (!it.isSpent) parked.addLast(it) }
+        active.clear()
+        // A parked channel is holding either buffered reels or another page, so nothing parked and
+        // nothing pending is the end — no extra round trip to discover it.
+        val exhausted = pending.isEmpty() && parked.isEmpty()
         return ShortsQueuePage(
             items = items,
             cursor = if (exhausted) null else MORE,
@@ -155,8 +164,8 @@ class SubscriptionDeepShortsLoader(
      */
     private suspend fun fill() {
         repeat(MAX_FILL_ROUNDS) {
-            while (active.size < ACTIVE_CHANNELS && pending.isNotEmpty()) {
-                active += ChannelPager(pending.removeFirst())
+            while (active.size < ACTIVE_CHANNELS && (pending.isNotEmpty() || parked.isNotEmpty())) {
+                active += if (pending.isNotEmpty()) ChannelPager(pending.removeFirst()) else parked.removeFirst()
             }
             val hungry = active.filter { it.buffered.isEmpty() && it.hasMorePages }
             if (hungry.isNotEmpty()) {
@@ -165,7 +174,7 @@ class SubscriptionDeepShortsLoader(
                 }
             }
             active.removeAll { it.isSpent }
-            if (active.any { it.buffered.isNotEmpty() } || pending.isEmpty()) return
+            if (active.any { it.buffered.isNotEmpty() } || (pending.isEmpty() && parked.isEmpty())) return
         }
     }
 
@@ -186,22 +195,19 @@ class SubscriptionDeepShortsLoader(
         pager.owner = page.owner
         pager.continuation = page.continuation
         page.videos.forEach { video ->
-            if (video.id.isNotBlank() && video.id !in skipIds) pager.buffered.addLast(video.toShortVideo())
+            if (video.id.isNotBlank() && video.id !in skipIds && video.id !in hidden.suppressedVideoIds) {
+                pager.buffered.addLast(video.toShortVideo())
+            }
         }
     }
 
-    /** Takes one reel from each channel in turn, so a page alternates between them. */
+    /** One reel from each channel in turn, at most [REELS_PER_VISIT] from any of them. */
     private fun drain(): List<ShortVideo> {
         val items = mutableListOf<ShortVideo>()
-        while (items.size < PAGE_SIZE) {
-            var took = false
+        repeat(REELS_PER_VISIT) {
             for (pager in active) {
-                if (items.size >= PAGE_SIZE) break
-                val next = pager.buffered.removeFirstOrNull() ?: continue
-                items += next
-                took = true
+                pager.buffered.removeFirstOrNull()?.let { items += it }
             }
-            if (!took) break
         }
         return items
     }
@@ -210,8 +216,8 @@ class SubscriptionDeepShortsLoader(
         const val TAG = "DeepSubsShorts"
 
         /** Channels held open at once: enough to interleave, few enough to keep a page cheap. */
-        const val ACTIVE_CHANNELS = 4
-        const val PAGE_SIZE = 20
+        const val ACTIVE_CHANNELS = 5
+        const val REELS_PER_VISIT = 2
         const val MAX_FILL_ROUNDS = 3
         const val MORE = "more"
     }

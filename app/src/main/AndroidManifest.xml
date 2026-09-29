@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -14,10 +15,10 @@
     <!-- Fallback popup player for devices whose ROM does not expose native Android PiP. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
-    <!-- Required for writing to external Downloads/Movies on API < 29 -->
+    <!-- Writing to a chosen folder through plain files on API 29 and below (legacy storage on 29) -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="29" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -29,6 +30,8 @@
     <uses-permission
         android:name="android.permission.READ_MEDIA_AUDIO"
         android:minSdkVersion="33" />
+    <!-- Android 14+: lets the local library work when the viewer picks "Select photos and videos" -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- Optional: allows saving downloads to public Movies/Music folders (survives app uninstall) -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Required for DLNA/UPnP SSDP device discovery (FOSS casting, no Google services) -->
@@ -52,17 +55,25 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
+    <!-- Lets the equalizer page offer an installed system or third-party equalizer panel. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL_PANEL" />
+        </intent>
+    </queries>
+
     <application
         android:name=".FlowApplication"
         android:allowBackup="true"
         android:banner="@drawable/tv_banner"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="@string/app_launcher_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Flow"
         android:usesCleartextTraffic="true"
         android:resizeableActivity="true"
+        android:requestLegacyExternalStorage="true"
         android:enableOnBackInvokedCallback="true">
 
         <!--
@@ -101,6 +112,8 @@
             </intent-filter>
         </activity>
 
+        <!-- singleTask: a share or link from another app must reach this instance through
+             onNewIntent, not start a second one inside the sharing app's task (#1121). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -127,11 +140,27 @@
                 <data android:host="m.music.youtube.com" />
                 <data android:pathPrefix="/watch" />
                 <data android:pathPrefix="/v" />
+                <data android:pathPrefix="/live" />
+                <data android:pathPrefix="/embed" />
+                <data android:pathPrefix="/shorts" />
+                <data android:pathPrefix="/playlist" />
+                <data android:pathPrefix="/browse" />
                 <data android:pathPrefix="/channel" />
                 <data android:pathPrefix="/c" />
                 <data android:pathPrefix="/user" />
-                <data android:pathPrefix="/results" />
-                <data android:pathPrefix="/shorts" />
+                <data android:pathPrefix="/@" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="www.youtube-nocookie.com" />
+                <data android:host="youtube-nocookie.com" />
+                <data android:pathPrefix="/embed" />
             </intent-filter>
 
             <intent-filter android:autoVerify="true">
@@ -165,6 +194,14 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+
+            <!-- A playlist file shared from Flow opens here and is imported. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
+            </intent-filter>
         </activity>
         
         <!-- Media3 Music Service -->
@@ -190,23 +227,15 @@
             </intent-filter>
         </service>
 
-        <!-- Flow Parallel Download Service -->
+        <!-- The download queue runs as WorkManager work; its foreground service carries dataSync. -->
         <service
-            android:name=".data.video.downloader.FlowDownloadService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync">
-        </service>
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
-        <!-- ExoPlayer Download Service -->
-        <service
-            android:name=".service.ExoDownloadService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync">
-            <intent-filter>
-                <action android:name="androidx.media3.exoplayer.downloadService.action.INIT"/>
-            </intent-filter>
-        </service>
+        <receiver
+            android:name=".data.video.downloader.work.DownloadActionReceiver"
+            android:exported="false" />
 
         <!-- Device Sync (FLOW-SYNC/1) foreground service: keeps the LAN WebSocket
              transfer alive while the screen is off / app is backgrounded. -->
@@ -231,6 +260,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Restores a launcher entry after an update if the chosen icon alias no longer exists. -->
+        <receiver
+            android:name=".platform.LauncherAliasRepairReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Time Management Reminder Receiver -->
         <receiver
             android:name=".notification.ReminderReceiver"
@@ -238,6 +276,19 @@
             android:exported="false" />
 
         <!-- Home-screen widgets (Jetpack Glance) -->
+        <receiver
+            android:name=".widget.core.action.WidgetPlaybackReceiver"
+            android:exported="false" />
+        <activity
+            android:name=".widget.config.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Flow">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
         <receiver
             android:name=".widget.nowplaying.NowPlayingWidgetReceiver"
             android:exported="true"
@@ -292,6 +343,39 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_recently_played_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.onrepeat.OnRepeatWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_on_repeat_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_on_repeat_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.playlist.PlaylistWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_playlist_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_playlist_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.week.WeekWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_week_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week_info" />
         </receiver>
         <receiver
             android:name=".widget.downloads.DownloadsWidgetReceiver"
@@ -432,6 +516,129 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Scallop (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveScallop"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_scallop"
+            android:roundIcon="@mipmap/ic_launcher_expressive_scallop_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Segmented F (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveSegmented"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_segmented"
+            android:roundIcon="@mipmap/ic_launcher_expressive_segmented_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Sunny Play (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressivePlay"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_play"
+            android:roundIcon="@mipmap/ic_launcher_expressive_play_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Sky Clover (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveSky"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_sky"
+            android:roundIcon="@mipmap/ic_launcher_expressive_sky_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Mint Flower (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveMint"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_mint"
+            android:roundIcon="@mipmap/ic_launcher_expressive_mint_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Night Cookie (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveCookie"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_cookie"
+            android:roundIcon="@mipmap/ic_launcher_expressive_cookie_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Oval (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveOval"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_oval"
+            android:roundIcon="@mipmap/ic_launcher_expressive_oval_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Pill (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressivePill"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_pill"
+            android:roundIcon="@mipmap/ic_launcher_expressive_pill_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+
+        <!-- Files Flow hands to other apps: recap cards and playlist files, only from their cache folders. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_file_paths" />
+        </provider>
     </application>
 
 </manifest>

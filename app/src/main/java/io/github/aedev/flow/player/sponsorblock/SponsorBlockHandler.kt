@@ -5,6 +5,7 @@ import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -64,7 +65,7 @@ class SponsorBlockHandler(
     var isEnabled: Boolean = false
         private set
 
-    /** Map from category string (e.g. "sponsor") to the action to take. Defaults to SKIP for all. */
+    /** Category id to action; a category missing here takes [SponsorBlockCategories.defaultAction]. */
     var categoryActions: Map<String, SponsorBlockAction> = emptyMap()
 
     /** Callback invoked whenever new segments are resolved and published. */
@@ -158,8 +159,35 @@ class SponsorBlockHandler(
                         Log.d(TAG, "Segment: ${it.category} [${it.startTime} - ${it.endTime}]")
                     }
                     onSegmentsLoaded?.invoke(segments)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to load segments for video $videoId", e)
+                }
+            }
+    }
+
+    /**
+     * Refetch [videoId]'s segments in place, e.g. after the user submitted one. The current list stays
+     * on the seek bar until the new one arrives, and an empty answer (the fetch failed, or the server
+     * has not published the submission yet) keeps it.
+     */
+    fun reloadSegments(videoId: String) {
+        if (!isEnabled || videoId != currentVideoId) return
+        loadJob?.cancel()
+        loadJob =
+            scope.launch {
+                try {
+                    val segments = apiSegments(videoId)
+                    if (segments.isNotEmpty() && videoId == currentVideoId) {
+                        offlineSegmentsLoaded = false
+                        _sponsorSegments.value = segments
+                    }
+                    Log.d(TAG, "Reloaded ${segments.size} segments for video $videoId")
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to reload segments for video $videoId", e)
                 }
             }
     }
@@ -292,7 +320,7 @@ internal fun resolveSponsorBlockAction(
     segment: SponsorBlockSegment,
     categoryActions: Map<String, SponsorBlockAction>,
 ): SponsorBlockAction {
-    val userAction = categoryActions[segment.category] ?: SponsorBlockAction.SKIP
+    val userAction = categoryActions[segment.category] ?: SponsorBlockCategories.defaultAction(segment.category)
     if (userAction == SponsorBlockAction.IGNORE) return SponsorBlockAction.IGNORE
     return when {
         SponsorBlockCategories.isWholeVideoAction(segment.actionType) -> {

@@ -38,7 +38,6 @@ import io.github.aedev.flow.data.sponsordetection.SponsorFeedbackVerdict
 import io.github.aedev.flow.data.sponsordetection.SponsorPredictedSpan
 import io.github.aedev.flow.data.sponsordetection.SponsorSpan
 import io.github.aedev.flow.player.EnhancedPlayerManager
-import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -315,7 +314,13 @@ internal fun SponsorTimestampEditor(
     )
 }
 
-internal fun formatTimestamp(milliseconds: Long): String = VideoPlayerUtils.formatTime(milliseconds.coerceAtLeast(0), padMinutes = true)
+internal fun formatTimestamp(milliseconds: Long): String {
+    val totalSeconds = milliseconds.coerceAtLeast(0) / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, seconds) else "%02d:%02d".format(minutes, seconds)
+}
 
 internal fun parseTimestamp(value: String): Long? {
     val parts = value.trim().split(':')

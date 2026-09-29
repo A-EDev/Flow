@@ -1,0 +1,188 @@
+package io.github.aedev.flow.ui.components.musicplayer.lyrics
+
+import io.github.aedev.flow.data.lyrics.LyricsEntry
+import io.github.aedev.flow.data.lyrics.WordTimestamp
+
+internal sealed class LyricsListItem {
+    data class Line(
+        val index: Int,
+        val entry: LyricsEntry,
+    ) : LyricsListItem()
+
+    data class Indicator(
+        val afterLineIndex: Int,
+        val gapStartMs: Long,
+        val gapEndMs: Long,
+    ) : LyricsListItem()
+}
+
+internal fun adaptiveLyricsTextSize(
+    baseSize: Float,
+    textLength: Int,
+    isBackground: Boolean,
+): Float {
+    val foregroundSize =
+        when {
+            textLength > 92 -> baseSize * 0.66f
+            textLength > 72 -> baseSize * 0.72f
+            textLength > 54 -> baseSize * 0.8f
+            textLength > 42 -> baseSize * 0.9f
+            else -> baseSize
+        }
+    return if (isBackground) foregroundSize * 0.7f else foregroundSize
+}
+
+internal fun buildLines(
+    lyrics: String?,
+    syncedLyrics: List<LyricsEntry>,
+): List<LyricsEntry> {
+    if (syncedLyrics.isNotEmpty() && entriesLookSynced(syncedLyrics)) {
+        return listOf(LyricsEntry(time = 0L, text = "")) + syncedLyrics.sorted()
+    }
+
+    val plainSource =
+        lyrics?.takeIf { it.isNotBlank() }
+            ?: syncedLyrics.joinToString("\n") { it.text }.takeIf { it.isNotBlank() }
+    val plainLines =
+        plainSource
+            ?.lines()
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+    if (plainLines.isEmpty()) return emptyList()
+    return plainLines.mapIndexed { index, line ->
+        LyricsEntry(time = 1_000_000L + index, text = line)
+    }
+}
+
+internal fun entriesLookSynced(entries: List<LyricsEntry>): Boolean {
+    if (entries.size < 2) return false
+    val main = entries.filter { !it.isBackground }
+    val list = if (main.size >= 2) main else entries
+    val distinctTimes = list.map { it.time }.distinct()
+    if (distinctTimes.size < 2) return false
+    val firstPositive = distinctTimes.firstOrNull { it > 0L } ?: return false
+    val maxTime = list.maxOf { it.time }
+    if (maxTime - firstPositive < 5_000L) return false
+    if (entries.any { !it.words.isNullOrEmpty() }) return true
+    val distinctTimedLines = list.count { it.time > 0L }
+    return distinctTimedLines >= (list.size * 0.5).toInt().coerceAtLeast(2)
+}
+
+internal fun buildMergedLyricsList(lines: List<LyricsEntry>): List<LyricsListItem> {
+    val result = mutableListOf<LyricsListItem>()
+    lines.forEachIndexed { index, entry ->
+        if (entry.text.isNotBlank()) {
+            result.add(LyricsListItem.Line(index, entry))
+        }
+        if (index < lines.lastIndex) {
+            val nextStart = lines[index + 1].time
+            val currentEnd =
+                when {
+                    !entry.words.isNullOrEmpty() -> entry.words.last().endTime
+                    entry.text.isBlank() -> entry.time
+                    else -> null
+                }
+            if (currentEnd != null && currentEnd < nextStart && nextStart - currentEnd > 4000L) {
+                result.add(LyricsListItem.Indicator(index, currentEnd, nextStart))
+            }
+        }
+    }
+    return result
+}
+
+internal fun findActiveLineIndices(
+    lines: List<LyricsEntry>,
+    position: Long,
+): Set<Int> {
+    val active = mutableSetOf<Int>()
+    val hasWordTimings = lines.any { !it.words.isNullOrEmpty() }
+
+    val distinctMainTimes =
+        lines
+            .asSequence()
+            .filter { !it.isBackground }
+            .map { it.time }
+            .distinct()
+            .take(3)
+            .toList()
+    if (distinctMainTimes.size < 2) return active
+
+    for (index in lines.indices) {
+        val line = lines[index]
+        if (line.time > position) break
+        val lineEndMs =
+            if (!line.words.isNullOrEmpty()) {
+                line.words.last().endTime
+            } else {
+                (index + 1 until lines.size)
+                    .asSequence()
+                    .map { lines[it].time }
+                    .firstOrNull { it > line.time }
+                    ?: Long.MAX_VALUE
+            }
+        if (position <= lineEndMs) active.add(index)
+    }
+
+    if (!hasWordTimings && active.size > 1) {
+        val mainActive = active.filter { !lines[it].isBackground }
+        if (mainActive.size > 1) {
+            val maxTime = mainActive.maxOf { lines[it].time }
+            active.removeAll { it in mainActive && lines[it].time < maxTime }
+        }
+    }
+
+    return active
+}
+
+internal fun sanitizeWordTimestamps(words: List<WordTimestamp>): List<WordTimestamp> {
+    if (words.isEmpty()) return emptyList()
+    return words.mapIndexed { index, word ->
+        val nextWord = words.getOrNull(index + 1)
+        val start = word.startTime.coerceAtLeast(0L)
+        val endFromNext = nextWord?.startTime?.takeIf { it > start }
+        val end =
+            when {
+                endFromNext != null && word.endTime > endFromNext -> endFromNext
+                word.endTime <= start -> start + 80L
+                else -> word.endTime
+            }
+        word.copy(startTime = start, endTime = end)
+    }
+}
+
+/**
+ * The last word of a line, when it holds hyphens ("la-la-la"), is sung as separate syllables:
+ * split it into timed segments and keep, for each, the index of the word it came from.
+ */
+internal fun splitTrailingHyphenWord(sanitizedInputWords: List<WordTimestamp>): Pair<List<WordTimestamp>, List<Int>> =
+    sanitizedInputWords
+        .flatMapIndexed { originalIdx, word ->
+            val shouldSplit = word.text.contains('-') && word.text.length > 1 && originalIdx == sanitizedInputWords.lastIndex
+            if (shouldSplit) {
+                val segments = mutableListOf<String>()
+                var start = 0
+                for (i in word.text.indices) {
+                    if (word.text[i] == '-') {
+                        segments.add(word.text.substring(start, i + 1))
+                        start = i + 1
+                    }
+                }
+                if (start < word.text.length) segments.add(word.text.substring(start))
+                if (segments.size > 1) {
+                    val totalDuration = word.endTime - word.startTime
+                    val segmentDuration = totalDuration / segments.size
+                    segments.mapIndexed { index, segmentText ->
+                        WordTimestamp(
+                            text = segmentText,
+                            startTime = word.startTime + index * segmentDuration,
+                            endTime = word.startTime + (index + 1) * segmentDuration,
+                        ) to originalIdx
+                    }
+                } else {
+                    listOf(word to originalIdx)
+                }
+            } else {
+                listOf(word to originalIdx)
+            }
+        }.let { data -> data.map { it.first } to data.map { it.second } }

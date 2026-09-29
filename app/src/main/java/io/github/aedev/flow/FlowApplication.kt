@@ -8,6 +8,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import dagger.hilt.android.HiltAndroidApp
+import io.github.aedev.flow.data.local.CONTENT_LANGUAGE_FOLLOW_APP
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.repository.NewPipeDownloader
@@ -77,6 +78,7 @@ class FlowApplication :
     override fun onCreate() {
         super.onCreate()
         appContext = applicationContext
+        YouTube.cacheDirectory = cacheDir.resolve("innertube_http_cache")
 
         DiscordPresenceRuntime.initialize(this, okHttpClient)
 
@@ -202,16 +204,20 @@ class FlowApplication :
             } catch (e: Exception) {
                 Log.w(TAG, "WebPoTokenSession prewarm failed: ${e.message}")
             }
+            // A cold player script is a 3 MB download the first web-client extraction would
+            // otherwise wait on.
+            io.github.aedev.flow.utils.cipher.CipherDeobfuscator
+                .ensureSignatureTimestamp()
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             combine(
                 playerPreferences.appLanguage,
+                playerPreferences.contentLanguage,
                 playerPreferences.trendingRegion,
-            ) { lang, region ->
-                val glCode = normalizeYouTubeCountry(region)
-                val hlCode = normalizeYouTubeHostLanguage(lang)
-                YouTubeLocale(gl = glCode, hl = hlCode)
+            ) { appLanguage, contentLanguage, region ->
+                val language = if (contentLanguage == CONTENT_LANGUAGE_FOLLOW_APP) appLanguage else contentLanguage
+                YouTubeLocale(gl = normalizeYouTubeCountry(region), hl = normalizeYouTubeHostLanguage(language))
             }.collectLatest { newLocale ->
                 YouTube.locale = newLocale
                 NewPipe.setupLocalization(

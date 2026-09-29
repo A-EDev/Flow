@@ -12,7 +12,6 @@ import io.github.aedev.flow.innertube.models.body.*
 import io.github.aedev.flow.innertube.models.normalizeYouTubeHostLanguage
 import io.github.aedev.flow.innertube.models.response.NextResponse
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
-import io.github.aedev.flow.innertube.models.response.ReelWatchSequenceResponse
 import io.github.aedev.flow.innertube.utils.parseCookieString
 import io.github.aedev.flow.innertube.utils.sha1
 import io.ktor.client.*
@@ -75,6 +74,14 @@ class InnerTube {
         }
 
     var proxyAuth: String? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            httpClient.close()
+            httpClient = createClient()
+        }
+
+    var cacheDirectory: java.io.File? = null
         set(value) {
             if (field == value) return
             field = value
@@ -162,7 +169,7 @@ class InnerTube {
                     // Cache configuration for better performance
                     cache(
                         okhttp3.Cache(
-                            directory = java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
+                            directory = cacheDirectory ?: java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
                             maxSize = 50L * 1024L * 1024L, // 50 MB
                         ),
                     )
@@ -321,12 +328,34 @@ class InnerTube {
         }
     }
 
+    /**
+     * Typeahead suggestions. Not an InnerTube endpoint — a JSONP array from the suggest host — but
+     * it rides the same client so it honours the app's locale, proxy and connection pool.
+     */
+    suspend fun searchSuggestions(query: String) =
+        withRetry {
+            httpClient.get("https://suggestqueries-clients6.youtube.com/complete/search") {
+                parameter("client", "youtube")
+                parameter("ds", "yt")
+                parameter("hl", locale.hl)
+                parameter("gl", locale.gl)
+                parameter("q", query)
+                userAgent(YouTubeClient.WEB.userAgent)
+            }
+        }
+
     private suspend fun webBrowse(
         client: YouTubeClient,
         body: (String?) -> BrowseBody,
+    ) = mainSitePost(client, "browse", body)
+
+    private suspend inline fun <reified T> mainSitePost(
+        client: YouTubeClient,
+        path: String,
+        crossinline body: (String?) -> T,
     ) = withRetry {
         withVisitorDataFallback { requestVisitorData ->
-            httpClient.post("https://www.youtube.com/youtubei/v1/browse") {
+            httpClient.post("https://www.youtube.com/youtubei/v1/$path") {
                 headers {
                     append("X-YouTube-Client-Name", client.clientId)
                     append("X-YouTube-Client-Version", client.clientVersion)
@@ -384,6 +413,47 @@ class InnerTube {
             params = if (continuation == null) params else null,
             continuation = continuation,
         )
+    }
+
+    /** What a youtube.com link points at, as the endpoint the site would follow for it. */
+    suspend fun resolveUrl(
+        client: YouTubeClient,
+        url: String,
+    ) = mainSitePost(client, "navigation/resolve_url") { requestVisitorData ->
+        ResolveUrlBody(context = client.toContext(locale, requestVisitorData, null), url = url)
+    }
+
+    /**
+     * YouTube Charts, on its own host with its own client. The filter rides a top-level `query`
+     * string rather than a protobuf `params`, and an unsupported country code answers 400 — see
+     * [io.github.aedev.flow.innertube.pages.explore.CHARTS_SUPPORTED_COUNTRIES].
+     */
+    suspend fun analyticsChartsBrowse(
+        browseId: String,
+        query: String,
+    ) = withRetry {
+        val client = YouTubeClient.WEB_MUSIC_ANALYTICS
+        httpClient.post("${YouTubeClient.API_URL_YOUTUBE_CHARTS}browse") {
+            headers {
+                append("X-YouTube-Client-Name", client.clientId)
+                append("X-YouTube-Client-Version", client.clientVersion)
+                append(HttpHeaders.Origin, YouTubeClient.ORIGIN_YOUTUBE_CHARTS)
+                append("Referer", YouTubeClient.REFERER_YOUTUBE_CHARTS)
+            }
+            contentType(ContentType.Application.Json)
+            userAgent(client.userAgent)
+            parameter("alt", "json")
+            parameter("prettyPrint", false)
+            setBody(
+                BrowseBody(
+                    context = client.toContext(locale, null, null),
+                    browseId = browseId,
+                    params = null,
+                    continuation = null,
+                    query = query,
+                ),
+            )
+        }
     }
 
     private suspend fun <T> withVisitorDataFallback(
@@ -560,6 +630,7 @@ class InnerTube {
         params: String? = null,
         continuation: String? = null,
         setLogin: Boolean = false,
+        formData: BrowseBody.FormData? = null,
     ) = withRetry {
         httpClient.post("browse") {
             ytClient(client, setLogin = setLogin || useLoginForBrowse)
@@ -574,6 +645,7 @@ class InnerTube {
                     browseId = browseId,
                     params = params,
                     continuation = continuation,
+                    formData = formData,
                 ),
             )
         }
@@ -581,26 +653,30 @@ class InnerTube {
 
     suspend fun reel(
         client: YouTubeClient,
-        params: String? = null,
-        sequenceParams: String? = "CA8%3D", // Default for initial fetch
-        setLogin: Boolean = false,
-    ) = withRetry {
-        httpClient
-            .post("reel/reel_watch_sequence") {
-                ytClient(client, setLogin = setLogin)
-                setBody(
-                    ReelBody(
-                        context =
-                            client.toContext(
-                                locale,
-                                visitorData,
-                                if (setLogin) dataSyncId else null,
-                            ),
-                        params = params,
-                        sequenceParams = sequenceParams,
-                    ),
-                )
-            }.body<ReelWatchSequenceResponse>()
+        sequenceParams: String,
+    ) = mainSitePost(client, "reel/reel_watch_sequence") { requestVisitorData ->
+        ReelBody(
+            context = client.toContext(locale, requestVisitorData, null),
+            sequenceParams = sequenceParams,
+        )
+    }
+
+    /**
+     * One reel's overlay. Only the id is required: the WEB overlay is complete without a signature
+     * timestamp or the reel's own `playerParams`, which matter only to the inline player response
+     * this never asks for.
+     */
+    suspend fun reelItemWatch(
+        client: YouTubeClient,
+        videoId: String,
+        playerParams: String? = null,
+        disablePlayerResponse: Boolean = true,
+    ) = mainSitePost(client, "reel/reel_item_watch") { requestVisitorData ->
+        ReelItemWatchBody(
+            context = client.toContext(locale, requestVisitorData, null),
+            playerRequest = ReelItemWatchBody.PlayerRequest(videoId = videoId, params = playerParams),
+            disablePlayerResponse = disablePlayerResponse,
+        )
     }
 
     suspend fun next(
@@ -661,6 +737,33 @@ class InnerTube {
             }
         }
 
+    /**
+     * The watch page for [videoId] or one of its continuations, on the main site.
+     *
+     * The comment section only exists on the web watch response, so this posts to the same host
+     * and headers as [nextForLiveChat] rather than the music API the default request points at.
+     */
+    suspend fun nextWatch(
+        videoId: String? = null,
+        continuation: String? = null,
+    ) = withRetry {
+        val client = YouTubeClient.WEB
+        httpClient.post("https://www.youtube.com/youtubei/v1/next") {
+            webYouTubeHeaders(client)
+            setBody(
+                NextBody(
+                    context = client.toContext(locale, visitorData, null),
+                    videoId = videoId,
+                    playlistId = null,
+                    playlistSetVideoId = null,
+                    index = null,
+                    params = null,
+                    continuation = continuation,
+                ),
+            )
+        }
+    }
+
     suspend fun getLiveChat(
         continuation: String,
         offsetMs: Long? = null,
@@ -679,19 +782,6 @@ class InnerTube {
                 ),
             )
         }
-    }
-
-    suspend fun feedback(
-        client: YouTubeClient,
-        tokens: List<String>,
-    ) = httpClient.post("feedback") {
-        ytClient(client, setLogin = true)
-        setBody(
-            FeedbackBody(
-                context = client.toContext(locale, visitorData, dataSyncId),
-                feedbackTokens = tokens,
-            ),
-        )
     }
 
     suspend fun getSearchSuggestions(
@@ -1022,7 +1112,7 @@ class InnerTube {
         )
     }
 
-    private suspend fun returnYouTubeDislike(videoId: String) =
+    suspend fun returnYouTubeDislike(videoId: String) =
         httpClient.get("https://returnyoutubedislikeapi.com/Votes?videoId=$videoId") {
             contentType(ContentType.Application.Json)
         }

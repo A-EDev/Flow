@@ -1,6 +1,5 @@
 package io.github.aedev.flow.player.factory
 
-import android.app.ActivityManager
 import android.content.Context
 import android.util.Log
 import androidx.media3.common.AudioAttributes
@@ -23,6 +22,7 @@ import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.config.PlayerConfig
+import io.github.aedev.flow.player.config.VideoSizeCap
 import io.github.aedev.flow.player.renderer.CustomRenderersFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -83,10 +83,12 @@ class PlayerFactory {
             .setResetOnNetworkTypeChange(false)
             .build()
 
-    fun createTrackSelector(context: Context): DefaultTrackSelector {
+    fun createTrackSelector(
+        context: Context,
+        videoSizeCap: VideoSizeCap,
+    ): DefaultTrackSelector {
         val trackSelectionFactory = AdaptiveTrackSelection.Factory()
         val prefs = ensurePrefs(context)
-        val (maxVideoWidth, maxVideoHeight) = maxVideoSizeForHeap(context)
 
         return DefaultTrackSelector(context, trackSelectionFactory).apply {
             val builder =
@@ -97,7 +99,7 @@ class PlayerFactory {
                     .setForceHighestSupportedBitrate(false)
                     .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                     .setViewportSizeToPhysicalDisplaySize(context, true)
-                    .setMaxVideoSize(maxVideoWidth, maxVideoHeight)
+                    .setMaxVideoSize(videoSizeCap.maxWidth, videoSizeCap.maxHeight)
 
             when (prefs.audioLanguage) {
                 "original", "" -> {}
@@ -132,17 +134,6 @@ class PlayerFactory {
             categoryActionsProvider = categoryActionsProvider,
             isAutoSkipEnabledProvider = isAutoSkipEnabledProvider,
         )
-    }
-
-    private fun maxVideoSizeForHeap(context: Context): Pair<Int, Int> {
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-        val memoryClassMb = activityManager?.memoryClass ?: 256
-        val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb <= 256
-        return when {
-            isLowMemoryDevice -> 1920 to 1080
-            memoryClassMb <= 384 -> 2560 to 1440
-            else -> PlayerConfig.MAX_VIDEO_WIDTH to PlayerConfig.MAX_VIDEO_HEIGHT
-        }
     }
 
     fun createRenderersFactory(

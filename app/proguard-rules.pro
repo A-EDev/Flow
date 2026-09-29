@@ -53,6 +53,18 @@
 -keep class io.github.aedev.flow.data.lyrics.** { *; }
 -keep class io.github.aedev.flow.innertube.models.** { *; }
 
+## Gson-persisted models that live OUTSIDE the packages above (issue #996): without an
+## explicit keep, R8 may strip the generic Signature of MusicTrack.artists, and cached
+## history/queues then deserialize artist entries as LinkedTreeMaps that crash the music
+## feed with a ClassCastException on first access. Any new Gson-persisted model must be
+## added here (or live in a kept package), whatever package it renders from.
+-keep class io.github.aedev.flow.ui.screens.music.MusicTrack { *; }
+-keep class io.github.aedev.flow.ui.screens.music.MusicArtist { *; }
+-keep class io.github.aedev.flow.ui.screens.music.MusicItemType { *; }
+-keep class io.github.aedev.flow.data.music.Playlist { *; }
+-keep class io.github.aedev.flow.data.music.DownloadedTrack { *; }
+-keep class io.github.aedev.flow.data.music.DownloadStatus { *; }
+
 ## Shazam recognition models + kotlinx serializers
 -keepclasseswithmembers class io.github.aedev.flow.data.recognition.shazam.** {
     kotlinx.serialization.KSerializer serializer(...);

@@ -13,18 +13,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.Wifi
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,11 +35,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -44,11 +50,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
+import io.github.aedev.flow.utils.readPlainText
+import kotlinx.coroutines.launch
 
 /**
  * The pre-session steps: pick a direction, pick what travels, pick how the two devices pair, and
  * (when this device scans) the camera step.
  */
+
+private const val MAX_CONNECTION_DATA_LENGTH = 4096
 
 @Composable
 internal fun SyncChooserContent(
@@ -59,17 +70,21 @@ internal fun SyncChooserContent(
         icon = Icons.Outlined.Wifi,
         body = stringResource(R.string.sync_intro),
     )
-    SyncOptionCard(
-        icon = Icons.Outlined.Upload,
-        title = stringResource(R.string.sync_send_to_device),
-        body = stringResource(R.string.sync_send_option_body),
-        onClick = onSend,
-    )
-    SyncOptionCard(
-        icon = Icons.Outlined.Download,
-        title = stringResource(R.string.sync_receive_from_device),
-        body = stringResource(R.string.sync_receive_option_body),
-        onClick = onReceive,
+    SyncOptions(
+        listOf(
+            SyncOption(
+                icon = Icons.Outlined.Upload,
+                title = stringResource(R.string.sync_send_to_device),
+                body = stringResource(R.string.sync_send_option_body),
+                onClick = onSend,
+            ),
+            SyncOption(
+                icon = Icons.Outlined.Download,
+                title = stringResource(R.string.sync_receive_from_device),
+                body = stringResource(R.string.sync_receive_option_body),
+                onClick = onReceive,
+            ),
+        ),
     )
 }
 
@@ -102,35 +117,16 @@ internal fun SyncSelectContent(
         }
     }
 
-    SyncCard {
-        Column(Modifier.fillMaxWidth()) {
-            COLLECTION_KEYS.forEachIndexed { index, key ->
-                val checked = key in selected
-                ListItem(
-                    // One toggle target for the whole row: the checkbox is decorative, the row owns
-                    // the semantics, so a screen reader announces label + state once.
-                    modifier =
-                        Modifier.toggleable(
-                            value = checked,
-                            role = Role.Checkbox,
-                            onValueChange = { isChecked ->
-                                onSelectedChange(if (isChecked) selected + key else selected - key)
-                            },
-                        ),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { Icon(collectionIcon(key), contentDescription = null) },
-                    headlineContent = { Text(collectionLabel(key)) },
-                    supportingContent = collectionDescription(key)?.let { body -> { Text(body) } },
-                    trailingContent = { Checkbox(checked = checked, onCheckedChange = null) },
-                )
-                if (index != COLLECTION_KEYS.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                    )
-                }
-            }
-        }
+    SyncRowGroup(count = COLLECTION_KEYS.size) { index, shape ->
+        val key = COLLECTION_KEYS[index]
+        FlowSwitchRow(
+            title = collectionLabel(key),
+            supportingText = collectionDescription(key),
+            checked = key in selected,
+            onCheckedChange = { isChecked -> onSelectedChange(if (isChecked) selected + key else selected - key) },
+            leadingIcon = collectionIcon(key),
+            shape = shape,
+        )
     }
 
     SyncInfoRow(
@@ -152,18 +148,67 @@ internal fun SyncTransportContent(
     scanHint: String,
     onShowQr: () -> Unit,
     onScan: () -> Unit,
+    onManual: () -> Unit,
 ) {
-    SyncOptionCard(
-        icon = Icons.Outlined.QrCode2,
-        title = showQrLabel,
-        body = showQrHint,
-        onClick = onShowQr,
+    SyncOptions(
+        listOf(
+            SyncOption(icon = Icons.Outlined.QrCode2, title = showQrLabel, body = showQrHint, onClick = onShowQr),
+            SyncOption(icon = Icons.Outlined.QrCodeScanner, title = scanLabel, body = scanHint, onClick = onScan),
+            SyncOption(
+                icon = Icons.Outlined.Link,
+                title = stringResource(R.string.sync_enter_connection_data),
+                body = stringResource(R.string.sync_enter_connection_data_hint),
+                onClick = onManual,
+            ),
+        ),
     )
-    SyncOptionCard(
-        icon = Icons.Outlined.QrCodeScanner,
-        title = scanLabel,
-        body = scanHint,
-        onClick = onScan,
+}
+
+@Composable
+internal fun SyncManualEntryContent(onSubmit: (String) -> Unit) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var connectionData by rememberSaveable { mutableStateOf("") }
+    val trimmedData = connectionData.trim()
+
+    SyncStepHeader(
+        icon = Icons.Outlined.Link,
+        body = stringResource(R.string.sync_enter_connection_data_hint),
+    )
+    OutlinedTextField(
+        value = connectionData,
+        onValueChange = { value ->
+            if (value.length <= MAX_CONNECTION_DATA_LENGTH) connectionData = value
+        },
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(stringResource(R.string.sync_connection_data_label)) },
+        trailingIcon = {
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        clipboard.readPlainText(context)?.let {
+                            connectionData = it.take(MAX_CONNECTION_DATA_LENGTH)
+                        }
+                    }
+                },
+            ) {
+                Icon(
+                    Icons.Outlined.ContentPaste,
+                    contentDescription = stringResource(R.string.sync_paste_connection_data),
+                )
+            }
+        },
+        maxLines = 4,
+    )
+    SyncInfoRow(
+        icon = Icons.Outlined.Shield,
+        text = stringResource(R.string.sync_connection_data_security_note),
+    )
+    SyncActionRow(
+        confirmLabel = stringResource(R.string.sync_connect),
+        onConfirm = { onSubmit(trimmedData) },
+        confirmEnabled = trimmedData.isNotEmpty(),
     )
 }
 

@@ -33,6 +33,12 @@ data class EnhancedPlayerState(
     val liveDurationMs: Long = 0L,
 )
 
+/** A video that played to its end, and the length it ended at. */
+data class PlaybackCompletion(
+    val videoId: String,
+    val durationMs: Long,
+)
+
 // video quality option for the quality selector.
 data class QualityOption(
     val height: Int,

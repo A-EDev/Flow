@@ -1,39 +1,160 @@
 FLOW CHANGE LOG
 VERSION: 2.2.5
-DATE: 2026-08-29
+DATE: 2026-09-15
 STATUS: PRE-RELEASE
 
 NEW FEATURES
-- Serve every one of your interests in every home feed: your biggest interests are always present and your smaller ones rotate through the remaining slots, instead of the feed looping your top topic
-- Dig deeper as you scroll: each load of more videos descends one level further into every interest's branches, like walking a tree, instead of repeating the surface
-- Keep the feed going forever: when the usual sources thin out, loading more now digs fresh related-video lanes seeded from the videos on screen, your history, likes and playlists
-- Always show fresh uploads from your subscriptions: the fresh-subs slots now draw from the subscription feed covering ALL your channels, not just the handful fetched this refresh
-- Learn from everything you do: real watch time, early skips, downloads, Watch Later, playlist saves, live subscribes and the searches you type now all teach your recommendation brain
-- Learn what each channel is about from its creator-declared tags when you subscribe, and passively from its recent upload titles, improving interest grouping and recommendations
+- Video search now runs on the native InnerTube client: one request per page instead of thirteen, with filters and sorting applied by the server
+- Search rebuilt: a Material 3 search bar, filters in a sheet, a grid/list toggle, and creator cards tinted by the channel avatar with their latest uploads attached
+- Channels you block are now hidden from search results, not just the feed
+- Channel pages moved to the native InnerTube client, with correct scheduled-stream and premiere handling
+- Private notes on any channel or video, included in backup and device sync
+- Explore rebuilt around YouTube's own destinations — Live, Gaming, Music, Movies, News, Sports, Learning and Fashion — each rendered in the shape its source serves, with the content region one tap away in the top bar
+- Explore now runs on the native InnerTube client and shares the adaptive grid used by Search and Channels, replacing the trending endpoints YouTube has retired
+- The video player is now adaptive: a supporting pane and navigation rail on wide screens, with the description, chapters, comments and settings served in the pane or a fullscreen drawer
+- Player comments and descriptions now come from InnerTube, and every player surface moves to Material 3 Expressive
+- Portrait fullscreen is rebuilt around the video with the title and channel above it, reached the same way by swipe or by the fullscreen button, and the volume and brightness read-outs can now be circular, vertical, a bar, or just the number
+- Scrubbing the seek bar now previews the moment under your thumb, as a sliding filmstrip or a single frame — your choice in Player Appearance — with the time, chapter and SponsorBlock segment labelled beside it
+- The seek bar draws the most-replayed curve while you scrub and badges its peak, so the parts everyone rewinds to are visible before you let go
+- Optional frame-by-frame stepping while paused, off by default, and the volume and brightness overlay style is now chosen from a sheet that previews each one
+- The video player resolves every video through the native InnerTube client alone, retiring the second extraction stack it used to race against, and the watch page is now fetched once per video instead of once per consumer
+- One grid layout across Home, Channels and Search: your cards-per-row setting applies everywhere, and rows the grid cannot fill switch to full-width list cards on tablets and foldables
+- A local music taste engine ranks every music shelf and composes Quick Picks, learning the artists you love from how much of each song you actually play — entirely on-device
+- New shelves built from your taste and rendered with no network calls: On Repeat, Rediscover for loved artists you have not played in weeks, a time-of-day rotation, and "From artists you love" for their latest releases
+- Daily Mixes cluster the artists you listen to together and open as full playlist pages you can play, shuffle and save
+- Endless music radio: similar songs are appended as the queue runs low, and the up-next list stays stable instead of changing every song
+- Tell the music engine what you don't want: "Not interested" softens an artist for two weeks, "Don't recommend" blocks them everywhere, both reversible
+- The Flow Control Center is now Your taste, rebuilt on the settings layout with your video and music taste, engine details, a Hidden from you page for everything you blocked, and profiles that sync between devices and export to a file
+- Artist pages show your own history with that artist: play count, liked status, most-played tracks, and which "fans also like" artists are already in your rotation
+- New On Repeat home-screen widget puts the songs you keep replaying one tap away
+- The engine learns genres and moods from what you play, and keeps a private monthly listening ledger on your device — minutes, plays, discoveries and your listening clock — which never leaves the device
+- Full music player redesign: a pill mini player with a progress ring, a lyrics sheet with source browsing, editing, alignment and sync-offset controls, and a rebuilt queue with drag-to-reorder, swipe actions and an endless-radio toggle
+- Album colours flow through the entire player with guaranteed readability on any cover, alongside six Material 3 expressive seek bar styles and an Immersive Artwork background that follows your swipes
+- The whole music section moves to Material 3 Expressive: wide carousels, grouped Quick Picks, cookie-shaped artists, tonal mood tiles, artwork-tinted pages, and redesigned recognition screens whose mic morphs while it listens
+- Home feed serves every one of your interests: your biggest are always present and smaller ones rotate through the remaining slots, and each load descends one level deeper into every interest instead of repeating the surface
+- The feed never dead-ends: when the usual sources thin out, loading more digs fresh related-video lanes seeded from what is on screen, your history, likes and playlists
+- Fresh subscription uploads are drawn from your whole subscription feed rather than the handful fetched this refresh
+- The recommendation brain now learns from real watch time, early skips, downloads, Watch Later, playlist saves, live subscribes and the searches you type, and learns what each channel is about from its creator tags and recent uploads
+- Device pairing can now be completed by entering connection details by hand when a QR scan is not practical
+- Shorts run on the native InnerTube client with a rebuilt reel page and settings sheet, and a new feed engine that blends chains related to reels you liked, saved or watched with fresh discovery, exploration and subscriptions — endless, unrepeated and one reel per channel at a time
+- Shorts now honour your blocked channels and topics on every reel, "Don't show this channel" joins the reel sheet, and the ad creatives YouTube slips into the reel feed are dropped
+- Settings rebuilt on Material 3 Expressive: grouped rows, a search that finds any option, and a two-pane layout on tablets and foldables
+- Themes now match Flow Desktop, Monochrome gets a true black AMOLED style, and you can keep several named custom themes and move them between both apps with import and export
+- Flow Recap: a private, on-device record of your watching and listening, with a stats page of charts for any month, year or all time, covering your top channels, videos, artists, tracks and topics, streaks and your daily clock
+- A monthly and yearly Recap story that plays itself, with morphing Material shapes, artwork-tinted pages and channel and artist portraits, plus a shareable poster image
+- Onboarding rebuilt on Material 3 Expressive: a welcome step with the Flow logo, one morphing shape that follows you through every step, an alerts step that asks for notifications in context, imports grouped by the app you are moving from, and two panes on tablets and foldables
+- Updates now download, verify and install inside Flow from a new update page with sectioned release notes, the download size and a Skip this version option
+- Search inside any playlist by title or channel
+- Save a playlist as a file, share it with anyone, and import one from the Playlists screen or by opening the file in Flow
+- Optional setting to remove videos from Watch later once you have watched them, with Undo when Watch later clears older ones (#1060)
+- Likes are now two built-in playlists, Liked videos and Liked music, with search, sort, select and unlike with Undo, Play all, Shuffle, Download all and Save as file
+- The video queue is redesigned on Material 3 Expressive: swipe a video away with Undo, long press for its menu, shuffle and repeat as toggle buttons, and the time left in the queue. On tablets it opens in the side pane and what plays next sits at the top of that pane, and in fullscreen it opens from its own button
+- Chapters are a segmented list with the current chapter tinted by the video's artwork, its progress shown under it, and each chapter's length on its thumbnail
+- Album and playlist pages in Music are redesigned, with a side pane on tablets and foldables, search inside the page, sorting (album order, title, artist, album, length, date added), selecting songs to play next, queue, add to a playlist, download or remove with Undo, working Share links, and Save as file for your playlists, saved ones and Liked music
+- Your music playlists can be edited, deleted and filled from a new Add songs sheet right on their page, a Daily Mix can be saved as your own playlist, and Download all now covers the whole album or playlist and keeps going after you leave
+- A new Equalizer page: drag bands on its response curve, type exact frequency, gain and Q values, switch to a 10-band graphic mode, and hold Compare to hear the difference (#810)
+- Import AutoEQ and EqualizerAPO presets from a file or pasted text, export yours in the same format, and keep your presets in backup and device sync
+- Lyrics are sung word by word even when the source only times each line: each word fills behind a soft edge and lifts as it starts, duets split across both sides, instrumental breaks show three filling dots, word-timed sources are preferred, and lyrics in other scripts can show a romanized line
+- The music player adapts to tablets and foldables: wide windows show Up next and Lyrics in a pane beside the player, upright tablets get a centred layout, phones in landscape show the cover beside the controls, and the controls can use black and white or your theme instead of the artwork colors
+- Download a whole album or playlist as one item in its own folder, shown on a Playlists and albums shelf in Downloads and playable with no connection (#913)
+- Downloads are now M4A audio or MP4 video with readable names and their details and cover art inside the file, so other players show them and Flow restores them after a reinstall, and songs get their own download quality setting (#866, #894, #764)
 
 IMPROVEMENTS
-- Stop showing you the same videos over and over: something you actually saw is filtered out of the next refreshes, briefly after one appearance and for days after repeats, and gently returns later
-- Pull-to-refresh now builds a genuinely fresh page instead of reshuffling what is already on screen
-- Cached reserve videos are consumed once served instead of reappearing for hours after every refresh
-- Related videos rotate their seed videos instead of fetching the same neighbours every refresh, and spread one seed per interest so the lane mirrors all your interests
-- Search queries whose results you have mostly already seen are skipped on the next round
-- Blocking a topic is now precise: it no longer silently blocks every topic in the same category, and blocking "art" no longer hides "startup"
-- Channels you interact with are no longer scored below channels you have never seen
-- Only a couple of fresh subscription uploads pin to the top of the feed, and only one per channel, so the first screen is a real mix of sources
+- Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
+- Home, Subscriptions, Library and the video player were restructured into shared, reusable components, and the feed pipeline was rebuilt to fix pagination stalls
+- Music content follows your chosen region instead of the device locale, and music home caches invalidate on a region change so shelves refresh immediately
+- Every music shelf — Speed dial, Listen again, Recommended, music videos and long listens — is now ranked by your taste rather than arriving in YouTube's order, and the music page leads with charts and moods while the engine is new, your own taste once it matures
+- Stop showing the same videos over and over: something you actually saw is filtered out of the next refreshes and returns gently later, cached reserve videos are consumed once served, and pull-to-refresh builds a genuinely fresh page
+- Related videos rotate their seeds and spread one per interest, and search queries whose results you have mostly seen are skipped
+- Blocking a topic is now precise: it no longer blocks every topic in the same category, so blocking "art" no longer hides "startup"
+- Channels you interact with are no longer scored below channels you have never seen, and only a couple of fresh subscription uploads pin to the top, one per channel
 - A one-time brain revitalization recovers your real interests from your channel knowledge, repairing profiles hollowed out by old learning bugs
+- Music radio no longer plays the same artist twice in a row, including across the seam where new tracks are appended
+- Hiding an artist now hides their albums too: a track or album is hidden when any credited artist is hidden, so collaborations no longer slip through
+- Google Takeout imports now work with localized ZIP archives
+- The transcript now stays where you leave it: scrolling no longer drags you back to the spoken line, a Sync to video pill returns you when you want it, the lines are grouped under their chapter headings, and the transcript can be read in any caption language the video carries
+- Transcript lines can be long-pressed, selected and copied, and the player stays tappable while the transcript is open
+- Every bottom sheet now separates its title from its contents with the same divider
+- Device sync, dialogs and the About page were redesigned to match, with a changelog sheet, fuller device info, and switches that show a check or a cross
+- Digital wellbeing reads your watch time from the Recap ledgers once they cover a full week
+- Notifications rebuilt with grouped rows: new items stay marked for the whole visit, older ones show their real date, a swipe removes one with Undo, and Clear all asks first
+- The crash page leads with a plain summary, shows the full report in a readable form and opens a prefilled GitHub bug report
+- The donation prompt uses the app's dialog style with a Don't show again checkbox, and never appears on the same launch as an update
+- Video cards rebuilt on Material 3 Expressive: one card family on every screen, the list view gains its menu and badges, and I want more like this, Not interested and Mark as watched sit together in one button group
+- Quick action menus for videos, songs, albums and playlists rebuilt on Material 3 Expressive: they open half way and expand as you drag, show the channel or artist with its avatars, and put details and collaborators on pages of the same sheet
+- Menu actions confirm on a snackbar with Undo for Watch later, subscriptions and hidden channels, and downloading from a card opens the same quality picker as the player
+- Album and playlist menus can play, shuffle or start a radio, and History, Liked, Continue watching and Downloads open the menu on a long press
+- The playlist page is rebuilt on Material 3 Expressive with a big artwork header that names the owner, length and kind of playlist, and on tablets and unfolded foldables the header sits beside the list as on Flow Desktop
+- YouTube playlists open on their first page right away and load the rest as it arrives, each sort order is remembered per playlist, and removing videos can be undone
+- Downloads shows the space it uses and what is free, can be searched, sorted and selected, lists the quality, size and date of every download, and shows videos in a grid on wide screens
+- Local media is now a full offline library: search, sort, filters for length, quality, orientation and what you haven't watched, folders side by side on tablets, a grid view, Continue watching, New marks, Play all and Shuffle, and a file menu to queue, share, inspect or delete files
+- Local media works with Android 14's "Select photos and videos", updates itself when files change, and lets you choose in Settings what it hides
+- Deleting local files moves them to the system trash with Undo, and local songs and videos show their cover or a frame in lists and in the media notification
+- Downloads and Local media put search, the Videos and Music switch and sort on one row on tablets and unfolded foldables
+- The music mini player now sits on its own at the bottom and moves with the navigation bar, new songs start there unless you turn on the full player in Playback settings, and on tablets and foldables it is a centred card that no longer covers the navigation rail
+- Pages now scroll under the navigation bar, the mini player and the gesture area and stop clear of them, instead of ending above a blank band
+- Every video grid and list now lays out like Search on tablets and foldables: at most three columns until cards grow past a comfortable size, the same margins and gaps everywhere, and a row the grid cannot fill turns into full-width rows lined up with the grid above
+- List mode on a wide screen is now one column with large thumbnails on Home, Subscriptions, channels, History and playlists, and Subscriptions now follows your cards-per-row setting
+- Channel playlists, the Playlists screen, Downloads and Local media show cards in a grid sized to the space they have, and related videos on an upright tablet use the same columns as the rest of the app
+- Downloads keep running after Flow is closed and resume where they stopped, and a downloaded song plays from its file wherever it is queued
 
 PERFORMANCE
-- Feed ranking noise now scales with your actual scores instead of drowning them when the feed was stale
+- Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
+- Nothing animates behind a hidden layer any more: the seek bar wave, lyrics sync, mini player equalizer, queue waveform and lyrics loading indicator all pause when their surface is not visible, ending a constant per-frame drain across entire listening sessions
+- Music shelves only recompose while the Music screen is visible, similar-song lanes are cached, and each track change fetches its similar-tracks lane once instead of twice
+- Feed ranking noise scales with your actual scores instead of drowning them when the feed was stale
+- Flow opens as soon as its first screen is ready instead of holding every launch behind a two second splash, and on Android 13 and later the splash matches your theme and app icon
+- Loading placeholders now take the exact shape of the cards they stand in for, so the feed no longer jumps when it arrives, and they no longer redraw the whole layout on every frame
+- A YouTube playlist is fetched once instead of twice in full on every open, Local media no longer rescans the device on every visit, and download progress updates once a second instead of four times
+- The expanded music player is no longer rebuilt on every song change, and lyrics stop updating while the music is paused
 
 FIXES AND STABILITY
+- Fix a memory leak where closing and reopening the video player left the previous player's settings listeners running (#1148)
+- Fix collaboration videos showing a blank channel avatar that did nothing when tapped: every collaborator's avatar is shown and opens the list of their channels (#1162)
+- Fix the player's Subscribe button showing you as not subscribed after a reload or on the next video from a channel you follow, and on collaborations it now opens the list of collaborators (#1160)
+- Fix Shorts audio playing on after the picture-in-picture window is closed (#1152)
+- Fix downloaded videos playing without their title, description, related videos or channel (#1129)
+- Fix a video without chapters showing the chapters, most-replayed curve and scrub preview of the video played before it (#1111)
+- Fix Continue watching cards being cut off on narrow phones, and loading placeholders not matching list mode on wide screens
+- Fix the comment count under the player showing the previous video's count when the next video has none
+- Fix the video queue always being called Playlist instead of the playlist's name, and the queue dock covering the last related video
+- Fix all related-music fetching silently broken by a YouTube layout change, which had starved similar-music sections and flooded Quick Picks with regional charts
+- Fix onboarding subscribing to some channels under their handle instead of their id, which left them without a feed, and system back leaving setup instead of going to the previous step
+- Fix the music feed crashing after an update: release builds could mis-read the artist lists stored inside history, queues, playlists and downloads — stored tracks are now repaired on read, with no clean install needed
+- Fix custom themes losing their colours in release builds
+- Fix Notification settings crashing in German, the System theme ignoring dark mode when an app language was set, and Material You colours drifting from the wallpaper
+- Fix listened songs never reaching the music engine when playback was stopped, the queue replaced, or the track shipped without a duration
 - Fix watch progress on normal videos never reaching your recommendation brain, so it learned almost nothing from what you actually watched
-- Fix topic-pair learning deleting every learned connection the moment it was created, which had left long-time users with zero learned topic links
-- Fix mature recommendation brains being mathematically unable to pick up new interests no matter how much you watched them
-- Fix videos dated "3 days ago" or "2 weeks ago" being treated as seconds old, which let stale subscription uploads crowd out genuinely new ones
-- Fix related videos being stamped with the current time, defeating the old-content filter and mis-sorting the Shorts shelf
-- Fix junk words like "right" leaking into your learned interests and forming meaningless topic groups
-- Fix a liked video silently failing to teach the brain when its details could not be loaded
+- Fix a watched video losing its recorded length when reopened, which silently erased its progress bar
+- Fix a finished video's progress bar disappearing when autoplay moved on to the next one: it now stays full until you watch the video again
+- Fix song menu entries that did nothing on most music screens, picking one of several artists opening the first one, and the song playlist picker not showing which playlists already hold the song
+- Fix videos picked from a playlist, Watch Later or Downloads always starting from the beginning, and finished local files reopening at their last second
+- Fix a queue of downloads streaming its next video instead of playing the file, and downloads fetching SponsorBlock and captions again on every play
+- Fix local files reaching YouTube services: Like, Subscribe and Download no longer appear for them, their history stays local, and they no longer sync as liked videos
+- Fix a missing local file loading forever, local songs failing after the app restarts, and videos removed from a saved YouTube playlist coming back
+- Fix paused downloads that could not be resumed after the app restarted, failed downloads that could only be deleted, music downloads in progress being hidden, and Download all stopping when you left the page
+- Fix songs in your music playlists showing no length, saving an album wiping details other pages had stored for its songs, and imported or synced music playlists being treated as someone else's (where Save could delete them)
+- Fix music pages loading again every time you came back to them, a failed load leaving a blank screen with no way back, playlists stopping partway through, and the music home loading in the background while a playlist page was open
+- Fix likes disappearing when a title contained a "|", and the music player's like button needing two taps to unlike a song liked on another device
+- Fix the action button on snackbars being hard to read in several themes
+- Fix a playlist stopping at a removed or unplayable video, or at one whose stream YouTube kept refusing, instead of moving on, and the video queue being lost when the app was closed (#1008)
+- Fix topic-pair learning deleting every learned connection the moment it was created, and mature brains being unable to pick up new interests no matter how much you watched them
+- Fix videos dated "3 days ago" being treated as seconds old, and related videos being stamped with the current time, which let stale uploads crowd out genuinely new ones
+- Fix junk words like "right" leaking into your learned interests, and a liked video failing to teach the brain when its details could not load
+- Fix the lyrics sync offset having no effect: it now shifts line highlighting, scrolling and word-by-word fills live, and the control got an expressive redesign
+- Fix a playback-statistics crash on some devices by replacing Media3's tracker with a wall-clock session tracker
+- Fix the ambient player glow and cap session artwork at the platform limit, ending a crash on some ROMs
+- Fix a tablet held upright splitting the player into two narrow columns, and the volume gesture starting from a stale level or dropping a boost above 100%
+- Fix the page under the video bouncing and jumping around when a drag towards portrait fullscreen is released short of it: it now tracks your finger exactly and settles straight back, and a flick back up cancels the transition however far it had travelled
+- Fix videos that play for about a minute and then buffer forever: Flow now tells an expired stream link apart from one YouTube has refused, re-requests the refused ones properly signed instead of replaying them unsigned, and moves on to a different source after YouTube refuses the same one twice rather than retrying it forever
+- Fix playback that could never recover once YouTube stopped trusting the app: the browsing identity behind verification is now replaced automatically, and a new Reset YouTube session action in Diagnostics does it on demand — the supported version of clearing app data
+- Fix a day-long playback outage whenever YouTube changes its player script: an unreadable copy is refetched instead of being trusted from the cache for six hours, and the diagnostics report now names the script version that could not be read
+- Stream requests now carry the headers of the client that issued them, rather than pairing a native client with a browser's
+- Every playback request used to re-run YouTube's bot check three times because a healthy verification token was being measured in the wrong unit and always looked untrustworthy; it now runs once, cutting a burst of background work off the start of every video
+- The equalizer no longer clips on boosts (auto preamp is on by default), no longer clicks while you drag, now applies to Shorts, surround audio and music played with audio offload, and low pass, high pass and shelf Q work as labelled
 
 BUILD AND CI
-- Add an offline recommendation benchmark with regression floors, so feed diversity and repetition are verified by tests instead of claims
-- Add an offline brain diagnostic that inspects a real exported profile through the production clustering and discovery code
+- Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
+- Add offline brain diagnostics that inspect a real exported profile through the production clustering and discovery code
+- Search, channel and player parsing are now covered by tests against real captured API responses
+- Limit concurrent Kotlin compilations so CI stops running out of memory

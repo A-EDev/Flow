@@ -22,6 +22,7 @@ import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.player.stream.preferNonDrc
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import io.github.aedev.flow.utils.potoken.PoTokenGenerator
 import io.github.aedev.flow.utils.potoken.PoTokenResult
@@ -93,6 +94,8 @@ object MusicPlayerUtils {
 
     private val resultCache = ConcurrentHashMap<String, CachedResult>()
     private const val MAX_RESULT_CACHE_TTL_MS = 600_000L // 10 minutes
+    private const val LOUDNESS_TARGET_LKFS = -14.0
+    private const val MIN_LOUDNESS_GAIN_DB = -20f
     private const val ESCALATION_WINDOW_MS = 120_000L
 
     private val videoRefreshTimestamps = ConcurrentHashMap<String, Long>()
@@ -116,7 +119,10 @@ object MusicPlayerUtils {
         val playerPreferences = PlayerPreferences(FlowApplication.appContext)
         return AudioSelectionPreferences(
             preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first(),
-            musicAudioQuality = playerPreferences.musicAudioQuality.first(),
+            musicAudioQuality =
+                playerPreferences.musicAudioQuality
+                    .first()
+                    .resolve(onWifi = NetworkState.isOnWifi(FlowApplication.appContext)),
         )
     }
 
@@ -135,6 +141,17 @@ object MusicPlayerUtils {
     fun clearPlaybackCache() {
         resultCache.clear()
         Log.d(TAG, "Cleared all cached playback results")
+    }
+
+    fun cachedLoudnessGainDb(videoId: String): Float? {
+        val data = resultCache[videoId]?.result?.getOrNull() ?: return null
+        val audioConfig = data.audioConfig
+        val gainDb =
+            audioConfig?.perceptualLoudnessDb?.let { (audioConfig.loudnessTargetLkfs ?: LOUDNESS_TARGET_LKFS) - it }
+                ?: audioConfig?.loudnessDb?.let { -it }
+                ?: data.format.loudnessDb?.let { -it }
+                ?: return null
+        return gainDb.toFloat().coerceIn(MIN_LOUDNESS_GAIN_DB, 0f)
     }
 
     suspend fun playerResponseForPlayback(
@@ -577,11 +594,12 @@ object MusicPlayerUtils {
         val adaptiveFormats = response.streamingData?.adaptiveFormats ?: emptyList()
 
         val audioFormats =
-            adaptiveFormats.filter { format ->
-                format.mimeType.startsWith("audio/") &&
-                    format.audioTrack?.isAutoDubbed != true &&
-                    (!requireDirectUrl || !format.url.isNullOrEmpty())
-            }
+            adaptiveFormats
+                .filter { format ->
+                    format.mimeType.startsWith("audio/") &&
+                        format.audioTrack?.isAutoDubbed != true &&
+                        (!requireDirectUrl || !format.url.isNullOrEmpty())
+                }.preferNonDrc()
 
         if (audioFormats.isEmpty()) {
             Log.d(TAG, "No audio formats found")

@@ -78,6 +78,7 @@ class GaplessPreloadControllerTest {
         var isLive: Boolean = false,
         val resolve: suspend (Video) -> ResolvedStreamData? = { null },
         val source: MediaSource? = mockk(relaxed = true),
+        val downloaded: Set<String> = emptySet(),
     ) {
         val logs = mutableListOf<String>()
         var resolveCalls = 0
@@ -95,10 +96,32 @@ class GaplessPreloadControllerTest {
                     resolveCalls++
                     resolve(v)
                 },
+                hasLocalCopy = { it.id in downloaded },
                 buildMediaSource = { _, _ -> source },
                 log = { logs += it },
             )
     }
+
+    @Test
+    fun `a downloaded next video is not preloaded, so advance plays the file`() =
+        runTest {
+            val player = playerWith()
+            val harness =
+                Harness(
+                    backgroundScope,
+                    player = player,
+                    target = PreloadTarget(video("next"), fromQueue = true),
+                    resolve = { resolved("next") },
+                    downloaded = setOf("next"),
+                )
+
+            harness.controller.schedule()
+            runCurrent()
+
+            verify(exactly = 0) { player.addMediaSource(any<MediaSource>()) }
+            assertThat(harness.resolveCalls).isEqualTo(0)
+            assertThat(harness.controller.preloaded).isNull()
+        }
 
     @Test
     fun `preloading appends the resolved next video as a second window`() =
@@ -266,6 +289,7 @@ class GaplessPreloadControllerTest {
                         harness.currentVideoId = "something-else"
                         resolved("next")
                     },
+                    hasLocalCopy = { false },
                     buildMediaSource = { _, _ -> mockk(relaxed = true) },
                     log = {},
                 )

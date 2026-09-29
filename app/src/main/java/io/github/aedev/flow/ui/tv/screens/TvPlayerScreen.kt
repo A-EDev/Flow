@@ -43,9 +43,9 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.sponsordetection.overlaySponsorTimelineSegments
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
-import io.github.aedev.flow.ui.components.Media3SubtitleOverlay
+import io.github.aedev.flow.ui.components.videoplayer.VideoPlayerSurface
+import io.github.aedev.flow.ui.components.videoplayer.subtitle.Media3SubtitleOverlay
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
-import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
 import io.github.aedev.flow.ui.screens.player.effects.KeepScreenOnEffect
 import io.github.aedev.flow.ui.screens.player.effects.WatchProgressSaveEffect
 import io.github.aedev.flow.ui.tv.components.TvButton
@@ -132,7 +132,6 @@ fun TvPlayerScreen(
     // Same history/progress saver the mobile overlay mounts — without it, TV
     // sessions never reach ViewHistory and Continue Watching stays empty.
     WatchProgressSaveEffect(
-        videoId = video.id,
         video = video,
         isPlaying = playerState.isPlaying,
         currentPosition = { manager.getCurrentPosition().coerceAtLeast(0L) },
@@ -344,8 +343,8 @@ fun TvPlayerScreen(
         }
     }
 
-    val title = uiState.streamInfo?.name?.takeIf { it.isNotBlank() } ?: video.title
-    val channelName = uiState.streamInfo?.uploaderName?.takeIf { it.isNotBlank() } ?: video.channelName
+    val title = video.title
+    val channelName = video.channelName
 
     Box(
         modifier =

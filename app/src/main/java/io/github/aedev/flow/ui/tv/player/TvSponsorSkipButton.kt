@@ -12,9 +12,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.ui.tv.components.TvButton
+import io.github.aedev.flow.utils.sponsorCategoryLabelRes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import java.util.Locale
 
 /**
  * Manual "Skip <category>" chip shown while the playhead is inside a
@@ -48,10 +48,7 @@ fun TvSponsorSkipButton(
     }
 
     activeSegment?.let { segment ->
-        val label =
-            segment.category.replaceFirstChar {
-                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-            }
+        val label = sponsorCategoryLabelRes(segment.category)?.let { stringResource(it) } ?: segment.category
         TvButton(
             text = stringResource(R.string.tv_player_skip_segment, label),
             onClick = { onSkipTo((segment.endTime * 1_000L).toLong()) },

@@ -2,6 +2,7 @@ package io.github.aedev.flow.utils.potoken
 
 import android.util.Log
 import android.webkit.CookieManager
+import android.webkit.WebStorage
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +75,34 @@ object PoTokenGenerator {
         }
     }
 
+    /** Whether the last streaming token BotGuard handed back was a cold, short one. */
+    val lastStreamingTokenWasLowTrust: Boolean
+        get() = webPoTokenStreamingPotLowTrust
+
+    /**
+     * Drops the BotGuard session and the browsing state it was built on. Clearing the WebView jar
+     * is the point, not a side effect: it carries the identity BotGuard keeps grading. Nothing
+     * signed-in is lost — the app has no account login.
+     */
+    suspend fun resetSession() {
+        webPoTokenGenLock.withLock {
+            withContext(NonCancellable + Dispatchers.Main) {
+                webPoTokenGenerator?.close()
+                runCatching {
+                    CookieManager.getInstance().removeAllCookies(null)
+                    CookieManager.getInstance().flush()
+                    WebStorage.getInstance().deleteAllData()
+                }.onFailure { Log.w(TAG, "Could not clear WebView state: ${it.message}") }
+            }
+            webPoTokenGenerator = null
+            webPoTokenSessionId = null
+            webPoTokenStreamingPot = null
+            webPoTokenStreamingPotLowTrust = false
+            webViewBadImpl = false
+            Log.w(TAG, "BotGuard session and WebView identity reset")
+        }
+    }
+
     fun prewarmWebClient(sessionId: String): Boolean {
         if (sessionId.isBlank() || !webViewSupported || webViewBadImpl) return false
         return try {
@@ -140,8 +169,6 @@ object PoTokenGenerator {
 
             if (shouldRecreate) {
                 Log.d(TAG, "Re-attesting BotGuard session (forceRecreate=$forceRecreate)")
-                webPoTokenStreamingPot = null
-                webPoTokenSessionId = null
 
                 var newStreamingPot: String? = null
                 var lowTrust = true
@@ -162,13 +189,15 @@ object PoTokenGenerator {
                     attempt++
                     Log.w(
                         TAG,
-                        "Streaming poToken is low-trust (${PoTokenAttestationPolicy.tokenByteLength(pot)} bytes, " +
+                        "Streaming poToken is low-trust (${PoTokenAttestationPolicy.tokenLength(pot)} chars, " +
                             "attempt $attempt/$STREAMING_POT_ATTEMPTS)",
                     )
                 }
                 if (lowTrust) {
                     Log.w(TAG, "Accepting low-trust streaming poToken provisionally; will re-attest on next use")
                 }
+                // Published only once a token exists: clearing first meant a mint cancelled
+                // mid-challenge emptied the session and forced a re-attestation on the next open.
                 webPoTokenStreamingPot = newStreamingPot
                 webPoTokenSessionId = sessionId
                 webPoTokenStreamingPotLowTrust = lowTrust

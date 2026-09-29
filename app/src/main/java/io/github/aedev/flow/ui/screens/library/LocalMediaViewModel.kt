@@ -1,209 +1,128 @@
 package io.github.aedev.flow.ui.screens.library
 
-import android.content.ContentUris
-import android.content.Context
-import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
-import android.util.Log
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.aedev.flow.utils.PerformanceDispatcher
+import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.localmedia.LocalLibrary
+import io.github.aedev.flow.data.localmedia.LocalMediaItem
+import io.github.aedev.flow.data.localmedia.LocalMediaPreferences
+import io.github.aedev.flow.data.localmedia.LocalMediaRepository
+import io.github.aedev.flow.data.localmedia.LocalMediaSettings
+import io.github.aedev.flow.data.localmedia.hiddenReason
+import io.github.aedev.flow.ui.components.shared.MediaKind
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-data class LocalMediaItem(
-    val id: Long,
-    val contentUri: String,
-    val title: String,
-    val subtitle: String,
-    val durationMs: Long,
-    val sizeBytes: Long,
-    val isVideo: Boolean,
-    val artworkUri: String? = null
+private const val SHARING_TIMEOUT_MS = 5_000L
+
+/** Whether a tab lists every file or its folders. */
+enum class LocalView { ALL, FOLDERS }
+
+/** What the viewer has chosen to look at, as opposed to what the device holds. */
+data class LocalMediaSelection(
+    val kind: MediaKind = MediaKind.Videos,
+    val view: LocalView = LocalView.ALL,
+    val openFolderId: String? = null,
+    val filters: LocalFilters = LocalFilters(),
 )
 
 data class LocalMediaUiState(
-    val videos: List<LocalMediaItem> = emptyList(),
-    val music: List<LocalMediaItem> = emptyList(),
-    val isScanning: Boolean = false,
-    val hasScanned: Boolean = false,
-    val permissionDenied: Boolean = false
+    val isLoading: Boolean = true,
+    val failed: Boolean = false,
+    val selection: LocalMediaSelection = LocalMediaSelection(),
+    val settings: LocalMediaSettings = LocalMediaSettings(),
+    /** The files the current tab shows after search, filters and sort, or the open folder's. */
+    val items: List<LocalMediaItem> = emptyList(),
+    val totalCount: Int = 0,
+    val folders: List<LocalFolder> = emptyList(),
+    val openFolder: LocalFolder? = null,
+    val continueWatching: List<LocalMediaItem> = emptyList(),
+    val hiddenCount: Int = 0,
+    val playback: LocalPlayback = LocalPlayback(),
+    val nowMs: Long = 0L,
 )
 
 @HiltViewModel
-class LocalMediaViewModel @Inject constructor(
-    @ApplicationContext private val appContext: Context
-) : ViewModel() {
+class LocalMediaViewModel
+    @Inject
+    constructor(
+        private val repository: LocalMediaRepository,
+        private val preferences: LocalMediaPreferences,
+        viewHistory: ViewHistory,
+    ) : ViewModel() {
+        private val selection = MutableStateFlow(LocalMediaSelection())
 
-    private val _uiState = MutableStateFlow(LocalMediaUiState())
-    val uiState: StateFlow<LocalMediaUiState> = _uiState.asStateFlow()
-
-    private val albumArtBaseUri = Uri.parse("content://media/external/audio/albumart")
-
-    fun scan() {
-        if (_uiState.value.isScanning) return
-        _uiState.update { it.copy(isScanning = true, permissionDenied = false) }
-        viewModelScope.launch {
-            val videos = withContext(PerformanceDispatcher.diskIO) { queryVideos() }
-            val music = withContext(PerformanceDispatcher.diskIO) { queryMusic() }
-            _uiState.update {
-                it.copy(videos = videos, music = music, isScanning = false, hasScanned = true)
+        private val playback =
+            viewHistory.getLocalHistoryFlow().map { entries ->
+                LocalPlayback(
+                    fraction = entries.filter { it.duration > 0 }.associate { it.videoId to (it.position.toFloat() / it.duration) },
+                    lastPlayedMs = entries.associate { it.videoId to it.timestamp },
+                )
             }
+
+        val uiState: StateFlow<LocalMediaUiState> =
+            combine(repository.library, preferences.settings, playback, selection) { library, settings, played, chosen ->
+                buildState(library, settings, played, chosen, System.currentTimeMillis())
+            }.flowOn(Dispatchers.Default)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SHARING_TIMEOUT_MS), LocalMediaUiState())
+
+        val isRefreshing: StateFlow<Boolean> = repository.refreshing
+
+        fun refresh() = repository.refresh()
+
+        fun selectKind(kind: MediaKind) = selection.update { it.copy(kind = kind, openFolderId = null) }
+
+        fun selectView(view: LocalView) = selection.update { it.copy(view = view, openFolderId = null) }
+
+        fun openFolder(folderId: String?) = selection.update { it.copy(openFolderId = folderId) }
+
+        fun updateFilters(change: (LocalFilters) -> LocalFilters) = selection.update { it.copy(filters = change(it.filters)) }
+
+        fun hideFolder(folderId: String) {
+            viewModelScope.launch { preferences.setFolderHidden(folderId, hidden = true) }
+            selection.update { if (it.openFolderId == folderId) it.copy(openFolderId = null) else it }
+        }
+
+        fun setVideosAsGrid(grid: Boolean) {
+            viewModelScope.launch { preferences.setVideosAsGrid(grid) }
         }
     }
 
-    fun onPermissionDenied() {
-        _uiState.update { it.copy(permissionDenied = true, isScanning = false, hasScanned = true) }
-    }
-
-    private fun queryVideos(): List<LocalMediaItem> {
-        val collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(
-            MediaStore.Video.Media._ID,
-            MediaStore.Video.Media.TITLE,
-            MediaStore.Video.Media.DISPLAY_NAME,
-            MediaStore.Video.Media.DURATION,
-            MediaStore.Video.Media.SIZE,
-            MediaStore.Video.Media.BUCKET_DISPLAY_NAME
-        )
-        val result = ArrayList<LocalMediaItem>()
-        try {
-            appContext.contentResolver.query(
-                collection,
-                projection,
-                null,
-                null,
-                "${MediaStore.Video.Media.DATE_ADDED} DESC"
-            )?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
-                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-                val durCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
-                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-                val bucketCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
-
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val size = cursor.getLong(sizeCol)
-                    if (size <= 0L) continue
-                    val title = cursor.getString(titleCol)?.takeIf { it.isNotBlank() }
-                        ?: cursor.getString(nameCol)?.substringBeforeLast('.')
-                        ?: continue
-                    val uri = ContentUris.withAppendedId(collection, id)
-                    result += LocalMediaItem(
-                        id = id,
-                        contentUri = uri.toString(),
-                        title = title,
-                        subtitle = cursor.getString(bucketCol)?.takeIf { it.isNotBlank() } ?: "",
-                        durationMs = cursor.getLong(durCol),
-                        sizeBytes = size,
-                        isVideo = true
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "queryVideos failed", e)
-        }
-        return result
-    }
-
-    private fun queryMusic(): List<LocalMediaItem> {
-        val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.DISPLAY_NAME,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.ALBUM_ID,
-            MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.SIZE,
-            MediaStore.Audio.Media.DATA
-        )
-        val selectionParts = mutableListOf(
-            "${MediaStore.Audio.Media.IS_MUSIC} != 0",
-            "${MediaStore.Audio.Media.IS_NOTIFICATION} = 0",
-            "${MediaStore.Audio.Media.IS_ALARM} = 0",
-            "${MediaStore.Audio.Media.IS_RINGTONE} = 0",
-            "${MediaStore.Audio.Media.IS_PODCAST} = 0"
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            selectionParts += "${MediaStore.Audio.Media.IS_RECORDING} = 0"
-        }
-        val result = ArrayList<LocalMediaItem>()
-        try {
-            appContext.contentResolver.query(
-                collection,
-                projection,
-                selectionParts.joinToString(" AND "),
-                null,
-                "${MediaStore.Audio.Media.DATE_ADDED} DESC"
-            )?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
-                val durCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val size = cursor.getLong(sizeCol)
-                    if (size <= 0L) continue
-                    val durationMs = cursor.getLong(durCol)
-                    if (durationMs in 1 until MIN_MUSIC_DURATION_MS) continue
-                    val path = (cursor.getString(dataCol) ?: "").lowercase()
-                    if (MUSIC_PATH_DENYLIST.any { path.contains(it) }) continue
-                    val title = cursor.getString(titleCol)?.takeIf { it.isNotBlank() }
-                        ?: cursor.getString(nameCol)?.substringBeforeLast('.')
-                        ?: continue
-                    val artist = cursor.getString(artistCol)
-                        ?.takeIf { it.isNotBlank() && it != "<unknown>" }
-                        ?: ""
-                    val albumId = cursor.getLong(albumIdCol)
-                    val artwork = if (albumId > 0) {
-                        ContentUris.withAppendedId(albumArtBaseUri, albumId).toString()
-                    } else null
-                    val uri = ContentUris.withAppendedId(collection, id)
-                    result += LocalMediaItem(
-                        id = id,
-                        contentUri = uri.toString(),
-                        title = title,
-                        subtitle = artist,
-                        durationMs = durationMs,
-                        sizeBytes = size,
-                        isVideo = false,
-                        artworkUri = artwork
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "queryMusic failed", e)
-        }
-        return result
-    }
-
-    companion object {
-        private const val TAG = "LocalMediaViewModel"
-        private const val MIN_MUSIC_DURATION_MS = 60_000L
-
-        private val MUSIC_PATH_DENYLIST = listOf(
-            "whatsapp", "telegram", "/signal", "viber", "/threema",
-            "voice note", "voicenote", "voice recorder", "voicerecorder", "voicemail",
-            "/recordings/", "/recording/", "sound recorder", "soundrecorder",
-            "call recording", "callrecord", "/call_rec",
-            "/notifications/", "/ringtones/", "/alarms/", "/ui/"
-        )
-
-        fun localMediaId(item: LocalMediaItem): String = "local_${item.id}"
-    }
+/** Everything the screen shows, from what the device holds and what the viewer chose. Pure, for tests. */
+internal fun buildState(
+    library: LocalLibrary,
+    settings: LocalMediaSettings,
+    playback: LocalPlayback,
+    selection: LocalMediaSelection,
+    nowMs: Long,
+): LocalMediaUiState {
+    val all = if (selection.kind == MediaKind.Videos) library.videos else library.music
+    val (hidden, shown) = all.partition { it.hiddenReason(settings) != null }
+    val folders = shown.folders()
+    val openFolder = selection.openFolderId?.let { id -> folders.firstOrNull { it.id == id } }
+    val source = openFolder?.items ?: shown
+    return LocalMediaUiState(
+        isLoading = false,
+        failed = library.failed,
+        selection = selection,
+        settings = settings,
+        items = source.applyLocalFilters(selection.filters, playback, nowMs),
+        totalCount = shown.size,
+        folders = folders,
+        openFolder = openFolder,
+        continueWatching = if (selection.kind == MediaKind.Videos) shown.continueWatching(playback, nowMs) else emptyList(),
+        hiddenCount = hidden.size,
+        playback = playback,
+        nowMs = nowMs,
+    )
 }

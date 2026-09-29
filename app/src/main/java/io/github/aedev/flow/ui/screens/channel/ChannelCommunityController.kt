@@ -3,7 +3,7 @@ package io.github.aedev.flow.ui.screens.channel
 import android.util.Log
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.innertube.YouTube
-import io.github.aedev.flow.innertube.pages.CommunityPost
+import io.github.aedev.flow.innertube.pages.renderer.CommunityPost
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,7 +40,11 @@ internal class ChannelCommunityController(
 
     private var channel: ChannelContext? = null
 
-    fun reset(channelId: String, channelName: String, avatarUrl: String) {
+    fun reset(
+        channelId: String,
+        channelName: String,
+        avatarUrl: String,
+    ) {
         channel = ChannelContext(channelId, channelName, avatarUrl)
         _state.value = ChannelCommunityUiState()
     }
@@ -52,39 +56,41 @@ internal class ChannelCommunityController(
 
         scope.launch(PerformanceDispatcher.networkIO) {
             _state.update { it.copy(isLoadingPosts = true, postsErrorLog = null) }
-            YouTube.communityPosts(
-                channelSnapshot.id,
-                channelSnapshot.name,
-                channelSnapshot.avatarUrl,
-            ).fold(
-                onSuccess = { page ->
-                    if (channel?.id != channelSnapshot.id) return@fold
-                    _state.update {
-                        it.copy(
-                            posts = page.posts,
-                            postsContinuation = page.continuation,
-                            postsLoaded = true,
-                            isLoadingPosts = false,
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    Log.e(TAG, "Failed to load community posts", error)
-                    if (channel?.id == channelSnapshot.id) {
+            YouTube
+                .communityPosts(
+                    channelSnapshot.id,
+                    channelSnapshot.name,
+                    channelSnapshot.avatarUrl,
+                ).fold(
+                    onSuccess = { page ->
+                        if (channel?.id != channelSnapshot.id) return@fold
                         _state.update {
                             it.copy(
+                                posts = page.posts,
+                                postsContinuation = page.continuation,
                                 postsLoaded = true,
                                 isLoadingPosts = false,
-                                postsErrorLog = buildChannelRequestErrorLog(
-                                    operation = "community_posts",
-                                    channelId = channelSnapshot.id,
-                                    error = error,
-                                ),
                             )
                         }
-                    }
-                },
-            )
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "Failed to load community posts", error)
+                        if (channel?.id == channelSnapshot.id) {
+                            _state.update {
+                                it.copy(
+                                    postsLoaded = true,
+                                    isLoadingPosts = false,
+                                    postsErrorLog =
+                                        buildChannelRequestErrorLog(
+                                            operation = "community_posts",
+                                            channelId = channelSnapshot.id,
+                                            error = error,
+                                        ),
+                                )
+                            }
+                        }
+                    },
+                )
         }
     }
 
@@ -100,26 +106,27 @@ internal class ChannelCommunityController(
 
         scope.launch(PerformanceDispatcher.networkIO) {
             _state.update { it.copy(isLoadingMorePosts = true) }
-            YouTube.communityPostsContinuation(
-                continuation,
-                channelSnapshot.name,
-                channelSnapshot.avatarUrl,
-            ).fold(
-                onSuccess = { page ->
-                    if (channel?.id != channelSnapshot.id) return@fold
-                    _state.update {
-                        it.copy(
-                            posts = (it.posts + page.posts).distinctBy(CommunityPost::id),
-                            postsContinuation = page.continuation,
-                            isLoadingMorePosts = false,
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    Log.e(TAG, "Failed to load more community posts", error)
-                    _state.update { it.copy(isLoadingMorePosts = false) }
-                },
-            )
+            YouTube
+                .communityPostsContinuation(
+                    continuation,
+                    channelSnapshot.name,
+                    channelSnapshot.avatarUrl,
+                ).fold(
+                    onSuccess = { page ->
+                        if (channel?.id != channelSnapshot.id) return@fold
+                        _state.update {
+                            it.copy(
+                                posts = (it.posts + page.posts).distinctBy(CommunityPost::id),
+                                postsContinuation = page.continuation,
+                                isLoadingMorePosts = false,
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "Failed to load more community posts", error)
+                        _state.update { it.copy(isLoadingMorePosts = false) }
+                    },
+                )
         }
     }
 
@@ -193,26 +200,31 @@ internal class ChannelCommunityController(
         }
     }
 
-    fun loadReplies(comment: Comment, append: Boolean) {
+    fun loadReplies(
+        comment: Comment,
+        append: Boolean,
+    ) {
         val continuation = comment.continuationToken ?: return
         scope.launch(PerformanceDispatcher.networkIO) {
             YouTube.communityPostCommentsContinuation(continuation).fold(
                 onSuccess = { page ->
                     _state.update { state ->
                         state.copy(
-                            comments = state.comments.map { current ->
-                                if (current.id != comment.id) return@map current
-                                val replies = if (append) {
-                                    (current.replies + page.comments).distinctBy(Comment::id)
-                                } else {
-                                    page.comments
-                                }
-                                current.copy(
-                                    replies = replies,
-                                    continuationToken = page.continuation,
-                                    replyCount = maxOf(current.replyCount, replies.size),
-                                )
-                            },
+                            comments =
+                                state.comments.map { current ->
+                                    if (current.id != comment.id) return@map current
+                                    val replies =
+                                        if (append) {
+                                            (current.replies + page.comments).distinctBy(Comment::id)
+                                        } else {
+                                            page.comments
+                                        }
+                                    current.copy(
+                                        replies = replies,
+                                        continuationToken = page.continuation,
+                                        replyCount = maxOf(current.replyCount, replies.size),
+                                    )
+                                },
                         )
                     }
                 },

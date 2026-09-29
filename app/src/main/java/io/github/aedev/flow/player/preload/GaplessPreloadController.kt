@@ -45,6 +45,7 @@ internal class GaplessPreloadController(
     private val isLooping: () -> Boolean,
     private val isLiveStream: () -> Boolean,
     private val resolveStreams: suspend (Video, Context) -> ResolvedStreamData?,
+    private val hasLocalCopy: suspend (Video) -> Boolean,
     private val buildMediaSource: (ResolvedStreamData, Context) -> MediaSource?,
     private val log: (String) -> Unit,
 ) {
@@ -159,6 +160,10 @@ internal class GaplessPreloadController(
         var shouldRetry = false
         try {
             val ctx = context() ?: return
+            if (hasLocalCopy(nextVideo)) {
+                log("schedulePreloadNext next=${nextVideo.id} is downloaded; advance plays the file")
+                return
+            }
             val resolved =
                 resolveStreams(nextVideo, ctx) ?: run {
                     shouldRetry = true

@@ -24,6 +24,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.entity.NotificationEntity
+import io.github.aedev.flow.data.update.AppRelease
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -43,6 +44,7 @@ object NotificationHelper {
     const val CHANNEL_GENERAL = "general_channel"
     const val CHANNEL_REMINDERS = "reminders_channel"
     const val CHANNEL_UPDATES = "updates_channel"
+    const val EXTRA_OPEN_UPDATE = "io.github.aedev.flow.extra.OPEN_UPDATE"
     const val CHANNEL_IMPORTS = "imports_channel"
 
     // Notification IDs
@@ -684,9 +686,7 @@ object NotificationHelper {
      */
     fun showUpdateNotification(
         context: Context,
-        version: String,
-        changelog: String,
-        downloadUrl: String,
+        release: AppRelease,
     ) {
         if (!hasNotificationPermission(context)) return
         if (!runBlocking { PlayerPreferences(context).notifUpdatesEnabled.first() }) return
@@ -694,9 +694,7 @@ object NotificationHelper {
         val intent =
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("EXTRA_UPDATE_VERSION", version)
-                putExtra("EXTRA_UPDATE_CHANGELOG", changelog)
-                putExtra("EXTRA_UPDATE_URL", downloadUrl)
+                putExtra(EXTRA_OPEN_UPDATE, true)
             }
 
         val pendingIntent =
@@ -711,7 +709,7 @@ object NotificationHelper {
             NotificationCompat
                 .Builder(context, CHANNEL_UPDATES)
                 .setSmallIcon(R.drawable.ic_notification_logo)
-                .setContentTitle(context.getString(R.string.notification_update_available, version))
+                .setContentTitle(context.getString(R.string.notification_update_available, release.version))
                 .setContentText(context.getString(R.string.notification_tap_to_update))
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)

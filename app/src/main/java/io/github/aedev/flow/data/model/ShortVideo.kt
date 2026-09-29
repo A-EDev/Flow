@@ -1,167 +1,89 @@
 package io.github.aedev.flow.data.model
 
-import io.github.aedev.flow.innertube.pages.ShortsItem
+import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
+import io.github.aedev.flow.innertube.pages.reel.ReelEntry
+import io.github.aedev.flow.innertube.pages.reel.ReelLockup
+import io.github.aedev.flow.innertube.pages.reel.reelPosterUrl
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.formatViewCount
 
 /**
- * Dedicated data model for YouTube Shorts.
- * 
- * Separate from [Video] because Shorts have unique fields (musicInfo, sequenceParams,
- * playerParams) and different lifecycle (pre-buffered, looped, vertical-only).
+ * One reel in a Shorts queue. A reel arrives from the sequence as an id and a poster; everything
+ * else is filled in as the reel resolves, so every field but those two has an empty default.
  */
 data class ShortVideo(
     val id: String,
-    val title: String,
-    val channelName: String,
-    val channelId: String,
     val thumbnailUrl: String,
+    val title: String = "",
+    val channelName: String = "",
+    val channelId: String = "",
     val channelThumbnailUrl: String = "",
-    val viewCountText: String = "",
-    val likeCountText: String = "",
-    val commentCountText: String = "",
+    val viewCount: Long = 0L,
+    val likeCount: Long = 0L,
+    val commentCount: Long = 0L,
+    val durationMs: Long = 0L,
     val description: String = "",
     val uploadDate: String = "",
     val timestamp: Long = System.currentTimeMillis(),
-
-    // Shorts-specific InnerTube fields
-    val musicInfo: ShortMusicInfo? = null,
-    val params: String? = null,
+    val soundTitle: String = "",
+    val soundThumbnailUrl: String = "",
     val playerParams: String? = null,
-    val sequenceParams: String? = null,
-
-    val streamUrl: String? = null
 )
 
-/**
- * Music attribution for Shorts ("Original sound - ChannelName" or actual song info).
- */
-data class ShortMusicInfo(
-    val title: String,
-    val artist: String,
-    val albumArtUrl: String? = null
-)
-
-/**
- * Paginated response from reel sequence endpoint.
- */
 data class ShortsSequenceResult(
     val shorts: List<ShortVideo>,
-    val continuation: String?
+    val continuation: String?,
 )
 
-// Mapping Extensions
-/**
- * Convert InnerTube [ShortsItem] to our domain [ShortVideo].
- */
-fun ShortsItem.toShortVideo(): ShortVideo = ShortVideo(
-    id = id,
-    title = title,
-    channelName = channelName,
-    channelId = channelId ?: "",
-    thumbnailUrl = thumbnail.ifEmpty { "https://i.ytimg.com/vi/$id/oar2.jpg" },
-    channelThumbnailUrl = channelThumbnailUrl ?: "",
-    viewCountText = viewCountText ?: "",
-    likeCountText = likeCountText ?: "",
-    commentCountText = commentCountText ?: "",
-    params = params,
-    playerParams = playerParams,
-    sequenceParams = sequenceParams
-)
+fun ReelEntry.toShortVideo(): ShortVideo =
+    ShortVideo(
+        id = videoId,
+        thumbnailUrl = posterUrl ?: reelPosterUrl(videoId),
+        playerParams = playerParams,
+    )
 
-/**
- * Convert a generic [Video] (from NewPipe fallback) to [ShortVideo].
- */
-fun Video.toShortVideo(): ShortVideo = ShortVideo(
-    id = id,
-    title = title,
-    channelName = channelName,
-    channelId = channelId,
-    thumbnailUrl = thumbnailUrl,
-    channelThumbnailUrl = channelThumbnailUrl,
-    viewCountText = formatShortViewCount(viewCount),
-    likeCountText = formatMetric(likeCount),
-    commentCountText = commentCountText,
-    description = description,
-    uploadDate = uploadDate,
-    timestamp = timestamp
-)
+/** A lockup names the reel and counts its views; its channel arrives when the reel resolves. */
+fun ReelLockup.toShortVideo(): ShortVideo =
+    ShortVideo(
+        id = id,
+        thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(id, thumbnailUrl.ifBlank { posterUrl }),
+        title = title,
+        viewCount = viewCount,
+        playerParams = playerParams,
+    )
 
-/**
- * Convert [ShortVideo] back to [Video] for compatibility with existing components
- * (like FlowDescriptionBottomSheet, comments, etc.)
- */
-fun ShortVideo.toVideo(): Video = Video(
-    id = id,
-    title = title,
-    channelName = channelName,
-    channelId = channelId,
-    thumbnailUrl = thumbnailUrl,
-    duration = 60,
-    viewCount = parseViewCount(viewCountText),
-    likeCount = parseMetric(likeCountText),
-    uploadDate = uploadDate,
-    timestamp = timestamp,
-    description = description,
-    channelThumbnailUrl = channelThumbnailUrl,
-    isShort = true,
-    commentCountText = commentCountText
-)
+fun Video.toShortVideo(): ShortVideo =
+    ShortVideo(
+        id = id,
+        thumbnailUrl = thumbnailUrl,
+        title = title,
+        channelName = channelName,
+        channelId = channelId,
+        channelThumbnailUrl = channelThumbnailUrl,
+        viewCount = viewCount,
+        likeCount = likeCount,
+        commentCount = parseYouTubeViewCount(commentCountText),
+        durationMs = duration.coerceAtLeast(0) * 1_000L,
+        description = description,
+        uploadDate = uploadDate,
+        timestamp = timestamp,
+    )
 
-/**
- * Format metric (likes, subs) to compact string (e.g. 1.2M).
- */
-private fun formatMetric(count: Long): String = when {
-    count >= 1_000_000_000 -> String.format("%.1fB", count / 1_000_000_000.0)
-    count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-    count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
-    count > 0 -> count.toString()
-    else -> ""
-}
-
-/**
- * Parse a metric string back to Long.
- */
-private fun parseMetric(text: String): Long {
-    if (text.isBlank()) return 0
-    val cleaned = text.trim()
-    return try {
-        when {
-            cleaned.endsWith("B", ignoreCase = true) ->
-                (cleaned.dropLast(1).toDouble() * 1_000_000_000).toLong()
-            cleaned.endsWith("M", ignoreCase = true) ->
-                (cleaned.dropLast(1).toDouble() * 1_000_000).toLong()
-            cleaned.endsWith("K", ignoreCase = true) ->
-                (cleaned.dropLast(1).toDouble() * 1_000).toLong()
-            else -> cleaned.toLongOrNull() ?: 0L
-        }
-    } catch (_: Exception) { 0L }
-}
-
-/**
- * Format view count to human-readable short form.
- */
-private fun formatShortViewCount(count: Long): String = when {
-    count >= 1_000_000_000 -> String.format("%.1fB views", count / 1_000_000_000.0)
-    count >= 1_000_000 -> String.format("%.1fM views", count / 1_000_000.0)
-    count >= 1_000 -> String.format("%.1fK views", count / 1_000.0)
-    count > 0 -> "$count views"
-    else -> ""
-}
-
-/**
- * Parse a view count text like "1.2M views" back to a Long approximation.
- */
-private fun parseViewCount(text: String): Long {
-    if (text.isBlank()) return 0
-    val cleaned = text.replace(",", "").replace(" views", "").replace(" view", "").trim()
-    return try {
-        when {
-            cleaned.endsWith("B", ignoreCase = true) ->
-                (cleaned.dropLast(1).toDouble() * 1_000_000_000).toLong()
-            cleaned.endsWith("M", ignoreCase = true) ->
-                (cleaned.dropLast(1).toDouble() * 1_000_000).toLong()
-            cleaned.endsWith("K", ignoreCase = true) ->
-                (cleaned.dropLast(1).toDouble() * 1_000).toLong()
-            else -> cleaned.toLongOrNull() ?: 0L
-        }
-    } catch (_: Exception) { 0L }
-}
+/** The shape the shared sheets, cards and history take. */
+fun ShortVideo.toVideo(): Video =
+    Video(
+        id = id,
+        title = title,
+        channelName = channelName,
+        channelId = channelId,
+        thumbnailUrl = thumbnailUrl,
+        duration = (durationMs / 1_000L).toInt(),
+        viewCount = viewCount,
+        likeCount = likeCount,
+        uploadDate = uploadDate,
+        timestamp = timestamp,
+        description = description,
+        channelThumbnailUrl = channelThumbnailUrl,
+        isShort = true,
+        commentCountText = commentCount.takeIf { it > 0L }?.let(::formatViewCount).orEmpty(),
+    )

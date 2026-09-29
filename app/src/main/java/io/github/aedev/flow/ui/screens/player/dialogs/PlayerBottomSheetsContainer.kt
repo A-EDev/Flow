@@ -1,19 +1,14 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import android.content.Context
-import android.content.Intent
-import android.widget.Toast
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SmartDisplay
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
@@ -21,64 +16,53 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.EnhancedPlayerState
 import io.github.aedev.flow.player.SleepTimerManager
-import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
-import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
-import io.github.aedev.flow.ui.components.FlowDescriptionBottomSheet
-import io.github.aedev.flow.ui.components.FlowLiveChatBottomSheet
-import io.github.aedev.flow.ui.components.FlowPlaylistQueueBottomSheet
-import io.github.aedev.flow.ui.components.SleepTimerSheet
-import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
-import io.github.aedev.flow.ui.components.commentTimestampToMs
-import io.github.aedev.flow.ui.components.sortCommentsByFilter
-import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
+import io.github.aedev.flow.ui.components.shared.CommentSortFilter
+import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.ui.components.shared.FlowCommentsBottomSheet
+import io.github.aedev.flow.ui.components.videoplayer.sheet.FlowLiveChatBottomSheet
+import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
+import io.github.aedev.flow.ui.screens.player.state.PlayerCommentsUiState
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
+import io.github.aedev.flow.ui.screens.player.state.PlayerSheet
+import io.github.aedev.flow.ui.screens.player.state.VideoPlayerUiState
+import io.github.aedev.flow.ui.screens.player.state.transcriptTrackUrl
+import io.github.aedev.flow.ui.screens.player.state.visibleComments
 
 @Composable
-fun PlayerBottomSheetsContainer(
+internal fun PlayerBottomSheetsContainer(
     screenState: PlayerScreenState,
     uiState: VideoPlayerUiState,
     video: Video,
     completeVideo: Video,
     disableShortsPlayer: Boolean,
     showShortsPlayerPrompt: Boolean,
-    comments: List<Comment>,
+    viewModel: VideoPlayerViewModel,
+    playerState: EnhancedPlayerState,
+    commentsUiState: PlayerCommentsUiState,
     commentsEnabled: Boolean = true,
-    isLoadingComments: Boolean,
-    isLoadingMoreComments: Boolean = false,
-    hasMoreComments: Boolean = false,
     onLoadMoreComments: (videoId: String) -> Unit = {},
+    onSelectCommentSort: (CommentSortFilter) -> Unit = {},
     mediaSheetExpandedHeight: Dp? = null,
     mediaSheetCollapsedHeight: Dp = 0.dp,
     context: Context,
     onPlayAsShort: (String) -> Unit,
-    onPlayAsMusic: (String) -> Unit,
     onLoadReplies: (Comment) -> Unit = {},
     onLoadMoreReplies: (Comment) -> Unit = {},
     onNavigateToChannel: ((String) -> Unit)? = null,
-    renderCommentsSheet: Boolean = true,
-    renderChaptersSheet: Boolean = true,
-    renderSleepTimerSheet: Boolean = true,
+    hostedInSidePanel: Boolean = false,
     onMediaSheetProgressChange: (Float) -> Unit = {},
 ) {
-    val shareWithoutText by remember { PlayerPreferences(context).shareWithoutText }
-        .collectAsStateWithLifecycle(initialValue = false)
+    val visibleComments = commentsUiState.visibleComments(screenState)
 
-    val sortedComments =
-        remember(comments, screenState.commentSortFilter) {
-            sortCommentsByFilter(comments, screenState.commentSortFilter)
-        }
-
-    val handleTimestampClick: (String) -> Unit =
+    val handleSeek: (Long) -> Unit =
         remember {
-            { timestamp ->
-                EnhancedPlayerManager.getInstance().seekTo(commentTimestampToMs(timestamp))
-            }
+            { positionMs -> EnhancedPlayerManager.getInstance().seekTo(positionMs) }
         }
 
     LaunchedEffect(Unit) {
@@ -93,196 +77,126 @@ fun PlayerBottomSheetsContainer(
             context.stopService(
                 android.content.Intent(context, io.github.aedev.flow.service.VideoPlayerService::class.java),
             )
-            context.stopService(
-                android.content.Intent(context, io.github.aedev.flow.service.Media3MusicService::class.java),
-            )
             (context as? android.app.Activity)?.finishAndRemoveTask()
         }
     }
 
-    // Quick actions sheet
-    if (screenState.showQuickActions) {
-        VideoQuickActionsBottomSheet(
-            video = completeVideo,
-            onDismiss = { screenState.showQuickActions = false },
-            onShare = {
-                screenState.showQuickActions = false
-                val shareText =
-                    if (shareWithoutText) {
-                        context.getString(R.string.share_link_only_template, completeVideo.id)
-                    } else {
-                        context.getString(R.string.check_out_video_template, completeVideo.title, completeVideo.id)
-                    }
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, completeVideo.title)
-                        putExtra(Intent.EXTRA_TEXT, shareText)
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
-            },
-            onDownload = {
-                screenState.showQuickActions = false
-                screenState.showDownloadDialog = true
-            },
-            onNotInterested = {
-                screenState.showQuickActions = false
-                Toast.makeText(context, context.getString(R.string.video_marked_not_interested), Toast.LENGTH_SHORT).show()
-            },
-            onChannelClick = onNavigateToChannel,
-        )
-    }
-
     // Comments Bottom Sheet
-    if (screenState.showCommentsSheet && commentsEnabled && renderCommentsSheet) {
+    if (screenState.activeSheet == PlayerSheet.Comments() && commentsEnabled && !hostedInSidePanel) {
         FlowCommentsBottomSheet(
-            comments = sortedComments,
-            isLoading = isLoadingComments,
+            comments = visibleComments,
+            isLoading = commentsUiState.isLoading,
             selectedFilter = screenState.commentSortFilter,
-            onFilterChanged = { filter ->
-                screenState.commentSortFilter = filter
-            },
+            totalText = commentsUiState.totalText,
+            artworkUrl = video.thumbnailUrl,
+            timedOnly = screenState.commentsTimedOnly,
+            onTimedChange = { screenState.commentsTimedOnly = it },
+            onFilterChanged = onSelectCommentSort,
             onLoadReplies = onLoadReplies,
             onLoadMoreReplies = onLoadMoreReplies,
-            onTimestampClick = handleTimestampClick,
-            isLoadingMore = isLoadingMoreComments,
-            hasMore = hasMoreComments,
+            onSeekMs = handleSeek,
+            isLoadingMore = commentsUiState.isLoadingMore,
+            hasMore = commentsUiState.hasMore,
             onLoadMore = { onLoadMoreComments(video.id) },
             onAuthorClick = { authorChannelRef ->
-                screenState.showCommentsSheet = false
+                screenState.closeSheet()
                 onNavigateToChannel?.invoke(authorChannelRef)
             },
             expandedHeight = mediaSheetExpandedHeight,
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
-            onDismiss = { screenState.showCommentsSheet = false },
+            onDismiss = { screenState.closeSheet() },
         )
     }
 
-    if (screenState.showLiveChatSheet && uiState.isLiveChatAvailable) {
+    if (screenState.activeSheet == PlayerSheet.LiveChat() && uiState.isLiveChatAvailable) {
         FlowLiveChatBottomSheet(
             messages = uiState.liveChatMessages,
             isLoading = uiState.isLiveChatLoading,
             expandedHeight = mediaSheetExpandedHeight,
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
-            onDismiss = { screenState.showLiveChatSheet = false },
+            onDismiss = { screenState.closeSheet() },
         )
     }
 
     // Description Bottom Sheet
-    if (screenState.showDescriptionSheet) {
-        val currentVideo =
-            remember(uiState.streamInfo, video) {
-                val streamInfo = uiState.streamInfo
-                if (streamInfo != null) {
-                    Video(
-                        id = streamInfo.id ?: video.id,
-                        title = streamInfo.name ?: video.title,
-                        channelName = streamInfo.uploaderName ?: video.channelName,
-                        channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
-                        thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
-                        duration = streamInfo.duration.toInt(),
-                        viewCount = streamInfo.viewCount,
-                        likeCount = streamInfo.likeCount,
-                        uploadDate =
-                            streamInfo.textualUploadDate ?: streamInfo.uploadDate?.run {
-                                try {
-                                    val date = java.util.Date.from(offsetDateTime().toInstant())
-                                    val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                                    sdf.format(date)
-                                } catch (e: Exception) {
-                                    video.uploadDate
-                                }
-                            } ?: video.uploadDate,
-                        description = streamInfo.description?.content ?: video.description,
-                        channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
-                    )
-                } else {
-                    video
-                }
-            }
-
-        FlowDescriptionBottomSheet(
-            video = currentVideo,
-            tags = uiState.streamInfo?.tags ?: emptyList(),
-            onTimestampClick = handleTimestampClick,
+    if (screenState.activeSheet == PlayerSheet.Description && !hostedInSidePanel) {
+        PlayerDescriptionSheetHost(
+            video = video,
+            uiState = uiState,
+            viewModel = viewModel,
+            asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.closeSheet() },
+            hasTranscriptTrack = transcriptTrackUrl(playerState, screenState) != null,
+            onChaptersClick = { screenState.open(PlayerSheet.Chapters) },
+            onTranscriptClick = { screenState.open(PlayerSheet.Transcript) },
+            onChannelClick = { channelId ->
+                screenState.closeSheet()
+                onNavigateToChannel?.invoke(channelId)
+            },
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
-            onDismiss = { screenState.showDescriptionSheet = false },
+        )
+    }
+
+    if (screenState.activeSheet == PlayerSheet.Transcript && !hostedInSidePanel) {
+        PlayerTranscriptSheetHost(
+            viewModel = viewModel,
+            screenState = screenState,
+            trackUrl = transcriptTrackUrl(playerState, screenState),
+            tracks = playerState.availableSubtitles,
+            chapters = uiState.chapters,
+            artworkUrl = video.thumbnailUrl,
+            asSidePanel = false,
+            expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.closeSheet() },
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
         )
     }
 
     // Chapters Bottom Sheet
-    if (screenState.showChaptersSheet && renderChaptersSheet) {
-        val chaptersPositionMs by remember {
-            derivedStateOf { (screenState.currentPosition / 1_000L) * 1_000L }
-        }
-        FlowChaptersBottomSheet(
+    if (screenState.activeSheet == PlayerSheet.Chapters && !hostedInSidePanel) {
+        PlayerChaptersSheetHost(
+            screenState = screenState,
             chapters = uiState.chapters,
-            currentPosition = chaptersPositionMs,
-            durationMs = screenState.duration,
-            onChapterClick = { newPosition ->
-                EnhancedPlayerManager.getInstance().seekTo(newPosition)
-            },
             thumbnailUrl = video.thumbnailUrl,
+            asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
-            collapsedHeight = mediaSheetCollapsedHeight,
-            onSheetProgressChange = onMediaSheetProgressChange,
-            onDismiss = { screenState.showChaptersSheet = false },
-        )
-    }
-
-    // Playlist Queue Bottom Sheet
-    if (screenState.showPlaylistQueueSheet) {
-        val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
-        val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(initialValue = -1)
-        val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
-
-        FlowPlaylistQueueBottomSheet(
-            queueVideos = queueVideos,
-            currentQueueIndex = currentQueueIndex,
-            playlistTitle = playerState.queueTitle,
-            isLooping = playerState.isQueueLooping,
-            isShuffled = playerState.isQueueShuffled,
-            onLoopToggle = EnhancedPlayerManager.getInstance()::toggleQueueLoop,
-            onShuffleToggle = EnhancedPlayerManager.getInstance()::toggleQueueShuffle,
-            onPlayVideoAtIndex = { index ->
-                EnhancedPlayerManager.getInstance().playVideoAtIndex(index, loadStreamsInPlayer = false)
-            },
-            onRemoveVideoAtIndex = EnhancedPlayerManager.getInstance()::removeVideoAtIndex,
-            onMoveVideoAtIndex = EnhancedPlayerManager.getInstance()::moveVideoAtIndex,
-            onDismiss = { screenState.showPlaylistQueueSheet = false },
-            expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.closeSheet() },
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
         )
     }
 
-    if (screenState.showSleepTimerSheet && renderSleepTimerSheet) {
-        SleepTimerSheet(
+    if (screenState.activeSheet == PlayerSheet.Queue && !hostedInSidePanel) {
+        PlayerQueueSheetHost(
+            asSidePanel = false,
             expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.closeSheet() },
             collapsedHeight = mediaSheetCollapsedHeight,
             onSheetProgressChange = onMediaSheetProgressChange,
-            onDismiss = { screenState.showSleepTimerSheet = false },
         )
     }
 
-    // Shorts/Music Suggestion Dialog
+    if (screenState.activeSheet == PlayerSheet.SleepTimer && !hostedInSidePanel) {
+        PlayerSleepTimerSheetHost(
+            asSidePanel = false,
+            expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.closeSheet() },
+            collapsedHeight = mediaSheetCollapsedHeight,
+            onSheetProgressChange = onMediaSheetProgressChange,
+        )
+    }
+
+    // Shorts Suggestion Dialog
     if (screenState.showShortsPrompt && !disableShortsPlayer && showShortsPlayerPrompt) {
         ShortsSuggestionDialog(
-            isMusic =
-                completeVideo.isMusic ||
-                    completeVideo.title.contains("Official Audio", true) ||
-                    completeVideo.title.contains("Lyrics", true),
             onPlayAsShort = {
                 screenState.showShortsPrompt = false
                 onPlayAsShort(completeVideo.id)
-            },
-            onPlayAsMusic = {
-                screenState.showShortsPrompt = false
-                onPlayAsMusic(completeVideo.id)
             },
             onDismiss = { screenState.showShortsPrompt = false },
         )
@@ -290,16 +204,14 @@ fun PlayerBottomSheetsContainer(
 }
 
 /**
- * Dialog suggesting to play short video as Shorts or Music
+ * Dialog suggesting to play a short video in the Shorts player.
  */
 @Composable
-fun ShortsSuggestionDialog(
-    isMusic: Boolean,
+private fun ShortsSuggestionDialog(
     onPlayAsShort: () -> Unit,
-    onPlayAsMusic: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    FlowAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.SmartDisplay, null) },
         title = {
@@ -317,15 +229,8 @@ fun ShortsSuggestionDialog(
             }
         },
         dismissButton = {
-            Row {
-                if (isMusic) {
-                    TextButton(onClick = onPlayAsMusic) {
-                        Text(stringResource(R.string.music_player))
-                    }
-                }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.close))
-                }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close))
             }
         },
     )

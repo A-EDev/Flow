@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Bundle
@@ -21,12 +22,14 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
@@ -37,16 +40,25 @@ import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.audio.eq.EqualizerRepository
 import io.github.aedev.flow.data.download.DownloadUtil
-import io.github.aedev.flow.data.model.ParametricEQ
+import io.github.aedev.flow.data.download.LegacySongDownloads
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.data.newmusic.InnertubeMusicService
+import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.extensions.setOffloadEnabled
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.WatchEndpoint
-import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
+import io.github.aedev.flow.player.MusicPlaybackRecoveryPlanner
+import io.github.aedev.flow.player.MusicQueuePlanner
+import io.github.aedev.flow.player.MusicRadioPlanner
+import io.github.aedev.flow.player.audio.AudioSessionRegistry
+import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.factory.LoadControlFactory
+import io.github.aedev.flow.player.sessionArtworkBitmapLoader
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.Dispatchers
@@ -55,10 +67,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.min
+import kotlin.math.pow
 
 @AndroidEntryPoint
 class Media3MusicService : MediaLibraryService() {
@@ -70,7 +83,6 @@ class Media3MusicService : MediaLibraryService() {
         private const val AUTO_ROOT_ID = "flow_auto_root"
         private const val AUTO_QUEUE_ID = "flow_auto_queue"
         private const val AUTO_CURRENT_ID = "flow_auto_current"
-        const val ACTION_SET_EQ = "ACTION_SET_EQ"
 
         private const val MAX_RETRY_PER_SONG = 5
         private const val BASE_RETRY_DELAY_MS = 3000L
@@ -78,10 +90,17 @@ class Media3MusicService : MediaLibraryService() {
         private const val FAILED_SONGS_CACHE_SIZE = 50
         private const val RECOVERY_SUCCESS_GRACE_MS = 2 * 60 * 1000L
 
+        // Endless radio: append to the real queue when this few tracks remain,
+        // this many at a time, and refill the suggestion pool below this size.
+        // LOW_WATER/BATCH mirror the desktop station (3 / 10).
+        private const val RADIO_MIN_UPCOMING = 3
+        private const val RADIO_APPEND_BATCH = 10
+        private const val RADIO_POOL_LOW_WATER = 15
+        private const val MUSIC_URI_SCHEME = "music"
+
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
         private val CommandStop = SessionCommand(ACTION_STOP, Bundle.EMPTY)
-        private val CommandSetEq = SessionCommand(ACTION_SET_EQ, Bundle.EMPTY)
 
         const val ACTION_TOGGLE_LIKE = "ACTION_TOGGLE_LIKE"
         private val CommandToggleLike = SessionCommand(ACTION_TOGGLE_LIKE, Bundle.EMPTY)
@@ -94,11 +113,19 @@ class Media3MusicService : MediaLibraryService() {
         @Volatile
         var currentAudioSessionId: Int = 0
             private set
+
+        /**
+         * Stops playback and the service from inside it. Sent through the controller, it lands after
+         * the player commands the caller already queued, which a direct stopService() overtakes.
+         */
+        fun requestStop(controller: MediaController) {
+            controller.sendCustomCommand(CommandStop, Bundle.EMPTY)
+        }
     }
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
     private lateinit var player: ExoPlayer
-    private val customEqualizer = CustomEqualizerAudioProcessor()
+    private val equalizer = EqualizerAudioProcessor()
     private val musicAudioAttributes =
         AudioAttributes
             .Builder()
@@ -119,6 +146,28 @@ class Media3MusicService : MediaLibraryService() {
 
     private var automixJob: Job? = null
 
+    // ── Endless radio session (desktop semantics: seeded once per queue, append-only) ──
+    private var radioSeedId: String? = null
+    private var radioContinuation: String? = null
+    private var radioEndpoint: WatchEndpoint? = null
+    private var radioTopUpJob: Job? = null
+    private var radioAutoplayEnabled = true
+    private var loudnessNormalizationEnabled = true
+    private var lastQueueIds: List<String>? = null
+
+    // The item a network failure was deferred for: connectivity can come back long after the
+    // playlist has moved on, so the retry must not re-target whatever is current by then.
+    private var pendingNetworkRetry: MusicPlaybackRecoveryPlanner.FailedItem? = null
+
+    // A radio the user started by name outruns the passive endless-radio toggle: that switch
+    // governs queues that run out on their own, not a station the user asked for.
+    private var explicitRadioRequest = false
+
+    // Queue-end continuation: appends go through the manager's MediaController and
+    // land asynchronously, so a resume at STATE_ENDED must wait for the timeline.
+    private var radioResumeWhenAppended = false
+    private var radioEndedItemCount = 0
+
     private val retryCountMap = mutableMapOf<String, Int>()
     private val lastPlaybackErrorAtMap = mutableMapOf<String, Long>()
 
@@ -132,7 +181,22 @@ class Media3MusicService : MediaLibraryService() {
     lateinit var downloadUtil: DownloadUtil
 
     @Inject
+    lateinit var legacySongs: LegacySongDownloads
+
+    @Inject
     lateinit var widgetPublisher: io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetPublisher
+
+    @Inject
+    lateinit var musicBrain: MusicBrainEngine
+
+    @Inject
+    lateinit var widgetContentSync: dagger.Lazy<io.github.aedev.flow.widget.core.refresh.WidgetContentSync>
+
+    @Inject
+    lateinit var equalizerRepository: EqualizerRepository
+
+    @Inject
+    lateinit var audioSessions: AudioSessionRegistry
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -177,6 +241,20 @@ class Media3MusicService : MediaLibraryService() {
             io.github.aedev.flow.data.local
                 .PlayerPreferences(this@Media3MusicService)
         lifecycleScope.launch {
+            prefs.musicEndlessRadioEnabled.collect { enabled ->
+                val wasEnabled = radioAutoplayEnabled
+                radioAutoplayEnabled = enabled
+                // Switching it on mid-track otherwise does nothing until the next transition.
+                if (enabled && !wasEnabled && ::player.isInitialized) maybeExtendRadio()
+            }
+        }
+        lifecycleScope.launch {
+            prefs.musicLoudnessNormalizationEnabled.collect {
+                loudnessNormalizationEnabled = it
+                applyLoudnessGain()
+            }
+        }
+        lifecycleScope.launch {
             var lastQuality: io.github.aedev.flow.data.local.MusicAudioQuality? = null
             prefs.musicAudioQuality.collect { quality ->
                 val previous = lastQuality
@@ -189,12 +267,23 @@ class Media3MusicService : MediaLibraryService() {
 
         initializePlayer()
         initializeSession()
+        observeEqualizer()
 
         lifecycleScope.launch {
             prefs.playDuringCalls
                 .distinctUntilChanged()
                 .collectLatest(::applyPlayDuringCallsPreference)
         }
+    }
+
+    private fun applyLoudnessGain() {
+        if (!::player.isInitialized) return
+        val mediaId = player.currentMediaItem?.mediaId
+        val gainDb =
+            mediaId
+                ?.takeIf { loudnessNormalizationEnabled && !LocalMediaIds.isLocal(it) }
+                ?.let(MusicPlayerUtils::cachedLoudnessGainDb)
+        player.volume = if (gainDb == null) 1f else 10.0.pow(gainDb / 20.0).toFloat()
     }
 
     private fun applyPlayDuringCallsPreference(playDuringCalls: Boolean) {
@@ -220,18 +309,29 @@ class Media3MusicService : MediaLibraryService() {
         val currentIndex = player.currentMediaItemIndex
         if (currentIndex == C.INDEX_UNSET) return
         val mediaId = player.currentMediaItem?.mediaId ?: return
-        if (downloadUtil.isFullyDownloaded(mediaId)) return
+        if (legacySongs.isComplete(mediaId)) return
 
         try {
             val position = player.currentPosition
             val wasPlaying = player.playWhenReady
             downloadUtil.performAggressiveCacheClear(mediaId)
-            refreshCurrentMediaItem(mediaId, position)
+            refreshStreamMediaItemAt(currentIndex, mediaId, position)
             player.prepare()
             player.playWhenReady = wasPlaying
             Log.d(TAG, "Re-streaming $mediaId at new quality from ${position}ms")
         } catch (e: Exception) {
             Log.w(TAG, "Failed to reload current track on quality change: ${e.message}")
+        }
+    }
+
+    /**
+     * Offloaded audio bypasses every audio processor, so offload stays on only while the equalizer
+     * leaves the sound untouched. Compare does not count: toggling offload reselects tracks.
+     */
+    private fun observeEqualizer() {
+        lifecycleScope.launch { equalizerRepository.processingSpec.collect(equalizer::setSpec) }
+        lifecycleScope.launch {
+            equalizerRepository.needsProcessing.collect { processing -> player.setOffloadEnabled(!processing) }
         }
     }
 
@@ -247,7 +347,7 @@ class Media3MusicService : MediaLibraryService() {
                 ): androidx.media3.exoplayer.audio.AudioSink? =
                     androidx.media3.exoplayer.audio.DefaultAudioSink
                         .Builder(context)
-                        .setAudioProcessors(arrayOf(customEqualizer))
+                        .setAudioProcessors(arrayOf(equalizer))
                         .build()
             }.setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
@@ -269,9 +369,9 @@ class Media3MusicService : MediaLibraryService() {
         // Expose audio session ID for external audio processors (James DSP, etc.)
         currentAudioSessionId = player.audioSessionId
         Log.i(TAG, "Audio session initialized - Session ID: $currentAudioSessionId")
-        Log.i(TAG, "External audio processors can target this session for effects")
+        audioSessions.open(player.audioSessionId, AudioEffect.CONTENT_TYPE_MUSIC)
 
-        player.setOffloadEnabled(true)
+        player.setOffloadEnabled(!equalizerRepository.needsProcessing.value)
 
         player.addListener(
             object : Player.Listener {
@@ -283,14 +383,14 @@ class Media3MusicService : MediaLibraryService() {
                     updateNotification()
                 }
 
-                override fun onPlayerError(error: PlaybackException) {
-                    handlePlayerError(error)
-                }
-
                 override fun onMediaItemTransition(
                     mediaItem: androidx.media3.common.MediaItem?,
                     reason: Int,
                 ) {
+                    finalizeListenSession()
+                    startListenSession(mediaItem?.mediaId)
+                    applyLoudnessGain()
+
                     if (
                         reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
                         reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
@@ -298,18 +398,21 @@ class Media3MusicService : MediaLibraryService() {
                         player.seekTo(0L)
                     }
 
-                    if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
-                        retryCountMap.clear()
-                        lastPlaybackErrorAtMap.clear()
-                    }
-
                     mediaItem?.let { item ->
                         val videoId = item.mediaId
                         val title = item.mediaMetadata.title?.toString()
                         val artist = item.mediaMetadata.artist?.toString()
 
-                        if (!videoId.isNullOrBlank()) {
-                            resolveAutomix(videoId)
+                        if (!videoId.isNullOrBlank() && !LocalMediaIds.isLocal(videoId)) {
+                            // Desktop radio semantics: only a genuinely NEW queue seeds a
+                            // fresh radio. In-app skips also arrive as PLAYLIST_CHANGED
+                            // (playTrack rebuilds the playlist), so the discriminator is
+                            // whether the queue CONTENTS changed — never the current track.
+                            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+                                onQueueContextChanged(videoId)
+                            } else {
+                                maybeExtendRadio()
+                            }
                         }
 
                         if (!videoId.isNullOrBlank() && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
@@ -330,10 +433,49 @@ class Media3MusicService : MediaLibraryService() {
                     widgetPublisher.publish(player)
                 }
 
+                override fun onTimelineChanged(
+                    timeline: androidx.media3.common.Timeline,
+                    reason: Int,
+                ) {
+                    // Radio tracks appended at queue end arrive asynchronously (the
+                    // manager routes addMediaItem through its MediaController) —
+                    // resume the moment they actually land in the playlist.
+                    if (!radioResumeWhenAppended) return
+                    if (player.playbackState != Player.STATE_ENDED) {
+                        radioResumeWhenAppended = false
+                        return
+                    }
+                    if (player.mediaItemCount <= radioEndedItemCount) return
+                    radioResumeWhenAppended = false
+                    if (player.hasNextMediaItem()) {
+                        player.seekToNextMediaItem()
+                    } else {
+                        // Shuffle can slot the new items before the current position;
+                        // the appended range always starts at the old item count.
+                        player.seekTo(radioEndedItemCount, 0L)
+                    }
+                    player.play()
+                }
+
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     updateLocks(isPlaybackActive())
                     widgetPublisher.publish(player)
+                    if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
+                        // ENDED: the queue ran out — no transition fires for the last track.
+                        // IDLE: player.stop() from a dismiss/stop path — same deal.
+                        finalizeListenSession()
+                    }
+                    if (playbackState == Player.STATE_ENDED) {
+                        // Radio raced the queue end: append now and keep playing.
+                        maybeExtendRadio()
+                        if (player.hasNextMediaItem()) {
+                            player.seekToNextMediaItem()
+                            player.play()
+                        }
+                    }
                     if (playbackState == Player.STATE_READY) {
+                        refreshLearnDuration()
+                        applyLoudnessGain()
                         player.currentMediaItem?.mediaId?.let { mediaId ->
                             val lastErrorAt = lastPlaybackErrorAtMap[mediaId] ?: 0L
                             if (System.currentTimeMillis() - lastErrorAt > RECOVERY_SUCCESS_GRACE_MS) {
@@ -355,34 +497,157 @@ class Media3MusicService : MediaLibraryService() {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     updateLocks(isPlaybackActive())
                     widgetPublisher.publish(player)
+                    if (isPlaying) {
+                        if (learnMediaId == null) learnMediaId = player.currentMediaItem?.mediaId
+                        if (learnTrack?.videoId != learnMediaId) learnTrack = resolveLearnTrack(learnMediaId)
+                        refreshLearnDuration()
+                        learnPlayingSinceMs = android.os.SystemClock.elapsedRealtime()
+                    } else {
+                        closePlayingSegment()
+                    }
+                }
+            },
+        )
+
+        // The item that failed is not always the current one: a next-item preload can fail while
+        // the previous track still plays. Only EventTime names the window that actually broke.
+        player.addAnalyticsListener(
+            object : AnalyticsListener {
+                override fun onPlayerError(
+                    eventTime: AnalyticsListener.EventTime,
+                    error: PlaybackException,
+                ) {
+                    handlePlayerError(error, eventTime.windowIndex)
                 }
             },
         )
     }
 
+    // ── Listen-session accounting (feeds MusicBrainEngine) ──
+    // Hand-rolled instead of Media3's PlaybackStatsListener, whose internal state
+    // machine throws IllegalArgumentException on some transition orders (seen on
+    // device with our seekTo(0)-on-transition). Wall-clock time while isPlaying is
+    // pause-free and seek-immune; a repeat loop finalizes and restarts a session,
+    // so relistens still count once each.
+
+    private var learnMediaId: String? = null
+    private var learnTrack: MusicTrack? = null
+    private var learnGenre: String? = null
+    private var learnDurationMs = 0L
+    private var learnPlayedMs = 0L
+    private var learnPlayingSinceMs = -1L
+
+    private fun closePlayingSegment() {
+        if (learnPlayingSinceMs >= 0) {
+            learnPlayedMs += android.os.SystemClock.elapsedRealtime() - learnPlayingSinceMs
+            learnPlayingSinceMs = -1L
+        }
+    }
+
+    // Queue metadata often ships duration=0 (related/next payloads omit it), so the
+    // player's own duration — valid once READY — is the reliable denominator.
+    private fun refreshLearnDuration() {
+        if (!::player.isInitialized) return
+        if (player.currentMediaItem?.mediaId != learnMediaId) return
+        val d = player.duration
+        if (d > 0) learnDurationMs = d
+    }
+
+    private fun resolveLearnTrack(mediaId: String?): MusicTrack? {
+        if (mediaId.isNullOrBlank()) return null
+        val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
+        return manager.queue.value.firstOrNull { it.videoId == mediaId }
+            ?: manager.currentTrack.value?.takeIf { it.videoId == mediaId }
+            ?: manager.automixItems.value.firstOrNull { it.videoId == mediaId }
+    }
+
+    private fun startListenSession(mediaId: String?) {
+        learnMediaId = mediaId
+        // Pin the track now: by finalize time a new playlist may have replaced the
+        // queue and the outgoing track would no longer resolve.
+        learnTrack = resolveLearnTrack(mediaId)
+        // Pin the genre context too — it belongs to the queue this track started in.
+        learnGenre =
+            io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                .playContextGenre
+        learnDurationMs = 0L
+        learnPlayedMs = 0L
+        learnPlayingSinceMs =
+            if (::player.isInitialized && player.isPlaying) android.os.SystemClock.elapsedRealtime() else -1L
+        refreshLearnDuration()
+    }
+
+    private fun finalizeListenSession() {
+        closePlayingSegment()
+        val mediaId = learnMediaId
+        val pinnedTrack = learnTrack
+        val pinnedDurationMs = learnDurationMs
+        val playedMs = learnPlayedMs
+        val pinnedGenre = learnGenre
+        learnMediaId = null
+        learnTrack = null
+        learnGenre = null
+        learnDurationMs = 0L
+        learnPlayedMs = 0L
+        if (mediaId.isNullOrBlank() || playedMs <= 0) {
+            Log.d(TAG, "listen finalize skipped: id=$mediaId playedMs=$playedMs")
+            return
+        }
+
+        val track = pinnedTrack?.takeIf { it.videoId == mediaId } ?: resolveLearnTrack(mediaId)
+        if (track == null) {
+            Log.w(TAG, "listen finalize: no track match for $mediaId")
+            return
+        }
+        val durationMs = if (track.duration > 0) track.duration.toLong() * 1000 else pinnedDurationMs
+        if (durationMs <= 0) {
+            Log.w(TAG, "listen finalize: no duration for $mediaId")
+            return
+        }
+
+        Log.d(TAG, "listen finalize: $mediaId playedMs=$playedMs pct=${playedMs.toDouble() / durationMs}")
+        // Engine-scoped, NOT lifecycleScope: the finalize from onDestroy runs after
+        // this service's scope is already cancelled, and the session must still land.
+        musicBrain.onListenSessionAsync(track, playedMs.toDouble() / durationMs, pinnedGenre, playedMs)
+        widgetContentSync.get().run {
+            request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.ON_REPEAT)
+            request(io.github.aedev.flow.widget.core.refresh.WidgetContentKey.WEEK)
+        }
+    }
+
     /**
      * Main error handling logic with error-type-specific handlers.
      */
-    private fun handlePlayerError(error: PlaybackException) {
-        val mediaId = player.currentMediaItem?.mediaId
-        if (mediaId == null) {
-            Log.e(TAG, "Player error with no current media item", error)
+    private fun handlePlayerError(
+        error: PlaybackException,
+        errorWindowIndex: Int,
+    ) {
+        val failed =
+            MusicPlaybackRecoveryPlanner.resolveFailedItem(
+                errorWindowIndex = errorWindowIndex,
+                currentIndex = player.currentMediaItemIndex,
+                currentPositionMs = player.currentPosition,
+                mediaIds = playerMediaIds(),
+            )
+        if (failed == null) {
+            Log.e(TAG, "Player error with no resolvable media item", error)
             return
         }
+        val mediaId = failed.mediaId
 
         Log.e(TAG, "Playback error for $mediaId: ${error.errorCodeName} (code=${error.errorCode})", error)
         lastPlaybackErrorAtMap[mediaId] = System.currentTimeMillis()
 
         if (recentlyFailedSongs.contains(mediaId)) {
             Log.w(TAG, "$mediaId is in recently failed list, skipping to next")
-            skipToNext()
+            skipPastFailedItem(failed)
             return
         }
 
         val currentRetry = retryCountMap.getOrDefault(mediaId, 0)
 
         if (currentRetry >= MAX_RETRY_PER_SONG) {
-            handleFinalFailure(mediaId)
+            handleFinalFailure(failed)
             return
         }
 
@@ -391,39 +656,88 @@ class Media3MusicService : MediaLibraryService() {
         when {
             isAudioRendererError(error) -> {
                 Log.d(TAG, "AudioTrack error detected (${error.errorCode}), performing safe recovery")
-                handleAudioRendererError(mediaId, currentRetry)
+                handleAudioRendererError(failed, currentRetry)
             }
 
             isRangeNotSatisfiableError(error) -> {
                 Log.d(TAG, "Range Not Satisfiable (416) detected, performing strict recovery")
-                handleRangeNotSatisfiableError(mediaId, currentRetry)
+                handleRangeNotSatisfiableError(failed, currentRetry)
             }
 
             isPageReloadError(error) -> {
                 Log.d(TAG, "Page reload error detected, performing strict recovery")
-                handlePageReloadError(mediaId, currentRetry)
+                handlePageReloadError(failed, currentRetry)
             }
 
             isExpiredUrlError(error) -> {
                 Log.d(TAG, "Expired URL (403) detected, refreshing stream URL")
                 notifyMusicWarning(getString(R.string.music_playback_warning_forbidden))
-                handleExpiredUrlError(mediaId, currentRetry)
+                handleExpiredUrlError(failed, currentRetry)
             }
 
             isFileNotFoundError(error) -> {
                 Log.d(TAG, "Cache file missing (ENOENT) detected, refreshing stream")
-                handleFileNotFoundError(mediaId, currentRetry)
+                handleFileNotFoundError(failed, currentRetry)
             }
 
             !connectivityObserver.checkCurrentConnectivity() || isNetworkError(error) -> {
                 Log.d(TAG, "Network-related error detected, waiting for connection")
                 notifyMusicWarning(getString(R.string.music_playback_warning_network))
-                handleNetworkError(mediaId, currentRetry)
+                handleNetworkError(failed, currentRetry)
             }
 
             else -> {
                 Log.d(TAG, "Generic/IO error detected (${error.errorCode}), attempting recovery")
-                handleGenericError(mediaId, currentRetry)
+                handleGenericError(failed, currentRetry)
+            }
+        }
+    }
+
+    private fun playerMediaIds(): List<String> = List(player.mediaItemCount) { player.getMediaItemAt(it).mediaId }
+
+    /**
+     * Where the failed item sits in the playlist *now*. Recovery runs after a delay, and the radio
+     * appends and queue edits in between move it — an index captured at error time goes stale.
+     */
+    private fun playerIndexOf(failed: MusicPlaybackRecoveryPlanner.FailedItem): Int =
+        MusicQueuePlanner.currentQueueIndex(
+            queueIds = playerMediaIds(),
+            playerIndex = failed.index,
+            currentTrackId = failed.mediaId,
+        )
+
+    /** Re-prepares the item that actually failed, never whatever happens to be current. */
+    private fun restartFailedItem(
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
+        fromStart: Boolean = false,
+    ) {
+        val index = playerIndexOf(failed)
+        if (index == MusicQueuePlanner.INDEX_UNSET) return
+        player.seekTo(index, if (fromStart) 0L else failed.resumePositionMs)
+        player.prepare()
+        player.play()
+    }
+
+    private fun skipPastFailedItem(failed: MusicPlaybackRecoveryPlanner.FailedItem) {
+        val index = playerIndexOf(failed)
+        when {
+            // Shuffle order only matters from where we stand, so hand the skip to the player.
+            index == player.currentMediaItemIndex && player.hasNextMediaItem() -> {
+                player.seekToNextMediaItem()
+                player.prepare()
+                player.play()
+            }
+
+            index != MusicQueuePlanner.INDEX_UNSET && index + 1 < player.mediaItemCount -> {
+                player.seekTo(index + 1, 0L)
+                player.prepare()
+                player.play()
+            }
+
+            player.repeatMode == Player.REPEAT_MODE_ALL && player.mediaItemCount > 0 -> {
+                player.seekTo(0, 0L)
+                player.prepare()
+                player.play()
             }
         }
     }
@@ -483,46 +797,35 @@ class Media3MusicService : MediaLibraryService() {
             error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
 
     private fun handleAudioRendererError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        retryCountMap[mediaId] = currentRetry + 1
+        retryCountMap[failed.mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 try {
                     player.pause()
                     delay(BASE_RETRY_DELAY_MS * 3)
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val currentPosition = player.currentPosition
-                        player.seekTo(currentIndex, currentPosition)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
                     Log.e(TAG, "AudioTrack recovery failed", e)
-                    handleFinalFailure(mediaId)
+                    handleFinalFailure(failed)
                 }
             }
     }
 
     private fun handleRangeNotSatisfiableError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        retryCountMap[mediaId] = currentRetry + 1
+        retryCountMap[failed.mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        player.seekTo(currentIndex, 0L)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed, fromStart = true)
                 } catch (e: Exception) {
                     Log.e(TAG, "Range retry failed", e)
                 }
@@ -530,22 +833,16 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun handlePageReloadError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        retryCountMap[mediaId] = currentRetry + 1
+        retryCountMap[failed.mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS * 2)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val currentPosition = player.currentPosition
-                        player.seekTo(currentIndex, currentPosition)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
                     Log.e(TAG, "Page reload recovery failed", e)
                 }
@@ -553,24 +850,22 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun handleExpiredUrlError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
+        val mediaId = failed.mediaId
         retryCountMap[mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val currentPosition = player.currentPosition
-                        downloadUtil.invalidateUrlCache(mediaId)
-                        MusicPlayerUtils.forceRefreshForVideo(mediaId)
-                        io.github.aedev.flow.player.EnhancedMusicPlayerManager
-                            .invalidateResolvedStream(mediaId)
-                        player.stop()
-                        refreshCurrentMediaItem(mediaId, currentPosition)
+                    downloadUtil.invalidateUrlCache(mediaId)
+                    MusicPlayerUtils.forceRefreshForVideo(mediaId)
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                        .invalidateResolvedStream(mediaId)
+                    player.stop()
+                    if (refreshStreamMediaItem(failed)) {
                         player.prepare()
                         player.play()
                     }
@@ -580,43 +875,49 @@ class Media3MusicService : MediaLibraryService() {
             }
     }
 
-    private fun refreshCurrentMediaItem(
+    /**
+     * Rebuilds a streaming item so the next prepare resolves a fresh url. Returns false when the
+     * item is gone or plays from a local file, which has no url to refresh — rewriting one would
+     * silently turn offline playback into a stream.
+     */
+    private fun refreshStreamMediaItem(failed: MusicPlaybackRecoveryPlanner.FailedItem): Boolean {
+        val index = playerIndexOf(failed)
+        if (index == MusicQueuePlanner.INDEX_UNSET) return false
+        return refreshStreamMediaItemAt(index, failed.mediaId, failed.resumePositionMs)
+    }
+
+    private fun refreshStreamMediaItemAt(
+        index: Int,
         mediaId: String,
         positionMs: Long,
-    ) {
-        val currentIndex = player.currentMediaItemIndex
-        if (currentIndex == C.INDEX_UNSET) return
+    ): Boolean {
+        val currentItem = player.getMediaItemAt(index)
+        if (currentItem.localConfiguration?.uri?.scheme != MUSIC_URI_SCHEME) return false
 
-        val currentItem = player.getMediaItemAt(currentIndex)
         val refreshedItem =
             currentItem
                 .buildUpon()
-                .setUri("music://$mediaId")
+                .setUri("$MUSIC_URI_SCHEME://$mediaId")
                 .setMediaId(mediaId)
                 .setCustomCacheKey(mediaId)
                 .build()
 
-        player.replaceMediaItem(currentIndex, refreshedItem)
-        player.seekTo(currentIndex, positionMs)
+        player.replaceMediaItem(index, refreshedItem)
+        player.seekTo(index, positionMs)
+        return true
     }
 
     private fun handleFileNotFoundError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        retryCountMap[mediaId] = currentRetry + 1
+        retryCountMap[failed.mediaId] = currentRetry + 1
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(BASE_RETRY_DELAY_MS)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val currentPosition = player.currentPosition
-                        player.seekTo(currentIndex, currentPosition)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
                     Log.e(TAG, "File not found recovery failed", e)
                 }
@@ -624,23 +925,24 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun handleNetworkError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
+        pendingNetworkRetry = failed
         if (!connectivityObserver.checkCurrentConnectivity()) {
             Log.d(TAG, "No network connectivity, waiting for connection...")
             waitingForNetwork = true
-            retryCountMap[mediaId] = currentRetry + 1
+            retryCountMap[failed.mediaId] = currentRetry + 1
         } else {
-            scheduleRetry(mediaId, currentRetry, delayMultiplier = 2.0)
+            scheduleRetry(failed, currentRetry, delayMultiplier = 2.0)
         }
     }
 
     private fun handleGenericError(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
     ) {
-        scheduleRetry(mediaId, currentRetry, delayMultiplier = 1.5)
+        scheduleRetry(failed, currentRetry, delayMultiplier = 1.5)
     }
 
     private fun retryJobCancel() {
@@ -649,35 +951,30 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     private fun scheduleRetry(
-        mediaId: String,
+        failed: MusicPlaybackRecoveryPlanner.FailedItem,
         currentRetry: Int,
         delayMultiplier: Double,
     ) {
+        val mediaId = failed.mediaId
         retryCountMap[mediaId] = currentRetry + 1
         val baseDelay = (BASE_RETRY_DELAY_MS * delayMultiplier).toLong()
         val delay = min(baseDelay * (1L shl currentRetry), MAX_RETRY_DELAY_MS)
 
         Log.d(TAG, "Scheduling retry ${currentRetry + 1}/$MAX_RETRY_PER_SONG for $mediaId in ${delay}ms")
-
         retryJobCancel()
         pendingRetryJob =
             lifecycleScope.launch {
                 delay(delay)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val position = player.currentPosition
-                        player.seekTo(currentIndex, position)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
                     Log.e(TAG, "Scheduled retry failed for $mediaId", e)
                 }
             }
     }
 
-    private fun handleFinalFailure(mediaId: String) {
+    private fun handleFinalFailure(failed: MusicPlaybackRecoveryPlanner.FailedItem) {
+        val mediaId = failed.mediaId
         Log.w(TAG, "All retries exhausted for $mediaId, marking as failed")
         notifyMusicWarning(getString(R.string.music_playback_warning_final))
         retryCountMap.remove(mediaId)
@@ -686,23 +983,7 @@ class Media3MusicService : MediaLibraryService() {
             recentlyFailedSongs.iterator().next().let { recentlyFailedSongs.remove(it) }
         }
         recentlyFailedSongs.add(mediaId)
-        skipToNext()
-    }
-
-    private fun skipToNext() {
-        when {
-            player.hasNextMediaItem() -> {
-                player.seekToNextMediaItem()
-                player.prepare()
-                player.play()
-            }
-
-            player.repeatMode == Player.REPEAT_MODE_ALL && player.mediaItemCount > 0 -> {
-                player.seekTo(0, 0L)
-                player.prepare()
-                player.play()
-            }
-        }
+        skipPastFailedItem(failed)
     }
 
     private fun notifyMusicWarning(message: String) {
@@ -719,34 +1000,29 @@ class Media3MusicService : MediaLibraryService() {
             player.clearMediaItems()
         }
         io.github.aedev.flow.player.EnhancedMusicPlayerManager
-            .clearCurrentTrack()
+            .onServiceStopped()
         releaseLocks()
         stopSelf()
     }
 
     private fun triggerRetryAfterNetworkRestore() {
-        val mediaId = player.currentMediaItem?.mediaId ?: return
-        val currentRetry = retryCountMap.getOrDefault(mediaId, 0)
+        val failed = pendingNetworkRetry ?: return
+        val currentRetry = retryCountMap.getOrDefault(failed.mediaId, 0)
 
         if (currentRetry < MAX_RETRY_PER_SONG) {
-            Log.d(TAG, "Triggering retry after network restore for $mediaId")
-            performAggressiveCacheClear(mediaId)
+            Log.d(TAG, "Triggering retry after network restore for ${failed.mediaId}")
+            performAggressiveCacheClear(failed.mediaId)
 
             lifecycleScope.launch {
                 delay(1000)
                 try {
-                    val currentIndex = player.currentMediaItemIndex
-                    if (currentIndex != C.INDEX_UNSET) {
-                        val position = player.currentPosition
-                        player.seekTo(currentIndex, position)
-                        player.prepare()
-                        player.play()
-                    }
+                    restartFailedItem(failed)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Network restore retry failed for $mediaId", e)
+                    Log.e(TAG, "Network restore retry failed for ${failed.mediaId}", e)
                 }
             }
         }
+        pendingNetworkRetry = null
     }
 
     @OptIn(UnstableApi::class)
@@ -769,6 +1045,7 @@ class Media3MusicService : MediaLibraryService() {
             MediaLibrarySession
                 .Builder(this, player, LibrarySessionCallback())
                 .setSessionActivity(pendingIntent)
+                .setBitmapLoader(sessionArtworkBitmapLoader(this))
                 .build()
 
         setMediaNotificationProvider(CustomNotificationProvider())
@@ -785,16 +1062,25 @@ class Media3MusicService : MediaLibraryService() {
      * Without this override Android calls stopSelf() via the default onTaskRemoved,
      * which destroys the foreground service and stops background music playback.
      * Overriding without calling super keeps the service alive.
+     *
+     * When nothing is playing it stops the way Media3's default does: a raw stopSelf() leaves the
+     * user-engaged timeout armed, so the notification update for that pause can put the stopped
+     * service back into the foreground (#1025).
      */
+    @OptIn(UnstableApi::class)
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (::player.isInitialized && player.isPlaying) {
             return
         }
-        stopSelf()
+        pauseAllPlayersAndStopSelf()
     }
 
     override fun onDestroy() {
+        // Flush the in-flight listen session before the player goes away.
+        finalizeListenSession()
+
         // Clear audio session ID so external processors know we're gone
+        audioSessions.close(currentAudioSessionId)
         currentAudioSessionId = 0
         Log.i(TAG, "Audio session destroyed")
 
@@ -889,70 +1175,201 @@ class Media3MusicService : MediaLibraryService() {
         }
     }
 
-    private fun resolveAutomix(trackId: String) {
+    /**
+     * Decides whether this PLAYLIST_CHANGED is a real new queue (reseed the
+     * radio) or just an in-queue skip routed through playTrack (extend only).
+     */
+    private fun onQueueContextChanged(currentId: String) {
+        val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
+        val queueIds = manager.queue.value.map { it.videoId }
+        val explicitSeedId = manager.pendingRadioSeedId
+        manager.pendingRadioSeedId = null
+
+        val context =
+            MusicRadioPlanner.resolveQueueContext(
+                currentId = currentId,
+                queueIds = queueIds,
+                previousIds = lastQueueIds,
+                explicitSeedId = explicitSeedId,
+            )
+        lastQueueIds = context.knownIds
+        if (!context.reseed) {
+            maybeExtendRadio()
+            return
+        }
+        radioSeedId = currentId
+        radioContinuation = null
+        radioEndpoint = null
+        radioResumeWhenAppended = false
+        explicitRadioRequest = context.explicit
+        startRadio(currentId)
+    }
+
+    private fun startRadio(seedId: String) {
         automixJob?.cancel()
+        radioTopUpJob?.cancel()
+        io.github.aedev.flow.player.EnhancedMusicPlayerManager
+            .setRadioLoading(true)
         automixJob =
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "Resolving automix for trackId: $trackId")
-                    val primaryResult = YouTube.next(WatchEndpoint(playlistId = "RDAMVM$trackId"))
-                    var recommended = primaryResult.getOrNull()?.items.orEmpty()
-
-                    primaryResult
-                        .getOrNull()
-                        ?.endpoint
-                        ?.playlistId
-                        ?.takeIf { it.isNotBlank() && recommended.size <= 1 }
-                        ?.let { playlistId ->
-                            Log.d(TAG, "Tier 1 preview small, resolving nested automix playlist")
-                            recommended =
-                                YouTube
-                                    .next(WatchEndpoint(playlistId = playlistId))
-                                    .getOrNull()
-                                    ?.items
-                                    .orEmpty()
-                        }
-
-                    if (recommended.size <= 1) {
-                        Log.d(TAG, "Automix playlist empty or small, trying video radio")
-                        val radioResult = YouTube.next(WatchEndpoint(videoId = trackId))
-                        recommended = radioResult.getOrNull()?.items.orEmpty()
+                    var page = YouTube.next(WatchEndpoint(playlistId = "RDAMVM$seedId")).getOrNull()
+                    val nestedPlaylistId = page?.endpoint?.playlistId
+                    if (page != null && page.items.size <= 1 && !nestedPlaylistId.isNullOrBlank()) {
+                        page = YouTube.next(WatchEndpoint(playlistId = nestedPlaylistId)).getOrNull() ?: page
+                    }
+                    if (page == null || page.items.size <= 1) {
+                        page = YouTube.next(WatchEndpoint(videoId = seedId)).getOrNull() ?: page
                     }
 
-                    if (recommended.isEmpty()) {
-                        Log.d(TAG, "Radio empty, trying related endpoint")
-                        val relatedEndpoint =
-                            primaryResult.getOrNull()?.relatedEndpoint
-                                ?: YouTube.next(WatchEndpoint(videoId = trackId)).getOrNull()?.relatedEndpoint
-                        if (relatedEndpoint != null) {
-                            val relatedResult = YouTube.related(relatedEndpoint)
-                            recommended = relatedResult.getOrNull()?.songs ?: emptyList()
-                        }
-                    }
-
-                    var mappedTracks =
-                        recommended
-                            .mapNotNull {
-                                InnertubeMusicService.convertToMusicTrack(it)
-                            }.filterNot { it.videoId == trackId }
+                    var mapped =
+                        page
+                            ?.items
+                            .orEmpty()
+                            .mapNotNull { InnertubeMusicService.convertToMusicTrack(it) }
+                            .filterNot { it.videoId == seedId }
                             .distinctBy { it.videoId }
 
-                    if (mappedTracks.isEmpty()) {
-                        Log.d(TAG, "Innertube automix empty, falling back to related music service")
-                        mappedTracks =
+                    if (mapped.isEmpty()) {
+                        // Related fallback carries no continuation — the pool later
+                        // reseeds from its own tail instead.
+                        radioContinuation = null
+                        radioEndpoint = null
+                        mapped =
                             YouTubeMusicService
-                                .getRelatedMusic(trackId, 20, audioOnly = true)
-                                .filterNot { it.videoId == trackId }
+                                .getRelatedMusic(seedId, 20, audioOnly = true)
+                                .filterNot { it.videoId == seedId }
                                 .distinctBy { it.videoId }
+                    } else {
+                        radioContinuation = page?.continuation
+                        radioEndpoint = page?.endpoint
                     }
 
-                    Log.d(TAG, "Successfully resolved ${mappedTracks.size} automix tracks")
-                    if (mappedTracks.isNotEmpty()) {
+                    // Ordered once, here: the pool IS the up-next list the user reads, so the
+                    // queue must be able to take it from the head without re-sequencing.
+                    val ranked =
+                        musicBrain.sequenceRadioBatch(
+                            musicBrain.rankTracks(mapped, "radio"),
+                            io.github.aedev.flow.player.EnhancedMusicPlayerManager.currentTrack.value,
+                            MusicRadioPlanner.MAX_POOL_SIZE,
+                        )
+                    Log.d(TAG, "Radio seeded from $seedId: ${ranked.size} tracks, continuation=${radioContinuation != null}")
+                    if (ranked.isNotEmpty()) {
                         io.github.aedev.flow.player.EnhancedMusicPlayerManager
-                            .updateAutomixItems(mappedTracks)
+                            .updateAutomixItems(ranked)
+                        // The queue may already be short (or ended) by the time the
+                        // seed arrives — move pool tracks into it right away.
+                        withContext(Dispatchers.Main) { maybeExtendRadio() }
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error seeding radio", e)
+                } finally {
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                        .setRadioLoading(false)
+                }
+            }
+    }
+
+    /**
+     * Called on ordinary advances (main thread). Moves the next few pool tracks
+     * into the REAL queue when it runs short — the queue only ever grows, so
+     * nothing the user sees is replaced — and refills the pool in the background.
+     */
+    private fun maybeExtendRadio() {
+        if (!radioAutoplayEnabled && !explicitRadioRequest) return
+        if (!::player.isInitialized) return
+        // Repeat already produces an endless queue — matching desktop.
+        if (player.repeatMode != Player.REPEAT_MODE_OFF) return
+        val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
+        val ended = player.playbackState == Player.STATE_ENDED
+        // Shuffle keeps meaning "shuffle MY queue" while it plays, but once the
+        // shuffled queue is exhausted the radio still has to carry on.
+        if (manager.shuffleEnabled.value && !ended) return
+        if (manager.currentTrack.value
+                ?.videoId
+                .let(LocalMediaIds::isLocal)
+        ) {
+            return
+        }
+
+        // At ENDED every item has played, whatever the timeline says (shuffle).
+        val remaining = player.mediaItemCount - player.currentMediaItemIndex - 1
+        if (!ended && remaining > RADIO_MIN_UPCOMING) return
+
+        val queueIds = manager.queue.value.mapTo(HashSet()) { it.videoId }
+        val batch = MusicRadioPlanner.nextBatch(manager.automixItems.value, queueIds, RADIO_APPEND_BATCH)
+        if (ended && batch.isNotEmpty() && !radioResumeWhenAppended) {
+            radioResumeWhenAppended = true
+            radioEndedItemCount = player.mediaItemCount
+        }
+        batch.forEach { track ->
+            manager.addToQueue(track)
+            manager.removeAutomixItem(track.videoId)
+        }
+        if (batch.isNotEmpty()) {
+            // Our own growth must not read as a new queue on the next skip.
+            lastQueueIds = manager.queue.value.map { it.videoId }
+            Log.d(TAG, "Radio appended ${batch.size} tracks to the queue")
+        }
+        // A dead-ended queue with nothing appendable needs a fetch regardless of
+        // pool size — the pool may be all duplicates of what already played.
+        if (manager.automixItems.value.size < RADIO_POOL_LOW_WATER || (ended && batch.isEmpty())) extendRadioPool()
+    }
+
+    /** Fetch the next radio page and APPEND it to the pool — never replaces. */
+    private fun extendRadioPool() {
+        if (radioTopUpJob?.isActive == true) return
+        io.github.aedev.flow.player.EnhancedMusicPlayerManager
+            .setRadioLoading(true)
+        radioTopUpJob =
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                    val endpoint = radioEndpoint
+                    val continuation = radioContinuation
+                    val page =
+                        if (endpoint != null && continuation != null) {
+                            YouTube.next(endpoint, continuation).getOrNull()
+                        } else {
+                            // Continuation exhausted: grow the tree from the newest tail.
+                            val tailId =
+                                (manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull())
+                                    ?.videoId
+                                    ?.takeUnless(LocalMediaIds::isLocal)
+                                    ?: return@launch
+                            YouTube.next(WatchEndpoint(playlistId = "RDAMVM$tailId")).getOrNull()
+                        }
+                    if (page == null) return@launch
+                    radioContinuation = page.continuation
+                    radioEndpoint = page.endpoint
+
+                    val mapped =
+                        page.items
+                            .mapNotNull { InnertubeMusicService.convertToMusicTrack(it) }
+                            .distinctBy { it.videoId }
+                    val tail = manager.automixItems.value.lastOrNull() ?: manager.queue.value.lastOrNull()
+                    val ranked =
+                        musicBrain.sequenceRadioBatch(
+                            musicBrain.rankTracks(mapped, "radio"),
+                            tail,
+                            MusicRadioPlanner.MAX_POOL_SIZE,
+                        )
+                    Log.d(TAG, "Radio pool topped up with ${ranked.size} tracks, continuation=${radioContinuation != null}")
+                    if (ranked.isNotEmpty()) {
+                        manager.appendAutomixItems(ranked)
+                        // If the queue ended while this fetch was in flight, feed it
+                        // now — no further transition will ever call maybeExtendRadio.
+                        // Re-entry is safe: this job is still active, so a nested
+                        // extendRadioPool() is a no-op.
+                        withContext(Dispatchers.Main) { maybeExtendRadio() }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error resolving automix", e)
+                    Log.w(TAG, "Radio top-up failed: ${e.message}")
+                } finally {
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager
+                        .setRadioLoading(false)
                 }
             }
     }
@@ -1095,7 +1512,6 @@ class Media3MusicService : MediaLibraryService() {
                     .add(CommandToggleRepeat)
                     .add(CommandToggleLike)
                     .add(CommandStop)
-                    .add(CommandSetEq)
                     .build()
             return MediaSession.ConnectionResult
                 .AcceptedResultBuilder(session)
@@ -1112,19 +1528,6 @@ class Media3MusicService : MediaLibraryService() {
             if (customCommand.customAction == ACTION_TOGGLE_LIKE) {
                 io.github.aedev.flow.player.EnhancedMusicPlayerManager
                     .emitToggleLikeEvent()
-                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-            }
-
-            if (customCommand.customAction == ACTION_SET_EQ) {
-                val eqJson = args.getString("EQ_PROFILE")
-                if (eqJson != null) {
-                    try {
-                        val profile = Json.decodeFromString<ParametricEQ>(eqJson)
-                        customEqualizer.applyProfile(profile)
-                    } catch (e: Exception) {
-                        android.util.Log.e(TAG, "Failed to apply EQ profile", e)
-                    }
-                }
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
 
@@ -1170,7 +1573,7 @@ class Media3MusicService : MediaLibraryService() {
                     .build(),
             ).build()
 
-    private fun io.github.aedev.flow.ui.screens.music.MusicTrack.toAutoMediaItem(): MediaItem {
+    private fun MusicTrack.toAutoMediaItem(): MediaItem {
         val artwork =
             highResThumbnailUrl
                 .ifBlank { thumbnailUrl }
@@ -1180,7 +1583,7 @@ class Media3MusicService : MediaLibraryService() {
         return MediaItem
             .Builder()
             .setMediaId(videoId)
-            .setUri("music://$videoId")
+            .setUri(LocalMediaIds.audioUri(videoId) ?: Uri.parse("music://$videoId"))
             .setMediaMetadata(
                 MediaMetadata
                     .Builder()
@@ -1194,7 +1597,7 @@ class Media3MusicService : MediaLibraryService() {
             ).build()
     }
 
-    private fun autoTrackForMediaId(mediaId: String): io.github.aedev.flow.ui.screens.music.MusicTrack? {
+    private fun autoTrackForMediaId(mediaId: String): MusicTrack? {
         val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
         return manager.queue.value.firstOrNull { it.videoId == mediaId }
             ?: manager.currentTrack.value?.takeIf { it.videoId == mediaId }

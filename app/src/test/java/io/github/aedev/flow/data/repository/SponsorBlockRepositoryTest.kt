@@ -7,15 +7,15 @@ import org.junit.Test
 class SponsorBlockRepositoryTest {
     @Test
     fun `skipSegments request includes settings categories the API used to omit`() {
-        val url = SponsorBlockRepository.skipSegmentsUrl("dQw4w9wgGcQ")
+        val url = SponsorBlockRepository.segmentsUrl("dQw4w9wgGcQ")
         val categories = url.queryParameter("categories").orEmpty()
         val actionTypes = url.queryParameter("actionTypes").orEmpty()
 
         assertThat(url.queryParameter("videoID")).isEqualTo("dQw4w9wgGcQ")
-        SponsorBlockCategories.ALL.forEach { category ->
+        SponsorBlockCategories.all.forEach { category ->
             assertThat(categories).contains(category)
         }
-        SponsorBlockCategories.FETCH_ACTION_TYPES.forEach { actionType ->
+        SponsorBlockCategories.actionTypes.forEach { actionType ->
             assertThat(actionTypes).contains(actionType)
         }
     }

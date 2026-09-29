@@ -47,6 +47,14 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun provideHomeFeedCacheRepository(
+        @ApplicationContext context: Context,
+    ): io.github.aedev.flow.data.local.HomeFeedCacheRepository =
+        io.github.aedev.flow.data.local
+            .HomeFeedCacheRepository(context)
+
+    @Provides
+    @Singleton
     fun provideMusicPlaylistRepository(
         @ApplicationContext context: Context,
     ): io.github.aedev.flow.data.music.PlaylistRepository =
@@ -62,11 +70,16 @@ object RepositoryModule {
         io.github.aedev.flow.data.local
             .PlayerPreferences(context)
 
+    /**
+     * Transitional: [io.github.aedev.flow.data.local.BackupRepository] still builds its own
+     * collaborators, so it is provided here rather than injected through its constructor. One
+     * instance serves the whole app.
+     */
     @Provides
     @Singleton
-    fun provideShortsRepository(
+    fun provideBackupRepository(
         @ApplicationContext context: Context,
-    ): io.github.aedev.flow.data.shorts.ShortsRepository =
-        io.github.aedev.flow.data.shorts.ShortsRepository
-            .getInstance(context)
+    ): io.github.aedev.flow.data.local.BackupRepository =
+        io.github.aedev.flow.data.local
+            .BackupRepository(context)
 }

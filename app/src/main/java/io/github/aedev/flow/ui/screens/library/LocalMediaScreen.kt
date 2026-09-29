@@ -1,642 +1,397 @@
 package io.github.aedev.flow.ui.screens.library
 
-import android.Manifest
+import android.app.Activity
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.MusicNote
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.QueuePlayNext
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.localmedia.LocalMediaItem
+import io.github.aedev.flow.data.localmedia.toMusicTrack
+import io.github.aedev.flow.data.localmedia.toVideo
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
-import io.github.aedev.flow.utils.formatDuration
+import io.github.aedev.flow.ui.components.library.LibraryKindHeader
+import io.github.aedev.flow.ui.components.library.LibrarySelection
+import io.github.aedev.flow.ui.components.shared.FlowErrorState
+import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import io.github.aedev.flow.ui.components.shared.FlowSelectionAction
+import io.github.aedev.flow.ui.components.shared.FlowSelectionToolbar
+import io.github.aedev.flow.ui.components.shared.FlowSidePanes
+import io.github.aedev.flow.ui.components.shared.MediaKind
+import io.github.aedev.flow.ui.components.shared.dismissKeyboardOnPress
+import io.github.aedev.flow.ui.components.shared.flowGridColumns
+import io.github.aedev.flow.ui.components.shared.quickactions.QuickActionUndo
+import io.github.aedev.flow.ui.components.shared.quickactions.sharedQuickActionsViewModel
+import io.github.aedev.flow.ui.components.shared.rememberFlowPaneState
+import io.github.aedev.flow.ui.components.shared.shareMediaFiles
+import io.github.aedev.flow.ui.screens.music.sharedMusicPlayerViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val FolderPaneWidth = 360.dp
+
 @Composable
 fun LocalMediaScreen(
     onBackClick: () -> Unit,
-    onVideoClick: (LocalMediaItem) -> Unit,
-    onMusicClick: (items: List<LocalMediaItem>, index: Int) -> Unit,
+    onPlayVideos: (items: List<LocalMediaItem>, startIndex: Int, shuffle: Boolean) -> Unit,
+    onPlayMusic: (items: List<LocalMediaItem>, startIndex: Int, shuffle: Boolean) -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LocalMediaViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val haptic = LocalHapticFeedback.current
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val quickActions = sharedQuickActionsViewModel()
+    val musicPlayer = sharedMusicPlayerViewModel()
+    val isVideos = state.selection.kind == MediaKind.Videos
 
-    val permissionsToRequest =
-        remember {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
-            } else {
-                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    var accessCheck by remember { mutableIntStateOf(0) }
+    var askedOnce by rememberSaveable { mutableStateOf(false) }
+    val videoAccess = remember(accessCheck) { context.videoAccess() }
+    val musicAccess = remember(accessCheck) { context.musicAccess() }
+    val access = if (isVideos) videoAccess else musicAccess
+    val permissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            askedOnce = true
+            accessCheck++
+            viewModel.refresh()
+        }
+    val askForAccess = { permissionLauncher.launch(localMediaPermissions()) }
+    LaunchedEffect(Unit) { if (videoAccess == MediaAccess.NONE && musicAccess == MediaAccess.NONE && !askedOnce) askForAccess() }
+    // Access granted in app settings arrives while this screen is paused; look again on return.
+    LifecycleResumeEffect(Unit) {
+        val before = context.videoAccess() to context.musicAccess()
+        if (before != (videoAccess to musicAccess)) {
+            accessCheck++
+            viewModel.refresh()
+        }
+        onPauseOrDispose {}
+    }
+
+    var menuItem by remember { mutableStateOf<LocalMediaItem?>(null) }
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val exitSelection = {
+        selectionMode = false
+        selectedIds = emptySet()
+    }
+    var pendingDelete by remember { mutableStateOf<List<String>>(emptyList()) }
+    val deleteLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                exitSelection()
+                if (deleteMovesToTrash) {
+                    quickActions.announce(
+                        context.resources.getQuantityString(R.plurals.local_files_trashed, pendingDelete.size, pendingDelete.size),
+                        QuickActionUndo.RestoreFromTrash(pendingDelete),
+                    )
+                } else {
+                    // On Android 10 the prompt only grants access; the delete itself runs again now.
+                    val outcome = context.contentResolver.requestDelete(pendingDelete.map(Uri::parse))
+                    if (outcome is LocalDeleteOutcome.Deleted) {
+                        quickActions.announce(
+                            context.resources.getQuantityString(R.plurals.local_files_deleted, outcome.count, outcome.count),
+                        )
+                    }
+                }
+            }
+            pendingDelete = emptyList()
+        }
+    val deleteFiles = { items: List<LocalMediaItem> ->
+        when (val outcome = context.contentResolver.requestDelete(items.map { Uri.parse(it.contentUri) })) {
+            is LocalDeleteOutcome.NeedsConsent -> {
+                pendingDelete = items.map { it.contentUri }
+                deleteLauncher.launch(IntentSenderRequest.Builder(outcome.request).build())
+            }
+
+            is LocalDeleteOutcome.Deleted -> {
+                quickActions.announce(
+                    context.resources.getQuantityString(R.plurals.local_files_deleted, outcome.count, outcome.count),
+                )
+            }
+
+            LocalDeleteOutcome.Failed -> {
+                quickActions.announce(context.getString(R.string.local_delete_failed))
             }
         }
-
-    fun hasAnyPermission(): Boolean =
-        permissionsToRequest.any { perm ->
-            ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
-        }
-
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions(),
-        ) { results ->
-            if (results.values.any { it }) viewModel.scan() else viewModel.onPermissionDenied()
-        }
-
-    LaunchedEffect(Unit) {
-        if (hasAnyPermission()) viewModel.scan() else permissionLauncher.launch(permissionsToRequest)
     }
+    val shareFiles = { items: List<LocalMediaItem> ->
+        val mime =
+            if (items.all { it.isVideo }) {
+                "video/*"
+            } else if (items.none { it.isVideo }) {
+                "audio/*"
+            } else {
+                "*/*"
+            }
+        context.shareMediaFiles(items.map { Uri.parse(it.contentUri) }, mime)
+    }
+    val fileActions =
+        LocalFileActions(
+            onPlayNext = { if (it.isVideo) quickActions.playVideoNext(it.toVideo()) else musicPlayer.playNext(it.toMusicTrack()) },
+            onAddToQueue = { if (it.isVideo) quickActions.addVideoToQueue(it.toVideo()) else musicPlayer.addToQueue(it.toMusicTrack()) },
+            onShare = shareFiles,
+            onHideFolder = { item ->
+                viewModel.hideFolder(item.folderId)
+                quickActions.announce(context.getString(R.string.local_folder_hidden, item.folderName))
+            },
+            onDelete = deleteFiles,
+            deleteMovesToTrash = deleteMovesToTrash,
+        )
+
+    val openFolder = state.openFolder
+    BackHandler(enabled = selectionMode || openFolder != null) {
+        if (selectionMode) exitSelection() else viewModel.openFolder(null)
+    }
+
+    val panes = rememberFlowPaneState()
+    val twoPaneFolders = state.selection.view == LocalView.FOLDERS && panes.showsSidePane
+    LaunchedEffect(twoPaneFolders, state.folders) {
+        if (twoPaneFolders && openFolder == null) state.folders.firstOrNull()?.let { viewModel.openFolder(it.id) }
+    }
+    val wideWindow = flowGridColumns(compact = 1, medium = 2, expanded = 2) > 1
+    val asGrid = isVideos && (state.settings.videosAsGrid ?: wideWindow)
+    val selection =
+        LibrarySelection(selectionMode, selectedIds) { id ->
+            selectedIds =
+                if (id in selectedIds) selectedIds - id else selectedIds + id
+        }
+    val contentActions =
+        LocalContentActions(
+            onPlay = { items, index, shuffle -> if (isVideos) onPlayVideos(items, index, shuffle) else onPlayMusic(items, index, shuffle) },
+            onLongClick = { menuItem = it },
+            onOpenFolder = viewModel::openFolder,
+            onManageHidden = onOpenSettings,
+        )
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            FlowTopBar(
-                title = stringResource(R.string.local_media_title),
-                onBack = onBackClick,
-                actions = {
-                    IconButton(
-                        onClick = {
-                            if (hasAnyPermission()) {
-                                viewModel.scan()
-                            } else {
-                                permissionLauncher.launch(permissionsToRequest)
-                            }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Refresh,
-                            contentDescription = stringResource(R.string.local_media_rescan),
-                        )
+            LocalMediaTopBar(
+                title =
+                    when {
+                        selectionMode -> pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size)
+                        openFolder != null && !twoPaneFolders -> openFolder.name
+                        else -> stringResource(R.string.local_media_title)
+                    },
+                onBack = {
+                    when {
+                        selectionMode -> exitSelection()
+                        openFolder != null && !twoPaneFolders -> viewModel.openFolder(null)
+                        else -> onBackClick()
                     }
                 },
+                selectionMode = selectionMode,
+                canSelect = state.items.isNotEmpty() && access != MediaAccess.NONE,
+                showGridToggle = isVideos && access != MediaAccess.NONE,
+                asGrid = asGrid,
+                onSelect = { selectionMode = true },
+                onSelectAll = {
+                    val shown = state.items.mapTo(HashSet()) { it.mediaId }
+                    selectedIds = if (selectedIds.containsAll(shown)) emptySet() else shown
+                },
+                onToggleGrid = { viewModel.setVideosAsGrid(!asGrid) },
+                onOpenSettings = onOpenSettings,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-        ) {
-            LocalMediaTabSelector(
-                selectedTabIndex = selectedTabIndex,
-                onTabSelected = {
-                    if (it != selectedTabIndex) {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        selectedTabIndex = it
-                    }
-                },
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (uiState.permissionDenied && !hasAnyPermission()) {
-                LocalMediaPermissionState(
-                    onGrant = {
-                        if (hasAnyPermission()) {
-                            viewModel.scan()
-                        } else {
-                            permissionLauncher.launch(permissionsToRequest)
-                            runCatching {
-                                context.startActivity(
-                                    Intent(
-                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        Uri.fromParts("package", context.packageName, null),
-                                    ),
-                                )
-                            }
-                        }
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            Column(Modifier.fillMaxSize()) {
+                LibraryKindHeader(
+                    query = state.selection.filters.query,
+                    onQueryChange = { query -> viewModel.updateFilters { it.copy(query = query) } },
+                    placeholder = stringResource(R.string.local_search_hint),
+                    selectedKind = state.selection.kind,
+                    onKindSelected = {
+                        exitSelection()
+                        viewModel.selectKind(it)
                     },
                 )
-            } else {
+                if (access != MediaAccess.NONE) {
+                    LocalMediaFilterBar(
+                        isVideos = isVideos,
+                        view = state.selection.view,
+                        filters = state.selection.filters,
+                        onViewChange = viewModel::selectView,
+                        onFiltersChange = viewModel::updateFilters,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                }
                 Crossfade(
-                    targetState = selectedTabIndex,
-                    animationSpec = tween(250, easing = EaseOutCubic),
-                    label = "local_tab_crossfade",
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                ) { targetIndex ->
-                    when (targetIndex) {
-                        0 -> {
-                            LocalMediaList(
-                                items = uiState.videos,
-                                isVideo = true,
-                                isScanning = uiState.isScanning,
-                                hasScanned = uiState.hasScanned,
-                                onRefresh = { viewModel.scan() },
-                                onItemClick = { items, index -> onVideoClick(items[index]) },
+                    targetState = state.selection.kind,
+                    animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                    label = "local_kind",
+                    modifier = Modifier.weight(1f).dismissKeyboardOnPress { focusManager.clearFocus() },
+                ) {
+                    when {
+                        access == MediaAccess.NONE -> {
+                            val activity = context as? Activity
+                            LocalMediaPermissionState(
+                                canAsk = !askedOnce || activity?.canStillAsk() == true,
+                                onGrant = askForAccess,
+                                onOpenSettings = {
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(
+                                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                                Uri.fromParts("package", context.packageName, null),
+                                            ),
+                                        )
+                                    }
+                                },
                             )
                         }
 
-                        1 -> {
-                            LocalMediaList(
-                                items = uiState.music,
-                                isVideo = false,
-                                isScanning = uiState.isScanning,
-                                hasScanned = uiState.hasScanned,
-                                onRefresh = { viewModel.scan() },
-                                onItemClick = { items, index -> onMusicClick(items, index) },
-                            )
+                        state.isLoading -> {
+                            FlowLoadingIndicator()
+                        }
+
+                        state.failed -> {
+                            FlowErrorState(error = stringResource(R.string.local_load_failed), onRetry = viewModel::refresh)
+                        }
+
+                        else -> {
+                            val banner: (@Composable () -> Unit)? =
+                                if (isVideos &&
+                                    access == MediaAccess.PARTIAL
+                                ) {
+                                    ({ PartialAccessBanner(onManage = askForAccess) })
+                                } else {
+                                    null
+                                }
+                            val showFolders = state.selection.view == LocalView.FOLDERS
+                            val content: @Composable () -> Unit = {
+                                LocalMediaContent(
+                                    state = state,
+                                    showFolders = showFolders && openFolder == null && !twoPaneFolders,
+                                    asGrid = asGrid,
+                                    selection = selection,
+                                    actions = contentActions,
+                                    isRefreshing = isRefreshing,
+                                    onRefresh = viewModel::refresh,
+                                    banner = banner,
+                                )
+                            }
+                            if (twoPaneFolders) {
+                                FlowSidePanes(
+                                    panes = panes,
+                                    sidePaneWidth = FolderPaneWidth,
+                                    sidePane = { LocalFolderList(state, isVideos, onOpenFolder = viewModel::openFolder) },
+                                    mainPane = content,
+                                )
+                            } else {
+                                content()
+                            }
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-// ─── Tab selector ────────────────────────────────
-
-@Composable
-private fun LocalMediaTabSelector(
-    selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit,
-) {
-    val tabs =
-        listOf(
-            stringResource(R.string.tab_videos) to Icons.Outlined.VideoLibrary,
-            stringResource(R.string.tab_music) to Icons.Outlined.MusicNote,
-        )
-
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
-                .height(52.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
-                .padding(4.dp),
-    ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val tabWidth = maxWidth / tabs.size
-            val indicatorOffset by animateDpAsState(
-                targetValue = tabWidth * selectedTabIndex,
-                animationSpec = spring(dampingRatio = 0.75f, stiffness = 400f),
-                label = "local_indicator_offset",
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .width(tabWidth)
-                        .fillMaxHeight()
-                        .offset(x = indicatorOffset)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surface),
-            )
-        }
-
-        Row(modifier = Modifier.fillMaxSize()) {
-            tabs.forEachIndexed { index, (title, icon) ->
-                val isSelected = selectedTabIndex == index
-                val contentColor by animateColorAsState(
-                    targetValue =
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            FlowSelectionToolbar(
+                visible = selectionMode && selectedIds.isNotEmpty(),
+                summary = pluralStringResource(R.plurals.selected_count_template, selectedIds.size, selectedIds.size),
+                actions =
+                    listOf(
+                        FlowSelectionAction(Icons.Outlined.QueuePlayNext, stringResource(R.string.add_to_queue)) {
+                            state.items.filter { it.mediaId in selectedIds }.forEach(fileActions.onAddToQueue)
+                            exitSelection()
                         },
-                    animationSpec = tween(250),
-                    label = "local_tab_color_$index",
-                )
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                role = Role.Tab,
-                            ) { onTabSelected(index) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = contentColor,
-                            modifier = Modifier.size(19.dp),
-                        )
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = contentColor,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─── List ──────────────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LocalMediaList(
-    items: List<LocalMediaItem>,
-    isVideo: Boolean,
-    isScanning: Boolean,
-    hasScanned: Boolean,
-    onRefresh: () -> Unit,
-    onItemClick: (List<LocalMediaItem>, Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val pullState = rememberPullToRefreshState()
-    PullToRefreshBox(
-        isRefreshing = isScanning,
-        onRefresh = onRefresh,
-        state = pullState,
-        modifier = modifier.fillMaxSize(),
-    ) {
-        if (items.isEmpty()) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-            ) {
-                LocalMediaEmptyState(
-                    type = stringResource(if (isVideo) R.string.tab_videos else R.string.tab_music),
-                    icon = if (isVideo) Icons.Outlined.VideoLibrary else Icons.Outlined.MusicNote,
-                    isScanning = isScanning && !hasScanned,
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                    if (isVideo) {
-                        LocalVideoCard(item = item, onClick = { onItemClick(items, index) })
-                    } else {
-                        LocalMusicCard(item = item, onClick = { onItemClick(items, index) })
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─── Cards ───────────────────────────────────────────────────────────────────
-
-@Composable
-private fun LocalVideoCard(
-    item: LocalMediaItem,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick, role = Role.Button)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .width(152.dp)
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.VideoLibrary,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(28.dp),
-            )
-            AsyncImage(
-                model =
-                    ImageRequest
-                        .Builder(LocalContext.current)
-                        .data(item.contentUri)
-                        .crossfade(true)
-                        .build(),
-                contentDescription = item.title,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-            if (item.durationMs > 0) {
-                Surface(
-                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.85f),
-                    shape = RoundedCornerShape(4.dp),
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(6.dp),
-                ) {
-                    Text(
-                        text = formatDuration((item.durationMs / 1000).toInt()),
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 20.sp,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = buildSubtitle(item.subtitle, formatSize(item.sizeBytes)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-private fun LocalMusicCard(
-    item: LocalMediaItem,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick, role = Role.Button)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.MusicNote,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                modifier = Modifier.size(24.dp),
-            )
-            if (item.artworkUri != null) {
-                AsyncImage(
-                    model =
-                        ImageRequest
-                            .Builder(LocalContext.current)
-                            .data(item.artworkUri)
-                            .crossfade(true)
-                            .build(),
-                    contentDescription = item.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text =
-                    buildSubtitle(
-                        item.subtitle,
-                        if (item.durationMs > 0) formatDuration((item.durationMs / 1000).toInt()) else "",
+                        FlowSelectionAction(Icons.Outlined.Share, stringResource(R.string.share)) {
+                            shareFiles(state.items.filter { it.mediaId in selectedIds })
+                        },
+                        FlowSelectionAction(Icons.Outlined.Delete, stringResource(R.string.action_delete)) {
+                            deleteFiles(state.items.filter { it.mediaId in selectedIds })
+                        },
                     ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
     }
+
+    menuItem?.let { item -> LocalFileMenu(item = item, actions = fileActions, onDismiss = { menuItem = null }) }
 }
 
-// ─── Empty & permission states ───────────────────────────────────────────────
-
 @Composable
-private fun LocalMediaEmptyState(
-    type: String,
-    icon: ImageVector,
-    isScanning: Boolean,
+private fun LocalMediaTopBar(
+    title: String,
+    onBack: () -> Unit,
+    selectionMode: Boolean,
+    canSelect: Boolean,
+    showGridToggle: Boolean,
+    asGrid: Boolean,
+    onSelect: () -> Unit,
+    onSelectAll: () -> Unit,
+    onToggleGrid: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            modifier = Modifier.size(100.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (isScanning) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(36.dp),
-                        strokeWidth = 3.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                } else {
+    FlowTopBar(
+        title = title,
+        onBack = onBack,
+        actions = {
+            if (selectionMode) {
+                IconButton(
+                    onClick = onSelectAll,
+                ) { Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.select_all)) }
+                return@FlowTopBar
+            }
+            if (showGridToggle) {
+                IconButton(onClick = onToggleGrid) {
                     Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        imageVector = if (asGrid) Icons.AutoMirrored.Outlined.ViewList else Icons.Outlined.GridView,
+                        contentDescription = stringResource(if (asGrid) R.string.local_list_view else R.string.local_grid_view),
                     )
                 }
             }
-        }
-        Spacer(modifier = Modifier.height(28.dp))
-        Text(
-            text =
-                if (isScanning) {
-                    stringResource(R.string.local_media_scanning)
-                } else {
-                    stringResource(R.string.local_media_empty_title, type)
-                },
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
-        if (!isScanning) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.local_media_empty_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                lineHeight = 22.sp,
-            )
-        }
-    }
-}
-
-@Composable
-private fun LocalMediaPermissionState(onGrant: () -> Unit) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            modifier = Modifier.size(100.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Outlined.VideoLibrary,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                )
+            if (canSelect) {
+                IconButton(
+                    onClick = onSelect,
+                ) { Icon(Icons.Default.Checklist, contentDescription = stringResource(R.string.select_videos)) }
             }
-        }
-        Spacer(modifier = Modifier.height(28.dp))
-        Text(
-            text = stringResource(R.string.local_media_permission_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.local_media_permission_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-        )
-        Spacer(modifier = Modifier.height(36.dp))
-        FilledTonalButton(
-            onClick = onGrant,
-            shape = RoundedCornerShape(12.dp),
-            modifier =
-                Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(48.dp),
-            colors =
-                ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-        ) {
-            Text(
-                text = stringResource(R.string.local_media_grant),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-private fun buildSubtitle(
-    primary: String,
-    secondary: String,
-): String =
-    when {
-        primary.isNotBlank() && secondary.isNotBlank() -> "$primary · $secondary"
-        primary.isNotBlank() -> primary
-        else -> secondary
-    }
-
-private fun formatSize(bytes: Long): String {
-    if (bytes <= 0) return ""
-    val kb = bytes / 1024.0
-    if (kb < 1024) return "%.0f KB".format(kb)
-    val mb = kb / 1024.0
-    if (mb < 1024) return "%.1f MB".format(mb)
-    return "%.2f GB".format(mb / 1024.0)
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings_local_media_title))
+            }
+        },
+    )
 }

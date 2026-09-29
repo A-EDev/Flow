@@ -1,3 +1,4 @@
+import com.android.build.api.variant.BuildConfigField
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
@@ -11,6 +12,15 @@ plugins {
     alias(libs.plugins.room)
 }
 
+val localProperties =
+    Properties().apply {
+        rootDir
+            .resolve("local.properties")
+            .takeIf { it.exists() }
+            ?.inputStream()
+            ?.use { load(it) }
+    }
+
 android {
     namespace = "io.github.aedev.flow"
     compileSdk = 37
@@ -21,6 +31,8 @@ android {
         targetSdk = 36
         versionCode = 18
         versionName = "2.2.1"
+
+        buildConfigField("int", "NIGHTLY_RUN", "0")
 
         testInstrumentationRunner = "io.github.aedev.flow.HiltTestRunner"
         vectorDrawables {
@@ -70,12 +82,6 @@ android {
 
     signingConfigs {
         create("release") {
-            val localProperties = Properties()
-            val localPropertiesFile = rootDir.resolve("local.properties")
-            if (localPropertiesFile.exists()) {
-                localPropertiesFile.inputStream().use { localProperties.load(it) }
-            }
-
             storeFile = rootDir.resolve("release.keystore")
             storePassword = (project.findProperty("storePassword") as? String)
                 ?: localProperties.getProperty("storePassword")
@@ -90,32 +96,26 @@ android {
                 ?: System.getenv("KEY_PASSWORD")
                 ?: ""
         }
+        // One long-lived key for every nightly, so each build installs over the last one.
+        create("nightly") {
+            storeFile = rootDir.resolve("nightly.keystore")
+            storePassword = System.getenv("NIGHTLY_STORE_PASSWORD") ?: localProperties.getProperty("nightlyStorePassword") ?: ""
+            keyAlias = System.getenv("NIGHTLY_KEY_ALIAS") ?: localProperties.getProperty("nightlyKeyAlias") ?: ""
+            keyPassword = System.getenv("NIGHTLY_KEY_PASSWORD") ?: localProperties.getProperty("nightlyKeyPassword") ?: ""
+        }
     }
 
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("String", "UPDATE_CHANNEL", "\"stable\"")
             isDebuggable = true
             isMinifyEnabled = false
             isShrinkResources = false
         }
-        // Nightly: release-level performance + debug signing so it's easy to
-        // sideload. Fixes the laggy-nightly issue reported in #66.
-        create("nightly") {
-            initWith(getByName("release"))
-            applicationIdSuffix = ".nightly"
-            versionNameSuffix = "-nightly"
-            isDebuggable = false
-            isMinifyEnabled = true
-            isShrinkResources = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
-            signingConfig = signingConfigs.getByName("debug")
-        }
         release {
+            buildConfigField("String", "UPDATE_CHANNEL", "\"stable\"")
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
@@ -138,6 +138,17 @@ android {
                 println("WARNING: Release keystore not found. Building UNSIGNED release APK.")
             }
         }
+        // Nightly: release-level performance under its own app id. It must come after release,
+        // because initWith copies release as it stands at this point.
+        create("nightly") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".nightly"
+            versionNameSuffix = "-nightly"
+            matchingFallbacks += "release"
+            buildConfigField("String", "UPDATE_CHANNEL", "\"nightly\"")
+            val nightlyKey = signingConfigs.getByName("nightly")
+            signingConfig = if (nightlyKey.storeFile?.exists() == true) nightlyKey else signingConfigs.getByName("debug")
+        }
     }
 
     sourceSets {
@@ -150,6 +161,7 @@ android {
         providers.gradleProperty("sponsorModelAssets").orNull?.let { sponsorModelAssets ->
             getByName("androidTest").assets.directories.add(file(sponsorModelAssets).absolutePath)
         }
+        getByName("nightly").baselineProfiles.directories.add("src/githubRelease/generated/baselineProfiles")
     }
 
     compileOptions {
@@ -178,6 +190,7 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            isIncludeAndroidResources = true
             all { test ->
                 // Same opt-in export used by the androidTest assets above. Without it the
                 // tokenizer-golden tests skip rather than fail.
@@ -186,6 +199,33 @@ android {
                 }
             }
         }
+    }
+}
+
+// CI nightlies are numbered by workflow run: versionCode = run, versionName = <next>-nightly.<run>+<sha>.
+// Local nightly builds keep defaultConfig's version, so they never replace a CI nightly.
+androidComponents {
+    onVariants(selector().withBuildType("nightly")) { variant ->
+        val run = providers.environmentVariable("GITHUB_RUN_NUMBER").map(String::toInt)
+        val sha = providers.environmentVariable("GITHUB_SHA").map { it.take(7) }
+        val base = providers.gradleProperty("flow.nightlyBaseVersion")
+        variant.outputs.forEach { output ->
+            val localCode = output.versionCode.get()
+            val localName = output.versionName.get()
+            output.versionCode.set(run.orElse(localCode))
+            output.versionName.set(
+                base
+                    .zip(run) { name, number -> "$name-nightly.$number" }
+                    .zip(sha) { name, commit -> "$name+$commit" }
+                    .orElse(localName),
+            )
+        }
+        variant.buildConfigFields?.put(
+            "NIGHTLY_RUN",
+            run
+                .map { BuildConfigField("int", it.toString(), null) }
+                .orElse(BuildConfigField("int", "0", null)),
+        )
     }
 }
 
@@ -232,6 +272,10 @@ dependencies {
     // --- Lifecycle & Architecture ---
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.window)
+    implementation(libs.androidx.window.core)
+    implementation(libs.androidx.material3.adaptive.layout)
+    implementation(libs.androidx.material3.adaptive.navigation)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
     // --- Layouts ---
@@ -239,6 +283,7 @@ dependencies {
 
     // --- Image Loading ---
     implementation(libs.coil.compose)
+    implementation(libs.compose.reorderable)
     implementation(libs.coil.video)
     implementation(libs.coil.network.okhttp)
     implementation("androidx.palette:palette-ktx:1.0.0")
@@ -289,6 +334,8 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer.dash)
     implementation(libs.androidx.media3.datasource)
     implementation(libs.androidx.media3.datasource.okhttp)
+    implementation(libs.androidx.media3.muxer)
+    implementation(libs.androidx.media3.inspector)
     implementation(libs.androidx.media)
 
     // --- Database & Storage ---
@@ -310,7 +357,6 @@ dependencies {
     implementation(libs.androidx.paging.compose)
 
     implementation(libs.androidx.work.runtime.ktx)
-    "githubImplementation"(libs.apkupdater)
 
     implementation(libs.brotli)
     implementation(libs.re2j)
@@ -332,8 +378,16 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.truth)
     testImplementation(libs.turbine)
+    testImplementation(libs.androidx.glance.appwidget.testing)
     testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.android.compiler)
+
+    // Compose UI tests in the JVM (Robolectric) so CI's unit-test task covers them
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
 
     // Room migration tests (device-sync schema 20→23)
     androidTestImplementation(libs.androidx.room.testing)

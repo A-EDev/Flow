@@ -47,6 +47,9 @@ object SyncCollection {
     const val FLOW_NEURO_BRAIN = "flow_neuro_brain"
     const val MUSIC_BRAIN = "music_brain"
 
+    /** The user's own notes on channels and videos. */
+    const val NOTES = "notes"
+
     /** Subscription **groups** (the folders), not the channels themselves. */
     const val SUBSCRIPTIONS = "subscriptions"
 
@@ -55,7 +58,7 @@ object SyncCollection {
      * nor express an unsubscribe. */
     const val SUBSCRIBED_CHANNELS = "subscribed_channels"
 
-    /** Collections Android can exchange in v1 (music_brain excluded — Android has no consumer). */
+    /** Collections Android can exchange. */
     val ANDROID_SYNCABLE =
         listOf(
             WATCH_HISTORY,
@@ -63,6 +66,7 @@ object SyncCollection {
             LIKES,
             SETTINGS,
             FLOW_NEURO_BRAIN,
+            MUSIC_BRAIN,
             SUBSCRIBED_CHANNELS,
             SUBSCRIPTIONS,
         )

@@ -14,6 +14,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.data.localmedia.MediaStoreThumbnailFetcher
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.innertube.YouTube
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
@@ -26,6 +28,13 @@ object AppModule {
     @Singleton
     fun provideYouTube(): YouTube = YouTube
 
+    /** Delegates to the legacy singleton so injected consumers share the one engine the app already runs. */
+    @Provides
+    @Singleton
+    fun provideFlowNeuroEngine(
+        @ApplicationContext context: Context,
+    ): FlowNeuroEngine = FlowNeuroEngine.getInstance(context)
+
     @Provides
     @Singleton
     fun provideImageLoader(
@@ -37,6 +46,7 @@ object AppModule {
             .components {
                 add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
                 add(VideoFrameDecoder.Factory())
+                add(MediaStoreThumbnailFetcher.Factory(context))
             }.memoryCache {
                 MemoryCache
                     .Builder()

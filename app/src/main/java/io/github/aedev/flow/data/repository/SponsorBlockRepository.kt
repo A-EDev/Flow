@@ -9,6 +9,8 @@ import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -24,6 +26,7 @@ class SponsorBlockRepository
         private val client: OkHttpClient
             get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
         private val gson = Gson()
+        private val segmentListType = object : TypeToken<List<SponsorBlockSegment>>() {}.type
 
         fun getCachedSegments(videoId: String): List<SponsorBlockSegment>? = segmentCache.get(videoId)
 
@@ -36,7 +39,7 @@ class SponsorBlockRepository
                     val request =
                         Request
                             .Builder()
-                            .url(skipSegmentsUrl(videoId, gson))
+                            .url(segmentsUrl(videoId))
                             .build()
 
                     val response = client.newCall(request).execute()
@@ -44,12 +47,11 @@ class SponsorBlockRepository
                         sponsorBlockFetchOutcomeForStatus(resp.code)?.let { return@withContext it }
                         if (resp.isSuccessful) {
                             val responseBody = resp.body.string()
-                            val listType = object : TypeToken<List<SponsorBlockSegment>>() {}.type
                             val segments =
                                 if (responseBody.isBlank()) {
                                     emptyList()
                                 } else {
-                                    gson.fromJson<List<SponsorBlockSegment>>(responseBody, listType).orEmpty()
+                                    gson.fromJson<List<SponsorBlockSegment>>(responseBody, segmentListType).orEmpty()
                                 }
                             segmentCache.put(videoId, segments)
                             return@withContext if (segments.isEmpty()) {
@@ -79,6 +81,22 @@ class SponsorBlockRepository
             }
 
         /**
+         * Read segments back from a stored payload. Null means "nothing stored or nothing readable",
+         * which callers treat differently from an empty segment list.
+         */
+        fun parseSegments(json: String?): List<SponsorBlockSegment>? {
+            if (json.isNullOrBlank()) return null
+            return try {
+                gson.fromJson(json, segmentListType)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        /** Serialize segments for the download store, in the shape [parseSegments] reads back. */
+        fun serializeSegments(segments: List<SponsorBlockSegment>): String = gson.toJson(segments)
+
+        /**
          * Submit a new SponsorBlock segment.
          * Uses query parameters as required by the SponsorBlock API.
          * @return true if the submission was accepted (HTTP 200), false otherwise.
@@ -99,7 +117,7 @@ class SponsorBlockRepository
                             .replace("-", "")
                     val duration = (endTime - startTime)
                     val submitUrl =
-                        "https://sponsor.ajay.app/api/skipSegments"
+                        SKIP_SEGMENTS_URL
                             .toHttpUrl()
                             .newBuilder()
                             .addQueryParameter("videoID", videoId)
@@ -128,19 +146,21 @@ class SponsorBlockRepository
             }
 
         companion object {
+            private const val SKIP_SEGMENTS_URL = "https://sponsor.ajay.app/api/skipSegments"
+
             private val segmentCache = LruCache<String, List<SponsorBlockSegment>>(100)
 
-            internal fun skipSegmentsUrl(
-                videoId: String,
-                gson: Gson = Gson(),
-            ): HttpUrl =
-                "https://sponsor.ajay.app/api/skipSegments"
+            /** The lookup for [videoId], asking for every category and action type Flow handles. */
+            internal fun segmentsUrl(videoId: String): HttpUrl =
+                SKIP_SEGMENTS_URL
                     .toHttpUrl()
                     .newBuilder()
                     .addQueryParameter("videoID", videoId)
-                    .addQueryParameter("categories", gson.toJson(SponsorBlockCategories.ALL))
-                    .addQueryParameter("actionTypes", gson.toJson(SponsorBlockCategories.FETCH_ACTION_TYPES))
+                    .addQueryParameter("categories", SponsorBlockCategories.all.toJsonArray())
+                    .addQueryParameter("actionTypes", SponsorBlockCategories.actionTypes.toJsonArray())
                     .build()
+
+            private fun List<String>.toJsonArray(): String = JsonArray(map { JsonPrimitive(it) }).toString()
         }
     }
 

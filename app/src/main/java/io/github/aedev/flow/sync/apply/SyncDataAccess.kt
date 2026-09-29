@@ -2,6 +2,8 @@ package io.github.aedev.flow.sync.apply
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.aedev.flow.data.audio.eq.EqStateJson
+import io.github.aedev.flow.data.audio.eq.EqualizerRepository
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
@@ -9,9 +11,16 @@ import io.github.aedev.flow.data.local.dao.PlaylistDao
 import io.github.aedev.flow.data.local.dao.SubscriptionGroupDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.local.entity.NoteEntity
+import io.github.aedev.flow.data.local.readHistory
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
+import io.github.aedev.flow.data.recommendation.music.MusicBrainStorage
 import io.github.aedev.flow.sync.canonical.CanonicalBrain
 import io.github.aedev.flow.sync.canonical.CanonicalLike
+import io.github.aedev.flow.sync.canonical.CanonicalMusicBrain
+import io.github.aedev.flow.sync.canonical.CanonicalNote
 import io.github.aedev.flow.sync.canonical.CanonicalPlaylist
 import io.github.aedev.flow.sync.canonical.CanonicalSetting
 import io.github.aedev.flow.sync.canonical.CanonicalSubscribedChannel
@@ -20,6 +29,7 @@ import io.github.aedev.flow.sync.canonical.CanonicalWatchHistory
 import io.github.aedev.flow.sync.identity.Hlc
 import io.github.aedev.flow.sync.mapping.BrainMapper
 import io.github.aedev.flow.sync.mapping.LikesMapper
+import io.github.aedev.flow.sync.mapping.MusicBrainMapper
 import io.github.aedev.flow.sync.mapping.PlaylistMapper
 import io.github.aedev.flow.sync.mapping.SettingsMapper
 import io.github.aedev.flow.sync.mapping.SubscribedChannelsMapper
@@ -28,6 +38,9 @@ import io.github.aedev.flow.sync.mapping.WatchHistoryMapper
 import io.github.aedev.flow.sync.merge.BrainCrdtState
 import io.github.aedev.flow.sync.merge.BrainCrdtStore
 import io.github.aedev.flow.sync.merge.BrainMerger
+import io.github.aedev.flow.sync.merge.MusicBrainCrdtState
+import io.github.aedev.flow.sync.merge.MusicBrainCrdtStore
+import io.github.aedev.flow.sync.merge.MusicBrainMerger
 import kotlinx.coroutines.flow.first
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -50,8 +63,12 @@ class SyncDataAccess
         private val playlistDao: PlaylistDao,
         private val videoDao: VideoDao,
         private val subscriptionGroupDao: SubscriptionGroupDao,
+        private val noteDao: io.github.aedev.flow.data.local.dao.NoteDao,
         private val brainCrdtStore: BrainCrdtStore,
+        private val musicBrainCrdtStore: MusicBrainCrdtStore,
+        private val musicBrainEngine: MusicBrainEngine,
         private val subscriptions: SubscriptionRepository,
+        private val equalizer: EqualizerRepository,
     ) {
         private val likedVideos: LikedVideosRepository by lazy { LikedVideosRepository.getInstance(context) }
         private val playerPrefs: PlayerPreferences by lazy { PlayerPreferences(context) }
@@ -61,9 +78,7 @@ class SyncDataAccess
 
         suspend fun readWatchHistory(node: String): List<CanonicalWatchHistory> =
             watchHistoryDao
-                .getAllHistory()
-                .first()
-                .filter { !it.isLocal } // device-local media files don't sync
+                .readHistory(isLocal = 0) // device-local media files don't sync
                 .map { WatchHistoryMapper.toCanonical(it, node) }
 
         suspend fun writeWatchHistory(merged: List<CanonicalWatchHistory>) {
@@ -75,7 +90,11 @@ class SyncDataAccess
         // --- likes (export is liked-only; apply handles all 3 states) ---
 
         suspend fun readLikes(node: String): List<CanonicalLike> =
-            likedVideos.getAllLikedVideos().first().map { LikesMapper.likedToCanonical(it, node) }
+            likedVideos
+                .getAllLikedVideos()
+                .first()
+                .filterNot { LocalMediaIds.isLocal(it.videoId) }
+                .map { LikesMapper.likedToCanonical(it, node) }
 
         suspend fun writeLikes(merged: List<CanonicalLike>) {
             for (like in merged) {
@@ -89,10 +108,16 @@ class SyncDataAccess
 
         // --- settings (curated whitelist) ---
 
-        suspend fun readSettings(hlc: String): List<CanonicalSetting> = SettingsMapper.exportToCanonical(playerPrefs.getExportData(), hlc)
+        suspend fun readSettings(hlc: String): List<CanonicalSetting> {
+            val settings = playerPrefs.getExportData()
+            val withEqualizer = settings.copy(strings = settings.strings + (EqStateJson.KEY to equalizer.exportJson()))
+            return SettingsMapper.exportToCanonical(withEqualizer, hlc)
+        }
 
         suspend fun writeSettings(merged: List<CanonicalSetting>) {
-            playerPrefs.restoreData(SettingsMapper.applyToBackup(merged))
+            val settings = SettingsMapper.applyToBackup(merged)
+            settings.strings[EqStateJson.KEY]?.let { equalizer.importJson(it) }
+            playerPrefs.restoreData(settings.copy(strings = settings.strings - EqStateJson.KEY))
         }
 
         // --- subscribed channels ---
@@ -151,6 +176,37 @@ class SyncDataAccess
             val toUpsert = merged.filter { !it.deleted }.map { SubscriptionsMapper.toEntity(it) }
             if (toUpsert.isNotEmpty()) subscriptionGroupDao.insertAll(toUpsert)
             for (g in merged) if (g.deleted) subscriptionGroupDao.deleteGroup(g.name)
+        }
+
+        // --- notes ---
+
+        suspend fun readNotes(): List<CanonicalNote> =
+            noteDao.getAll().map { note ->
+                CanonicalNote(
+                    id = note.id,
+                    targetId = note.targetId,
+                    kind = note.kind,
+                    text = note.text,
+                    updatedAt = note.updatedAt,
+                )
+            }
+
+        suspend fun writeNotes(merged: List<CanonicalNote>) {
+            val live = merged.filter { !it.deleted && it.text.isNotBlank() }
+            if (live.isNotEmpty()) {
+                noteDao.upsertAll(
+                    live.map { note ->
+                        NoteEntity(
+                            id = note.id,
+                            targetId = note.targetId,
+                            kind = note.kind,
+                            text = note.text,
+                            updatedAt = note.updatedAt,
+                        )
+                    },
+                )
+            }
+            for (note in merged) if (note.deleted) noteDao.deleteById(note.id)
         }
 
         // --- playlists ---
@@ -257,6 +313,62 @@ class SyncDataAccess
             return runCatching { BrainMapper.parse(bytes) }
                 .getOrElse { throw IllegalStateException("the local FlowNeuro brain could not be parsed", it) }
         }
+
+        // --- music brain (stateful: CRDT sidecar, the music twin of the neuro path) ---
+
+        suspend fun readMusicBrain(
+            myDevice: String,
+            hlc: String,
+        ): CanonicalMusicBrain {
+            val local = exportLocalMusicBrain()
+            val sidecar = attributeLocalMusic(musicBrainCrdtStore.load(), myDevice, local, hlc)
+            musicBrainCrdtStore.save(sidecar)
+            return MusicBrainMapper.toCanonical(local, myDevice, hlc, sidecar)
+        }
+
+        /** Read the local music brain, CRDT-merge the incoming one, persist + reload the engine. */
+        suspend fun mergeAndWriteMusicBrain(
+            remote: CanonicalMusicBrain,
+            myDevice: String,
+            hlc: String,
+        ) {
+            val local = exportLocalMusicBrain()
+            val sidecar = attributeLocalMusic(musicBrainCrdtStore.load(), myDevice, local, hlc)
+            val localCanonical = MusicBrainMapper.toCanonical(local, myDevice, hlc, sidecar)
+            val merged = MusicBrainMerger.merge(localCanonical, remote)
+            val mergedBrain = MusicBrainMapper.writeBack(merged, local)
+            musicBrainEngine.importBrainFromStream(ByteArrayInputStream(MusicBrainMapper.serialize(mergedBrain)))
+            musicBrainCrdtStore.save(MusicBrainCrdtState.afterMerge(merged))
+        }
+
+        private suspend fun exportLocalMusicBrain(): MusicBrainStorage.SerializableMusicBrain {
+            val bytes =
+                ByteArrayOutputStream().use { bos ->
+                    musicBrainEngine.exportBrainToStream(bos)
+                    bos.toByteArray()
+                }
+            return runCatching { MusicBrainMapper.parse(bytes) }
+                .getOrElse { throw IllegalStateException("the local music brain could not be parsed", it) }
+        }
+
+        private fun attributeLocalMusic(
+            state: MusicBrainCrdtState,
+            myDevice: String,
+            brain: MusicBrainStorage.SerializableMusicBrain,
+            hlc: String,
+        ): MusicBrainCrdtState =
+            MusicBrainCrdtState.attributeLocal(
+                state = state,
+                myDevice = myDevice,
+                totalPlaysScalar = brain.totalPlays.toLong(),
+                artistPlayScalars = brain.artistAffinity.mapValues { it.value.plays.toLong() },
+                artistScores = brain.artistAffinity.mapValues { it.value.score },
+                seenArtists = brain.seenArtists.toSet(),
+                blockedArtists = brain.blockedArtists.toSet(),
+                dislikedArtists = brain.dislikedArtists,
+                appetite = brain.discoveryAppetite,
+                hlc = hlc,
+            )
 
         /**
          * Fold everything that changed locally since the last sync into the sidecar: counter growth

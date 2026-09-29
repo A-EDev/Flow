@@ -25,7 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.ui.components.VideoThumbnailImage
+import io.github.aedev.flow.ui.components.shared.VideoThumbnailImage
 import io.github.aedev.flow.ui.tv.focus.rememberTvFocusState
 import io.github.aedev.flow.ui.tv.focus.tvFocusScale
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
@@ -48,41 +48,46 @@ fun TvVideoCard(
     val dimens = LocalTvDimens.current
     val focusState = rememberTvFocusState()
     val focused = focusState.isFocused
-    val viewsTemplate = if (video.viewCount > 0) {
-        stringResource(R.string.views_template, formatViewCount(video.viewCount))
-    } else {
-        null
-    }
-    val metadata = remember(video.id, video.channelName, viewsTemplate, video.uploadDate) {
-        listOfNotNull(
-            video.channelName.takeIf { it.isNotBlank() },
-            viewsTemplate,
-            formatTimeAgo(video.uploadDate).takeIf { it.isNotBlank() },
-        ).joinToString(separator = " • ")
-    }
+    val viewsTemplate =
+        if (video.viewCount > 0) {
+            stringResource(R.string.views_template, formatViewCount(video.viewCount))
+        } else {
+            null
+        }
+    val metadata =
+        remember(video.id, video.channelName, viewsTemplate, video.uploadDate) {
+            listOfNotNull(
+                video.channelName.takeIf { it.isNotBlank() },
+                viewsTemplate,
+                formatTimeAgo(video.uploadDate).takeIf { it.isNotBlank() },
+            ).joinToString(separator = " • ")
+        }
 
     Surface(
         onClick = onClick,
-        modifier = modifier
-            .width(dimens.videoCardWidth)
-            .tvFocusScale(focusState),
+        modifier =
+            modifier
+                .width(dimens.videoCardWidth)
+                .tvFocusScale(focusState),
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 // Focus indicator, not decoration: onSurface gives the
                 // high-contrast neutral ring a thumbnail needs at 10 ft.
-                border = if (focused) {
-                    BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
-                } else {
-                    null
-                },
+                border =
+                    if (focused) {
+                        BorderStroke(dimens.focusBorderWidth, MaterialTheme.colorScheme.onSurface)
+                    } else {
+                        null
+                    },
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     VideoThumbnailImage(
@@ -93,42 +98,50 @@ fun TvVideoCard(
                         contentScale = ContentScale.Crop,
                     )
                     when {
-                        video.isLive -> Surface(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp),
-                            shape = MaterialTheme.shapes.extraSmall,
-                            color = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.status_live),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+                        video.isLive -> {
+                            Surface(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(8.dp),
+                                shape = MaterialTheme.shapes.extraSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.status_live),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
                         }
-                        video.duration > 0 -> Surface(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp),
-                            shape = MaterialTheme.shapes.extraSmall,
-                            color = Color.Black.copy(alpha = 0.7f),
-                            contentColor = Color.White,
-                        ) {
-                            Text(
-                                text = formatDuration(video.duration),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+
+                        video.duration > 0 -> {
+                            Surface(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(8.dp),
+                                shape = MaterialTheme.shapes.extraSmall,
+                                color = Color.Black.copy(alpha = 0.7f),
+                                contentColor = Color.White,
+                            ) {
+                                Text(
+                                    text = formatDuration(video.duration),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
                         }
                     }
                     watchProgress?.let { progress ->
                         LinearProgressIndicator(
                             progress = { progress },
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .height(4.dp),
+                            modifier =
+                                Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .height(4.dp),
                             trackColor = Color.Black.copy(alpha = 0.4f),
                             drawStopIndicator = {},
                         )

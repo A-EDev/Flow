@@ -3,6 +3,7 @@ package io.github.aedev.flow.player
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.audiofx.AudioEffect
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -25,13 +26,16 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.session.MediaSession
+import dagger.hilt.android.EntryPointAccessors
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.data.local.VideoQuality
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.SponsorBlockCategories
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.sponsordetection.SponsorDetectionCoordinator
 import io.github.aedev.flow.data.sponsordetection.SponsorDetectionUiState
 import io.github.aedev.flow.data.sponsordetection.SponsorFeedbackVerdict
@@ -42,17 +46,21 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
-import io.github.aedev.flow.player.audio.AudioEffectsController
+import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
 import io.github.aedev.flow.player.audio.AudioFeaturesManager
-import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
+import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
+import io.github.aedev.flow.player.config.VideoSizeCap
+import io.github.aedev.flow.player.config.resetVideoSizeTo
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.PlayerErrorHandler
 import io.github.aedev.flow.player.factory.PlayerFactory
 import io.github.aedev.flow.player.media.MediaLoader
 import io.github.aedev.flow.player.preload.GaplessPreloadController
 import io.github.aedev.flow.player.preload.PreloadTarget
+import io.github.aedev.flow.player.quality.LiveQualityPick
+import io.github.aedev.flow.player.quality.LiveQualitySelection
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.recovery.ClearedMediaRecoveryState
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
@@ -61,17 +69,18 @@ import io.github.aedev.flow.player.service.BackgroundServiceManager
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.sponsorblock.resolveSponsorBlockAction
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.state.PlaybackCompletion
 import io.github.aedev.flow.player.state.QualityOption
+import io.github.aedev.flow.player.state.SubtitleLoadFailure
 import io.github.aedev.flow.player.state.queuePresence
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
+import io.github.aedev.flow.player.stream.InnerTubeVideoMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.ResolvedStreamData
 import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
-import io.github.aedev.flow.player.stream.StreamInfoFetcher
-import io.github.aedev.flow.player.stream.StreamInfoVideoMapper
-import io.github.aedev.flow.player.stream.StreamMergeUtils
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import io.github.aedev.flow.player.stream.toSubtitlesStreams
 import io.github.aedev.flow.player.surface.SurfaceManager
 import io.github.aedev.flow.player.surface.VideoSurfacePolicy
 import io.github.aedev.flow.player.tracker.PlaybackTracker
@@ -127,8 +136,10 @@ class EnhancedPlayerManager private constructor() {
     private var player: ExoPlayer? = null
     private var trackSelector: DefaultTrackSelector? = null
     private var bandwidthMeter: DefaultBandwidthMeter? = null
-    private var videoEqualizer: CustomEqualizerAudioProcessor? = null
-    private var eqObserverStarted = false
+    private var videoEqualizer: EqualizerAudioProcessor? = null
+    private var eqObserver: Job? = null
+    private var audioEffects: AudioEffectsEntryPoint? = null
+    private var announcedAudioSession = 0
 
     // State management
     private val _playerState = MutableStateFlow(EnhancedPlayerState())
@@ -140,7 +151,7 @@ class EnhancedPlayerManager private constructor() {
     private var availableVideoStreams: List<VideoStream> = emptyList()
     private var availableAudioStreams: List<AudioStream> = emptyList()
     private var availableSubtitles: List<SubtitlesStream> = emptyList()
-    private val _subtitleLoadFailedEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val _subtitleLoadFailedEvent = MutableSharedFlow<SubtitleLoadFailure>(extraBufferCapacity = 1)
     private var currentVideoStream: VideoStream? = null
     private var currentAudioStream: AudioStream? = null
     private var selectedSubtitleIndex: Int? = null
@@ -153,6 +164,9 @@ class EnhancedPlayerManager private constructor() {
     private var currentHlsUrl: String? = null
     private var currentIsLiveStream = false
     private var liveQualityHeights: List<Int> = emptyList()
+    private var liveIsPortrait = false
+    private var liveQualityPick: LiveQualityPick? = null
+    private var videoSizeCap = VideoSizeCap.UHD
 
     private var pendingLiveQualityHeight: Int = 0
 
@@ -178,9 +192,11 @@ class EnhancedPlayerManager private constructor() {
     private var currentLocalFilePath: String? = null
     private val clearedMediaRecoveryState = ClearedMediaRecoveryState()
     private var pendingSurfaceFirstFrameStartedAtMs = 0L
+    private var surfaceFirstFrameWatchdog: Job? = null
 
     // Queue management
     private val queue = PlaybackQueueController()
+    private val abandonedSkips = AbandonedVideoSkips()
     private var manualLoopEnabled: Boolean = false
     private var globalLoopEnabled: Boolean = false
 
@@ -198,8 +214,17 @@ class EnhancedPlayerManager private constructor() {
     // Application context
     private var appContext: Context? = null
 
+    /** Set by the DI graph; null until then, when queue advance streams as before. */
+    @Volatile
+    var localCopySource: LocalCopySource? = null
+
+    /** Set by the DI graph; null until then, when autoplay hides nothing as before. */
+    @Volatile
+    var feedExclusionsSource: FeedExclusionsSource? = null
+
     // Coroutine scope
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val buildScope = PlayerBuildScope(scope)
 
     private val autoplayCountdownController =
         AutoplayCountdownController(
@@ -219,6 +244,7 @@ class EnhancedPlayerManager private constructor() {
             isLooping = { _playerState.value.isLooping },
             isLiveStream = { currentIsLiveStream },
             resolveStreams = { video, ctx -> resolveStreamsForVideo(video, ctx) },
+            hasLocalCopy = { video -> localCopySource?.localCopyPath(video.id) != null },
             buildMediaSource = { resolved, ctx ->
                 mediaLoader?.buildPreloadMediaSource(
                     context = ctx,
@@ -386,7 +412,11 @@ class EnhancedPlayerManager private constructor() {
                     override fun hasPreviousMediaItem(): Boolean = this@EnhancedPlayerManager.hasPrevious()
                 }
 
-            val builder = MediaSession.Builder(appCtx, sessionPlayer).setId("flow_video_session")
+            val builder =
+                MediaSession
+                    .Builder(appCtx, sessionPlayer)
+                    .setId("flow_video_session")
+                    .setBitmapLoader(sessionArtworkBitmapLoader(appCtx))
             if (sessionActivity != null) builder.setSessionActivity(sessionActivity)
             videoMediaSession = builder.build()
             Log.d(TAG, "Video MediaSession created")
@@ -443,6 +473,10 @@ class EnhancedPlayerManager private constructor() {
     private val _queueAutoAdvanceEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val queueAutoAdvanceEvent: SharedFlow<Unit> = _queueAutoAdvanceEvent.asSharedFlow()
 
+    /** Emitted when a video plays to its end, before looping or autoplay replaces it. */
+    private val _playbackCompletedEvent = MutableSharedFlow<PlaybackCompletion>(extraBufferCapacity = 4)
+    val playbackCompletedEvent: SharedFlow<PlaybackCompletion> = _playbackCompletedEvent.asSharedFlow()
+
     private var audioFeaturesManager: AudioFeaturesManager? = null
     private var mediaLoader: MediaLoader? = null
 
@@ -460,11 +494,12 @@ class EnhancedPlayerManager private constructor() {
         appContext = context.applicationContext
 
         if (player == null) {
+            val built = buildScope.open()
             initializeComponents(context)
             initializePlayer(context)
             setupPlayerListener()
             startPlaybackTracker()
-            observePreferences(context)
+            observePreferences(context, built)
             initializeVideoMediaSession(context)
             Log.d(TAG, "Player initialized")
         }
@@ -495,7 +530,8 @@ class EnhancedPlayerManager private constructor() {
         // Initialize bandwidth meter and track selector via factory
         val meter = playerFactory.createBandwidthMeter(context)
         bandwidthMeter = meter
-        trackSelector = playerFactory.createTrackSelector(context)
+        videoSizeCap = VideoSizeCap.forDevice(context)
+        trackSelector = playerFactory.createTrackSelector(context, videoSizeCap)
 
         // Initialize cache manager with bandwidth meter as transfer listener
         cacheManager = PlayerCacheManager(context).also { it.initialize(meter) }
@@ -547,8 +583,18 @@ class EnhancedPlayerManager private constructor() {
                         _streamExpiredEvent.emit(Unit)
                     }
                 }
-                loader.onSubtitleLoadFailed = { label ->
-                    scope.launch { _subtitleLoadFailedEvent.emit(label) }
+                loader.onSubtitleLoadFailed = { index, label ->
+                    val failed = availableSubtitles.getOrNull(index)
+                    scope.launch {
+                        _subtitleLoadFailedEvent.emit(
+                            SubtitleLoadFailure(
+                                index = index,
+                                label = label,
+                                language = failed?.languageTag ?: failed?.locale?.toLanguageTag(),
+                                isTranslated = failed?.let(CaptionTrackResolver::isTranslated) == true,
+                            ),
+                        )
+                    }
                 }
             }
 
@@ -557,6 +603,7 @@ class EnhancedPlayerManager private constructor() {
             QualityManager(
                 bandwidthMeter = bandwidthMeter,
                 trackSelector = trackSelector,
+                videoSizeCap = videoSizeCap,
                 stateFlow = _playerState,
                 onQualitySwitch = { stream, position ->
                     currentVideoStream = stream
@@ -572,8 +619,9 @@ class EnhancedPlayerManager private constructor() {
                 onReloadStream = { position, reason -> reloadCurrentStream(position, reason) },
                 onQualityDowngrade = { attemptQualityDowngrade() },
                 onPlaybackShutdown = { onPlaybackShutdown() },
+                isPlayingDeviceFile = { currentLocalFilePath != null },
                 onStreamExpired = { scope.launch { _streamExpiredEvent.emit(Unit) } },
-                onPlaybackAbandoned = { scope.launch { _playbackAbandonedEvent.emit(Unit) } },
+                onPlaybackAbandoned = { if (!skipAbandonedVideo()) scope.launch { _playbackAbandonedEvent.emit(Unit) } },
                 onGatedCodecFallback = { position -> qualityManager?.fallbackToAlternateCodec(position) ?: false },
                 getFailedStreamUrls = {
                     qualityManager?.let { qm ->
@@ -639,7 +687,10 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun initializePlayer(context: Context) {
-        AudioEffectsController.initialize(context)
+        val effects =
+            audioEffects ?: EntryPointAccessors
+                .fromApplication(context.applicationContext, AudioEffectsEntryPoint::class.java)
+                .also { audioEffects = it }
         val loadControl =
             playerFactory.createLoadControl(
                 context = context,
@@ -649,17 +700,15 @@ class EnhancedPlayerManager private constructor() {
             )
         // Fresh processor per player instance — a sink must never share one with a live player.
         val equalizer =
-            CustomEqualizerAudioProcessor().also {
-                it.applyProfile(AudioEffectsController.resolvedEq.value)
+            EqualizerAudioProcessor().also {
+                it.setSpec(effects.equalizerRepository().processingSpec.value)
             }
         videoEqualizer = equalizer
-        if (!eqObserverStarted) {
-            eqObserverStarted = true
-            scope.launch {
-                AudioEffectsController.resolvedEq.collect { profile ->
-                    videoEqualizer?.applyProfile(profile)
+        if (eqObserver == null) {
+            eqObserver =
+                scope.launch {
+                    effects.equalizerRepository().processingSpec.collect { spec -> videoEqualizer?.setSpec(spec) }
                 }
-            }
         }
         val renderersFactory = playerFactory.createRenderersFactory(context, arrayOf(equalizer))
 
@@ -673,6 +722,7 @@ class EnhancedPlayerManager private constructor() {
                 bandwidthMeter = bandwidthMeter,
             )
         player?.addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { currentVideoId })
+        player?.let { announceAudioSession(effects, it.audioSessionId) }
 
         audioFeaturesManager?.setPlayer(player!!)
 
@@ -694,12 +744,15 @@ class EnhancedPlayerManager private constructor() {
         audioFeaturesManager?.setVolumeBoost(player, volume)
     }
 
-    private fun observePreferences(context: Context) {
-        audioFeaturesManager?.observeSkipSilencePreference(context)
-        audioFeaturesManager?.observeStableVolumePreference(context)
+    private fun observePreferences(
+        context: Context,
+        built: CoroutineScope,
+    ) {
+        audioFeaturesManager?.observeSkipSilencePreference(context, built)
+        audioFeaturesManager?.observeStableVolumePreference(context, built)
 
         val prefs = PlayerPreferences(context)
-        scope.launch {
+        built.launch {
             prefs.sponsorBlockEnabled.collect { isEnabled ->
                 sponsorBlockHandler?.setEnabled(isEnabled)
                 if (isEnabled && currentLocalFilePath != null) {
@@ -720,13 +773,13 @@ class EnhancedPlayerManager private constructor() {
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.sponsorTrainingConsentEnabled.collect {
                 sponsorDetectionCoordinator?.refreshConsent()
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.videoLoopEnabled.collect { isEnabled ->
                 globalLoopEnabled = isEnabled
                 player?.repeatMode = if (isEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -734,19 +787,19 @@ class EnhancedPlayerManager private constructor() {
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.autoplayEnabled.collect { isEnabled ->
                 autoplayEnabled = isEnabled
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.queueAutoplayEnabled.collect { isEnabled ->
                 queueAutoplayEnabled = isEnabled
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.autoplayCountdownSeconds.collect { seconds ->
                 val previousSeconds = autoplayCountdownSeconds
                 autoplayCountdownSeconds = seconds
@@ -759,8 +812,8 @@ class EnhancedPlayerManager private constructor() {
         }
 
         // Collect per-category SponsorBlock actions and update handler
-        SponsorBlockCategories.ALL.forEach { category ->
-            scope.launch {
+        SponsorBlockCategories.all.forEach { category ->
+            built.launch {
                 prefs.sbActionForCategory(category).collect { action ->
                     val current = sponsorBlockHandler?.categoryActions?.toMutableMap() ?: mutableMapOf()
                     current[category] = action
@@ -779,7 +832,7 @@ class EnhancedPlayerManager private constructor() {
                     if (videoSize.height > 0) {
                         _playerState.value =
                             _playerState.value.copy(
-                                effectiveQuality = QualityManager.normalizeQualityHeight(videoSize.height),
+                                effectiveQuality = VideoCodecUtils.qualityClass(videoSize.width, videoSize.height),
                             )
                     }
                 }
@@ -820,6 +873,7 @@ class EnhancedPlayerManager private constructor() {
                     if (playbackState == Player.STATE_ENDED && !isRecoveringFromBackground) {
                         acquireAdvanceWakeLock()
                         autoNextLog("STATE_ENDED branch entered")
+                        emitPlaybackCompletion()
                         if (_playerState.value.isLooping) {
                             autoNextLog("STATE_ENDED loop replay")
                             player?.seekTo(0)
@@ -893,6 +947,8 @@ class EnhancedPlayerManager private constructor() {
                 override fun onRenderedFirstFrame() {
                     Log.d(TAG, "First frame rendered - video renderer working")
                     surfaceManager?.setSurfaceReady(true)
+                    surfaceFirstFrameWatchdog?.cancel()
+                    surfaceFirstFrameWatchdog = null
                     pendingSurfaceFirstFrameStartedAtMs.takeIf { it > 0L }?.let { startedAtMs ->
                         pendingSurfaceFirstFrameStartedAtMs = 0L
                         Log.w(
@@ -907,6 +963,7 @@ class EnhancedPlayerManager private constructor() {
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _playerState.value = _playerState.value.copy(isPlaying = isPlaying)
+                    if (isPlaying) abandonedSkips.onPlaybackStarted()
                     autoNextLog("onIsPlayingChanged isPlaying=$isPlaying")
                 }
 
@@ -964,19 +1021,27 @@ class EnhancedPlayerManager private constructor() {
             )
         startPlaybackTracker()
 
-        // Apply SponsorBlock: use offline-saved segments if present, otherwise fall back to API.
+        // Stored segments win even when empty (looked up, none found); a device file has none to look up.
         sponsorBlockHandler?.reset()
-        if (!savedSegments.isNullOrEmpty()) {
-            sponsorBlockHandler?.loadSegmentsFromList(videoId, savedSegments)
-            if (sponsorBlockHandler?.isEnabled == true) {
-                sponsorShadowJob?.cancel()
-                sponsorShadowJob =
-                    scope.launch {
-                        sponsorDetectionCoordinator?.evaluate(videoId, availableSubtitles, savedSegments)
-                    }
+        when {
+            savedSegments != null -> {
+                sponsorBlockHandler?.loadSegmentsFromList(videoId, savedSegments)
+                if (savedSegments.isNotEmpty() && sponsorBlockHandler?.isEnabled == true) {
+                    sponsorShadowJob?.cancel()
+                    sponsorShadowJob =
+                        scope.launch {
+                            sponsorDetectionCoordinator?.evaluate(videoId, availableSubtitles, savedSegments)
+                        }
+                }
             }
-        } else {
-            sponsorBlockHandler?.loadSegments(videoId)
+
+            LocalMediaIds.isLocal(videoId) -> {
+                Unit
+            }
+
+            else -> {
+                sponsorBlockHandler?.loadSegments(videoId)
+            }
         }
 
         val initialPos = resolveInitialPositionWithSponsorBlock(preservePosition ?: 0L).takeIf { it > 0L }
@@ -1075,7 +1140,9 @@ class EnhancedPlayerManager private constructor() {
         val isLiveStream =
             useLiveManifest &&
                 (!currentHlsUrl.isNullOrEmpty() || !currentDashManifestUrl.isNullOrEmpty())
-        pendingLiveQualityHeight = if (isLiveStream) preferredLiveQualityHeight else 0
+        liveQualityPick = LiveQualitySelection.retainedPick(videoId, liveQualityPick)
+        pendingLiveQualityHeight =
+            if (isLiveStream) LiveQualitySelection.targetHeight(videoId, liveQualityPick, preferredLiveQualityHeight) else 0
         if (isLiveStream) applyLiveCodecPreference()
         updateLivePlaybackMode(isLive = isLiveStream, forceLiveSpeedReset = true)
         pendingInitialLiveEdgeSeek = streamType == StreamType.LIVE_STREAM
@@ -1186,6 +1253,7 @@ class EnhancedPlayerManager private constructor() {
         clearAutoplayCountdownInternal()
         currentVideoId = videoId
         liveQualityHeights = emptyList()
+        liveIsPortrait = false
         pendingLiveQualityHeight = 0
         lastLiveEdgeRecoveryMs = 0L
         qualityManager?.resetForNewVideo()
@@ -1422,13 +1490,14 @@ class EnhancedPlayerManager private constructor() {
         videos: List<Video>,
         startIndex: Int,
         title: String? = null,
+        shuffle: Boolean? = null,
     ) {
         if (!isOnMainThread()) {
             autoNextLog("setQueue posted to main size=${videos.size} start=$startIndex from=${Thread.currentThread().name}")
-            mainHandler.post { setQueue(videos, startIndex, title) }
+            mainHandler.post { setQueue(videos, startIndex, title, shuffle) }
             return
         }
-        val startVideo = queue.setQueue(videos, startIndex, title)
+        val startVideo = queue.setQueue(videos, startIndex, title, shuffle)
         autoNextLog("setQueue size=${videos.size} start=${queue.currentIndex} title=$title")
 
         updateQueueState()
@@ -1470,9 +1539,22 @@ class EnhancedPlayerManager private constructor() {
 
     fun hasNext(): Boolean = queue.hasNext
 
+    /**
+     * Moves a queue past a video whose streams could not be recovered, instead of stopping the
+     * whole playlist on it. False when there is nothing to move to or too many failed in a row.
+     */
+    fun skipAbandonedVideo(): Boolean {
+        if (!abandonedSkips.trySkip(hasNext())) return false
+        PlayerDiagnostics.logWarning(TAG, "Streams for $currentVideoId could not be recovered; moving to the next video in the queue")
+        // Posted so the failing load has unwound before the next one starts.
+        mainHandler.post { playNext(loadStreamsInPlayer = true) }
+        return true
+    }
+
     fun hasPrevious(): Boolean = queue.hasPrevious || (player?.currentPosition ?: 0) > 3000
 
-    fun isCurrentQueueVideo(videoId: String): Boolean = queue.isCurrent(videoId)
+    /** True when the queue advanced to [videoId]; such items start from the beginning instead of resuming. */
+    fun isReachedByQueueAdvance(videoId: String): Boolean = queue.isReachedByAdvance(videoId)
 
     /**
      * Insert [video] immediately after the current position (Play Next).
@@ -1524,15 +1606,28 @@ class EnhancedPlayerManager private constructor() {
         updateQueueState()
     }
 
-    fun removeVideoAtIndex(index: Int) {
+    /** @return what an undo needs to put the video back; null when nothing was removed or the call was posted. */
+    fun removeVideoAtIndex(index: Int): RemovedQueueEntry? {
         if (!isOnMainThread()) {
             mainHandler.post { removeVideoAtIndex(index) }
-            return
+            return null
         }
-        if (!queue.removeAt(index)) return
+        val removed = queue.removeAt(index) ?: return null
 
         preload.clear()
         onQueueMutated("queue-remove")
+        return removed
+    }
+
+    fun restoreRemovedVideo(entry: RemovedQueueEntry) {
+        if (!isOnMainThread()) {
+            mainHandler.post { restoreRemovedVideo(entry) }
+            return
+        }
+        if (!queue.restore(entry)) return
+
+        preload.clear()
+        onQueueMutated("queue-restore")
     }
 
     fun moveVideoAtIndex(
@@ -1699,6 +1794,15 @@ class EnhancedPlayerManager private constructor() {
             else -> null
         }
 
+    private fun emitPlaybackCompletion() {
+        val videoId = currentVideoId ?: return
+        val exoPlayer = player ?: return
+        val durationMs = exoPlayer.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: return
+        // A refocus glitch can report ENDED near the start; only a position at the end counts.
+        if (!PlaybackResumePolicy.shouldRestartCompletedPlayback(exoPlayer.currentPosition, durationMs)) return
+        _playbackCompletedEvent.tryEmit(PlaybackCompletion(videoId, durationMs))
+    }
+
     private fun maybeStartAutoplayCountdownOrAdvance() {
         val delaySeconds = autoplayCountdownSeconds
         val nextVideo = nextSessionVideo()
@@ -1789,6 +1893,28 @@ class EnhancedPlayerManager private constructor() {
                             error = null,
                         )
 
+                    val localCopyPath = localCopySource?.localCopyPath(video.id)
+                    if (localCopyPath != null) {
+                        if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "local-copy")) {
+                            return@launch
+                        }
+                        setAutoplayCandidates(sourceVideoId = video.id, videos = emptyList(), enabled = autoplayEnabled)
+                        playLocalFile(
+                            videoId = video.id,
+                            filePath = localCopyPath,
+                            savedSegments = null,
+                            preservePosition = null,
+                            subtitles = emptyList(),
+                        )
+                        if (resumeInAudioOnly) {
+                            audioOnlyMode.applyStreams(true)
+                            setVideoTracksDisabled(true)
+                        }
+                        play()
+                        autoNextLog("playVideoFromServiceLayer played download video=${video.id} reason=$reason")
+                        return@launch
+                    }
+
                     val extractionDeferred =
                         async(Dispatchers.IO) {
                             try {
@@ -1803,9 +1929,16 @@ class EnhancedPlayerManager private constructor() {
                             }
                         }
 
-                    val streamInfo =
-                        StreamInfoFetcher.fetchForPlayback(video.id) ?: run {
-                            autoNextLog("playVideoFromServiceLayer streamInfo failed video=${video.id}")
+                    val extraction =
+                        extractionDeferred.await() ?: run {
+                            autoNextLog("playVideoFromServiceLayer extraction failed video=${video.id}")
+                            if (io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+                                    .isGone(video.id) && hasNext()
+                            ) {
+                                // Posted so this job has finished and cleared itself before the next one starts.
+                                mainHandler.post { playNext(loadStreamsInPlayer = true) }
+                                return@launch
+                            }
                             _playerState.value =
                                 _playerState.value.copy(
                                     isBuffering = false,
@@ -1814,13 +1947,11 @@ class EnhancedPlayerManager private constructor() {
                             releaseAdvanceWakeLock()
                             return@launch
                         }
-
-                    val extraction = extractionDeferred.await()
                     if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "streams-resolved")) {
                         return@launch
                     }
-                    val sabrInfo = extraction?.sabrInfo
-                    val enrichedVideo = StreamInfoVideoMapper.videoFromStreamInfo(video.id, streamInfo, fallback = video)
+                    val sabrInfo = extraction.sabrInfo
+                    val enrichedVideo = InnerTubeVideoMapper.videoFromResult(video.id, extraction, fallback = video)
                     GlobalPlayerState.setCurrentVideo(enrichedVideo)
                     startBackgroundService(
                         videoId = enrichedVideo.id,
@@ -1830,7 +1961,7 @@ class EnhancedPlayerManager private constructor() {
                     )
                     setAutoplayCandidates(
                         sourceVideoId = enrichedVideo.id,
-                        videos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
+                        videos = visibleRelatedCandidates(enrichedVideo.id),
                         enabled = autoplayEnabled,
                     )
 
@@ -1842,37 +1973,19 @@ class EnhancedPlayerManager private constructor() {
                             prefs.defaultQualityCellular.first()
                         }
                     val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
+                    val preferredSubtitleLanguage = prefs.preferredSubtitleLanguage.first()
                     val preferredCodecKey = prefs.videoCodecPriority.first()
-                    val innerTubeVideoStreams =
-                        extraction
-                            ?.let {
-                                io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                                    .convertVideoFormats(it.videoFormats)
-                            }.orEmpty()
-                    val innerTubeAudioStreams =
-                        extraction
-                            ?.let {
-                                io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                                    .convertAudioFormats(it.audioFormats)
-                            }.orEmpty()
-                    val extractorVideoStreams =
-                        (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
-                            .filterIsInstance<VideoStream>()
-                    val mergedVideoStreams = StreamMergeUtils.mergeVideoStreams(extractorVideoStreams, innerTubeVideoStreams)
-                    val mergedAudioStreams = StreamMergeUtils.mergeAudioStreams(streamInfo.audioStreams, innerTubeAudioStreams)
-                    if (extractorVideoStreams.isNotEmpty()) {
-                        Log.d(
-                            TAG,
-                            "Queue advance using NewPipe streams: ${extractorVideoStreams.size} video " +
-                                "(merged=${mergedVideoStreams.size}, innerTube=${innerTubeVideoStreams.size})",
-                        )
-                    } else if (innerTubeVideoStreams.isNotEmpty()) {
-                        Log.d(
-                            TAG,
-                            "Queue advance using InnerTube streams: ${innerTubeVideoStreams.size} video, " +
-                                "${innerTubeAudioStreams.size} audio (merged=${mergedVideoStreams.size})",
-                        )
-                    }
+                    val mergedVideoStreams =
+                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                            .convertVideoFormats(extraction.videoFormats)
+                    val mergedAudioStreams =
+                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                            .convertAudioFormats(extraction.audioFormats)
+                    Log.d(
+                        TAG,
+                        "Queue advance streams: ${mergedVideoStreams.size} video, " +
+                            "${mergedAudioStreams.size} audio (client=${extraction.usedClient.clientName})",
+                    )
 
                     val selected =
                         ServicePlaybackStreamSelector.selectStreams(
@@ -1891,15 +2004,20 @@ class EnhancedPlayerManager private constructor() {
                         audioStream = selected.second,
                         videoStreams = mergedVideoStreams,
                         audioStreams = mergedAudioStreams,
-                        subtitles = mergedSubtitles(streamInfo, extraction),
-                        durationSeconds = streamInfo.duration,
-                        dashManifestUrl = streamInfo.dashMpdUrl,
-                        hlsUrl = streamInfo.hlsUrl,
-                        streamType = streamInfo.streamType,
+                        subtitles =
+                            CaptionTrackResolver
+                                .resolve(
+                                    extraction.playerResponse,
+                                    translateTo = preferredSubtitleLanguage,
+                                ).toSubtitlesStreams(),
+                        durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
+                        dashManifestUrl = extraction.liveDashUrl,
+                        hlsUrl = extraction.liveHlsUrl,
+                        streamType = InnerTubeVideoMapper.streamType(extraction),
                         startPosition = 0L,
                         sabrInfo = sabrInfo,
-                        itVideoFormats = extraction?.videoFormats ?: emptyList(),
-                        itAudioFormats = extraction?.audioFormats ?: emptyList(),
+                        itVideoFormats = extraction.videoFormats,
+                        itAudioFormats = extraction.audioFormats,
                         preferredVideoCodec = preferredCodecKey,
                         keepAudioOnly = resumeInAudioOnly,
                     )
@@ -1959,6 +2077,13 @@ class EnhancedPlayerManager private constructor() {
         val videos: List<Video> = emptyList(),
     )
 
+    private suspend fun visibleRelatedCandidates(videoId: String): List<Video> {
+        val candidates = YouTubeRepository.getInstance().getRelatedCandidates(videoId)
+        return withContext(Dispatchers.Default) {
+            PlayerRelatedVideosPolicy.sanitizeHidden(videoId, candidates, feedExclusionsSource)
+        }
+    }
+
     private suspend fun resolveStreamsForVideo(
         video: Video,
         context: Context,
@@ -1977,13 +2102,8 @@ class EnhancedPlayerManager private constructor() {
                         null
                     }
                 }
-            val streamInfo =
-                StreamInfoFetcher.fetchForPlayback(video.id) ?: run {
-                    extractionDeferred.cancel()
-                    return@coroutineScope null
-                }
-            val extraction = extractionDeferred.await()
-            val enrichedVideo = StreamInfoVideoMapper.videoFromStreamInfo(video.id, streamInfo, fallback = video)
+            val extraction = extractionDeferred.await() ?: return@coroutineScope null
+            val enrichedVideo = InnerTubeVideoMapper.videoFromResult(video.id, extraction, fallback = video)
             val prefs = PlayerPreferences(context)
             val preferredQuality =
                 if (NetworkState.isOnWifi(
@@ -1995,32 +2115,14 @@ class EnhancedPlayerManager private constructor() {
                     prefs.defaultQualityCellular.first()
                 }
             val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
+            val preferredSubtitleLanguage = prefs.preferredSubtitleLanguage.first()
             val preferredCodecKey = prefs.videoCodecPriority.first()
-            val innerTubeVideoStreams =
-                extraction
-                    ?.let {
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertVideoFormats(it.videoFormats)
-                    }.orEmpty()
-            val innerTubeAudioStreams =
-                extraction
-                    ?.let {
-                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge
-                            .convertAudioFormats(it.audioFormats)
-                    }.orEmpty()
-            val extractorVideoStreams =
-                (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
-                    .filterIsInstance<VideoStream>()
             val mergedVideoStreams =
-                StreamMergeUtils.mergeVideoStreams(
-                    innerTubeVideoStreams,
-                    extractorVideoStreams,
-                )
+                io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                    .convertVideoFormats(extraction.videoFormats)
             val mergedAudioStreams =
-                StreamMergeUtils.mergeAudioStreams(
-                    innerTubeAudioStreams,
-                    streamInfo.audioStreams,
-                )
+                io.github.aedev.flow.player.stream.InnerTubeStreamBridge
+                    .convertAudioFormats(extraction.audioFormats)
             val selected =
                 ServicePlaybackStreamSelector.selectStreams(
                     videoCandidates = mergedVideoStreams,
@@ -2035,23 +2137,21 @@ class EnhancedPlayerManager private constructor() {
                 audioStream = selected.second,
                 videoStreams = mergedVideoStreams,
                 audioStreams = mergedAudioStreams,
-                subtitles = mergedSubtitles(streamInfo, extraction),
-                durationSeconds = streamInfo.duration,
-                dashManifestUrl = streamInfo.dashMpdUrl,
-                streamType = streamInfo.streamType,
-                relatedVideos = StreamInfoVideoMapper.relatedVideosFromStreamInfo(streamInfo),
+                subtitles =
+                    CaptionTrackResolver
+                        .resolve(
+                            extraction.playerResponse,
+                            translateTo = preferredSubtitleLanguage,
+                        ).toSubtitlesStreams(),
+                durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
+                dashManifestUrl = extraction.liveDashUrl,
+                streamType = InnerTubeVideoMapper.streamType(extraction),
+                relatedVideos = visibleRelatedCandidates(video.id),
                 preferredCodec = preferredCodecKey,
-                itVideoFormats = extraction?.videoFormats ?: emptyList(),
-                itAudioFormats = extraction?.audioFormats ?: emptyList(),
+                itVideoFormats = extraction.videoFormats,
+                itAudioFormats = extraction.audioFormats,
             )
         }
-
-    private fun mergedSubtitles(
-        streamInfo: StreamInfo,
-        extraction: InnerTubeVideoStreamExtractor.VideoExtractionResult?,
-    ): List<SubtitlesStream> =
-        streamInfo.subtitles.orEmpty() +
-            extraction?.playerResponse?.let { CaptionTrackResolver.resolve(it) }.orEmpty()
 
     private fun nextPreloadTarget(): PreloadTarget? {
         if (autoplayCountdownSeconds > 0) return null
@@ -2217,6 +2317,29 @@ class EnhancedPlayerManager private constructor() {
     }
 
     fun pause() = player?.pause()
+
+    /**
+     * Nudges the playhead one frame.
+     *
+     * Only while paused: stepping a running player just fights playback. VOD seeks are
+     * CLOSEST_SYNC, which would snap back to the same keyframe every time, so the step is made
+     * EXACT and the parameter restored afterwards. Stepping backwards is slower than forwards
+     * because it decodes forward from the preceding keyframe, which on YouTube can be seconds back.
+     */
+    fun stepFrame(forward: Boolean) {
+        val p = player ?: return
+        if (p.isPlaying || currentIsLiveStream || p.isCurrentMediaItemLive) return
+        val target =
+            FrameStepPolicy.stepTarget(
+                positionMs = p.currentPosition,
+                durationMs = p.duration,
+                frameRate = p.videoFormat?.frameRate,
+                forward = forward,
+            ) ?: return
+        p.setSeekParameters(SeekParameters.EXACT)
+        p.seekTo(target)
+        p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+    }
 
     fun seekTo(position: Long) {
         val p = player ?: return
@@ -2548,14 +2671,15 @@ class EnhancedPlayerManager private constructor() {
 
     private fun updateLiveQualityOptions(tracks: Tracks) {
         val heightToFps = HashMap<Int, Int>()
+        var portrait = false
         tracks.groups
             .asSequence()
             .filter { it.type == C.TRACK_TYPE_VIDEO }
             .forEach { group ->
                 for (i in 0 until group.length) {
                     val format = group.getTrackFormat(i)
-                    val h = format.height.takeIf { it > 0 } ?: continue
-                    val height = VideoCodecUtils.normalizeQualityHeight(h)
+                    val height = VideoCodecUtils.qualityClass(format.width, format.height).takeIf { it > 0 } ?: continue
+                    if (format.height > format.width && format.width > 0) portrait = true
                     val fps = if (format.frameRate > 0f) format.frameRate.toInt() else 0
                     heightToFps[height] = maxOf(heightToFps[height] ?: 0, fps)
                 }
@@ -2563,6 +2687,7 @@ class EnhancedPlayerManager private constructor() {
         val heights = heightToFps.keys.sortedDescending()
         if (heights.isEmpty() || heights == liveQualityHeights) return
         liveQualityHeights = heights
+        liveIsPortrait = portrait
 
         val options =
             listOf(QualityOption(height = 0, label = "Auto", bitrate = 0L)) +
@@ -2574,17 +2699,13 @@ class EnhancedPlayerManager private constructor() {
             _playerState.value.currentQualityKey
                 ?.removePrefix(LIVE_QUALITY_KEY_PREFIX)
                 ?.toIntOrNull()
-        _playerState.value =
-            _playerState.value.copy(
-                availableQualities = options,
-                effectiveQuality = manualHeight ?: heights.first(),
-            )
+        _playerState.value = _playerState.value.copy(availableQualities = options)
 
         if (pendingLiveQualityHeight > 0 && manualHeight == null) {
-            val target = heights.firstOrNull { it <= pendingLiveQualityHeight } ?: heights.last()
+            val target = LiveQualitySelection.snapToOffered(pendingLiveQualityHeight, heights) ?: return
             pendingLiveQualityHeight = 0
-            Log.d(TAG, "Applying default live quality: ${target}p")
-            switchLiveQuality(target)
+            Log.d(TAG, "Applying live quality: ${target}p (portrait=$liveIsPortrait)")
+            switchLiveQuality(target, byUser = false)
         }
     }
 
@@ -2598,7 +2719,11 @@ class EnhancedPlayerManager private constructor() {
         )
     }
 
-    private fun switchLiveQuality(height: Int): Boolean {
+    /** Leaves `effectiveQuality` to `onVideoSizeChanged`, which reports the frame actually decoded. */
+    private fun switchLiveQuality(
+        height: Int,
+        byUser: Boolean = true,
+    ): Boolean {
         val selector = trackSelector ?: return false
         val builder =
             selector
@@ -2606,20 +2731,20 @@ class EnhancedPlayerManager private constructor() {
                 .setPreferredVideoMimeTypes(*VideoCodecUtils.preferredVideoMimeTypes(preferredVideoCodecKey))
         if (height <= 0) {
             builder
-                .clearVideoSizeConstraints()
-                .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
+                .resetVideoSizeTo(videoSizeCap)
                 .setForceHighestSupportedBitrate(false)
         } else {
+            val (maxWidth, maxHeight) = LiveQualitySelection.maxVideoSize(height, liveIsPortrait)
             builder
                 .setMinVideoSize(0, 0)
-                .setMaxVideoSize(Int.MAX_VALUE, height)
+                .setMaxVideoSize(maxWidth, maxHeight)
                 .setForceHighestSupportedBitrate(true)
         }
         selector.setParameters(builder.build())
+        if (byUser) currentVideoId?.let { liveQualityPick = LiveQualityPick(it, height.coerceAtLeast(0)) }
         _playerState.value =
             _playerState.value.copy(
                 currentQuality = if (height <= 0) 0 else height,
-                effectiveQuality = if (height <= 0) (liveQualityHeights.firstOrNull() ?: 0) else height,
                 currentQualityKey = if (height <= 0) null else "$LIVE_QUALITY_KEY_PREFIX$height",
             )
         return true
@@ -2781,8 +2906,10 @@ class EnhancedPlayerManager private constructor() {
 
     suspend fun clearSponsorTrainingData() = sponsorDetectionCoordinator?.clearJournal()
 
+    fun reloadSponsorSegments(videoId: String) = sponsorBlockHandler?.reloadSegments(videoId)
+
     /** Emits the display label of a subtitle track whose fetch failed and will not be retried. */
-    val subtitleLoadFailedEvent: SharedFlow<String>
+    val subtitleLoadFailedEvent: SharedFlow<SubtitleLoadFailure>
         get() = _subtitleLoadFailedEvent
 
     val skipEvent: SharedFlow<SponsorBlockSegment>
@@ -2836,22 +2963,74 @@ class EnhancedPlayerManager private constructor() {
                     if (p.playWhenReady) p.play()
                 }
             }
-            if (resyncPausedVideo) {
-                val position = p.currentPosition
-                Log.w(
-                    "FlowVideoLifecycle",
-                    "surfaceReattachResync video=$currentVideoId pos=$position",
-                )
-                p.seekTo(position)
+            if (resyncPausedVideo && p != null) {
+                resyncAfterSurfaceReattach(p)
+            } else if (p != null && !wasSurfaceValid && !audioOnlyMode.isActive && !currentIsLiveStream) {
+                armSurfaceFirstFrameWatchdog(p)
             }
         }
         return attached
+    }
+
+    /**
+     * Catches a surface that came back but never drew.
+     *
+     * While playing, a stale read-ahead corrects itself as the clock advances, so the re-attach
+     * above deliberately leaves playback alone. What does not correct itself is a codec whose
+     * output surface was swapped and which then renders nothing at all — the picture stays black
+     * while the audio keeps going, and only another surface change brings it back (#1064). A first
+     * frame normally lands in about a tenth of a second, so silence well past that is evidence of
+     * that state rather than a slow device, and the same flush the paused path uses recovers it.
+     */
+    private fun armSurfaceFirstFrameWatchdog(p: ExoPlayer) {
+        surfaceFirstFrameWatchdog?.cancel()
+        surfaceFirstFrameWatchdog =
+            scope.launch {
+                delay(SURFACE_FIRST_FRAME_TIMEOUT_MS)
+                if (pendingSurfaceFirstFrameStartedAtMs == 0L) return@launch
+                if (surfaceManager?.isSurfaceValid() != true) return@launch
+                if (p.playbackState != Player.STATE_READY || !p.playWhenReady) return@launch
+                Log.w(
+                    "FlowVideoLifecycle",
+                    "surfaceFirstFrameTimeout video=$currentVideoId pos=${p.currentPosition} — forcing a flush",
+                )
+                resyncAfterSurfaceReattach(p)
+            }
+    }
+
+    /**
+     * Realigns the video codec with the playhead after its surface came back.
+     *
+     * The seek is one millisecond short of the current position on purpose: a seek that resolves to
+     * the position the player already reports never reaches the code that disables the renderers,
+     * so the codec keeps decoding from wherever its read-ahead had got to. While paused that can be
+     * ten seconds past the playhead, and playback then shows a frozen frame until the clock catches
+     * up. Exact seek parameters keep the one-millisecond step from snapping to a sync frame.
+     */
+    private fun resyncAfterSurfaceReattach(p: ExoPlayer) {
+        val position = p.currentPosition
+        if (mediaLoader?.getActiveSabrOrchestrator() != null) {
+            // A SABR seek tears the session down and rebuilds it, which is far more than a surface
+            // swap should cost.
+            Log.w("FlowVideoLifecycle", "surfaceReattachResync skipped sabr video=$currentVideoId pos=$position")
+            return
+        }
+        val target = VideoSurfacePolicy.resyncSeekTargetMs(position)
+        Log.w(
+            "FlowVideoLifecycle",
+            "surfaceReattachResync video=$currentVideoId pos=$position target=$target",
+        )
+        p.setSeekParameters(SeekParameters.EXACT)
+        p.seekTo(target)
+        p.setSeekParameters(SeekParameters.CLOSEST_SYNC)
     }
 
     fun detachVideoSurface(holder: SurfaceHolder? = null) {
         val hadManagedSurface = surfaceManager?.getSurfaceHolder() != null
         surfaceManager?.detachVideoSurface(holder, player, appContext)
         if (hadManagedSurface) {
+            surfaceFirstFrameWatchdog?.cancel()
+            surfaceFirstFrameWatchdog = null
             pendingSurfaceFirstFrameStartedAtMs = 0L
             Log.w(
                 "FlowVideoLifecycle",
@@ -2883,8 +3062,26 @@ class EnhancedPlayerManager private constructor() {
         resumePlaybackIfStalled(p)
     }
 
-    fun handleCriticalMemoryPressure() {
-        Log.w(TAG, "Critical memory pressure; releasing video-heavy player state")
+    fun handleMemoryPressure(
+        trimLevel: Int,
+        videoVisible: Boolean,
+    ) {
+        when (MemoryPressurePolicy.responseTo(trimLevel, videoVisible)) {
+            MemoryPressureResponse.NONE -> {}
+
+            MemoryPressureResponse.DROP_PRELOAD -> {
+                Log.w(TAG, "Memory pressure level=$trimLevel while video is visible; dropping the preload only")
+                preload.clear()
+            }
+
+            MemoryPressureResponse.RELEASE_VIDEO -> {
+                releaseVideoForMemoryPressure(trimLevel)
+            }
+        }
+    }
+
+    private fun releaseVideoForMemoryPressure(trimLevel: Int) {
+        Log.w(TAG, "Critical memory pressure level=$trimLevel; releasing video-heavy player state")
         mediaLoader?.releaseSabr()
         val p = player ?: return
         val shouldKeepPlaying = p.playWhenReady || p.isPlaying
@@ -2909,7 +3106,9 @@ class EnhancedPlayerManager private constructor() {
         autoNextLog("switchToAudioOnly")
         audioOnlyMode.enter()
         setVideoTracksDisabled(true)
-        p.setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
+        p.setWakeMode(
+            if (currentLocalFilePath != null) androidx.media3.common.C.WAKE_MODE_LOCAL else androidx.media3.common.C.WAKE_MODE_NETWORK,
+        )
         resumePlaybackIfStalled(p)
         preload.schedule()
     }
@@ -3095,6 +3294,16 @@ class EnhancedPlayerManager private constructor() {
             duration - player.currentPosition <= LIVE_EDGE_THRESHOLD_MS
     }
 
+    private fun announceAudioSession(
+        effects: AudioEffectsEntryPoint,
+        sessionId: Int,
+    ) {
+        val registry = effects.audioSessionRegistry()
+        if (announcedAudioSession != sessionId) registry.close(announcedAudioSession)
+        announcedAudioSession = sessionId
+        registry.open(sessionId, AudioEffect.CONTENT_TYPE_MOVIE)
+    }
+
     fun release() {
         Log.d(TAG, "release() called")
         releaseAdvanceWakeLock()
@@ -3112,7 +3321,10 @@ class EnhancedPlayerManager private constructor() {
         clearedMediaRecoveryState.clear()
         playbackTracker?.stop()
         audioFeaturesManager?.clearPlayer()
+        buildScope.close()
         surfaceManager?.release(player)
+        audioEffects?.audioSessionRegistry()?.close(announcedAudioSession)
+        announcedAudioSession = 0
         player?.release()
         player = null
         trackSelector = null
@@ -3224,3 +3436,9 @@ typealias EnhancedPlayerState = io.github.aedev.flow.player.state.EnhancedPlayer
 typealias QualityOption = io.github.aedev.flow.player.state.QualityOption
 typealias AudioTrackOption = io.github.aedev.flow.player.state.AudioTrackOption
 typealias SubtitleOption = io.github.aedev.flow.player.state.SubtitleOption
+
+/**
+ * How long a re-attached surface may stay blank before it is treated as stuck rather than slow. A
+ * first frame measured on a real device lands around 120 ms.
+ */
+private const val SURFACE_FIRST_FRAME_TIMEOUT_MS = 1_200L

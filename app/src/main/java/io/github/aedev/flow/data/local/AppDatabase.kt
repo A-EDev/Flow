@@ -5,8 +5,11 @@ import androidx.room.Database
 import androidx.room.Room.databaseBuilder
 import androidx.room.RoomDatabase
 import io.github.aedev.flow.data.local.dao.CacheDao
+import io.github.aedev.flow.data.local.dao.DownloadCollectionDao
 import io.github.aedev.flow.data.local.dao.DownloadDao
 import io.github.aedev.flow.data.local.dao.HomeFeedCacheDao
+import io.github.aedev.flow.data.local.dao.MusicGraphDao
+import io.github.aedev.flow.data.local.dao.NoteDao
 import io.github.aedev.flow.data.local.dao.NotificationDao
 import io.github.aedev.flow.data.local.dao.PlaylistDao
 import io.github.aedev.flow.data.local.dao.RecognitionHistoryDao
@@ -15,11 +18,19 @@ import io.github.aedev.flow.data.local.dao.SyncLogDao
 import io.github.aedev.flow.data.local.dao.SyncPeerDao
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.local.entity.DownloadCollectionEntity
+import io.github.aedev.flow.data.local.entity.DownloadCollectionItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphAlbumEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphArtistEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphEdgeEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphPlaylistEntity
+import io.github.aedev.flow.data.local.entity.MusicGraphTrackEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeCacheEntity
 import io.github.aedev.flow.data.local.entity.MusicHomeChipEntity
+import io.github.aedev.flow.data.local.entity.NoteEntity
 import io.github.aedev.flow.data.local.entity.NotificationEntity
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
 import io.github.aedev.flow.data.local.entity.PlaylistVideoCrossRef
@@ -50,11 +61,22 @@ import io.github.aedev.flow.data.local.migrations.Migration24To25
         RecognitionHistoryEntity::class,
         SyncLogEntity::class,
         SyncPeerEntity::class,
+        MusicGraphTrackEntity::class,
+        MusicGraphArtistEntity::class,
+        MusicGraphAlbumEntity::class,
+        MusicGraphPlaylistEntity::class,
+        MusicGraphEdgeEntity::class,
+        NoteEntity::class,
+        DownloadCollectionEntity::class,
+        DownloadCollectionItemEntity::class,
     ],
     autoMigrations = [
         AutoMigration(from = 24, to = 25, spec = Migration24To25::class),
+        AutoMigration(from = 25, to = 26),
+        AutoMigration(from = 26, to = 27),
+        AutoMigration(from = 27, to = 28),
     ],
-    version = 25,
+    version = 28,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -64,9 +86,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun notificationDao(): NotificationDao
 
+    abstract fun noteDao(): NoteDao
+
     abstract fun cacheDao(): CacheDao
 
     abstract fun downloadDao(): DownloadDao
+
+    abstract fun downloadCollectionDao(): DownloadCollectionDao
 
     abstract fun watchHistoryDao(): WatchHistoryDao
 
@@ -79,6 +105,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncLogDao(): SyncLogDao
 
     abstract fun syncPeerDao(): SyncPeerDao
+
+    abstract fun musicGraphDao(): MusicGraphDao
 
     companion object {
         @Volatile

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.sponsordetection.SponsorModelConfig
 import io.github.aedev.flow.data.sponsordetection.SponsorModelState
+import io.github.aedev.flow.ui.components.shared.FlowSwitchRow
 
 @Composable
 internal fun SponsorModelSettingsSection(
@@ -43,16 +44,20 @@ internal fun SponsorModelSettingsSection(
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    SectionHeader(text = stringResource(R.string.sponsor_model_header))
-    SettingsGroup {
-        SettingsSwitchItem(
-            icon = Icons.Outlined.Memory,
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.sponsor_model_header),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        FlowSwitchRow(
             title = stringResource(R.string.sponsor_model_toggle_title),
-            subtitle = stringResource(R.string.sponsor_model_toggle_subtitle),
+            supportingText = stringResource(R.string.sponsor_model_toggle_subtitle),
             checked = enabled,
             onCheckedChange = onEnabledChange,
+            shape = MaterialTheme.shapes.medium,
         )
-        HorizontalDivider(Modifier.padding(start = 56.dp))
+        HorizontalDivider(Modifier.padding(horizontal = 16.dp))
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),

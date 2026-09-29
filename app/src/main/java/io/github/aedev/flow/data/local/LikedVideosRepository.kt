@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 internal val Context.likedVideosDataStore: DataStore<Preferences> by safePreferencesDataStore(name = "liked_videos")
 
@@ -38,8 +40,9 @@ class LikedVideosRepository private constructor(
      */
     suspend fun likeVideo(videoInfo: LikedVideoInfo) {
         dataStore.edit { preferences ->
-            // Save video data
-            preferences[videoKey(videoInfo.videoId)] = serializeVideo(videoInfo)
+            // A like re-applied by sync or a restore carries less than an enriched record already holds.
+            val stored = preferences[videoKey(videoInfo.videoId)]?.let(::deserializeVideo)
+            preferences[videoKey(videoInfo.videoId)] = serializeVideo(stored?.let(videoInfo::keepingDetailsOf) ?: videoInfo)
             preferences[likeStateKey(videoInfo.videoId)] = "LIKED"
 
             // Update order list
@@ -100,6 +103,45 @@ class LikedVideosRepository private constructor(
         }
     }
 
+    /** Replaces the stored details of a video that is still liked; its place and like date stay. */
+    suspend fun updateDetails(videoInfo: LikedVideoInfo) {
+        dataStore.edit { preferences ->
+            val key = videoKey(videoInfo.videoId)
+            val stored = preferences[key]?.let(::deserializeVideo) ?: return@edit
+            preferences[key] = serializeVideo(videoInfo.copy(likedAt = stored.likedAt, isMusic = stored.isMusic))
+        }
+    }
+
+    /** Unlikes [videoIds] as one change and returns what [restoreLikes] needs to put them back. */
+    suspend fun takeLikes(videoIds: Collection<String>): List<LikedVideoInfo> {
+        val ids = videoIds.toSet()
+        var taken = emptyList<LikedVideoInfo>()
+        dataStore.edit { preferences ->
+            val order = preferences[stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)].orEmpty().split(",").filter(String::isNotEmpty)
+            taken = order.filter { it in ids }.mapNotNull { id -> preferences[videoKey(id)]?.let(::deserializeVideo) }
+            taken.forEach { preferences.remove(likeStateKey(it.videoId)) }
+            preferences[stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)] = order.filterNot { it in ids }.joinToString(",")
+        }
+        return taken
+    }
+
+    /** Likes [likes] again, each back in its place by the date it was first liked. */
+    suspend fun restoreLikes(likes: List<LikedVideoInfo>) {
+        if (likes.isEmpty()) return
+        dataStore.edit { preferences ->
+            val orderKey = stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)
+            val order = preferences[orderKey].orEmpty().split(",").filter(String::isNotEmpty)
+            likes.forEach { like ->
+                preferences[videoKey(like.videoId)] = serializeVideo(like)
+                preferences[likeStateKey(like.videoId)] = "LIKED"
+            }
+            val likedAt = likes.associate { it.videoId to it.likedAt }
+            val merged = (order + likes.map { it.videoId }).distinct()
+            val dated = merged.map { id -> id to (likedAt[id] ?: preferences[videoKey(id)]?.let(::deserializeVideo)?.likedAt ?: 0L) }
+            preferences[orderKey] = restoredOrder(order, dated).joinToString(",")
+        }
+    }
+
     /**
      * Get all liked videos (mixed)
      */
@@ -121,29 +163,57 @@ class LikedVideosRepository private constructor(
 
     fun getLikedMusicFlow(): Flow<List<LikedVideoInfo>> = getAllLikedVideos().map { list -> list.filter { it.isMusic } }
 
-    private fun serializeVideo(video: LikedVideoInfo): String =
-        "${video.videoId}|${video.title}|${video.thumbnail}|${video.channelName}|${video.likedAt}|${video.isMusic}"
-
-    private fun deserializeVideo(data: String): LikedVideoInfo? =
-        try {
-            val parts = data.split("|")
-            if (parts.size >= 5) {
-                LikedVideoInfo(
-                    videoId = parts[0],
-                    title = parts[1],
-                    thumbnail = parts[2],
-                    channelName = parts[3],
-                    likedAt = parts[4].toLong(),
-                    isMusic = if (parts.size >= 6) parts[5].toBoolean() else false,
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
+    private fun serializeVideo(video: LikedVideoInfo): String = LikeJson.encodeToString(LikedVideoInfo.serializer(), video)
 }
 
+private val LikeJson =
+    Json {
+        ignoreUnknownKeys = true
+        // likedAt defaults to the current time, so a default must never be left out and re-evaluated on read.
+        encodeDefaults = true
+    }
+
+/**
+ * Reads a stored like. Records are JSON; older ones were `id|title|thumbnail|channel|likedAt|isMusic`,
+ * which a title or channel holding a `|` split in the wrong places, so those are read from both ends.
+ */
+internal fun deserializeVideo(data: String): LikedVideoInfo? {
+    if (data.startsWith("{")) return runCatching { LikeJson.decodeFromString(LikedVideoInfo.serializer(), data) }.getOrNull()
+    val parts = data.split("|")
+    if (parts.size < LEGACY_MIN_PARTS) return null
+    val hasMusicFlag = parts.last() == "true" || parts.last() == "false"
+    val likedAtIndex = if (hasMusicFlag) parts.lastIndex - 1 else parts.lastIndex
+    val likedAt = parts[likedAtIndex].toLongOrNull() ?: return null
+    val middle = parts.subList(1, likedAtIndex)
+    val thumbnailIndex = middle.indexOfFirst { it.startsWith("http") }.takeIf { it >= 0 } ?: 1.coerceAtMost(middle.lastIndex)
+    return LikedVideoInfo(
+        videoId = parts[0],
+        title = middle.subList(0, thumbnailIndex).joinToString("|"),
+        thumbnail = middle.getOrElse(thumbnailIndex) { "" },
+        channelName = middle.drop(thumbnailIndex + 1).joinToString("|"),
+        likedAt = likedAt,
+        isMusic = hasMusicFlag && parts.last().toBoolean(),
+    )
+}
+
+private const val LEGACY_MIN_PARTS = 5
+
+/** Existing likes keep their order; each restored one goes back before the first like that is older than it. */
+internal fun restoredOrder(
+    order: List<String>,
+    dated: List<Pair<String, Long>>,
+): List<String> {
+    val present = order.toHashSet()
+    val result = order.toMutableList()
+    val likedAt = dated.toMap()
+    dated.filter { (id, _) -> id !in present }.sortedByDescending { it.second }.forEach { (id, at) ->
+        val index = result.indexOfFirst { (likedAt[it] ?: 0L) < at }
+        if (index < 0) result.add(id) else result.add(index, id)
+    }
+    return result
+}
+
+@Serializable
 data class LikedVideoInfo(
     val videoId: String,
     val title: String,
@@ -151,4 +221,14 @@ data class LikedVideoInfo(
     val channelName: String,
     val likedAt: Long = System.currentTimeMillis(),
     val isMusic: Boolean = false,
-)
+    // Nullable and zero by default: Gson backups written before these existed leave them unset.
+    val channelId: String? = null,
+    val durationSeconds: Int = 0,
+) {
+    /** This like, with the channel and length [stored] already knew where this one lacks them. */
+    fun keepingDetailsOf(stored: LikedVideoInfo): LikedVideoInfo =
+        copy(
+            channelId = channelId?.takeIf(String::isNotBlank) ?: stored.channelId,
+            durationSeconds = durationSeconds.takeIf { it > 0 } ?: stored.durationSeconds,
+        )
+}

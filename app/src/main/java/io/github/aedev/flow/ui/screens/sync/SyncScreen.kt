@@ -10,20 +10,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,10 +32,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync.SyncState
 import io.github.aedev.flow.sync.protocol.SyncRole
+import io.github.aedev.flow.ui.components.layout.LocalFlowBottomInsets
+import io.github.aedev.flow.ui.components.layout.topbar.FlowGlobalActionsMode
 import io.github.aedev.flow.ui.components.layout.topbar.FlowTopBar
 
 /** Where the user is in the pre-session setup. Once a session starts, [SyncState] drives the UI. */
-private enum class Step { CHOOSER, SEND_SELECT, SEND_TRANSPORT, SEND_SCAN, RECEIVE_TRANSPORT, RECEIVE_SCAN }
+private enum class Step {
+    CHOOSER,
+    SEND_SELECT,
+    SEND_TRANSPORT,
+    SEND_SCAN,
+    SEND_MANUAL,
+    RECEIVE_TRANSPORT,
+    RECEIVE_SCAN,
+    RECEIVE_MANUAL,
+}
 
 /** The step to return to, or null when there is nothing left to back out of but the screen itself. */
 private fun Step.previous(): Step? =
@@ -51,8 +55,10 @@ private fun Step.previous(): Step? =
         Step.SEND_SELECT -> Step.CHOOSER
         Step.SEND_TRANSPORT -> Step.SEND_SELECT
         Step.SEND_SCAN -> Step.SEND_TRANSPORT
+        Step.SEND_MANUAL -> Step.SEND_TRANSPORT
         Step.RECEIVE_TRANSPORT -> Step.CHOOSER
         Step.RECEIVE_SCAN -> Step.RECEIVE_TRANSPORT
+        Step.RECEIVE_MANUAL -> Step.RECEIVE_TRANSPORT
     }
 
 @Composable
@@ -62,6 +68,7 @@ private fun Step.title(): String =
         Step.SEND_SELECT -> stringResource(R.string.sync_choose_what_to_send)
         Step.SEND_TRANSPORT, Step.RECEIVE_TRANSPORT -> stringResource(R.string.sync_step_title_pair)
         Step.SEND_SCAN, Step.RECEIVE_SCAN -> stringResource(R.string.sync_step_title_scan)
+        Step.SEND_MANUAL, Step.RECEIVE_MANUAL -> stringResource(R.string.sync_step_title_manual)
     }
 
 /** Identifies the visible step for the cross-fade, without the volatile parts of the state. */
@@ -94,9 +101,10 @@ private fun SyncState.title(step: Step): String =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncScreen(
-    onNavigateBack: () -> Unit,
+    onBack: (() -> Unit)?,
     viewModel: SyncViewModel = hiltViewModel(),
 ) {
+    val onNavigateBack = onBack ?: {}
     val state by viewModel.state.collectAsStateWithLifecycle()
     var step by remember { mutableStateOf(Step.CHOOSER) }
     var selected by remember { mutableStateOf(COLLECTION_KEYS.toSet()) }
@@ -130,17 +138,21 @@ fun SyncScreen(
         }
     }
 
-    BackHandler(onBack = ::goBack)
+    val atStart = state is SyncState.Idle && step == Step.CHOOSER
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    BackHandler(enabled = !atStart || onBack != null, onBack = ::goBack)
 
     Scaffold(
         // The app shell's Scaffold already pads for WindowInsets.systemBars, so both this Scaffold
         // and the bar itself must consume nothing — otherwise the status-bar inset is applied twice
         // and leaves an empty band above the title.
         contentWindowInsets = WindowInsets(0.dp),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             FlowTopBar(
                 title = state.title(step),
-                onBack = ::goBack,
+                onBack = if (atStart && onBack == null) null else ::goBack,
+                globalActions = FlowGlobalActionsMode.None,
             )
         },
     ) { padding ->
@@ -149,15 +161,17 @@ fun SyncScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .padding(bottom = LocalFlowBottomInsets.current.contentBottom),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Keyed on which step is showing, not on the state itself: `Transferring` changes on
             // every progress tick and would otherwise cross-fade the screen a few times a second.
             AnimatedContent(
                 targetState = state.screenKey(step),
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) },
                 label = "syncStep",
                 contentAlignment = Alignment.TopCenter,
             ) { _ ->
@@ -176,6 +190,7 @@ fun SyncScreen(
                         onSelectedChange = { selected = it },
                         onHost = { role -> viewModel.host(role, selected.toList()) },
                         onJoin = { role, qr -> viewModel.join(role, qr, selected.toList()) },
+                        onPrepareConnectionData = viewModel::extendPairingForManualShare,
                         onCancel = {
                             viewModel.cancel()
                             step = Step.CHOOSER
@@ -203,6 +218,7 @@ private fun SyncStepContent(
     onSelectedChange: (Set<String>) -> Unit,
     onHost: (SyncRole) -> Unit,
     onJoin: (SyncRole, String) -> Unit,
+    onPrepareConnectionData: () -> String?,
     onCancel: () -> Unit,
     onConfirmSas: (Boolean) -> Unit,
     onConfirmConsent: (Boolean) -> Unit,
@@ -230,7 +246,11 @@ private fun SyncStepContent(
         }
 
         is SyncState.ShowingQr -> {
-            SyncQrContent(state, onCancel = onCancel)
+            SyncQrContent(
+                s = state,
+                onPrepareConnectionData = onPrepareConnectionData,
+                onCancel = onCancel,
+            )
         }
 
         is SyncState.AwaitingSas -> {
@@ -291,6 +311,7 @@ private fun SyncSetupStep(
                 scanHint = stringResource(R.string.sync_send_scan_hint),
                 onShowQr = { onHost(SyncRole.SENDER) },
                 onScan = { onStepChange(Step.SEND_SCAN) },
+                onManual = { onStepChange(Step.SEND_MANUAL) },
             )
         }
 
@@ -298,6 +319,12 @@ private fun SyncSetupStep(
             SyncScanContent(
                 prompt = stringResource(R.string.sync_scan_prompt_receive_code),
                 onScanned = { onJoin(SyncRole.SENDER, it) },
+            )
+        }
+
+        Step.SEND_MANUAL -> {
+            SyncManualEntryContent(
+                onSubmit = { onJoin(SyncRole.SENDER, it) },
             )
         }
 
@@ -309,6 +336,7 @@ private fun SyncSetupStep(
                 scanHint = stringResource(R.string.sync_receive_show_qr_hint),
                 onShowQr = { onStepChange(Step.RECEIVE_SCAN) },
                 onScan = { onHost(SyncRole.RECEIVER) },
+                onManual = { onStepChange(Step.RECEIVE_MANUAL) },
             )
         }
 
@@ -316,6 +344,12 @@ private fun SyncSetupStep(
             SyncScanContent(
                 prompt = stringResource(R.string.sync_scan_prompt_send_code),
                 onScanned = { onJoin(SyncRole.RECEIVER, it) },
+            )
+        }
+
+        Step.RECEIVE_MANUAL -> {
+            SyncManualEntryContent(
+                onSubmit = { onJoin(SyncRole.RECEIVER, it) },
             )
         }
     }

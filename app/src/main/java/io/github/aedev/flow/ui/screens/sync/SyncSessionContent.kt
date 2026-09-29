@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.screens.sync
 
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,12 +19,13 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,11 +33,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -43,17 +49,22 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.sync.SyncState
 import io.github.aedev.flow.sync.protocol.ApplyStats
-import io.github.aedev.flow.sync.qr.QrCodec
+import io.github.aedev.flow.utils.copyPlainText
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-/** The steps that run once a session is live: pairing code, verification, merge consent, outcome. */
+/** The steps that run once a session is live: QR connection, verification, merge consent, outcome. */
 
 @Composable
 internal fun SyncQrContent(
     s: SyncState.ShowingQr,
+    onPrepareConnectionData: () -> String?,
     onCancel: () -> Unit,
 ) {
-    var remaining by remember { mutableLongStateOf(QrCodec.DEFAULT_TTL_SECONDS) }
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var remaining by remember { mutableLongStateOf(s.ttlSeconds) }
     LaunchedEffect(s.expiresAtEpochSeconds) {
         while (true) {
             remaining = (s.expiresAtEpochSeconds - System.currentTimeMillis() / 1000).coerceAtLeast(0)
@@ -92,7 +103,6 @@ internal fun SyncQrContent(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SasReadout(s.sas)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -109,7 +119,7 @@ internal fun SyncQrContent(
                 )
             }
             LinearProgressIndicator(
-                progress = { (remaining.toFloat() / QrCodec.DEFAULT_TTL_SECONDS).coerceIn(0f, 1f) },
+                progress = { (remaining.toFloat() / s.ttlSeconds).coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -117,6 +127,8 @@ internal fun SyncQrContent(
 
     SyncInfoRow(icon = Icons.Outlined.Lan, text = stringResource(R.string.sync_qr_advertised_address, s.address))
     SyncInfoRow(icon = Icons.Outlined.Wifi, text = stringResource(R.string.sync_qr_network_note))
+    SyncInfoRow(icon = Icons.Outlined.Shield, text = stringResource(R.string.sync_verification_after_connect))
+    SyncInfoRow(icon = Icons.Outlined.Password, text = stringResource(R.string.sync_connection_data_security_note))
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -131,42 +143,39 @@ internal fun SyncQrContent(
         )
     }
 
-    OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.sync_cancel_session))
-    }
+    SyncActionRow(
+        confirmLabel = stringResource(R.string.sync_copy_connection_data),
+        onConfirm = {
+            val connectionData = onPrepareConnectionData() ?: s.qrText
+            scope.launch {
+                clipboard.copyPlainText(
+                    label = context.getString(R.string.sync_connection_data_label),
+                    text = connectionData,
+                    sensitive = true,
+                )
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    Toast.makeText(context, R.string.toast_copied_to_clipboard, Toast.LENGTH_SHORT).show()
+                }
+            }
+        },
+        dismissLabel = stringResource(R.string.sync_cancel_session),
+        onDismiss = onCancel,
+    )
 }
 
 /** The 6-digit short authentication string, spaced so two people can read it aloud reliably. */
 @Composable
-private fun SasReadout(
-    sas: String,
-    emphasized: Boolean = false,
-) {
+private fun SasReadout(sas: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color =
-            if (emphasized) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            },
-        contentColor =
-            if (emphasized) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         shape = MaterialTheme.shapes.large,
     ) {
         Text(
             text = sas,
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-            style =
-                if (emphasized) {
-                    MaterialTheme.typography.displaySmall
-                } else {
-                    MaterialTheme.typography.headlineMedium
-                },
+            style = MaterialTheme.typography.displaySmall,
             fontFamily = FontFamily.Monospace,
             letterSpacing = 8.sp,
             textAlign = TextAlign.Center,
@@ -184,7 +193,7 @@ internal fun SyncSasContent(
         title = stringResource(R.string.sync_sas_title),
         body = stringResource(R.string.sync_sas_body),
     )
-    SasReadout(sas, emphasized = true)
+    SasReadout(sas)
     SyncActionRow(
         confirmLabel = stringResource(R.string.sync_sas_match),
         onConfirm = { onConfirm(true) },
@@ -202,16 +211,9 @@ internal fun SyncConsentContent(
         icon = Icons.Outlined.MergeType,
         title = stringResource(R.string.sync_consent_title),
     )
-    SyncCard {
-        Column(Modifier.fillMaxWidth()) {
-            collections.forEach { key ->
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { Icon(collectionIcon(key), contentDescription = null) },
-                    headlineContent = { Text(collectionLabel(key)) },
-                )
-            }
-        }
+    SyncRowGroup(count = collections.size) { index, shape ->
+        val key = collections[index]
+        SyncInfoItem(icon = collectionIcon(key), title = collectionLabel(key), shape = shape)
     }
     SyncInfoRow(icon = Icons.Outlined.Shield, text = stringResource(R.string.sync_consent_note))
     SyncActionRow(
@@ -263,17 +265,15 @@ internal fun SyncDoneContent(
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     )
     if (s.stats.isNotEmpty()) {
-        SyncCard {
-            Column(Modifier.fillMaxWidth()) {
-                s.stats.forEach { (collection, stats) ->
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        leadingContent = { Icon(collectionIcon(collection), contentDescription = null) },
-                        headlineContent = { Text(collectionLabel(collection)) },
-                        supportingContent = { Text(statsSummary(stats)) },
-                    )
-                }
-            }
+        val stats = s.stats.toList()
+        SyncRowGroup(count = stats.size) { index, shape ->
+            val (collection, applied) = stats[index]
+            SyncInfoItem(
+                icon = collectionIcon(collection),
+                title = collectionLabel(collection),
+                supporting = statsSummary(applied),
+                shape = shape,
+            )
         }
     }
     SyncActionRow(confirmLabel = stringResource(R.string.sync_done_button), onConfirm = onDone)
@@ -305,6 +305,7 @@ internal fun SyncFailedContent(
     SyncActionRow(confirmLabel = stringResource(R.string.sync_try_again), onConfirm = onRetry)
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SyncBusyContent(label: String) {
     Column(
@@ -312,7 +313,7 @@ internal fun SyncBusyContent(label: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        CircularProgressIndicator()
+        LoadingIndicator()
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,

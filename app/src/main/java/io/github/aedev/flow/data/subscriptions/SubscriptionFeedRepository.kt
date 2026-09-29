@@ -9,7 +9,6 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.CacheDao
 import io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity
 import io.github.aedev.flow.data.model.Video
-import io.github.aedev.flow.data.subscriptions.SubscriptionFeedMerger.preservingEnrichedMetadata
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -24,6 +23,7 @@ import javax.inject.Singleton
 data class SubscriptionFeedRefreshProgress(
     val videos: List<Video>,
     val failedChannelIds: Set<String>,
+    val failedChannelReasons: Map<String, String>,
     val processedChannels: Int,
     val totalChannels: Int,
 )
@@ -90,6 +90,7 @@ class SubscriptionFeedRepository
                     var previewVideos = allCached
                     var latestChunkVideos = emptyList<Video>()
                     var failedChannelIds = emptySet<String>()
+                    var failedChannelReasons = emptyMap<String, String>()
                     var processed = 0
 
                     rssSubscriptionService
@@ -100,6 +101,7 @@ class SubscriptionFeedRepository
                             onProgress = { done, _ -> processed = done },
                         ).collect { chunk ->
                             failedChannelIds = chunk.failedChannelIds
+                            failedChannelReasons = chunk.failedChannelReasons
                             if (chunk.videos.isNotEmpty()) {
                                 latestChunkVideos = chunk.videos
                                 previewVideos =
@@ -116,6 +118,7 @@ class SubscriptionFeedRepository
                                 SubscriptionFeedRefreshProgress(
                                     videos = previewVideos,
                                     failedChannelIds = failedChannelIds,
+                                    failedChannelReasons = failedChannelReasons,
                                     processedChannels = processed,
                                     totalChannels = plan.channelIds.size,
                                 ),
@@ -129,12 +132,14 @@ class SubscriptionFeedRepository
                                 plan = plan,
                                 freshVideos = latestChunkVideos,
                                 sliceCached = sliceCached,
+                                failedChannelIds = failedChannelIds,
                                 refreshTime = refreshTime,
                             )
                         emit(
                             SubscriptionFeedRefreshProgress(
                                 videos = persisted,
                                 failedChannelIds = failedChannelIds,
+                                failedChannelReasons = failedChannelReasons,
                                 processedChannels = plan.channelIds.size,
                                 totalChannels = plan.channelIds.size,
                             ),
@@ -158,25 +163,26 @@ class SubscriptionFeedRepository
             plan: SubscriptionRefreshPlan,
             freshVideos: List<Video>,
             sliceCached: List<Video>,
+            failedChannelIds: Set<String>,
             refreshTime: Long,
         ): List<Video> {
-            val priorById =
-                sliceCached
-                    .filter { it.id.isNotBlank() }
-                    .groupBy { it.id }
-                    .mapValues { (_, candidates) -> SubscriptionFeedMerger.mergeDuplicates(candidates, refreshTime) }
+            val subscribedChannelIds =
+                withContext(PerformanceDispatcher.diskIO) {
+                    subscriptionRepository.getAllSubscriptions().first().mapTo(HashSet()) { it.channelId }
+                }
+            val write =
+                subscriptionFeedWrite(
+                    plan = plan,
+                    freshVideos = freshVideos,
+                    cachedSlice = sliceCached,
+                    failedChannelIds = failedChannelIds,
+                    subscribedChannelIds = subscribedChannelIds,
+                    now = refreshTime,
+                    windowMs = SUBSCRIPTION_CACHE_WINDOW_MS,
+                    maxItems = MAX_SUBSCRIPTION_CACHE_ITEMS,
+                )
 
-            val mergedSlice =
-                SubscriptionFeedMerger
-                    .mergeSubscriptionFeed(
-                        freshVideos = freshVideos.map { fresh -> fresh.preservingEnrichedMetadata(priorById[fresh.id]) },
-                        cachedVideos = if (plan.isFullRefresh) emptyList() else sliceCached,
-                        now = refreshTime,
-                        windowMs = SUBSCRIPTION_CACHE_WINDOW_MS,
-                        maxItems = MAX_SUBSCRIPTION_CACHE_ITEMS,
-                    ).withHighQualityThumbnails()
-
-            val entities = mergedSlice.map { it.toEntity(refreshTime) }
+            val entities = write.rows.map { it.toEntity(refreshTime) }
             withContext(PerformanceDispatcher.diskIO) {
                 database.withTransaction {
                     if (plan.isFullRefresh) {
@@ -189,13 +195,17 @@ class SubscriptionFeedRepository
                     cacheDao.insertSubscriptionFeed(entities)
                     cacheDao.pruneSubscriptionFeedOlderThan(refreshTime - SUBSCRIPTION_CACHE_WINDOW_MS)
                 }
-                subscriptionRepository.markFeedFetched(plan.channelIds, refreshTime)
+                subscriptionRepository.markFeedFetched(write.fetchedChannelIds, refreshTime)
                 val cachedCount = cacheDao.getSubscriptionFeedCount()
                 playerPreferences.setSubscriptionLastRefresh(refreshTime, cachedCount)
             }
-            Log.i(TAG, "Persisted ${entities.size} rows for ${plan.channelIds.size} channels (full=${plan.isFullRefresh})")
+            Log.i(
+                TAG,
+                "Persisted ${entities.size} rows for ${plan.channelIds.size} channels " +
+                    "(full=${plan.isFullRefresh}, failed=${failedChannelIds.size})",
+            )
 
-            return if (plan.isFullRefresh) mergedSlice else loadCachedFeed()
+            return if (plan.isFullRefresh) write.rows else loadCachedFeed()
         }
 
         /**
@@ -249,7 +259,12 @@ class SubscriptionFeedRepository
                             thumbnailUrl = video.thumbnailUrl,
                             duration = video.duration,
                             viewCount = video.viewCount,
-                            isLive = video.isLive,
+                            // The cache has no column for a scheduled stream, so it is stored as
+                            // live + upcoming and read back the same way.
+                            isLive = video.isLive || video.isScheduledLive,
+                            isUpcoming = video.isUpcoming,
+                            uploadDate = video.uploadDate,
+                            timestamp = video.timestamp,
                         )
                     }
                 }
@@ -283,7 +298,9 @@ private fun SubscriptionFeedEntity.toVideo() =
         channelThumbnailUrl = channelThumbnailUrl,
         isShort = isShort,
         isLive = isLive && uploadDate.containsLiveMarker(),
-        isUpcoming = isUpcoming,
+        // A cached "upcoming" outlives its start time only until the next look at the row.
+        isUpcoming = isUpcoming && timestamp > System.currentTimeMillis(),
+        isScheduledLive = isUpcoming && isLive && timestamp > System.currentTimeMillis(),
     )
 
 private fun Video.toEntity(cachedAtMillis: Long) =

@@ -40,7 +40,13 @@ Flow-desktop/
 .kotlin/
 
 # Local engine diagnostics (real exported brains - personal data, never commit)
-diagnostics/
+/diagnostics/
+/app/diagnostics/
+
+# Captured InnerTube explore payloads: megabytes of response, regenerated locally by
+# notes/innertube-video-responses/trim_explore_fixtures.py rather than tracked.
+/app/src/test/resources/explore/
+/app/src/test/resources/shorts/
 
 # Local SponsorBlock database mirror (multi-gigabyte training source)
 /sb-mirror/
@@ -48,4 +54,8 @@ diagnostics/
 # Sponsor-detection ML now lives in the Flow-SponsorML repository. Any local
 # checkout kept here is ignored.
 ml/
+
+# macOS Finder metadata
+.DS_Store
+
 *.log

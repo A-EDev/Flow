@@ -39,6 +39,8 @@ import okhttp3.OkHttpClient
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val MANUAL_SHARE_TTL_SECONDS = 600L
+
 /**
  * Owns one FLOW-SYNC/1 session end-to-end and exposes it as a single [StateFlow].
  *
@@ -71,6 +73,18 @@ class SyncManager
         private var directionalKeys: DirectionalKeys? = null
         private var sasDeferred: CompletableDeferred<Boolean>? = null
         private var consentDeferred: CompletableDeferred<Boolean>? = null
+        private var hostPairing: HostPairing? = null
+
+        private class HostPairing(
+            val sessionId: ByteArray,
+            val masterKey: ByteArray,
+            val ip: String,
+            val port: Int,
+            val deviceName: String,
+            val role: String,
+            val sessionBound: Boolean,
+            val sending: Boolean,
+        )
 
         // --- public API (called by the ViewModel) ---
 
@@ -105,6 +119,15 @@ class SyncManager
             job = scope.launch { runClient(role, qrText, collections) }
         }
 
+        fun extendPairingForManualShare(): String? {
+            val pairing = hostPairing ?: return null
+            if (_state.value !is SyncState.ShowingQr) return null
+            val exp = System.currentTimeMillis() / 1000 + MANUAL_SHARE_TTL_SECONDS
+            val extended = showingQr(pairing, exp, MANUAL_SHARE_TTL_SECONDS)
+            _state.value = extended
+            return extended.qrText
+        }
+
         fun confirmSas(matches: Boolean) {
             sasDeferred?.complete(matches)
         }
@@ -124,6 +147,29 @@ class SyncManager
         }
 
         // --- host (show QR); role may be SENDER or RECEIVER ---
+
+        private fun showingQr(
+            pairing: HostPairing,
+            expEpochSeconds: Long,
+            ttlSeconds: Long,
+        ): SyncState.ShowingQr =
+            SyncState.ShowingQr(
+                qrText =
+                    QrCodec.build(
+                        sessionId = pairing.sessionId,
+                        masterKey = pairing.masterKey,
+                        ip = pairing.ip,
+                        port = pairing.port,
+                        deviceName = pairing.deviceName,
+                        expEpochSeconds = expEpochSeconds,
+                        role = pairing.role,
+                        sessionBound = pairing.sessionBound,
+                    ),
+                expiresAtEpochSeconds = expEpochSeconds,
+                ttlSeconds = ttlSeconds,
+                sending = pairing.sending,
+                address = "${pairing.ip}:${pairing.port}",
+            )
 
         private suspend fun runHost(
             role: SyncRole,
@@ -148,26 +194,19 @@ class SyncManager
                 server = srv
                 val port = srv.start()
                 val exp = System.currentTimeMillis() / 1000 + QrCodec.DEFAULT_TTL_SECONDS
-                val qrRole = if (role == SyncRole.SENDER) QrCodec.ROLE_SENDER else QrCodec.ROLE_RECEIVER
-                val qrText =
-                    QrCodec.build(
+                val pairing =
+                    HostPairing(
                         sessionId = sessionId,
                         masterKey = master,
                         ip = ip,
                         port = port,
                         deviceName = deviceIdentity.deviceName(),
-                        expEpochSeconds = exp,
-                        role = qrRole,
+                        role = if (role == SyncRole.SENDER) QrCodec.ROLE_SENDER else QrCodec.ROLE_RECEIVER,
                         sessionBound = sessionBoundQr,
-                    )
-                _state.value =
-                    SyncState.ShowingQr(
-                        qrText = qrText,
-                        sas = sas,
-                        expiresAtEpochSeconds = exp,
                         sending = role == SyncRole.SENDER,
-                        address = "$ip:$port",
                     )
+                hostPairing = pairing
+                _state.value = showingQr(pairing, exp, QrCodec.DEFAULT_TTL_SECONDS)
 
                 val conn = srv.awaitConnection()
                 connection = conn
@@ -302,7 +341,7 @@ class SyncManager
                     SyncCollection.FLOW_NEURO_BRAIN to Capability(13, produce = true, consume = true),
                     SyncCollection.SUBSCRIBED_CHANNELS to Capability(1, produce = true, consume = true),
                     SyncCollection.SUBSCRIPTIONS to Capability(1, produce = true, consume = true),
-                    SyncCollection.MUSIC_BRAIN to Capability(0, produce = false, consume = false),
+                    SyncCollection.MUSIC_BRAIN to Capability(1, produce = true, consume = true),
                 ),
             )
 
@@ -321,6 +360,7 @@ class SyncManager
             masterKey = null
             sasDeferred = null
             consentDeferred = null
+            hostPairing = null
             runCatching { SyncForegroundService.stop(context) }
         }
 

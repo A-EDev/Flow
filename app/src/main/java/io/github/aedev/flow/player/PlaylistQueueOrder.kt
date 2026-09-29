@@ -86,10 +86,16 @@ internal object PlaylistQueueOrder {
         target: T,
         keySelector: (T) -> K,
     ): List<T> {
-        val matchingIndex =
-            items.indexOf(target).takeIf { it >= 0 }
-                ?: items.indexOfFirst { keySelector(it) == keySelector(target) }
+        val matchingIndex = indexMatching(items, target, keySelector)
         if (matchingIndex < 0) return items
         return items.toMutableList().apply { removeAt(matchingIndex) }
     }
+
+    fun <T, K> indexMatching(
+        items: List<T>,
+        target: T,
+        keySelector: (T) -> K,
+    ): Int =
+        items.indexOf(target).takeIf { it >= 0 }
+            ?: items.indexOfFirst { keySelector(it) == keySelector(target) }
 }

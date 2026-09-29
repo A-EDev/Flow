@@ -32,10 +32,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.innertube.pages.channel.ChannelTabKind
+import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.ui.screens.channel.ChannelViewModel
 import io.github.aedev.flow.ui.tv.components.TvButton
 import io.github.aedev.flow.ui.tv.components.TvFilterChip
@@ -46,18 +47,17 @@ import io.github.aedev.flow.ui.tv.components.TvVideoCard
 import io.github.aedev.flow.ui.tv.focus.tvInitialFocus
 import io.github.aedev.flow.ui.tv.focus.tvRowFocus
 import io.github.aedev.flow.ui.tv.theme.LocalTvDimens
-import io.github.aedev.flow.utils.formatSubscriberCount
 
 private const val CHANNEL_GRID_COLUMNS = 3
 
 private enum class TvChannelTab(
-    val vmIndex: Int,
+    val kind: ChannelTabKind,
     val labelRes: Int,
 ) {
-    VIDEOS(0, R.string.tv_channel_videos),
-    LIVE(2, R.string.tv_filter_live),
-    PLAYLISTS(3, R.string.tv_filter_playlists),
-    ABOUT(5, R.string.about),
+    VIDEOS(ChannelTabKind.Videos, R.string.tv_channel_videos),
+    LIVE(ChannelTabKind.Live, R.string.tv_filter_live),
+    PLAYLISTS(ChannelTabKind.Playlists, R.string.tv_filter_playlists),
+    ABOUT(ChannelTabKind.Unknown, R.string.about),
 }
 
 /** Channel detail page: header, subscribe, tab chips, and paged content grids. */
@@ -78,7 +78,7 @@ fun TvChannelScreen(
     }
 
     val selectedTab =
-        TvChannelTab.entries.firstOrNull { it.vmIndex == uiState.selectedTab }
+        TvChannelTab.entries.firstOrNull { it.kind == uiState.selectedTab }
             ?: TvChannelTab.VIDEOS
 
     Column(
@@ -88,7 +88,7 @@ fun TvChannelScreen(
                 .padding(top = dimens.overscanVertical),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        val info = uiState.channelInfo
+        val header = uiState.header
         Row(
             modifier =
                 Modifier
@@ -97,11 +97,8 @@ fun TvChannelScreen(
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val avatarUrl =
-                info?.avatars?.maxByOrNull { it.height }?.url
-                    ?: info?.avatars?.firstOrNull()?.url
             AsyncImage(
-                model = avatarUrl,
+                model = header?.avatarUrl,
                 contentDescription = null,
                 modifier =
                     Modifier
@@ -114,15 +111,14 @@ fun TvChannelScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = info?.name.orEmpty(),
+                    text = header?.title.orEmpty(),
                     style = MaterialTheme.typography.headlineMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val subscribers = info?.subscriberCount?.let(::formatSubscriberCount).orEmpty()
-                if (subscribers.isNotBlank()) {
+                header?.subscriberCountText?.takeIf { it.isNotBlank() }?.let { subscribers ->
                     Text(
-                        text = stringResource(R.string.subscribers_count_template, subscribers),
+                        text = subscribers,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -151,7 +147,7 @@ fun TvChannelScreen(
                 TvFilterChip(
                     label = stringResource(tab.labelRes),
                     selected = tab == selectedTab,
-                    onClick = { viewModel.selectTab(tab.vmIndex) },
+                    onClick = { viewModel.selectTab(tab.kind) },
                     modifier =
                         if (tab == TvChannelTab.VIDEOS) {
                             Modifier.tvInitialFocus()
@@ -163,11 +159,11 @@ fun TvChannelScreen(
         }
 
         when {
-            uiState.isLoading && info == null -> {
+            uiState.isLoading && header == null -> {
                 TvLoadingState(Modifier.weight(1f))
             }
 
-            uiState.error != null && info == null -> {
+            uiState.error != null && header == null -> {
                 TvMessageState(
                     title = stringResource(R.string.tv_error_loading),
                     message = uiState.error,
@@ -184,68 +180,21 @@ fun TvChannelScreen(
                             .padding(horizontal = dimens.overscanHorizontal),
                 ) {
                     Text(
-                        text = info?.description.orEmpty(),
+                        text = header?.description.orEmpty(),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
             }
 
-            selectedTab == TvChannelTab.PLAYLISTS -> {
-                val flow by viewModel.playlistsPagingFlow.collectAsStateWithLifecycle()
-                val playlists = flow?.collectAsLazyPagingItems()
-                if (playlists == null) {
-                    TvLoadingState(Modifier.weight(1f))
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(CHANNEL_GRID_COLUMNS),
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .tvRowFocus(),
-                        contentPadding =
-                            PaddingValues(
-                                start = dimens.overscanHorizontal,
-                                end = dimens.overscanHorizontal,
-                                bottom = dimens.overscanVertical,
-                            ),
-                        horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
-                        verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
-                    ) {
-                        items(
-                            count = playlists.itemCount,
-                            key = playlists.itemKey { "playlist:${it.id}" },
-                        ) { index ->
-                            playlists[index]?.let { playlist ->
-                                TvPlaylistCard(
-                                    playlist = playlist,
-                                    onClick = { onOpenPlaylist(playlist.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
-                        if (playlists.loadState.append is LoadState.Loading) {
-                            item(span = { GridItemSpan(maxLineSpan) }) { TvLoadingState() }
-                        }
-                    }
-                }
-            }
-
             else -> {
-                // The videos/live tabs are backed by the eagerly loaded full
-                // lists — the ViewModel never populates its paging flows for
-                // them (mobile reads these same lists for filtering support).
-                val videos by if (selectedTab == TvChannelTab.LIVE) {
-                    viewModel.liveAll.collectAsStateWithLifecycle()
-                } else {
-                    viewModel.videosAll.collectAsStateWithLifecycle()
-                }
-                val isLoadingAll by viewModel.isLoadingAllVideos.collectAsStateWithLifecycle()
+                val tabStates by viewModel.tabStates.collectAsStateWithLifecycle()
+                val items = tabStates[selectedTab.kind]?.items?.collectAsLazyPagingItems()
                 when {
-                    videos.isEmpty() && (isLoadingAll || uiState.isLoadingVideos || uiState.isLoading) -> {
+                    items == null || items.loadState.refresh is LoadState.Loading -> {
                         TvLoadingState(Modifier.weight(1f))
                     }
 
-                    videos.isEmpty() -> {
+                    items.itemCount == 0 -> {
                         TvMessageState(
                             title = stringResource(R.string.tv_library_empty),
                             modifier = Modifier.weight(1f),
@@ -268,18 +217,30 @@ fun TvChannelScreen(
                             horizontalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                             verticalArrangement = Arrangement.spacedBy(dimens.itemSpacing),
                         ) {
-                            items(
-                                count = videos.size,
-                                key = { "video:$it:${videos[it].id}" },
-                            ) { index ->
-                                val video = videos[index]
-                                TvVideoCard(
-                                    video = video,
-                                    onClick = { onVideoClick(video) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
+                            items(count = items.itemCount) { index ->
+                                when (val item = items[index]) {
+                                    is FeedItem.VideoItem -> {
+                                        TvVideoCard(
+                                            video = item.video,
+                                            onClick = { onVideoClick(item.video) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+
+                                    is FeedItem.PlaylistItem -> {
+                                        TvPlaylistCard(
+                                            playlist = item.playlist,
+                                            onClick = { onOpenPlaylist(item.playlist.id) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+
+                                    else -> {
+                                        Unit
+                                    }
+                                }
                             }
-                            if (isLoadingAll) {
+                            if (items.loadState.append is LoadState.Loading) {
                                 item(span = { GridItemSpan(maxLineSpan) }) { TvLoadingState() }
                             }
                         }
