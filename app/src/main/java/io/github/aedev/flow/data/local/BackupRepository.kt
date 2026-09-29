@@ -130,6 +130,10 @@ private const val MASTER_APP_DATA_ENTRY = "app_data.json"
 private const val MASTER_ENGINE_ENTRY = "engine_brain.json"
 private const val MASTER_MUSIC_BRAIN_ENTRY = "music_brain.json"
 private const val MASTER_RECAP_ENTRY = "recap_stats.json"
+private const val ENGLISH_TAKEOUT_WATCH_HISTORY = "history/watch-history.html"
+
+// Every Takeout activity entry sits in this cell, whatever language the archive is in.
+private const val TAKEOUT_ACTIVITY_MARKUP = "content-cell"
 
 class BackupRepository(
     private val context: Context,
@@ -683,6 +687,43 @@ class BackupRepository(
     }
 
     private suspend fun importHtmlWatchHistory(uri: Uri): Result<Int> {
+        val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
+        val importedCount =
+            context.contentResolver
+                .openInputStream(uri)
+                ?.bufferedReader(Charsets.UTF_8)
+                ?.use { reader ->
+                    importTakeoutHtmlHistory(
+                        reader = reader,
+                        firstIndex = 0,
+                        neuroBootstrapCandidates = neuroBootstrapCandidates,
+                        requireActivityMarkup = false,
+                    )
+                } ?: return Result.failure(Exception("Could not read file"))
+
+        if (importedCount == 0) {
+            return Result.failure(Exception("no_entries"))
+        }
+
+        try {
+            bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
+        } catch (_: Exception) {
+        }
+
+        return Result.success(importedCount)
+    }
+
+    /**
+     * Streams a Takeout watch-history HTML file into history and returns how many entries it saved.
+     * Localized archives name the file in the account's language, so with [requireActivityMarkup] a
+     * file is only saved once it shows the My Activity layout; any other HTML is dropped unsaved.
+     */
+    private suspend fun importTakeoutHtmlHistory(
+        reader: BufferedReader,
+        firstIndex: Int,
+        neuroBootstrapCandidates: LinkedHashMap<String, VideoHistoryEntry>,
+        requireActivityMarkup: Boolean,
+    ): Int {
         val readSize = 65_536
         val overlap = 2_048
         val batchSize = 500
@@ -699,97 +740,83 @@ class BackupRepository(
             )
 
         var importedCount = 0
+        var activityMarkupSeen = !requireActivityMarkup
         val batch = mutableListOf<VideoHistoryEntry>()
-        val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
+        val buffer = CharArray(readSize)
+        val tail = StringBuilder(overlap)
 
-        context.contentResolver
-            .openInputStream(uri)
-            ?.bufferedReader(Charsets.UTF_8)
-            ?.use { reader ->
-                val buffer = CharArray(readSize)
-                val tail = StringBuilder(overlap)
-
-                while (true) {
-                    val count = reader.read(buffer)
-                    if (count == -1) break
-
-                    val window = tail.toString() + String(buffer, 0, count)
-                    val videoMatches = videoPattern.findAll(window).toList()
-                    val channelMatches = channelPattern.findAll(window).toList()
-                    var channelIndex = 0
-
-                    for (videoMatch in videoMatches) {
-                        if (videoMatch.range.last < tail.length) continue
-
-                        val videoId = videoMatch.groupValues[1].trim()
-                        if (videoId.isEmpty()) continue
-
-                        val title = unescapeHtmlEntities(videoMatch.groupValues[2].trim())
-
-                        while (channelIndex < channelMatches.size &&
-                            channelMatches[channelIndex].range.first <= videoMatch.range.first
-                        ) {
-                            channelIndex++
-                        }
-
-                        val channelMatch = channelMatches.getOrNull(channelIndex)
-                        val channelId: String
-                        val channelName: String
-                        if (channelMatch != null && channelMatch.range.first - videoMatch.range.last < 2_000) {
-                            channelId = channelMatch.groupValues[1].trim()
-                            channelName = unescapeHtmlEntities(channelMatch.groupValues[2].trim())
-                        } else {
-                            channelId = ""
-                            channelName = ""
-                        }
-
-                        val historyEntry =
-                            VideoHistoryEntry(
-                                videoId = videoId,
-                                position = 0L,
-                                duration = 0L,
-                                timestamp = System.currentTimeMillis() - importedCount,
-                                title = title,
-                                thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                                channelName = channelName,
-                                channelId = channelId,
-                                isMusic = false,
-                            )
-                        batch.add(historyEntry)
-                        rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
-                        importedCount++
-                    }
-
-                    tail.clear()
-                    if (window.length > overlap) {
-                        tail.append(window, window.length - overlap, window.length)
-                    } else {
-                        tail.append(window)
-                    }
-
-                    if (batch.size >= batchSize) {
-                        viewHistory.bulkSaveHistoryEntries(batch)
-                        batch.clear()
-                        kotlinx.coroutines.yield()
-                    }
-                }
-
-                if (batch.isNotEmpty()) {
-                    viewHistory.bulkSaveHistoryEntries(batch)
-                    batch.clear()
-                }
-            } ?: return Result.failure(Exception("Could not read file"))
-
-        if (importedCount == 0) {
-            return Result.failure(Exception("no_entries"))
+        suspend fun flush() {
+            if (batch.isEmpty()) return
+            viewHistory.bulkSaveHistoryEntries(batch)
+            batch.forEach { rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, it) }
+            batch.clear()
+            kotlinx.coroutines.yield()
         }
 
-        try {
-            bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
-        } catch (_: Exception) {
+        while (true) {
+            val count = reader.read(buffer)
+            if (count == -1) break
+
+            val window = tail.toString() + String(buffer, 0, count)
+            if (!activityMarkupSeen) activityMarkupSeen = window.contains(TAKEOUT_ACTIVITY_MARKUP)
+            val videoMatches = videoPattern.findAll(window).toList()
+            val channelMatches = channelPattern.findAll(window).toList()
+            var channelIndex = 0
+
+            for (videoMatch in videoMatches) {
+                if (videoMatch.range.last < tail.length) continue
+
+                val videoId = videoMatch.groupValues[1].trim()
+                if (videoId.isEmpty()) continue
+
+                val title = unescapeHtmlEntities(videoMatch.groupValues[2].trim())
+
+                while (channelIndex < channelMatches.size &&
+                    channelMatches[channelIndex].range.first <= videoMatch.range.first
+                ) {
+                    channelIndex++
+                }
+
+                val channelMatch = channelMatches.getOrNull(channelIndex)
+                val channelId: String
+                val channelName: String
+                if (channelMatch != null && channelMatch.range.first - videoMatch.range.last < 2_000) {
+                    channelId = channelMatch.groupValues[1].trim()
+                    channelName = unescapeHtmlEntities(channelMatch.groupValues[2].trim())
+                } else {
+                    channelId = ""
+                    channelName = ""
+                }
+
+                batch.add(
+                    VideoHistoryEntry(
+                        videoId = videoId,
+                        position = 0L,
+                        duration = 0L,
+                        timestamp = System.currentTimeMillis() - (firstIndex + importedCount),
+                        title = title,
+                        thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
+                        channelName = channelName,
+                        channelId = channelId,
+                        isMusic = false,
+                    ),
+                )
+                importedCount++
+            }
+
+            tail.clear()
+            if (window.length > overlap) {
+                tail.append(window, window.length - overlap, window.length)
+            } else {
+                tail.append(window)
+            }
+
+            if (activityMarkupSeen && batch.size >= batchSize) flush()
         }
 
-        return Result.success(importedCount)
+        if (!activityMarkupSeen) return 0
+        flush()
+        return importedCount
     }
 
     private suspend fun importJsonWatchHistory(uri: Uri): Result<Int> {
@@ -1367,92 +1394,23 @@ class BackupRepository(
                 val takeoutCsvBudget = YouTubeTakeoutCsvBudget()
                 val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
 
-                val overlap = 2_048
-                val readSize = 65_536
-                val batchSize = 500
-
-                val videoPattern =
-                    Regex(
-                        """href="https://www\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""",
-                        RegexOption.IGNORE_CASE,
-                    )
-                val channelPattern =
-                    Regex(
-                        """href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""",
-                        RegexOption.IGNORE_CASE,
-                    )
-                val historyBatch = mutableListOf<VideoHistoryEntry>()
-
                 context.contentResolver.openInputStream(uri)?.use { raw ->
                     ZipInputStream(raw.buffered()).use { zip ->
                         var entry = zip.nextEntry
                         while (entry != null) {
                             val name = entry.name
                             when {
-                                name.endsWith("history/watch-history.html", ignoreCase = true) -> {
+                                name.endsWith(ENGLISH_TAKEOUT_WATCH_HISTORY, ignoreCase = true) ||
+                                    isYouTubeTakeoutHtmlEntry(name) -> {
                                     onProgress?.invoke("Watch history", 0, 0)
-                                    val reader = zip.bufferedReader(Charsets.UTF_8)
-                                    val buf = CharArray(readSize)
-                                    val tail = StringBuilder(overlap)
-                                    while (true) {
-                                        val n = reader.read(buf)
-                                        if (n == -1) break
-                                        val window = tail.toString() + String(buf, 0, n)
-                                        val videoMatches = videoPattern.findAll(window).toList()
-                                        val channelMatches = channelPattern.findAll(window).toList()
-                                        var chIdx = 0
-                                        for (vm in videoMatches) {
-                                            if (vm.range.last < tail.length) continue
-                                            val videoId = vm.groupValues[1].trim()
-                                            if (videoId.isEmpty()) continue
-                                            val title = unescapeHtmlEntities(vm.groupValues[2].trim())
-                                            while (chIdx < channelMatches.size &&
-                                                channelMatches[chIdx].range.first <= vm.range.first
-                                            ) {
-                                                chIdx++
-                                            }
-                                            val cm = channelMatches.getOrNull(chIdx)
-                                            val chId: String
-                                            val chName: String
-                                            if (cm != null && cm.range.first - vm.range.last < 2_000) {
-                                                chId = cm.groupValues[1].trim()
-                                                chName = unescapeHtmlEntities(cm.groupValues[2].trim())
-                                            } else {
-                                                chId = ""
-                                                chName = ""
-                                            }
-                                            val historyEntry =
-                                                VideoHistoryEntry(
-                                                    videoId = videoId,
-                                                    position = 0L,
-                                                    duration = 0L,
-                                                    timestamp = System.currentTimeMillis() - historyImported,
-                                                    title = title,
-                                                    thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                                                    channelName = chName,
-                                                    channelId = chId,
-                                                    isMusic = false,
-                                                )
-                                            historyBatch.add(historyEntry)
-                                            rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
-                                            historyImported++
-                                            if (historyBatch.size >= batchSize) {
-                                                viewHistory.bulkSaveHistoryEntries(historyBatch)
-                                                historyBatch.clear()
-                                                kotlinx.coroutines.yield()
-                                            }
-                                        }
-                                        tail.clear()
-                                        if (window.length > overlap) {
-                                            tail.append(window, window.length - overlap, window.length)
-                                        } else {
-                                            tail.append(window)
-                                        }
-                                    }
-                                    if (historyBatch.isNotEmpty()) {
-                                        viewHistory.bulkSaveHistoryEntries(historyBatch)
-                                        historyBatch.clear()
-                                    }
+                                    historyImported +=
+                                        importTakeoutHtmlHistory(
+                                            reader = zip.bufferedReader(Charsets.UTF_8),
+                                            firstIndex = historyImported,
+                                            neuroBootstrapCandidates = neuroBootstrapCandidates,
+                                            requireActivityMarkup =
+                                                !name.endsWith(ENGLISH_TAKEOUT_WATCH_HISTORY, ignoreCase = true),
+                                        )
                                 }
 
                                 !entry.isDirectory && isYouTubeTakeoutCsvEntry(name) -> {

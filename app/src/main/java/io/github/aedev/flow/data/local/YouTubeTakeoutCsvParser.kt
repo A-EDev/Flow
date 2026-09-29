@@ -35,10 +35,18 @@ private const val MAX_TAKEOUT_ENTRY_NAME_CHARACTERS = 4_096
 private const val MAX_TAKEOUT_LEAF_NAME_CHARACTERS = 512
 private const val MAX_TAKEOUT_PLAYLISTS = 2_000
 
-internal fun isYouTubeTakeoutCsvEntry(entryName: String): Boolean {
-    if (entryName.length > MAX_TAKEOUT_ENTRY_NAME_CHARACTERS) return false
-    val normalized = entryName.replace('\\', '/')
-    val segments = normalized.split('/')
+internal fun isYouTubeTakeoutCsvEntry(entryName: String): Boolean =
+    youTubeTakeoutSegments(entryName)?.last()?.endsWith(".csv", ignoreCase = true) == true
+
+/** An HTML file one folder inside the YouTube product, where Takeout puts the history files in every language. */
+internal fun isYouTubeTakeoutHtmlEntry(entryName: String): Boolean =
+    youTubeTakeoutSegments(entryName)?.let { segments ->
+        segments.size == 4 && segments.last().endsWith(".html", ignoreCase = true)
+    } == true
+
+private fun youTubeTakeoutSegments(entryName: String): List<String>? {
+    if (entryName.length > MAX_TAKEOUT_ENTRY_NAME_CHARACTERS) return null
+    val segments = entryName.replace('\\', '/').split('/')
     val product = segments.getOrNull(1).orEmpty()
     val isYouTubeProduct =
         product.equals("YouTube", ignoreCase = true) ||
@@ -46,12 +54,13 @@ internal fun isYouTubeTakeoutCsvEntry(entryName: String): Boolean {
                 product.startsWith("YouTube ", ignoreCase = true) &&
                     product.endsWith("YouTube Music", ignoreCase = true)
             )
-    return segments.size >= 3 &&
-        segments.first().equals("Takeout", ignoreCase = true) &&
-        isYouTubeProduct &&
-        segments.none { it.isEmpty() || it == "." || it == ".." } &&
-        segments.last().length <= MAX_TAKEOUT_LEAF_NAME_CHARACTERS &&
-        segments.last().endsWith(".csv", ignoreCase = true)
+    val isValid =
+        segments.size >= 3 &&
+            segments.first().equals("Takeout", ignoreCase = true) &&
+            isYouTubeProduct &&
+            segments.none { it.isEmpty() || it == "." || it == ".." } &&
+            segments.last().length <= MAX_TAKEOUT_LEAF_NAME_CHARACTERS
+    return segments.takeIf { isValid }
 }
 
 internal fun String.takeoutParentPath(): String = replace('\\', '/').substringBeforeLast('/', "")
