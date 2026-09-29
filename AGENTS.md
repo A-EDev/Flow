@@ -443,6 +443,10 @@ rows, bespoke empty/error states, bespoke badges, bespoke formatters, or a secon
 4. **Strings move with the component**, and only in `values/strings.xml`. Never touch other locales.
 5. **Run `graphify update .`** after each landed refactor step so the next query is accurate.
 
+## Upstream sync
+
+This fork regularly merges `upstream/main` (`A-EDev/Flow`) while keeping its own player, sponsor-detection, and settings behavior. Before starting a sync, read [UPSTREAM-MERGE.md](UPSTREAM-MERGE.md) and follow it. Port fork behavior into upstream's replacement files. Do not finish a player conflict by taking one side. Do not commit `next-plan.md` as part of a sync.
+
 ## Rules for working on the project
 
 1. Always pull the latest changes from `main` before starting work to minimize merge conflicts.
