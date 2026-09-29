@@ -4,12 +4,12 @@ import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.model.DistinctKeyTracker
-import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.renderer.FeedItem
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelf
 import io.github.aedev.flow.innertube.pages.renderer.FeedShelfStyle
+import io.github.aedev.flow.innertube.pages.renderer.videoOrNull
 import io.github.aedev.flow.innertube.pages.search.SearchHeader
 import io.github.aedev.flow.innertube.pages.search.SearchResultsPage
 import io.github.aedev.flow.innertube.pages.search.SearchSection
@@ -154,7 +154,7 @@ private fun FeedShelf.toShelfItem(shortsEnabled: Boolean): SearchResultItem? {
     if (posts.isNotEmpty()) {
         return SearchResultItem.ShelfResult(id, title, SearchShelfKind.POSTS, posts = posts)
     }
-    val videos = items.mapNotNull { it.shelfVideo() }
+    val videos = items.mapNotNull { it.videoOrNull() }
     if (videos.isEmpty()) return null
     val kind = if (style == FeedShelfStyle.Grid) SearchShelfKind.SHORTS else SearchShelfKind.VIDEOS
     if (kind == SearchShelfKind.SHORTS && !shortsEnabled) return null
@@ -166,13 +166,6 @@ private fun FeedShelf.toShelfItem(shortsEnabled: Boolean): SearchResultItem? {
         collapsedItemCount = collapsedItemCount,
     )
 }
-
-private fun FeedItem.shelfVideo(): Video? =
-    when (this) {
-        is FeedItem.VideoItem -> video
-        is FeedItem.ShortItem -> video
-        else -> null
-    }
 
 private fun SearchResultItem.identityKey(): String =
     when (this) {

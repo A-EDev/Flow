@@ -341,25 +341,6 @@ object YouTube {
             )
         }
 
-    /**
-     * Main YouTube search exposes collaboration avatars in a modern entity block:
-     * searchVideoResultEntityKey + avatar.avatarStackViewModel. NewPipe only returns
-     * the uploader avatar, and no channel at all for a collaboration, so callers can merge
-     * this lightweight map by video id.
-     */
-    suspend fun searchVideoAvatarStacks(query: String): Result<Map<String, SearchVideoAvatarStack>> =
-        runCatching {
-            val rawBody = innerTube.webSearch(WEB, query).bodyAsText()
-            val root =
-                Json {
-                    ignoreUnknownKeys = true
-                    explicitNulls = false
-                }.parseToJsonElement(rawBody)
-            buildMap {
-                collectSearchVideoAvatarStacks(root, this)
-            }
-        }
-
     suspend fun videoAvatarStack(videoId: String): Result<List<String>> =
         runCatching {
             val rawBody = innerTube.next(WEB, videoId, null, null, null, null, null).bodyAsText()
@@ -380,56 +361,6 @@ object YouTube {
                     explicitNulls = false
                 }.parseToJsonElement(rawBody)
             root.findVideoOwnerCollaborators()
-        }
-
-    private fun collectSearchVideoAvatarStacks(
-        element: JsonElement,
-        result: MutableMap<String, SearchVideoAvatarStack>,
-    ) {
-        when (element) {
-            is JsonArray -> {
-                element.forEach { collectSearchVideoAvatarStacks(it, result) }
-            }
-
-            is JsonObject -> {
-                if (element.containsKey("searchVideoResultEntityKey") && element.containsKey("avatar")) {
-                    val videoId = element.findFirstString("videoId")
-                    val avatarUrls =
-                        element["avatar"]
-                            ?.collectAvatarImageUrls()
-                            .orEmpty()
-
-                    if (!videoId.isNullOrBlank() && avatarUrls.isNotEmpty()) {
-                        result[videoId] =
-                            SearchVideoAvatarStack(
-                                avatarUrls = avatarUrls,
-                                collaborators = element["avatar"].collaboratorDialog(),
-                            )
-                    }
-                }
-                element.values.forEach { collectSearchVideoAvatarStacks(it, result) }
-            }
-
-            else -> {
-                Unit
-            }
-        }
-    }
-
-    private fun JsonElement.findFirstString(key: String): String? =
-        when (this) {
-            is JsonObject -> {
-                (this[key] as? JsonPrimitive)?.contentOrNull
-                    ?: values.firstNotNullOfOrNull { it.findFirstString(key) }
-            }
-
-            is JsonArray -> {
-                firstNotNullOfOrNull { it.findFirstString(key) }
-            }
-
-            else -> {
-                null
-            }
         }
 
     private fun JsonElement.collectAvatarImageUrls(): List<String> {
@@ -2856,9 +2787,3 @@ object YouTube {
 
     private val VISITOR_DATA_REGEX = Regex("^Cg[t|s]")
 }
-
-/** A search result's owner avatars, and its channels when the result is a collaboration. */
-data class SearchVideoAvatarStack(
-    val avatarUrls: List<String>,
-    val collaborators: List<VideoCollaborator>,
-)

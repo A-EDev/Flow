@@ -185,7 +185,8 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
     val isLive = timeStatus == TIME_STATUS_LIVE || this["badges"].hasLiveBadge() || viewsText.mentionsWatching()
     val isUpcoming = upcomingStartMs != null
     val collaborators = videoRendererCollaborators()
-    return FeedItem.VideoItem(
+    val isShort = timeStatus == TIME_STATUS_SHORTS || opensReelPlayer()
+    val video =
         Video(
             id = videoId,
             title = title,
@@ -208,12 +209,25 @@ private fun JsonObject.toVideoRendererItem(owner: FeedItemOwner): FeedItem? {
             collaborators = collaborators,
             isLive = isLive,
             isUpcoming = isUpcoming,
+            isShort = isShort,
             isVerifiedChannel = this["ownerBadges"].hasVerifiedBadge(),
             badges = badges,
             snippet = snippet,
             snippetHighlights = highlights,
-        ),
-    )
+        )
+    return if (isShort) FeedItem.ShortItem(video) else FeedItem.VideoItem(video)
+}
+
+/** A Short can arrive as a plain video row, and then tapping it opens the reel player, not the watch page. */
+private fun JsonObject.opensReelPlayer(): Boolean {
+    val endpoint = this["navigationEndpoint"].objectOrNull() ?: return false
+    return endpoint["reelWatchEndpoint"] != null ||
+        endpoint["commandMetadata"]
+            .objectOrNull()
+            ?.get("webCommandMetadata")
+            .objectOrNull()
+            ?.get("webPageType")
+            .stringOrNull() == "WEB_PAGE_TYPE_SHORTS"
 }
 
 /**
@@ -240,6 +254,7 @@ private fun JsonObject.bylineName(): String? =
         .firstNotNullOfOrNull { this[it].youtubeText()?.takeIf(String::isNotBlank) }
 
 private const val TIME_STATUS_LIVE = "LIVE"
+private const val TIME_STATUS_SHORTS = "SHORTS"
 
 private fun JsonObject.toPlaylistRendererItem(): FeedItem? {
     val playlistId = this["playlistId"].stringOrNull()?.takeIf(String::isNotBlank) ?: return null

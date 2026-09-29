@@ -18,6 +18,7 @@ import io.github.aedev.flow.innertube.models.response.WatchMetadataResponse
 import io.github.aedev.flow.innertube.pages.VideoDescriptionPage
 import io.github.aedev.flow.innertube.pages.YouTubeCountParser
 import io.github.aedev.flow.innertube.pages.parseYouTubeViewCount
+import io.github.aedev.flow.innertube.pages.search.resultVideos
 import io.github.aedev.flow.player.stream.InFlightRequestCoalescer
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -268,83 +269,22 @@ class YouTubeRepository
         }
 
         /**
-         * Search for videos
+         * One page of plain search results as feed candidates. The native renderer already carries
+         * the channel id, avatar and collaborators, so nothing is fetched per video afterwards.
          */
         suspend fun searchVideos(
             query: String,
-            nextPage: Page? = null,
-        ): Pair<List<Video>, Page?> =
+            continuation: String? = null,
+        ): Pair<List<Video>, String?> =
             withContext(Dispatchers.IO) {
-                try {
-                    val searchExtractor = service.getSearchExtractor(query)
-                    searchExtractor.fetchPage()
-
-                    // FIX: Correct Pagination Logic
-                    val infoItems =
-                        if (nextPage != null) {
-                            searchExtractor.getPage(nextPage)
-                        } else {
-                            searchExtractor.initialPage
-                        }
-
-                    val videos =
-                        infoItems.items
-                            .filterIsInstance<StreamInfoItem>()
-                            .map { item -> item.toVideo() }
-
-                    val enriched =
-                        enrichLikelyCollabAvatarStacks(
-                            enrichVideosWithSearchAvatarStacks(query, videos),
-                        )
-                    Pair(enriched, infoItems.nextPage)
-                } catch (e: Exception) {
-                    Log.w(TAG, "${e::class.simpleName}: ${e.message}")
-                    Pair(emptyList(), null)
-                }
+                YouTube
+                    .videoSearch(query, continuation = continuation)
+                    .map { page -> page.resultVideos() to page.continuation }
+                    .getOrElse { error ->
+                        Log.w(TAG, "searchVideos failed for '$query': ${error::class.simpleName}: ${error.message}")
+                        emptyList<Video>() to null
+                    }
             }
-
-        private suspend fun enrichVideosWithSearchAvatarStacks(
-            query: String,
-            videos: List<Video>,
-        ): List<Video> {
-            if (videos.isEmpty() || videos.all { it.channelThumbnailUrls.size > 1 }) return videos
-
-            val avatarStacks =
-                withTimeoutOrNull(4_000L) {
-                    YouTube.searchVideoAvatarStacks(query).getOrNull()
-                }.orEmpty()
-            if (avatarStacks.isEmpty()) return videos
-
-            return videos.map { video ->
-                val entry = avatarStacks[video.id] ?: return@map video
-                val stack = entry.avatarUrls
-                if (stack.size <= 1) return@map video
-
-                val merged =
-                    (stack + video.channelThumbnailUrls + video.channelThumbnailUrl)
-                        .map { it.trim() }
-                        .filter { it.isNotEmpty() }
-                        .distinctBy { it.avatarImageIdentityKey() }
-                        .take(3)
-
-                if (merged.size > 1) {
-                    video.copy(
-                        channelId =
-                            video.channelId.ifBlank {
-                                entry.collaborators
-                                    .firstOrNull()
-                                    ?.channelId
-                                    .orEmpty()
-                            },
-                        channelThumbnailUrl = merged.first(),
-                        channelThumbnailUrls = merged,
-                        collaborators = entry.collaborators.ifEmpty { video.collaborators },
-                    )
-                } else {
-                    video
-                }
-            }
-        }
 
         suspend fun enrichLikelyCollabAvatarStacks(
             videos: List<Video>,
@@ -575,35 +515,6 @@ class YouTubeRepository
             io.github.aedev.flow.data.recommendation.FlowNeuroEngine
                 .onChannelTagsLearned(context, channelId, tags, info.description)
         }
-
-        /**
-         * NEW: Parallel fetch of multiple search queries
-         * Executes all queries simultaneously for faster feed generation
-         */
-        suspend fun parallelSearchQueries(
-            queries: List<String>,
-            limitPerQuery: Int = 15,
-        ): List<Video> =
-            withContext(PerformanceDispatcher.networkIO) {
-                supervisorScope {
-                    val results =
-                        queries
-                            .map { query ->
-                                async(PerformanceDispatcher.networkIO) {
-                                    withTimeoutOrNull(10_000L) {
-                                        try {
-                                            searchVideos(query).first.take(limitPerQuery)
-                                        } catch (e: Exception) {
-                                            Log.w("YouTubeRepository", "Search query '$query' failed: ${e.message}")
-                                            emptyList()
-                                        }
-                                    } ?: emptyList()
-                                }
-                            }.awaitAll()
-
-                    results.flatten().distinctBy { it.id }
-                }
-            }
 
         /**
          * The web watch response for [videoId], fetched once and shared.
