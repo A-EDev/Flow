@@ -74,7 +74,8 @@ internal fun BackupScreen(
                 else -> return@LaunchedEffect
             }
         viewModel.dismiss()
-        snackbarHostState.showSnackbar(message)
+        // Dismissing changes this effect's key, which would cancel a snackbar shown from here.
+        scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
     val onExported: (Uri?) -> Unit = { uri ->

@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -27,6 +28,7 @@ import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.SettingsTarget
 import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
 import io.github.aedev.flow.ui.components.shared.FlowLoadingIndicator
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 private val LoadingHeight = 240.dp
@@ -45,6 +47,7 @@ internal fun TasteScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val operation by viewModel.operation.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var confirmReset by rememberSaveable { mutableStateOf<ResetKind?>(null) }
     val resetDone = stringResource(R.string.taste_reset_done)
     val busy = stringResource(R.string.backup_busy)
@@ -59,7 +62,8 @@ internal fun TasteScreen(
             }
         viewModel.dismissOperation()
         viewModel.reload()
-        snackbarHostState.showSnackbar(message)
+        // Dismissing changes this effect's key, which would cancel a snackbar shown from here.
+        scope.launch { snackbarHostState.showSnackbar(message) }
     }
     LaunchedEffect(notice) {
         notice?.let {

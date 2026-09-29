@@ -58,6 +58,7 @@ NEW FEATURES
 - The music player adapts to tablets and foldables: wide windows show Up next and Lyrics in a pane beside the player, upright tablets get a centred layout, phones in landscape show the cover beside the controls, and the controls can use black and white or your theme instead of the artwork colors
 - Download a whole album or playlist as one item in its own folder, shown on a Playlists and albums shelf in Downloads and playable with no connection (#913)
 - Downloads are now M4A audio or MP4 video with readable names and their details and cover art inside the file, so other players show them and Flow restores them after a reinstall, and songs get their own download quality setting (#866, #894, #764)
+- Import your YouTube likes from a Google Takeout My Activity export, into Liked videos and Liked music (#1027)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -72,6 +73,8 @@ IMPROVEMENTS
 - Music radio no longer plays the same artist twice in a row, including across the seam where new tracks are appended
 - Hiding an artist now hides their albums too: a track or album is hidden when any credited artist is hidden, so collaborations no longer slip through
 - Google Takeout imports now work with localized ZIP archives
+- Watch history inside a Google Takeout archive is now found whatever language your Google account uses (#1128)
+- Importing subscriptions or a long watch history no longer turns old interests into permanent favourites or slows how fast recommendations learn from what you watch next (#1030)
 - The transcript now stays where you leave it: scrolling no longer drags you back to the spoken line, a Sync to video pill returns you when you want it, the lines are grouped under their chapter headings, and the transcript can be read in any caption language the video carries
 - Transcript lines can be long-pressed, selected and copied, and the player stays tappable while the transcript is open
 - Every bottom sheet now separates its title from its contents with the same divider
@@ -110,6 +113,7 @@ PERFORMANCE
 
 FIXES AND STABILITY
 - Fix a memory leak where closing and reopening the video player left the previous player's settings listeners running (#1148)
+- Fix import and export results never showing on the Backup, Your taste and onboarding screens
 - Fix collaboration videos showing a blank channel avatar that did nothing when tapped: every collaborator's avatar is shown and opens the list of their channels (#1162)
 - Fix the player's Subscribe button showing you as not subscribed after a reload or on the next video from a channel you follow, and on collaborations it now opens the list of collaborators (#1160)
 - Fix Shorts audio playing on after the picture-in-picture window is closed (#1152)

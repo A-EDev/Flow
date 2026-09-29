@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.local
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -128,18 +129,33 @@ class LikedVideosRepository private constructor(
     /** Likes [likes] again, each back in its place by the date it was first liked. */
     suspend fun restoreLikes(likes: List<LikedVideoInfo>) {
         if (likes.isEmpty()) return
+        dataStore.edit { preferences -> preferences.insertLikes(likes) }
+    }
+
+    /**
+     * Adds likes brought from another app, each placed by the date it was liked. A video Flow already
+     * holds a like or dislike for is left as it is. Returns the likes that were added.
+     */
+    suspend fun importLikes(likes: List<LikedVideoInfo>): List<LikedVideoInfo> {
+        var added = emptyList<LikedVideoInfo>()
         dataStore.edit { preferences ->
-            val orderKey = stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)
-            val order = preferences[orderKey].orEmpty().split(",").filter(String::isNotEmpty)
-            likes.forEach { like ->
-                preferences[videoKey(like.videoId)] = serializeVideo(like)
-                preferences[likeStateKey(like.videoId)] = "LIKED"
-            }
-            val likedAt = likes.associate { it.videoId to it.likedAt }
-            val merged = (order + likes.map { it.videoId }).distinct()
-            val dated = merged.map { id -> id to (likedAt[id] ?: preferences[videoKey(id)]?.let(::deserializeVideo)?.likedAt ?: 0L) }
-            preferences[orderKey] = restoredOrder(order, dated).joinToString(",")
+            added = likes.distinctBy { it.videoId }.filter { preferences[likeStateKey(it.videoId)] == null }
+            if (added.isNotEmpty()) preferences.insertLikes(added)
         }
+        return added
+    }
+
+    private fun MutablePreferences.insertLikes(likes: List<LikedVideoInfo>) {
+        val orderKey = stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)
+        val order = this[orderKey].orEmpty().split(",").filter(String::isNotEmpty)
+        likes.forEach { like ->
+            this[videoKey(like.videoId)] = serializeVideo(like)
+            this[likeStateKey(like.videoId)] = "LIKED"
+        }
+        val likedAt = likes.associate { it.videoId to it.likedAt }
+        val merged = (order + likes.map { it.videoId }).distinct()
+        val dated = merged.map { id -> id to (likedAt[id] ?: this[videoKey(id)]?.let(::deserializeVideo)?.likedAt ?: 0L) }
+        this[orderKey] = restoredOrder(order, dated).joinToString(",")
     }
 
     /**

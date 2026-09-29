@@ -24,6 +24,19 @@ class YouTubeTakeoutCsvParserTest {
     }
 
     @Test
+    fun `takeout html entry accepts history files in any language`() {
+        assertThat(isYouTubeTakeoutHtmlEntry("Takeout/YouTube and YouTube Music/history/watch-history.html")).isTrue()
+        assertThat(isYouTubeTakeoutHtmlEntry("Takeout/YouTube і YouTube Music/історія/історія переглядів.html")).isTrue()
+        assertThat(isYouTubeTakeoutHtmlEntry("Takeout\\YouTube وYouTube Music\\السجل\\سجل المشاهدة.HTML")).isTrue()
+
+        assertThat(isYouTubeTakeoutHtmlEntry("Takeout/YouTube і YouTube Music/історія.html")).isFalse()
+        assertThat(isYouTubeTakeoutHtmlEntry("Takeout/YouTube і YouTube Music/відео/канал/відео.html")).isFalse()
+        assertThat(isYouTubeTakeoutHtmlEntry("Takeout/Мої дії/YouTube/Мої дії.html")).isFalse()
+        assertThat(isYouTubeTakeoutHtmlEntry("Takeout/YouTube і YouTube Music/історія/історія переглядів.json")).isFalse()
+        assertThat(isYouTubeTakeoutHtmlEntry("Takeout/YouTube і YouTube Music/../історія.html")).isFalse()
+    }
+
+    @Test
     fun `takeout parent path associates playlist files within one directory`() {
         val metadata = "Takeout/YouTube وYouTube Music/قوائم التشغيل/قوائم التشغيل.csv"
         val playlist = "Takeout\\YouTube وYouTube Music\\قوائم التشغيل\\فيديوهات _Road_.csv"
