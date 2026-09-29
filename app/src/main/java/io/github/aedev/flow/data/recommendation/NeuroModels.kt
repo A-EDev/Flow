@@ -94,8 +94,8 @@ data class UserBrain(
     val shortsVector: ContentVector = ContentVector(),
     /**
      * Hard suppression: video IDs that must NOT appear in ranked results.
-     * Maps videoId → timestamp when suppression was applied.
-     * Entries expire after VIDEO_SUPPRESSION_DAYS.
+     * Maps videoId → timestamp when suppression was applied. Entries never expire;
+     * only the oldest are dropped past FlowNeuroEngine.MAX_SUPPRESSED_VIDEOS.
      */
     val suppressedVideoIds: Map<String, Long> = emptyMap(),
     /**

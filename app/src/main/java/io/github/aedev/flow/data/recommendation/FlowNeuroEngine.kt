@@ -66,14 +66,11 @@ class FlowNeuroEngine internal constructor(
 
         // ── Suppression constants ──
 
-        /** How long a specific video stays hard-suppressed after "not interested" */
-        private const val VIDEO_SUPPRESSION_DAYS = 30L
-
         /** How long a channel stays hard-suppressed before escalating to a full block */
         private const val CHANNEL_SUPPRESSION_DAYS = 14L
 
-        /** Max suppressed video entries to prevent unbounded growth */
-        private const val MAX_SUPPRESSED_VIDEOS = 500
+        /** "Not interested" on a video never expires; past this many marks the oldest are dropped. */
+        internal const val MAX_SUPPRESSED_VIDEOS = 5_000
 
         /** Max suppressed channel entries to prevent unbounded growth */
         private const val MAX_SUPPRESSED_CHANNELS = 100
@@ -192,6 +189,8 @@ class FlowNeuroEngine internal constructor(
         suspend fun getRecentlyShownVideoIds(withinHours: Long = 48L): Set<String> = requireInstance().getRecentlyShownVideoIds(withinHours)
 
         suspend fun getExcludedChannelIds(): Set<String> = requireInstance().getExcludedChannelIds()
+
+        suspend fun feedExclusions(): FeedExclusions = requireInstance().feedExclusions()
 
         suspend fun blockedContentMatcher(): (title: String, channelName: String) -> Boolean = requireInstance().blockedContentMatcher()
 
@@ -453,9 +452,10 @@ class FlowNeuroEngine internal constructor(
 
     suspend fun getBrainSnapshot(): UserBrain = withBrainLock { currentUserBrain }
 
+    /** Forgets what was learned; what the viewer chose to hide stays hidden. */
     suspend fun resetBrain() {
         withBrainLock {
-            currentUserBrain = UserBrain()
+            currentUserBrain = currentUserBrain.keepingHiddenContent()
             featureCache.clear()
             idfWordFrequency.clear()
             idfTotalDocuments = 0
@@ -1099,12 +1099,7 @@ class FlowNeuroEngine internal constructor(
             val now = System.currentTimeMillis()
 
             // 1. Hard-suppress this specific video
-            val newSuppressedVideos = currentUserBrain.suppressedVideoIds.toMutableMap()
-            newSuppressedVideos[video.id] = now
-            if (newSuppressedVideos.size > MAX_SUPPRESSED_VIDEOS) {
-                val cutoff = now - (VIDEO_SUPPRESSION_DAYS * 86_400_000L)
-                newSuppressedVideos.entries.removeAll { it.value < cutoff }
-            }
+            val newSuppressedVideos = suppressVideo(currentUserBrain.suppressedVideoIds, video.id, now)
 
             // 2. Channel suppression — rolling, self-healing window. Inferred dislikes
             // never become a permanent block; only explicit blockChannel() does that,
@@ -1478,13 +1473,12 @@ class FlowNeuroEngine internal constructor(
     /** The same suppression windows [rank] applies; the topic matchers are built only if a caller asks. */
     suspend fun feedExclusions(now: Long = System.currentTimeMillis()): FeedExclusions {
         val brain = withBrainLock { currentUserBrain }
-        val videoCutoff = now - VIDEO_SUPPRESSION_DAYS * 86_400_000L
         val channelCutoff = now - CHANNEL_SUPPRESSION_DAYS * 86_400_000L
         val matchers by lazy {
             NeuroScoring.buildBlockedMatchers(brain.blockedTopics, NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer::normalizeLemma)
         }
         return FeedExclusions(
-            suppressedVideoIds = brain.suppressedVideoIds.filterValues { it > videoCutoff }.keys,
+            suppressedVideoIds = brain.suppressedVideoIds.keys,
             blockedChannelIds = brain.blockedChannels,
             suppressedChannelIds = brain.suppressedChannels.filterValues { it > channelCutoff }.keys,
             blockedText = { title, channelName ->
@@ -1668,13 +1662,9 @@ class FlowNeuroEngine internal constructor(
             val random = java.util.Random()
             val now = System.currentTimeMillis()
 
-            // Hard suppression sets (time-bounded)
-            val videoSuppressionCutoff = now - (VIDEO_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
+            // Hard suppression: videos for good, channels for a rolling window
             val channelSuppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
-            val activeSuppressedVideos =
-                brain.suppressedVideoIds
-                    .filter { (_, ts) -> ts > videoSuppressionCutoff }
-                    .keys
+            val activeSuppressedVideos = brain.suppressedVideoIds.keys
             val activeSuppressedChannels =
                 brain.suppressedChannels
                     .filter { (_, ts) -> ts > channelSuppressionCutoff }
@@ -2407,7 +2397,7 @@ class FlowNeuroEngine internal constructor(
      * (see NeuroSearchLearning) without counting as a full interaction.
      */
     suspend fun onSearchQuery(rawQuery: String) {
-        if (rawQuery.isBlank()) return
+        if (rawQuery.isBlank() || playerPreferences.isDeepFlowCurrentlyActive()) return
         withBrainLock {
             val learned =
                 NeuroSearchLearning.learn(currentUserBrain, rawQuery, tokenizer, System.currentTimeMillis())

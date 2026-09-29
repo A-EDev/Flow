@@ -3662,7 +3662,7 @@
     <string name="taste_export_music">Export music profile</string>
     <string name="taste_import_music">Import music profile</string>
     <string name="taste_reset_music">Reset music profile</string>
-    <string name="taste_reset_video_body">This clears what Flow learned from your videos and starts again from zero. Your recap stays.</string>
+    <string name="taste_reset_video_body">This clears what Flow learned from your videos and starts again from zero. Your recap and hidden channels, topics and videos stay.</string>
     <string name="taste_reset_music_title">Reset music profile?</string>
     <string name="taste_reset_music_body">This clears what Flow learned from your music and starts again from zero. Your recap stays.</string>
     <string name="taste_trait_now">Now %1$s</string>

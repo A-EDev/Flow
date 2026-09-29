@@ -35,3 +35,27 @@ class FeedExclusions(
         val NONE = FeedExclusions()
     }
 }
+
+/** Records a "not interested" mark. Marks never expire; past [max] the oldest are dropped. */
+internal fun suppressVideo(
+    suppressed: Map<String, Long>,
+    videoId: String,
+    now: Long,
+    max: Int = FlowNeuroEngine.MAX_SUPPRESSED_VIDEOS,
+): Map<String, Long> {
+    val updated = suppressed + (videoId to now)
+    if (updated.size <= max) return updated
+    return updated.entries
+        .sortedByDescending { it.value }
+        .take(max)
+        .associate { it.key to it.value }
+}
+
+/** A fresh brain that still carries every block and "not interested" mark of this one. */
+internal fun UserBrain.keepingHiddenContent(): UserBrain =
+    UserBrain(
+        blockedChannels = blockedChannels,
+        blockedTopics = blockedTopics,
+        suppressedVideoIds = suppressedVideoIds,
+        suppressedChannels = suppressedChannels,
+    )
