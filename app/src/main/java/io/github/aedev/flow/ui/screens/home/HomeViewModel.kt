@@ -24,6 +24,8 @@ import io.github.aedev.flow.data.recommendation.NeuroScoring
 import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsFeedRepository
+import io.github.aedev.flow.data.subscriptions.HomeSubscriptionUploads
+import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -67,6 +69,7 @@ class HomeViewModel
         private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
         private val shortsQueueHandoff: io.github.aedev.flow.data.shorts.queue.ShortsQueueHandoff,
         private val feedSources: HomeFeedSources,
+        private val homeSubscriptionUploads: HomeSubscriptionUploads,
         private val persistentHomeFeedCache: HomeFeedCacheRepository,
         private val viewHistory: ViewHistory,
         @ApplicationContext private val appContext: Context,
@@ -120,6 +123,7 @@ class HomeViewModel
         private var currentQueryIndex = 0
         private val discoveryQueries = mutableListOf<String>()
         private var wave2Job: Job? = null
+        private var feedJob: Job? = null
         private var savedInterestJob: Job? = null
 
         private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
@@ -230,7 +234,7 @@ class HomeViewModel
                 playerPreferences.homeSubscriptionsEnabled
                     .distinctUntilChanged()
                     .drop(1)
-                    .collect { refreshFeed() }
+                    .collect { reloadFeed() }
             }
 
             viewModelScope.launch {
@@ -238,7 +242,7 @@ class HomeViewModel
                     if (!enabled) {
                         _uiState.update { it.copy(shorts = emptyList()) }
                     } else if (_uiState.value.shorts.isEmpty() && !_uiState.value.isLoading) {
-                        refreshFeed()
+                        reloadFeed()
                     }
                 }
             }
@@ -425,229 +429,231 @@ class HomeViewModel
             if (_uiState.value.isLoading && !forceRefresh) return
 
             wave2Job?.cancel()
+            feedJob?.cancel()
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                try {
-                    discoveryQueries.clear()
-                    // A refresh restarts the discovery tree at its roots (broad pass);
-                    // load-more regenerations then dig deeper per cluster.
-                    discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries(resetDepth = true))
-                    currentQueryIndex = 0
+            feedJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    try {
+                        discoveryQueries.clear()
+                        // A refresh restarts the discovery tree at its roots (broad pass);
+                        // load-more regenerations then dig deeper per cluster.
+                        discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries(resetDepth = true))
+                        currentQueryIndex = 0
 
-                    val userSubs = subscriptionScope().boosted
-                    val region = playerPreferences.trendingRegion.first()
-                    val fetchStart = System.currentTimeMillis()
+                        val userSubs = subscriptionScope().boosted
+                        val region = playerPreferences.trendingRegion.first()
+                        val fetchStart = System.currentTimeMillis()
 
-                    // ── Wave 1: first 3 queries + subs + trending ──
-                    val wave1QueryCount = discoveryQueries.size.coerceAtMost(3)
-                    val wave1Queries = discoveryQueries.take(wave1QueryCount)
-                    currentQueryIndex = wave1QueryCount
+                        // ── Wave 1: first 3 queries + subs + trending ──
+                        val wave1QueryCount = discoveryQueries.size.coerceAtMost(3)
+                        val wave1Queries = discoveryQueries.take(wave1QueryCount)
+                        currentQueryIndex = wave1QueryCount
 
-                    val results =
-                        supervisorScope {
-                            val deferredSubs =
-                                async {
-                                    if (userSubs.isNotEmpty()) {
-                                        withTimeoutOrNull(8_000L) {
-                                            runCatching {
-                                                repository.getSubscriptionFeed(userSubs.toList())
-                                            }.getOrElse { emptyList() }
-                                        } ?: emptyList()
-                                    } else {
-                                        emptyList()
+                        val results =
+                            supervisorScope {
+                                val deferredSubs =
+                                    async {
+                                        if (userSubs.isEmpty()) return@async emptyList()
+                                        runCatching {
+                                            homeSubscriptionUploads.fetch(
+                                                subscriptions = subscriptionOwners(userSubs),
+                                                includeShorts = playerPreferences.effectiveHomeShortsShelfEnabled.first(),
+                                            )
+                                        }.getOrElse { emptyList() }
                                     }
-                                }
 
-                            val deferredDiscovery =
-                                async {
-                                    wave1Queries
-                                        .map { query ->
-                                            async {
-                                                query to
-                                                    runCatching {
-                                                        repository.searchVideos(query).first
-                                                    }.getOrElse { emptyList() }
-                                            }
-                                        }.awaitAll()
-                                }
+                                val deferredDiscovery =
+                                    async {
+                                        wave1Queries
+                                            .map { query ->
+                                                async {
+                                                    query to
+                                                        runCatching {
+                                                            repository.searchVideos(query).first
+                                                        }.getOrElse { emptyList() }
+                                                }
+                                            }.awaitAll()
+                                    }
 
-                            // ── Related-graph lane: harvest /next neighbours of recent positives ──
-                            val deferredRelated =
-                                async {
-                                    val seedInputs = feedSources.historySeedInputs()
-                                    val longTermInputs = feedSources.longTermSeedInputs()
-                                    val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_RELATED_SEEDS, longTermInputs)
-                                    feedSources.fetchRelatedGraph(seedInputs + longTermInputs, seedIds, ::cacheFilters)
-                                }
+                                // ── Related-graph lane: harvest /next neighbours of recent positives ──
+                                val deferredRelated =
+                                    async {
+                                        val seedInputs = feedSources.historySeedInputs()
+                                        val longTermInputs = feedSources.longTermSeedInputs()
+                                        val seedIds = FlowNeuroEngine.selectRelatedSeeds(seedInputs, MAX_RELATED_SEEDS, longTermInputs)
+                                        feedSources.fetchRelatedGraph(seedInputs + longTermInputs, seedIds, ::cacheFilters)
+                                    }
 
-                            Wave1FeedResults(
-                                subs = deferredSubs.await(),
-                                discovery = deferredDiscovery.await(),
-                                viral = emptyList(),
-                                related = deferredRelated.await(),
-                            )
+                                Wave1FeedResults(
+                                    subs = deferredSubs.await(),
+                                    discovery = deferredDiscovery.await(),
+                                    viral = emptyList(),
+                                    related = deferredRelated.await(),
+                                )
+                            }
+
+                        val rawSubs = results.subs
+                        val discoveryPairs = results.discovery
+                        val rawDiscovery = discoveryPairs.flatMap { it.second }
+                        val rawViral = results.viral
+                        val relatedFetch = results.related
+                        val rawRelated = relatedFetch.candidates
+
+                        // Passive channel profiling: the upload titles we just fetched
+                        // teach the engine what each subscribed channel is about.
+                        runCatching { FlowNeuroEngine.onChannelUploadsObserved(rawSubs) }
+
+                        // Stale-query feedback: queries whose results are mostly
+                        // already-shown get skipped by the next generation cycle.
+                        reportQueryNovelty(discoveryPairs)
+
+                        Log.d(TAG, "Wave 1 fetch completed in ${System.currentTimeMillis() - fetchStart}ms")
+
+                        val subAvatarMap: Map<String, String> =
+                            runCatching {
+                                subscriptionRepository
+                                    .getAllSubscriptions()
+                                    .first()
+                                    .filter { it.channelThumbnail.isNotEmpty() }
+                                    .associate { it.channelId to it.channelThumbnail }
+                            }.getOrElse { emptyMap() }
+
+                        // Extract shorts from all sources for the shelf, ranked by FlowNeuro
+                        val now = System.currentTimeMillis()
+                        val brain = FlowNeuroEngine.getBrainSnapshot()
+                        val taste = feedTasteProfile(brain, FlowNeuroEngine.getPersona(brain))
+
+                        val exclusions = feedExclusions()
+                        val feedShorts =
+                            (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
+                                .distinctBy { it.id }
+                                .filterWatched(watchedShortIds.value)
+                                .filterRecentHomeSuggestion(now)
+                                .filterNot(exclusions::hidesFromRecommendations)
+                        if (feedShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
+                            // A refresh replaces the shelf; appending kept the same reels at its front.
+                            val rankedShorts =
+                                FlowNeuroEngine
+                                    .rank(feedShorts, userSubs)
+                                    .recentlyShownLast { NeuroScoring.isRecentlySeen(brain.feedHistory[it], now) }
+                            _uiState.update { state -> state.copy(shorts = rankedShorts) }
                         }
 
-                    val rawSubs = results.subs
-                    val discoveryPairs = results.discovery
-                    val rawDiscovery = discoveryPairs.flatMap { it.second }
-                    val rawViral = results.viral
-                    val relatedFetch = results.related
-                    val rawRelated = relatedFetch.candidates
+                        val watched = watchedVideoIds.value
+                        val lanes =
+                            buildHomeFeedLanes(
+                                rawSubs = rawSubs,
+                                rawDiscovery = rawDiscovery,
+                                rawViral = rawViral,
+                                rawRelated = rawRelated,
+                                rssFeed =
+                                    runCatching { subscriptionFeedRepository.observeFeed().first() }
+                                        .getOrDefault(emptyList()),
+                                watched = watched,
+                                exclusions = exclusions,
+                                isRecentlyShown = { id -> NeuroScoring.isRecentlySeen(brain.feedHistory[id], now) },
+                                taste = taste,
+                                now = now,
+                                freshSlotTarget = dynamicFreshSubSlots(userSubs.size),
+                                subAvatarMap = subAvatarMap,
+                                rank = { pool -> FlowNeuroEngine.rank(pool, userSubs) },
+                            )
 
-                    // Passive channel profiling: the upload titles we just fetched
-                    // teach the engine what each subscribed channel is about.
-                    runCatching { FlowNeuroEngine.onChannelUploadsObserved(rawSubs) }
-
-                    // Stale-query feedback: queries whose results are mostly
-                    // already-shown get skipped by the next generation cycle.
-                    reportQueryNovelty(discoveryPairs)
-
-                    Log.d(TAG, "Wave 1 fetch completed in ${System.currentTimeMillis() - fetchStart}ms")
-
-                    val subAvatarMap: Map<String, String> =
-                        runCatching {
-                            subscriptionRepository
-                                .getAllSubscriptions()
-                                .first()
-                                .filter { it.channelThumbnail.isNotEmpty() }
-                                .associate { it.channelId to it.channelThumbnail }
-                        }.getOrElse { emptyMap() }
-
-                    // Extract shorts from all sources for the shelf, ranked by FlowNeuro
-                    val now = System.currentTimeMillis()
-                    val brain = FlowNeuroEngine.getBrainSnapshot()
-                    val taste = feedTasteProfile(brain, FlowNeuroEngine.getPersona(brain))
-
-                    val exclusions = feedExclusions()
-                    val feedShorts =
-                        (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
-                            .distinctBy { it.id }
-                            .filterWatched(watchedShortIds.value)
-                            .filterRecentHomeSuggestion(now)
-                            .filterNot(exclusions::hidesFromRecommendations)
-                    if (feedShorts.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
-                        // A refresh replaces the shelf; appending kept the same reels at its front.
-                        val rankedShorts =
-                            FlowNeuroEngine
-                                .rank(feedShorts, userSubs)
-                                .recentlyShownLast { NeuroScoring.isRecentlySeen(brain.feedHistory[it], now) }
-                        _uiState.update { state -> state.copy(shorts = rankedShorts) }
-                    }
-
-                    val watched = watchedVideoIds.value
-                    val lanes =
-                        buildHomeFeedLanes(
-                            rawSubs = rawSubs,
-                            rawDiscovery = rawDiscovery,
-                            rawViral = rawViral,
-                            rawRelated = rawRelated,
-                            rssFeed =
-                                runCatching { subscriptionFeedRepository.observeFeed().first() }
-                                    .getOrDefault(emptyList()),
-                            watched = watched,
-                            exclusions = exclusions,
-                            isRecentlyShown = { id -> NeuroScoring.isRecentlySeen(brain.feedHistory[id], now) },
-                            taste = taste,
-                            now = now,
-                            freshSlotTarget = dynamicFreshSubSlots(userSubs.size),
-                            subAvatarMap = subAvatarMap,
-                            rank = { pool -> FlowNeuroEngine.rank(pool, userSubs) },
+                        Log.d(
+                            TAG,
+                            "Flow candidates: subs=${lanes.subsPoolSize}, discovery=${lanes.discoveryPoolSize}, " +
+                                "viral=${lanes.viralPoolSize}, related=${rawRelated.size}, subCount=${userSubs.size}",
                         )
 
-                    Log.d(
-                        TAG,
-                        "Flow candidates: subs=${lanes.subsPoolSize}, discovery=${lanes.discoveryPoolSize}, " +
-                            "viral=${lanes.viralPoolSize}, related=${rawRelated.size}, subCount=${userSubs.size}",
-                    )
+                        val mix =
+                            assembleHomeFeed(
+                                lanes = lanes,
+                                onScreenIds = _uiState.value.videos.mapTo(HashSet()) { it.id },
+                                subCount = userSubs.size,
+                                totalInteractions = brain.totalInteractions,
+                            )
+                        val finalMix = mix.videos
+                        subsBacklog = mix.subsBacklog
+                        relatedPickIds.clear()
+                        mix.sourceMix.items
+                            .filter { it.source == FeedSource.RELATED }
+                            .mapTo(relatedPickIds) { it.video.id }
 
-                    val mix =
-                        assembleHomeFeed(
-                            lanes = lanes,
-                            onScreenIds = _uiState.value.videos.mapTo(HashSet()) { it.id },
-                            subCount = userSubs.size,
-                            totalInteractions = brain.totalInteractions,
+                        if (finalMix.isEmpty()) {
+                            settleWithoutFeed()
+                            return@launch
+                        }
+                        val relatedMetrics =
+                            buildRelatedLaneMetrics(
+                                seedInputs = relatedFetch.seedInputs,
+                                seedIds = relatedFetch.seedIds,
+                                fetchedPerSeed = relatedFetch.fetchedPerSeed,
+                                mergedRelatedCandidates = rawRelated,
+                                filteredRelatedCandidates = lanes.relatedCandidates,
+                                selectedSourceCounts = mix.selectedSourceCounts,
+                                finalFeedCount = finalMix.size,
+                                finalRelatedVideoIds =
+                                    mix.sourceMix.items
+                                        .filter { it.source == FeedSource.RELATED }
+                                        .mapTo(HashSet()) { it.video.id },
+                                brain = brain,
+                            )
+                        Log.d(TAG, relatedMetrics.toLogString())
+
+                        Log.d(
+                            TAG,
+                            "Flow mix: freshLane=${mix.freshAdded}, final=${finalMix.size}, " +
+                                "quotas=${mix.quotas}, selected=${mix.sourceMix.sourceCounts}",
                         )
-                    val finalMix = mix.videos
-                    subsBacklog = mix.subsBacklog
-                    relatedPickIds.clear()
-                    mix.sourceMix.items
-                        .filter { it.source == FeedSource.RELATED }
-                        .mapTo(relatedPickIds) { it.video.id }
 
-                    if (finalMix.isEmpty()) {
+                        val spacedMix =
+                            repository.enrichLikelyCollabAvatarStacks(
+                                spaceByChannel(finalMix),
+                                limit = 8,
+                            )
+                        val renderedIds = spacedMix.mapTo(HashSet()) { it.id }
+                        val reserveCandidates =
+                            cacheRelatedCandidates(lanes.bestRelated, lanes.relatedMetadata, renderedIds) +
+                                cacheCandidates(FeedSource.DISCOVERY, lanes.bestDiscovery, renderedIds) +
+                                cacheCandidates(FeedSource.SUBS, lanes.bestSubs, renderedIds) +
+                                cacheCandidates(FeedSource.VIRAL, lanes.bestViral, renderedIds)
+                        var visibleFeed = emptyList<Video>()
+                        _uiState.update { state ->
+                            visibleFeed = spacedMix.filterWatched(watchedVideoIds.value)
+                            state.copy(
+                                videos = visibleFeed,
+                                isLoading = false,
+                                isRefreshing = false,
+                                hasMorePages = true,
+                                isFlowFeed = true,
+                                lastRefreshTime = now,
+                            )
+                        }
+                        HomeFeedCache.update(visibleFeed, _uiState.value.shorts)
+                        persistentHomeFeedCache.saveLastFeed(spacedMix)
+                        persistentHomeFeedCache.saveReserve(reserveCandidates)
+                        enrichVisibleChannelMetadata(spacedMix)?.let {
+                            persistentHomeFeedCache.saveLastFeed(it)
+                        }
+
+                        // Enrich (post-paint) with related neighbours of saved/watched videos.
+                        enrichFeedWithSavedInterest(userSubs, taste)
+
+                        startWave2Discovery(finalMix, userSubs, taste)
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (e: Exception) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isRefreshing = false,
+                                error = appContext.getString(R.string.error_failed_to_load_feed),
+                            )
+                        }
                         settleWithoutFeed()
-                        return@launch
                     }
-                    val relatedMetrics =
-                        buildRelatedLaneMetrics(
-                            seedInputs = relatedFetch.seedInputs,
-                            seedIds = relatedFetch.seedIds,
-                            fetchedPerSeed = relatedFetch.fetchedPerSeed,
-                            mergedRelatedCandidates = rawRelated,
-                            filteredRelatedCandidates = lanes.relatedCandidates,
-                            selectedSourceCounts = mix.selectedSourceCounts,
-                            finalFeedCount = finalMix.size,
-                            finalRelatedVideoIds =
-                                mix.sourceMix.items
-                                    .filter { it.source == FeedSource.RELATED }
-                                    .mapTo(HashSet()) { it.video.id },
-                            brain = brain,
-                        )
-                    Log.d(TAG, relatedMetrics.toLogString())
-
-                    Log.d(
-                        TAG,
-                        "Flow mix: freshLane=${mix.freshAdded}, final=${finalMix.size}, " +
-                            "quotas=${mix.quotas}, selected=${mix.sourceMix.sourceCounts}",
-                    )
-
-                    val spacedMix =
-                        repository.enrichLikelyCollabAvatarStacks(
-                            spaceByChannel(finalMix),
-                            limit = 8,
-                        )
-                    val renderedIds = spacedMix.mapTo(HashSet()) { it.id }
-                    val reserveCandidates =
-                        cacheRelatedCandidates(lanes.bestRelated, lanes.relatedMetadata, renderedIds) +
-                            cacheCandidates(FeedSource.DISCOVERY, lanes.bestDiscovery, renderedIds) +
-                            cacheCandidates(FeedSource.SUBS, lanes.bestSubs, renderedIds) +
-                            cacheCandidates(FeedSource.VIRAL, lanes.bestViral, renderedIds)
-                    var visibleFeed = emptyList<Video>()
-                    _uiState.update { state ->
-                        visibleFeed = spacedMix.filterWatched(watchedVideoIds.value)
-                        state.copy(
-                            videos = visibleFeed,
-                            isLoading = false,
-                            isRefreshing = false,
-                            hasMorePages = true,
-                            isFlowFeed = true,
-                            lastRefreshTime = now,
-                        )
-                    }
-                    HomeFeedCache.update(visibleFeed, _uiState.value.shorts)
-                    persistentHomeFeedCache.saveLastFeed(spacedMix)
-                    persistentHomeFeedCache.saveReserve(reserveCandidates)
-                    enrichVisibleChannelMetadata(spacedMix)?.let {
-                        persistentHomeFeedCache.saveLastFeed(it)
-                    }
-
-                    // Enrich (post-paint) with related neighbours of saved/watched videos.
-                    enrichFeedWithSavedInterest(userSubs, taste)
-
-                    startWave2Discovery(finalMix, userSubs, taste)
-                } catch (e: Exception) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isRefreshing = false,
-                            error = appContext.getString(R.string.error_failed_to_load_feed),
-                        )
-                    }
-                    settleWithoutFeed()
                 }
-            }
         }
 
         /** Wave 2: the discovery queries wave 1 did not have time for, merged in after paint. */
@@ -1123,13 +1129,27 @@ class HomeViewModel
             }
         }
 
+        /** The viewer's refresh. Ignored while a load is running, so repeated taps cannot stack pipelines (#1171). */
         fun refreshFeed() {
+            if (feedJob?.isActive == true) return
+            reloadFeed()
+        }
+
+        /** Starts over, replacing a load already running: a changed setting must apply to the next feed. */
+        private fun reloadFeed() {
             resetHomePrefetch()
             wave2Job?.cancel()
             HomeFeedCache.clear()
             _uiState.update { it.copy(isRefreshing = true) }
             loadFlowFeed(forceRefresh = true)
         }
+
+        private suspend fun subscriptionOwners(channelIds: Set<String>): List<FeedItemOwner> =
+            subscriptionRepository
+                .getAllSubscriptions()
+                .first()
+                .filter { it.channelId in channelIds }
+                .map { FeedItemOwner(id = it.channelId, name = it.channelName, avatarUrl = it.channelThumbnail) }
 
         fun retry() {
             resetHomePrefetch()

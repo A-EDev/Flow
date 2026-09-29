@@ -85,6 +85,36 @@ class ChannelUploadsClient internal constructor(
             }
         }
 
+    /**
+     * The newest uploads for Home: the first page of the Videos tab, and of the Shorts tab when
+     * [shorts] asks for any. No landing browse, since the subscription already names the channel.
+     */
+    suspend fun latest(
+        owner: FeedItemOwner,
+        videos: Int,
+        shorts: Int = 0,
+    ): Result<List<Video>> =
+        runCatching {
+            coroutineScope {
+                val shortsPage =
+                    if (shorts > 0) {
+                        async { firstPage(owner, ChannelTabKind.Shorts).getOrDefault(emptyList()).take(shorts) }
+                    } else {
+                        null
+                    }
+                firstPage(owner, ChannelTabKind.Videos).getOrThrow().take(videos) + shortsPage?.await().orEmpty()
+            }
+        }
+
+    private suspend fun firstPage(
+        owner: FeedItemOwner,
+        kind: ChannelTabKind,
+    ): Result<List<Video>> =
+        runCatching {
+            val params = kind.defaultParams ?: error("No params for the $kind tab")
+            tab(owner.id, params, owner, kind).getOrThrow().items.uploads()
+        }
+
     private suspend fun readTab(
         channelId: String,
         params: String?,
