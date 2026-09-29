@@ -154,7 +154,8 @@ class SponsorDetectionDataTest {
 
         assertThat(kept).hasSize(1)
         assertThat(kept.single().confidence).isWithin(0.0001).of(0.9)
-        assertThat(frozenPoint).hasSize(2)
+        assertThat(frozenPoint).hasSize(1)
+        assertThat(frozenPoint.single().confidence).isWithin(0.0001).of(0.9)
     }
 
     @Test
