@@ -1920,8 +1920,8 @@
     <string name="widget_recently_played_label">Tocado recentemente</string>
     <string name="widget_recently_played_description">Retorne para onde parou</string>
     <string name="widget_downloads_label">Downloads</string>
-    <string name="widget_downloads_description">Tocar seus downloads offline</string>
-    <string name="widget_recently_played">Tocado recentemente</string>
+    <string name="widget_downloads_description">Tocar seus vídeos e músicas baixadas</string>
+    <string name="widget_recently_played">Continue assistindo</string>
     <string name="widget_downloads">Downloads</string>
     <string name="widget_nothing_playing">Nada tocando</string>
     <string name="widget_play">Tocar</string>
