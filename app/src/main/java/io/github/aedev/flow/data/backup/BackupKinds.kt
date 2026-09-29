@@ -65,6 +65,7 @@ enum class ImportKind(
     TAKEOUT(R.string.import_yt_takeout_all, R.string.import_yt_takeout_all_desc, ZipTypes),
     YOUTUBE_SUBSCRIPTIONS(R.string.import_from_youtube, R.string.import_from_youtube_desc, CsvTypes),
     YOUTUBE_HISTORY(R.string.import_yt_watch_history, R.string.import_yt_watch_history_desc, arrayOf("text/html", "text/plain", ANY)),
+    YOUTUBE_LIKES(R.string.import_yt_likes, R.string.import_yt_likes_desc, arrayOf(JSON, ZIP, BINARY, ANY)),
     YOUTUBE_PLAYLIST(R.string.import_yt_playlist, R.string.import_yt_playlist_desc, CsvTypes),
     WATCH_LATER(R.string.import_yt_watch_later, R.string.import_yt_watch_later_desc, CsvTypes),
     YOUTUBE_MUSIC_PLAYLIST(R.string.import_yt_music_playlist, R.string.import_yt_music_playlist_desc, CsvTypes),
@@ -92,6 +93,7 @@ enum class ImportKind(
         TAKEOUT -> coordinator.importYouTubeTakeout(uri)
         YOUTUBE_SUBSCRIPTIONS -> coordinator.importYouTube(uri)
         YOUTUBE_HISTORY -> coordinator.importYouTubeWatchHistory(uri)
+        YOUTUBE_LIKES -> coordinator.importYouTubeLikes(uri)
         YOUTUBE_PLAYLIST -> coordinator.importYouTubePlaylist(uri)
         WATCH_LATER -> coordinator.importYouTubePlaylist(uri, forceWatchLater = true)
         YOUTUBE_MUSIC_PLAYLIST -> coordinator.importYouTubePlaylist(uri, isMusic = true)

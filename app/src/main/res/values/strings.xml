@@ -1525,6 +1525,7 @@
     <string name="import_label_newpipe_subscriptions">NewPipe subscriptions</string>
     <string name="import_label_youtube_subscriptions">YouTube subscriptions</string>
     <string name="import_label_youtube_watch_history">YouTube watch history</string>
+    <string name="import_label_youtube_likes">YouTube likes</string>
     <string name="import_label_freetube_watch_history">FreeTube watch history</string>
     <string name="import_label_newpipe_watch_history">NewPipe watch history</string>
     <string name="import_label_libretube_subscriptions">LibreTube subscriptions</string>
@@ -1543,6 +1544,9 @@
     <string name="import_yt_data_section_subtitle">Import additional data from YouTube Takeout</string>
     <string name="import_yt_watch_history">Import Watch History</string>
     <string name="import_yt_watch_history_desc">Import your watch history from YouTube Takeout (watch-history.html).</string>
+    <string name="import_yt_likes">Import Likes</string>
+    <string name="import_yt_likes_desc">Import liked videos from a Google Takeout My Activity export (JSON).</string>
+    <string name="import_takeout_part_likes">%1$d likes</string>
     <string name="import_yt_playlist">Import YouTube Playlist</string>
     <string name="import_yt_playlist_desc">Import a playlist from YouTube Takeout CSV (Playlist-&lt;name&gt;.csv).</string>
     <string name="import_yt_watch_later">Import Watch Later</string>
@@ -3307,6 +3311,7 @@
     <string name="donations_cryptocurrency">CRYPTOCURRENCY</string>
     <string name="import_no_history_entries">No watch-history entries found in file</string>
     <string name="import_no_videos">No videos found in playlist file</string>
+    <string name="import_no_likes">No likes found. Export My Activity for YouTube as JSON, with your Google account in English.</string>
     <string name="import_no_content">No importable content found in this backup</string>
     <string name="import_invalid_format">Unrecognised backup format — make sure you selected the correct file</string>
     <string name="import_failed_template">Import failed: %1$s</string>

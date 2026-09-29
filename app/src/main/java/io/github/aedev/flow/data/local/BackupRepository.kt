@@ -38,12 +38,15 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerializationException
+import java.io.BufferedInputStream
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.StringReader
+import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -134,6 +137,9 @@ private const val ENGLISH_TAKEOUT_WATCH_HISTORY = "history/watch-history.html"
 
 // Every Takeout activity entry sits in this cell, whatever language the archive is in.
 private const val TAKEOUT_ACTIVITY_MARKUP = "content-cell"
+internal const val NO_LIKES = "no_likes"
+private const val LIKES_LEARNING_WINDOW_DAYS = 365L
+private const val MAX_LEARNED_LIKES = 500
 
 class BackupRepository(
     private val context: Context,
@@ -581,6 +587,96 @@ class BackupRepository(
                 Result.failure(e)
             }
         }
+
+    /** Likes from a Takeout "My Activity" export: its YouTube JSON file, or the ZIP that holds it. */
+    suspend fun importYouTubeLikes(uri: Uri): Result<Int> =
+        withContext(Dispatchers.IO) {
+            try {
+                val parsed =
+                    context.contentResolver.openInputStream(uri)?.use { raw ->
+                        val stream = raw.buffered()
+                        if (stream.startsWithZipSignature()) {
+                            readLikesFromZip(ZipInputStream(stream))
+                        } else {
+                            readMyActivityLikes(stream)
+                        }
+                    } ?: return@withContext Result.failure(Exception("Could not open file"))
+                if (parsed.likes.isEmpty()) return@withContext Result.failure(Exception(NO_LIKES))
+                Result.success(saveImportedLikes(parsed.likes))
+            } catch (e: SerializationException) {
+                Result.failure(Exception("invalid_format", e))
+            } catch (e: IllegalArgumentException) {
+                Result.failure(Exception("invalid_format", e))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    private fun BufferedInputStream.startsWithZipSignature(): Boolean {
+        mark(2)
+        val signature = byteArrayOf(read().toByte(), read().toByte())
+        reset()
+        return signature[0] == 'P'.code.toByte() && signature[1] == 'K'.code.toByte()
+    }
+
+    private fun readLikesFromZip(zip: ZipInputStream): TakeoutLikes {
+        zip.use {
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory && isMyActivityYouTubeEntry(entry.name)) return readMyActivityLikes(zip)
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+        return TakeoutLikes(emptyList(), 0)
+    }
+
+    /**
+     * Stores imported likes and returns how many were new. The engine learns only from new likes of
+     * the past year, so a decade of likes cannot revive long-abandoned topics (#1030).
+     */
+    private suspend fun saveImportedLikes(likes: List<TakeoutLike>): Int {
+        val added =
+            likedVideosRepo.importLikes(
+                likes.map { like ->
+                    LikedVideoInfo(
+                        videoId = like.videoId,
+                        title = like.title,
+                        thumbnail = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(like.videoId),
+                        channelName = like.channelName,
+                        likedAt = like.likedAt,
+                        isMusic = like.isMusic,
+                        channelId = like.channelId.ifBlank { null },
+                    )
+                },
+            )
+        val learnSince = System.currentTimeMillis() - Duration.ofDays(LIKES_LEARNING_WINDOW_DAYS).toMillis()
+        val learnable =
+            added
+                .asSequence()
+                .filter { !it.isMusic && it.likedAt >= learnSince }
+                .take(MAX_LEARNED_LIKES)
+                .map { like ->
+                    Video(
+                        id = like.videoId,
+                        title = like.title,
+                        channelName = like.channelName,
+                        channelId = like.channelId.orEmpty(),
+                        thumbnailUrl = like.thumbnail,
+                        duration = 0,
+                        viewCount = 0L,
+                        uploadDate = "",
+                        timestamp = like.likedAt,
+                    )
+                }.toList()
+        if (learnable.isNotEmpty()) {
+            try {
+                FlowNeuroEngine.bootstrapFromWatchHistory(context, learnable)
+            } catch (_: Exception) {
+            }
+        }
+        return added.size
+    }
 
     suspend fun importNewPipeWatchHistory(uri: Uri): Result<Int> =
         withContext(Dispatchers.IO) {
@@ -1393,6 +1489,7 @@ class BackupRepository(
                 val subRows = mutableListOf<YouTubeTakeoutSubscription>()
                 val takeoutCsvBudget = YouTubeTakeoutCsvBudget()
                 val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
+                var likes: List<TakeoutLike>? = null
 
                 context.contentResolver.openInputStream(uri)?.use { raw ->
                     ZipInputStream(raw.buffered()).use { zip ->
@@ -1411,6 +1508,11 @@ class BackupRepository(
                                             requireActivityMarkup =
                                                 !name.endsWith(ENGLISH_TAKEOUT_WATCH_HISTORY, ignoreCase = true),
                                         )
+                                }
+
+                                !entry.isDirectory && likes == null && isMyActivityYouTubeEntry(name) -> {
+                                    onProgress?.invoke(context.getString(R.string.import_label_youtube_likes), 0, 0)
+                                    likes = readMyActivityLikes(zip).likes
                                 }
 
                                 !entry.isDirectory && isYouTubeTakeoutCsvEntry(name) -> {
@@ -1567,7 +1669,9 @@ class BackupRepository(
                     playlistVideosImported += videoIds.size
                 }
 
-                if (subscriptionsImported == 0 && historyImported == 0 && playlistsImported == 0) {
+                val likesImported = likes?.let { saveImportedLikes(it) } ?: 0
+
+                if (subscriptionsImported == 0 && historyImported == 0 && playlistsImported == 0 && likesImported == 0) {
                     return@withContext Result.failure(Exception("no_content"))
                 }
 
@@ -1583,6 +1687,7 @@ class BackupRepository(
                         if (subscriptionsImported > 0) add("$subscriptionsImported subscriptions")
                         if (historyImported > 0) add("$historyImported history entries")
                         if (playlistsImported > 0) add("$playlistsImported playlists ($playlistVideosImported videos)")
+                        if (likesImported > 0) add(context.getString(R.string.import_takeout_part_likes, likesImported))
                     }
                 Result.success(parts.joinToString(", "))
             } catch (e: Exception) {

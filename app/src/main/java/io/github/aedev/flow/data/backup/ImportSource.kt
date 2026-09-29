@@ -28,6 +28,7 @@ enum class ImportSource(
             ImportKind.TAKEOUT,
             ImportKind.YOUTUBE_SUBSCRIPTIONS,
             ImportKind.YOUTUBE_HISTORY,
+            ImportKind.YOUTUBE_LIKES,
             ImportKind.YOUTUBE_PLAYLIST,
             ImportKind.WATCH_LATER,
             ImportKind.YOUTUBE_MUSIC_PLAYLIST,
