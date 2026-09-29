@@ -138,8 +138,9 @@ internal fun SubscriptionAndLikeEffect(
 ) {
     // Keyed on the cached video: the channel id arrives with it, and keying this on the extractor
     // result is what stopped the subscribe button and the like state ever loading once the load
-    // stopped producing one.
-    LaunchedEffect(uiState.cachedVideo?.channelId) {
+    // stopped producing one. The video id is a key too, or the next video from the same channel
+    // kept the previous video's collector.
+    LaunchedEffect(uiState.cachedVideo?.channelId, videoId) {
         val channelId = uiState.cachedVideo?.channelId.orEmpty()
         if (channelId.isNotEmpty()) {
             viewModel.loadSubscriptionAndLikeState(channelId, videoId)

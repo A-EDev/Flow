@@ -62,6 +62,10 @@ data class VideoPlayerUiState(
      * The state to show while [video] is being armed: its metadata, and every field that describes
      * the video that was playing before it cleared. Sheet flags, queue title and the live-chat
      * transcript are left alone — a caller that owns one of those re-applies it with `copy`.
+     *
+     * The subscription and like state survive a reload of the same channel or video: their collector
+     * only emits on a change, so a value cleared here under a pair it is already watching never came
+     * back (#1160).
      */
     fun resetForVideo(video: Video): VideoPlayerUiState =
         copy(
@@ -75,8 +79,8 @@ data class VideoPlayerUiState(
             streamSizes = emptyMap(),
             savedPosition = null,
             relatedVideos = emptyList(),
-            isSubscribed = false,
-            likeState = null,
+            isSubscribed = isSubscribed && video.channelId.isNotBlank() && video.channelId == cachedVideo?.channelId,
+            likeState = likeState.takeIf { video.id == cachedVideo?.id },
             hlsUrl = null,
             localFilePath = null,
             localFileVideoId = null,
