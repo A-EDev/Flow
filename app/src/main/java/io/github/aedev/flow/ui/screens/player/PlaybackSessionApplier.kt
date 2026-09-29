@@ -21,6 +21,7 @@ import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.StoryboardSpec
 import io.github.aedev.flow.player.stream.UpcomingDetails
+import io.github.aedev.flow.player.stream.toSubtitlesStreams
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CancellationException
@@ -87,20 +88,12 @@ internal class PlaybackSessionApplier(
     ) {
         when (step) {
             is ResolvedPlayback.LocalCopyReady -> {
+                if (!isLoadCurrent(load.token)) return
                 uiState.update { it.applyLocalCopyReady(load.videoId, step) }
+                announceLocalCopy(load)
                 if (step.needsSponsorBlockBackfill) backfillSponsorBlockSegments(load.videoId)
+                armLocalCopyMetadata(load)
                 prepareLocalMedia(load, step.localFilePath, step.offlineSegments)
-            }
-
-            is ResolvedPlayback.LocalCopyAfterFailure -> {
-                uiState.update { it.applyLocalCopyAfterFailure() }
-                step.localFilePath?.let { prepareLocalMedia(load, it, step.offlineSegments) }
-            }
-
-            is ResolvedPlayback.OfflineFallback -> {
-                if (isLoadCurrent(load.token)) {
-                    uiState.update { it.applyOfflineFallback(step) }
-                }
             }
 
             is ResolvedPlayback.Live -> {
@@ -259,6 +252,29 @@ internal class PlaybackSessionApplier(
             return
         }
         uiState.update { it.applyPlaybackFailure(step.relatedVideos, videoError) }
+    }
+
+    /** The notification and the mini player show the download's own title until the watch page lands. */
+    private suspend fun announceLocalCopy(load: LoadContext) {
+        val video = uiState.value.cachedVideo?.takeIf { it.id == load.videoId } ?: return
+        GlobalPlayerState.setCurrentVideo(video)
+        if (video.title.isNotBlank()) {
+            playbackPreparer.beginSession(load.videoId, video.title, video.channelName, video.thumbnailUrl)
+        }
+    }
+
+    /**
+     * The watch page a streamed load reads after first frame, for a video that plays from its file.
+     * One cached `/next` answers the title, counts, lane, chapters and heatmap together, and no
+     * `/player` request is made because nothing here needs streams.
+     */
+    private fun armLocalCopyMetadata(load: LoadContext) {
+        if (!shouldLoadOnlineMetadataForLocalCopy(load.videoId, NetworkState.isOnline(context))) return
+        val video = blankVideo(load.videoId, uiState.value.cachedVideo?.takeIf { it.id == load.videoId })
+        secondaryMetadata.loadRelatedVideos(load.videoId, emptyList(), load.token)
+        secondaryMetadata.loadHeatmap(load.videoId, load.token)
+        secondaryMetadata.loadChapters(load.videoId, load.token)
+        secondaryMetadata.loadWatchInfo(load.videoId, video, load.token)
     }
 
     private fun backfillSponsorBlockSegments(videoId: String) {
@@ -442,6 +458,17 @@ internal class PlaybackSessionApplier(
         if (!isLoadCurrent(result.loadToken) || uiState.value.cachedVideo?.id != result.videoId) return
         GlobalPlayerState.setCurrentVideo(result.video)
         uiState.update { it.applyWatchInfo(result.video) }
+        // A downloaded copy learns its channel only here, so the channel row follows the watch page.
+        if (uiState.value.localFileVideoId == result.videoId) {
+            secondaryMetadata.loadChannelMetadata(
+                videoId = result.videoId,
+                uploaderUrl = null,
+                channelId = result.video.channelId,
+                embeddedAvatarUrls = listOf(result.video.channelThumbnailUrl).filter { it.isNotBlank() },
+                loadToken = result.loadToken,
+                awaitPlayback = false,
+            )
+        }
     }
 
     /** Folded into the tags the engine ingests, so the watch signal carries it. */
@@ -502,7 +529,7 @@ internal class PlaybackSessionApplier(
 
     private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
         if (LocalMediaIds.isLocal(videoId)) return emptyList()
-        val stored = offlineSubtitleStore.load(videoId)
+        val stored = offlineSubtitleStore.load(videoId).toSubtitlesStreams()
         if (stored.isEmpty() && !offlineSubtitleStore.isResolved(videoId) && NetworkState.isOnline(context)) {
             scope.launch(networkDispatcher) {
                 offlineSubtitleStore.saveForVideo(videoId)

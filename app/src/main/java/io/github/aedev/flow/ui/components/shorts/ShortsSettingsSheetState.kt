@@ -95,7 +95,6 @@ internal fun ShortsDownloadDialog(
     val onDismiss = { state.downloadVideo = null }
     if (style == DownloadDialogStyle.COMPACT) {
         MediaDownloadDialogCompact(
-            streamInfo = null,
             streamSizes = state.streamSizes,
             innerTubeVideoFormats = state.videoFormats,
             innerTubeAudioFormats = state.audioFormats,
@@ -104,7 +103,6 @@ internal fun ShortsDownloadDialog(
         )
     } else {
         MediaDownloadDialog(
-            streamInfo = null,
             streamSizes = state.streamSizes,
             innerTubeVideoFormats = state.videoFormats,
             innerTubeAudioFormats = state.audioFormats,

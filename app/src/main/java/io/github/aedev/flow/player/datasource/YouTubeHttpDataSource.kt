@@ -9,7 +9,6 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
-import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import io.github.aedev.flow.player.error.StreamDenialClassifier
@@ -52,18 +51,6 @@ class YouTubeHttpDataSource private constructor(
     companion object {
         private const val TAG = "YouTubeHttpDataSource"
         private val clientLock = Any()
-
-        /** Clients whose URLs a browser minted, and which therefore send browser CORS headers. */
-        private val WEB_FAMILY_CLIENTS =
-            setOf(
-                "WEB",
-                "MWEB",
-                "WEB_REMIX",
-                "WEB_CREATOR",
-                "WEB_EMBEDDED_PLAYER",
-                "TVHTML5",
-                "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
-            )
 
         @Volatile
         private var cachedClient: OkHttpClient? = null
@@ -178,47 +165,7 @@ class YouTubeHttpDataSource private constructor(
             host.contains("ytimg.com")
     }
 
-    // The fetching UA must match the client that minted the URL (`c=` param) — a mismatch is a
-    // known cause of mid-stream 403s on googlevideo CDNs.
-    private fun resolveYouTubeUserAgent(uri: Uri): String =
-        when (uri.getQueryParameter("c")?.uppercase()) {
-            "IOS" -> YouTubeClient.IPADOS.userAgent
-            "ANDROID", "ANDROID_CREATOR" -> YouTubeClient.ANDROID.userAgent
-            "ANDROID_VR" -> YouTubeClient.ANDROID_VR_1_61_48.userAgent
-            "VISIONOS" -> YouTubeClient.VISIONOS.userAgent
-            "TVHTML5", "TVHTML5_SIMPLY_EMBEDDED_PLAYER" -> YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER.userAgent
-            "MWEB" -> YouTubeClient.USER_AGENT_MWEB
-            "WEB", "WEB_REMIX" -> YouTubeClient.USER_AGENT_WEB
-            else -> userAgent
-        }
+    private fun resolveYouTubeUserAgent(uri: Uri): String = GoogleVideoRequestPolicy.userAgent(uri.getQueryParameter("c"), userAgent)
 
-    /**
-     * Headers YouTube expects for video streaming, matched to the client that minted the URL.
-     *
-     * `Origin`, `Referer` and the `Sec-Fetch-*` triple are browser-only: a real visionOS or
-     * Android VR client sends none of them. Stamping them on every googlevideo request paired the
-     * native user agent [resolveYouTubeUserAgent] picks with a browser's CORS preamble, which is
-     * the same client/request mismatch that function exists to avoid.
-     *
-     * Kept as a hypothesis about the 403s rather than a proven cause — but sending a native
-     * client's request the way that client actually sends it is the defensible default either way.
-     */
-    private fun youtubeHeaders(uri: Uri): Map<String, String> {
-        val headers =
-            linkedMapOf(
-                // Media is already compressed and served in byte ranges, so identity keeps the
-                // range arithmetic exact rather than saving anything.
-                "Accept-Encoding" to "identity",
-                "Accept" to "*/*",
-            )
-        val client = uri.getQueryParameter("c")?.uppercase()
-        if (client == null || client in WEB_FAMILY_CLIENTS) {
-            headers["Origin"] = "https://www.youtube.com"
-            headers["Referer"] = "https://www.youtube.com/"
-            headers["Sec-Fetch-Dest"] = "empty"
-            headers["Sec-Fetch-Mode"] = "cors"
-            headers["Sec-Fetch-Site"] = "cross-site"
-        }
-        return headers
-    }
+    private fun youtubeHeaders(uri: Uri): Map<String, String> = GoogleVideoRequestPolicy.headers(uri.getQueryParameter("c"))
 }

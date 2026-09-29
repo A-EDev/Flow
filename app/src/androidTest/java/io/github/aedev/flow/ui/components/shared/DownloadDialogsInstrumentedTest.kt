@@ -90,7 +90,6 @@ class DownloadDialogsInstrumentedTest {
             MaterialTheme {
                 if (showCompact) {
                     MediaDownloadDialogCompact(
-                        streamInfo = null,
                         streamSizes = emptyMap(),
                         innerTubeVideoFormats = videoFormats,
                         innerTubeAudioFormats = audioFormats,
@@ -99,7 +98,6 @@ class DownloadDialogsInstrumentedTest {
                     )
                 } else {
                     MediaDownloadDialog(
-                        streamInfo = null,
                         streamSizes = emptyMap(),
                         innerTubeVideoFormats = videoFormats,
                         innerTubeAudioFormats = audioFormats,

@@ -42,6 +42,7 @@ import io.github.aedev.flow.MainActivity
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.audio.eq.EqualizerRepository
 import io.github.aedev.flow.data.download.DownloadUtil
+import io.github.aedev.flow.data.download.LegacySongDownloads
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -180,6 +181,9 @@ class Media3MusicService : MediaLibraryService() {
     lateinit var downloadUtil: DownloadUtil
 
     @Inject
+    lateinit var legacySongs: LegacySongDownloads
+
+    @Inject
     lateinit var widgetPublisher: io.github.aedev.flow.widget.nowplaying.NowPlayingWidgetPublisher
 
     @Inject
@@ -305,7 +309,7 @@ class Media3MusicService : MediaLibraryService() {
         val currentIndex = player.currentMediaItemIndex
         if (currentIndex == C.INDEX_UNSET) return
         val mediaId = player.currentMediaItem?.mediaId ?: return
-        if (downloadUtil.isFullyDownloaded(mediaId)) return
+        if (legacySongs.isComplete(mediaId)) return
 
         try {
             val position = player.currentPosition

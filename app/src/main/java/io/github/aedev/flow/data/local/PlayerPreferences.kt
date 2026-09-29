@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import io.github.aedev.flow.data.model.SponsorBlockCategories
+import io.github.aedev.flow.data.video.downloader.work.RetagResult
 import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
@@ -104,6 +105,8 @@ class PlayerPreferences(
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val DEFAULT_DOWNLOAD_CODEC = stringPreferencesKey("default_download_codec")
+        val MUSIC_DOWNLOAD_QUALITY = stringPreferencesKey("music_download_quality")
+        val DOWNLOAD_RETAG_RESULT = stringPreferencesKey("download_retag_result")
         val DOWNLOAD_LOCATION = stringPreferencesKey("download_location")
         val MUSIC_DOWNLOAD_LOCATION = stringPreferencesKey("music_download_location")
         val DOWNLOAD_LOCATION_TREE = stringPreferencesKey("download_location_tree")
@@ -2643,6 +2646,41 @@ class PlayerPreferences(
     suspend fun setDefaultDownloadCodec(codec: VideoCodec) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEFAULT_DOWNLOAD_CODEC] = codec.label
+        }
+    }
+
+    /** The audio quality songs are downloaded in, apart from the streaming one; there is no Auto. */
+    val musicDownloadQuality: Flow<MusicAudioQuality> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.MUSIC_DOWNLOAD_QUALITY]
+                    ?.let(MusicAudioQuality::fromString)
+                    ?.takeIf { it != MusicAudioQuality.AUTO }
+                    ?: MusicAudioQuality.HIGH
+            }
+
+    suspend fun setMusicDownloadQuality(quality: MusicAudioQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_DOWNLOAD_QUALITY] = quality.label
+        }
+    }
+
+    /** What the one pass that tagged older downloads did, once it has run; null before. */
+    val downloadRetagResult: Flow<RetagResult?> =
+        context.playerPreferencesDataStore.data
+            .map { preferences ->
+                preferences[Keys.DOWNLOAD_RETAG_RESULT]
+                    ?.split(',')
+                    ?.mapNotNull(String::toIntOrNull)
+                    ?.takeIf { it.size == 2 }
+                    ?.let { (tagged, skipped) -> RetagResult(tagged, skipped) }
+            }
+
+    suspend fun hasDownloadRetagResult(): Boolean = downloadRetagResult.first() != null
+
+    suspend fun setDownloadRetagResult(result: RetagResult) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DOWNLOAD_RETAG_RESULT] = "${result.tagged},${result.skipped}"
         }
     }
 

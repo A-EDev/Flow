@@ -231,6 +231,17 @@ class PlayerLoadDecisionsTest {
         assertThat(VideoPlayerUiState().shouldExpandInsteadOfPlaying("vid_a")).isFalse()
     }
 
+    @Test
+    fun `a downloaded video reads its watch page only when online`() {
+        assertThat(shouldLoadOnlineMetadataForLocalCopy("vid_a", isOnline = true)).isTrue()
+        assertThat(shouldLoadOnlineMetadataForLocalCopy("vid_a", isOnline = false)).isFalse()
+    }
+
+    @Test
+    fun `a device file never reads a watch page`() {
+        assertThat(shouldLoadOnlineMetadataForLocalCopy("local_42", isOnline = true)).isFalse()
+    }
+
     private fun video(id: String): Video =
         Video(
             id = id,

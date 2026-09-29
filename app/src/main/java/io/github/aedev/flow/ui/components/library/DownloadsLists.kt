@@ -81,6 +81,7 @@ internal class ActiveDownloadActions(
 @Composable
 internal fun VideosDownloadsList(
     header: @Composable () -> Unit,
+    shelf: @Composable (horizontalInset: Dp) -> Unit,
     videos: List<DownloadedVideo>,
     totalCount: Int,
     incomplete: List<DownloadWithItems>,
@@ -117,6 +118,7 @@ internal fun VideosDownloadsList(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 fullWidth("header") { Box(Modifier.padding(horizontal = rowInset(columns))) { header() } }
+                fullWidth("collections") { shelf(rowInset(columns)) }
                 activeSection(incomplete, progress, mergingIds, activeActions, rowInset(columns))
                 if (videos.isNotEmpty()) {
                     fullWidth(
@@ -153,6 +155,7 @@ internal fun VideosDownloadsList(
 @Composable
 internal fun MusicDownloadsList(
     header: @Composable () -> Unit,
+    shelf: @Composable (horizontalInset: Dp) -> Unit,
     tracks: List<DownloadedTrack>,
     totalCount: Int,
     incomplete: List<DownloadWithItems>,
@@ -184,6 +187,7 @@ internal fun MusicDownloadsList(
             modifier = Modifier.fillMaxSize(),
         ) {
             fullWidth("header") { Box(Modifier.padding(horizontal = rowInset(columns))) { header() } }
+            fullWidth("collections") { shelf(rowInset(columns)) }
             activeSection(incomplete, progress, emptySet(), activeActions, rowInset(columns))
             if (tracks.isNotEmpty()) {
                 fullWidth(

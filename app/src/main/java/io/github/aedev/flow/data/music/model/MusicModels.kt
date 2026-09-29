@@ -25,6 +25,19 @@ fun Video.toMusicTrack(): MusicTrack =
         channelId = channelId,
     )
 
+/** A track opened in the video player, carrying what the list already showed for it. */
+fun MusicTrack.toVideo(): Video =
+    Video(
+        id = videoId,
+        title = title,
+        channelName = artist,
+        channelId = channelId,
+        thumbnailUrl = thumbnailUrl,
+        duration = duration,
+        viewCount = views,
+        uploadDate = "",
+    )
+
 @Serializable
 data class MusicTrack(
     val videoId: String,

@@ -56,6 +56,8 @@ NEW FEATURES
 - Import AutoEQ and EqualizerAPO presets from a file or pasted text, export yours in the same format, and keep your presets in backup and device sync
 - Lyrics are sung word by word even when the source only times each line: each word fills behind a soft edge and lifts as it starts, duets split across both sides, instrumental breaks show three filling dots, word-timed sources are preferred, and lyrics in other scripts can show a romanized line
 - The music player adapts to tablets and foldables: wide windows show Up next and Lyrics in a pane beside the player, upright tablets get a centred layout, phones in landscape show the cover beside the controls, and the controls can use black and white or your theme instead of the artwork colors
+- Download a whole album or playlist as one item in its own folder, shown on a Playlists and albums shelf in Downloads and playable with no connection (#913)
+- Downloads are now M4A audio or MP4 video with readable names and their details and cover art inside the file, so other players show them and Flow restores them after a reinstall, and songs get their own download quality setting (#866, #894, #764)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -94,6 +96,7 @@ IMPROVEMENTS
 - Every video grid and list now lays out like Search on tablets and foldables: at most three columns until cards grow past a comfortable size, the same margins and gaps everywhere, and a row the grid cannot fill turns into full-width rows lined up with the grid above
 - List mode on a wide screen is now one column with large thumbnails on Home, Subscriptions, channels, History and playlists, and Subscriptions now follows your cards-per-row setting
 - Channel playlists, the Playlists screen, Downloads and Local media show cards in a grid sized to the space they have, and related videos on an upright tablet use the same columns as the rest of the app
+- Downloads keep running after Flow is closed and resume where they stopped, and a downloaded song plays from its file wherever it is queued
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -106,6 +109,7 @@ PERFORMANCE
 - The expanded music player is no longer rebuilt on every song change, and lyrics stop updating while the music is paused
 
 FIXES AND STABILITY
+- Fix downloaded videos playing without their title, description, related videos or channel (#1129)
 - Fix a video without chapters showing the chapters, most-replayed curve and scrub preview of the video played before it (#1111)
 - Fix Continue watching cards being cut off on narrow phones, and loading placeholders not matching list mode on wide screens
 - Fix the comment count under the player showing the previous video's count when the next video has none

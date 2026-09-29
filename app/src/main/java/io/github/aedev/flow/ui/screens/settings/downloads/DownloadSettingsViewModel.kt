@@ -8,11 +8,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.DEFAULT_CONCURRENT_DOWNLOADS
 import io.github.aedev.flow.data.local.DownloadDialogStyle
+import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoCodec
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.local.entity.DownloadFileType
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import io.github.aedev.flow.data.video.downloader.work.DownloadController
 import io.github.aedev.flow.data.video.storage.DownloadDestination
 import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.data.video.storage.DownloadLocation
@@ -66,16 +68,23 @@ class DownloadSettingsViewModel
         @ApplicationContext private val context: Context,
         private val preferences: PlayerPreferences,
         private val downloadManager: VideoDownloadManager,
+        private val downloadController: DownloadController,
     ) : SettingsViewModel() {
         private val refreshTick = MutableStateFlow(0)
 
         val quickQuality = preferences.defaultDownloadQuality.asState(VideoQuality.Q_720P)
         val codec = preferences.defaultDownloadCodec.asState(VideoCodec.AUTO)
+        val musicQuality = preferences.musicDownloadQuality.asState(MusicAudioQuality.HIGH)
         val menuStyle = preferences.downloadDialogStyle.asState(DownloadDialogStyle.FULL)
         val wifiOnly = preferences.downloadOverWifiOnly.asState(false)
         val threads = preferences.downloadThreads.asState(DEFAULT_THREADS)
         val concurrentDownloads = preferences.concurrentDownloads.asState(DEFAULT_CONCURRENT_DOWNLOADS)
         val cacheSizeMb = preferences.mediaCacheSizeMb.asState(DEFAULT_CACHE_MB)
+        val retagStatus = downloadController.retagStatus.asState(null)
+
+        init {
+            downloadController.scheduleRetagOnce()
+        }
 
         /** Both locations resolved the way a download resolves them, off the main thread. */
         val locations =
@@ -122,9 +131,16 @@ class DownloadSettingsViewModel
 
         fun setCodec(value: VideoCodec) = write { preferences.setDefaultDownloadCodec(value) }
 
+        fun setMusicQuality(value: MusicAudioQuality) = write { preferences.setMusicDownloadQuality(value) }
+
         fun setMenuStyle(value: DownloadDialogStyle) = write { preferences.setDownloadDialogStyle(value) }
 
-        fun setWifiOnly(value: Boolean) = write { preferences.setDownloadOverWifiOnly(value) }
+        // Queued downloads wait on the network the setting allowed when they were queued, so it is re-applied.
+        fun setWifiOnly(value: Boolean) =
+            write {
+                preferences.setDownloadOverWifiOnly(value)
+                downloadController.applyNetworkPolicy()
+            }
 
         fun setThreads(value: Int) = write { preferences.setDownloadThreads(value) }
 

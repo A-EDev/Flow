@@ -13,6 +13,7 @@ import io.github.aedev.flow.player.sabr.SabrRoutingPolicy
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.VideoCodecUtils
+import io.github.aedev.flow.player.stream.toSubtitlesStreams
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -136,7 +137,7 @@ internal class PlaybackPreparer(
                 filePath = localFilePath,
                 savedSegments = offlineSegments,
                 preservePosition = resumePosition.takeIf { it > 0L },
-                subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId) },
+                subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId).toSubtitlesStreams() },
             )
         } else {
             val effectiveDashUrl = dashManifestUrl?.takeIf { it.isNotEmpty() } ?: streamInfo.dashMpdUrl

@@ -40,7 +40,6 @@ fun QuickActionsHost(
         when (dialogStyle) {
             DownloadDialogStyle.COMPACT -> {
                 MediaDownloadDialogCompact(
-                    streamInfo = null,
                     streamSizes = options.streamSizes,
                     innerTubeVideoFormats = options.videoFormats,
                     innerTubeAudioFormats = options.audioFormats,
@@ -51,7 +50,6 @@ fun QuickActionsHost(
 
             DownloadDialogStyle.FULL -> {
                 MediaDownloadDialog(
-                    streamInfo = null,
                     streamSizes = options.streamSizes,
                     innerTubeVideoFormats = options.videoFormats,
                     innerTubeAudioFormats = options.audioFormats,

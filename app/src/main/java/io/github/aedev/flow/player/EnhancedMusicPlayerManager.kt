@@ -174,6 +174,7 @@ object EnhancedMusicPlayerManager {
             if (!LocalMediaIds.isLocal(nextTrack.videoId) && urlCache.get(nextTrack.videoId) == null) {
                 scope.launch(Dispatchers.IO) {
                     try {
+                        if (isDownloaded(nextTrack.videoId)) return@launch
                         resolveStreamUrl(nextTrack.videoId)
                         Log.d("EnhancedMusicPlayer", "Pre-fetched URL for next track: ${nextTrack.title}")
                     } catch (e: Exception) {
@@ -222,8 +223,15 @@ object EnhancedMusicPlayerManager {
         Log.d("EnhancedMusicPlayer", "Cleared all resolved URL cache entries")
     }
 
-    fun initialize(context: Context) {
+    /** Whether a song plays from its download, whose stream then needs no warming. */
+    private var isDownloaded: suspend (videoId: String) -> Boolean = { false }
+
+    fun initialize(
+        context: Context,
+        isDownloaded: suspend (videoId: String) -> Boolean,
+    ) {
         if (isInitialized) return
+        this.isDownloaded = isDownloaded
         appContext = context.applicationContext
         isInitialized = true
 
