@@ -463,7 +463,7 @@ rows, bespoke empty/error states, bespoke badges, bespoke formatters, or a secon
 ## Kotlin formatting and linting
 
 Spotless enforces ktlint formatting using the rules in `.editorconfig`. It checks Kotlin sources in
-`app/src/` and `baselineprofile/src/`, plus the selected project Gradle Kotlin scripts. Build output,
+`app/src/` and `benchmark/src/`, plus the selected project Gradle Kotlin scripts. Build output,
 generated sources, and ignored reference projects are outside the target set.
 
 1. Before committing or pushing Kotlin or Gradle Kotlin script changes, run:
@@ -505,7 +505,9 @@ revision must pass the configured ktlint rules.
 
 The app ships a generated baseline profile at `app/src/githubRelease/generated/baselineProfiles/`
 (`baseline-prof.txt` drives ART's AOT compilation; `startup-prof.txt` drives dex layout). It is
-generated on a real device by `baselineprofile/`, and the generated files **are committed**.
+generated on a real device by the `:benchmark` module, and the generated files **are committed**.
+The `nightly` build type reads the same files (`sourceSets.nightly.baselineProfiles`), so nightly
+startup matches release.
 
 ```bash
 ./gradlew :app:generateGithubReleaseBaselineProfile
@@ -535,4 +537,4 @@ run that occupies a physical device, and the resulting diff is thousands of line
   `classes.dex`. Keep `startup-prof.txt` a genuinely small subset of `baseline-prof.txt`.
 - Profile size is **not** a measure of startup work: it records everything executed during the
   journey on any thread, so moving work to a background thread keeps it in the profile. Use
-  `StartupBenchmarks` (`:baselineprofile:connectedBenchmarkReleaseAndroidTest`) to measure.
+  `StartupBenchmarks` (`:benchmark:connectedBenchmarkReleaseAndroidTest`) to measure.
