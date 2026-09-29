@@ -1,7 +1,6 @@
 package io.github.aedev.flow.ui.theme
 
 import androidx.compose.ui.graphics.Color
-import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.SponsorBlockCategories
 
 /**
@@ -39,25 +38,6 @@ fun defaultSponsorBlockColor(category: String): Color =
         SponsorBlockCategories.PREVIEW -> SponsorBlockPreview
         SponsorBlockCategories.EXCLUSIVE_ACCESS -> SponsorBlockExclusiveAccess
         else -> SponsorBlockSponsor
-    }
-
-fun sponsorBlockCategoryLabelRes(category: String): Int? =
-    when (category) {
-        SponsorBlockCategories.SPONSOR -> R.string.sb_category_sponsor
-        SponsorBlockCategories.SELF_PROMO -> R.string.sb_category_selfpromo
-        SponsorBlockCategories.INTERACTION -> R.string.sb_category_interaction
-        SponsorBlockCategories.INTRO -> R.string.sb_category_intro
-        SponsorBlockCategories.OUTRO -> R.string.sb_category_outro
-        SponsorBlockCategories.MUSIC_OFF_TOPIC -> R.string.sb_category_music_offtopic
-        SponsorBlockCategories.FILLER -> R.string.sb_category_filler
-        SponsorBlockCategories.PREVIEW -> R.string.sb_category_preview
-        SponsorBlockCategories.EXCLUSIVE_ACCESS -> R.string.sb_category_exclusive_access
-        else -> null
-    }
-
-fun sponsorBlockCategoriesAndLabels(): List<Pair<String, Int>> =
-    SponsorBlockCategories.all.mapNotNull { category ->
-        sponsorBlockCategoryLabelRes(category)?.let { category to it }
     }
 
 /** The colours offered when the user picks their own colour for a segment category. */
