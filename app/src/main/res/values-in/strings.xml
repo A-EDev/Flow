@@ -3321,4 +3321,21 @@
     <string name="recap_summary_top_channel">Channel teratas</string>
     <string name="recap_summary_top_artist">Artis teratas</string>
     <string name="recap_summary_top_topic">Topik teratas</string>
+    <string name="music_player_tab_lyrics">Lirik</string>
+    <string name="lyrics_play_from_line">Mulai dari</string>
+    <string name="lyrics_show_translation">Terjemahan</string>
+    <string name="lyrics_show_translation_summary">Tampilkan terjemahan lirik di bawah setiap lirik</string>
+    <string name="lyrics_show_romanization">Romanisasi</string>
+    <string name="lyrics_show_romanization_summary">Tampilkan lirik dalam aksara lain dalam huruf Latin juga</string>
+    <string name="lyrics_auto_romanize">Romanisasi pada perangkat ini</string>
+    <string name="lyrics_auto_romanize_summary">Ketika sumber lirik tidak memiliki romanisasi</string>
+    <string name="music_player_tab_up_next">Selanjutnya</string>
+    <string name="music_player_lyrics_full_screen">Lirik layar penuh</string>
+    <string name="player_appearance_artwork_control_colors_title">Warna karya seni pada kontrol</string>
+    <string name="player_appearance_artwork_control_colors_subtitle">Warnai tombol dan bilah pencarian dari sampulnya</string>
+    <string name="player_appearance_plain_control_colors_title">Kontrol warna</string>
+    <string name="player_appearance_plain_control_colors_monochrome">Hitam dan putih</string>
+    <string name="check_out_short_template">Lihat video pendek ini: \nhttps://youtube.com/shorts/%2$s</string>
+    <string name="link_not_supported">Flow tidak dapat membuka tautan seperti ini</string>
+    <string name="content_settings_hide_watched_shorts_title">Sembunyikan tontonan Shorts</string>
 </resources>
