@@ -19,7 +19,9 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val RELEASES_API = "https://api.github.com/repos/A-EDev/Flow/releases/latest"
+private const val STABLE_RELEASE_API = "https://api.github.com/repos/A-EDev/Flow/releases/latest"
+private const val NIGHTLY_RELEASE_API = "https://api.github.com/repos/A-EDev/Flow/releases/tags/nightly"
+private const val NIGHTLY_CHANNEL = "nightly"
 private const val GITHUB_JSON = "application/vnd.github+json"
 
 /** Where an automatic check may surface a release; each announces a version once. */
@@ -54,6 +56,7 @@ class UpdateRepository
         private val dataManager: LocalDataManager,
     ) {
         private val mutex = Mutex()
+        private val isNightly = BuildConfig.UPDATE_CHANNEL == NIGHTLY_CHANNEL
         private val _latest = MutableStateFlow<AppRelease?>(null)
 
         /** The newest release found this process, or null when none is known or this build is current. */
@@ -96,7 +99,7 @@ class UpdateRepository
                     val request =
                         Request
                             .Builder()
-                            .url(RELEASES_API)
+                            .url(if (isNightly) NIGHTLY_RELEASE_API else STABLE_RELEASE_API)
                             .header("Accept", GITHUB_JSON)
                             .cacheControl(CacheControl.FORCE_NETWORK)
                             .build()
@@ -105,7 +108,13 @@ class UpdateRepository
                         response.body.string()
                     }
                 }
-            val release = parseGitHubRelease(body).toAppReleaseIfNewer(BuildConfig.VERSION_NAME, Build.SUPPORTED_ABIS.toList())
+            val parsed = parseGitHubRelease(body)
+            val release =
+                if (isNightly) {
+                    parsed.toNightlyReleaseIfNewer(BuildConfig.NIGHTLY_RUN)
+                } else {
+                    parsed.toAppReleaseIfNewer(BuildConfig.VERSION_NAME, Build.SUPPORTED_ABIS.toList())
+                }
             dataManager.setLastUpdateCheck(System.currentTimeMillis())
             _latest.value = release
             return release

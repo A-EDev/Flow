@@ -67,7 +67,7 @@
         android:allowBackup="true"
         android:banner="@drawable/tv_banner"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="@string/app_launcher_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Flow"
@@ -257,6 +257,15 @@
                 <action android:name="io.github.aedev.flow.action.PAUSE_DOWNLOAD" />
                 <action android:name="io.github.aedev.flow.action.RESUME_DOWNLOAD" />
                 <action android:name="io.github.aedev.flow.action.DISMISS_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Restores a launcher entry after an update if the chosen icon alias no longer exists. -->
+        <receiver
+            android:name=".platform.LauncherAliasRepairReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 
@@ -500,6 +509,118 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_material_mint"
             android:roundIcon="@mipmap/ic_launcher_material_mint_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Scallop (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveScallop"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_scallop"
+            android:roundIcon="@mipmap/ic_launcher_expressive_scallop_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Segmented F (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveSegmented"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_segmented"
+            android:roundIcon="@mipmap/ic_launcher_expressive_segmented_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Sunny Play (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressivePlay"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_play"
+            android:roundIcon="@mipmap/ic_launcher_expressive_play_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Sky Clover (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveSky"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_sky"
+            android:roundIcon="@mipmap/ic_launcher_expressive_sky_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Mint Flower (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveMint"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_mint"
+            android:roundIcon="@mipmap/ic_launcher_expressive_mint_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Night Cookie (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveCookie"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_cookie"
+            android:roundIcon="@mipmap/ic_launcher_expressive_cookie_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Oval (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressiveOval"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_oval"
+            android:roundIcon="@mipmap/ic_launcher_expressive_oval_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Pill (Expressive) -->
+        <activity-alias
+            android:name=".IconExpressivePill"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_expressive_pill"
+            android:roundIcon="@mipmap/ic_launcher_expressive_pill_round"
             android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

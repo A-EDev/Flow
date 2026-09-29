@@ -21,6 +21,14 @@ class SplashThemesTest {
     }
 
     @Test
+    fun `an expressive icon opens on its own art in every tone`() {
+        assertThat(
+            splashThemeFor(".IconExpressiveScallop", SplashTone.LIGHT),
+        ).isEqualTo(R.style.Theme_Flow_Starting_Light_Expressive_Scallop)
+        assertThat(splashThemeFor(".IconExpressivePill", SplashTone.BLACK)).isEqualTo(R.style.Theme_Flow_Starting_Black_Expressive_Pill)
+    }
+
+    @Test
     fun `the white ghost outline never lands on a light splash`() {
         assertThat(splashThemeFor(".IconGhost", SplashTone.LIGHT)).isEqualTo(R.style.Theme_Flow_Starting_Light)
     }

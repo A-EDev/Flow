@@ -3,6 +3,8 @@ package io.github.aedev.flow.platform
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.pm.PackageManager.ComponentEnabledSetting
+import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.util.AppIcons
@@ -33,21 +35,54 @@ class AppIconController
                 } ?: AppIcons.DEFAULT_SUFFIX
             }
 
+        /**
+         * Enables [suffix] before disabling the rest, so a launcher that reloads mid-switch never sees
+         * the app without an entry. From Android 13 the whole switch is one atomic call.
+         */
         suspend fun apply(suffix: String) {
             require(suffix in AppIcons.ALL_SUFFIXES) { "Unknown launcher alias $suffix" }
             withContext(Dispatchers.IO) {
+                val states =
+                    (listOf(suffix) + (AppIcons.ALL_SUFFIXES - suffix)).map { alias ->
+                        val state =
+                            if (alias == suffix) {
+                                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                            } else {
+                                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                            }
+                        componentFor(alias) to state
+                    }
                 val packageManager = context.packageManager
-                AppIcons.ALL_SUFFIXES.forEach { alias ->
-                    val state =
-                        if (alias == suffix) {
-                            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                        } else {
-                            PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-                        }
-                    packageManager.setComponentEnabledSetting(componentFor(alias), state, PackageManager.DONT_KILL_APP)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    packageManager.setComponentEnabledSettings(
+                        states.map { (component, state) -> ComponentEnabledSetting(component, state, PackageManager.DONT_KILL_APP) },
+                    )
+                } else {
+                    states.forEach { (component, state) ->
+                        packageManager.setComponentEnabledSetting(component, state, PackageManager.DONT_KILL_APP)
+                    }
                 }
             }
             playerPreferences.setSelectedAppIcon(suffix)
+        }
+
+        /**
+         * Gives the app its default launcher entry back when no known alias is enabled, which happens
+         * when an update drops the alias a user had picked: the default stays explicitly disabled.
+         */
+        suspend fun repair() {
+            val hasLauncherEntry =
+                withContext(Dispatchers.IO) {
+                    val packageManager = context.packageManager
+                    AppIcons.ALL_SUFFIXES.any { suffix ->
+                        when (packageManager.getComponentEnabledSetting(componentFor(suffix))) {
+                            PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> true
+                            PackageManager.COMPONENT_ENABLED_STATE_DEFAULT -> suffix == AppIcons.DEFAULT_SUFFIX
+                            else -> false
+                        }
+                    }
+                }
+            if (!hasLauncherEntry) apply(AppIcons.DEFAULT_SUFFIX)
         }
 
         private fun componentFor(suffix: String) = ComponentName(context.packageName, AppIcons.NAMESPACE + suffix)

@@ -26,6 +26,7 @@ import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.platform.AppIconEntryPoint
 import io.github.aedev.flow.player.audio.AudioEffectsEntryPoint
 import io.github.aedev.flow.util.AppIcons
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -138,6 +139,11 @@ class BackupRepository(
         EntryPointAccessors
             .fromApplication(context.applicationContext, AudioEffectsEntryPoint::class.java)
             .equalizerRepository()
+    }
+    private val appIconController by lazy {
+        EntryPointAccessors
+            .fromApplication(context.applicationContext, AppIconEntryPoint::class.java)
+            .appIconController()
     }
     private val localDataManager = LocalDataManager(context)
     private val gson =
@@ -2125,20 +2131,7 @@ class BackupRepository(
             searchHistoryRepo.restoreSettings(settings)
             val savedIconSuffix = settings.strings["app_icon_suffix"]
             if (!savedIconSuffix.isNullOrEmpty() && AppIcons.ALL_SUFFIXES.contains(savedIconSuffix)) {
-                withContext(Dispatchers.Main) {
-                    val pm = context.packageManager
-                    val pkg = context.packageName
-                    for (suffix in AppIcons.ALL_SUFFIXES) {
-                        val cn = ComponentName(pkg, "${AppIcons.NAMESPACE}$suffix")
-                        val want =
-                            if (suffix == savedIconSuffix) {
-                                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                            } else {
-                                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-                            }
-                        pm.setComponentEnabledSetting(cn, want, PackageManager.DONT_KILL_APP)
-                    }
-                }
+                appIconController.apply(savedIconSuffix)
             }
         }
     }

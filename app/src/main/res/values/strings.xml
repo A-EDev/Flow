@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flow</string>
+    <string name="app_launcher_name" translatable="false">Flow</string>
     <string name="subscriptions_search_placeholder">Search subscriptions ...</string>
     <string name="subscriptions_sort_label">Sort channels</string>
     <string name="subscriptions_sort_default">Default</string>
@@ -785,6 +786,14 @@
     <string name="icon_name_dynamic">Material You</string>
     <string name="icon_name_material_sky">Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
+    <string name="icon_name_expressive_scallop">Scallop</string>
+    <string name="icon_name_expressive_segmented">Segmented F</string>
+    <string name="icon_name_expressive_play">Sunny Play</string>
+    <string name="icon_name_expressive_sky">Sky Clover</string>
+    <string name="icon_name_expressive_mint">Mint Flower</string>
+    <string name="icon_name_expressive_cookie">Night Cookie</string>
+    <string name="icon_name_expressive_oval">Oval</string>
+    <string name="icon_name_expressive_pill">Pill</string>
     <!-- Player Appearance -->
     <string name="player_appearance_title">Player Appearance</string>
     <string name="player_appearance_header">Customize Player Controls</string>

@@ -17,6 +17,64 @@ fun splashTone(background: Color): SplashTone =
         else -> SplashTone.LIGHT
     }
 
+private class ExpressiveSplash(
+    @StyleRes val light: Int,
+    @StyleRes val dark: Int,
+    @StyleRes val black: Int,
+)
+
+private val ExpressiveSplashes =
+    mapOf(
+        ".IconExpressiveScallop" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Expressive_Scallop,
+                R.style.Theme_Flow_Starting_Dark_Expressive_Scallop,
+                R.style.Theme_Flow_Starting_Black_Expressive_Scallop,
+            ),
+        ".IconExpressiveSegmented" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Expressive_Segmented,
+                R.style.Theme_Flow_Starting_Dark_Expressive_Segmented,
+                R.style.Theme_Flow_Starting_Black_Expressive_Segmented,
+            ),
+        ".IconExpressivePlay" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Expressive_Play,
+                R.style.Theme_Flow_Starting_Dark_Expressive_Play,
+                R.style.Theme_Flow_Starting_Black_Expressive_Play,
+            ),
+        ".IconExpressiveSky" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Expressive_Sky,
+                R.style.Theme_Flow_Starting_Dark_Expressive_Sky,
+                R.style.Theme_Flow_Starting_Black_Expressive_Sky,
+            ),
+        ".IconExpressiveMint" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Expressive_Mint,
+                R.style.Theme_Flow_Starting_Dark_Expressive_Mint,
+                R.style.Theme_Flow_Starting_Black_Expressive_Mint,
+            ),
+        ".IconExpressiveCookie" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Expressive_Cookie,
+                R.style.Theme_Flow_Starting_Dark_Expressive_Cookie,
+                R.style.Theme_Flow_Starting_Black_Expressive_Cookie,
+            ),
+        ".IconExpressiveOval" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Expressive_Oval,
+                R.style.Theme_Flow_Starting_Dark_Expressive_Oval,
+                R.style.Theme_Flow_Starting_Black_Expressive_Oval,
+            ),
+        ".IconExpressivePill" to
+            ExpressiveSplash(
+                R.style.Theme_Flow_Starting_Light_Expressive_Pill,
+                R.style.Theme_Flow_Starting_Dark_Expressive_Pill,
+                R.style.Theme_Flow_Starting_Black_Expressive_Pill,
+            ),
+    )
+
 /**
  * The starting style for a launcher alias on a tone. The ghost icon is a white outline, so on a
  * light splash it falls back to the Flow badge rather than vanish.
@@ -25,8 +83,15 @@ fun splashTone(background: Color): SplashTone =
 fun splashThemeFor(
     iconSuffix: String,
     tone: SplashTone,
-): Int =
-    when (tone) {
+): Int {
+    ExpressiveSplashes[iconSuffix]?.let { splash ->
+        return when (tone) {
+            SplashTone.LIGHT -> splash.light
+            SplashTone.DARK -> splash.dark
+            SplashTone.BLACK -> splash.black
+        }
+    }
+    return when (tone) {
         SplashTone.LIGHT -> {
             when (iconSuffix) {
                 ".IconFlowPlay" -> R.style.Theme_Flow_Starting_Light_Play
@@ -59,3 +124,4 @@ fun splashThemeFor(
             }
         }
     }
+}

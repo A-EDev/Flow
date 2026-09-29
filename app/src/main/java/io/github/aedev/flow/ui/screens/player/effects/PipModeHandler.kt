@@ -32,16 +32,12 @@ private fun PipBroadcastReceiverEffect(context: Context) {
                 },
             )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(
-                context,
-                receiver,
-                PictureInPictureHelper.getPipIntentFilter(),
-                ContextCompat.RECEIVER_NOT_EXPORTED,
-            )
-        } else {
-            context.registerReceiver(receiver, PictureInPictureHelper.getPipIntentFilter())
-        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            PictureInPictureHelper.getPipIntentFilter(),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
 
         onDispose {
             try {
