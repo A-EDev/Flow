@@ -231,7 +231,7 @@ class HomeViewModel
             }
 
             viewModelScope.launch {
-                playerPreferences.effectiveHomeShortsShelfEnabled.collect { enabled ->
+                playerPreferences.effectiveHomeShortsShelfEnabled.distinctUntilChanged().collect { enabled ->
                     if (!enabled) {
                         _uiState.update { it.copy(shorts = emptyList()) }
                     } else if (_uiState.value.shorts.isEmpty() && !_uiState.value.isLoading) {
