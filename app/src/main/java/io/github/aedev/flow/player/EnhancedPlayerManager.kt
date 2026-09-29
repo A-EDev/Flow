@@ -215,6 +215,7 @@ class EnhancedPlayerManager private constructor() {
 
     // Coroutine scope
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val buildScope = PlayerBuildScope(scope)
 
     private val autoplayCountdownController =
         AutoplayCountdownController(
@@ -481,11 +482,12 @@ class EnhancedPlayerManager private constructor() {
         appContext = context.applicationContext
 
         if (player == null) {
+            val built = buildScope.open()
             initializeComponents(context)
             initializePlayer(context)
             setupPlayerListener()
             startPlaybackTracker()
-            observePreferences(context)
+            observePreferences(context, built)
             initializeVideoMediaSession(context)
             Log.d(TAG, "Player initialized")
         }
@@ -693,18 +695,21 @@ class EnhancedPlayerManager private constructor() {
         audioFeaturesManager?.setVolumeBoost(player, volume)
     }
 
-    private fun observePreferences(context: Context) {
-        audioFeaturesManager?.observeSkipSilencePreference(context)
-        audioFeaturesManager?.observeStableVolumePreference(context)
+    private fun observePreferences(
+        context: Context,
+        built: CoroutineScope,
+    ) {
+        audioFeaturesManager?.observeSkipSilencePreference(context, built)
+        audioFeaturesManager?.observeStableVolumePreference(context, built)
 
         val prefs = PlayerPreferences(context)
-        scope.launch {
+        built.launch {
             prefs.sponsorBlockEnabled.collect { isEnabled ->
                 sponsorBlockHandler?.setEnabled(isEnabled)
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.videoLoopEnabled.collect { isEnabled ->
                 globalLoopEnabled = isEnabled
                 player?.repeatMode = if (isEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -712,19 +717,19 @@ class EnhancedPlayerManager private constructor() {
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.autoplayEnabled.collect { isEnabled ->
                 autoplayEnabled = isEnabled
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.queueAutoplayEnabled.collect { isEnabled ->
                 queueAutoplayEnabled = isEnabled
             }
         }
 
-        scope.launch {
+        built.launch {
             prefs.autoplayCountdownSeconds.collect { seconds ->
                 val previousSeconds = autoplayCountdownSeconds
                 autoplayCountdownSeconds = seconds
@@ -738,7 +743,7 @@ class EnhancedPlayerManager private constructor() {
 
         // Collect per-category SponsorBlock actions and update handler
         SponsorBlockCategories.all.forEach { category ->
-            scope.launch {
+            built.launch {
                 prefs.sbActionForCategory(category).collect { action ->
                     val current = sponsorBlockHandler?.categoryActions?.toMutableMap() ?: mutableMapOf()
                     current[category] = action
@@ -3161,6 +3166,7 @@ class EnhancedPlayerManager private constructor() {
         clearedMediaRecoveryState.clear()
         playbackTracker?.stop()
         audioFeaturesManager?.clearPlayer()
+        buildScope.close()
         surfaceManager?.release(player)
         audioEffects?.audioSessionRegistry()?.close(announcedAudioSession)
         announcedAudioSession = 0
