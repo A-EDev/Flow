@@ -81,6 +81,23 @@ class FlowNeuroEngine internal constructor(
         private const val TOPIC_EVIDENCE_MAX_ENTRIES = 500
         private const val TOPIC_EVIDENCE_MAX_IDS = 6
 
+        // ── Import bootstrap constants ──
+        private const val SUBSCRIPTION_SEED_WEIGHT = 0.25
+
+        /**
+         * A subscription list carries no dates, so a channel followed years ago seeds as strongly as
+         * one followed last week. Seeds stay below the established tier so watching decides which
+         * of them last (#1030).
+         */
+        internal const val SUBSCRIPTION_SEED_CAP = NeuroVectorMath.ESTABLISHED_TOPIC_THRESHOLD - 0.01
+
+        /**
+         * An imported history ends cold start and warm-up but no more: counting every imported
+         * video as an interaction damps all later learning as if the person had used Flow for
+         * months (#1030).
+         */
+        internal const val HISTORY_BOOTSTRAP_MAX_INTERACTIONS = NeuroScoring.ONBOARDING_WARMUP_INTERACTIONS
+
         @Volatile
         private var instance: FlowNeuroEngine? = null
 
@@ -879,23 +896,22 @@ class FlowNeuroEngine internal constructor(
                 return
             }
 
-            val topicWeights = mutableMapOf<String, Double>()
-            val bootstrapWeight = 0.25
-
+            val mentions = mutableMapOf<String, Int>()
             channelNames.forEach { name ->
-                val tokens = tokenizer.tokenize(name)
-                tokens.forEach { token ->
-                    val current = topicWeights[token] ?: 0.0
-                    topicWeights[token] =
-                        (current + bootstrapWeight)
-                            .coerceAtMost(0.60)
+                tokenizer.tokenize(name).forEach { token ->
+                    mentions[token] = (mentions[token] ?: 0) + 1
                 }
             }
 
-            if (topicWeights.isEmpty()) {
+            if (mentions.isEmpty()) {
                 Log.i(TAG, "Bootstrap: no usable keywords from ${channelNames.size} channels")
                 return
             }
+
+            val topicWeights =
+                mentions.mapValues { (_, count) ->
+                    (count * SUBSCRIPTION_SEED_WEIGHT).coerceAtMost(SUBSCRIPTION_SEED_CAP)
+                }
 
             val mergedTopics = currentUserBrain.globalVector.topics.toMutableMap()
             topicWeights.forEach { (key, weight) ->
@@ -904,7 +920,7 @@ class FlowNeuroEngine internal constructor(
             }
 
             val topKeywords =
-                topicWeights.entries
+                mentions.entries
                     .sortedByDescending { it.value }
                     .take(15)
                     .map { it.key }
@@ -920,15 +936,8 @@ class FlowNeuroEngine internal constructor(
                 }
             }
 
-            val preferredFromSubs =
-                topicWeights.entries
-                    .sortedByDescending { it.value }
-                    .take(10)
-                    .map { it.key }
-                    .toSet()
-
-            val mergedPreferred = currentUserBrain.preferredTopics + preferredFromSubs
-
+            // Channel-name words are inferred, so they never join preferredTopics: that set is the
+            // person's own choice, never decays and anchors every refresh.
             currentUserBrain =
                 currentUserBrain.copy(
                     globalVector =
@@ -936,7 +945,6 @@ class FlowNeuroEngine internal constructor(
                             topics = mergedTopics,
                         ),
                     topicAffinities = newAffinities,
-                    preferredTopics = mergedPreferred,
                     hasCompletedOnboarding = true,
                 )
 
@@ -1043,7 +1051,6 @@ class FlowNeuroEngine internal constructor(
                         channelScores = newChannelScores,
                         topicAffinities = newAffinities,
                         topicEvidence = newTopicEvidence,
-                        totalInteractions = updatedBrain.totalInteractions + 1,
                     )
             }
 
@@ -1053,6 +1060,9 @@ class FlowNeuroEngine internal constructor(
 
             currentUserBrain =
                 updatedBrain.copy(
+                    totalInteractions =
+                        updatedBrain.totalInteractions +
+                            toProcess.size.coerceAtMost(HISTORY_BOOTSTRAP_MAX_INTERACTIONS),
                     idfWordFrequency = idfWordFrequency.toMap(),
                     idfTotalDocuments = idfTotalDocuments,
                     watchHistoryMap = watchHistory.mapValues { it.value.percentWatched },
