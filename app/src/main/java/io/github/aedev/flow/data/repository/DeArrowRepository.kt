@@ -1,9 +1,9 @@
 package io.github.aedev.flow.data.repository
 
 import android.util.LruCache
+import com.google.gson.Gson
 import io.github.aedev.flow.data.model.DeArrowContent
 import io.github.aedev.flow.data.model.DeArrowResult
-import com.google.gson.Gson
 import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,7 +19,6 @@ import okhttp3.Request
  * Results are cached in-memory (LRU, 200 entries) to prevent redundant network calls.
  */
 object DeArrowRepository {
-
     private val client: OkHttpClient
         get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
     private val gson = Gson()
@@ -34,7 +33,9 @@ object DeArrowRepository {
     private val cache = LruCache<String, Optional<DeArrowResult>>(200)
 
     /** Wrapper to distinguish "cache miss" from "cached null" */
-    private class Optional<T>(val value: T?)
+    private class Optional<T>(
+        val value: T?,
+    )
 
     /**
      * Returns the DeArrow result for [videoId], or null if:
@@ -43,44 +44,49 @@ object DeArrowRepository {
      *
      * Results are cached so the same video is only fetched once per session.
      */
-    suspend fun getDeArrowResult(videoId: String): DeArrowResult? = withContext(Dispatchers.IO) {
-        // Cache hit
-        cache.get(videoId)?.let { return@withContext it.value }
+    suspend fun getDeArrowResult(videoId: String): DeArrowResult? =
+        withContext(Dispatchers.IO) {
+            // Cache hit
+            cache.get(videoId)?.let { return@withContext it.value }
 
-        try {
-            val request = Request.Builder()
-                .url("$BRANDING_BASE_URL?videoID=$videoId")
-                .header("User-Agent", "FlowYouTube/1.0")
-                .build()
+            try {
+                val request =
+                    Request
+                        .Builder()
+                        .url("$BRANDING_BASE_URL?videoID=$videoId")
+                        .header("User-Agent", "FlowYouTube/1.0")
+                        .build()
 
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    return@withContext null
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        return@withContext null
+                    }
+                    val body = response.body?.string()
+                    if (body.isNullOrBlank()) {
+                        cache.put(videoId, Optional(null))
+                        return@withContext null
+                    }
+                    val parsed = parseResponse(body, videoId)
+                    cache.put(videoId, Optional(parsed))
+                    return@withContext parsed
                 }
-                val body = response.body?.string()
-                if (body.isNullOrBlank()) {
-                    cache.put(videoId, Optional(null))
-                    return@withContext null
-                }
-                val parsed = parseResponse(body, videoId)
-                cache.put(videoId, Optional(parsed))
-                return@withContext parsed
+            } catch (e: Exception) {
+                return@withContext null
             }
-        } catch (e: Exception) {
-            return@withContext null
         }
-    }
 
     fun getCachedDeArrowResult(videoId: String): DeArrowResult? = cache.get(videoId)?.value
 
-    private fun parseResponse(json: String, videoId: String): DeArrowResult? {
-        return try {
+    private fun parseResponse(
+        json: String,
+        videoId: String,
+    ): DeArrowResult? =
+        try {
             val content = gson.fromJson(json, DeArrowContent::class.java)
             extractResult(content, videoId)
         } catch (e: Exception) {
             null
         }
-    }
 
     /**
      * Picks the best title and thumbnail from [content]:
@@ -88,25 +94,41 @@ object DeArrowRepository {
      * - Ignores entries with negative votes (downvoted)
      * - Ignores "original" entries (these just mean "keep as-is")
      */
-    private fun extractResult(content: DeArrowContent, videoId: String): DeArrowResult? {
-        val title = content.titles
-            .filter { !it.original && (it.votes >= 0 || it.locked) }
-            .maxByOrNull { if (it.locked) Int.MAX_VALUE else it.votes }
-            ?.title
+    private fun extractResult(
+        content: DeArrowContent,
+        videoId: String,
+    ): DeArrowResult? {
+        val title =
+            content.titles
+                .filter { !it.original && (it.votes >= 0 || it.locked) }
+                .maxByOrNull { if (it.locked) Int.MAX_VALUE else it.votes }
+                ?.title
 
-        val bestThumb = content.thumbnails
-            .filter { !it.original && (it.votes >= 0 || it.locked) }
-            .maxByOrNull { if (it.locked) Int.MAX_VALUE else it.votes }
+        val bestThumb =
+            content.thumbnails
+                .filter { !it.original && (it.votes >= 0 || it.locked) }
+                .maxByOrNull { if (it.locked) Int.MAX_VALUE else it.votes }
 
-        val thumbnailUrl = when {
-            bestThumb?.thumbnail != null -> bestThumb.thumbnail
-            bestThumb?.timestamp != null ->
-                "$THUMBNAIL_BASE_URL?videoID=$videoId&time=${bestThumb.timestamp}"
-            else -> null
+        val thumbnailUrl =
+            when {
+                bestThumb?.thumbnail != null -> {
+                    bestThumb.thumbnail
+                }
+
+                bestThumb?.timestamp != null -> {
+                    "$THUMBNAIL_BASE_URL?videoID=$videoId&time=${bestThumb.timestamp}"
+                }
+
+                else -> {
+                    null
+                }
+            }
+
+        return if (title == null && thumbnailUrl == null) {
+            null
+        } else {
+            DeArrowResult(title = title, thumbnailUrl = thumbnailUrl)
         }
-
-        return if (title == null && thumbnailUrl == null) null
-        else DeArrowResult(title = title, thumbnailUrl = thumbnailUrl)
     }
 
     /** Removes a cached entry, forcing a fresh fetch next time. */
