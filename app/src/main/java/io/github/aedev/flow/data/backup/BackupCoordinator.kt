@@ -7,6 +7,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.data.local.LocalDataManager
+import io.github.aedev.flow.data.local.NO_LIKES
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.music.MusicBrainEngine
 import io.github.aedev.flow.data.stats.RecapBackup
@@ -207,6 +208,8 @@ class BackupCoordinator
                 repository.importYouTubeWatchHistory(uri)
             }
 
+        fun importYouTubeLikes(uri: Uri) = importCounted(R.string.import_label_youtube_likes) { repository.importYouTubeLikes(uri) }
+
         fun importFreeTubeWatchHistory(uri: Uri) =
             importCounted(R.string.import_label_freetube_watch_history) {
                 repository.importYouTubeWatchHistory(uri)
@@ -372,6 +375,7 @@ class BackupCoordinator
             when (error.message) {
                 "no_entries" -> context.getString(R.string.import_no_history_entries)
                 NO_VIDEOS -> context.getString(R.string.import_no_videos)
+                NO_LIKES -> context.getString(R.string.import_no_likes)
                 "no_content" -> context.getString(R.string.import_no_content)
                 "invalid_format" -> context.getString(R.string.import_invalid_format)
                 else -> context.getString(R.string.import_failed_template, error.message ?: context.getString(R.string.unknown_error))
