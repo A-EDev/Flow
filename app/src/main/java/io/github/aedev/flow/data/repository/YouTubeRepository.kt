@@ -279,8 +279,9 @@ class YouTubeRepository
             withContext(Dispatchers.IO) {
                 YouTube
                     .videoSearch(query, continuation = continuation)
-                    .map { page -> page.resultVideos() to page.continuation }
-                    .getOrElse { error ->
+                    .map { page ->
+                        page.resultVideos().map { it.copy(isMusic = looksLikeMusicVideo(it.title, it.channelName)) } to page.continuation
+                    }.getOrElse { error ->
                         Log.w(TAG, "searchVideos failed for '$query': ${error::class.simpleName}: ${error.message}")
                         emptyList<Video>() to null
                     }
@@ -974,17 +975,6 @@ class YouTubeRepository
                 durationSecs = 0
             }
 
-            // Logic to detect if it's a music video
-            val nameLower = name?.lowercase() ?: ""
-            val uploaderLower = uploaderName?.lowercase() ?: ""
-            val isMusicCandidate =
-                uploaderLower.contains("vevo") ||
-                    uploaderLower.contains(" - topic") ||
-                    nameLower.contains("official music video") ||
-                    nameLower.contains("official video") ||
-                    nameLower.contains("official audio") ||
-                    nameLower.contains("(official)")
-
             return Video(
                 id = videoId,
                 title = name ?: "Unknown Title",
@@ -1026,7 +1016,7 @@ class YouTubeRepository
                 isUpcoming = streamType == StreamType.NONE,
                 isLive = isLiveStream,
                 isShort = isReel,
-                isMusic = isMusicCandidate,
+                isMusic = looksLikeMusicVideo(name.orEmpty(), uploaderName.orEmpty()),
             )
         }
 
@@ -1136,6 +1126,22 @@ internal fun mergeWatchMetadata(
             },
     )
 }
+
+/**
+ * An official release, told by its title and uploader conventions. Search results carry no music
+ * marker of their own, and this flag makes a card download as a song and a saved playlist open in
+ * the music player.
+ */
+internal fun looksLikeMusicVideo(
+    title: String,
+    channelName: String,
+): Boolean {
+    val channel = channelName.lowercase()
+    val lowerTitle = title.lowercase()
+    return channel.contains("vevo") || channel.contains(" - topic") || MUSIC_TITLE_MARKERS.any(lowerTitle::contains)
+}
+
+private val MUSIC_TITLE_MARKERS = listOf("official music video", "official video", "official audio", "(official)")
 
 internal fun parseDurationTextToSeconds(text: String?): Int {
     if (text.isNullOrBlank()) return 0
