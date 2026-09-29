@@ -25,7 +25,7 @@
     <string name="save">حفظ</string>
     <string name="lyrics">الكلمات</string>
     <string name="related">مشابه</string>
-    <string name="close">غلق</string>
+    <string name="close">إغلاق</string>
     <string name="more_options">خيارات إضافية</string>
     <string name="like">إعجاب</string>
     <string name="shuffle">خلط</string>
@@ -68,7 +68,7 @@
     <string name="save_to_playlist">حفظ في قائمة تشغيل</string>
     <string name="not_interested">غير مهتم</string>
     <string name="dislikes">عدم الإعجاب</string>
-    <string name="quality">الدقة</string>
+    <string name="quality">‌الجودة</string>
     <string name="duration">المدة</string>
     <string name="reply">رد</string>
     <string name="hide_replies">إخفاء الردود</string>
@@ -240,7 +240,7 @@
     <string name="appearance_applied_toast">محدد: %1$s</string>
     <string name="app_icon_picker_subtitle">اختر نمط أيقونة المشغل. سيتم تطبيق التغيير فورًا وسيتم تحديث المشغل لفترة وجيزة.</string>
     <string name="app_icon_picker_warning">قد يؤدي تغيير الأيقونة إلى إزالة Flow من الشاشة الرئيسية مؤقتًا. أعد إضافته من درج التطبيقات إذا لزم الأمر.</string>
-    <string name="icon_name_amoled">AMOLED مظلم</string>
+    <string name="icon_name_amoled">مظلم AMOLED</string>
     <string name="icon_name_monochrome">أُحادي اللون</string>
     <string name="icon_name_ghost">شبحي</string>
     <string name="player_appearance_title">مظهر المشغل</string>
@@ -320,7 +320,7 @@
     <string name="content_settings_related_card_full_width">عرض كامل</string>
     <string name="content_settings_related_card_full_width_desc">صورة مصغرة كبيرة مع العنوان أسفله</string>
     <string name="subscriptions_search_placeholder">ابحث في اشتركاتك…</string>
-    <string name="empty_subscriptions_body">اشترك بالقنوات لترى\nأحدث مقاطعهم هنا</string>
+    <string name="empty_subscriptions_body">اشترك في القنوات لتشاهد أحدث فيديوهاتها هنا</string>
     <string name="shorts">شورتز</string>
     <string name="subscribers">المشتركون</string>
     <string name="library_section_header">محتواك</string>
@@ -1066,8 +1066,8 @@
     <string name="settings_item_time_management">إدارة الوقت</string>
     <string name="settings_item_time_management_subtitle">إحصائيات الاستخدام، تذكيرات وقت النوم</string>
     <string name="app_icon_apply_toast">تم تحديث الأيقونة - سيتم تحديث مشغل التطبيقات الخاص بك</string>
-    <string name="icon_name_flow_red">Flow أحمر</string>
-    <string name="icon_name_dynamic">نمط Material You</string>
+    <string name="icon_name_flow_red">أحمر Flow</string>
+    <string name="icon_name_dynamic">ألوان ديناميكية</string>
     <string name="player_nav_btn_subtitle">إظهار أزرار الفيديو التالي و السابق في المشغل المصغر</string>
     <string name="lyrics_provider_title">مُقدّم كلمات الأغاني</string>
     <string name="lyrics_provider_subtitle">اختر مصدرك المفضل لكلمات الأغاني</string>
@@ -1097,7 +1097,7 @@
     <string name="theme_desc_nordic">نسق قطبي بدرجات زرقاء شمالية.</string>
     <string name="theme_name_espresso">اسبريسو</string>
     <string name="theme_desc_espresso">درجات بنية دافئة وغنية مستوحاة من القهوة.</string>
-    <string name="theme_name_gunmetal">Gunmetal</string>
+    <string name="theme_name_gunmetal">رمادي معدني</string>
     <string name="theme_desc_gunmetal">درجات رمادية صناعية بلمسة معدنية باردة.</string>
     <string name="content_settings_preview_album_art">معاينة الألبوم الفني</string>
     <string name="content_settings_preview_big">كبير - 128dp الصور المصغرة</string>
@@ -1114,7 +1114,7 @@
     <string name="player_settings_sponsorblock_subtitle">تخطي المقاطع الدعائية</string>
     <string name="player_settings_dearrow">DeArrow</string>
     <string name="dearrow_badge">DeArrow</string>
-    <string name="sb_segments_header">SponsorBlock Segment Actions</string>
+    <string name="sb_segments_header">إجراءات مقاطع SponsorBlock</string>
     <string name="sb_contribute_toggle_subtitle">أظهر زرًا في المشغل لإرسال تقطيعات جديدة</string>
     <string name="sb_user_id_title">معرف المستخدم لSponsorBlock</string>
     <string name="sb_user_id_dialog_title">معرف المستخدم لSponsorBlock</string>
@@ -1138,11 +1138,11 @@
     <string name="quality_2160p_4k">2160p 4K</string>
     <string name="buffer_settings_header_profile">ملف تعريف الأداء</string>
     <string name="buffer_label_playback">أبدا التشغيل: %1$ds</string>
-    <string name="section_singles">Singles</string>
+    <string name="section_singles">أغانٍ منفردة</string>
     <string name="section_featured_on">مقترحة لك</string>
     <string name="section_fans_also_like">الأخرون يحبون أيضا</string>
     <string name="empty_moods_genres">لا توجد حالات مزاجية أو أنواع موسيقية متاحة</string>
-    <string name="subtitle_single_template">Single · %1$s</string>
+    <string name="subtitle_single_template">منفردة · %1$s</string>
     <string name="section_vibe_vibes">أجواء %1$s</string>
     <string name="playlist_description_community">قائمة تشغيل منتقاة من موسيقى %1$s من مجتمعنا</string>
     <string name="template_bass_boost">تعزيز الجهير: %1$ddB</string>
@@ -1429,7 +1429,7 @@
     <string name="appearance_system_defaults_subtitle">إختر السمة التي سيتم استخدامها عند تبديل جهازك بين الوضع الفاتح والوضع الداكن.</string>
     <string name="appearance_system_light_theme">الوضع الفاتح</string>
     <string name="appearance_system_dark_theme">الوضع الداكن</string>
-    <string name="icon_name_flow_light">Flow فاتح</string>
+    <string name="icon_name_flow_light">فاتح Flow</string>
     <string name="icon_name_material_sky">سماوي Material</string>
     <string name="icon_name_material_mint">نعناع Material</string>
     <string name="theme_name_material_you">الألوان الديناميكية</string>
@@ -1455,7 +1455,7 @@
     <string name="proxy_settings_description">توجيه حركة المرور البعيدة عبر وكيل HTTP أو SOCKS5. يظل الاتصال بأجهزة البث والأجهزة المحلية مباشرًا.</string>
     <string name="player_settings_shorts_playback_mode_auto_interval">التمرير التلقائي بعد وقت محدد</string>
     <string name="shorts_auto_scroll_active_template">تلقائي %1$ds</string>
-    <string name="metric_suppressed">Suppressed</string>
+    <string name="metric_suppressed">مخفي</string>
     <string name="metric_suppressed_detail">عناصر فترة الهدوء</string>
     <string name="taste_pacing">تنظيم الوتيرة</string>
     <string name="taste_live_affinity">الميول للمحتوى المباشر</string>
@@ -1635,7 +1635,7 @@
     <string name="content_settings_share_without_text_subtitle">شارك فقط رابط الفيديو، بدون رسالة \"شاهد هذا الفيديو\"</string>
     <string name="deep_flow_save_history_title">حفظ إلي سجل المشاهدة</string>
     <string name="deep_flow_save_history_subtitle">الاحتفاظ بسجل المشاهدة دون استخدامه لتحسين التوصيات</string>
-    <string name="icon_name_flow_play">تشغيل Flow</string>
+    <string name="icon_name_flow_play">زر تشغيل</string>
     <string name="player_appearance_controls_while_loading_subtitle">إظهار عناصر التحكم قبل اكتمال تحميل الفيديو</string>
     <string name="content_settings_watched_threshold_90">تم تشغيل 90%</string>
     <string name="content_settings_watched_threshold_95">تم تشغيل 95%</string>
@@ -1663,7 +1663,7 @@
     <string name="try_again">إعادة المحاولة</string>
     <string name="search_in_flow">ابحث في Flow</string>
     <string name="player_appearance_controls_while_loading_title">التحكم أثناء تحميل الفيديو</string>
-    <string name="content_settings_watched_threshold_title">وضع علامة كمشاهدة عندما</string>
+    <string name="content_settings_watched_threshold_title">وضع علامة تمت مشاهدته عند</string>
     <string name="content_settings_watched_threshold_dialog_body">مقدار ما يجب مشاهدته من الفيديو حتى يُحتسب كمشاهد.</string>
     <string name="recognition_search_history">بحث في الموسيقي التي تم التعرف عليها</string>
     <string name="recognition_history_empty">الموسيقى التي تم التعرف عليها ستظهر هنا</string>
@@ -2092,7 +2092,7 @@
     <string name="equalizer">المعادل</string>
     <string name="action_save_preset">حفظ الإعداد المسبق</string>
     <string name="label_preset_name">إسم‌ الإعداد المسبق</string>
-    <string name="ui_instrumental">INSTRUMENTAL</string>
+    <string name="ui_instrumental">موسيقى آلية</string>
     <string name="discord_presence_title">تفعيل تكامل الحالة المتقدم لـ Discord</string>
     <string name="discord_presence_enable">مشاركة نشاط التشغيل</string>
     <string name="discord_presence_enable_description">يبقى متصلاً أثناء التوقف المؤقت والتشغيل في الخلفية</string>
@@ -2371,6 +2371,7 @@
     <string name="import_yt_watch_later">استيراد المشاهدة لاحقاً</string>
     <string name="import_yt_watch_later_desc">قم باستيراد ملف CSV الخاص بـ YouTube Takeout مباشرة إلى قائمة \"المشاهدة لاحقًا\" الخاصة بك، بغض النظر عن اسم الملف.</string>
     <plurals name="subscriptions_refresh_progress_template">
+        <item quantity="zero">تحديث %1$d من %2$d قناة</item>
         <item quantity="one">تحديث %1$d من %2$d قناة</item>
         <item quantity="two">تحديث %1$d من %2$d قناة</item>
         <item quantity="few">تحديث %1$d من %2$d قنوات</item>
@@ -2378,6 +2379,7 @@
         <item quantity="other">تحديث %1$d من %2$d قناة</item>
     </plurals>
     <plurals name="subscriptions_last_refreshed_template">
+        <item quantity="zero">آخر تحديث %1$s - تم فحص %2$d فيديو</item>
         <item quantity="one">آخر تحديث %1$s - تم فحص %2$d فيديو</item>
         <item quantity="two">آخر تحديث %1$s - تم فحص %2$d فيديو</item>
         <item quantity="few">آخر تحديث %1$s - تم فحص %2$d فيديوهات</item>
@@ -2386,6 +2388,7 @@
     </plurals>
     <string name="streamed_date_template">تم البث %1$s</string>
     <plurals name="download_all_confirmation">
+        <item quantity="zero">هل تريد تنزيل %1$d فيديو؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
         <item quantity="one">هل تريد تنزيل %1$d فيديو؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
         <item quantity="two">هل تريد تنزيل %1$d فيديو؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
         <item quantity="few">هل تريد تنزيل %1$d فيديوهات؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
@@ -2393,6 +2396,7 @@
         <item quantity="other">هل تريد تنزيل %1$d فيديو؟ قد يستهلك هذا مساحة تخزين كبيرة.</item>
     </plurals>
     <plurals name="view_replies_template">
+        <item quantity="zero">لا يوجد رد لعرضه</item>
         <item quantity="one">عرض رد واحد</item>
         <item quantity="two">عرض ردان</item>
         <item quantity="few">عرض %1$d ردود</item>
@@ -2400,6 +2404,7 @@
         <item quantity="other">عرض %1$d رد</item>
     </plurals>
     <plurals name="videos_curated_template">
+        <item quantity="zero">%1$d فيديو تم اختياره خصيصاً لك</item>
         <item quantity="one">فيديو واحد تم اختياره خصيصاً لك</item>
         <item quantity="two">%1$d فيديو تم اختيارهما خصيصاً لك</item>
         <item quantity="few">%1$d فيديوهات تم اختيارهم خصيصاً لك</item>
@@ -2407,6 +2412,7 @@
         <item quantity="other">%1$d فيديو تم اختياره خصيصاً لك</item>
     </plurals>
     <plurals name="videos_count_template">
+        <item quantity="zero">لا توجد فيديوهات</item>
         <item quantity="one">فيديو واحد</item>
         <item quantity="two">%1$d فيديو</item>
         <item quantity="few">%1$d فيديوهات</item>
@@ -2414,6 +2420,7 @@
         <item quantity="other">%1$d فيديو</item>
     </plurals>
     <plurals name="songs_count_template">
+        <item quantity="zero">لا توجد اغاني</item>
         <item quantity="one">أغنية واحدة</item>
         <item quantity="two">%1$d أغنية</item>
         <item quantity="few">%1$d أغاني</item>
@@ -2430,6 +2437,7 @@
     <string name="import_success_count">تم استيراد %1$d %2$s</string>
     <string name="import_success">تم استيراد %1$s بنجاح</string>
     <plurals name="deep_flow_duration_hours">
+        <item quantity="zero">%1$d ساعة</item>
         <item quantity="one">%1$d ساعة</item>
         <item quantity="two">%1$d ساعة</item>
         <item quantity="few">%1$d ساعات</item>
@@ -2437,6 +2445,7 @@
         <item quantity="other">%1$d ساعة</item>
     </plurals>
     <plurals name="appearance_themes_count_all">
+        <item quantity="zero">%1$d سمة</item>
         <item quantity="one">سمة واحدة</item>
         <item quantity="two">%1$d سمة</item>
         <item quantity="few">%1$d سمات</item>
@@ -2444,6 +2453,7 @@
         <item quantity="other">%1$d سمة</item>
     </plurals>
     <plurals name="lyrics_providers_enabled">
+        <item quantity="zero">تم تفعيل %1$d / %2$d موفر خدمة</item>
         <item quantity="one">تم تفعيل %1$d / %2$d موفر خدمة</item>
         <item quantity="two">تم تفعيل %1$d / %2$d موفر خدمة</item>
         <item quantity="few">تم تفعيل %1$d / %2$d موفري خدمة</item>
@@ -3630,7 +3640,7 @@
     <string name="settings_section_download_defaults">إعدادات التنزيل الافتراضية</string>
     <string name="settings_section_storage_access">الوصول إلى مساحة التخزين</string>
     <string name="settings_storage_access_summary">يتيح أيضًا لقائمة الوسائط المحلية عرض الملفات المحفوظة بواسطة التطبيقات الأخرى</string>
-    <string name="settings_storage_usage">%1$s متاح من أصل %2$s</string>
+    <string name="settings_storage_usage">%1$s متاحة من %2$s</string>
     <string name="settings_location_default">افتراضي</string>
     <string name="settings_music_folder_label">الموسيقى / Flow</string>
     <string name="settings_keywords_downloads">حفظ بلا إنترنت، مجلد، مساحة التخزين، بطاقة SD</string>
@@ -4062,4 +4072,38 @@
     <string name="eq_type_high_shelf">رف مرتفع</string>
     <string name="eq_import_summary">%1$d مرشحات، المضخّم الأوّلي %2$s</string>
     <string name="eq_import_peak">تبلغ القمم %1$s. يضبط المضخّم الأوّلي تلقائيًا المستوى إلى 0 ديسيبل.</string>
+    <string name="icon_name_expressive_scallop">المحار</string>
+    <string name="icon_name_expressive_segmented">Segmented F</string>
+    <string name="icon_name_expressive_play">التشغيل المشمس</string>
+    <string name="icon_name_expressive_sky">برسيم السماء</string>
+    <string name="icon_name_expressive_mint">زهرة النعناع</string>
+    <string name="icon_name_expressive_cookie">بسكويت الليل</string>
+    <string name="icon_name_expressive_oval">بيضاوي</string>
+    <string name="icon_name_expressive_pill">حبّة</string>
+    <string name="import_label_youtube_likes">إعجابات YouTube</string>
+    <string name="import_yt_likes">‫استيراد الإعجابات</string>
+    <string name="import_yt_likes_desc">‪استيراد الفيديوهات التي أعجبتك من ملف تصدير «نشاطي» من Google Takeout بصيغة JSON.</string>
+    <string name="import_takeout_part_likes">%1$d إعجاب</string>
+    <string name="download_quality_hdr">HDR</string>
+    <string name="download_storage_access_prompt">السماح بالوصول إلى مساحة التخزين لحفظ التنزيلات في المجلدات العامة (اختياري)</string>
+    <string name="download_failed_unavailable">لا يمكن تنزيل هذا الفيديو حاليًا</string>
+    <string name="download_failed_no_audio">لا يوجد صوت يمكن استخدامه لهذا التنزيل</string>
+    <string name="download_failed_refused">رفض YouTube التنزيل. حاول مرة أخرى لاحقًا.</string>
+    <string name="download_failed_disk_full">مساحة التخزين غير كافية</string>
+    <string name="download_failed_unreadable">تعذّرت قراءة الملف الذي تم تنزيله</string>
+    <string name="download_failed_save">تعذّر الحفظ في مجلد التنزيلات</string>
+    <string name="download_failed_merge">تعذّر إكمال الملف. حاول مرة أخرى.</string>
+    <string name="downloads_collections_title">قوائم التشغيل والألبومات</string>
+    <string name="download_collection_progress">تم تنزيل %1$d من أصل %2$d</string>
+    <string name="download_collection_remove_title">هل تريد إزالة %1$s؟</string>
+    <string name="download_collection_remove_body">‪سيتم حذف تنزيلاته أيضًا، ما لم تكن قائمة تشغيل أخرى تم تنزيلها تحتوي عليها.</string>
+    <string name="download_collection_delete_files">حذف التنزيلات</string>
+    <string name="download_collection_keep_files">الاحتفاظ بالملفات</string>
+    <string name="import_no_likes">لم يتم العثور على أي إعجابات. صدّر «نشاطي» على YouTube بصيغة JSON، مع ضبط حساب Google على اللغة الإنجليزية.</string>
+    <string name="settings_music_download_quality">جودة تنزيل الأغاني</string>
+    <string name="settings_music_download_quality_summary">تُستخدم للأغاني والألبومات وقوائم التشغيل الموسيقية</string>
+    <string name="download_retag_title">العلامات للتنزيلات القديمة</string>
+    <string name="download_retag_waiting">في انتظار البدء</string>
+    <string name="download_retag_progress">جارٍ إضافة العلامات، %1$d من أصل %2$d</string>
+    <string name="download_retag_result">تمت إضافة العلامة إلى %1$d، وتخطي %2$d</string>
 </resources>
