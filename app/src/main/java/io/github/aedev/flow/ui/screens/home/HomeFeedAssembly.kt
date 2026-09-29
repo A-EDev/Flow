@@ -8,6 +8,9 @@ internal const val HOME_TARGET_SIZE = 40
 // Fresh subs pinned to the very top; the rest interleave via the SUBS lane.
 private const val FRESH_SUBS_PIN_TOP = 2
 
+// Seen fresh uploads follow this many ranked subs: on the first page, but not the first card again.
+private const val SHOWN_FRESH_AFTER_SUBS = 3
+
 private const val BEST_SUBS_LIMIT = 15
 private const val BEST_DISCOVERY_LIMIT = 15
 private const val BEST_VIRAL_LIMIT = 6
@@ -202,7 +205,9 @@ internal fun assembleHomeFeed(
         blendFeedSources(
             lanes =
                 mapOf(
-                    FeedSource.SUBS to (lanes.overflowFresh + lanes.bestSubs + lanes.shownFresh),
+                    FeedSource.SUBS to
+                        lanes.overflowFresh + lanes.bestSubs.take(SHOWN_FRESH_AFTER_SUBS) + lanes.shownFresh +
+                        lanes.bestSubs.drop(SHOWN_FRESH_AFTER_SUBS),
                     FeedSource.RELATED to lanes.bestRelated,
                     FeedSource.DISCOVERY to lanes.bestDiscovery,
                     FeedSource.VIRAL to lanes.bestViral,

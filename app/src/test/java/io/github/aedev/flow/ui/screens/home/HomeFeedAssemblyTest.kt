@@ -358,4 +358,20 @@ class HomeFeedAssemblyTest {
             assertThat(result.relatedMetadata.keys).containsExactly("r1")
             assertThat(result.bestRelated.map { it.id }).containsExactly("r1")
         }
+
+    @Test
+    fun `seen fresh uploads come after a few ranked subs instead of past the lane quota`() =
+        runTest {
+            val seen = video("seen", channelId = "s", ageMs = hour, uploadDate = "1 hour ago")
+            val ranked = (1..20).map { video("sub$it", channelId = "c$it") }
+
+            val result = lanes(subs = ranked, rss = listOf(seen), shown = setOf("seen"))
+            val subsLane =
+                assembleHomeFeed(result, onScreenIds = emptySet(), subCount = 20, totalInteractions = 100)
+                    .sourceMix.items
+                    .filter { it.source == FeedSource.SUBS }
+                    .map { it.video.id }
+
+            assertThat(subsLane.indexOf("seen")).isEqualTo(3)
+        }
 }
