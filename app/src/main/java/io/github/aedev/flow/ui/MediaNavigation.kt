@@ -33,11 +33,13 @@ internal fun isOpenMediaPage(
 
 /**
  * The shell's [MediaNavigator]. [beforeNavigate] moves an expanded player out of the way, so a page
- * opened from inside a player sheet is not hidden behind it.
+ * opened from inside a player sheet is not hidden behind it. [shortsExitRoute] is where a video
+ * opened from a Shorts player at the root of the back stack plays, since it cannot play over Shorts.
  */
 internal class FlowMediaNavigator(
     private val navController: NavHostController,
     private val beforeNavigate: () -> Unit,
+    private val shortsExitRoute: () -> String,
 ) : MediaNavigator {
     override fun openChannel(channelId: String) {
         if (channelId.isBlank()) return
@@ -62,12 +64,30 @@ internal class FlowMediaNavigator(
         val destination = linkDestination(link) ?: return false
         beforeNavigate()
         when (destination) {
-            is LinkDestination.Video -> navController.navigateToPlayer(destination.videoId)
+            is LinkDestination.Video -> openPlayer(destination.videoId)
             is LinkDestination.Short -> navController.openShorts(ShortsQueueSource.SeededFeed(destination.videoId))
             is LinkDestination.Page -> navController.navigate(destination.route)
         }
         return true
     }
+
+    /**
+     * The video player stays hidden while a Shorts screen is on top, and the player route hands back
+     * to whatever is under it, so every Shorts screen has to go first or the video would play unseen.
+     */
+    private fun openPlayer(videoId: String) {
+        while (isShortsOnTop() && navController.previousBackStackEntry != null) navController.popBackStack()
+        if (isShortsOnTop()) {
+            navController.navigate(shortsExitRoute()) {
+                popUpTo(SHORTS_ROUTE_PATTERN) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+        navController.navigateToPlayer(videoId)
+    }
+
+    private fun isShortsOnTop() = navController.currentBackStackEntry?.destination?.route == SHORTS_ROUTE_PATTERN
 
     private fun openCollection(id: String) = open(MUSIC_PLAYLIST_ROUTE_PATTERN, MUSIC_PLAYLIST_ROUTE_ARG, id, musicCollectionRoute(id))
 

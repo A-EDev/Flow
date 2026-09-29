@@ -1353,6 +1353,7 @@
     <string name="cd_more_options">More Options</string>
     <string name="cd_short_watched">Watched</string>
     <string name="shorts_original_sound">Original Sound - %1$s</string>
+    <string name="shorts_linked_video">Related video</string>
     <string name="view_count_billion_suffix">B</string>
     <string name="view_count_million_suffix">M</string>
     <string name="view_count_thousand_suffix">K</string>

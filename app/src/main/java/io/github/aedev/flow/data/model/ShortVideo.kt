@@ -28,6 +28,13 @@ data class ShortVideo(
     val soundTitle: String = "",
     val soundThumbnailUrl: String = "",
     val playerParams: String? = null,
+    val linkedVideo: ShortLinkedVideo? = null,
+)
+
+/** The full video a creator linked from their reel. The title is null when YouTube sent none. */
+data class ShortLinkedVideo(
+    val id: String,
+    val title: String?,
 )
 
 data class ShortsSequenceResult(

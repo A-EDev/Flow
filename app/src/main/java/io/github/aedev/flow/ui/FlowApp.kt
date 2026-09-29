@@ -219,7 +219,11 @@ fun FlowApp(
                     if (musicPlayerSheetState.isExpanded) musicPlayerSheetState.collapse()
                 }
             }
-        val mediaNavigator = remember(navController, collapseExpandedPlayers) { FlowMediaNavigator(navController, collapseExpandedPlayers) }
+        val currentShortsExitRoute by rememberUpdatedState(shortsExitRoute(navigationTabs))
+        val mediaNavigator =
+            remember(navController, collapseExpandedPlayers) {
+                FlowMediaNavigator(navController, collapseExpandedPlayers) { currentShortsExitRoute }
+            }
         // A page opened from another app would otherwise land under an expanded player.
         HandlePendingRoute(
             pendingRoute,
