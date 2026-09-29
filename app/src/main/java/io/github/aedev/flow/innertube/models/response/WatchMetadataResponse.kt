@@ -1,7 +1,11 @@
 package io.github.aedev.flow.innertube.models.response
 
+import io.github.aedev.flow.data.model.VideoCollaborator
+import io.github.aedev.flow.innertube.pages.renderer.collaboratorDialog
 import io.github.aedev.flow.utils.relativedate.RelativeUploadDateParser
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class WatchMetadataResponse(
@@ -159,6 +163,7 @@ data class WatchMetadataResponse(
         val resolvedChannelId: String? = null,
         val channelHandle: String? = null,
         val channelAvatarUrl: String? = null,
+        @Transient val collaborators: List<VideoCollaborator> = emptyList(),
     ) {
         fun channelId(): String? =
             resolvedChannelId
@@ -216,6 +221,8 @@ data class WatchMetadataResponse(
                         !text.contains("recommended", ignoreCase = true)
                 }
             val avatar = metadataModel?.image?.decoratedAvatarViewModel
+            val collaborators = metadataModel?.image?.avatarStackViewModel.collaboratorDialog()
+            val lead = collaborators.firstOrNull()
 
             return CompactVideo(
                 videoId = contentId,
@@ -234,9 +241,10 @@ data class WatchMetadataResponse(
                 lengthText = SimpleText(simpleText = contentImage?.thumbnailViewModel?.durationText()),
                 publishedTimeText = SimpleText(simpleText = published),
                 isLive = live,
-                resolvedChannelId = avatar?.channelId(),
+                resolvedChannelId = avatar?.channelId() ?: lead?.channelId,
                 channelHandle = avatar?.channelHandle(),
-                channelAvatarUrl = avatar?.avatarUrl(),
+                channelAvatarUrl = avatar?.avatarUrl() ?: lead?.thumbnailUrl,
+                collaborators = collaborators,
             )
         }
 
@@ -340,11 +348,13 @@ data class WatchMetadataResponse(
 
     /**
      * The channel avatar beside a lockup's title. It is also the only place the card carries its
-     * channel id — the byline is plain text with no endpoint of its own.
+     * channel id — the byline is plain text with no endpoint of its own. A collaboration carries an
+     * avatar stack instead, whose tap opens the dialog naming every channel.
      */
     @Serializable
     data class LockupMetadataImage(
         val decoratedAvatarViewModel: DecoratedAvatar? = null,
+        val avatarStackViewModel: JsonObject? = null,
     )
 
     @Serializable

@@ -319,7 +319,8 @@ class YouTubeRepository
             if (avatarStacks.isEmpty()) return videos
 
             return videos.map { video ->
-                val stack = avatarStacks[video.id].orEmpty()
+                val entry = avatarStacks[video.id] ?: return@map video
+                val stack = entry.avatarUrls
                 if (stack.size <= 1) return@map video
 
                 val merged =
@@ -331,8 +332,16 @@ class YouTubeRepository
 
                 if (merged.size > 1) {
                     video.copy(
+                        channelId =
+                            video.channelId.ifBlank {
+                                entry.collaborators
+                                    .firstOrNull()
+                                    ?.channelId
+                                    .orEmpty()
+                            },
                         channelThumbnailUrl = merged.first(),
                         channelThumbnailUrls = merged,
+                        collaborators = entry.collaborators.ifEmpty { video.collaborators },
                     )
                 } else {
                     video
@@ -403,6 +412,7 @@ class YouTubeRepository
 
                     if (merged.size > 1 || collaborators.size > 1) {
                         video.copy(
+                            channelId = video.channelId.ifBlank { collaborators.firstOrNull()?.channelId.orEmpty() },
                             channelName =
                                 collaborators
                                     .map { it.name }
@@ -1508,6 +1518,8 @@ internal object WatchMetadataVideoMapper {
                         ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
                 channelThumbnailUrl =
                     cv.channelAvatarUrl?.let(ThumbnailUrlResolver::resolveChannelAvatar).orEmpty(),
+                channelThumbnailUrls = cv.collaborators.map { it.thumbnailUrl }.filter { it.isNotBlank() },
+                collaborators = cv.collaborators,
                 duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
                 viewCount = parseYouTubeViewCount(viewText),
                 uploadDate = uploadDateText,
