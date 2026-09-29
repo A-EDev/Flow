@@ -32,6 +32,18 @@ fun CollaboratorsBottomSheet(
     }
 }
 
+/** The ids of the [collaborators] the viewer is subscribed to, kept current. */
+@Composable
+fun subscribedCollaboratorIds(
+    collaborators: List<VideoCollaborator>,
+    viewModel: QuickActionsViewModel = sharedQuickActionsViewModel(),
+): Set<String> {
+    val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsStateWithLifecycle()
+    val channelIds = remember(collaborators) { collaborators.map { it.channelId }.filter { it.isNotBlank() }.distinct() }
+    LaunchedEffect(channelIds) { channelIds.forEach(viewModel::loadSubscriptionState) }
+    return subscribedChannelIds
+}
+
 /** One row per collaborator: its avatar, name and subscriber count, with its own subscribe button. */
 @Composable
 internal fun collaboratorRows(
@@ -39,10 +51,8 @@ internal fun collaboratorRows(
     onOpened: () -> Unit,
     viewModel: QuickActionsViewModel,
 ): List<QuickActionRow> {
-    val subscribedChannelIds by viewModel.subscribedChannelIds.collectAsStateWithLifecycle()
+    val subscribedChannelIds = subscribedCollaboratorIds(collaborators, viewModel)
     val navigator = LocalMediaNavigator.current
-    val channelIds = remember(collaborators) { collaborators.map { it.channelId }.filter { it.isNotBlank() }.distinct() }
-    LaunchedEffect(channelIds) { channelIds.forEach(viewModel::loadSubscriptionState) }
     val fallbackName = stringResource(R.string.collaborator)
     val ringColor = MaterialTheme.colorScheme.surfaceContainerHigh
 

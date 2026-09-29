@@ -48,6 +48,7 @@ internal fun VideoInfoSection(
     channelAvatarUrl: String,
     channelAvatarUrls: List<String> = emptyList(),
     collaborators: List<VideoCollaborator> = emptyList(),
+    subscribedCollaboratorIds: Set<String> = emptySet(),
     subscriberCount: Long?,
     isSubscribed: Boolean,
     isNotificationsEnabled: Boolean = false,
@@ -233,7 +234,15 @@ internal fun VideoInfoSection(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            if (!isDeviceFile) {
+            if (!isDeviceFile && collaborators.size > 1) {
+                // One button cannot name which channel it follows, so it opens the list that can (#1160).
+                FlowSubscribeButton(
+                    size = FlowSubscribeButtonSize.Compact,
+                    isSubscribed = collaborators.any { it.channelId in subscribedCollaboratorIds },
+                    onSubscribeClick = { showCollaborators = true },
+                    onSubscribedClick = { showCollaborators = true },
+                )
+            } else if (!isDeviceFile) {
                 FlowSubscribeButton(
                     size = FlowSubscribeButtonSize.Compact,
                     isSubscribed = isSubscribed,
