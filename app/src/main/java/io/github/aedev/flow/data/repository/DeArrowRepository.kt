@@ -103,6 +103,7 @@ object DeArrowRepository {
                 .filter { !it.original && (it.votes >= 0 || it.locked) }
                 .maxByOrNull { if (it.locked) Int.MAX_VALUE else it.votes }
                 ?.title
+                ?.let(::stripCaseMarkers)
 
         val bestThumb =
             content.thumbnails
@@ -141,3 +142,19 @@ object DeArrowRepository {
         cache.evictAll()
     }
 }
+
+/**
+ * DeArrow submitters prefix a word with `>` to keep its casing when titles are auto-formatted; the
+ * marker is formatting metadata, never part of the title.
+ */
+internal fun stripCaseMarkers(title: String): String =
+    buildString(title.length) {
+        var atWordStart = true
+        title.forEachIndexed { i, c ->
+            val isMarker =
+                c == '>' && atWordStart &&
+                    title.getOrNull(i + 1)?.isWhitespace() == false
+            if (!isMarker) append(c)
+            atWordStart = c.isWhitespace()
+        }
+    }
