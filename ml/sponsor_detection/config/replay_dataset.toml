@@ -1,9 +1,0 @@
-[replay_dataset]
-source_directory = "ml/sponsor_detection/data/training/sponsor_windows_v1"
-weak_source_directory = "ml/sponsor_detection/data/training/sponsor_windows_v2"
-output_directory = "ml/sponsor_detection/data/training/sponsor_windows_v3_replay"
-source_manifest_path = "ml/sponsor_detection/reports/sponsor_windows_v1_manifest.json"
-weak_source_manifest_path = "ml/sponsor_detection/reports/sponsor_windows_v2_manifest.json"
-output_manifest_path = "ml/sponsor_detection/reports/sponsor_windows_v3_replay_manifest.json"
-seed = "sponsor-replay-v1"
-replay_counts = { positive = 4000, hard_negative = 4000, ordinary_negative = 4000 }

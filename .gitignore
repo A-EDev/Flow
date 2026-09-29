@@ -45,14 +45,7 @@ diagnostics/
 # Local SponsorBlock database mirror (multi-gigabyte training source)
 /sb-mirror/
 
-# Sponsor-detection ML environments and generated artifacts
-/ml/sponsor_detection/.venv/
-/ml/sponsor_detection/.pytest_cache/
-/ml/sponsor_detection/**/__pycache__/
-/ml/sponsor_detection/*.egg-info/
-/ml/sponsor_detection/src/*.egg-info/
-/ml/sponsor_detection/artifacts/
-/ml/sponsor_detection/checkpoints/
-/ml/sponsor_detection/data/
-/ml/sponsor_detection/reports/*.log
+# Sponsor-detection ML now lives in the Flow-SponsorML repository. Any local
+# checkout kept here is ignored.
+ml/
 *.log

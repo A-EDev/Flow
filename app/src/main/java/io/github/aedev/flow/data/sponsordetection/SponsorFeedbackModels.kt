@@ -10,7 +10,7 @@ const val SPONSOR_TOKENIZER_SHA256 = "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd
 
 /**
  * Operating point of the bundled combined model, frozen by
- * `ml/sponsor_detection/reports/ettin_17m_combined_android_export.json`
+ * `reports/ettin_17m_combined_android_export.json` in Flow-SponsorML
  * (`inference.confidence_threshold`, validated span F1 0.889 at temporal IoU 0.5
  * on the 39-video mixed pilot with exact FP32/INT8 parity).
  *

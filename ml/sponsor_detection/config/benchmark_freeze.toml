@@ -1,6 +1,0 @@
-[benchmark_freeze]
-review_path = "ml/sponsor_detection/data/benchmarks/mixed_pilot_review_v1.jsonl"
-review_manifest_path = "ml/sponsor_detection/reports/mixed_pilot_review_v1_manifest.json"
-output_path = "ml/sponsor_detection/data/benchmarks/mixed_pilot_frozen_v1.jsonl"
-manifest_path = "ml/sponsor_detection/reports/mixed_pilot_frozen_v1_manifest.json"
-target_per_class = 13

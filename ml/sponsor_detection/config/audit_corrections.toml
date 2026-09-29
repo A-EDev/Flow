@@ -1,7 +1,0 @@
-[audit_corrections]
-source_directory = "ml/sponsor_detection/data/training/sponsor_windows_v1"
-output_directory = "ml/sponsor_detection/data/training/sponsor_windows_v2"
-source_manifest_path = "ml/sponsor_detection/reports/sponsor_windows_v1_manifest.json"
-output_manifest_path = "ml/sponsor_detection/reports/sponsor_windows_v2_manifest.json"
-candidates_path = "ml/sponsor_detection/reports/ettin_17m_train_correction_candidates.json"
-minimum_confidence = 0.90

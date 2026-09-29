@@ -6,13 +6,12 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Test
-import java.io.File
 
 class SponsorTokenizerTest {
     @Test
     fun `Kotlin tokenizer matches every exported Hugging Face golden`() {
-        val directory = modelAssetsDirectory()
-        val tokenizer = SponsorTokenizer.fromJson(directory.resolve("tokenizer.json").readText())
+        val directory = sponsorModelAssetsDirectory()
+        val tokenizer = sponsorTestTokenizer()
         val cases =
             Json
                 .parseToJsonElement(directory.resolve("tokenizer_goldens.json").readText())
@@ -42,7 +41,7 @@ class SponsorTokenizerTest {
 
     @Test
     fun `long transcript offsets stay monotonic without recounting prefixes`() {
-        val tokenizer = SponsorTokenizer.fromJson(modelAssetsDirectory().resolve("tokenizer.json").readText())
+        val tokenizer = sponsorTestTokenizer()
         val text = (0 until 4_000).joinToString(" ") { "podcast$it" }
         val encoded = tokenizer.encode(text)
         val offsets = encoded.filter { it.endCodePoint > it.startCodePoint }
@@ -52,13 +51,5 @@ class SponsorTokenizerTest {
             assertThat(next.startCodePoint).isAtLeast(previous.endCodePoint)
         }
         assertThat(offsets.last().endCodePoint).isEqualTo(text.codePointCount(0, text.length))
-    }
-
-    private fun modelAssetsDirectory(): File {
-        val relative = "ml/sponsor_detection/artifacts/android/ettin_17m_sponsor_v1/android"
-        return generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
-            .map { it.resolve(relative) }
-            .firstOrNull { it.resolve("tokenizer.json").isFile }
-            ?: error("Could not locate exported sponsor model assets")
     }
 }

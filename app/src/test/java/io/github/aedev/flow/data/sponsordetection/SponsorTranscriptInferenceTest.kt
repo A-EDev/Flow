@@ -2,7 +2,6 @@ package io.github.aedev.flow.data.sponsordetection
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import java.io.File
 
 class SponsorTranscriptInferenceTest {
     @Test
@@ -17,7 +16,7 @@ class SponsorTranscriptInferenceTest {
 
     @Test
     fun `incremental windows match encode-then-slice windows`() {
-        val tokenizer = loadTokenizer()
+        val tokenizer = sponsorTestTokenizer()
         val cues =
             (0 until 400).map { index ->
                 DetectionTranscriptCue(
@@ -42,7 +41,7 @@ class SponsorTranscriptInferenceTest {
 
     @Test
     fun `window sequence can emit the first window before the last token`() {
-        val tokenizer = loadTokenizer()
+        val tokenizer = sponsorTestTokenizer()
         val cues =
             (0 until 800).map { index ->
                 DetectionTranscriptCue(index * 1_000L, index * 1_000L + 900, "word $index continues the podcast transcript")
@@ -159,15 +158,5 @@ class SponsorTranscriptInferenceTest {
                 windowIndex++
             }
         }
-    }
-
-    private fun loadTokenizer(): SponsorTokenizer {
-        val relative = "ml/sponsor_detection/artifacts/android/ettin_17m_sponsor_v1/android"
-        val directory =
-            generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
-                .map { it.resolve(relative) }
-                .firstOrNull { it.resolve("tokenizer.json").isFile }
-                ?: error("Could not locate exported sponsor model assets")
-        return SponsorTokenizer.fromJson(directory.resolve("tokenizer.json").readText())
     }
 }

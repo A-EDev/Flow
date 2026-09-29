@@ -1,8 +1,0 @@
-[metadata]
-transcript_directory = "ml/sponsor_detection/data/transcripts/pilot_v1"
-output_path = "ml/sponsor_detection/data/metadata/pilot_v1.jsonl"
-manifest_path = "ml/sponsor_detection/reports/metadata_canary_v1_report.json"
-env_path = ".env"
-api_key_environment_variable = "YOUTUBE_DATA_API_KEY"
-batch_size = 50
-max_api_requests = 120

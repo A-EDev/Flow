@@ -143,14 +143,13 @@ android {
     sourceSets {
         // The sponsor model is downloaded from Hugging Face at runtime, so it is
         // not bundled in the app APK. Instrumented tests still ship the export as
-        // test assets so they can install it locally before running inference.
+        // test assets so they can install it locally before running inference. That
+        // export lives in Flow-SponsorML, so point at it with
+        // -PsponsorModelAssets=/path/to/Flow-SponsorML/artifacts/android/<export>/android
         getByName("androidTest").assets.directories.add("$projectDir/schemas")
-        getByName("androidTest").assets.directories.add(
-            rootProject.layout.projectDirectory
-                .dir(
-                    "ml/sponsor_detection/artifacts/android/ettin_17m_sponsor_v1/android",
-                ).asFile.absolutePath,
-        )
+        providers.gradleProperty("sponsorModelAssets").orNull?.let { sponsorModelAssets ->
+            getByName("androidTest").assets.directories.add(file(sponsorModelAssets).absolutePath)
+        }
     }
 
     compileOptions {
@@ -179,6 +178,13 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            all { test ->
+                // Same opt-in export used by the androidTest assets above. Without it the
+                // tokenizer-golden tests skip rather than fail.
+                providers.gradleProperty("sponsorModelAssets").orNull?.let {
+                    test.systemProperty("sponsorModelAssets", it)
+                }
+            }
         }
     }
 }
@@ -202,14 +208,10 @@ composeCompiler {
 }
 
 dependencies {
-    implementation(
-        files(
-            rootProject.layout.projectDirectory.file(
-                "ml/sponsor_detection/artifacts/android/onnxruntime_custom/build/output/aar_out/MinSizeRel/" +
-                    "com/microsoft/onnxruntime/onnxruntime-android/1.29.0/onnxruntime-android-1.29.0.aar",
-            ),
-        ),
-    )
+    // Minimal ONNX Runtime build (4 ABIs, LTO, reduced operator set) rather than the
+    // upstream Maven artifact, which is roughly 10-15 MB larger. Rebuilt and vendored
+    // from Flow-SponsorML; see that repo's README for the build steps.
+    implementation(files("libs/onnxruntime-android-1.29.0.aar"))
 
     // --- Core Android ---
     implementation(libs.androidx.core.ktx)
