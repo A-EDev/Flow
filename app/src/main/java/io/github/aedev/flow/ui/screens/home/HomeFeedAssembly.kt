@@ -35,6 +35,7 @@ internal fun List<Video>.enrichAvatars(subAvatarMap: Map<String, String>): List<
 internal data class HomeFeedLanes(
     val pinnedFresh: List<Video>,
     val overflowFresh: List<Video>,
+    val shownFresh: List<Video>,
     val bestSubs: List<Video>,
     val bestDiscovery: List<Video>,
     val bestViral: List<Video>,
@@ -48,7 +49,7 @@ internal data class HomeFeedLanes(
 ) {
     val freshCandidates: Sequence<Video>
         get() =
-            pinnedFresh.asSequence() + overflowFresh.asSequence() + bestSubs.asSequence() +
+            pinnedFresh.asSequence() + overflowFresh.asSequence() + bestSubs.asSequence() + shownFresh.asSequence() +
                 bestRelated.asSequence() + bestDiscovery.asSequence() + bestViral.asSequence()
 }
 
@@ -103,12 +104,9 @@ internal suspend fun buildHomeFeedLanes(
             .filter { (now - it.timestamp) in 0..FRESH_SUB_WINDOW_MS }
             .filterNot(exclusions::hidesFromRecommendations)
             .toList()
-    // An upload already shown recently loses its fresh slot and competes in the ranked SUBS lane,
-    // so the same card is not pinned to the top of every launch for three days.
     val freshSubsLane =
         (rssFresh + subsByRecency.filter { isFreshSubscribedCandidate(it, now) })
             .filterWatched(watched)
-            .filterNot { isRecentlyShown(it.id) }
             .distinctBy { it.id }
             .sortedByDescending { it.timestamp }
             // One fresh slot per channel — a channel that uploaded three times today must not
@@ -116,6 +114,9 @@ internal suspend fun buildHomeFeedLanes(
             .distinctBy { it.channelId.ifBlank { it.id } }
             .take(freshSlotTarget)
     val freshIds = freshSubsLane.map { it.id }.toHashSet()
+    // An upload already shown recently stays on Home but goes to the back of the SUBS lane, so the
+    // same card is not pinned to the top of every launch for three days.
+    val (shownFresh, unshownFresh) = freshSubsLane.partition { isRecentlyShown(it.id) }
 
     val rankedSubs = rank(subsPool)
     val bestSubs =
@@ -134,8 +135,9 @@ internal suspend fun buildHomeFeedLanes(
     return HomeFeedLanes(
         // Only a couple of fresh subs are pinned to the very top; the rest ride the SUBS lane so
         // the first screen is a real source MIX instead of a wall of subscriptions.
-        pinnedFresh = freshSubsLane.take(FRESH_SUBS_PIN_TOP),
-        overflowFresh = freshSubsLane.drop(FRESH_SUBS_PIN_TOP),
+        pinnedFresh = unshownFresh.take(FRESH_SUBS_PIN_TOP),
+        overflowFresh = unshownFresh.drop(FRESH_SUBS_PIN_TOP),
+        shownFresh = shownFresh,
         bestSubs = bestSubs,
         bestDiscovery = demoteByFit(rank(discoveryPool), taste).take(BEST_DISCOVERY_LIMIT),
         bestViral = demoteByFit(rank(viralPool), taste).take(BEST_VIRAL_LIMIT),
@@ -197,7 +199,7 @@ internal fun assembleHomeFeed(
         blendFeedSources(
             lanes =
                 mapOf(
-                    FeedSource.SUBS to (lanes.overflowFresh + lanes.bestSubs),
+                    FeedSource.SUBS to (lanes.overflowFresh + lanes.bestSubs + lanes.shownFresh),
                     FeedSource.RELATED to lanes.bestRelated,
                     FeedSource.DISCOVERY to lanes.bestDiscovery,
                     FeedSource.VIRAL to lanes.bestViral,

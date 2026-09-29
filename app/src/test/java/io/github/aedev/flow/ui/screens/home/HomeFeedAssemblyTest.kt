@@ -135,15 +135,17 @@ class HomeFeedAssemblyTest {
         }
 
     @Test
-    fun `an upload shown recently loses its pinned slot but stays in the ranked subs lane`() =
+    fun `an upload shown recently leaves the pinned slots but stays on Home behind the other subs`() =
         runTest {
             val seen = video("seen", channelId = "a", ageMs = hour, uploadDate = "1 hour ago")
             val fresh = video("fresh", channelId = "b", ageMs = 2 * hour, uploadDate = "2 hours ago")
 
-            val result = lanes(subs = listOf(seen, fresh), shown = setOf("seen"))
+            val result = lanes(rss = listOf(seen, fresh), shown = setOf("seen"))
+            val mix = assembleHomeFeed(result, onScreenIds = emptySet(), subCount = 2, totalInteractions = 100)
 
-            assertThat((result.pinnedFresh + result.overflowFresh).map { it.id }).containsExactly("fresh")
-            assertThat(result.bestSubs.map { it.id }).contains("seen")
+            assertThat(result.pinnedFresh.map { it.id }).containsExactly("fresh")
+            assertThat(result.shownFresh.map { it.id }).containsExactly("seen")
+            assertThat(mix.videos.map { it.id }).containsExactly("fresh", "seen").inOrder()
         }
 
     @Test
