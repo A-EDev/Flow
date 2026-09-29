@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,6 +38,7 @@ import io.github.aedev.flow.data.backup.ImportKind
 import io.github.aedev.flow.ui.components.shared.FlowMaxContentWidth
 import io.github.aedev.flow.ui.utils.LocalWindowSizeClass
 import io.github.aedev.flow.ui.utils.isExpandedWidth
+import kotlinx.coroutines.launch
 
 @Composable
 fun OnboardingScreen(
@@ -48,6 +50,7 @@ fun OnboardingScreen(
     val newVideoAlerts by viewModel.newVideoAlerts.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var interestsRevealed by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.completed) { if (state.completed) onComplete() }
@@ -61,7 +64,8 @@ fun OnboardingScreen(
                 else -> return@LaunchedEffect
             }
         viewModel.dismissImport()
-        snackbarHostState.showSnackbar(message)
+        // Dismissing changes this effect's key, which would cancel a snackbar shown from here.
+        scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
     var pendingImport by rememberSaveable { mutableStateOf<ImportKind?>(null) }
