@@ -110,6 +110,10 @@ internal fun VideoPlayerUiState.startLocalPlaybackOf(
         offlineSponsorBlockSegments = null,
     )
 
+/** The device file's own channel and description, if it is still the one on screen. */
+internal fun VideoPlayerUiState.withDeviceFileDetails(detailed: Video): VideoPlayerUiState =
+    if (cachedVideo?.id == detailed.id) copy(cachedVideo = detailed) else this
+
 /** Everything the screen keeps once the player is cleared: the two settings that are not a video. */
 internal fun VideoPlayerUiState.clearedForNoVideo(): VideoPlayerUiState =
     VideoPlayerUiState(

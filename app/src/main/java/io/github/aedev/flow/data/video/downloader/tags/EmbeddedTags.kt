@@ -8,6 +8,7 @@ import androidx.media3.extractor.metadata.id3.ApicFrame
 import androidx.media3.extractor.metadata.id3.CommentFrame
 import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
+import androidx.media3.extractor.metadata.vorbis.VorbisComment
 
 /**
  * What a media file says about itself. [flow] is set only when the file carries Flow's own ids;
@@ -20,6 +21,10 @@ class EmbeddedTags(
     val artist: String?,
     val album: String?,
     val cover: ByteArray?,
+    /** The description Flow wrote, or a Vorbis `DESCRIPTION`; MP4 `desc` needs [Mp4TextAtoms]. */
+    val description: String? = null,
+    /** `©cmt`, ID3 `COMM` or a Vorbis `COMMENT`; yt-dlp puts the watch URL here by default. */
+    val comment: String? = null,
 ) {
     fun withFallback(
         title: String?,
@@ -33,6 +38,8 @@ class EmbeddedTags(
             artist = this.artist ?: artist,
             album = this.album ?: album,
             cover = this.cover ?: cover,
+            description = description,
+            comment = comment,
         )
 
     companion object {
@@ -42,6 +49,7 @@ class EmbeddedTags(
             val frames = linkedMapOf<String, String>()
             var comment: String? = null
             var cover: ByteArray? = null
+            val vorbis = linkedMapOf<String, String>()
             entries.forEach { entry ->
                 when (entry) {
                     is MdtaMetadataEntry -> {
@@ -65,6 +73,10 @@ class EmbeddedTags(
                     is ApicFrame -> {
                         if (cover == null) cover = entry.pictureData
                     }
+
+                    is VorbisComment -> {
+                        vorbis.putIfAbsent(entry.key.uppercase(), entry.value)
+                    }
                 }
             }
             val title = frames[FRAME_TITLE] ?: fields[FlowTagFields.TITLE]
@@ -76,6 +88,8 @@ class EmbeddedTags(
                 artist = frames[FRAME_ARTIST] ?: flow?.displayArtist(),
                 album = frames[FRAME_ALBUM] ?: flow?.album,
                 cover = cover,
+                description = (flow?.description ?: vorbis[VORBIS_DESCRIPTION])?.takeIf(String::isNotBlank),
+                comment = (comment ?: vorbis[VORBIS_COMMENT])?.takeIf(String::isNotBlank),
             )
         }
 
@@ -103,5 +117,7 @@ class EmbeddedTags(
         private const val FRAME_TRACK = "TRCK"
         private const val FRAME_DATE = "TDRC"
         private const val FRAME_LYRICS = "USLT"
+        private const val VORBIS_DESCRIPTION = "DESCRIPTION"
+        private const val VORBIS_COMMENT = "COMMENT"
     }
 }

@@ -36,7 +36,7 @@ class Mp4TagWriter
                 val boxes = Mp4Boxes.topLevel(channel)
                 val moov = boxes.firstOrNull { it.type == MOOV } ?: throw IOException("No moov box in ${file.name}")
                 if (moov.size > MAX_MOOV_BYTES) throw IOException("moov box too large: ${moov.size}")
-                val moovBytes = readFully(channel, moov.start, moov.size.toInt())
+                val moovBytes = Mp4Boxes.readFully(channel, moov.start, moov.size.toInt())
                 val newMoov = rebuildMoov(moovBytes, moov.headerSize, IlstAtoms.build(tags, cover))
                 if (moov.end == channel.size()) {
                     writeFully(channel, moov.start, newMoov)
@@ -71,7 +71,7 @@ class Mp4TagWriter
             ilst: ByteArray,
         ): ByteArray {
             if (udta == null) return IlstAtoms.box(IlstAtoms.type(UDTA), rebuildMeta(null, ilst))
-            val children = Mp4Boxes.children(udta, headerSizeOf(udta), udta.size)
+            val children = Mp4Boxes.children(udta, Mp4Boxes.headerSize(udta), udta.size)
             val meta =
                 children.firstOrNull { it.type == META && handlerOf(Mp4Boxes.slice(udta, it)).let { h -> h == null || h == MDIR } }
             val out = ByteArrayOutputStream(udta.size + ilst.size)
@@ -107,10 +107,8 @@ class Mp4TagWriter
             return IlstAtoms.box(IlstAtoms.type(META), out.toByteArray())
         }
 
-        private fun metaChildren(meta: ByteArray): List<Pair<Span, ByteArray>> {
-            val header = headerSizeOf(meta)
-            return Mp4Boxes.children(meta, header + fullBoxOffset(meta, header), meta.size).map { it to Mp4Boxes.slice(meta, it) }
-        }
+        private fun metaChildren(meta: ByteArray): List<Pair<Span, ByteArray>> =
+            Mp4Boxes.children(meta, Mp4Boxes.metaChildrenStart(meta), meta.size).map { it to Mp4Boxes.slice(meta, it) }
 
         private fun handlerOf(meta: ByteArray): String? {
             val (hdlr, bytes) = metaChildren(meta).firstOrNull { it.first.type == HDLR } ?: return null
@@ -119,37 +117,12 @@ class Mp4TagWriter
             return String(bytes, typeOffset, 4, Charsets.ISO_8859_1)
         }
 
-        /** ISO `meta` is a FullBox; QuickTime's is not. Both put `hdlr` first, which tells them apart. */
-        private fun fullBoxOffset(
-            meta: ByteArray,
-            header: Int,
-        ): Int {
-            if (meta.size < header + Mp4Boxes.HEADER_SIZE) return 0
-            val firstType = String(meta, header + 4, 4, Charsets.ISO_8859_1)
-            return if (firstType == HDLR) 0 else 4
-        }
-
-        private fun headerSizeOf(box: ByteArray): Int =
-            if (ByteBuffer.wrap(box).int == 1) Mp4Boxes.LARGE_HEADER_SIZE else Mp4Boxes.HEADER_SIZE
-
         private fun pinSize(
             channel: FileChannel,
             box: Span,
         ) {
             if (box.size > UINT32_MAX) throw IOException("Cannot pin the size of open-ended '${box.type}' (${box.size} bytes)")
             writeFully(channel, box.start, ByteBuffer.allocate(4).putInt(box.size.toInt()).array())
-        }
-
-        private fun readFully(
-            channel: FileChannel,
-            position: Long,
-            length: Int,
-        ): ByteArray {
-            val buffer = ByteBuffer.allocate(length)
-            while (buffer.hasRemaining()) {
-                if (channel.read(buffer, position + buffer.position()) < 0) throw IOException("Unexpected end of file")
-            }
-            return buffer.array()
         }
 
         private fun writeFully(

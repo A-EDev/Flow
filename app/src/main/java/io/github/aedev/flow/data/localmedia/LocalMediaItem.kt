@@ -41,12 +41,12 @@ data class LocalLibrary(
     val failed: Boolean = false,
 )
 
-/** The file as the video player's item: its folder stands in for a channel. */
+/** The file as the video player's item: its embedded artist is the channel, or its folder without one. */
 fun LocalMediaItem.toVideo(): Video =
     Video(
         id = mediaId,
         title = title,
-        channelName = folderName,
+        channelName = artist.ifBlank { folderName },
         channelId = "",
         thumbnailUrl = contentUri,
         duration = (durationMs / MILLIS_PER_SECOND).toInt(),

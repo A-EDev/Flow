@@ -207,6 +207,7 @@ internal class VideoPlayerViewModelHarness(
                 ),
             notesRepository = mockk(relaxed = true),
             videoStats = videoStats,
+            localMediaDetails = mockk { coEvery { enrich(any()) } returns null },
             networkDispatcher = testDispatcher,
             ioDispatcher = testDispatcher,
         )
