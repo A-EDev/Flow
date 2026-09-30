@@ -47,7 +47,7 @@ class HomeSubscriptionUploads
                     .filter { owner ->
                         val askedAt = priorityAskedAt[owner.id]
                         owner.id in priorityChannelIds && (askedAt == null || now - askedAt > PRIORITY_RETRY_MS)
-                    }.take(size)
+                    }.take(size / 2)
             priority.forEach { priorityAskedAt[it.id] = now }
             val cursor = playerPreferences.homeSubsRotationCursor.first()
             val rotationPool = channels - priority.toSet()
@@ -87,7 +87,9 @@ class HomeSubscriptionUploads
             const val DEADLINE_MS = 20_000L
             const val PRIORITY_RETRY_MS = 30L * 60L * 1000L
             const val CONCURRENCY = 6
-            const val VIDEOS_PER_CHANNEL = 5
+
+            // The whole first page: it costs the same request and busy channels post more than a few a day.
+            const val VIDEOS_PER_CHANNEL = 30
             const val SHORTS_PER_CHANNEL = 3
         }
     }

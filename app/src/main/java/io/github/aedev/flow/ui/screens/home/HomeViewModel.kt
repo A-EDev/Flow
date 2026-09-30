@@ -91,6 +91,7 @@ class HomeViewModel
             private const val LOAD_MORE_FALLBACK_SEEDS = 4
             private const val FEED_SEED_POOL = 30
             private const val LATE_SUBS_MAX = 8
+            private const val LATE_SUBS_PER_CHANNEL = 5
 
             // Before the grid reports its viewport the first screen is still in view; never shift it.
             private const val LATE_SUBS_MIN_INDEX = 5
@@ -1183,24 +1184,34 @@ class HomeViewModel
             val exclusions = feedExclusions()
             val (reels, videos) = uploads.filterNot(exclusions::hidesFromRecommendations).partition { it.isShort }
             val onScreen = _uiState.value.videos.mapTo(HashSet()) { it.id }
+            val candidates =
+                videos
+                    .filterValid()
+                    .filterWatched(watchedVideoIds.value)
+                    .filterNot { it.id in onScreen }
+                    .groupBy { it.channelId }
+                    .values
+                    .flatMap { uploads -> uploads.sortedByDescending { it.timestamp }.take(LATE_SUBS_PER_CHANNEL) }
             val late =
                 FlowNeuroEngine
-                    .rank(videos.filterValid().filterWatched(watchedVideoIds.value).filterNot { it.id in onScreen }, userSubs)
+                    .rank(candidates, userSubs)
                     .distinctBy { it.channelId }
                     .take(LATE_SUBS_MAX)
             var merged: List<Video>? = null
+            var added = 0
             _uiState.update { state ->
                 if (state.isLoading || state.videos.isEmpty()) return@update state
                 val below = lastVisibleVideoIndex.coerceAtLeast(LATE_SUBS_MIN_INDEX)
                 val updated = insertBelowViewport(state.videos, late.filterWatched(watchedVideoIds.value), below)
                 if (updated.size == state.videos.size) return@update state
+                added = updated.size - state.videos.size
                 merged = updated
                 HomeFeedCache.update(updated, state.shorts)
                 state.copy(videos = updated)
             }
             merged?.let {
                 persistentHomeFeedCache.saveLastFeed(it)
-                Log.d(TAG, "Subscription top-up added ${it.size - onScreen.size} uploads below the viewport")
+                Log.d(TAG, "Subscription top-up added $added uploads below the viewport")
             }
             val lateReels = reels.filterWatched(watchedShortIds.value)
             if (lateReels.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {

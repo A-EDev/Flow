@@ -153,4 +153,21 @@ class HomeSubscriptionUploadsTest {
             fetcher.fetch(subs, includeShorts = false, priorityChannelIds = setOf("UC29"), now = 60_000L)
             assertThat(asked).doesNotContain("UC29")
         }
+
+    @Test
+    fun `channels missing lengths take at most half the window so the rotation keeps moving`() =
+        runTest {
+            val asked = mutableListOf<String>()
+            val fetcher =
+                uploads { channelId, kind ->
+                    asked += channelId
+                    page(kind, video("$channelId-1", channelId))
+                }
+            val subs = (0 until 30).map { FeedItemOwner(id = "UC%02d".format(it)) }
+
+            fetcher.fetch(subs, includeShorts = false, priorityChannelIds = subs.mapTo(HashSet()) { it.id }.minus("UC00"), now = 0L)
+
+            assertThat(asked).hasSize(homeSubsWindowSize(30))
+            assertThat(asked).contains("UC00")
+        }
 }
