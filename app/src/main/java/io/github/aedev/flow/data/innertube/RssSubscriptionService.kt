@@ -57,6 +57,7 @@ class RssSubscriptionService
             channelIds: List<String>,
             maxTotal: Int = 1500,
             knownVideoIds: Set<String> = emptySet(),
+            storedReelVerdicts: Map<String, Boolean> = emptyMap(),
             onProgress: ((processedChannels: Int, totalChannels: Int) -> Unit)? = null,
         ): Flow<SubscriptionFeedChunk> =
             flow {
@@ -91,7 +92,7 @@ class RssSubscriptionService
                                 .map { channelId ->
                                     async(Dispatchers.IO) {
                                         val result = fetchRssVideos(channelId, minimumDateMillis, knownVideoIds)
-                                        channelId to result.copy(videos = channelReelIndex.markReels(channelId, result.videos))
+                                        channelId to result.copy(videos = classifyReels(channelId, result.videos, storedReelVerdicts))
                                     }
                                 }.awaitAll()
                         }
@@ -358,6 +359,22 @@ class RssSubscriptionService
                 needsChannelFallback = videos.isEmpty() && newestTimestamp > minimumDateMillis,
                 hasRecentEntries = newestTimestamp > minimumDateMillis,
             )
+        }
+
+        /**
+         * RSS cannot tell a reel from a video, so a channel's Shorts tab is asked, one full browse per
+         * channel. When the store already classified every entry the answer is reused: a sweep then
+         * browses only the channels with something new instead of every subscription.
+         */
+        private suspend fun classifyReels(
+            channelId: String,
+            videos: List<Video>,
+            storedReelVerdicts: Map<String, Boolean>,
+        ): List<Video> {
+            if (videos.isNotEmpty() && videos.all { it.id in storedReelVerdicts }) {
+                return videos.map { it.copy(isShort = storedReelVerdicts.getValue(it.id)) }
+            }
+            return channelReelIndex.markReels(channelId, videos)
         }
 
         private fun ChannelRssEntry.toVideo(

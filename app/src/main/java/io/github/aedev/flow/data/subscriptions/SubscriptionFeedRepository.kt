@@ -99,6 +99,7 @@ class SubscriptionFeedRepository
                             channelIds = plan.channelIds,
                             maxTotal = MAX_SUBSCRIPTION_CACHE_ITEMS,
                             knownVideoIds = if (plan.isFullRefresh) emptySet() else allCached.mapTo(HashSet()) { it.id },
+                            storedReelVerdicts = allCached.associate { it.id to it.isShort },
                             onProgress = { done, _ -> processed = done },
                         ).collect { chunk ->
                             failedChannelIds = chunk.failedChannelIds

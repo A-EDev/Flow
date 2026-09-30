@@ -148,6 +148,33 @@ class RssSubscriptionServiceTest {
         }
 
     @Test
+    fun `a channel whose entries are all classified already is not browsed again`() =
+        runTest {
+            rss("UCa", entry("reel"), entry("video"))
+
+            val chunk =
+                service
+                    .fetchSubscriptionVideos(listOf("UCa"), storedReelVerdicts = mapOf("reel" to true, "video" to false))
+                    .last()
+
+            coVerify(exactly = 0) { reelIndex.markReels(any(), any(), any()) }
+            assertThat(chunk.videos.single { it.id == "reel" }.isShort).isTrue()
+            assertThat(chunk.videos.single { it.id == "video" }.isShort).isFalse()
+        }
+
+    @Test
+    fun `a new entry still gets its channel browsed`() =
+        runTest {
+            reelIds = setOf("new-reel")
+            rss("UCa", entry("video"), entry("new-reel"))
+
+            val chunk = service.fetchSubscriptionVideos(listOf("UCa"), storedReelVerdicts = mapOf("video" to false)).last()
+
+            coVerify(exactly = 1) { reelIndex.markReels("UCa", any(), any()) }
+            assertThat(chunk.videos.single { it.id == "new-reel" }.isShort).isTrue()
+        }
+
+    @Test
     fun `a channel with a long-form upload in RSS needs no fallback`() =
         runTest {
             reelIds = setOf("r1")
