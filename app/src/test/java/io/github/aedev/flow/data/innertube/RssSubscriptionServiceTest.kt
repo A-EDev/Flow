@@ -124,6 +124,30 @@ class RssSubscriptionServiceTest {
         }
 
     @Test
+    fun `an old reel off the Shorts tab is not passed off as a new upload (1175)`() =
+        runTest {
+            reelIds = setOf("r1")
+            rss("UCa", entry("r1", ageHours = 5))
+            coEvery { uploads.fetch("UCa", any(), any()) } returns
+                Result.success(
+                    ChannelUploads(
+                        owner = FeedItemOwner("UCa", "Channel"),
+                        shorts =
+                            listOf(
+                                upload("r1", "UCa").copy(isShort = true, timestamp = 0L),
+                                upload("old-reel", "UCa").copy(isShort = true, timestamp = 0L),
+                            ),
+                    ),
+                )
+
+            val chunk = sweep("UCa")
+
+            assertThat(chunk.videos.map { it.id }).doesNotContain("old-reel")
+            val dated = chunk.videos.single { it.id == "r1" }
+            assertThat(System.currentTimeMillis() - dated.timestamp).isAtLeast(4 * hour)
+        }
+
+    @Test
     fun `a channel with a long-form upload in RSS needs no fallback`() =
         runTest {
             reelIds = setOf("r1")

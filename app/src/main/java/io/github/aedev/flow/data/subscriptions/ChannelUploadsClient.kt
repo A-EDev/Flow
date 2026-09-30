@@ -128,10 +128,16 @@ class ChannelUploadsClient internal constructor(
         mapNotNull { item ->
             when (item) {
                 is FeedItem.VideoItem -> item.video
-                is FeedItem.ShortItem -> item.video.copy(isShort = true)
+
+                // A Shorts row carries no date, and the model's default is "now": without this an old
+                // reel off the tab would sort as the newest upload (#1175). Unknown is 0.
+                is FeedItem.ShortItem -> item.video.copy(isShort = true, timestamp = item.video.datedTimestamp())
+
                 else -> null
             }
         }.filter { it.id.isNotBlank() }
+
+    private fun Video.datedTimestamp(): Long = if (uploadDate.isBlank()) 0L else timestamp
 
     private fun List<Video>.reachesInto(notBeforeMillis: Long): Boolean {
         val oldest = lastOrNull { it.timestamp > 0L } ?: return false
