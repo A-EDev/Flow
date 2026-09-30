@@ -82,6 +82,7 @@ class PlayerPreferences(
         val SUBTITLE_EDGE_COLOR = intPreferencesKey("subtitle_edge_color")
         val SUBTITLE_BOTTOM_PADDING = floatPreferencesKey("subtitle_bottom_padding")
         val SUBTITLE_FULLSCREEN_BOTTOM_PADDING = floatPreferencesKey("subtitle_fullscreen_bottom_padding")
+        val SUBTITLE_VERTICAL_FULLSCREEN_BOTTOM_PADDING = floatPreferencesKey("subtitle_vertical_fullscreen_bottom_padding")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val SLEEP_TIMER_CLOSE_APP_ON_EXPIRY = booleanPreferencesKey("sleep_timer_close_app_on_expiry")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
@@ -1712,6 +1713,7 @@ class PlayerPreferences(
         context.playerPreferencesDataStore.data
             .map { preferences ->
                 val bottomPadding = preferences[Keys.SUBTITLE_BOTTOM_PADDING] ?: SubtitleStyle.DEFAULT_BOTTOM_PADDING
+                val fullscreenBottomPadding = preferences[Keys.SUBTITLE_FULLSCREEN_BOTTOM_PADDING] ?: bottomPadding
                 SubtitleStyle(
                     fontSize = preferences[Keys.SUBTITLE_FONT_SIZE] ?: 14f,
                     textColor = Color(preferences[Keys.SUBTITLE_TEXT_COLOR] ?: Color.White.toArgb()),
@@ -1728,8 +1730,10 @@ class PlayerPreferences(
                     edgeColor = preferences[Keys.SUBTITLE_EDGE_COLOR]?.let(::Color) ?: Color.Black,
                     isBold = preferences[Keys.SUBTITLE_BOLD] ?: true,
                     bottomPadding = bottomPadding,
-                    // Starts at the player's value, so nobody's captions move until they set it.
-                    fullscreenBottomPadding = preferences[Keys.SUBTITLE_FULLSCREEN_BOTTOM_PADDING] ?: bottomPadding,
+                    // Each starts at the value it would have used, so nobody's captions move until they set it.
+                    fullscreenBottomPadding = fullscreenBottomPadding,
+                    verticalFullscreenBottomPadding =
+                        preferences[Keys.SUBTITLE_VERTICAL_FULLSCREEN_BOTTOM_PADDING] ?: fullscreenBottomPadding,
                 )
             }
 
@@ -1744,6 +1748,7 @@ class PlayerPreferences(
             preferences[Keys.SUBTITLE_EDGE_COLOR] = style.edgeColor.toArgb()
             preferences[Keys.SUBTITLE_BOTTOM_PADDING] = style.bottomPadding
             preferences[Keys.SUBTITLE_FULLSCREEN_BOTTOM_PADDING] = style.fullscreenBottomPadding
+            preferences[Keys.SUBTITLE_VERTICAL_FULLSCREEN_BOTTOM_PADDING] = style.verticalFullscreenBottomPadding
         }
     }
 

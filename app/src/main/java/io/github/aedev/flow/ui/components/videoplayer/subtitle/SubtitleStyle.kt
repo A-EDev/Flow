@@ -13,8 +13,9 @@ enum class SubtitleEdgeType {
 
 /**
  * How captions look. [backgroundColor] sits behind the text itself and [windowColor] behind the
- * whole caption. [bottomPadding] and [fullscreenBottomPadding] are the gap in dp between the bottom
- * of the picture and the lowest line, in the player and in fullscreen.
+ * whole caption. [bottomPadding], [fullscreenBottomPadding] and [verticalFullscreenBottomPadding]
+ * are the gap in dp between the bottom of the picture and the lowest line, in the player, in
+ * landscape fullscreen and in vertical fullscreen.
  */
 data class SubtitleStyle(
     val fontSize: Float = 14f,
@@ -26,8 +27,17 @@ data class SubtitleStyle(
     val isBold: Boolean = true,
     val bottomPadding: Float = DEFAULT_BOTTOM_PADDING,
     val fullscreenBottomPadding: Float = DEFAULT_BOTTOM_PADDING,
+    val verticalFullscreenBottomPadding: Float = DEFAULT_BOTTOM_PADDING,
 ) {
-    fun bottomPaddingFor(isFullscreen: Boolean): Float = if (isFullscreen) fullscreenBottomPadding else bottomPadding
+    fun bottomPaddingFor(
+        isFullscreen: Boolean,
+        isVertical: Boolean,
+    ): Float =
+        when {
+            !isFullscreen -> bottomPadding
+            isVertical -> verticalFullscreenBottomPadding
+            else -> fullscreenBottomPadding
+        }
 
     companion object {
         const val DEFAULT_BOTTOM_PADDING = 48f

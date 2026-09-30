@@ -2302,6 +2302,8 @@
     <string name="subtitle_font_size_template">Font Size: %1$d</string>
     <string name="subtitle_position_template">Position: %1$d</string>
     <string name="subtitle_fullscreen_position_template">Position in fullscreen: %1$d</string>
+    <string name="subtitle_fullscreen_landscape">Landscape</string>
+    <string name="subtitle_fullscreen_vertical">Vertical</string>
     <string name="subtitle_text_color">Text Color</string>
     <string name="subtitle_background_color">Background Color</string>
     <string name="subtitle_background_opacity_template">Background Opacity: %1$d%%</string>

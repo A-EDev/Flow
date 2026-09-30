@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,8 +32,10 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.text.Cue
 import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.shared.FlowColorPickerDialog
+import io.github.aedev.flow.ui.components.shared.FlowConnectedToggleGroup
 import io.github.aedev.flow.ui.components.shared.FlowFilterChip
 import io.github.aedev.flow.ui.components.shared.FlowSwitch
+import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.theme.SubtitleBackgroundSwatches
 import io.github.aedev.flow.ui.theme.SubtitleEdgeSwatches
 import io.github.aedev.flow.ui.theme.SubtitleTextSwatches
@@ -47,6 +50,7 @@ fun SubtitleCustomizer(
     modifier: Modifier = Modifier,
 ) {
     var editing by remember { mutableStateOf<ColorTarget?>(null) }
+    var editingVertical by rememberSaveable { mutableStateOf(false) }
     val previewText = stringResource(R.string.subtitle_preview_text)
     val previewCues = remember(previewText) { listOf(Cue.Builder().setText(previewText).build()) }
 
@@ -90,13 +94,34 @@ fun SubtitleCustomizer(
             valueRange = POSITION_RANGE,
             steps = POSITION_STEPS,
         )
-        LabeledSlider(
-            label = stringResource(R.string.subtitle_fullscreen_position_template, currentStyle.fullscreenBottomPadding.toInt()),
-            value = currentStyle.fullscreenBottomPadding,
-            onValueChange = { onStyleChange(currentStyle.copy(fullscreenBottomPadding = it)) },
-            valueRange = POSITION_RANGE,
-            steps = POSITION_STEPS,
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val fullscreenPosition =
+                if (editingVertical) currentStyle.verticalFullscreenBottomPadding else currentStyle.fullscreenBottomPadding
+            FlowConnectedToggleGroup(
+                options =
+                    listOf(
+                        FlowToggleOption(value = false, label = stringResource(R.string.subtitle_fullscreen_landscape)),
+                        FlowToggleOption(value = true, label = stringResource(R.string.subtitle_fullscreen_vertical)),
+                    ),
+                selected = editingVertical,
+                onSelected = { editingVertical = it },
+            )
+            LabeledSlider(
+                label = stringResource(R.string.subtitle_fullscreen_position_template, fullscreenPosition.toInt()),
+                value = fullscreenPosition,
+                onValueChange = { position ->
+                    onStyleChange(
+                        if (editingVertical) {
+                            currentStyle.copy(verticalFullscreenBottomPadding = position)
+                        } else {
+                            currentStyle.copy(fullscreenBottomPadding = position)
+                        },
+                    )
+                },
+                valueRange = POSITION_RANGE,
+                steps = POSITION_STEPS,
+            )
+        }
 
         SubtitleColorRow(
             label = stringResource(R.string.subtitle_text_color),
@@ -248,8 +273,8 @@ private val SubtitleEdgeType.labelRes: Int
         }
 
 private val PreviewHeight = 150.dp
-private val POSITION_RANGE = 24f..180f
-private const val POSITION_STEPS = 11
+private val POSITION_RANGE = 0f..300f
+private const val POSITION_STEPS = 29
 private const val PREVIEW_PADDING_SCALE = 0.35f
 private const val DEFAULT_LAYER_ALPHA = 0.6f
 private const val ARGB_MASK = 0xFFFFFFFFL
