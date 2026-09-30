@@ -1,12 +1,16 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PictureInPictureHelper
@@ -48,6 +52,15 @@ internal fun PlayerSettingsSheetHost(
     onSheetProgressChange: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val subtitleFilePicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                if (!viewModel.addSubtitleFile(uri)) {
+                    Toast.makeText(context, R.string.subtitle_add_file_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
 
     SettingsMenuDialog(
         playerState = playerState,
@@ -89,6 +102,8 @@ internal fun PlayerSettingsSheetHost(
             )
         },
         onDisableSubtitles = { SubtitleSelection.disable() },
+        // Subtitle files have no reliable MIME type, so every file is offered and the extension decides.
+        onAddSubtitleFile = { subtitleFilePicker.launch(arrayOf("*/*")) }.takeIf { uiState.localFilePath != null },
         onAutoplayToggle = { viewModel.toggleAutoplay(it) },
         onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
         onStableVolumeToggle = { viewModel.toggleStableVolume(it) },

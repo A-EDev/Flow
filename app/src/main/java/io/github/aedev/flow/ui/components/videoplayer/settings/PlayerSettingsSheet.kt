@@ -43,6 +43,7 @@ fun SettingsMenuDialog(
     selectedSubtitleUrl: String? = null,
     onSubtitleSelected: (Int) -> Unit = {},
     onDisableSubtitles: () -> Unit = {},
+    onAddSubtitleFile: (() -> Unit)? = null,
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
     onStableVolumeToggle: (Boolean) -> Unit,
@@ -202,6 +203,8 @@ fun SettingsMenuDialog(
                             onDisableSubtitles()
                             sheetState.dismiss()
                         },
+                        // Stays open: the picker's result comes back to this composition.
+                        onAddSubtitleFile = onAddSubtitleFile,
                         onShowStyleCustomizer = {
                             subtitleStyleReturnPage = PlayerSettingsPage.Subtitles
                             currentPage = PlayerSettingsPage.SubtitleStyle

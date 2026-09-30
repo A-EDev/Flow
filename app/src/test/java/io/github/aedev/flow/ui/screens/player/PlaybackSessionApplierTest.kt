@@ -86,6 +86,7 @@ class PlaybackSessionApplierTest {
             sponsorBlockRepository = harness.sponsorBlockRepository,
             videoDownloadManager = harness.videoDownloadManager,
             offlineSubtitleStore = harness.offlineSubtitleStore,
+            localSubtitles = harness.localSubtitles,
             playerManager = harness.playerManager,
             scope = this,
             networkDispatcher = testDispatcher,

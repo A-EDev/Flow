@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
@@ -68,6 +69,7 @@ internal class VideoPlayerViewModelHarness(
     val playerPreferences: PlayerPreferences = mockk(relaxed = true)
     val videoDownloadManager: VideoDownloadManager = mockk(relaxed = true)
     val offlineSubtitleStore: OfflineSubtitleStore = mockk(relaxed = true)
+    val localSubtitles: LocalSubtitles = mockk(relaxed = true)
     val sponsorBlockRepository: SponsorBlockRepository = mockk(relaxed = true)
     val liveChatRepository: LiveChatRepository = mockk(relaxed = true)
     val homeFeedCacheRepository: HomeFeedCacheRepository = mockk(relaxed = true)
@@ -168,6 +170,8 @@ internal class VideoPlayerViewModelHarness(
         coEvery { videoDownloadManager.findLocalCopy(any()) } returns null
         coEvery { videoDownloadManager.getSponsorBlockData(any()) } returns null
         coEvery { offlineSubtitleStore.load(any()) } returns emptyList()
+        coEvery { localSubtitles.picked(any()) } returns emptyList()
+        coEvery { localSubtitles.beside(any()) } returns emptyList()
 
         coEvery { repository.getComments(any()) } returns (emptyList<Comment>() to null as Page?)
         coEvery { repository.getVideoComments(any(), any()) } returns CommentsPageResult.EMPTY
@@ -190,6 +194,7 @@ internal class VideoPlayerViewModelHarness(
             videoQueueStore = videoQueueStore,
             watchLaterCleanup = mockk(relaxed = true),
             offlineSubtitleStore = offlineSubtitleStore,
+            localSubtitles = localSubtitles,
             sponsorBlockRepository = sponsorBlockRepository,
             liveChatRepository = liveChatRepository,
             homeFeedCacheRepository = homeFeedCacheRepository,

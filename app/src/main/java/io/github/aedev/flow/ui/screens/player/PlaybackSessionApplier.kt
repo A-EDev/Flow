@@ -1,10 +1,12 @@
 package io.github.aedev.flow.ui.screens.player
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -68,6 +70,7 @@ internal class PlaybackSessionApplier(
     private val sponsorBlockRepository: SponsorBlockRepository,
     private val videoDownloadManager: VideoDownloadManager,
     private val offlineSubtitleStore: OfflineSubtitleStore,
+    private val localSubtitles: LocalSubtitles,
     private val playerManager: EnhancedPlayerManager,
     private val scope: CoroutineScope,
     private val networkDispatcher: CoroutineDispatcher,
@@ -166,7 +169,7 @@ internal class PlaybackSessionApplier(
                     ?.takeIf { it.id == load.videoId }
                     ?.duration
                     ?.times(1000L) ?: 0L,
-            subtitles = offlineSubtitlesFor(load.videoId),
+            subtitles = subtitlesFor(load.videoId, localFilePath),
             isCurrent = { isLoadCurrent(load.token) },
         )
     }
@@ -526,8 +529,30 @@ internal class PlaybackSessionApplier(
         publishRelatedVideos(result.videoId, result.relatedVideos, result.loadToken)
     }
 
+    /**
+     * Adds the subtitle file at [uri] to the device file or download that is playing and remembers
+     * it for that video; false when it is not a subtitle file Flow can read.
+     */
+    suspend fun addSubtitleFile(uri: Uri): Boolean {
+        val videoId = playerManager.playerState.value.currentVideoId ?: return false
+        val caption = localSubtitles.pick(videoId, uri) ?: return false
+        return withContext(Dispatchers.Main) { playerManager.addLocalCaption(caption) }
+    }
+
+    /**
+     * A device video's subtitle files beside it, or a download's stored caption tracks, and in
+     * both cases the files picked for it.
+     */
+    private suspend fun subtitlesFor(
+        videoId: String,
+        localFilePath: String,
+    ): List<ResolvedCaption> {
+        val picked = localSubtitles.picked(videoId)
+        if (LocalMediaIds.isLocal(videoId)) return localSubtitles.beside(localFilePath) + picked
+        return offlineSubtitlesFor(videoId) + picked
+    }
+
     private suspend fun offlineSubtitlesFor(videoId: String): List<ResolvedCaption> {
-        if (LocalMediaIds.isLocal(videoId)) return emptyList()
         val stored = offlineSubtitleStore.load(videoId)
         if (stored.isEmpty() && !offlineSubtitleStore.isResolved(videoId) && NetworkState.isOnline(context)) {
             scope.launch(networkDispatcher) {

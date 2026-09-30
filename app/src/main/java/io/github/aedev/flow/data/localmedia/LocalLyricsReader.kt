@@ -2,7 +2,6 @@ package io.github.aedev.flow.data.localmedia
 
 import android.content.Context
 import android.net.Uri
-import android.provider.MediaStore
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.video.downloader.tags.DownloadTagReader
@@ -50,15 +49,7 @@ class LocalLyricsReader
             return tagReader.read(uri)?.lyrics?.let { LocalLyrics(it, LocalLyricsSource.EMBEDDED) }
         }
 
-        @Suppress("DEPRECATION")
-        private fun filePathOf(trackId: String): String? {
-            val uri = LocalMediaIds.audioUri(trackId) ?: return null
-            return runCatching {
-                context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DATA), null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) cursor.getString(0) else null
-                }
-            }.getOrNull()
-        }
+        private fun filePathOf(trackId: String): String? = LocalMediaIds.audioUri(trackId)?.let { context.mediaStoreDataPath(it) }
 
         private fun sidecarText(audioPath: String?): String? {
             val audio = audioPath?.let(::File) ?: return null
@@ -70,7 +61,7 @@ class LocalLyricsReader
                         ?: matchingLyricsFile(audio.name, folder.list()?.toList().orEmpty())?.let { File(folder, it) }
                         ?: return null
                 if (file.length() > MAX_LYRICS_FILE_BYTES) return null
-                decodeLyricsText(file.readBytes()) { legacyLyricsCharset(Locale.getDefault()) }.takeIf { it.isNotBlank() }
+                decodeTextFile(file.readBytes()) { legacyTextCharset(Locale.getDefault()) }.takeIf { it.isNotBlank() }
             } catch (e: Exception) {
                 Log.w(TAG, "Could not read lyrics beside ${audio.name}: ${e.message}")
                 null

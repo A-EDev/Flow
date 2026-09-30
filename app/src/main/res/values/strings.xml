@@ -2263,6 +2263,12 @@
     <string name="audio_track_number_template">%1$s %2$d</string>
     <string name="subtitle_auto_generated_template">%1$s (%2$s)</string>
     <string name="subtitle_translated">translated</string>
+    <string name="subtitle_forced">forced</string>
+    <string name="subtitle_track_number">Track %1$d</string>
+    <string name="subtitle_origin_file">Subtitle file</string>
+    <string name="subtitle_origin_embedded">In the video file</string>
+    <string name="subtitle_add_file">Add subtitle file</string>
+    <string name="subtitle_add_file_failed">Flow can’t read that file as subtitles</string>
     <string name="off">Off</string>
     <string name="on">On</string>
     <string name="player_settings">Player Settings</string>

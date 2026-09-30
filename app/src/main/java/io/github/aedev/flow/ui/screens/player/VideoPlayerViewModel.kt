@@ -73,6 +73,7 @@ class VideoPlayerViewModel
         private val videoQueueStore: VideoQueueStore,
         private val watchLaterCleanup: WatchLaterCleanup,
         private val offlineSubtitleStore: io.github.aedev.flow.data.video.OfflineSubtitleStore,
+        private val localSubtitles: io.github.aedev.flow.data.localmedia.LocalSubtitles,
         private val sponsorBlockRepository: SponsorBlockRepository,
         private val liveChatRepository: io.github.aedev.flow.data.repository.LiveChatRepository,
         private val homeFeedCacheRepository: HomeFeedCacheRepository,
@@ -108,6 +109,7 @@ class VideoPlayerViewModel
                 playerPreferences = playerPreferences,
                 videoDownloadManager = videoDownloadManager,
                 offlineSubtitleStore = offlineSubtitleStore,
+                localSubtitles = localSubtitles,
                 sponsorBlockRepository = sponsorBlockRepository,
                 liveChatRepository = liveChatRepository,
                 homeFeedCacheRepository = homeFeedCacheRepository,
@@ -682,6 +684,9 @@ class VideoPlayerViewModel
         ) = engagementState.observe(channelId, videoId)
 
         fun toggleAutoplay(enabled: Boolean) = settings.toggleAutoplay(enabled)
+
+        /** Adds a subtitle file to the device file or download that is playing; false when unreadable. */
+        suspend fun addSubtitleFile(uri: android.net.Uri): Boolean = sessionApplier.addSubtitleFile(uri)
 
         fun toggleLoop(enabled: Boolean) = settings.toggleLoop(enabled)
 

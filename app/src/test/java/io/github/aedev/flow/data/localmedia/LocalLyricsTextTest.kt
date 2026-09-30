@@ -13,23 +13,23 @@ class LocalLyricsTextTest {
         val utf8Bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + "[00:01.00]Blåbær".toByteArray()
         val utf16 = byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + "[00:01.00]Stöd".toByteArray(Charsets.UTF_16LE)
 
-        assertThat(decodeLyricsText(utf8Bom) { null }).isEqualTo("[00:01.00]Blåbær")
-        assertThat(decodeLyricsText(utf16) { null }).isEqualTo("[00:01.00]Stöd")
+        assertThat(decodeTextFile(utf8Bom) { null }).isEqualTo("[00:01.00]Blåbær")
+        assertThat(decodeTextFile(utf16) { null }).isEqualTo("[00:01.00]Stöd")
     }
 
     @Test
     fun `plain utf-8 is read as is and anything else goes to the detector`() {
-        assertThat(decodeLyricsText("Snälla".toByteArray()) { error("not needed") }).isEqualTo("Snälla")
-        assertThat(decodeLyricsText("Snälla".toByteArray(latin1)) { latin1 }).isEqualTo("Snälla")
-        assertThat(decodeLyricsText("Snälla".toByteArray(latin1)) { null }).isEqualTo("Snälla")
+        assertThat(decodeTextFile("Snälla".toByteArray()) { error("not needed") }).isEqualTo("Snälla")
+        assertThat(decodeTextFile("Snälla".toByteArray(latin1)) { latin1 }).isEqualTo("Snälla")
+        assertThat(decodeTextFile("Snälla".toByteArray(latin1)) { null }).isEqualTo("Snälla")
     }
 
     @Test
     fun `the device language picks the legacy code page`() {
         val cyrillic = "Привет".toByteArray(Charset.forName("windows-1251"))
 
-        assertThat(decodeLyricsText(cyrillic) { legacyLyricsCharset(Locale("ru")) }).isEqualTo("Привет")
-        assertThat(legacyLyricsCharset(Locale.ENGLISH)).isNull()
+        assertThat(decodeTextFile(cyrillic) { legacyTextCharset(Locale("ru")) }).isEqualTo("Привет")
+        assertThat(legacyTextCharset(Locale.ENGLISH)).isNull()
     }
 
     @Test

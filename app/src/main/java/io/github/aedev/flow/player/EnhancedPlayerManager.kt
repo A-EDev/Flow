@@ -968,6 +968,24 @@ class EnhancedPlayerManager private constructor() {
         )
     }
 
+    /** Adds a subtitle file to the device file that is playing and shows it, where it was. */
+    fun addLocalCaption(caption: ResolvedCaption): Boolean {
+        val videoId = currentVideoId ?: return false
+        val path = currentLocalFilePath ?: return false
+        val position = player?.currentPosition ?: 0L
+        val playWhenReady = player?.playWhenReady ?: true
+        subtitleTracks.load(videoId, StreamProcessor.processCaptions(subtitleTracks.captions + caption), acceptsEmbedded = true)
+        subtitleTracks.select(caption.url)
+        publishSubtitles()
+        return loadMediaInternal(
+            videoStream = null,
+            audioStream = null,
+            localFilePath = path,
+            preservePosition = position,
+            playWhenReady = playWhenReady,
+        )
+    }
+
     // ===== Stream Management =====
 
     suspend fun setStreams(

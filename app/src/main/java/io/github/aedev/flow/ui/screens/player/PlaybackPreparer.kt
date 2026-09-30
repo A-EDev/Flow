@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.player
 import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
@@ -39,6 +40,7 @@ internal class PlaybackPreparer(
     private val playerManager: EnhancedPlayerManager,
     private val playerPreferences: PlayerPreferences,
     private val offlineSubtitleStore: OfflineSubtitleStore,
+    private val localSubtitles: LocalSubtitles,
 ) {
     /** Arms the player and the media notification for [videoId] before any streams are handed over. */
     suspend fun beginSession(
@@ -136,7 +138,7 @@ internal class PlaybackPreparer(
                 filePath = localFilePath,
                 savedSegments = offlineSegments,
                 preservePosition = resumePosition.takeIf { it > 0L },
-                subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId) },
+                subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId) } + localSubtitles.picked(videoId),
             )
         } else {
             val effectiveDashUrl = dashManifestUrl?.takeIf { it.isNotEmpty() } ?: streamInfo.dashMpdUrl
