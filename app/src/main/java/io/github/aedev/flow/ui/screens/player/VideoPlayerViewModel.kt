@@ -688,6 +688,13 @@ class VideoPlayerViewModel
         /** Adds a subtitle file to the device file or download that is playing; false when unreadable. */
         suspend fun addSubtitleFile(uri: android.net.Uri): Boolean = sessionApplier.addSubtitleFile(uri)
 
+        suspend fun subtitleFolder(): android.net.Uri? = sessionApplier.subtitleFolder()
+
+        /** Shifts the captions by [offsetMs]: positive shows them later. */
+        fun setSubtitleOffset(offsetMs: Long) {
+            viewModelScope.launch { sessionApplier.setSubtitleOffset(offsetMs) }
+        }
+
         fun toggleLoop(enabled: Boolean) = settings.toggleLoop(enabled)
 
         fun loadTranscript(trackUrl: String?) = transcripts.load(trackUrl)

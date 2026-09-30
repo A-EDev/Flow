@@ -6,10 +6,14 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.FeedExclusionsSource
+import io.github.aedev.flow.player.LocalCaptionSource
+import io.github.aedev.flow.player.LocalCaptions
 import io.github.aedev.flow.player.LocalCopySource
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
@@ -35,11 +39,20 @@ object PlayerManagerModule {
     fun provideEnhancedPlayerManager(
         videoDownloadManager: VideoDownloadManager,
         neuroEngine: Lazy<FlowNeuroEngine>,
+        localSubtitles: Lazy<LocalSubtitles>,
+        offlineSubtitleStore: Lazy<OfflineSubtitleStore>,
     ): EnhancedPlayerManager =
         EnhancedPlayerManager.getInstance().also {
             it.localCopySource =
                 LocalCopySource { videoId ->
                     LocalMediaIds.videoUri(videoId)?.toString() ?: videoDownloadManager.localCopyPath(videoId)
+                }
+            it.localCaptionSource =
+                LocalCaptionSource { videoId, path ->
+                    val subtitles = localSubtitles.get()
+                    val own =
+                        if (LocalMediaIds.isLocal(videoId)) subtitles.beside(path) else offlineSubtitleStore.get().load(videoId)
+                    LocalCaptions(own + subtitles.picked(videoId), subtitles.offsetMs(videoId))
                 }
             it.feedExclusionsSource = FeedExclusionsSource { neuroEngine.get().feedExclusions() }
         }

@@ -20,6 +20,7 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import androidx.media3.extractor.DefaultExtractorsFactory
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
@@ -327,8 +328,13 @@ class MediaLoader(
                         .setMediaMetadata(mediaMetadata)
                         .apply { localFileMimeType(localUri)?.let(::setMimeType) }
                         .build()
+
+                // Tracks inside the file reach the text renderer untranscoded, so they are decoded
+                // by the same shifting decoders as sidecar files and follow the subtitle timing.
+                @Suppress("DEPRECATION")
+                val extractors = DefaultExtractorsFactory().experimentalSetTextTrackTranscodingEnabled(false)
                 ProgressiveMediaSource
-                    .Factory(DefaultDataSource.Factory(context))
+                    .Factory(DefaultDataSource.Factory(context), extractors)
                     .createMediaSource(localItem)
             } else {
                 val resolver =

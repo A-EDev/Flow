@@ -2268,6 +2268,11 @@
     <string name="subtitle_origin_file">Subtitle file</string>
     <string name="subtitle_origin_embedded">In the video file</string>
     <string name="subtitle_add_file">Add subtitle file</string>
+    <string name="subtitle_timing">Timing</string>
+    <string name="subtitle_timing_in_sync">In sync with the video</string>
+    <string name="subtitle_timing_later_template">%1$s s later</string>
+    <string name="subtitle_timing_earlier_template">%1$s s earlier</string>
+    <string name="subtitle_timing_step_template">%1$s s</string>
     <string name="download_subtitle_file">Subtitle file</string>
     <string name="download_subtitle_file_subtitle">Save captions in your subtitle language beside videos downloaded without the menu</string>
     <string name="subtitle_add_file_failed">Flow can’t read that file as subtitles</string>

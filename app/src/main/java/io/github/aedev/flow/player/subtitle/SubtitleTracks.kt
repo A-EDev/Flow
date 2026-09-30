@@ -27,6 +27,7 @@ internal class SubtitleTracks {
     private var acceptsEmbedded = false
     private var embedded: List<SubtitleOption> = emptyList()
     private var pick: Pick? = null
+    private var refreshPending = false
 
     /** The caption files and URLs merged into the media source, in the order of their track ids. */
     var captions: List<ResolvedCaption> = emptyList()
@@ -93,11 +94,25 @@ internal class SubtitleTracks {
         return true
     }
 
+    /**
+     * Reloads the track on screen: text is switched off, and [apply] switches it back on once the
+     * player reports it off. A renderer only rereads its cues when it starts again.
+     */
+    fun refresh(selector: DefaultTrackSelector) {
+        if (selected == null) return
+        refreshPending = true
+        selector.setParameters(selector.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build())
+    }
+
     /** Points the track selector at [selected], or switches text off. */
     fun apply(
         selector: DefaultTrackSelector,
         tracks: Tracks,
     ) {
+        if (refreshPending) {
+            if (tracks.isTypeSelected(C.TRACK_TYPE_TEXT)) return
+            refreshPending = false
+        }
         val option = selected
         val builder = selector.buildUponParameters().clearOverridesOfType(C.TRACK_TYPE_TEXT)
         if (option == null) {

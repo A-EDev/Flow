@@ -1,6 +1,7 @@
 package io.github.aedev.flow.player.subtitle
 
 import io.github.aedev.flow.player.state.SubtitleOption
+import io.github.aedev.flow.player.state.SubtitleOrigin
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 
 /** Whether the player turns captions on by itself, and in which language. */
@@ -34,13 +35,14 @@ internal object SubtitleChoice {
 
     /**
      * The track shown while nobody has picked one for this video: the preferred one when captions
-     * turn on automatically, otherwise a forced track, the way other players show one when
-     * subtitles are off.
+     * turn on automatically. Otherwise, as other players do, a subtitle file someone put with the
+     * video, in the preferred language when there are several, else a forced track.
      */
     fun automatic(
         options: List<SubtitleOption>,
         policy: SubtitleAutoPolicy,
     ): SubtitleOption? =
         preferred(options, policy.languageTag).takeIf { policy.enabled }
+            ?: preferred(options.filter { it.origin == SubtitleOrigin.FILE }, policy.languageTag)
             ?: options.firstOrNull { it.isForced }
 }

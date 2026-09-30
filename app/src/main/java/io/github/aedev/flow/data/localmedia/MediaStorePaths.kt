@@ -30,4 +30,19 @@ internal fun InputStream.readAtMost(limit: Int): ByteArray {
     return out.toByteArray()
 }
 
+/**
+ * The external storage provider's document id for [path]: `primary:Movies/Film` for the shared
+ * storage, `1A2B-3C4D:Movies` for an SD card, or null for anywhere else.
+ */
+internal fun externalStorageDocumentId(path: String): String? {
+    val parts = path.trimEnd('/').removePrefix("/storage/").split('/', limit = 3)
+    if (!path.startsWith("/storage/") || parts.isEmpty()) return null
+    return if (parts[0] == "emulated") {
+        if (parts.size < 2 || parts[1] != "0") return null
+        "primary:" + parts.getOrElse(2) { "" }
+    } else {
+        parts[0] + ":" + parts.drop(1).joinToString("/")
+    }
+}
+
 private const val BUFFER_BYTES = 8 * 1024

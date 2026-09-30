@@ -1,8 +1,13 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -53,7 +58,7 @@ internal fun PlayerSettingsSheetHost(
 ) {
     val context = LocalContext.current
     val subtitleFilePicker =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        rememberLauncherForActivityResult(OpenSubtitleFile()) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
             scope.launch {
                 if (!viewModel.addSubtitleFile(uri)) {
@@ -102,8 +107,12 @@ internal fun PlayerSettingsSheetHost(
             )
         },
         onDisableSubtitles = { SubtitleSelection.disable() },
-        // Subtitle files have no reliable MIME type, so every file is offered and the extension decides.
-        onAddSubtitleFile = { subtitleFilePicker.launch(arrayOf("*/*")) }.takeIf { uiState.localFilePath != null },
+        onSubtitleOffsetChange = viewModel::setSubtitleOffset,
+        onAddSubtitleFile =
+            {
+                scope.launch { subtitleFilePicker.launch(viewModel.subtitleFolder()) }
+                Unit
+            }.takeIf { uiState.localFilePath != null },
         onAutoplayToggle = { viewModel.toggleAutoplay(it) },
         onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
         onStableVolumeToggle = { viewModel.toggleStableVolume(it) },
@@ -139,4 +148,25 @@ internal fun PlayerSettingsSheetHost(
         onSheetProgressChange = onSheetProgressChange,
         modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
     )
+}
+
+/**
+ * The system file picker, opening in the given folder. Subtitle files have no reliable MIME type, so
+ * every file is offered and the extension decides.
+ */
+private class OpenSubtitleFile : ActivityResultContract<Uri?, Uri?>() {
+    private val openDocument = ActivityResultContracts.OpenDocument()
+
+    override fun createIntent(
+        context: Context,
+        input: Uri?,
+    ): Intent =
+        openDocument.createIntent(context, arrayOf("*/*")).apply {
+            input?.let { putExtra(DocumentsContract.EXTRA_INITIAL_URI, it) }
+        }
+
+    override fun parseResult(
+        resultCode: Int,
+        intent: Intent?,
+    ): Uri? = openDocument.parseResult(resultCode, intent)
 }

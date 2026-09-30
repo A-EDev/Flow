@@ -74,6 +74,7 @@ import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.subtitle.SubtitleAutoPolicy
+import io.github.aedev.flow.player.subtitle.SubtitleDelay
 import io.github.aedev.flow.player.subtitle.SubtitleTracks
 import io.github.aedev.flow.player.surface.SurfaceManager
 import io.github.aedev.flow.player.surface.VideoSurfacePolicy
@@ -144,6 +145,8 @@ class EnhancedPlayerManager private constructor() {
     private var availableVideoStreams: List<VideoStream> = emptyList()
     private var availableAudioStreams: List<AudioStream> = emptyList()
     private val subtitleTracks = SubtitleTracks()
+    private val subtitleDelay = SubtitleDelay()
+    private var subtitleDelayVideoId: String? = null
     private val _subtitleLoadFailedEvent = MutableSharedFlow<SubtitleLoadFailure>(extraBufferCapacity = 1)
     private var currentVideoStream: VideoStream? = null
     private var currentAudioStream: AudioStream? = null
@@ -209,6 +212,7 @@ class EnhancedPlayerManager private constructor() {
     /** Set by the DI graph; null until then, when queue advance streams as before. */
     @Volatile
     var localCopySource: LocalCopySource? = null
+    var localCaptionSource: LocalCaptionSource? = null
 
     /** Set by the DI graph; null until then, when autoplay hides nothing as before. */
     @Volatile
@@ -663,7 +667,7 @@ class EnhancedPlayerManager private constructor() {
                     effects.equalizerRepository().processingSpec.collect { spec -> videoEqualizer?.setSpec(spec) }
                 }
         }
-        val renderersFactory = playerFactory.createRenderersFactory(context, arrayOf(equalizer))
+        val renderersFactory = playerFactory.createRenderersFactory(context, arrayOf(equalizer), subtitleDelay)
 
         player =
             playerFactory.createPlayer(
@@ -1175,6 +1179,7 @@ class EnhancedPlayerManager private constructor() {
         currentDashManifestUrl = null
         currentHlsUrl = null
         subtitleTracks.load(videoId, emptyList(), acceptsEmbedded = false)
+        resetSubtitleDelayFor(videoId)
         applySubtitleTrackSelection()
         pendingLiveDisplaySeekPositionMs = null
         pendingLiveDisplaySeekAtMs = 0L
@@ -1802,13 +1807,18 @@ class EnhancedPlayerManager private constructor() {
                             return@launch
                         }
                         setAutoplayCandidates(sourceVideoId = video.id, videos = emptyList(), enabled = autoplayEnabled)
+                        val local = localCaptionSource?.captionsFor(video.id, localCopyPath)
+                        if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "local-captions")) {
+                            return@launch
+                        }
                         playLocalFile(
                             videoId = video.id,
                             filePath = localCopyPath,
                             savedSegments = null,
                             preservePosition = null,
-                            subtitles = emptyList(),
+                            subtitles = local?.captions.orEmpty(),
                         )
+                        local?.offsetMs?.takeIf { it != 0L }?.let(::setSubtitleOffset)
                         if (resumeInAudioOnly) {
                             audioOnlyMode.applyStreams(true)
                             setVideoTracksDisabled(true)
@@ -2097,6 +2107,7 @@ class EnhancedPlayerManager private constructor() {
         availableVideoStreams = StreamProcessor.processVideoStreams(data.videoStreams)
         availableAudioStreams = StreamProcessor.processAudioStreams(data.audioStreams)
         subtitleTracks.load(data.enrichedVideo.id, StreamProcessor.processCaptions(data.subtitles), acceptsEmbedded = false)
+        resetSubtitleDelayFor(data.enrichedVideo.id)
         currentVideoStream = data.videoStream ?: availableVideoStreams.firstOrNull()
         currentAudioStream = data.audioStream
         applySubtitleTrackSelection()
@@ -2671,6 +2682,24 @@ class EnhancedPlayerManager private constructor() {
         applySubtitleTrackSelection()
     }
 
+    /**
+     * Shifts captions by [offsetMs] for the video that is playing: positive shows them later. The
+     * track on screen is reloaded so a caption already showing moves too.
+     */
+    fun setSubtitleOffset(offsetMs: Long) {
+        subtitleDelayVideoId = currentVideoId
+        subtitleDelay.offsetUs = offsetMs * 1_000L
+        publishSubtitles()
+        trackSelector?.let { subtitleTracks.refresh(it) }
+    }
+
+    /** A new video starts in sync; the same video prepared again keeps its shift. */
+    private fun resetSubtitleDelayFor(videoId: String) {
+        if (videoId == subtitleDelayVideoId) return
+        subtitleDelayVideoId = videoId
+        subtitleDelay.offsetUs = 0L
+    }
+
     private fun applySubtitleTrackSelection() {
         val selector = trackSelector ?: return
         subtitleTracks.apply(selector, player?.currentTracks ?: Tracks.EMPTY)
@@ -2681,6 +2710,7 @@ class EnhancedPlayerManager private constructor() {
             _playerState.value.copy(
                 availableSubtitles = subtitleTracks.options,
                 selectedSubtitleUrl = subtitleTracks.selected?.url,
+                subtitleOffsetMs = subtitleDelay.offsetUs / 1_000L,
             )
     }
 

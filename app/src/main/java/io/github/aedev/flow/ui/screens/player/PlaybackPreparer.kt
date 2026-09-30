@@ -140,6 +140,7 @@ internal class PlaybackPreparer(
                 preservePosition = resumePosition.takeIf { it > 0L },
                 subtitles = subtitles.ifEmpty { offlineSubtitleStore.load(videoId) } + localSubtitles.picked(videoId),
             )
+            localSubtitles.offsetMs(videoId).takeIf { it != 0L }?.let(playerManager::setSubtitleOffset)
         } else {
             val effectiveDashUrl = dashManifestUrl?.takeIf { it.isNotEmpty() } ?: streamInfo.dashMpdUrl
             val hasAnySource =
@@ -281,6 +282,7 @@ internal class PlaybackPreparer(
         durationMs: Long,
         subtitles: List<ResolvedCaption>,
         isCurrent: () -> Boolean,
+        subtitleOffsetMs: Long = 0L,
     ) = withContext(Dispatchers.Main) {
         if (!isCurrent()) return@withContext
         if (playerManager.isPreparedForPlayback(videoId)) return@withContext
@@ -299,6 +301,7 @@ internal class PlaybackPreparer(
             preservePosition = startPosition.takeIf { it > 0L },
             subtitles = subtitles,
         )
+        if (subtitleOffsetMs != 0L) playerManager.setSubtitleOffset(subtitleOffsetMs)
         applyRememberedPlaybackSpeed(isLive = false)
 
         if (!isCurrent()) return@withContext

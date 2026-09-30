@@ -171,6 +171,7 @@ internal class PlaybackSessionApplier(
                     ?.times(1000L) ?: 0L,
             subtitles = subtitlesFor(load.videoId, localFilePath),
             isCurrent = { isLoadCurrent(load.token) },
+            subtitleOffsetMs = localSubtitles.offsetMs(load.videoId),
         )
     }
 
@@ -537,6 +538,18 @@ internal class PlaybackSessionApplier(
         val videoId = playerManager.playerState.value.currentVideoId ?: return false
         val caption = localSubtitles.pick(videoId, uri) ?: return false
         return withContext(Dispatchers.Main) { playerManager.addLocalCaption(caption) }
+    }
+
+    /** The folder of the device file or download that is playing, for the subtitle file picker. */
+    suspend fun subtitleFolder(): Uri? = uiState.value.localFilePath?.let { localSubtitles.folderDocument(it) }
+
+    /**
+     * Shifts the captions of what is playing; a device file or download remembers it for next time.
+     */
+    suspend fun setSubtitleOffset(offsetMs: Long) {
+        val videoId = playerManager.playerState.value.currentVideoId ?: return
+        withContext(Dispatchers.Main) { playerManager.setSubtitleOffset(offsetMs) }
+        if (uiState.value.localFilePath != null) localSubtitles.setOffsetMs(videoId, offsetMs)
     }
 
     /**

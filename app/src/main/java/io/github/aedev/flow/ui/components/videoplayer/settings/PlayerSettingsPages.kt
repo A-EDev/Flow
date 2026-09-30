@@ -128,6 +128,8 @@ internal fun PlayerSettingsSubtitlesPage(
     onDisableSubtitles: () -> Unit,
     onShowStyleCustomizer: () -> Unit,
     onAddSubtitleFile: (() -> Unit)? = null,
+    subtitleOffsetMs: Long = 0L,
+    onSubtitleOffsetChange: ((Long) -> Unit)? = null,
 ) {
     val rowCount = availableSubtitles.size + 1
     FlowRowGroup {
@@ -142,15 +144,28 @@ internal fun PlayerSettingsSubtitlesPage(
                 title = subtitleRowTitle(subtitle, index),
                 supportingText =
                     when (subtitle.origin) {
-                        SubtitleOrigin.FILE -> stringResource(R.string.subtitle_origin_file)
-                        SubtitleOrigin.EMBEDDED -> stringResource(R.string.subtitle_origin_embedded)
-                        SubtitleOrigin.ONLINE -> subtitle.language.takeIf { it.isNotBlank() }
+                        SubtitleOrigin.FILE -> {
+                            subtitle.detail?.takeIf { it != subtitle.label }
+                                ?: stringResource(R.string.subtitle_origin_file)
+                        }
+
+                        SubtitleOrigin.EMBEDDED -> {
+                            stringResource(R.string.subtitle_origin_embedded)
+                        }
+
+                        SubtitleOrigin.ONLINE -> {
+                            subtitle.language.takeIf { it.isNotBlank() }
+                        }
                     },
                 selected = subtitle.url == selectedSubtitleUrl && subtitlesEnabled,
                 shape = flowRowGroupShape(index + 1, rowCount),
                 onClick = { onSubtitleSelected(index) },
             )
         }
+    }
+    if (onSubtitleOffsetChange != null && subtitlesEnabled) {
+        Spacer(modifier = Modifier.height(SubtitleStyleRowSpacing))
+        SubtitleTimingCard(offsetMs = subtitleOffsetMs, onOffsetChange = onSubtitleOffsetChange)
     }
     Spacer(modifier = Modifier.height(SubtitleStyleRowSpacing))
     val navRows = if (onAddSubtitleFile != null) 2 else 1

@@ -44,6 +44,7 @@ fun SettingsMenuDialog(
     onSubtitleSelected: (Int) -> Unit = {},
     onDisableSubtitles: () -> Unit = {},
     onAddSubtitleFile: (() -> Unit)? = null,
+    onSubtitleOffsetChange: ((Long) -> Unit)? = null,
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
     onStableVolumeToggle: (Boolean) -> Unit,
@@ -205,6 +206,8 @@ fun SettingsMenuDialog(
                         },
                         // Stays open: the picker's result comes back to this composition.
                         onAddSubtitleFile = onAddSubtitleFile,
+                        subtitleOffsetMs = playerState.subtitleOffsetMs,
+                        onSubtitleOffsetChange = onSubtitleOffsetChange,
                         onShowStyleCustomizer = {
                             subtitleStyleReturnPage = PlayerSettingsPage.Subtitles
                             currentPage = PlayerSettingsPage.SubtitleStyle

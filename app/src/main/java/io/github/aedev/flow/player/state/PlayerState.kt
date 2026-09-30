@@ -17,6 +17,8 @@ data class EnhancedPlayerState(
     val availableSubtitles: List<SubtitleOption> = emptyList(),
     /** The [SubtitleOption.url] of the track on screen, or null when captions are off. */
     val selectedSubtitleUrl: String? = null,
+    /** How far captions are shifted, in milliseconds: positive shows them later. */
+    val subtitleOffsetMs: Long = 0L,
     val error: String? = null,
     val recoveryAttempted: Boolean = false,
     val playbackSpeed: Float = 1.0f,
@@ -78,4 +80,6 @@ data class SubtitleOption(
     val isTranslated: Boolean = false,
     val origin: SubtitleOrigin = SubtitleOrigin.ONLINE,
     val isForced: Boolean = false,
+    /** Where a file track lives, such as `Subs/English.srt`, shown under its name. */
+    val detail: String? = null,
 )
