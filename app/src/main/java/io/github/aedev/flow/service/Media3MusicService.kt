@@ -57,10 +57,14 @@ import io.github.aedev.flow.player.MusicRadioPlanner
 import io.github.aedev.flow.player.audio.AudioSessionRegistry
 import io.github.aedev.flow.player.audio.eq.EqualizerAudioProcessor
 import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
+import io.github.aedev.flow.player.error.StreamDenialClassifier
+import io.github.aedev.flow.player.error.StreamDenialKind
 import io.github.aedev.flow.player.factory.LoadControlFactory
 import io.github.aedev.flow.player.sessionArtworkBitmapLoader
+import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import io.github.aedev.flow.utils.NetworkConnectivityObserver
+import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -671,6 +675,7 @@ class Media3MusicService : MediaLibraryService() {
 
             isExpiredUrlError(error) -> {
                 Log.d(TAG, "Expired URL (403) detected, refreshing stream URL")
+                reportStreamDenial(error)
                 notifyMusicWarning(getString(R.string.music_playback_warning_forbidden))
                 handleExpiredUrlError(failed, currentRetry)
             }
@@ -762,15 +767,23 @@ class Media3MusicService : MediaLibraryService() {
         }
     }
 
-    private fun getHttpResponseCode(error: PlaybackException): Int? {
-        var cause: Throwable? = error.cause
-        while (cause != null) {
-            if (cause is HttpDataSource.InvalidResponseCodeException) {
-                return cause.responseCode
-            }
-            cause = cause.cause
-        }
-        return null
+    private fun httpFailure(error: PlaybackException): HttpDataSource.InvalidResponseCodeException? =
+        generateSequence(error.cause) { it.cause }
+            .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+            .firstOrNull()
+
+    private fun getHttpResponseCode(error: PlaybackException): Int? = httpFailure(error)?.responseCode
+
+    /** Demotes the client a refused url came from, so the retry and every later song skip it. */
+    private fun reportStreamDenial(error: PlaybackException) {
+        val url = httpFailure(error)?.dataSpec?.uri?.toString() ?: return
+        val kind = ClientGateTracker.reportDenied(url)
+        if (kind == StreamDenialKind.TOKEN_REJECTED) WebPoTokenSession.reportTokenRejected()
+        Log.w(
+            TAG,
+            "HTTP 403 c=${StreamDenialClassifier.clientOf(url)} itag=${StreamDenialClassifier.itagOf(url)} " +
+                "pot=${StreamDenialClassifier.hasPoToken(url)} ${StreamDenialClassifier.describeExpiry(url)} denial=$kind",
+        )
     }
 
     private fun isExpiredUrlError(error: PlaybackException): Boolean = getHttpResponseCode(error) == 403

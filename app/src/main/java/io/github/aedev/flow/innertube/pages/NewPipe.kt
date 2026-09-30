@@ -14,7 +14,6 @@ import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.exceptions.ParsingException
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager
-import org.schabi.newpipe.extractor.stream.StreamInfo
 import java.io.IOException
 import java.net.Proxy
 
@@ -28,12 +27,12 @@ class NewPipeDownloaderImpl(
             .proxy(proxy)
             .proxyAuthenticator { _, response ->
                 proxyAuth?.let { auth ->
-                    response.request.newBuilder()
+                    response.request
+                        .newBuilder()
                         .header("Proxy-Authorization", auth)
                         .build()
                 } ?: response.request
-            }
-            .build()
+            }.build()
 
     @Throws(IOException::class, ReCaptchaException::class)
     override fun execute(request: Request): Response {
@@ -80,12 +79,10 @@ class NewPipeUtils(
         NewPipe.init(downloader)
     }
 
-    fun getSignatureTimestamp(videoId: String): Result<Int> =
-        runCatching {
-            YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId)
-        }
-
-    fun deobfuscateThrottling(videoId: String, url: String): String? =
+    fun deobfuscateThrottling(
+        videoId: String,
+        url: String,
+    ): String? =
         try {
             YoutubeJavaScriptPlayerManager.getUrlWithThrottlingParameterDeobfuscated(videoId, url)
         } catch (e: Exception) {
@@ -137,10 +134,11 @@ object NewPipeExtractor {
     fun init() {
         val currentSignature = listOf(YouTube.proxy?.address(), YouTube.proxyAuth).joinToString(separator = "|")
         if (!isInitialized || lastProxySignature != currentSignature) {
-            newPipeDownloader = NewPipeDownloaderImpl(
-                proxy = YouTube.proxy,
-                proxyAuth = YouTube.proxyAuth
-            )
+            newPipeDownloader =
+                NewPipeDownloaderImpl(
+                    proxy = YouTube.proxy,
+                    proxyAuth = YouTube.proxyAuth,
+                )
             newPipeUtils = NewPipeUtils(newPipeDownloader!!)
             isInitialized = true
             lastProxySignature = currentSignature
@@ -155,16 +153,13 @@ object NewPipeExtractor {
         nsigThrewThisSession = false
     }
 
-    fun getSignatureTimestamp(videoId: String): Result<Int> {
-        init()
-        return newPipeUtils?.getSignatureTimestamp(videoId)
-            ?: Result.failure(Exception("NewPipeUtils not initialized"))
-    }
-
     @Volatile
     private var nsigThrewThisSession = false
 
-    fun deobfuscateThrottling(videoId: String, url: String): String? {
+    fun deobfuscateThrottling(
+        videoId: String,
+        url: String,
+    ): String? {
         if (nsigThrewThisSession) return null
         init()
         val result = newPipeUtils?.deobfuscateThrottling(videoId, url)
@@ -172,7 +167,7 @@ object NewPipeExtractor {
             nsigThrewThisSession = true
             android.util.Log.w(
                 "NewPipeExtractor",
-                "NewPipe nsig ineffective (${if (result == null) "threw" else "unchanged"}) — disabling for this session, falling back to home-grown"
+                "NewPipe nsig ineffective (${if (result == null) "threw" else "unchanged"}) — disabling for this session, falling back to home-grown",
             )
         }
         return result
@@ -180,26 +175,9 @@ object NewPipeExtractor {
 
     fun getStreamUrl(
         format: PlayerResponse.StreamingData.Format,
-        videoId: String
+        videoId: String,
     ): String? {
         init()
         return newPipeUtils?.getStreamUrl(format, videoId)
-    }
-
-    fun newPipePlayer(videoId: String): List<Pair<Int, String>> {
-        init()
-        return try {
-            val streamInfo = StreamInfo.getInfo(
-                NewPipe.getService(0),
-                "https://www.youtube.com/watch?v=$videoId"
-            )
-            val streamsList = streamInfo.audioStreams + streamInfo.videoStreams + streamInfo.videoOnlyStreams
-            streamsList.mapNotNull {
-                (it.itagItem?.id ?: return@mapNotNull null) to it.content
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
     }
 }
