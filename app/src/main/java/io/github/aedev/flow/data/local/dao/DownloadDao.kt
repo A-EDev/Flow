@@ -242,6 +242,13 @@ interface DownloadDao {
         requestJson: String,
     )
 
+    /** A download's stored request, rewritten when a step adds to it so a retry does not repeat the step. */
+    @Query("UPDATE downloads SET requestJson = :requestJson WHERE videoId = :videoId")
+    suspend fun updateRequest(
+        videoId: String,
+        requestJson: String,
+    )
+
     /** A song's album and artists, moved in from where older versions kept them. */
     @Query(
         """

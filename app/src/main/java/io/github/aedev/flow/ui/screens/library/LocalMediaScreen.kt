@@ -187,8 +187,16 @@ fun LocalMediaScreen(
 
     val panes = rememberFlowPaneState()
     val twoPaneFolders = state.selection.view == LocalView.FOLDERS && panes.showsSidePane
-    LaunchedEffect(twoPaneFolders, state.folders) {
-        if (twoPaneFolders && openFolder == null) state.folders.firstOrNull()?.let { viewModel.openFolder(it.id) }
+    val searching =
+        state.selection.filters.query
+            .isNotBlank()
+    // Beside the folder pane a search covers every folder, not the one opened for the viewer.
+    LaunchedEffect(twoPaneFolders, state.folders, searching) {
+        when {
+            !twoPaneFolders -> Unit
+            searching -> if (openFolder != null) viewModel.openFolder(null)
+            openFolder == null -> state.folders.firstOrNull()?.let { viewModel.openFolder(it.id) }
+        }
     }
     val wideWindow = flowGridColumns(compact = 1, medium = 2, expanded = 2) > 1
     val asGrid = isVideos && (state.settings.videosAsGrid ?: wideWindow)
@@ -302,11 +310,10 @@ fun LocalMediaScreen(
                                 } else {
                                     null
                                 }
-                            val showFolders = state.selection.view == LocalView.FOLDERS
                             val content: @Composable () -> Unit = {
                                 LocalMediaContent(
                                     state = state,
-                                    showFolders = showFolders && openFolder == null && !twoPaneFolders,
+                                    showFolders = state.listsFolders && !twoPaneFolders,
                                     asGrid = asGrid,
                                     selection = selection,
                                     actions = contentActions,

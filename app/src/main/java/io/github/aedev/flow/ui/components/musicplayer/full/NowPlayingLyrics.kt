@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.InlineLyricsPanel
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.LyricsDisplayOptions
 import io.github.aedev.flow.ui.components.musicplayer.lyrics.MusicLyricsSheet
@@ -59,7 +60,7 @@ internal fun NowPlayingLyricsSheet(
         onDisplayChange = { viewModel.applyLyricsDisplay(uiState.lyricsDisplay(), it) },
         onAdjustOffset = { viewModel.adjustLyricsSyncOffset(it) },
         onResetOffset = { viewModel.resetLyricsSyncOffset() },
-        onBrowseSources = { viewModel.browseLyricsCandidates() },
+        onBrowseSources = { viewModel.browseLyricsCandidates() }.takeUnless { LocalMediaIds.isLocal(uiState.currentTrack?.videoId) },
         onCancelBrowse = { viewModel.cancelLyricsBrowse() },
         onSelectCandidate = { viewModel.applyLyricsCandidate(it) },
         onApplyEditedLyrics = { viewModel.applyEditedLyrics(it) },

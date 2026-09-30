@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.engagement.FeedInvalidationBus
 import io.github.aedev.flow.data.engagement.VideoEngagementUseCase
 import io.github.aedev.flow.data.local.*
+import io.github.aedev.flow.data.localmedia.LocalMediaDetails
 import io.github.aedev.flow.data.localmedia.LocalMediaIds
 import io.github.aedev.flow.data.model.Comment
 import io.github.aedev.flow.data.model.Video
@@ -80,6 +81,7 @@ class VideoPlayerViewModel
         private val playbackResolver: PlaybackLoadResolver,
         notesRepository: io.github.aedev.flow.data.notes.NotesRepository,
         private val videoStats: io.github.aedev.flow.data.stats.VideoStatsRecorder,
+        private val localMediaDetails: LocalMediaDetails,
         @NetworkIoDispatcher private val networkDispatcher: CoroutineDispatcher,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ViewModel() {
@@ -397,6 +399,11 @@ class VideoPlayerViewModel
                     offlineSegments = null,
                     savedPosition = runCatching { viewHistory.getSavedPosition(video.id) }.getOrDefault(0L),
                 )
+            }
+            viewModelScope.launch {
+                val detailed = localMediaDetails.enrich(video) ?: return@launch
+                _uiState.update { it.withDeviceFileDetails(detailed) }
+                if (GlobalPlayerState.currentVideo.value?.id == detailed.id) GlobalPlayerState.setCurrentVideo(detailed)
             }
         }
 

@@ -34,8 +34,10 @@ internal class LocalMediaStore(
                 add(MediaStore.Video.Media.MIME_TYPE)
                 add(MediaStore.Video.Media.BUCKET_ID)
                 add(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
+                add(MediaStore.Video.Media.ARTIST)
                 addAll(pathColumns())
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) add(MediaStore.Video.Media.ORIENTATION)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) add(MediaStore.MediaColumns.AUTHOR)
             }
         return query(collection, columns, selection = null) { cursor ->
             val id = cursor.long(MediaStore.Video.Media._ID)
@@ -44,11 +46,14 @@ internal class LocalMediaStore(
             val rotated = cursor.intOrNull(MediaStore.Video.Media.ORIENTATION).let { it == ROTATED_90 || it == ROTATED_270 }
             val width = cursor.int(MediaStore.Video.Media.WIDTH)
             val height = cursor.int(MediaStore.Video.Media.HEIGHT)
+            val fileName = cursor.string(MediaStore.Video.Media.DISPLAY_NAME).orEmpty()
+            val title = cursor.title(MediaStore.Video.Media.TITLE, MediaStore.Video.Media.DISPLAY_NAME) ?: return@query null
             LocalMediaItem(
                 id = id,
                 isVideo = true,
                 contentUri = ContentUris.withAppendedId(collection, id).toString(),
-                title = cursor.title(MediaStore.Video.Media.TITLE, MediaStore.Video.Media.DISPLAY_NAME) ?: return@query null,
+                title = repairedTitle(title, fileName),
+                fileName = fileName,
                 durationMs = cursor.long(MediaStore.Video.Media.DURATION),
                 sizeBytes = size,
                 dateAddedMs = cursor.long(MediaStore.Video.Media.DATE_ADDED) * MILLIS_PER_SECOND,
@@ -58,6 +63,7 @@ internal class LocalMediaStore(
                 folderId = cursor.string(MediaStore.Video.Media.BUCKET_ID).orEmpty(),
                 folderName = cursor.string(MediaStore.Video.Media.BUCKET_DISPLAY_NAME).orEmpty(),
                 path = cursor.folderPath(),
+                artist = (cursor.tag(MediaStore.Video.Media.ARTIST) ?: cursor.tag(MediaStore.MediaColumns.AUTHOR)).orEmpty(),
             )
         }
     }
@@ -96,11 +102,14 @@ internal class LocalMediaStore(
             val size = cursor.long(MediaStore.Audio.Media.SIZE)
             if (size <= 0L) return@query null
             val albumId = cursor.long(MediaStore.Audio.Media.ALBUM_ID)
+            val fileName = cursor.string(MediaStore.Audio.Media.DISPLAY_NAME).orEmpty()
+            val title = cursor.title(MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.DISPLAY_NAME) ?: return@query null
             LocalMediaItem(
                 id = id,
                 isVideo = false,
                 contentUri = ContentUris.withAppendedId(collection, id).toString(),
-                title = cursor.title(MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.DISPLAY_NAME) ?: return@query null,
+                title = repairedTitle(title, fileName),
+                fileName = fileName,
                 durationMs = cursor.long(MediaStore.Audio.Media.DURATION),
                 sizeBytes = size,
                 dateAddedMs = cursor.long(MediaStore.Audio.Media.DATE_ADDED) * MILLIS_PER_SECOND,
@@ -108,18 +117,8 @@ internal class LocalMediaStore(
                 folderId = cursor.stringOrNull(MediaStore.Audio.Media.BUCKET_ID).orEmpty(),
                 folderName = cursor.stringOrNull(MediaStore.Audio.Media.BUCKET_DISPLAY_NAME).orEmpty(),
                 path = cursor.folderPath(),
-                artist =
-                    cursor
-                        .string(
-                            MediaStore.Audio.Media.ARTIST,
-                        )?.takeUnless { it.isBlank() || it == MediaStore.UNKNOWN_STRING }
-                        .orEmpty(),
-                album =
-                    cursor
-                        .string(
-                            MediaStore.Audio.Media.ALBUM,
-                        )?.takeUnless { it.isBlank() || it == MediaStore.UNKNOWN_STRING }
-                        .orEmpty(),
+                artist = cursor.tag(MediaStore.Audio.Media.ARTIST).orEmpty(),
+                album = cursor.tag(MediaStore.Audio.Media.ALBUM).orEmpty(),
                 artworkUri = songArtwork(collection, id, albumId),
             )
         }
@@ -169,6 +168,9 @@ private fun Cursor.intOrNull(column: String): Int? = getColumnIndex(column).take
 private fun Cursor.string(column: String): String? = stringOrNull(column)
 
 private fun Cursor.stringOrNull(column: String): String? = getColumnIndex(column).takeIf { it >= 0 }?.let(::getString)
+
+/** An embedded tag, or null when the file has none and MediaStore stored its placeholder. */
+private fun Cursor.tag(column: String): String? = string(column)?.trim()?.takeUnless { it.isEmpty() || it == MediaStore.UNKNOWN_STRING }
 
 private fun Cursor.title(
     titleColumn: String,

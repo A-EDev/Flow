@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
+import io.github.aedev.flow.data.lyrics.lrcText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -87,7 +88,8 @@ internal fun MusicLyricsSheet(
     onDisplayChange: (LyricsDisplayOptions) -> Unit,
     onAdjustOffset: (Long) -> Unit,
     onResetOffset: () -> Unit,
-    onBrowseSources: () -> Unit,
+    /** Null for a device song, whose lyrics only ever come from its own file. */
+    onBrowseSources: (() -> Unit)?,
     onCancelBrowse: () -> Unit,
     onSelectCandidate: (LyricsCandidate) -> Unit,
     onApplyEditedLyrics: (String) -> Unit,
@@ -304,10 +306,13 @@ internal fun MusicLyricsSheet(
             syncOffsetMs = syncOffsetMs,
             display = display,
             onRefresh = onRefresh,
-            onChooseSource = {
-                showSourcesSheet = true
-                onBrowseSources()
-            },
+            onChooseSource =
+                onBrowseSources?.let { browse ->
+                    {
+                        showSourcesSheet = true
+                        browse()
+                    }
+                },
             onEdit = { showEditDialog = true },
             onCopy = {
                 val text = lyrics ?: syncedLyrics.joinToString("\n") { it.text }
@@ -323,7 +328,7 @@ internal fun MusicLyricsSheet(
                 }
             },
             onSaveFile = {
-                pendingSaveText = buildLrcExportText(syncedLyrics, lyrics)
+                pendingSaveText = lrcText(syncedLyrics, lyrics)
                 val baseName =
                     listOf(trackArtist, trackTitle)
                         .filter { it.isNotBlank() }
@@ -356,7 +361,7 @@ internal fun MusicLyricsSheet(
 
     if (showEditDialog) {
         LyricsEditDialog(
-            initialText = buildLrcExportText(syncedLyrics, lyrics),
+            initialText = lrcText(syncedLyrics, lyrics),
             onApply = onApplyEditedLyrics,
             onDismiss = { showEditDialog = false },
         )

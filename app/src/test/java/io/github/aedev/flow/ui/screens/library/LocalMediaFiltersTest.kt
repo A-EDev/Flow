@@ -19,11 +19,13 @@ class LocalMediaFiltersTest {
         addedDaysAgo: Long = 30,
         folder: String = "Camera",
         size: Long = 100,
+        fileName: String = "",
     ) = LocalMediaItem(
         id = id,
         isVideo = true,
         contentUri = "content://media/external/video/media/$id",
         title = title,
+        fileName = fileName,
         durationMs = minutes * 60_000,
         sizeBytes = size,
         dateAddedMs = now - addedDaysAgo * 24 * 60 * 60 * 1000,
@@ -81,6 +83,19 @@ class LocalMediaFiltersTest {
         val items = listOf(video(1, title = "Lisbon tram"), video(2, folder = "Screen recordings"))
         assertThat(items.applyLocalFilters(LocalFilters(query = "tram"), LocalPlayback(), now).map { it.id }).containsExactly(1L)
         assertThat(items.applyLocalFilters(LocalFilters(query = "screen"), LocalPlayback(), now).map { it.id }).containsExactly(2L)
+    }
+
+    @Test
+    fun `search reads the file name and ignores accents`() {
+        val items =
+            listOf(
+                video(1, title = "Stöd like", fileName = "Uploader - Stöd like.mp4"),
+                video(2, title = "Lisbon tram", fileName = "Other - Lisbon tram.mp4"),
+            )
+        assertThat(items.applyLocalFilters(LocalFilters(query = "uploader"), LocalPlayback(), now).map { it.id }).containsExactly(1L)
+        assertThat(items.applyLocalFilters(LocalFilters(query = "stod"), LocalPlayback(), now).map { it.id }).containsExactly(1L)
+        assertThat(items.applyLocalFilters(LocalFilters(query = "tram other"), LocalPlayback(), now).map { it.id }).containsExactly(2L)
+        assertThat(items.applyLocalFilters(LocalFilters(query = "nowhere"), LocalPlayback(), now)).isEmpty()
     }
 
     @Test

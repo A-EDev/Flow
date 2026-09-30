@@ -46,6 +46,8 @@ data class LocalMediaUiState(
     val totalCount: Int = 0,
     val folders: List<LocalFolder> = emptyList(),
     val openFolder: LocalFolder? = null,
+    /** Folder rows instead of files: the Folders view with no folder open and nothing searched. */
+    val listsFolders: Boolean = false,
     val continueWatching: List<LocalMediaItem> = emptyList(),
     val hiddenCount: Int = 0,
     val playback: LocalPlayback = LocalPlayback(),
@@ -120,6 +122,7 @@ internal fun buildState(
         totalCount = shown.size,
         folders = folders,
         openFolder = openFolder,
+        listsFolders = selection.view == LocalView.FOLDERS && openFolder == null && selection.filters.query.isBlank(),
         continueWatching = if (selection.kind == MediaKind.Videos) shown.continueWatching(playback, nowMs) else emptyList(),
         hiddenCount = hidden.size,
         playback = playback,

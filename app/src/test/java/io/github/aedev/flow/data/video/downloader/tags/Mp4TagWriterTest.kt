@@ -192,6 +192,22 @@ class Mp4TagWriterTest {
         assertThat(embedded.artist).isEqualTo("Rick Astley")
         assertThat(embedded.album).isEqualTo(tags.album)
         assertThat(embedded.cover).isEqualTo(jpeg)
+        assertThat(embedded.lyrics).isEqualTo(tags.lyrics)
+    }
+
+    @Test
+    fun `synced lyrics survive the round trip line by line`() {
+        val lrc = "[00:01.00]We're no strangers to love\n[00:05.50]You know the rules"
+        val file = folder.newFile().apply { writeBytes(Mp4Fixtures.moovLast().bytes) }
+        writer.write(file, tags.copy(lyrics = lrc))
+        val udta = Mp4Fixtures.find(file.readBytes(), "moov", "udta")!!
+        val metadata =
+            BoxParser.parseUdta(
+                Mp4Box.LeafBox(Mp4Box.TYPE_udta, ParsableByteArray(udta.bytes.copyOfRange(udta.start, udta.end))),
+                false,
+            )
+
+        assertThat(EmbeddedTags.fromEntries(List(metadata.length()) { metadata[it] }).lyrics).isEqualTo(lrc)
     }
 
     @Test

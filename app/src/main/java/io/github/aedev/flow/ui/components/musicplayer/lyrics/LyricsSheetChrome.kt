@@ -67,31 +67,14 @@ import coil3.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LYRICS_ALIGN_LEFT
 import io.github.aedev.flow.data.local.LYRICS_ALIGN_RIGHT
-import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.ui.components.PlayingWaveform
 import kotlinx.coroutines.delay
-import java.util.Locale
 
 internal fun lyricsTextAlignFor(pref: String): TextAlign =
     when (pref) {
         LYRICS_ALIGN_LEFT -> TextAlign.Left
         LYRICS_ALIGN_RIGHT -> TextAlign.Right
         else -> TextAlign.Center
-    }
-
-internal fun buildLrcExportText(
-    syncedLyrics: List<LyricsEntry>,
-    plainLyrics: String?,
-): String =
-    if (syncedLyrics.isNotEmpty()) {
-        syncedLyrics.joinToString("\n") { entry ->
-            val minutes = entry.time / 60_000
-            val seconds = (entry.time % 60_000) / 1_000
-            val hundredths = (entry.time % 1_000) / 10
-            String.format(Locale.US, "[%02d:%02d.%02d]%s", minutes, seconds, hundredths, entry.text)
-        }
-    } else {
-        plainLyrics.orEmpty()
     }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

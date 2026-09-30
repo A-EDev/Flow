@@ -6,6 +6,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -56,9 +57,15 @@ internal fun VideoStageControls(
     // gesture sets isFullscreenPortrait and pins PORTRAIT; a vertical video gets SENSOR_PORTRAIT and
     // stays upright either way, which is why the fullscreen button used to land a short in the
     // landscape layout.
+    val configuration = LocalConfiguration.current
     val isPortraitFullscreenLayout =
-        screenState.isFullscreen &&
-            (screenState.isFullscreenPortrait || videoAspectRatio < 1f)
+        usesPortraitFullscreenLayout(
+            isFullscreen = screenState.isFullscreen,
+            isFullscreenPortrait = screenState.isFullscreenPortrait,
+            videoAspectRatio = videoAspectRatio,
+            orientationRequestIgnored = context.orientationRequestIgnored(configuration),
+            windowIsPortrait = configuration.screenHeightDp > configuration.screenWidthDp,
+        )
 
     // Buffered position advances on every position poll; quantised to 1% so
     // this scope recomposes on visible steps only.

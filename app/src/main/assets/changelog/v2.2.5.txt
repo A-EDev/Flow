@@ -61,6 +61,10 @@ NEW FEATURES
 - Import your YouTube likes from a Google Takeout My Activity export, into Liked videos and Liked music (#1027)
 - New switches: Subscriptions on Home, watch progress on thumbnails, and Pause watch history (#1086)
 - A Short that links a full video shows it, and one tap opens it in the video player (#1031)
+- Local media videos show the artist embedded in the file as their channel, and its description under the video (#1168)
+- Local songs show the lyrics from a .lrc file next to them, or the lyrics embedded in the file, without looking anything up online (#1169)
+- Downloaded songs keep their lyrics inside the file, so Flow and other players show them with no connection
+- Local media search also matches file names and ignores accents (#1177)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -162,6 +166,9 @@ FIXES AND STABILITY
 - The equalizer no longer clips on boosts (auto preamp is on by default), no longer clicks while you drag, now applies to Shorts, surround audio and music played with audio offload, and low pass, high pass and shelf Q work as labelled
 - Pressing Home at the top of the feed refreshes once, and further presses wait for it instead of stacking reloads (#1171)
 - Old Shorts no longer show up as new uploads in Subscriptions (#1175)
+- Fix Local media search in the Folders view ignoring what you typed, and a pull to refresh whose spinner could stay on screen for good (#1167)
+- Fix new Local media files showing accented letters as question marks: the title is rebuilt from the file name (#1176)
+- Fix the shades at the top and bottom of vertical videos staying on screen after the controls hide, and tablets that stay in landscape getting the upright fullscreen layout (#1179)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

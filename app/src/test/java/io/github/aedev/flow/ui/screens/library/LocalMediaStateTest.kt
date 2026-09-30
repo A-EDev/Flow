@@ -51,6 +51,28 @@ class LocalMediaStateTest {
     }
 
     @Test
+    fun `the folders view searches every folder`() {
+        val folders = LocalMediaSelection(view = LocalView.FOLDERS)
+        val searching = folders.copy(filters = LocalFilters(query = "clip 3"))
+
+        assertThat(buildState(library, LocalMediaSettings(), LocalPlayback(), folders, nowMs = 10).listsFolders).isTrue()
+        val state = buildState(library, LocalMediaSettings(), LocalPlayback(), searching, nowMs = 10)
+        assertThat(state.listsFolders).isFalse()
+        assertThat(state.items.map { it.id }).containsExactly(3L)
+    }
+
+    @Test
+    fun `a search inside an open folder stays in it`() {
+        val selection =
+            LocalMediaSelection(view = LocalView.FOLDERS, openFolderId = "camera", filters = LocalFilters(query = "clip"))
+
+        val state = buildState(library, LocalMediaSettings(), LocalPlayback(), selection, nowMs = 10)
+
+        assertThat(state.listsFolders).isFalse()
+        assertThat(state.items.map { it.id }).containsExactly(2L, 1L).inOrder()
+    }
+
+    @Test
     fun `the music tab reads the music list`() {
         val state = buildState(library, LocalMediaSettings(), LocalPlayback(), LocalMediaSelection(kind = MediaKind.Music), nowMs = 10)
 

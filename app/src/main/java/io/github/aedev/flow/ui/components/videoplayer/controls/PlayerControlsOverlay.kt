@@ -222,10 +222,6 @@ internal fun PlayerControlsOverlay(
                 .fillMaxSize()
                 .windowInsetsPadding(windowInsets),
     ) {
-        if (isPortraitFullscreen) {
-            PortraitFullscreenEdgeScrims(modifier = Modifier.matchParentSize())
-        }
-
         val isVisible = state.isVisible
         val controlsAlpha = remember { Animatable(if (isVisible) 1f else 0f) }
         var controlsPlaced by remember { mutableStateOf(isVisible) }
@@ -263,6 +259,9 @@ internal fun PlayerControlsOverlay(
                         )
                     },
         ) {
+            if (isPortraitFullscreen && !state.isTouchLocked) {
+                PortraitFullscreenEdgeScrims(modifier = Modifier.matchParentSize())
+            }
             if (state.isTouchLocked) {
                 PlayerLockedControls(
                     isOverlayVisible = isLockOverlayVisible,

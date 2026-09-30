@@ -8,6 +8,8 @@ import java.nio.channels.FileChannel
 internal object Mp4Boxes {
     const val HEADER_SIZE = 8
     const val LARGE_HEADER_SIZE = 16
+    private const val FULL_BOX_FIELDS = 4
+    private const val HDLR = "hdlr"
 
     /**
      * One box: [start] is the offset of its header, [size] includes the header. [extendsToEnd]
@@ -60,6 +62,29 @@ internal object Mp4Boxes {
             position = span.end.toInt()
         }
         return spans
+    }
+
+    /** The header size of a box held in memory from its own first byte. */
+    fun headerSize(box: ByteArray): Int = if (ByteBuffer.wrap(box).int == 1) LARGE_HEADER_SIZE else HEADER_SIZE
+
+    /** Where a `meta` box's children start: ISO `meta` is a FullBox, QuickTime's is not; both put `hdlr` first. */
+    fun metaChildrenStart(meta: ByteArray): Int {
+        val header = headerSize(meta)
+        if (meta.size < header + HEADER_SIZE) return header
+        val firstType = String(meta, header + 4, 4, Charsets.ISO_8859_1)
+        return if (firstType == HDLR) header else header + FULL_BOX_FIELDS
+    }
+
+    fun readFully(
+        channel: FileChannel,
+        position: Long,
+        length: Int,
+    ): ByteArray {
+        val buffer = ByteBuffer.allocate(length)
+        while (buffer.hasRemaining()) {
+            if (channel.read(buffer, position + buffer.position()) < 0) throw IOException("Unexpected end of file")
+        }
+        return buffer.array()
     }
 
     fun childPayload(

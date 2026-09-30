@@ -2,8 +2,11 @@ package io.github.aedev.flow.data.video.downloader.tags
 
 import androidx.media3.container.MdtaMetadataEntry
 import androidx.media3.extractor.metadata.id3.ApicFrame
+import androidx.media3.extractor.metadata.id3.BinaryFrame
+import androidx.media3.extractor.metadata.id3.CommentFrame
 import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
+import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -49,6 +52,31 @@ class EmbeddedTagsTest {
         assertThat(embedded.album).isEqualTo("Frame album")
         assertThat(embedded.artist).isEqualTo("A, with comma, B")
         assertThat(embedded.cover).isEqualTo(byteArrayOf(1, 2, 3))
+    }
+
+    @Test
+    fun `any file gives its comment and a flac its description`() {
+        val embedded =
+            EmbeddedTags.fromEntries(
+                listOf(
+                    TextInformationFrame("TIT2", null, listOf("Title")),
+                    CommentFrame("eng", "", "https://example.com/watch"),
+                    VorbisComment("description", "Vorbis description"),
+                ),
+            )
+
+        assertThat(embedded.flow).isNull()
+        assertThat(embedded.comment).isEqualTo("https://example.com/watch")
+        assertThat(embedded.description).isEqualTo("Vorbis description")
+    }
+
+    @Test
+    fun `lyrics come from an mp3 USLT frame or a vorbis comment`() {
+        val uslt = byteArrayOf(3) + "eng".toByteArray() + byteArrayOf(0) + "[00:01.00]Line".toByteArray()
+
+        assertThat(EmbeddedTags.fromEntries(listOf(BinaryFrame("USLT", uslt))).lyrics).isEqualTo("[00:01.00]Line")
+        assertThat(EmbeddedTags.fromEntries(listOf(VorbisComment("LYRICS", "Vorbis line"))).lyrics).isEqualTo("Vorbis line")
+        assertThat(EmbeddedTags.fromEntries(listOf(TextInformationFrame("USLT", null, listOf("m4a line")))).lyrics).isEqualTo("m4a line")
     }
 
     @Test
