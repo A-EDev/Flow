@@ -41,8 +41,9 @@ class DownloadTagReader
                 val platform = readWithPlatform(uri)
                 val merged =
                     platform?.let { embedded.withFallback(it.title, it.artist, it.album, it.cover) } ?: embedded
-                merged.takeIf {
-                    it.title != null || it.artist != null || it.album != null || it.cover != null || it.description != null || it.comment != null
+                merged.takeIf { tags ->
+                    tags.cover != null ||
+                        listOf(tags.title, tags.artist, tags.album, tags.description, tags.comment, tags.lyrics).any { it != null }
                 }
             }
 

@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.video.downloader.tags
 
 import androidx.media3.container.MdtaMetadataEntry
 import androidx.media3.extractor.metadata.id3.ApicFrame
+import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.CommentFrame
 import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
@@ -67,6 +68,15 @@ class EmbeddedTagsTest {
         assertThat(embedded.flow).isNull()
         assertThat(embedded.comment).isEqualTo("https://example.com/watch")
         assertThat(embedded.description).isEqualTo("Vorbis description")
+    }
+
+    @Test
+    fun `lyrics come from an mp3 USLT frame or a vorbis comment`() {
+        val uslt = byteArrayOf(3) + "eng".toByteArray() + byteArrayOf(0) + "[00:01.00]Line".toByteArray()
+
+        assertThat(EmbeddedTags.fromEntries(listOf(BinaryFrame("USLT", uslt))).lyrics).isEqualTo("[00:01.00]Line")
+        assertThat(EmbeddedTags.fromEntries(listOf(VorbisComment("LYRICS", "Vorbis line"))).lyrics).isEqualTo("Vorbis line")
+        assertThat(EmbeddedTags.fromEntries(listOf(TextInformationFrame("USLT", null, listOf("m4a line")))).lyrics).isEqualTo("m4a line")
     }
 
     @Test

@@ -63,7 +63,7 @@ internal fun LyricsActionsSheet(
     syncOffsetMs: Long,
     display: LyricsDisplayOptions,
     onRefresh: () -> Unit,
-    onChooseSource: () -> Unit,
+    onChooseSource: (() -> Unit)?,
     onEdit: () -> Unit,
     onCopy: () -> Unit,
     onSaveFile: () -> Unit,
@@ -99,14 +99,16 @@ internal fun LyricsActionsSheet(
                             onClick = run(onRefresh),
                         ),
                     )
-                    add(
-                        lyricsRow(
-                            "source",
-                            Icons.Outlined.TravelExplore,
-                            stringResource(R.string.lyrics_choose_source),
-                            onClick = run(onChooseSource),
-                        ),
-                    )
+                    if (onChooseSource != null) {
+                        add(
+                            lyricsRow(
+                                "source",
+                                Icons.Outlined.TravelExplore,
+                                stringResource(R.string.lyrics_choose_source),
+                                onClick = run(onChooseSource),
+                            ),
+                        )
+                    }
                     if (hasLyrics) {
                         add(lyricsRow("edit", Icons.Outlined.Edit, stringResource(R.string.lyrics_edit), onClick = run(onEdit)))
                         add(lyricsRow("copy", Icons.Outlined.ContentCopy, stringResource(R.string.lyrics_copy), onClick = run(onCopy)))

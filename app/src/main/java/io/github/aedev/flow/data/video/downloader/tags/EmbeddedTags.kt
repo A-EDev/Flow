@@ -5,6 +5,7 @@ import androidx.media3.common.Metadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.container.MdtaMetadataEntry
 import androidx.media3.extractor.metadata.id3.ApicFrame
+import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.CommentFrame
 import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
@@ -25,6 +26,8 @@ class EmbeddedTags(
     val description: String? = null,
     /** `©cmt`, ID3 `COMM` or a Vorbis `COMMENT`; yt-dlp puts the watch URL here by default. */
     val comment: String? = null,
+    /** Lyrics from `©lyr`, ID3 `USLT` or a Vorbis `LYRICS` comment, synced or not. */
+    val lyrics: String? = null,
 ) {
     fun withFallback(
         title: String?,
@@ -40,6 +43,7 @@ class EmbeddedTags(
             cover = this.cover ?: cover,
             description = description,
             comment = comment,
+            lyrics = lyrics,
         )
 
     companion object {
@@ -50,6 +54,7 @@ class EmbeddedTags(
             var comment: String? = null
             var cover: ByteArray? = null
             val vorbis = linkedMapOf<String, String>()
+            var id3Lyrics: String? = null
             entries.forEach { entry ->
                 when (entry) {
                     is MdtaMetadataEntry -> {
@@ -77,6 +82,10 @@ class EmbeddedTags(
                     is VorbisComment -> {
                         vorbis.putIfAbsent(entry.key.uppercase(), entry.value)
                     }
+
+                    is BinaryFrame -> {
+                        if (entry.id == Id3Lyrics.FRAME_ID && id3Lyrics == null) id3Lyrics = Id3Lyrics.decode(entry.data)
+                    }
                 }
             }
             val title = frames[FRAME_TITLE] ?: fields[FlowTagFields.TITLE]
@@ -90,6 +99,9 @@ class EmbeddedTags(
                 cover = cover,
                 description = (flow?.description ?: vorbis[VORBIS_DESCRIPTION])?.takeIf(String::isNotBlank),
                 comment = (comment ?: vorbis[VORBIS_COMMENT])?.takeIf(String::isNotBlank),
+                lyrics =
+                    listOf(flow?.lyrics, frames[FRAME_LYRICS], id3Lyrics, vorbis[VORBIS_LYRICS], vorbis[VORBIS_UNSYNCED_LYRICS])
+                        .firstOrNull { !it.isNullOrBlank() },
             )
         }
 
@@ -119,5 +131,7 @@ class EmbeddedTags(
         private const val FRAME_LYRICS = "USLT"
         private const val VORBIS_DESCRIPTION = "DESCRIPTION"
         private const val VORBIS_COMMENT = "COMMENT"
+        private const val VORBIS_LYRICS = "LYRICS"
+        private const val VORBIS_UNSYNCED_LYRICS = "UNSYNCEDLYRICS"
     }
 }
