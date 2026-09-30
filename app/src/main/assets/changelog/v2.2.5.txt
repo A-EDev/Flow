@@ -66,7 +66,8 @@ NEW FEATURES
 - Downloaded songs keep their lyrics inside the file, so Flow and other players show them with no connection
 - Local media search also matches file names and ignores accents (#1177)
 - Downloaded videos can save a subtitle file beside them, named so other players find it: pick the language in the download menu, or turn on Subtitle file in Downloads settings (#1182)
-- Local media videos load the subtitle files named like them, list the subtitles inside MKV and MP4 files, and play any subtitle file you add from the subtitle menu, including files in older text encodings (#1028)
+- Local media videos find their subtitle files by themselves and turn them on, the way movie and series releases lay them out: named like the video, matched by episode (S01E02), in a Subs folder, or alone with a movie in its folder. They also list the subtitles inside MKV and MP4 files, and play any subtitle file you add from the subtitle menu, which opens in the video's folder, including files in older text encodings (#1028)
+- Subtitle timing: move captions earlier or later from the subtitle menu when a file does not match the video. A device video or download remembers its timing
 - Subtitle Style adds custom colors, a caption window color and opacity, and an edge style such as outline or drop shadow (#1182)
 - Subtitles have their own position in fullscreen and sit on the picture rather than the edge of the screen, so vertical fullscreen lines them up with the video (#1098)
 
