@@ -84,11 +84,8 @@ internal class SubtitleTracks {
         if (!acceptsEmbedded) return false
         val found =
             textTracks(tracks)
-                .filterNot {
-                    it.format.id
-                        .orEmpty()
-                        .startsWith(MediaLoader.SUBTITLE_TRACK_ID_PREFIX)
-                }.distinctBy { it.key }
+                .filter { MediaLoader.subtitleTrackIndex(it.format.id) == null }
+                .distinctBy { it.key }
                 .map { it.toOption() }
                 .toList()
         if (found == embedded) return false
@@ -127,7 +124,7 @@ internal class SubtitleTracks {
     private fun trackKeyOf(option: SubtitleOption): String =
         when (option.origin) {
             SubtitleOrigin.EMBEDDED -> option.url
-            else -> MediaLoader.subtitleTrackId(captions.indexOfFirst { it.url == option.url })
+            else -> captionKey(captions.indexOfFirst { it.url == option.url })
         }
 
     private fun identity(option: SubtitleOption): String =
@@ -151,7 +148,7 @@ internal class SubtitleTracks {
         position: String,
     ) {
         val key: String =
-            format.id?.takeIf { it.startsWith(MediaLoader.SUBTITLE_TRACK_ID_PREFIX) }
+            MediaLoader.subtitleTrackIndex(format.id)?.let(::captionKey)
                 ?: "$EMBEDDED_PREFIX${format.id ?: position}"
         val isMachineText: Boolean get() = format.roleFlags and C.ROLE_FLAG_TRANSCRIBES_DIALOG != 0
 
@@ -182,6 +179,10 @@ internal class SubtitleTracks {
 
     private companion object {
         const val EMBEDDED_PREFIX = "embedded:"
+        const val CAPTION_PREFIX = "caption:"
+
+        fun captionKey(index: Int): String = "$CAPTION_PREFIX$index"
+
         const val UNDETERMINED_LANGUAGE = "und"
     }
 }

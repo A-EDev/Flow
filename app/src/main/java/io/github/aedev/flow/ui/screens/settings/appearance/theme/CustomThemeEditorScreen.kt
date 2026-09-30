@@ -43,12 +43,14 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.components.settings.SettingsPage
 import io.github.aedev.flow.ui.components.settings.nav
 import io.github.aedev.flow.ui.components.settings.toggleGroup
+import io.github.aedev.flow.ui.components.shared.FlowColorPickerDialog
 import io.github.aedev.flow.ui.components.shared.FlowToggleOption
 import io.github.aedev.flow.ui.screens.settings.appearance.themeVariantLabel
 import io.github.aedev.flow.ui.screens.settings.index.CustomThemeIndex
 import io.github.aedev.flow.ui.theme.CustomTheme
 import io.github.aedev.flow.ui.theme.ThemeVariant
 import io.github.aedev.flow.ui.theme.toColorScheme
+import io.github.aedev.flow.utils.toHexRgb
 import kotlinx.coroutines.launch
 
 private val SwatchSize = 32.dp
@@ -136,7 +138,7 @@ internal fun CustomThemeEditorScreen(
 
     val theme = current ?: return
     pickingRole?.let { role ->
-        ColorPickerDialog(
+        FlowColorPickerDialog(
             title = stringResource(role.labelRes),
             initialArgb = role.read(theme.colorsFor(editing)).toArgb().toLong() and 0xFFFFFFFFL,
             allowAlpha = false,

@@ -2288,10 +2288,21 @@
     <string name="subtitle_preview_text">Preview Subtitle Text</string>
     <string name="subtitle_font_size_template">Font Size: %1$d</string>
     <string name="subtitle_position_template">Position: %1$d</string>
+    <string name="subtitle_fullscreen_position_template">Position in fullscreen: %1$d</string>
     <string name="subtitle_text_color">Text Color</string>
     <string name="subtitle_background_color">Background Color</string>
     <string name="subtitle_background_opacity_template">Background Opacity: %1$d%%</string>
     <string name="subtitle_bold_text">Bold Text</string>
+    <string name="subtitle_window_color">Window Color</string>
+    <string name="subtitle_window_opacity_template">Window Opacity: %1$d%%</string>
+    <string name="subtitle_edge_style">Edge Style</string>
+    <string name="subtitle_edge_none">None</string>
+    <string name="subtitle_edge_outline">Outline</string>
+    <string name="subtitle_edge_drop_shadow">Drop shadow</string>
+    <string name="subtitle_edge_raised">Raised</string>
+    <string name="subtitle_edge_depressed">Depressed</string>
+    <string name="subtitle_edge_color">Edge Color</string>
+    <string name="subtitle_custom_color">Custom color</string>
     <string name="subtitle_reset_default">Reset to Default</string>
     <!-- Check for Updates -->
     <string name="check_for_updates">Check for Updates</string>

@@ -62,9 +62,22 @@ class MediaLoader(
             MimeTypes.registerCustomMimeType(Srv3SubtitleParser.MIME_TYPE, "", C.TRACK_TYPE_TEXT)
         }
 
-        internal const val SUBTITLE_TRACK_ID_PREFIX = "flow-subtitle-"
+        private const val SUBTITLE_TRACK_ID_PREFIX = "flow-subtitle-"
+        private val SubtitleTrackIdPattern = Regex("""(?:^|:)$SUBTITLE_TRACK_ID_PREFIX(\d+)$""")
 
         internal fun subtitleTrackId(index: Int): String = "$SUBTITLE_TRACK_ID_PREFIX$index"
+
+        /**
+         * The caption index a track's format id names, or null for a track Flow did not add.
+         * Merging sources prefix every format id with the source's position, so the id is matched
+         * at its end.
+         */
+        internal fun subtitleTrackIndex(formatId: String?): Int? =
+            formatId
+                ?.let { SubtitleTrackIdPattern.find(it) }
+                ?.groupValues
+                ?.get(1)
+                ?.toIntOrNull()
     }
 
     private var activeSabrOrchestrator: SabrOrchestrator? = null

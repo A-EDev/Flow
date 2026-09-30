@@ -82,10 +82,20 @@ class SubtitleTracksTest {
         val tracks = SubtitleTracks()
         tracks.load("local_1", emptyList(), acceptsEmbedded = true)
         assertThat(tracks.onTracksChanged(textTracks(format(MediaLoader.subtitleTrackId(0), "en", forced = false)))).isFalse()
+        // A merging source prefixes each format id with its source's position.
+        assertThat(tracks.onTracksChanged(textTracks(format("1:${MediaLoader.subtitleTrackId(3)}", "en", forced = false)))).isFalse()
 
         tracks.load("v1", emptyList(), acceptsEmbedded = false)
         assertThat(tracks.onTracksChanged(textTracks(format("3", "en", forced = false)))).isFalse()
         assertThat(tracks.options).isEmpty()
+    }
+
+    @Test
+    fun `caption indexes are read back from prefixed format ids`() {
+        assertThat(MediaLoader.subtitleTrackIndex("2:flow-subtitle-12")).isEqualTo(12)
+        assertThat(MediaLoader.subtitleTrackIndex(MediaLoader.subtitleTrackId(0))).isEqualTo(0)
+        assertThat(MediaLoader.subtitleTrackIndex("3")).isNull()
+        assertThat(MediaLoader.subtitleTrackIndex(null)).isNull()
     }
 
     private fun format(

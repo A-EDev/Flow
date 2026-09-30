@@ -26,3 +26,13 @@ val SubtitleBackgroundSwatches: List<Color> =
         Color(0xFF102A43),
         Color(0xFF37474F),
     )
+
+val SubtitleEdgeSwatches: List<Color> =
+    listOf(
+        Color.Black,
+        Color.White,
+        Color(0xFF263238),
+        Color(0xFFFFF59D),
+        Color(0xFF80DEEA),
+        Color(0xFFF8BBD0),
+    )

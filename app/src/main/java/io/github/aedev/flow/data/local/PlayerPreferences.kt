@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
+import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleEdgeType
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
@@ -76,7 +77,11 @@ class PlayerPreferences(
         val SUBTITLE_TEXT_COLOR = intPreferencesKey("subtitle_text_color")
         val SUBTITLE_BACKGROUND_COLOR = intPreferencesKey("subtitle_background_color")
         val SUBTITLE_BOLD = booleanPreferencesKey("subtitle_bold")
+        val SUBTITLE_WINDOW_COLOR = intPreferencesKey("subtitle_window_color")
+        val SUBTITLE_EDGE_TYPE = stringPreferencesKey("subtitle_edge_type")
+        val SUBTITLE_EDGE_COLOR = intPreferencesKey("subtitle_edge_color")
         val SUBTITLE_BOTTOM_PADDING = floatPreferencesKey("subtitle_bottom_padding")
+        val SUBTITLE_FULLSCREEN_BOTTOM_PADDING = floatPreferencesKey("subtitle_fullscreen_bottom_padding")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val SLEEP_TIMER_CLOSE_APP_ON_EXPIRY = booleanPreferencesKey("sleep_timer_close_app_on_expiry")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
@@ -1704,6 +1709,7 @@ class PlayerPreferences(
     val subtitleStyle: Flow<SubtitleStyle> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
+                val bottomPadding = preferences[Keys.SUBTITLE_BOTTOM_PADDING] ?: SubtitleStyle.DEFAULT_BOTTOM_PADDING
                 SubtitleStyle(
                     fontSize = preferences[Keys.SUBTITLE_FONT_SIZE] ?: 14f,
                     textColor = Color(preferences[Keys.SUBTITLE_TEXT_COLOR] ?: Color.White.toArgb()),
@@ -1712,8 +1718,16 @@ class PlayerPreferences(
                             preferences[Keys.SUBTITLE_BACKGROUND_COLOR]
                                 ?: Color.Black.copy(alpha = 0.6f).toArgb(),
                         ),
+                    windowColor = preferences[Keys.SUBTITLE_WINDOW_COLOR]?.let(::Color) ?: Color.Transparent,
+                    edgeType =
+                        preferences[Keys.SUBTITLE_EDGE_TYPE]
+                            ?.let { stored -> SubtitleEdgeType.entries.firstOrNull { it.name == stored } }
+                            ?: SubtitleEdgeType.NONE,
+                    edgeColor = preferences[Keys.SUBTITLE_EDGE_COLOR]?.let(::Color) ?: Color.Black,
                     isBold = preferences[Keys.SUBTITLE_BOLD] ?: true,
-                    bottomPadding = preferences[Keys.SUBTITLE_BOTTOM_PADDING] ?: 48f,
+                    bottomPadding = bottomPadding,
+                    // Starts at the player's value, so nobody's captions move until they set it.
+                    fullscreenBottomPadding = preferences[Keys.SUBTITLE_FULLSCREEN_BOTTOM_PADDING] ?: bottomPadding,
                 )
             }
 
@@ -1723,7 +1737,11 @@ class PlayerPreferences(
             preferences[Keys.SUBTITLE_TEXT_COLOR] = style.textColor.toArgb()
             preferences[Keys.SUBTITLE_BACKGROUND_COLOR] = style.backgroundColor.toArgb()
             preferences[Keys.SUBTITLE_BOLD] = style.isBold
+            preferences[Keys.SUBTITLE_WINDOW_COLOR] = style.windowColor.toArgb()
+            preferences[Keys.SUBTITLE_EDGE_TYPE] = style.edgeType.name
+            preferences[Keys.SUBTITLE_EDGE_COLOR] = style.edgeColor.toArgb()
             preferences[Keys.SUBTITLE_BOTTOM_PADDING] = style.bottomPadding
+            preferences[Keys.SUBTITLE_FULLSCREEN_BOTTOM_PADDING] = style.fullscreenBottomPadding
         }
     }
 
