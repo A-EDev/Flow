@@ -1,10 +1,12 @@
 package io.github.aedev.flow.data.localmedia
 
 import android.content.Context
+import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.video.downloader.tags.DownloadTagReader
+import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -39,6 +41,12 @@ class LocalLyricsReader
             val uri = LocalMediaIds.audioUri(trackId) ?: return null
             val sidecar = withContext(PerformanceDispatcher.diskIO) { sidecarText(filePathOf(trackId)) }
             if (sidecar != null) return LocalLyrics(sidecar, LocalLyricsSource.FILE)
+            return tagReader.read(uri)?.lyrics?.let { LocalLyrics(it, LocalLyricsSource.EMBEDDED) }
+        }
+
+        /** The lyrics Flow embedded into one of its own downloads, from a file path or a document Uri. */
+        suspend fun readDownload(path: String): LocalLyrics? {
+            val uri = if (DownloadFiles.isDocument(path)) Uri.parse(path) else Uri.fromFile(File(path))
             return tagReader.read(uri)?.lyrics?.let { LocalLyrics(it, LocalLyricsSource.EMBEDDED) }
         }
 

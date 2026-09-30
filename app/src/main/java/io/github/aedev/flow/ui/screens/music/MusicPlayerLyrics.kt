@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.lyrics.LyricsHelper
 import io.github.aedev.flow.data.lyrics.LyricsUtils
 import io.github.aedev.flow.data.music.model.MusicTrack
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
+import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,7 @@ internal class MusicPlayerLyrics(
     private val lyricsHelper: LyricsHelper,
     private val playerPreferences: PlayerPreferences,
     private val localLyrics: LocalLyricsReader,
+    private val downloadedTrackPath: suspend (videoId: String) -> String?,
 ) {
     private var lyricsJob: kotlinx.coroutines.Job? = null
 
@@ -93,7 +95,13 @@ internal class MusicPlayerLyrics(
                 val targetDuration = duration ?: (uiState.value.duration.toInt() / 1000)
 
                 try {
-                    val result = lyricsHelper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration, album)
+                    // A downloaded song carries the lyrics it was saved with; offline they come first.
+                    val result =
+                        if (NetworkState.isOnline(context)) {
+                            providerLyrics(videoId, cleanTitle, cleanArtist, targetDuration, album) ?: downloadedLyrics(videoId)
+                        } else {
+                            downloadedLyrics(videoId) ?: providerLyrics(videoId, cleanTitle, cleanArtist, targetDuration, album)
+                        }
 
                     if (result != null) {
                         val (entries, providerName) = result
@@ -123,6 +131,38 @@ internal class MusicPlayerLyrics(
                     uiState.update { it.copy(isLyricsLoading = false) }
                 }
             }
+    }
+
+    private suspend fun providerLyrics(
+        videoId: String,
+        title: String,
+        artist: String,
+        duration: Int,
+        album: String?,
+    ): Pair<List<LyricsEntry>, String>? =
+        try {
+            lyricsHelper.getLyrics(videoId, title, artist, duration, album)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("MusicPlayerViewModel", "Lyrics providers failed: ${e.message}")
+            null
+        }
+
+    private suspend fun downloadedLyrics(videoId: String): Pair<List<LyricsEntry>, String>? {
+        val path = downloadedTrackPath(videoId) ?: return null
+        val found = localLyrics.readDownload(path) ?: return null
+        val entries =
+            withContext(kotlinx.coroutines.Dispatchers.Default) {
+                LyricsUtils.parseLyrics(found.text).ifEmpty {
+                    plainLyricsText(found.text)
+                        .lines()
+                        .map(String::trim)
+                        .filter(String::isNotEmpty)
+                        .map { LyricsEntry(0L, it) }
+                }
+            }
+        return entries.takeIf { it.isNotEmpty() }?.let { it to context.getString(R.string.lyrics_source_embedded) }
     }
 
     private fun beginLoading() {

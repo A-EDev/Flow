@@ -52,6 +52,7 @@ class DownloadRunner
         private val downloads: VideoDownloadManager,
         private val transfer: DownloadTransfer,
         private val enricher: DownloadMetadataEnricher,
+        private val lyrics: DownloadLyrics,
         private val remuxer: Mp4Remuxer,
         private val tagWriter: Mp4TagWriter,
         private val coverArt: CoverArtLoader,
@@ -76,9 +77,16 @@ class DownloadRunner
                 val threads = request.threads ?: preferences.downloadThreads.first()
                 coroutineScope {
                     val cover = async { coverArt.load(request.tags.thumbnailUrl, request.kind) }
+                    val withLyrics = async { lyrics.addTo(request) }
                     when (val fetched = transfer.fetch(request, staging, item.id, threads)) {
-                        is FetchOutcome.Failed -> fail(request, staging, messageFor(fetched.reason), keepParts = true)
-                        is FetchOutcome.Fetched -> finish(request, staging, item.id, fetched, cover.await())
+                        is FetchOutcome.Failed -> {
+                            withLyrics.cancel()
+                            fail(request, staging, messageFor(fetched.reason), keepParts = true)
+                        }
+
+                        is FetchOutcome.Fetched -> {
+                            finish(withLyrics.await(), staging, item.id, fetched, cover.await())
+                        }
                     }
                 }
             } catch (e: CancellationException) {

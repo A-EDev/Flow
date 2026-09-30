@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.lyrics.LyricsCandidate
 import io.github.aedev.flow.data.lyrics.LyricsEntry
+import io.github.aedev.flow.data.lyrics.lrcText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -327,7 +328,7 @@ internal fun MusicLyricsSheet(
                 }
             },
             onSaveFile = {
-                pendingSaveText = buildLrcExportText(syncedLyrics, lyrics)
+                pendingSaveText = lrcText(syncedLyrics, lyrics)
                 val baseName =
                     listOf(trackArtist, trackTitle)
                         .filter { it.isNotBlank() }
@@ -360,7 +361,7 @@ internal fun MusicLyricsSheet(
 
     if (showEditDialog) {
         LyricsEditDialog(
-            initialText = buildLrcExportText(syncedLyrics, lyrics),
+            initialText = lrcText(syncedLyrics, lyrics),
             onApply = onApplyEditedLyrics,
             onDismiss = { showEditDialog = false },
         )

@@ -68,7 +68,16 @@ class MusicPlayerViewModel
         private var loadTrackJob: kotlinx.coroutines.Job? = null
         private var pendingSeekPosition: Long? = null
         private var pendingSeekStartedAtMs: Long = 0L
-        private val lyrics = MusicPlayerLyrics(context, viewModelScope, _uiState, lyricsHelper, playerPreferences, localLyrics)
+        private val lyrics =
+            MusicPlayerLyrics(
+                context,
+                viewModelScope,
+                _uiState,
+                lyricsHelper,
+                playerPreferences,
+                localLyrics,
+                downloadManager::getDownloadedTrackPath,
+            )
         private val trackActions =
             MusicPlayerTrackActions(
                 context,
