@@ -66,6 +66,15 @@ object EnhancedMusicPlayerManager {
         _radioLoading.value = loading
     }
 
+    private val _radioStationActive = MutableStateFlow(false)
+
+    /** A radio the user started by name: it outruns the endless-radio setting, for this session only. */
+    val radioStationActive: StateFlow<Boolean> = _radioStationActive.asStateFlow()
+
+    fun setRadioStationActive(active: Boolean) {
+        _radioStationActive.value = active
+    }
+
     private var appContext: Context? = null
 
     private val _playerInstance = MutableStateFlow<Player?>(null)
@@ -587,6 +596,9 @@ object EnhancedMusicPlayerManager {
         player?.stop()
         player?.clearMediaItems()
         clearPendingPlayNext()
+        // A new queue ends a named station even when it shares tracks with it, which the service
+        // would read as the same session. Start radio re-marks it from its pending seed.
+        _radioStationActive.value = false
 
         _playerState.value = _playerState.value.copy(isPreparing = false)
 
@@ -1075,6 +1087,7 @@ object EnhancedMusicPlayerManager {
         playContextGenre = null
         pendingRadioSeedId = null
         _radioLoading.value = false
+        _radioStationActive.value = false
         _currentQueueIndex.value = 0
         clearPendingPlayNext()
         _currentPosition.value = 0L
