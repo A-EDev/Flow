@@ -69,7 +69,6 @@ class HomeSubscriptionUploadsTest {
             val videos =
                 fetcher.fetch(
                     subscriptions = listOf(FeedItemOwner(id = "UCfast"), FeedItemOwner(id = "UCslow")),
-                    includeShorts = false,
                     deadlineMillis = 5_000,
                 )
 
@@ -100,14 +99,13 @@ class HomeSubscriptionUploadsTest {
             val videos =
                 fetcher.fetch(
                     subscriptions = listOf(FeedItemOwner(id = "UCa"), FeedItemOwner(id = "UCbroken")),
-                    includeShorts = false,
                 )
 
             assertThat(videos.map { it.id }).containsExactly("new", "old").inOrder()
         }
 
     @Test
-    fun `reels are asked for only when the Home shelf wants them`() =
+    fun `only the Videos tab is read, since reels come dated from RSS`() =
         runTest {
             val asked = mutableListOf<ChannelTabKind>()
             val fetcher =
@@ -116,12 +114,9 @@ class HomeSubscriptionUploadsTest {
                     page(kind, video("$channelId-$kind", channelId))
                 }
 
-            fetcher.fetch(listOf(FeedItemOwner(id = "UCa")), includeShorts = false)
-            assertThat(asked).containsExactly(ChannelTabKind.Videos)
+            fetcher.fetch(listOf(FeedItemOwner(id = "UCa")))
 
-            asked.clear()
-            fetcher.fetch(listOf(FeedItemOwner(id = "UCa")), includeShorts = true)
-            assertThat(asked).containsExactly(ChannelTabKind.Videos, ChannelTabKind.Shorts)
+            assertThat(asked).containsExactly(ChannelTabKind.Videos)
         }
 
     @Test
@@ -146,11 +141,11 @@ class HomeSubscriptionUploadsTest {
                 }
             val subs = (0 until 30).map { FeedItemOwner(id = "UC%02d".format(it)) }
 
-            fetcher.fetch(subs, includeShorts = false, priorityChannelIds = setOf("UC29"), now = 0L)
+            fetcher.fetch(subs, priorityChannelIds = setOf("UC29"), now = 0L)
             assertThat(asked.first()).isEqualTo("UC29")
 
             asked.clear()
-            fetcher.fetch(subs, includeShorts = false, priorityChannelIds = setOf("UC29"), now = 60_000L)
+            fetcher.fetch(subs, priorityChannelIds = setOf("UC29"), now = 60_000L)
             assertThat(asked).doesNotContain("UC29")
         }
 
@@ -165,7 +160,7 @@ class HomeSubscriptionUploadsTest {
                 }
             val subs = (0 until 30).map { FeedItemOwner(id = "UC%02d".format(it)) }
 
-            fetcher.fetch(subs, includeShorts = false, priorityChannelIds = subs.mapTo(HashSet()) { it.id }.minus("UC00"), now = 0L)
+            fetcher.fetch(subs, priorityChannelIds = subs.mapTo(HashSet()) { it.id }.minus("UC00"), now = 0L)
 
             assertThat(asked).hasSize(homeSubsWindowSize(30))
             assertThat(asked).contains("UC00")

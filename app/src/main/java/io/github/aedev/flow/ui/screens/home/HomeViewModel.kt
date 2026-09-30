@@ -1160,7 +1160,6 @@ class HomeViewModel
                         try {
                             homeSubscriptionUploads.fetch(
                                 subscriptions = subscriptionOwners(userSubs),
-                                includeShorts = playerPreferences.effectiveHomeShortsShelfEnabled.first(),
                                 priorityChannelIds = storedFeed.channelsMissingLengths(System.currentTimeMillis()),
                             )
                         } catch (cancellation: CancellationException) {
@@ -1182,7 +1181,7 @@ class HomeViewModel
             userSubs: Set<String>,
         ) {
             val exclusions = feedExclusions()
-            val (reels, videos) = uploads.filterNot(exclusions::hidesFromRecommendations).partition { it.isShort }
+            val videos = uploads.filterNot(exclusions::hidesFromRecommendations)
             val onScreen = _uiState.value.videos.mapTo(HashSet()) { it.id }
             val candidates =
                 videos
@@ -1212,11 +1211,6 @@ class HomeViewModel
             merged?.let {
                 persistentHomeFeedCache.saveLastFeed(it)
                 Log.d(TAG, "Subscription top-up added $added uploads below the viewport")
-            }
-            val lateReels = reels.filterWatched(watchedShortIds.value)
-            if (lateReels.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
-                val rankedReels = FlowNeuroEngine.rank(lateReels, userSubs)
-                _uiState.update { state -> state.copy(shorts = (state.shorts + rankedReels).distinctBy { it.id }) }
             }
         }
 

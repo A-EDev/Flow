@@ -17,9 +17,9 @@ import javax.inject.Singleton
 
 /**
  * The background top-up of Home's subscription lane: the newest uploads of a window of the channels
- * the viewer follows, read from each channel's Videos tab (and Shorts tab when the Home shelf wants
- * reels). Channels whose stored uploads still lack a length go first, then the rotation. All channels
- * share one deadline and the ones that answered in time are kept.
+ * the viewer follows, read from each channel's Videos tab. Channels whose stored uploads still lack a
+ * length go first, then the rotation. All channels share one deadline and the ones that answered in
+ * time are kept.
  */
 @Singleton
 class HomeSubscriptionUploads
@@ -32,7 +32,6 @@ class HomeSubscriptionUploads
 
         suspend fun fetch(
             subscriptions: List<FeedItemOwner>,
-            includeShorts: Boolean,
             priorityChannelIds: Set<String> = emptySet(),
             deadlineMillis: Long = DEADLINE_MS,
             now: Long = System.currentTimeMillis(),
@@ -62,9 +61,7 @@ class HomeSubscriptionUploads
                     window.forEach { owner ->
                         launch {
                             gate.withPermit {
-                                uploads
-                                    .latest(owner, VIDEOS_PER_CHANNEL, if (includeShorts) SHORTS_PER_CHANNEL else 0)
-                                    .onSuccess { collected += it }
+                                uploads.latest(owner, VIDEOS_PER_CHANNEL).onSuccess { collected += it }
                             }
                         }
                     }
@@ -90,7 +87,6 @@ class HomeSubscriptionUploads
 
             // The whole first page: it costs the same request and busy channels post more than a few a day.
             const val VIDEOS_PER_CHANNEL = 30
-            const val SHORTS_PER_CHANNEL = 3
         }
     }
 
