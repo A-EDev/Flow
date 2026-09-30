@@ -122,6 +122,8 @@ class PlayerPreferences(
         val LAST_DOWNLOAD_HEIGHT = intPreferencesKey("last_download_height")
         val LAST_DOWNLOAD_CODEC = stringPreferencesKey("last_download_codec")
         val LAST_DOWNLOAD_AUDIO_LABEL = stringPreferencesKey("last_download_audio_label")
+        val LAST_DOWNLOAD_SUBTITLE_LANGUAGE = stringPreferencesKey("last_download_subtitle_language")
+        val DOWNLOAD_SUBTITLE_FILE = booleanPreferencesKey("download_subtitle_file")
         val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
         val PROXY_TYPE = stringPreferencesKey("proxy_type")
         val PROXY_HOST = stringPreferencesKey("proxy_host")
@@ -2649,6 +2651,24 @@ class PlayerPreferences(
             preferences[Keys.LAST_DOWNLOAD_TYPE] = "AUDIO"
             preferences[Keys.LAST_DOWNLOAD_AUDIO_LABEL] = audioLabel
         }
+    }
+
+    /** The subtitle language last chosen in the download dialog; blank for none, null if never chosen. */
+    val lastDownloadSubtitleLanguage: Flow<String?> =
+        context.playerPreferencesDataStore.data
+            .map { it[Keys.LAST_DOWNLOAD_SUBTITLE_LANGUAGE] }
+
+    suspend fun setLastDownloadSubtitleLanguage(languageTag: String) {
+        context.playerPreferencesDataStore.edit { it[Keys.LAST_DOWNLOAD_SUBTITLE_LANGUAGE] = languageTag }
+    }
+
+    /** Whether downloads started without the dialog save a subtitle file in the preferred language. */
+    val downloadSubtitleFile: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { it[Keys.DOWNLOAD_SUBTITLE_FILE] ?: false }
+
+    suspend fun setDownloadSubtitleFile(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { it[Keys.DOWNLOAD_SUBTITLE_FILE] = enabled }
     }
 
     val downloadOverWifiOnly: Flow<Boolean> =

@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DownloadDialogStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.components.videoplayer.settings.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.fakePlayerState
 import io.github.aedev.flow.ui.screens.player.fakeUiState
@@ -46,13 +47,16 @@ class PlayerDialogsContainerTest {
 
     private fun string(id: Int) = context.getString(id)
 
-    private fun setContainer(screenState: PlayerScreenState) {
+    private fun setContainer(
+        screenState: PlayerScreenState,
+        playerState: EnhancedPlayerState = fakePlayerState(),
+    ) {
         val video = fakeVideo()
         rule.setContent {
             MaterialTheme {
                 PlayerDialogsContainer(
                     screenState = screenState,
-                    playerState = fakePlayerState(),
+                    playerState = playerState,
                     uiState = fakeUiState(video = video),
                     video = video,
                     viewModel = relaxedVideoPlayerViewModel(),
@@ -98,7 +102,9 @@ class PlayerDialogsContainerTest {
     @Test
     fun downloadSheetMountsTheFullDialogWhenPreferred() {
         setDownloadDialogStyle(DownloadDialogStyle.FULL)
-        setContainer(PlayerScreenState().apply { open(PlayerSheet.Download) })
+        // No caption tracks: the Subtitles row is a text field, which never idles in a Dialog under
+        // Robolectric. Device twin: DownloadDialogsInstrumentedTest.
+        setContainer(PlayerScreenState().apply { open(PlayerSheet.Download) }, fakePlayerState(availableSubtitles = emptyList()))
 
         waitForText(R.string.download_video)
         rule.onNodeWithText(string(R.string.select_quality)).assertExists()

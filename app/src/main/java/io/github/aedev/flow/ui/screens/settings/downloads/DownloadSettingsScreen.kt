@@ -179,6 +179,7 @@ internal fun DownloadSettingsScreen(
             }
             toggleGroup(DownloadsIndex.menuStyle, menuStyles, menuStyle, viewModel::setMenuStyle)
             switch(DownloadsIndex.wifiOnly, viewModel.wifiOnly, viewModel::setWifiOnly)
+            switch(DownloadsIndex.subtitleFile, viewModel.subtitleFile, viewModel::setSubtitleFile)
         }
         group(key = "downloads.library", header = R.string.local_section_library) {
             nav(

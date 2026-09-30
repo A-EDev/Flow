@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.components.videoplayer.subtitle
+package io.github.aedev.flow.player.subtitle
 
 import androidx.media3.common.text.Cue
 

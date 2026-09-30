@@ -58,6 +58,13 @@ internal object DownloadsIndex {
             R.string.settings_section_download_defaults,
             summary = R.string.reduce_data_usage_subtitle,
         )
+    val subtitleFile =
+        entry(
+            "subtitle_file",
+            R.string.download_subtitle_file,
+            R.string.settings_section_download_defaults,
+            summary = R.string.download_subtitle_file_subtitle,
+        )
     val retag = entry("retag", R.string.download_retag_title, R.string.local_section_library)
     val concurrentDownloads =
         entry(
@@ -100,6 +107,7 @@ internal object DownloadsIndex {
             musicQuality,
             menuStyle,
             wifiOnly,
+            subtitleFile,
             retag,
             concurrentDownloads,
             threads,
