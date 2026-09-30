@@ -1,4 +1,4 @@
-package io.github.aedev.flow.ui.screens.settings.appearance.theme
+package io.github.aedev.flow.ui.components.shared
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,7 +30,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.shared.FlowAlertDialog
+import io.github.aedev.flow.utils.parseHexColor
+import io.github.aedev.flow.utils.sanitizeHexInput
+import io.github.aedev.flow.utils.toHexArgb
+import io.github.aedev.flow.utils.toHexRgb
 import kotlin.math.roundToInt
 
 private val PreviewHeight = 56.dp
@@ -45,7 +48,7 @@ private const val DARK_TEXT_LUMINANCE = 0.5f
  * With [allowAlpha] off the colour stays opaque, as the themes Flow Desktop exchanges require.
  */
 @Composable
-internal fun ColorPickerDialog(
+fun FlowColorPickerDialog(
     title: String,
     initialArgb: Long,
     onDismiss: () -> Unit,

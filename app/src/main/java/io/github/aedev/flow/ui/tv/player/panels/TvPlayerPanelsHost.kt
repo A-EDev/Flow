@@ -79,7 +79,6 @@ fun BoxScope.TvPlayerPanelsHost(
     video: Video,
     viewModel: VideoPlayerViewModel,
     manager: EnhancedPlayerManager,
-    selectedSubtitleUrl: String?,
     onSelectSubtitle: (Int, SubtitleOption) -> Unit,
     onDisableSubtitles: () -> Unit,
     ambientModeEnabled: Boolean,
@@ -133,7 +132,7 @@ fun BoxScope.TvPlayerPanelsHost(
                             ?.label,
                     currentSubtitleLabel =
                         playerState.availableSubtitles
-                            .firstOrNull { it.url == selectedSubtitleUrl }
+                            .firstOrNull { it.url == playerState.selectedSubtitleUrl }
                             ?.label,
                     subtitlesAvailable = playerState.availableSubtitles.isNotEmpty(),
                     audioTracksAvailable = playerState.availableAudioTracks.size > 1,
@@ -186,8 +185,8 @@ fun BoxScope.TvPlayerPanelsHost(
             TvPlayerPanel.SUBTITLES -> {
                 TvSubtitlesPage(
                     subtitles = playerState.availableSubtitles,
-                    selectedUrl = selectedSubtitleUrl,
-                    subtitlesEnabled = uiState.subtitlesEnabled,
+                    selectedUrl = playerState.selectedSubtitleUrl,
+                    subtitlesEnabled = playerState.selectedSubtitleUrl != null,
                     onDisable = onDisableSubtitles,
                     onSelect = onSelectSubtitle,
                 )

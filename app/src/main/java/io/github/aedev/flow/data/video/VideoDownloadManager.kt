@@ -20,6 +20,7 @@ import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.video.downloader.request.DownloadRequest
 import io.github.aedev.flow.data.video.downloader.work.DownloadStaging
 import io.github.aedev.flow.data.video.storage.DownloadDestination
 import io.github.aedev.flow.data.video.storage.DownloadFiles
@@ -392,7 +393,8 @@ class VideoDownloadManager
                         downloadDao.getDownloadWithItems(videoId)
                             ?: return@withContext false
 
-                    val filePaths = download.items.flatMap { artifactPathsFor(it.filePath) }.distinct()
+                    val subtitleFile = DownloadRequest.decode(download.download.requestJson)?.subtitleFile
+                    val filePaths = (download.items.flatMap { artifactPathsFor(it.filePath) } + listOfNotNull(subtitleFile)).distinct()
                     val thumbPath = download.download.thumbnailPath
 
                     recentlyDeletedPaths.addAll(filePaths)

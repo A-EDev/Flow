@@ -46,6 +46,7 @@ internal fun PlayerDialogsContainer(
                     innerTubeAudioFormats = uiState.innerTubeAudioFormats,
                     video = video,
                     currentPlayingHeight = playerState.effectiveQuality,
+                    subtitles = playerState.availableSubtitles,
                     onDismiss = { screenState.closeSheet() },
                 )
             }
@@ -56,6 +57,7 @@ internal fun PlayerDialogsContainer(
                     innerTubeVideoFormats = uiState.innerTubeVideoFormats,
                     innerTubeAudioFormats = uiState.innerTubeAudioFormats,
                     video = video,
+                    subtitles = playerState.availableSubtitles,
                     onDismiss = { screenState.closeSheet() },
                 )
             }

@@ -68,11 +68,14 @@ import io.github.aedev.flow.player.state.queuePresence
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
+import io.github.aedev.flow.player.stream.ResolvedCaption
 import io.github.aedev.flow.player.stream.ResolvedStreamData
 import io.github.aedev.flow.player.stream.ServicePlaybackStreamSelector
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
-import io.github.aedev.flow.player.stream.toSubtitlesStreams
+import io.github.aedev.flow.player.subtitle.SubtitleAutoPolicy
+import io.github.aedev.flow.player.subtitle.SubtitleDelay
+import io.github.aedev.flow.player.subtitle.SubtitleTracks
 import io.github.aedev.flow.player.surface.SurfaceManager
 import io.github.aedev.flow.player.surface.VideoSurfacePolicy
 import io.github.aedev.flow.player.tracker.PlaybackTracker
@@ -93,6 +96,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -102,7 +106,6 @@ import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.StreamType
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 @UnstableApi
@@ -141,11 +144,12 @@ class EnhancedPlayerManager private constructor() {
     private var currentVideoId: String? = null
     private var availableVideoStreams: List<VideoStream> = emptyList()
     private var availableAudioStreams: List<AudioStream> = emptyList()
-    private var availableSubtitles: List<SubtitlesStream> = emptyList()
+    private val subtitleTracks = SubtitleTracks()
+    private val subtitleDelay = SubtitleDelay()
+    private var subtitleDelayVideoId: String? = null
     private val _subtitleLoadFailedEvent = MutableSharedFlow<SubtitleLoadFailure>(extraBufferCapacity = 1)
     private var currentVideoStream: VideoStream? = null
     private var currentAudioStream: AudioStream? = null
-    private var selectedSubtitleIndex: Int? = null
     private var innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList()
     private var innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList()
 
@@ -208,6 +212,7 @@ class EnhancedPlayerManager private constructor() {
     /** Set by the DI graph; null until then, when queue advance streams as before. */
     @Volatile
     var localCopySource: LocalCopySource? = null
+    var localCaptionSource: LocalCaptionSource? = null
 
     /** Set by the DI graph; null until then, when autoplay hides nothing as before. */
     @Volatile
@@ -244,7 +249,7 @@ class EnhancedPlayerManager private constructor() {
                     availableVideoStreams = StreamProcessor.processVideoStreams(resolved.videoStreams),
                     dashManifestUrl = resolved.dashManifestUrl,
                     durationSeconds = resolved.durationSeconds,
-                    subtitleStreams = StreamProcessor.processSubtitleStreams(resolved.subtitles),
+                    captions = StreamProcessor.processCaptions(resolved.subtitles),
                     mediaId = resolved.enrichedVideo.id,
                     mediaMetadata =
                         resolved.enrichedVideo
@@ -546,14 +551,14 @@ class EnhancedPlayerManager private constructor() {
                     }
                 }
                 loader.onSubtitleLoadFailed = { index, label ->
-                    val failed = availableSubtitles.getOrNull(index)
+                    val failed = subtitleTracks.captions.getOrNull(index)
                     scope.launch {
                         _subtitleLoadFailedEvent.emit(
                             SubtitleLoadFailure(
                                 index = index,
                                 label = label,
-                                language = failed?.languageTag ?: failed?.locale?.toLanguageTag(),
-                                isTranslated = failed?.let(CaptionTrackResolver::isTranslated) == true,
+                                language = failed?.languageTag,
+                                isTranslated = failed?.isTranslated == true,
                             ),
                         )
                     }
@@ -662,7 +667,7 @@ class EnhancedPlayerManager private constructor() {
                     effects.equalizerRepository().processingSpec.collect { spec -> videoEqualizer?.setSpec(spec) }
                 }
         }
-        val renderersFactory = playerFactory.createRenderersFactory(context, arrayOf(equalizer))
+        val renderersFactory = playerFactory.createRenderersFactory(context, arrayOf(equalizer), subtitleDelay)
 
         player =
             playerFactory.createPlayer(
@@ -714,6 +719,17 @@ class EnhancedPlayerManager private constructor() {
                 globalLoopEnabled = isEnabled
                 player?.repeatMode = if (isEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
                 updateEffectiveLoopState()
+            }
+        }
+
+        built.launch {
+            combine(prefs.autoEnableSubtitles, prefs.preferredSubtitleLanguage) { enabled, language ->
+                SubtitleAutoPolicy(enabled, language)
+            }.collect { policy ->
+                if (subtitleTracks.setPolicy(policy)) {
+                    publishSubtitles()
+                    applySubtitleTrackSelection()
+                }
             }
         }
 
@@ -901,6 +917,7 @@ class EnhancedPlayerManager private constructor() {
                 }
 
                 override fun onTracksChanged(tracks: Tracks) {
+                    if (subtitleTracks.onTracksChanged(tracks)) publishSubtitles()
                     applySubtitleTrackSelection()
                     if (currentIsLiveStream) updateLiveQualityOptions(tracks)
                 }
@@ -927,7 +944,7 @@ class EnhancedPlayerManager private constructor() {
         filePath: String,
         savedSegments: List<SponsorBlockSegment>? = null,
         preservePosition: Long? = null,
-        subtitles: List<SubtitlesStream> = emptyList(),
+        subtitles: List<ResolvedCaption> = emptyList(),
     ) {
         Log.d(TAG, "playLocalFile: videoId=$videoId, path=$filePath, offlineSegments=${savedSegments?.size}, resumePos=$preservePosition")
         resetPlaybackStateForNewVideo(videoId)
@@ -935,11 +952,8 @@ class EnhancedPlayerManager private constructor() {
         configureTrackSelectorForLocalFile()
         currentVideoId = videoId
         currentLocalFilePath = filePath
-        availableSubtitles = StreamProcessor.processSubtitleStreams(subtitles)
-        _playerState.value =
-            _playerState.value.copy(
-                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
-            )
+        subtitleTracks.load(videoId, StreamProcessor.processCaptions(subtitles), acceptsEmbedded = true)
+        publishSubtitles()
         startPlaybackTracker()
 
         // Stored segments win even when empty (looked up, none found); a device file has none to look up.
@@ -958,6 +972,24 @@ class EnhancedPlayerManager private constructor() {
         )
     }
 
+    /** Adds a subtitle file to the device file that is playing and shows it, where it was. */
+    fun addLocalCaption(caption: ResolvedCaption): Boolean {
+        val videoId = currentVideoId ?: return false
+        val path = currentLocalFilePath ?: return false
+        val position = player?.currentPosition ?: 0L
+        val playWhenReady = player?.playWhenReady ?: true
+        subtitleTracks.load(videoId, StreamProcessor.processCaptions(subtitleTracks.captions + caption), acceptsEmbedded = true)
+        subtitleTracks.select(caption.url)
+        publishSubtitles()
+        return loadMediaInternal(
+            videoStream = null,
+            audioStream = null,
+            localFilePath = path,
+            preservePosition = position,
+            playWhenReady = playWhenReady,
+        )
+    }
+
     // ===== Stream Management =====
 
     suspend fun setStreams(
@@ -966,7 +998,7 @@ class EnhancedPlayerManager private constructor() {
         audioStream: AudioStream?,
         videoStreams: List<VideoStream>,
         audioStreams: List<AudioStream>,
-        subtitles: List<SubtitlesStream>,
+        subtitles: List<ResolvedCaption>,
         durationSeconds: Long = -1,
         dashManifestUrl: String? = null,
         localFilePath: String? = null,
@@ -1060,7 +1092,7 @@ class EnhancedPlayerManager private constructor() {
         // Process streams using StreamProcessor
         availableVideoStreams = StreamProcessor.processVideoStreams(videoStreams)
         availableAudioStreams = StreamProcessor.processAudioStreams(audioStreams)
-        availableSubtitles = StreamProcessor.processSubtitleStreams(subtitles)
+        subtitleTracks.load(videoId, StreamProcessor.processCaptions(subtitles), acceptsEmbedded = localFilePath != null)
         if (audioStream == null && availableAudioStreams.isEmpty()) {
             Log.w(TAG, "setStreams: no separate audio stream for $videoId; attempting video-only/muxed playback")
         }
@@ -1099,7 +1131,8 @@ class EnhancedPlayerManager private constructor() {
                         ?: 0,
                 availableQualities = buildAvailableQualityOptions(),
                 availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
-                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
+                availableSubtitles = subtitleTracks.options,
+                selectedSubtitleUrl = subtitleTracks.selected?.url,
                 currentQuality =
                     if (isAutoMode) {
                         0
@@ -1145,9 +1178,9 @@ class EnhancedPlayerManager private constructor() {
         currentAudioStream = null
         currentDashManifestUrl = null
         currentHlsUrl = null
-        selectedSubtitleIndex = null
-        availableSubtitles = emptyList()
-        disableTextTracks()
+        subtitleTracks.load(videoId, emptyList(), acceptsEmbedded = false)
+        resetSubtitleDelayFor(videoId)
+        applySubtitleTrackSelection()
         pendingLiveDisplaySeekPositionMs = null
         pendingLiveDisplaySeekAtMs = 0L
         pendingInitialLiveEdgeSeek = false
@@ -1169,6 +1202,7 @@ class EnhancedPlayerManager private constructor() {
                 isAtLiveEdge = false,
                 liveDurationMs = 0L,
                 availableSubtitles = emptyList(),
+                selectedSubtitleUrl = null,
             )
     }
 
@@ -1275,7 +1309,7 @@ class EnhancedPlayerManager private constructor() {
                 localFilePath = localFilePath,
                 audioOnly = false,
                 playWhenReady = playWhenReady,
-                subtitleStreams = availableSubtitles,
+                captions = subtitleTracks.captions,
                 mediaId = sessionMetadata?.mediaId.orEmpty(),
                 mediaMetadata = sessionMetadata?.toMedia3Metadata() ?: MediaMetadata.EMPTY,
             ) ?: false
@@ -1315,7 +1349,7 @@ class EnhancedPlayerManager private constructor() {
                 localFilePath = localFilePath,
                 audioOnly = audioOnly,
                 playWhenReady = playWhenReady,
-                subtitleStreams = availableSubtitles,
+                captions = subtitleTracks.captions,
                 sabrInfo = currentSabrInfo,
                 sabrVideoId = currentVideoId,
                 sabrPreferred = sabrPreferred,
@@ -1773,13 +1807,18 @@ class EnhancedPlayerManager private constructor() {
                             return@launch
                         }
                         setAutoplayCandidates(sourceVideoId = video.id, videos = emptyList(), enabled = autoplayEnabled)
+                        val local = localCaptionSource?.captionsFor(video.id, localCopyPath)
+                        if (shouldAbortServicePlaybackLoad(video.id, reason, checkpoint = "local-captions")) {
+                            return@launch
+                        }
                         playLocalFile(
                             videoId = video.id,
                             filePath = localCopyPath,
                             savedSegments = null,
                             preservePosition = null,
-                            subtitles = emptyList(),
+                            subtitles = local?.captions.orEmpty(),
                         )
+                        local?.offsetMs?.takeIf { it != 0L }?.let(::setSubtitleOffset)
                         if (resumeInAudioOnly) {
                             audioOnlyMode.applyStreams(true)
                             setVideoTracksDisabled(true)
@@ -1883,7 +1922,7 @@ class EnhancedPlayerManager private constructor() {
                                 .resolve(
                                     extraction.playerResponse,
                                     translateTo = preferredSubtitleLanguage,
-                                ).toSubtitlesStreams(),
+                                ),
                         durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
                         dashManifestUrl = extraction.liveDashUrl,
                         hlsUrl = extraction.liveHlsUrl,
@@ -2016,7 +2055,7 @@ class EnhancedPlayerManager private constructor() {
                         .resolve(
                             extraction.playerResponse,
                             translateTo = preferredSubtitleLanguage,
-                        ).toSubtitlesStreams(),
+                        ),
                 durationSeconds = InnerTubeVideoMapper.durationSeconds(extraction),
                 dashManifestUrl = extraction.liveDashUrl,
                 streamType = InnerTubeVideoMapper.streamType(extraction),
@@ -2067,11 +2106,11 @@ class EnhancedPlayerManager private constructor() {
 
         availableVideoStreams = StreamProcessor.processVideoStreams(data.videoStreams)
         availableAudioStreams = StreamProcessor.processAudioStreams(data.audioStreams)
-        availableSubtitles = StreamProcessor.processSubtitleStreams(data.subtitles)
+        subtitleTracks.load(data.enrichedVideo.id, StreamProcessor.processCaptions(data.subtitles), acceptsEmbedded = false)
+        resetSubtitleDelayFor(data.enrichedVideo.id)
         currentVideoStream = data.videoStream ?: availableVideoStreams.firstOrNull()
         currentAudioStream = data.audioStream
-        selectedSubtitleIndex = null
-        disableTextTracks()
+        applySubtitleTrackSelection()
 
         qualityManager?.resetForNewVideo()
         qualityManager?.setAvailableStreams(availableVideoStreams)
@@ -2115,7 +2154,8 @@ class EnhancedPlayerManager private constructor() {
                         ?: 0,
                 availableQualities = buildAvailableQualityOptions(),
                 availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
-                availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
+                availableSubtitles = subtitleTracks.options,
+                selectedSubtitleUrl = subtitleTracks.selected?.url,
                 currentQuality =
                     if (isAutoMode) {
                         0
@@ -2634,108 +2674,44 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
-    fun selectSubtitle(index: Int?) {
-        val resolvedIndex = index?.takeIf { it in availableSubtitles.indices }
-        if (selectedSubtitleIndex != resolvedIndex) {
-            selectedSubtitleIndex = resolvedIndex
-            Log.d(TAG, "Subtitle selected: $resolvedIndex")
-            applySubtitleTrackSelection()
-        }
+    /** Shows the track whose option has [url], or turns captions off for null. */
+    fun selectSubtitle(url: String?) {
+        subtitleTracks.select(url)
+        Log.d(TAG, "Subtitle selected: ${subtitleTracks.selected?.label}")
+        publishSubtitles()
+        applySubtitleTrackSelection()
+    }
+
+    /**
+     * Shifts captions by [offsetMs] for the video that is playing: positive shows them later. The
+     * track on screen is reloaded so a caption already showing moves too.
+     */
+    fun setSubtitleOffset(offsetMs: Long) {
+        subtitleDelayVideoId = currentVideoId
+        subtitleDelay.offsetUs = offsetMs * 1_000L
+        publishSubtitles()
+        trackSelector?.let { subtitleTracks.refresh(it) }
+    }
+
+    /** A new video starts in sync; the same video prepared again keeps its shift. */
+    private fun resetSubtitleDelayFor(videoId: String) {
+        if (videoId == subtitleDelayVideoId) return
+        subtitleDelayVideoId = videoId
+        subtitleDelay.offsetUs = 0L
     }
 
     private fun applySubtitleTrackSelection() {
         val selector = trackSelector ?: return
-        val index = selectedSubtitleIndex
-        if (index == null) {
-            disableTextTracks()
-            return
-        }
-
-        val subtitleId = MediaLoader.subtitleTrackId(index)
-        val textTrackGroup =
-            player
-                ?.currentTracks
-                ?.groups
-                ?.asSequence()
-                ?.filter { it.type == C.TRACK_TYPE_TEXT }
-                ?.firstOrNull { group ->
-                    (0 until group.length).any { trackIndex ->
-                        group.getTrackFormat(trackIndex).id == subtitleId
-                    }
-                }
-
-        if (textTrackGroup == null) {
-            applySubtitleFallbackSelection(selector, availableSubtitles.getOrNull(index))
-            return
-        }
-
-        val mediaTrackGroup = textTrackGroup.getMediaTrackGroup()
-        val trackIndex =
-            (0 until textTrackGroup.length).firstOrNull { groupTrackIndex ->
-                textTrackGroup.getTrackFormat(groupTrackIndex).id == subtitleId
-            } ?: 0
-
-        selector.setParameters(
-            selector
-                .buildUponParameters()
-                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
-                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-                .setOverrideForType(TrackSelectionOverride(mediaTrackGroup, trackIndex))
-                .build(),
-        )
+        subtitleTracks.apply(selector, player?.currentTracks ?: Tracks.EMPTY)
     }
 
-    private fun applySubtitleFallbackSelection(
-        selector: DefaultTrackSelector,
-        subtitle: SubtitlesStream?,
-    ) {
-        val wantedTag = subtitle?.languageTag ?: subtitle?.locale?.toLanguageTag()
-        val wantsMachineText = subtitle?.isAutoGenerated == true
-
-        val exactMatch =
-            wantedTag?.let { tag ->
-                player
-                    ?.currentTracks
-                    ?.groups
-                    ?.asSequence()
-                    ?.filter { it.type == C.TRACK_TYPE_TEXT }
-                    ?.flatMap { group ->
-                        (0 until group.length).asSequence().map { group to it }
-                    }?.firstOrNull { (group, trackIndex) ->
-                        val format = group.getTrackFormat(trackIndex)
-                        val isMachineText = format.roleFlags and C.ROLE_FLAG_TRANSCRIBES_DIALOG != 0
-                        format.language.equals(tag, ignoreCase = true) && isMachineText == wantsMachineText
-                    }
-            }
-
-        selector.setParameters(
-            selector
-                .buildUponParameters()
-                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
-                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-                .apply {
-                    if (exactMatch != null) {
-                        setOverrideForType(
-                            TrackSelectionOverride(exactMatch.first.getMediaTrackGroup(), exactMatch.second),
-                        )
-                    } else {
-                        setPreferredTextLanguage(wantedTag)
-                    }
-                }.build(),
-        )
-    }
-
-    private fun disableTextTracks() {
-        trackSelector?.let { selector ->
-            selector.setParameters(
-                selector
-                    .buildUponParameters()
-                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
-                    .setPreferredTextLanguage(null)
-                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-                    .build(),
+    private fun publishSubtitles() {
+        _playerState.value =
+            _playerState.value.copy(
+                availableSubtitles = subtitleTracks.options,
+                selectedSubtitleUrl = subtitleTracks.selected?.url,
+                subtitleOffsetMs = subtitleDelay.offsetUs / 1_000L,
             )
-        }
     }
 
     // ===== Audio Features =====

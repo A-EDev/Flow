@@ -77,6 +77,7 @@ class DownloadSettingsViewModel
         val musicQuality = preferences.musicDownloadQuality.asState(MusicAudioQuality.HIGH)
         val menuStyle = preferences.downloadDialogStyle.asState(DownloadDialogStyle.FULL)
         val wifiOnly = preferences.downloadOverWifiOnly.asState(false)
+        val subtitleFile = preferences.downloadSubtitleFile.asState(false)
         val threads = preferences.downloadThreads.asState(DEFAULT_THREADS)
         val concurrentDownloads = preferences.concurrentDownloads.asState(DEFAULT_CONCURRENT_DOWNLOADS)
         val cacheSizeMb = preferences.mediaCacheSizeMb.asState(DEFAULT_CACHE_MB)
@@ -141,6 +142,8 @@ class DownloadSettingsViewModel
                 preferences.setDownloadOverWifiOnly(value)
                 downloadController.applyNetworkPolicy()
             }
+
+        fun setSubtitleFile(value: Boolean) = write { preferences.setDownloadSubtitleFile(value) }
 
         fun setThreads(value: Int) = write { preferences.setDownloadThreads(value) }
 

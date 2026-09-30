@@ -129,5 +129,36 @@ class DownloadPlacement
             return DownloadNaming.unique(collection.folderName, hasExtension = false) { it in others || isOccupied(it) }
         }
 
+        /**
+         * Writes [text] as [name] beside the placed video [video], in the same folder or picked
+         * tree, replacing an earlier copy of the same file. Returns where it went, or null.
+         */
+        suspend fun placeBeside(
+            video: PlacedFile,
+            request: DownloadRequest,
+            name: String,
+            text: String,
+        ): String? =
+            naming.withLock {
+                val staged = File(context.cacheDir, name)
+                try {
+                    staged.writeText(text)
+                    if (!DownloadFiles.isDocument(video.path)) {
+                        val folder = File(video.path).parentFile ?: return@withLock null
+                        File(folder, name).takeIf { it.exists() }?.delete()
+                        DownloadFiles.moveInto(staged, folder, name)?.absolutePath
+                    } else {
+                        val fileType = if (request.wantsAudioOnly) DownloadFileType.AUDIO else DownloadFileType.VIDEO
+                        val tree =
+                            downloads.resolveDestination(fileType, downloads.savedLocation(request.isMusic)).exportTreeUri
+                                ?: return@withLock null
+                        val parent = request.collectionId?.let { collectionDao.getCollection(it)?.folderLocation }
+                        DownloadFiles.exportToTree(context, staged, tree, name, parent)
+                    }
+                } finally {
+                    staged.delete()
+                }
+            }
+
         private suspend fun isTaken(path: String): Boolean = File(path).exists() || downloadDao.existsByFilePath(path)
     }

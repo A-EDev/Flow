@@ -1,12 +1,21 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.DocumentsContract
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.PictureInPictureHelper
@@ -48,11 +57,20 @@ internal fun PlayerSettingsSheetHost(
     onSheetProgressChange: (Float) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val subtitleFilePicker =
+        rememberLauncherForActivityResult(OpenSubtitleFile()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                if (!viewModel.addSubtitleFile(uri)) {
+                    Toast.makeText(context, R.string.subtitle_add_file_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
 
     SettingsMenuDialog(
         playerState = playerState,
         autoplayEnabled = uiState.autoplayEnabled,
-        subtitlesEnabled = screenState.subtitlesEnabled,
+        subtitlesEnabled = playerState.selectedSubtitleUrl != null,
         initialPage = screenState.settingsPage,
         onDismiss = onDismiss,
         onQualitySelected = { option ->
@@ -64,10 +82,9 @@ internal fun PlayerSettingsSheetHost(
                 .subtitleFollowingAudio(
                     subtitles = playerState.availableSubtitles,
                     audioLanguage = playerState.availableAudioTracks.getOrNull(index)?.language,
-                    selectedUrl = screenState.selectedSubtitleUrl,
+                    selectedUrl = playerState.selectedSubtitleUrl,
                 )?.let { subtitleIndex ->
                     SubtitleSelection.applyAt(
-                        screenState = screenState,
                         subtitles = playerState.availableSubtitles,
                         index = subtitleIndex,
                         rememberLanguage = rememberSubtitleLanguage,
@@ -81,16 +98,21 @@ internal fun PlayerSettingsSheetHost(
                 scope.launch { playerPreferences.setPlaybackSpeed(speed) }
             }
         },
-        selectedSubtitleUrl = screenState.selectedSubtitleUrl,
+        selectedSubtitleUrl = playerState.selectedSubtitleUrl,
         onSubtitleSelected = { index ->
             SubtitleSelection.applyAt(
-                screenState = screenState,
                 subtitles = playerState.availableSubtitles,
                 index = index,
                 rememberLanguage = rememberSubtitleLanguage,
             )
         },
-        onDisableSubtitles = { SubtitleSelection.disable(screenState) },
+        onDisableSubtitles = { SubtitleSelection.disable() },
+        onSubtitleOffsetChange = viewModel::setSubtitleOffset,
+        onAddSubtitleFile =
+            {
+                scope.launch { subtitleFilePicker.launch(viewModel.subtitleFolder()) }
+                Unit
+            }.takeIf { uiState.localFilePath != null },
         onAutoplayToggle = { viewModel.toggleAutoplay(it) },
         onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
         onStableVolumeToggle = { viewModel.toggleStableVolume(it) },
@@ -126,4 +148,25 @@ internal fun PlayerSettingsSheetHost(
         onSheetProgressChange = onSheetProgressChange,
         modifier = if (asSidePanel) Modifier.fillMaxSize() else Modifier,
     )
+}
+
+/**
+ * The system file picker, opening in the given folder. Subtitle files have no reliable MIME type, so
+ * every file is offered and the extension decides.
+ */
+private class OpenSubtitleFile : ActivityResultContract<Uri?, Uri?>() {
+    private val openDocument = ActivityResultContracts.OpenDocument()
+
+    override fun createIntent(
+        context: Context,
+        input: Uri?,
+    ): Intent =
+        openDocument.createIntent(context, arrayOf("*/*")).apply {
+            input?.let { putExtra(DocumentsContract.EXTRA_INITIAL_URI, it) }
+        }
+
+    override fun parseResult(
+        resultCode: Int,
+        intent: Intent?,
+    ): Uri? = openDocument.parseResult(resultCode, intent)
 }

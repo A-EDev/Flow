@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.video.storage.DownloadLocation
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
+import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleEdgeType
 import io.github.aedev.flow.ui.components.videoplayer.subtitle.SubtitleStyle
 import io.github.aedev.flow.utils.DateContextMode
 import io.github.aedev.flow.utils.DateDisplayMode
@@ -71,13 +72,17 @@ class PlayerPreferences(
         val SHOW_CONTROLS_WHILE_LOADING = booleanPreferencesKey("show_controls_while_loading")
         val VIDEO_LOOP_ENABLED = booleanPreferencesKey("video_loop_enabled")
         val VIDEO_AMBIENT_MODE_ENABLED = booleanPreferencesKey("video_ambient_mode_enabled")
-        val SUBTITLES_ENABLED = booleanPreferencesKey("subtitles_enabled")
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
         val SUBTITLE_FONT_SIZE = floatPreferencesKey("subtitle_font_size")
         val SUBTITLE_TEXT_COLOR = intPreferencesKey("subtitle_text_color")
         val SUBTITLE_BACKGROUND_COLOR = intPreferencesKey("subtitle_background_color")
         val SUBTITLE_BOLD = booleanPreferencesKey("subtitle_bold")
+        val SUBTITLE_WINDOW_COLOR = intPreferencesKey("subtitle_window_color")
+        val SUBTITLE_EDGE_TYPE = stringPreferencesKey("subtitle_edge_type")
+        val SUBTITLE_EDGE_COLOR = intPreferencesKey("subtitle_edge_color")
         val SUBTITLE_BOTTOM_PADDING = floatPreferencesKey("subtitle_bottom_padding")
+        val SUBTITLE_FULLSCREEN_BOTTOM_PADDING = floatPreferencesKey("subtitle_fullscreen_bottom_padding")
+        val SUBTITLE_VERTICAL_FULLSCREEN_BOTTOM_PADDING = floatPreferencesKey("subtitle_vertical_fullscreen_bottom_padding")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val SLEEP_TIMER_CLOSE_APP_ON_EXPIRY = booleanPreferencesKey("sleep_timer_close_app_on_expiry")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
@@ -118,6 +123,8 @@ class PlayerPreferences(
         val LAST_DOWNLOAD_HEIGHT = intPreferencesKey("last_download_height")
         val LAST_DOWNLOAD_CODEC = stringPreferencesKey("last_download_codec")
         val LAST_DOWNLOAD_AUDIO_LABEL = stringPreferencesKey("last_download_audio_label")
+        val LAST_DOWNLOAD_SUBTITLE_LANGUAGE = stringPreferencesKey("last_download_subtitle_language")
+        val DOWNLOAD_SUBTITLE_FILE = booleanPreferencesKey("download_subtitle_file")
         val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
         val PROXY_TYPE = stringPreferencesKey("proxy_type")
         val PROXY_HOST = stringPreferencesKey("proxy_host")
@@ -1702,21 +1709,11 @@ class PlayerPreferences(
     }
 
     // Subtitles
-    val subtitlesEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.SUBTITLES_ENABLED] ?: false
-            }
-
-    suspend fun setSubtitlesEnabled(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SUBTITLES_ENABLED] = enabled
-        }
-    }
-
     val subtitleStyle: Flow<SubtitleStyle> =
         context.playerPreferencesDataStore.data
             .map { preferences ->
+                val bottomPadding = preferences[Keys.SUBTITLE_BOTTOM_PADDING] ?: SubtitleStyle.DEFAULT_BOTTOM_PADDING
+                val fullscreenBottomPadding = preferences[Keys.SUBTITLE_FULLSCREEN_BOTTOM_PADDING] ?: bottomPadding
                 SubtitleStyle(
                     fontSize = preferences[Keys.SUBTITLE_FONT_SIZE] ?: 14f,
                     textColor = Color(preferences[Keys.SUBTITLE_TEXT_COLOR] ?: Color.White.toArgb()),
@@ -1725,8 +1722,18 @@ class PlayerPreferences(
                             preferences[Keys.SUBTITLE_BACKGROUND_COLOR]
                                 ?: Color.Black.copy(alpha = 0.6f).toArgb(),
                         ),
+                    windowColor = preferences[Keys.SUBTITLE_WINDOW_COLOR]?.let(::Color) ?: Color.Transparent,
+                    edgeType =
+                        preferences[Keys.SUBTITLE_EDGE_TYPE]
+                            ?.let { stored -> SubtitleEdgeType.entries.firstOrNull { it.name == stored } }
+                            ?: SubtitleEdgeType.NONE,
+                    edgeColor = preferences[Keys.SUBTITLE_EDGE_COLOR]?.let(::Color) ?: Color.Black,
                     isBold = preferences[Keys.SUBTITLE_BOLD] ?: true,
-                    bottomPadding = preferences[Keys.SUBTITLE_BOTTOM_PADDING] ?: 48f,
+                    bottomPadding = bottomPadding,
+                    // Each starts at the value it would have used, so nobody's captions move until they set it.
+                    fullscreenBottomPadding = fullscreenBottomPadding,
+                    verticalFullscreenBottomPadding =
+                        preferences[Keys.SUBTITLE_VERTICAL_FULLSCREEN_BOTTOM_PADDING] ?: fullscreenBottomPadding,
                 )
             }
 
@@ -1736,7 +1743,12 @@ class PlayerPreferences(
             preferences[Keys.SUBTITLE_TEXT_COLOR] = style.textColor.toArgb()
             preferences[Keys.SUBTITLE_BACKGROUND_COLOR] = style.backgroundColor.toArgb()
             preferences[Keys.SUBTITLE_BOLD] = style.isBold
+            preferences[Keys.SUBTITLE_WINDOW_COLOR] = style.windowColor.toArgb()
+            preferences[Keys.SUBTITLE_EDGE_TYPE] = style.edgeType.name
+            preferences[Keys.SUBTITLE_EDGE_COLOR] = style.edgeColor.toArgb()
             preferences[Keys.SUBTITLE_BOTTOM_PADDING] = style.bottomPadding
+            preferences[Keys.SUBTITLE_FULLSCREEN_BOTTOM_PADDING] = style.fullscreenBottomPadding
+            preferences[Keys.SUBTITLE_VERTICAL_FULLSCREEN_BOTTOM_PADDING] = style.verticalFullscreenBottomPadding
         }
     }
 
@@ -2644,6 +2656,24 @@ class PlayerPreferences(
             preferences[Keys.LAST_DOWNLOAD_TYPE] = "AUDIO"
             preferences[Keys.LAST_DOWNLOAD_AUDIO_LABEL] = audioLabel
         }
+    }
+
+    /** The subtitle language last chosen in the download dialog; blank for none, null if never chosen. */
+    val lastDownloadSubtitleLanguage: Flow<String?> =
+        context.playerPreferencesDataStore.data
+            .map { it[Keys.LAST_DOWNLOAD_SUBTITLE_LANGUAGE] }
+
+    suspend fun setLastDownloadSubtitleLanguage(languageTag: String) {
+        context.playerPreferencesDataStore.edit { it[Keys.LAST_DOWNLOAD_SUBTITLE_LANGUAGE] = languageTag }
+    }
+
+    /** Whether downloads started without the dialog save a subtitle file in the preferred language. */
+    val downloadSubtitleFile: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { it[Keys.DOWNLOAD_SUBTITLE_FILE] ?: false }
+
+    suspend fun setDownloadSubtitleFile(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { it[Keys.DOWNLOAD_SUBTITLE_FILE] = enabled }
     }
 
     val downloadOverWifiOnly: Flow<Boolean> =

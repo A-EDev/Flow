@@ -279,7 +279,6 @@ class VideoPlayerViewModelEntryPointsTest {
             val video = video("vid_a")
             viewModel.playLocalVideo(video, "content://media/1")
             advanceUntilIdle()
-            viewModel.toggleSubtitles(true)
             viewModel.startBackgroundPlayback()
 
             viewModel.clearVideo()
@@ -300,20 +299,6 @@ class VideoPlayerViewModelEntryPointsTest {
             assertThat(viewModel.isLoadingComments.value).isFalse()
             assertThat(viewModel.hasMoreComments.value).isFalse()
             assertThat(viewModel.canGoPrevious.value).isFalse()
-        }
-
-    @Test
-    fun `toggleSubtitles only flips the ui flag`() =
-        runTest {
-            val viewModel = newViewModel()
-
-            viewModel.toggleSubtitles(true)
-            assertThat(viewModel.uiState.value.subtitlesEnabled).isTrue()
-
-            viewModel.toggleSubtitles(false)
-            assertThat(viewModel.uiState.value.subtitlesEnabled).isFalse()
-            verify(exactly = 0) { harness.playerManager.toggleLoop(any()) }
-            verify(exactly = 0) { harness.playerManager.setAutoplayCandidates(any(), any(), any()) }
         }
 
     @Test

@@ -7,8 +7,11 @@ import io.github.aedev.flow.data.video.DefaultDownloadSelection
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
 import io.github.aedev.flow.data.video.downloader.request.DownloadRequest
 import io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format
+import io.github.aedev.flow.player.stream.CaptionFormat
+import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor.VideoExtractionResult
+import io.github.aedev.flow.player.stream.ResolvedCaption
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,6 +21,8 @@ data class ResolvedStreams(
     val video: Format?,
     val audio: Format,
     val durationMs: Long,
+    /** The video's caption tracks as WebVTT, from the same response, for the files kept beside it. */
+    val captions: List<ResolvedCaption> = emptyList(),
 )
 
 sealed interface ResolveOutcome {
@@ -48,7 +53,19 @@ class DownloadStreamResolver
         ): ResolveOutcome {
             val result = InnerTubeVideoStreamExtractor.extract(request.videoId) ?: return ResolveOutcome.Unavailable
             if (result.isLive) return ResolveOutcome.Unavailable
-            return select(request, result, avoidItags, defaults())
+            val outcome = select(request, result, avoidItags, defaults())
+            if (outcome !is ResolveOutcome.Resolved || request.wantsAudioOnly) return outcome
+            return ResolveOutcome.Resolved(outcome.streams.copy(captions = captionsOf(request, result)))
+        }
+
+        private suspend fun captionsOf(
+            request: DownloadRequest,
+            result: VideoExtractionResult,
+        ): List<ResolvedCaption> {
+            val translateTo =
+                request.subtitle?.takeIf { it.translated }?.languageTag
+                    ?: preferences.preferredSubtitleLanguage.first()
+            return CaptionTrackResolver.resolve(result.playerResponse, format = CaptionFormat.VTT, translateTo = translateTo)
         }
 
         private suspend fun defaults(): SelectionDefaults =

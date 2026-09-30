@@ -165,7 +165,6 @@ internal fun SponsorSkipEffect(
 @Composable
 internal fun SubtitleLoadErrorEffect(
     context: Context,
-    screenState: PlayerScreenState,
     subtitles: List<SubtitleOption>,
     rememberLanguage: (String) -> Unit,
 ) {
@@ -181,10 +180,10 @@ internal fun SubtitleLoadErrorEffect(
                     wasTranslated = failure.isTranslated,
                 )
             val message =
-                if (fallback != null && SubtitleSelection.applyAt(screenState, options, fallback, rememberLanguage)) {
+                if (fallback != null && SubtitleSelection.applyAt(options, fallback, rememberLanguage)) {
                     context.getString(R.string.subtitle_translation_unavailable, options[fallback].label)
                 } else {
-                    SubtitleSelection.disable(screenState)
+                    SubtitleSelection.disable()
                     context.getString(R.string.subtitle_load_failed, failure.label)
                 }
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()

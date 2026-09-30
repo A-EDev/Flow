@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.video.DownloadStreamPolicy
+import io.github.aedev.flow.data.video.downloader.request.DownloadSubtitle
+import io.github.aedev.flow.player.state.SubtitleOption
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,6 +30,7 @@ fun MediaDownloadDialog(
     innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
     innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
     video: Video,
+    subtitles: List<SubtitleOption> = emptyList(),
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -37,6 +40,11 @@ fun MediaDownloadDialog(
                 .PlayerPreferences(context)
         }
     val preferredLang by audioLangPref.preferredAudioLanguage.collectAsState(initial = "")
+    val lastSubtitleLanguage by audioLangPref.lastDownloadSubtitleLanguage.collectAsState(initial = null)
+    val subtitleOptions = remember(subtitles) { downloadableSubtitles(subtitles) }
+    var subtitleChoice by remember(subtitleOptions, lastSubtitleLanguage) {
+        mutableStateOf(defaultDownloadSubtitle(subtitleOptions, lastSubtitleLanguage))
+    }
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
@@ -70,6 +78,15 @@ fun MediaDownloadDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+
+                if (subtitleOptions.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    DownloadSubtitleRow(
+                        options = subtitleOptions,
+                        selected = subtitleChoice,
+                        onSelect = { subtitleChoice = it },
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -137,7 +154,17 @@ fun MediaDownloadDialog(
                                         ).show()
                                     return@downloadVideo
                                 }
-                                DownloadLauncher.startVideoDownload(context, video, format, compatibleAudio)
+                                DownloadLauncher.startVideoDownload(
+                                    context,
+                                    video,
+                                    format,
+                                    compatibleAudio,
+                                    subtitle =
+                                        subtitleChoice?.toDownloadSubtitle() ?: DownloadSubtitle.OFF.takeIf {
+                                            subtitleOptions.isNotEmpty()
+                                        },
+                                )
+                                if (subtitleOptions.isNotEmpty()) rememberDownloadSubtitleChoice(audioLangPref, subtitleChoice)
                             },
                             shape = flowRowGroupShape(streamIndex, distinctFormats.size),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,

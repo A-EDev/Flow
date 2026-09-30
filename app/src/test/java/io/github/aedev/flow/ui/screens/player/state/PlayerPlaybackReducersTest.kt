@@ -5,7 +5,6 @@ import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.error.VideoErrorMapper
-import io.github.aedev.flow.player.stream.MergedPlayback
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.ui.screens.player.SecondaryMetadata
 import io.mockk.every
@@ -330,38 +329,4 @@ class PlayerPlaybackReducersTest {
             .setIsVideoOnly(true)
             .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP)
             .build()
-
-    private fun mergedPlayback(
-        selectedVideoStream: VideoStream? = null,
-        selectedAudioStream: AudioStream? = null,
-        availableQualities: List<VideoQuality> = emptyList(),
-        streamSizes: Map<String, Long> = emptyMap(),
-        hlsUrl: String? = null,
-        isLiveStream: Boolean = false,
-        localFilePath: String? = null,
-        preferredQuality: VideoQuality = VideoQuality.AUTO,
-    ): MergedPlayback =
-        MergedPlayback(
-            videoStreams = emptyList(),
-            audioStreams = emptyList(),
-            availableQualities = availableQualities,
-            selectedVideoStream = selectedVideoStream,
-            selectedAudioStream = selectedAudioStream,
-            subtitles = emptyList(),
-            chapters = emptyList(),
-            streamSizes = streamSizes,
-            innerTubeVideoFormats = emptyList(),
-            innerTubeAudioFormats = emptyList(),
-            hlsUrl = hlsUrl,
-            dashManifestUrl = null,
-            isLiveType = isLiveStream,
-            isLiveStream = isLiveStream,
-            hasPlayableContent = true,
-            localFilePath = localFilePath,
-            sabrInfo = null,
-            preferSabr = false,
-            preferredQuality = preferredQuality,
-            preferredCodecKey = "auto",
-            storyboard = emptyList(),
-        )
 }

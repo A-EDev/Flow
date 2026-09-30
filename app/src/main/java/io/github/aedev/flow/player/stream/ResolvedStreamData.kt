@@ -4,7 +4,6 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamType
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 /**
@@ -17,7 +16,7 @@ internal data class ResolvedStreamData(
     val audioStream: AudioStream?,
     val videoStreams: List<VideoStream>,
     val audioStreams: List<AudioStream>,
-    val subtitles: List<SubtitlesStream>,
+    val subtitles: List<ResolvedCaption>,
     val durationSeconds: Long,
     val dashManifestUrl: String?,
     val streamType: StreamType?,

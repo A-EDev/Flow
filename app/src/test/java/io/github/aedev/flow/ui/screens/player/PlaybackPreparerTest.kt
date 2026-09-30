@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoQuality
+import io.github.aedev.flow.data.localmedia.LocalSubtitles
 import io.github.aedev.flow.data.video.OfflineSubtitleStore
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
@@ -44,6 +45,7 @@ class PlaybackPreparerTest {
     private val playerManager: EnhancedPlayerManager = mockk(relaxed = true)
     private val playerPreferences: PlayerPreferences = mockk(relaxed = true)
     private val offlineSubtitleStore: OfflineSubtitleStore = mockk(relaxed = true)
+    private val localSubtitles: LocalSubtitles = mockk(relaxed = true)
 
     private lateinit var preparer: PlaybackPreparer
 
@@ -62,8 +64,9 @@ class PlaybackPreparerTest {
         every { playerPreferences.defaultQualityWifi } returns flowOf(VideoQuality.Q_1080P)
         every { playerPreferences.defaultQualityCellular } returns flowOf(VideoQuality.Q_480P)
         coEvery { offlineSubtitleStore.load(any()) } returns emptyList()
+        coEvery { localSubtitles.picked(any()) } returns emptyList()
 
-        preparer = PlaybackPreparer(context, playerManager, playerPreferences, offlineSubtitleStore)
+        preparer = PlaybackPreparer(context, playerManager, playerPreferences, offlineSubtitleStore, localSubtitles)
     }
 
     @After
@@ -154,7 +157,7 @@ class PlaybackPreparerTest {
                     filePath = "/downloads/vid.mp4",
                     savedSegments = null,
                     preservePosition = 30_000L,
-                    subtitles = match { subtitles -> subtitles.map { it.getContent() } == listOf("file:///captions/en.vtt") },
+                    subtitles = match { subtitles -> subtitles.map { it.url } == listOf("file:///captions/en.vtt") },
                 )
                 playerManager.play()
             }

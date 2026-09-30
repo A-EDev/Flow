@@ -13,7 +13,6 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.stream.CaptionTrackResolver
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
-import io.github.aedev.flow.player.stream.MergedPlayback
 import io.github.aedev.flow.player.stream.PlaybackFailure
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModelHarness.Companion.video
@@ -87,6 +86,7 @@ class PlaybackSessionApplierTest {
             sponsorBlockRepository = harness.sponsorBlockRepository,
             videoDownloadManager = harness.videoDownloadManager,
             offlineSubtitleStore = harness.offlineSubtitleStore,
+            localSubtitles = harness.localSubtitles,
             playerManager = harness.playerManager,
             scope = this,
             networkDispatcher = testDispatcher,

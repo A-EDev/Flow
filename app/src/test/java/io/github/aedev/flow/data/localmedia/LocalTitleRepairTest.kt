@@ -37,4 +37,28 @@ class LocalTitleRepairTest {
     fun `a clean title is never touched`() {
         assertThat(repairedTitle("Snälla", "Sn??lla.mp4")).isEqualTo("Snälla")
     }
+
+    @Test
+    fun `a character a downloader swapped for its full-width form still matches`() {
+        assertThat(
+            repairedTitle(
+                "Kosten f??r Pflege: Warum Deutschland dringend eine Reform braucht",
+                "Kosten für Pflege： Warum Deutschland dringend eine Reform braucht.mkv",
+            ),
+        ).isEqualTo("Kosten für Pflege: Warum Deutschland dringend eine Reform braucht")
+        assertThat(repairedTitle("Sm??rrebr??d | Vegetarian", "How To Make Danish Smørrebrød ｜ Vegetarian Recipe.mp4"))
+            .isEqualTo("Smørrebrød | Vegetarian")
+    }
+
+    @Test
+    fun `however many marks a scanner used per character, the title comes back`() {
+        assertThat(repairedTitle("Bl?b?r ?", "Blåbær 😂.webm")).isEqualTo("Blåbær 😂")
+        assertThat(repairedTitle("Bl??b??r ??", "Blåbær 😂.webm")).isEqualTo("Blåbær 😂")
+        assertThat(
+            repairedTitle(
+                "Das Gesch??ft mit den ???Teufelsrad???-Videos #tagesschau",
+                "Das Geschäft mit den „Teufelsrad“-Videos #tagesschau.mp4",
+            ),
+        ).isEqualTo("Das Geschäft mit den „Teufelsrad“-Videos #tagesschau")
+    }
 }

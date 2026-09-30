@@ -65,6 +65,11 @@ NEW FEATURES
 - Local songs show the lyrics from a .lrc file next to them, or the lyrics embedded in the file, without looking anything up online (#1169)
 - Downloaded songs keep their lyrics inside the file, so Flow and other players show them with no connection
 - Local media search also matches file names and ignores accents (#1177)
+- Downloaded videos can save a subtitle file beside them, named so other players find it: pick the language in the download menu, or turn on Subtitle file in Downloads settings (#1182)
+- Local media videos find their subtitle files by themselves and turn them on, the way movie and series releases lay them out: named like the video, matched by episode (S01E02), in a Subs folder, or alone with a movie in its folder. They also list the subtitles inside MKV and MP4 files, and play any subtitle file you add from the subtitle menu, which opens in the video's folder, including files in older text encodings (#1028)
+- Subtitle timing: move captions earlier or later from the subtitle menu when a file does not match the video. A device video or download remembers its timing
+- Subtitle Style adds custom colors, a caption window color and opacity, and an edge style such as outline or drop shadow (#1182)
+- Subtitles have their own positions in landscape and vertical fullscreen, with a wider range, and sit on the picture rather than the edge of the screen, so vertical fullscreen lines them up with the video (#1098)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -167,8 +172,10 @@ FIXES AND STABILITY
 - Pressing Home at the top of the feed refreshes once, and further presses wait for it instead of stacking reloads (#1171)
 - Old Shorts no longer show up as new uploads in Subscriptions (#1175)
 - Fix Local media search in the Folders view ignoring what you typed, and a pull to refresh whose spinner could stay on screen for good (#1167)
-- Fix new Local media files showing accented letters as question marks: the title is rebuilt from the file name (#1176)
+- Fix new Local media files showing accented letters as question marks: the title is rebuilt from the file name, including titles with characters a downloader changed in the file name, such as a colon or a bar (#1176)
 - Fix the shades at the top and bottom of vertical videos staying on screen after the controls hide, and tablets that stay in landscape getting the upright fullscreen layout (#1179)
+- Fix automatic captions not turning on for the next video in a queue or autoplay, and the Subtitles switch in TV settings doing nothing (#1182)
+- Fix the subtitle position setting being ignored on downloaded videos, whose captions sat on the bottom edge (#1182)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

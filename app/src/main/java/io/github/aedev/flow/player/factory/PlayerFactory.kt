@@ -21,6 +21,7 @@ import io.github.aedev.flow.player.audio.shouldHandleAudioFocus
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.config.VideoSizeCap
 import io.github.aedev.flow.player.renderer.CustomRenderersFactory
+import io.github.aedev.flow.player.subtitle.SubtitleDelay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -124,8 +125,9 @@ class PlayerFactory {
     fun createRenderersFactory(
         context: Context,
         audioProcessors: Array<AudioProcessor> = emptyArray(),
+        subtitleDelay: SubtitleDelay = SubtitleDelay(),
     ): DefaultRenderersFactory =
-        CustomRenderersFactory(context, audioProcessors)
+        CustomRenderersFactory(context, audioProcessors, subtitleDelay)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setEnableDecoderFallback(true)
 
