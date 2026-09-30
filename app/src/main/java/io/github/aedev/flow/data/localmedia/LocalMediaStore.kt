@@ -44,12 +44,14 @@ internal class LocalMediaStore(
             val rotated = cursor.intOrNull(MediaStore.Video.Media.ORIENTATION).let { it == ROTATED_90 || it == ROTATED_270 }
             val width = cursor.int(MediaStore.Video.Media.WIDTH)
             val height = cursor.int(MediaStore.Video.Media.HEIGHT)
+            val fileName = cursor.string(MediaStore.Video.Media.DISPLAY_NAME).orEmpty()
+            val title = cursor.title(MediaStore.Video.Media.TITLE, MediaStore.Video.Media.DISPLAY_NAME) ?: return@query null
             LocalMediaItem(
                 id = id,
                 isVideo = true,
                 contentUri = ContentUris.withAppendedId(collection, id).toString(),
-                title = cursor.title(MediaStore.Video.Media.TITLE, MediaStore.Video.Media.DISPLAY_NAME) ?: return@query null,
-                fileName = cursor.string(MediaStore.Video.Media.DISPLAY_NAME).orEmpty(),
+                title = repairedTitle(title, fileName),
+                fileName = fileName,
                 durationMs = cursor.long(MediaStore.Video.Media.DURATION),
                 sizeBytes = size,
                 dateAddedMs = cursor.long(MediaStore.Video.Media.DATE_ADDED) * MILLIS_PER_SECOND,
@@ -97,12 +99,14 @@ internal class LocalMediaStore(
             val size = cursor.long(MediaStore.Audio.Media.SIZE)
             if (size <= 0L) return@query null
             val albumId = cursor.long(MediaStore.Audio.Media.ALBUM_ID)
+            val fileName = cursor.string(MediaStore.Audio.Media.DISPLAY_NAME).orEmpty()
+            val title = cursor.title(MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.DISPLAY_NAME) ?: return@query null
             LocalMediaItem(
                 id = id,
                 isVideo = false,
                 contentUri = ContentUris.withAppendedId(collection, id).toString(),
-                title = cursor.title(MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.DISPLAY_NAME) ?: return@query null,
-                fileName = cursor.string(MediaStore.Audio.Media.DISPLAY_NAME).orEmpty(),
+                title = repairedTitle(title, fileName),
+                fileName = fileName,
                 durationMs = cursor.long(MediaStore.Audio.Media.DURATION),
                 sizeBytes = size,
                 dateAddedMs = cursor.long(MediaStore.Audio.Media.DATE_ADDED) * MILLIS_PER_SECOND,
