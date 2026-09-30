@@ -147,7 +147,7 @@
     <string name="itag">iTag</string>
     <string name="mime_type">Tipo de Mime</string>
     <string name="status_upcoming">PRÓXIMAMENTE</string>
-    <string name="status_live">EN VIVO</string>
+    <string name="status_live">EN DIRECTO</string>
     <string name="premiere_soon">Próximos estrenos</string>
     <string name="premiere_date_prefix">Estreno %1$s</string>
     <string name="file_size">Tamaño del archivo</string>
@@ -342,7 +342,7 @@
     <string name="tab_about">Acerca de</string>
     <string name="channel_default_title">Canal</string>
     <string name="tab_playlists">Listas</string>
-    <string name="tab_live">En Vivo</string>
+    <string name="tab_live">En Directo</string>
     <string name="no_videos_found">No se encontraron vídeos</string>
     <string name="end_of_queue">Fin de la cola</string>
     <string name="no_shorts_found">No se encontraron shorts</string>
@@ -479,7 +479,7 @@
     <string name="player_settings_rytd_subtitle">Obtener recuentos de \"No me gusta\" del servicio \"Return YouTube Dislike\"</string>
     <string name="content_settings_comments_preview_title">Vista previa de comentarios</string>
     <string name="content_settings_comments_enabled_subtitle">Cargar y mostrar la sección de comentarios en la pantalla del reproductor de video</string>
-    <string name="content_settings_subs_show_live_subtitle">Mostrar transmisiones en Vivo y recién finalizadas en el feed de suscripciones</string>
+    <string name="content_settings_subs_show_live_subtitle">Muestra directos y emisiones recientes en tu feed</string>
     <string name="playlist_sort_date_published_newest">Fecha de publicación (más reciente)</string>
     <string name="player_appearance_remember_brightness_title">Recuerda el brillo</string>
     <string name="section_from_the_community">De la comunidad</string>
@@ -649,7 +649,7 @@
     <string name="categories_switch_to_list">Cambiar a vista de lista</string>
     <string name="category_trending">Tendencia</string>
     <string name="category_movies">Cine</string>
-    <string name="category_live">En Vivo</string>
+    <string name="category_live">En Directo</string>
     <string name="player_settings_mini_player_continue_watching_title">Mini Reproductor de Continuar viendo</string>
     <string name="settings_continue_watching_subtitle">Muestra una estantería de videos en progreso en la pantalla de inicio.</string>
     <string name="continue_watching_title">Continuar Viendo</string>
@@ -1215,7 +1215,7 @@
     <string name="player_action_copy_link_at_time">Copiar en el momento</string>
     <string name="player_action_dislike">Aversión</string>
     <string name="link_with_timestamp_copied">Enlace con marca de tiempo copiada</string>
-    <string name="player_live_label">EN VIVO</string>
+    <string name="player_live_label">EN DIRECTO</string>
     <string name="action_want_more">Ver más contenido como este</string>
     <string name="action_not_interested">No interesado</string>
     <string name="diagnostics_tab_session">Registros de sesión</string>
@@ -1398,7 +1398,7 @@
     <string name="taste_complexity">Complejidad</string>
     <string name="taste_duration">Preferencia de duración</string>
     <string name="taste_pacing">ritmo</string>
-    <string name="taste_live_affinity">Afinidad en vivo</string>
+    <string name="taste_live_affinity">Preferencia por los directos</string>
     <string name="taste_duration_detail">Los valores más altos se inclinan hacia videos más largos</string>
     <string name="taste_topic_breadth">Amplitud del tema</string>
     <string name="interest_weights_title">Ponderaciones de intereses</string>
@@ -1492,7 +1492,7 @@
     <string name="content_settings_subs_show_videos_subtitle">Mostrar videos regulares en el feed de suscripciones</string>
     <string name="content_settings_subs_show_shorts_title">Shorts de suscripciones</string>
     <string name="content_settings_comments_enabled_title">Comentarios</string>
-    <string name="content_settings_subs_show_live_title">En vivo de tus suscripciones</string>
+    <string name="content_settings_subs_show_live_title">Directos de tus suscripciones</string>
     <string name="hide_channel_shorts">Ocultar Shorts de este canal</string>
     <string name="content_settings_subs_show_shorts_subtitle">Mostrar Shorts en el feed de suscripciones</string>
     <string name="show_channel_shorts">Mostrar Shorts de este canal</string>
@@ -1773,7 +1773,7 @@
     <string name="persona_audiophile_title">Audiófilo</string>
     <string name="persona_audiophile_description">Usas Flow principalmente para la música. El ambiente lo es todo.</string>
     <string name="persona_livewire_title">Entusiasta de los directos</string>
-    <string name="persona_livewire_description">Te encanta la energía pura de las transmisiones en vivo y los estrenos.</string>
+    <string name="persona_livewire_description">Te encanta la energía pura de los directos y los estrenos.</string>
     <string name="persona_night_owl_title">Búho nocturno</string>
     <string name="persona_night_owl_description">Te desenvuelves mejor en la oscuridad. La mayor parte de lo que ves es después de la medianoche.</string>
     <string name="persona_binger_title">Devorador de contenido</string>
@@ -2092,7 +2092,7 @@
     <string name="discord_presence_account">Cuenta de Discord</string>
     <string name="discord_presence_privacy_section">Privacidad y riesgo de cuenta</string>
     <string name="discord_presence_privacy_title">Privacidad</string>
-    <string name="discord_presence_privacy_body">Cuando está activado, Flow comparte el video, Short, transmisión en vivo o título de la canción que estás reproduciendo, junto con el creador o artista, la portada y el tiempo de reproducción, con Discord. Esta configuración viene desactivada por defecto. Tu token de sesión de Discord se cifra con Android Keystore y nunca se incluye en los registros de la aplicación.</string>
+    <string name="discord_presence_privacy_body">Flow comparte el título, el creador, la portada y el progreso de lo que reproduces. Desactivado por defecto. Tu token de Discord está cifrado y nunca se registra.</string>
     <string name="discord_presence_gateway_warning">Flow utiliza una conexión de \'self-bot\' no oficial con tu token de cuenta de Discord, no mediante OAuth. Esto viola los Términos de Servicio de Discord y puede provocar la suspensión o cancelación de tu cuenta. Los clientes no compatibles también pueden desencadenar alertas de fuga de token, restablecimientos de contraseña, CAPTCHAs o bloqueos de verificación por teléfono.</string>
     <string name="discord_presence_risk_dialog_title">¿Aceptar el riesgo de la cuenta de Discord?</string>
     <string name="discord_presence_risk_dialog_body">La conexión inicia sesión a través de Discord y proporciona a Flow tu token de cuenta de Discord. Flow lo almacena cifrado con Android Keystore y solo lo envía a Discord, pero este método no oficial de \'self-bot\' viola los Términos de Servicio de Discord. Discord podría suspender o cancelar tu cuenta, exigir un restablecimiento de contraseña, mostrar CAPTCHAs o bloquear la cuenta requiriendo verificación por teléfono.</string>
@@ -2656,4 +2656,25 @@
     <string name="music_bucket_plays">%1$d reproducciones</string>
     <string name="music_blocked_artists_subtitle">Artistas que el motor nunca recomendará</string>
     <string name="music_persona_empty">Pon algo de música y el motor empezará a aprender</string>
+    <string name="subscriptions_failed_channels_copy_logs">Copiar registros</string>
+    <string name="channel_add_to_group">Añadir a grupo</string>
+    <string name="channel_groups_sheet_title">Grupos de canales</string>
+    <string name="channel_groups_empty">Sin grupos todavía</string>
+    <string name="content_settings_channel_group_badge_title">Mostrar grupo en los avatares de canales</string>
+    <string name="content_settings_channel_group_badge_subtitle">Etiquetar avatares con su grupo de suscripción</string>
+    <string name="music_player_tab_up_next">Siguiente</string>
+    <string name="music_player_tab_lyrics">Letras</string>
+    <string name="music_player_lyrics_full_screen">Letras a pantalla completa</string>
+    <string name="lyrics_play_from_line">Reproducir desde esta línea</string>
+    <string name="lyrics_show_translation">Traducción</string>
+    <string name="lyrics_show_translation_summary">Muestra la traducción debajo de cada letra</string>
+    <string name="lyrics_show_romanization">Romanización</string>
+    <string name="lyrics_show_romanization_summary">Muestra las letras en otros alfabetos también en letras latinas</string>
+    <string name="lyrics_auto_romanize">Romanizar en este dispositivo</string>
+    <string name="lyrics_auto_romanize_summary">Cuando las fuentes de las letras no incluyen romanización</string>
+    <string name="player_appearance_artwork_control_colors_title">Colores de portada en los controles</string>
+    <string name="player_appearance_artwork_control_colors_subtitle">Teñir los botones y la barra de progreso según la portada</string>
+    <string name="player_appearance_plain_control_colors_title">Colores de los controles</string>
+    <string name="player_appearance_plain_control_colors_monochrome">Negro y blanco</string>
+    <string name="player_appearance_plain_control_colors_app">Tema de la aplicación</string>
 </resources>
