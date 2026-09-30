@@ -112,7 +112,9 @@ class RssSubscriptionServiceTest {
     fun `a channel whose RSS lists only reels falls back to its tabs`() =
         runTest {
             reelIds = setOf("r1", "r2")
-            rss("UCa", entry("r1"), entry("r2"))
+            // The feed keeps a channel's newest reel only, so r2 is clearly older: two equal ages read
+            // the clock twice and could otherwise put r2 a millisecond ahead.
+            rss("UCa", entry("r1"), entry("r2", ageHours = 4))
             coEvery { uploads.fetch("UCa", any(), any()) } returns
                 Result.success(ChannelUploads(owner = FeedItemOwner("UCa", "Channel"), videos = listOf(upload("long", "UCa"))))
 
