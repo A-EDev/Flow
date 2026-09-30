@@ -12,13 +12,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,6 +35,10 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.distinctByNonBlankKey
 import io.github.aedev.flow.ui.theme.extendedColors
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+
+private const val SHOWN_DEBOUNCE_MS = 500L
 
 private val ShelfVerticalPadding = 4.dp
 private val HeaderHorizontalPadding = 12.dp
@@ -42,6 +51,7 @@ private val StripContentPadding = PaddingValues(horizontal = 12.dp)
  * A horizontal strip of reels under the Shorts heading. [title] is the server's shelf title where
  * one exists; the branded default otherwise.
  */
+@OptIn(FlowPreview::class)
 @Composable
 fun MediaShortsShelf(
     shorts: List<Video>,
@@ -49,9 +59,19 @@ fun MediaShortsShelf(
     modifier: Modifier = Modifier,
     title: String? = null,
     onSeeAllClick: (() -> Unit)? = null,
+    onShortsShown: ((ids: List<String>) -> Unit)? = null,
 ) {
     val uniqueShorts = remember(shorts) { shorts.distinctByNonBlankKey(Video::id) }
     if (uniqueShorts.isEmpty()) return
+    val rowState = rememberLazyListState()
+    if (onShortsShown != null) {
+        val currentOnShortsShown by rememberUpdatedState(onShortsShown)
+        LaunchedEffect(rowState) {
+            snapshotFlow { rowState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? String } }
+                .debounce(SHOWN_DEBOUNCE_MS)
+                .collect { currentOnShortsShown(it) }
+        }
+    }
     Column(
         modifier =
             modifier
@@ -90,6 +110,7 @@ fun MediaShortsShelf(
         }
 
         LazyRow(
+            state = rowState,
             contentPadding = StripContentPadding,
             horizontalArrangement = Arrangement.spacedBy(ShortCardDefaults.StripSpacing),
         ) {

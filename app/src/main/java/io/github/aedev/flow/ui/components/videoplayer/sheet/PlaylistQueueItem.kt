@@ -43,6 +43,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.shared.MediaThumbnail
 import io.github.aedev.flow.ui.components.shared.ReorderHandle
+import io.github.aedev.flow.ui.components.shared.card.LocalVideoCardPreferences
 import io.github.aedev.flow.ui.components.shared.quickactions.VideoQuickActionsBottomSheet
 
 private val ThumbnailWidth: Dp = 112.dp
@@ -162,7 +163,7 @@ private fun QueueRowContent(
                 thumbnailUrl = video.thumbnailUrl,
                 width = ThumbnailWidth,
                 durationSeconds = video.duration.takeUnless { isPlaying },
-                showWatchProgress = true,
+                showWatchProgress = LocalVideoCardPreferences.current.showWatchProgress,
                 overlay = { if (isPlaying) NowPlayingMark(Modifier.align(Alignment.TopStart)) },
             )
 

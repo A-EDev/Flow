@@ -320,6 +320,7 @@ internal fun HistoryEntryRow(
         onMusicClick = { onMusicClick(track, musicQueue) },
         removeLabel = removeLabel,
         onRemove = { onRemove(entry) },
+        showWatchProgress = true,
         modifier = modifier,
         subtitle = entry.channelName.takeIf { it.isNotBlank() },
         thumbnailUrl = entry.thumbnailUrl,

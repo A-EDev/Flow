@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.dao.CacheDao
 import io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.subscriptions.SubscriptionFeedMerger.preservingEnrichedMetadata
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -98,6 +99,7 @@ class SubscriptionFeedRepository
                             channelIds = plan.channelIds,
                             maxTotal = MAX_SUBSCRIPTION_CACHE_ITEMS,
                             knownVideoIds = if (plan.isFullRefresh) emptySet() else allCached.mapTo(HashSet()) { it.id },
+                            storedReelVerdicts = allCached.associate { it.id to it.isShort },
                             onProgress = { done, _ -> processed = done },
                         ).collect { chunk ->
                             failedChannelIds = chunk.failedChannelIds
@@ -271,6 +273,24 @@ class SubscriptionFeedRepository
             }
         }
 
+        /**
+         * Uploads Home read from channel tabs. A row RSS already stored keeps its exact publish time
+         * and gains the length and counts RSS cannot give; an upload RSS has not seen yet is added.
+         * The channel is not marked fetched, so the feed's own refresh schedule is unchanged.
+         */
+        suspend fun mergeChannelTabUploads(uploads: List<Video>) {
+            if (uploads.isEmpty()) return
+            val now = System.currentTimeMillis()
+            val recent = uploads.filter { it.timestamp > now - SUBSCRIPTION_CACHE_WINDOW_MS }
+            if (recent.isEmpty()) return
+            val stored = withContext(PerformanceDispatcher.diskIO) { loadCachedFeed() }
+            val (inserts, updates) = splitChannelTabUploads(recent, stored)
+            withContext(PerformanceDispatcher.diskIO) {
+                cacheDao.insertSubscriptionFeedIfAbsent(inserts.map { it.toEntity(now) })
+            }
+            updateEnrichedMetadata(updates)
+        }
+
         private suspend fun loadCachedFeed(): List<Video> = cacheDao.getSubscriptionFeed().first().map { it.toVideo() }
 
         private companion object {
@@ -283,6 +303,16 @@ class SubscriptionFeedRepository
             const val SQLITE_VARIABLE_LIMIT = 500
         }
     }
+
+/** New rows to add, and stored rows with the tab's length and counts but their own publish time. */
+internal fun splitChannelTabUploads(
+    uploads: List<Video>,
+    stored: List<Video>,
+): Pair<List<Video>, List<Video>> {
+    val byId = stored.associateBy { it.id }
+    val (known, unseen) = uploads.partition { it.id in byId }
+    return unseen to known.map { byId.getValue(it.id).preservingEnrichedMetadata(it) }
+}
 
 private fun SubscriptionFeedEntity.toVideo() =
     Video(

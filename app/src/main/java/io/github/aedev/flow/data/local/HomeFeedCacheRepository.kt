@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.local
 import android.content.Context
 import io.github.aedev.flow.data.local.entity.HomeFeedCacheEntity
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FeedExclusions
 import org.json.JSONArray
 
 data class CachedHomeVideo(
@@ -13,9 +14,7 @@ data class CachedHomeVideo(
 
 data class HomeFeedCacheFilters(
     val watchedVideoIds: Set<String> = emptySet(),
-    val suppressedVideoIds: Set<String> = emptySet(),
-    val blockedChannelIds: Set<String> = emptySet(),
-    val suppressedChannelIds: Set<String> = emptySet(),
+    val exclusions: FeedExclusions = FeedExclusions.NONE,
 )
 
 internal fun filterCachedHomeVideos(
@@ -23,11 +22,7 @@ internal fun filterCachedHomeVideos(
     filters: HomeFeedCacheFilters,
 ): List<CachedHomeVideo> =
     items.filter { item ->
-        val video = item.video
-        video.id !in filters.watchedVideoIds &&
-            video.id !in filters.suppressedVideoIds &&
-            (video.channelId.isBlank() || video.channelId !in filters.blockedChannelIds) &&
-            (video.channelId.isBlank() || video.channelId !in filters.suppressedChannelIds)
+        item.video.id !in filters.watchedVideoIds && !filters.exclusions.hidesFromRecommendations(item.video)
     }
 
 internal fun selectReservePageFromCache(

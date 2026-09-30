@@ -8,6 +8,10 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -111,5 +115,37 @@ class ChannelReelIndexTest {
 
             assertEquals(input, marked)
             coVerify(exactly = 0) { YouTube.channelShorts(any()) }
+        }
+
+    @Test
+    fun `at most two Shorts tab lookups run at once, so the sweep leaves room for everything else`() =
+        runTest {
+            mockkObject(YouTube)
+            var running = 0
+            var peak = 0
+            coEvery { YouTube.channelShorts(any()) } coAnswers {
+                running++
+                peak = maxOf(peak, running)
+                delay(1_000)
+                running--
+                Result.success(page("reel"))
+            }
+            val index = ChannelReelIndex()
+
+            coroutineScope { (1..6).map { n -> async { index.reelIds("UC$n") } }.awaitAll() }
+
+            assertEquals(2, peak)
+        }
+
+    @Test
+    fun `a lookup that hangs gives up instead of holding its slot`() =
+        runTest {
+            mockkObject(YouTube)
+            coEvery { YouTube.channelShorts(channelId) } coAnswers {
+                delay(60_000)
+                Result.success(page("reel"))
+            }
+
+            assertEquals(null, ChannelReelIndex().reelIds(channelId))
         }
 }

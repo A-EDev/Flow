@@ -29,7 +29,7 @@ internal object HomeFeedCache {
         newShorts: List<Video>,
     ) {
         videos = newVideos
-        shorts = newShorts.sortedByDescending { it.timestamp }
+        shorts = newShorts
         timestamp = System.currentTimeMillis()
     }
 

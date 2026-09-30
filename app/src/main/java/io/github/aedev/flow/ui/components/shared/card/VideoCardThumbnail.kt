@@ -36,7 +36,7 @@ internal fun VideoCardThumbnail(
         thumbnailUrl = state.thumbnailUrl,
         width = width,
         shape = shape,
-        showWatchProgress = true,
+        showWatchProgress = LocalVideoCardPreferences.current.showWatchProgress,
         modifier = modifier,
     ) {
         val badgeModifier = Modifier.padding(MediaThumbnailDefaults.BadgePadding)

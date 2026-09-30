@@ -14,6 +14,7 @@ import io.github.aedev.flow.data.feed.FeedPrefetchQueue
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.data.model.ShortLinkedVideo
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
@@ -363,6 +364,8 @@ class ShortsViewModel
                 uploadDate = uploadDate.ifBlank { overlay.relativeTimestamp.orEmpty() },
                 soundTitle = overlay.soundTitle ?: soundTitle,
                 soundThumbnailUrl = overlay.soundThumbnailUrl ?: soundThumbnailUrl,
+                linkedVideo =
+                    overlay.companionVideoId?.let { ShortLinkedVideo(it, overlay.companionVideoTitle) } ?: linkedVideo,
             )
 
         private fun enrich(

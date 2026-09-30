@@ -125,8 +125,11 @@ fun HomeScreen(
         TabScrollEventBus.scrollToTopEvents
             .filter { it == "home" }
             .collectLatest {
-                gridState.animateScrollToItem(0)
-                if (refreshHomeOnReselect) {
+                // Down the feed a reselect only scrolls back up; at the top it refreshes (#1171).
+                val atTop = gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
+                if (!atTop) {
+                    gridState.animateScrollToItem(0)
+                } else if (refreshHomeOnReselect) {
                     viewModel.refreshFeed()
                 }
             }
@@ -231,6 +234,7 @@ fun HomeScreen(
                             },
                             onSeeAllHistory = onNavigateToHistory,
                             onOpenShortsFeed = onOpenShortsFeed,
+                            onShortsShown = viewModel::recordShelfImpressions,
                             onRefresh = { viewModel.refreshFeed() },
                         )
                     }

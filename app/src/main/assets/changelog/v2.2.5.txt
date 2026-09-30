@@ -59,6 +59,8 @@ NEW FEATURES
 - Download a whole album or playlist as one item in its own folder, shown on a Playlists and albums shelf in Downloads and playable with no connection (#913)
 - Downloads are now M4A audio or MP4 video with readable names and their details and cover art inside the file, so other players show them and Flow restores them after a reinstall, and songs get their own download quality setting (#866, #894, #764)
 - Import your YouTube likes from a Google Takeout My Activity export, into Liked videos and Liked music (#1027)
+- New switches: Subscriptions on Home, watch progress on thumbnails, and Pause watch history (#1086)
+- A Short that links a full video shows it, and one tap opens it in the video player (#1031)
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -100,6 +102,8 @@ IMPROVEMENTS
 - List mode on a wide screen is now one column with large thumbnails on Home, Subscriptions, channels, History and playlists, and Subscriptions now follows your cards-per-row setting
 - Channel playlists, the Playlists screen, Downloads and Local media show cards in a grid sized to the space they have, and related videos on an upright tablet use the same columns as the rest of the app
 - Downloads keep running after Flow is closed and resume where they stopped, and a downloaded song plays from its file wherever it is queued
+- Home shows your subscriptions right away from what Flow already saved, and adds new uploads below what you are looking at
+- Not interested hides that video for good, resetting your profile keeps everything you hid, and the feed stays closer to what you actually watch (#1086, #1031, #907)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -156,6 +160,8 @@ FIXES AND STABILITY
 - Stream requests now carry the headers of the client that issued them, rather than pairing a native client with a browser's
 - Every playback request used to re-run YouTube's bot check three times because a healthy verification token was being measured in the wrong unit and always looked untrustworthy; it now runs once, cutting a burst of background work off the start of every video
 - The equalizer no longer clips on boosts (auto preamp is on by default), no longer clicks while you drag, now applies to Shorts, surround audio and music played with audio offload, and low pass, high pass and shelf Q work as labelled
+- Pressing Home at the top of the feed refreshes once, and further presses wait for it instead of stacking reloads (#1171)
+- Old Shorts no longer show up as new uploads in Subscriptions (#1175)
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims

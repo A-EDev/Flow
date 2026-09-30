@@ -31,7 +31,39 @@ class FeedExclusions(
             (video.channelId.isNotBlank() && video.channelId in suppressedChannelIds) ||
             blockedText(video.title, video.channelName)
 
+    /** The same exclusions, also hiding every video from [channelIds]. */
+    fun hidingChannels(channelIds: Set<String>): FeedExclusions =
+        if (channelIds.isEmpty()) {
+            this
+        } else {
+            FeedExclusions(suppressedVideoIds, blockedChannelIds + channelIds, suppressedChannelIds, blockedText)
+        }
+
     companion object {
         val NONE = FeedExclusions()
     }
 }
+
+/** Records a "not interested" mark. Marks never expire; past [max] the oldest are dropped. */
+internal fun suppressVideo(
+    suppressed: Map<String, Long>,
+    videoId: String,
+    now: Long,
+    max: Int = FlowNeuroEngine.MAX_SUPPRESSED_VIDEOS,
+): Map<String, Long> {
+    val updated = suppressed + (videoId to now)
+    if (updated.size <= max) return updated
+    return updated.entries
+        .sortedByDescending { it.value }
+        .take(max)
+        .associate { it.key to it.value }
+}
+
+/** A fresh brain that still carries every block and "not interested" mark of this one. */
+internal fun UserBrain.keepingHiddenContent(): UserBrain =
+    UserBrain(
+        blockedChannels = blockedChannels,
+        blockedTopics = blockedTopics,
+        suppressedVideoIds = suppressedVideoIds,
+        suppressedChannels = suppressedChannels,
+    )

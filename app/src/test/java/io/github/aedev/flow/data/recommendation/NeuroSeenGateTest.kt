@@ -64,4 +64,13 @@ class NeuroSeenGateTest {
         val kept = NeuroScoring.applySeenGate(pool, history, now) { it }
         assertThat(kept).isEqualTo(pool)
     }
+
+    @Test
+    fun `the single-item rule matches the gate`() {
+        assertThat(NeuroScoring.isRecentlySeen(null, now)).isFalse()
+        assertThat(NeuroScoring.isRecentlySeen(shownRecently(1, hoursAgo = 1.0), now)).isTrue()
+        assertThat(NeuroScoring.isRecentlySeen(shownRecently(1, hoursAgo = 7.0), now)).isFalse()
+        assertThat(NeuroScoring.isRecentlySeen(shownRecently(2, hoursAgo = 30.0), now)).isTrue()
+        assertThat(NeuroScoring.isRecentlySeen(shownRecently(2, hoursAgo = 61.0), now)).isFalse()
+    }
 }

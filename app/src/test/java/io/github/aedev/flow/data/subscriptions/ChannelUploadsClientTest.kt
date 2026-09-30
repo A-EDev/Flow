@@ -121,4 +121,30 @@ class ChannelUploadsClientTest {
 
             assertThat(result.isFailure).isTrue()
         }
+
+    @Test
+    fun `a Shorts row without a date comes back undated instead of stamped now`() =
+        runTest {
+            val reel = video("reel", ageHours = 0).copy(isShort = true)
+            val datedReel = video("dated", ageHours = 5).copy(isShort = true, uploadDate = "5 hours ago")
+            val result =
+                client(
+                    landingPage = Result.success(landing(ChannelTabKind.Shorts)),
+                    tabs =
+                        mapOf(
+                            ChannelTabKind.Shorts to
+                                Result.success(
+                                    ChannelTabContent(
+                                        kind = ChannelTabKind.Shorts,
+                                        items = listOf(FeedItem.ShortItem(reel), FeedItem.ShortItem(datedReel)),
+                                        continuation = null,
+                                    ),
+                                ),
+                        ),
+                ).fetch("UCa", notBeforeMillis = now - 60 * 24 * hour)
+
+            val shorts = result.getOrThrow().shorts
+            assertThat(shorts.single { it.id == "reel" }.timestamp).isEqualTo(0L)
+            assertThat(shorts.single { it.id == "dated" }.timestamp).isEqualTo(datedReel.timestamp)
+        }
 }

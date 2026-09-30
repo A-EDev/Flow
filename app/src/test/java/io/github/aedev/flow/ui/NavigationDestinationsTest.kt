@@ -24,6 +24,14 @@ class NavigationDestinationsTest {
     }
 
     @Test
+    fun aVideoOpenedFromShortsPlaysOverTheFirstOtherTab() {
+        assertEquals("music", shortsExitRoute(listOf(FlowTab.Shorts, FlowTab.Music, FlowTab.Library)))
+        assertEquals("home", shortsExitRoute(listOf(FlowTab.Home, FlowTab.Shorts)))
+        assertEquals("home", shortsExitRoute(listOf(FlowTab.Shorts)))
+        assertEquals("home", shortsExitRoute(emptyList()))
+    }
+
+    @Test
     fun detailScreensAreNotTabRoots() {
         listOf("settings", "settings/content", "playlists", "playlist/{playlistId}", "onboarding", null).forEach { route ->
             assertNull(flowTabForDestination(route, shortsSourceArg = null))

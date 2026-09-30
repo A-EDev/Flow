@@ -24,6 +24,7 @@ private const val RELATED_TTL_MS = 45L * 60L * 1000L
 private const val RELATED_FETCH_CONCURRENCY = 3
 private const val RELATED_FETCH_TIMEOUT_MS = 4_000L
 private const val SAVED_SEED_COOLDOWN_MS = 3L * 60L * 60L * 1000L
+private const val LONG_TERM_HISTORY_MAX = 200
 
 internal data class RelatedGraphFetchResult(
     val seedInputs: List<GraphSeedInput>,
@@ -64,38 +65,52 @@ class HomeFeedSources
                 runCatching {
                     graphSeedInputsFromHistory(viewHistory.getRecentVideoHistory(HISTORY_SEED_MAX, includeShorts = false))
                 }.getOrElse { emptyList() }
-            val likedSeeds =
-                runCatching {
-                    likedVideosRepository.getLikedVideosFlow().first().map {
-                        GraphSeedInput(
-                            id = it.videoId,
-                            title = it.title,
-                            channelId = "",
-                            source = GraphSeedSource.LIKED,
-                            engagementWeight = 1.0,
-                            timestamp = it.likedAt,
-                            durationSec = 0,
-                            percentWatched = 0.0,
-                        )
-                    }
-                }.getOrElse { emptyList() }
-            val playlistSeeds =
-                runCatching {
-                    playlistRepository.getSavedVideoPlaylistVideos().map {
-                        GraphSeedInput(
-                            id = it.id,
-                            title = it.title,
-                            channelId = it.channelId,
-                            source = GraphSeedSource.PLAYLIST,
-                            engagementWeight = 1.0,
-                            timestamp = it.timestamp,
-                            durationSec = it.duration,
-                            percentWatched = 0.0,
-                        )
-                    }
-                }.getOrElse { emptyList() }
-            return SavedSeedSources(historySeeds, likedSeeds, playlistSeeds)
+            return SavedSeedSources(historySeeds, likedSeedInputs(), playlistSeedInputs())
         }
+
+        /** Seeds for lasting interests: likes, saved playlists and the watches older than the recent window. */
+        suspend fun longTermSeedInputs(): List<GraphSeedInput> {
+            val olderHistory =
+                runCatching {
+                    graphSeedInputsFromHistory(
+                        viewHistory.getRecentVideoHistory(LONG_TERM_HISTORY_MAX, includeShorts = false),
+                        max = LONG_TERM_HISTORY_MAX,
+                    ).drop(HISTORY_SEED_MAX)
+                }.getOrElse { emptyList() }
+            return (likedSeedInputs() + playlistSeedInputs() + olderHistory).distinctBy { it.id }
+        }
+
+        private suspend fun likedSeedInputs(): List<GraphSeedInput> =
+            runCatching {
+                likedVideosRepository.getLikedVideosFlow().first().map {
+                    GraphSeedInput(
+                        id = it.videoId,
+                        title = it.title,
+                        channelId = "",
+                        source = GraphSeedSource.LIKED,
+                        engagementWeight = 1.0,
+                        timestamp = it.likedAt,
+                        durationSec = 0,
+                        percentWatched = 0.0,
+                    )
+                }
+            }.getOrElse { emptyList() }
+
+        private suspend fun playlistSeedInputs(): List<GraphSeedInput> =
+            runCatching {
+                playlistRepository.getSavedVideoPlaylistVideos().map {
+                    GraphSeedInput(
+                        id = it.id,
+                        title = it.title,
+                        channelId = it.channelId,
+                        source = GraphSeedSource.PLAYLIST,
+                        engagementWeight = 1.0,
+                        timestamp = it.timestamp,
+                        durationSec = it.duration,
+                        percentWatched = 0.0,
+                    )
+                }
+            }.getOrElse { emptyList() }
 
         fun activeSavedSeedCooldown(now: Long): Set<String> {
             savedSeedCooldown.entries.removeAll { now - it.value > SAVED_SEED_COOLDOWN_MS }
@@ -132,8 +147,11 @@ class HomeFeedSources
                     } ?: emptyList()
                 }
             ).also {
-                relatedCache[seedId] = CachedRelated(it, ts)
-                homeFeedCache.saveRelated(seedId, it, ts)
+                // A timeout returns nothing; caching that would blank the seed's lane for the whole TTL.
+                if (it.isNotEmpty()) {
+                    relatedCache[seedId] = CachedRelated(it, ts)
+                    homeFeedCache.saveRelated(seedId, it, ts)
+                }
             }
         }
 
@@ -192,15 +210,19 @@ class HomeFeedSources
         ): List<GraphCandidate> = fetchRelatedGraph(seedInputs, seedIds, filters).candidates
     }
 
-/** Videos currently on screen, usable as related-graph seeds for load-more. */
+/**
+ * Videos on screen, usable as related-graph seeds for load-more. What a related lane put on screen is left out ([relatedPickIds]), so
+ * a lane is at most one hop from something the viewer watched, searched or follows.
+ */
 internal fun feedSeedInputs(
     videos: List<Video>,
     now: Long,
     max: Int,
+    relatedPickIds: Set<String> = emptySet(),
 ): List<GraphSeedInput> =
     videos
         .asSequence()
-        .filter { !it.isShort && it.id.isNotBlank() }
+        .filter { !it.isShort && it.id.isNotBlank() && it.id !in relatedPickIds }
         .take(max)
         .map { video ->
             GraphSeedInput(

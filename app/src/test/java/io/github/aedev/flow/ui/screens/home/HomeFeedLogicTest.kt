@@ -480,4 +480,46 @@ class HomeFeedLogicTest {
         val empty = SavedSeedSources(emptyList(), emptyList(), emptyList())
         assertThat(savedInterestSeedInputs(empty, cooldown = emptySet())).isEmpty()
     }
+
+    @Test
+    fun `the shorts shelf keeps rank order but moves recently shown reels to the back`() {
+        val shelf =
+            listOf("a", "b", "c", "d").map { id ->
+                Video(
+                    id = id,
+                    title = id,
+                    channelName = "",
+                    channelId = "",
+                    thumbnailUrl = "",
+                    duration = 30,
+                    viewCount = 0,
+                    uploadDate = "",
+                )
+            }
+
+        val rotated = shelf.recentlyShownLast { it == "a" || it == "c" }
+
+        assertThat(rotated.map { it.id }).containsExactly("b", "d", "a", "c").inOrder()
+    }
+
+    @Test
+    fun `what a related lane put on screen never seeds the next related lane`() {
+        val feed =
+            listOf("discovery", "related").map { id ->
+                Video(
+                    id = id,
+                    title = id,
+                    channelName = "",
+                    channelId = "",
+                    thumbnailUrl = "",
+                    duration = 600,
+                    viewCount = 0,
+                    uploadDate = "",
+                )
+            }
+
+        val seeds = feedSeedInputs(feed, now = 1L, max = 10, relatedPickIds = setOf("related"))
+
+        assertThat(seeds.map { it.id }).containsExactly("discovery")
+    }
 }

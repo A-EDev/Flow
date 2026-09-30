@@ -732,18 +732,23 @@ internal object NeuroScoring {
         idOf: (T) -> String,
     ): List<T> {
         if (items.size < SEEN_GATE_MIN_POOL || feedHistory.isEmpty()) return items
-        val kept =
-            items.filter { item ->
-                val entry = feedHistory[idOf(item)] ?: return@filter true
-                val hoursSince = (now - entry.lastShown) / 3_600_000.0
-                // A single impression hides the item briefly (kills the classic
-                // "same video on every refresh"); repeats hide it for days.
-                if (hoursSince < SEEN_GATE_SINGLE_SHOW_WINDOW_HOURS) return@filter false
-                if (entry.showCount < SEEN_GATE_SHOW_COUNT) return@filter true
-                hoursSince >= SEEN_GATE_WINDOW_HOURS
-            }
+        val kept = items.filterNot { item -> isRecentlySeen(feedHistory[idOf(item)], now) }
         if (kept.size == items.size) return items
         return if (kept.size >= SEEN_GATE_MIN_RESULTS) kept else items
+    }
+
+    /** The seen-gate's rule for one item, without its scarcity guards. */
+    fun isRecentlySeen(
+        entry: FeedEntry?,
+        now: Long,
+    ): Boolean {
+        entry ?: return false
+        val hoursSince = (now - entry.lastShown) / 3_600_000.0
+        // A single impression hides the item briefly (kills the classic
+        // "same video on every refresh"); repeats hide it for days.
+        if (hoursSince < SEEN_GATE_SINGLE_SHOW_WINDOW_HOURS) return true
+        if (entry.showCount < SEEN_GATE_SHOW_COUNT) return false
+        return hoursSince < SEEN_GATE_WINDOW_HOURS
     }
 
     /**

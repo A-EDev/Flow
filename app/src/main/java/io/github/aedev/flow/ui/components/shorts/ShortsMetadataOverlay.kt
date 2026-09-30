@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,20 +35,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.model.ShortLinkedVideo
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.PlayingWaveform
+import io.github.aedev.flow.ui.components.layout.navigation.LocalMediaNavigator
 import io.github.aedev.flow.ui.components.shared.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButton
 import io.github.aedev.flow.ui.components.shared.FlowSubscribeButtonSize
 import io.github.aedev.flow.ui.components.shared.videoMetadataLine
 import io.github.aedev.flow.ui.theme.PlayerScrimContent
+import io.github.aedev.flow.ui.theme.PlayerScrimPanel
+import io.github.aedev.flow.utils.YouTubeLink
 
 private val AvatarSize = 36.dp
 private val ChannelRowSpacing = 8.dp
 private val TitleSpacing = 8.dp
 private val MetadataSpacing = 2.dp
 private val SoundPillSpacing = 6.dp
+private val LinkedVideoSpacing = 4.dp
 private val SubscribeToggleTouchSize = 48.dp
 private val SubscribeToggleSize = 32.dp
 private val SubscribeToggleIconSize = 22.dp
@@ -54,7 +62,7 @@ private val SoundBarWidth = 2.dp
 private val SoundBarMinHeight = 4.dp
 private val SoundBarMaxHeight = 12.dp
 
-/** Channel, title, views and date, and the sound the reel plays, down a reel's left edge. */
+/** Channel, title, views and date, the video the reel links to, and the sound it plays, down a reel's left edge. */
 @Composable
 internal fun ShortsMetadataOverlay(
     short: ShortVideo,
@@ -133,6 +141,11 @@ internal fun ShortsMetadataOverlay(
             )
         }
 
+        short.linkedVideo?.let { linkedVideo ->
+            Spacer(modifier = Modifier.height(LinkedVideoSpacing))
+            ShortsLinkedVideoChip(linkedVideo)
+        }
+
         if (short.soundTitle.isNotBlank()) {
             Spacer(modifier = Modifier.height(SoundPillSpacing))
             ShortsSoundPill(title = short.soundTitle, animate = isPlaying)
@@ -186,6 +199,35 @@ private fun ShortsSubscribeIconToggle(
             }
         }
     }
+}
+
+@Composable
+private fun ShortsLinkedVideoChip(linkedVideo: ShortLinkedVideo) {
+    val navigator = LocalMediaNavigator.current
+    AssistChip(
+        onClick = { navigator.openLink(YouTubeLink.Video(linkedVideo.id, isMusic = false)) },
+        label = {
+            Text(
+                text = linkedVideo.title ?: stringResource(R.string.shorts_linked_video),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
+        },
+        colors =
+            AssistChipDefaults.assistChipColors(
+                containerColor = PlayerScrimPanel,
+                labelColor = PlayerScrimContent,
+                leadingIconContentColor = PlayerScrimContent,
+            ),
+        border = null,
+    )
 }
 
 @Composable

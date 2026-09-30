@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.settings.history
 
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SearchHistoryRepository
 import io.github.aedev.flow.data.stats.VideoStatsRecorder
 import io.github.aedev.flow.ui.screens.settings.SettingsViewModel
@@ -12,7 +13,9 @@ class HistorySettingsViewModel
     constructor(
         private val repository: SearchHistoryRepository,
         private val videoStats: VideoStatsRecorder,
+        private val playerPreferences: PlayerPreferences,
     ) : SettingsViewModel() {
+        val watchHistoryPaused = playerPreferences.watchHistoryPaused.asState(false)
         val historyEnabled = repository.isSearchHistoryEnabledFlow().asState(true)
         val suggestionsEnabled = repository.isSearchSuggestionsEnabledFlow().asState(true)
         val maxSize = repository.getMaxHistorySizeFlow().asState(DEFAULT_MAX_SIZE)
@@ -24,6 +27,8 @@ class HistorySettingsViewModel
                 repository.setSearchHistoryEnabled(value)
                 if (!value) videoStats.onSearchHistoryCleared()
             }
+
+        fun setWatchHistoryPaused(value: Boolean) = write { playerPreferences.setWatchHistoryPaused(value) }
 
         fun setSuggestionsEnabled(value: Boolean) = write { repository.setSearchSuggestionsEnabled(value) }
 

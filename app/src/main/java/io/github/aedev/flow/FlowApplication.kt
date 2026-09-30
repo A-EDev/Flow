@@ -56,9 +56,6 @@ class FlowApplication :
     @Inject
     lateinit var okHttpClient: OkHttpClient
 
-    @Inject
-    lateinit var channelReelIndex: io.github.aedev.flow.data.shorts.ChannelReelIndex
-
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
     companion object {
@@ -264,7 +261,7 @@ class FlowApplication :
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val repository = SubscriptionRepository.getInstance(this@FlowApplication)
-                val youtubeRepository = YouTubeRepository.getInstance(playerPreferences, channelReelIndex)
+                val youtubeRepository = YouTubeRepository.getInstance(playerPreferences)
                 val repaired =
                     repository.repairVideoThumbnailSubscriptions { channelId ->
                         withTimeoutOrNull(6_000L) {

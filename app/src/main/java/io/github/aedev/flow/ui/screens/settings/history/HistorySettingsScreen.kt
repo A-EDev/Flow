@@ -5,6 +5,7 @@ import androidx.compose.material.icons.automirrored.outlined.ManageSearch
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AutoDelete
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +42,7 @@ private val RetentionPeriods =
         365 to R.string.period_one_year,
     )
 
-/** What Flow remembers about your searches, for how long, and a way to forget it all. */
+/** Whether Flow keeps your watch history, what it remembers about your searches, and for how long. */
 @Composable
 internal fun HistorySettingsScreen(
     onBack: (() -> Unit)?,
@@ -66,6 +67,14 @@ internal fun HistorySettingsScreen(
         onBack = onBack,
         highlight = highlight,
     ) {
+        group(key = "history.watch", header = R.string.settings_section_watch_history) {
+            switch(
+                HistoryIndex.pauseWatchHistory,
+                viewModel.watchHistoryPaused,
+                viewModel::setWatchHistoryPaused,
+                icon = Icons.Outlined.PauseCircle,
+            )
+        }
         group(key = "history.search", header = R.string.search_history_title) {
             switch(HistoryIndex.save, historyEnabled, viewModel::setHistoryEnabled, icon = Icons.Outlined.History)
             switch(

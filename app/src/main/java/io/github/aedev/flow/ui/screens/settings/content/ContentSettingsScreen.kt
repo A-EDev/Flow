@@ -45,6 +45,7 @@ internal fun ContentSettingsScreen(
             switch(ContentIndex.refreshOnReselect, viewModel.refreshOnReselect, viewModel::setRefreshOnReselect)
             switch(ContentIndex.continueWatching, viewModel.continueWatching, viewModel::setContinueWatching)
             switch(ContentIndex.homeShortsShelf, viewModel.homeShortsShelf, viewModel::setHomeShortsShelf, enabled = shortsContent)
+            switch(ContentIndex.homeSubscriptions, viewModel.homeSubscriptions, viewModel::setHomeSubscriptions)
             switch(ContentIndex.hideWatchedHome, viewModel.hideWatchedHome, viewModel::setHideWatchedHome)
         }
         group(key = "content.subscriptions", header = R.string.settings_section_subscriptions) {

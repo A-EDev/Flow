@@ -60,3 +60,10 @@ internal fun FeedItem.distinctKey(): String =
         is FeedItem.RelatedChannelItem -> "c:${channel.id}"
         is FeedItem.PostItem -> "b:${post.id}"
     }
+
+internal fun FeedItem.videoOrNull(): Video? =
+    when (this) {
+        is FeedItem.VideoItem -> video
+        is FeedItem.ShortItem -> video
+        else -> null
+    }

@@ -124,6 +124,57 @@ class RssSubscriptionServiceTest {
         }
 
     @Test
+    fun `an old reel off the Shorts tab is not passed off as a new upload (1175)`() =
+        runTest {
+            reelIds = setOf("r1")
+            rss("UCa", entry("r1", ageHours = 5))
+            coEvery { uploads.fetch("UCa", any(), any()) } returns
+                Result.success(
+                    ChannelUploads(
+                        owner = FeedItemOwner("UCa", "Channel"),
+                        shorts =
+                            listOf(
+                                upload("r1", "UCa").copy(isShort = true, timestamp = 0L),
+                                upload("old-reel", "UCa").copy(isShort = true, timestamp = 0L),
+                            ),
+                    ),
+                )
+
+            val chunk = sweep("UCa")
+
+            assertThat(chunk.videos.map { it.id }).doesNotContain("old-reel")
+            val dated = chunk.videos.single { it.id == "r1" }
+            assertThat(System.currentTimeMillis() - dated.timestamp).isAtLeast(4 * hour)
+        }
+
+    @Test
+    fun `a channel whose entries are all classified already is not browsed again`() =
+        runTest {
+            rss("UCa", entry("reel"), entry("video"))
+
+            val chunk =
+                service
+                    .fetchSubscriptionVideos(listOf("UCa"), storedReelVerdicts = mapOf("reel" to true, "video" to false))
+                    .last()
+
+            coVerify(exactly = 0) { reelIndex.markReels(any(), any(), any()) }
+            assertThat(chunk.videos.single { it.id == "reel" }.isShort).isTrue()
+            assertThat(chunk.videos.single { it.id == "video" }.isShort).isFalse()
+        }
+
+    @Test
+    fun `a new entry still gets its channel browsed`() =
+        runTest {
+            reelIds = setOf("new-reel")
+            rss("UCa", entry("video"), entry("new-reel"))
+
+            val chunk = service.fetchSubscriptionVideos(listOf("UCa"), storedReelVerdicts = mapOf("video" to false)).last()
+
+            coVerify(exactly = 1) { reelIndex.markReels("UCa", any(), any()) }
+            assertThat(chunk.videos.single { it.id == "new-reel" }.isShort).isTrue()
+        }
+
+    @Test
     fun `a channel with a long-form upload in RSS needs no fallback`() =
         runTest {
             reelIds = setOf("r1")

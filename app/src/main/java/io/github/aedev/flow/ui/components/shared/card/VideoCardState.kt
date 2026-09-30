@@ -41,6 +41,7 @@ data class VideoCardPreferences(
     val actionsEnabled: Boolean = false,
     val markWatchedEnabled: Boolean = false,
     val upcomingReminderIds: Set<String> = emptySet(),
+    val showWatchProgress: Boolean = true,
 )
 
 /**
@@ -135,6 +136,8 @@ fun ProvideVideoCardState(
                 preferences.upcomingVideoReminderIds,
             ) { deArrow, deArrowBadge, actions, markWatched, reminders ->
                 VideoCardPreferences(deArrow, deArrowBadge, actions, markWatched, reminders)
+            }.combine(preferences.showWatchProgress) { cardPreferences, showWatchProgress ->
+                cardPreferences.copy(showWatchProgress = showWatchProgress)
             }.distinctUntilChanged()
         }
     val preferences by preferencesFlow.collectAsStateWithLifecycle(VideoCardPreferences())

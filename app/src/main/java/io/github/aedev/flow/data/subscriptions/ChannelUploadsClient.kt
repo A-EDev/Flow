@@ -85,6 +85,23 @@ class ChannelUploadsClient internal constructor(
             }
         }
 
+    /**
+     * The newest uploads for Home: the first page of the Videos tab. No landing browse, since the
+     * subscription already names the channel. Reels are left to RSS, which dates them.
+     */
+    suspend fun latest(
+        owner: FeedItemOwner,
+        videos: Int,
+    ): Result<List<Video>> =
+        runCatching {
+            val params = ChannelTabKind.Videos.defaultParams ?: error("No params for the Videos tab")
+            tab(owner.id, params, owner, ChannelTabKind.Videos)
+                .getOrThrow()
+                .items
+                .uploads()
+                .take(videos)
+        }
+
     private suspend fun readTab(
         channelId: String,
         params: String?,
@@ -111,10 +128,16 @@ class ChannelUploadsClient internal constructor(
         mapNotNull { item ->
             when (item) {
                 is FeedItem.VideoItem -> item.video
-                is FeedItem.ShortItem -> item.video.copy(isShort = true)
+
+                // A Shorts row carries no date, and the model's default is "now": without this an old
+                // reel off the tab would sort as the newest upload (#1175). Unknown is 0.
+                is FeedItem.ShortItem -> item.video.copy(isShort = true, timestamp = item.video.datedTimestamp())
+
                 else -> null
             }
         }.filter { it.id.isNotBlank() }
+
+    private fun Video.datedTimestamp(): Long = if (uploadDate.isBlank()) 0L else timestamp
 
     private fun List<Video>.reachesInto(notBeforeMillis: Long): Boolean {
         val oldest = lastOrNull { it.timestamp > 0L } ?: return false

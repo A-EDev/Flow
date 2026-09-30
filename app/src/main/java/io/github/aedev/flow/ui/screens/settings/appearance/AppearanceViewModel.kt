@@ -48,6 +48,7 @@ class AppearanceViewModel
         val groupBadges = preferences.showChannelGroupBadges.asState(false)
         val cardLikeButtons = preferences.videoCardActionsEnabled.asState(false)
         val cardMarkWatched = preferences.videoCardMarkWatchedEnabled.asState(false)
+        val cardWatchProgress = preferences.showWatchProgress.asState(true)
 
         val shortsContent = preferences.shortsContentEnabled.asState(true)
         val navigationVisibility: StateFlow<NavigationVisibility> =
@@ -94,6 +95,8 @@ class AppearanceViewModel
         fun setCardLikeButtons(enabled: Boolean) = write { preferences.setVideoCardActionsEnabled(enabled) }
 
         fun setCardMarkWatched(enabled: Boolean) = write { preferences.setVideoCardMarkWatchedEnabled(enabled) }
+
+        fun setCardWatchProgress(enabled: Boolean) = write { preferences.setShowWatchProgress(enabled) }
 
         fun setHomeTab(enabled: Boolean) = write { preferences.setHomeNavigationEnabled(enabled) }
 

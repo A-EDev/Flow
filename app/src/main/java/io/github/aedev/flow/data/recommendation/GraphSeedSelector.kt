@@ -38,6 +38,74 @@ internal object GraphSeedSelector {
         return NeuroScoring.pickDiverseSeeds(ranked, maxSeeds, maxPerCluster)
     }
 
+    /**
+     * [select] over [candidates], skipping [cooledIds] (seeds used in the last few hours) unless too
+     * few others qualify, with the last of [maxSeeds] given to a lasting interest none of the recent
+     * picks covers ([selectLongTermSeed]).
+     */
+    fun selectWithLongTerm(
+        candidates: List<GraphSeedInput>,
+        maxSeeds: Int,
+        longTermCandidates: List<GraphSeedInput>,
+        communityMass: Map<String, Double>,
+        communityOf: (String) -> String,
+        now: Long = System.currentTimeMillis(),
+        cooledIds: Set<String> = emptySet(),
+        excludedChannelIds: Set<String> = emptySet(),
+        topicScores: Map<String, Double> = emptyMap(),
+    ): List<String> {
+        fun pick(from: List<GraphSeedInput>) =
+            select(from, maxSeeds, now, excludedChannelIds, topicScores = topicScores, communityOf = communityOf)
+
+        // Cooled seeds come back only when no other seed qualifies: half-watched history never does,
+        // so a size check on the raw list let a refresh inside the cooldown pick no seed at all.
+        val fresh = pick(candidates.filterNot { it.id in cooledIds })
+        val recent = fresh.ifEmpty { pick(candidates) }
+        if (longTermCandidates.isEmpty() || maxSeeds < 2) return recent
+        val kept = recent.take(maxSeeds - 1)
+        val tokenizer = NeuroTokenizer()
+        val covered = candidates.filter { it.id in kept }.mapTo(HashSet()) { communityOf(clusterKey(it.title, tokenizer, topicScores)) }
+        val longTerm =
+            selectLongTermSeed(
+                candidates = longTermCandidates,
+                coveredCommunities = covered,
+                communityMass = communityMass,
+                communityOf = communityOf,
+                excludedIds = cooledIds + kept,
+                excludedChannelIds = excludedChannelIds,
+                topicScores = topicScores,
+            ) ?: return recent
+        return kept + longTerm
+    }
+
+    /**
+     * One seed for a lasting interest the recent seeds miss: the heaviest interest community not in
+     * [coveredCommunities], drawn from likes, playlists and older watches. Age does not count against
+     * it here, since being old is why these seeds are asked for.
+     */
+    fun selectLongTermSeed(
+        candidates: List<GraphSeedInput>,
+        coveredCommunities: Set<String>,
+        communityMass: Map<String, Double>,
+        communityOf: (String) -> String,
+        excludedIds: Set<String> = emptySet(),
+        excludedChannelIds: Set<String> = emptySet(),
+        topicScores: Map<String, Double> = emptyMap(),
+    ): String? {
+        if (candidates.isEmpty() || communityMass.isEmpty()) return null
+        val tokenizer = NeuroTokenizer()
+        return candidates
+            .asSequence()
+            .filter { it.id !in excludedIds && it.isEligible(excludedChannelIds) }
+            .mapNotNull { seed ->
+                val community = communityOf(clusterKey(seed.title, tokenizer, topicScores))
+                val mass = communityMass[community] ?: return@mapNotNull null
+                if (community in coveredCommunities) return@mapNotNull null
+                Triple(seed.id, mass, seed.engagementWeight * seed.sourceWeight())
+            }.maxWithOrNull(compareBy<Triple<String, Double, Double>> { it.second }.thenBy { it.third })
+            ?.first
+    }
+
     fun scoreSeed(
         seed: GraphSeedInput,
         now: Long = System.currentTimeMillis(),
@@ -66,8 +134,8 @@ internal object GraphSeedSelector {
 
             GraphSeedSource.WATCH_HISTORY -> if (percentWatched >= 70.0) 1.2 else 0.8
 
-            // Feed items were engine-picked but not user-confirmed — usable, weakest.
-            GraphSeedSource.FEED -> 0.7
+            // Engine picks the viewer never touched: always below any real watch, like or save.
+            GraphSeedSource.FEED -> 0.15
         }
 
     private fun recencyWeight(

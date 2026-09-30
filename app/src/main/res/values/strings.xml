@@ -1026,6 +1026,13 @@
     <string name="content_settings_video_card_actions_subtitle">Like and dislike buttons on cards to tune your feed</string>
     <string name="content_settings_video_card_mark_watched_title">Video card mark as watched button</string>
     <string name="content_settings_video_card_mark_watched_subtitle">An eye button on cards to mark videos as watched</string>
+    <string name="content_settings_video_card_progress_title">Show watch progress</string>
+    <string name="content_settings_video_card_progress_subtitle">A bar on thumbnails showing how much you watched</string>
+    <string name="content_settings_home_subscriptions_title">Subscriptions on Home</string>
+    <string name="content_settings_home_subscriptions_subtitle">Mix videos from channels you follow into Home</string>
+    <string name="settings_section_watch_history">Watch history</string>
+    <string name="pause_watch_history_title">Pause watch history</string>
+    <string name="pause_watch_history_subtitle">Stop saving what you watch. Deep Flow also pauses learning</string>
     <string name="content_settings_show_app_logo_title">Show app logo icon</string>
     <string name="content_settings_show_app_logo_subtitle">Show the Flow logo in the Home top bar</string>
     <string name="content_settings_header_shorts">Shorts</string>
@@ -1346,6 +1353,7 @@
     <string name="cd_more_options">More Options</string>
     <string name="cd_short_watched">Watched</string>
     <string name="shorts_original_sound">Original Sound - %1$s</string>
+    <string name="shorts_linked_video">Related video</string>
     <string name="view_count_billion_suffix">B</string>
     <string name="view_count_million_suffix">M</string>
     <string name="view_count_thousand_suffix">K</string>
@@ -3662,7 +3670,7 @@
     <string name="taste_export_music">Export music profile</string>
     <string name="taste_import_music">Import music profile</string>
     <string name="taste_reset_music">Reset music profile</string>
-    <string name="taste_reset_video_body">This clears what Flow learned from your videos and starts again from zero. Your recap stays.</string>
+    <string name="taste_reset_video_body">This clears what Flow learned from your videos and starts again from zero. Your recap and hidden channels, topics and videos stay.</string>
     <string name="taste_reset_music_title">Reset music profile?</string>
     <string name="taste_reset_music_body">This clears what Flow learned from your music and starts again from zero. Your recap stays.</string>
     <string name="taste_trait_now">Now %1$s</string>

@@ -8,7 +8,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.repository.YouTubeRepository
-import io.github.aedev.flow.data.shorts.ChannelReelIndex
 import javax.inject.Singleton
 
 @Module
@@ -16,10 +15,7 @@ import javax.inject.Singleton
 object RepositoryModule {
     @Provides
     @Singleton
-    fun provideYouTubeRepository(
-        playerPreferences: PlayerPreferences,
-        channelReelIndex: ChannelReelIndex,
-    ): YouTubeRepository = YouTubeRepository.getInstance(playerPreferences, channelReelIndex)
+    fun provideYouTubeRepository(playerPreferences: PlayerPreferences): YouTubeRepository = YouTubeRepository.getInstance(playerPreferences)
 
     @Provides
     @Singleton
