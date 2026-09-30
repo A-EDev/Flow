@@ -18,10 +18,10 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.error.VideoErrorMapper
 import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.PlaybackFailure
+import io.github.aedev.flow.player.stream.ResolvedCaption
 import io.github.aedev.flow.player.stream.ResolvedPlayback
 import io.github.aedev.flow.player.stream.StoryboardSpec
 import io.github.aedev.flow.player.stream.UpcomingDetails
-import io.github.aedev.flow.player.stream.toSubtitlesStreams
 import io.github.aedev.flow.ui.screens.player.state.*
 import io.github.aedev.flow.utils.NetworkState
 import kotlinx.coroutines.CancellationException
@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
 /** The load a step belongs to: the video it resolved for, and the token saying it is still current. */
 internal data class LoadContext(
@@ -527,9 +526,9 @@ internal class PlaybackSessionApplier(
         publishRelatedVideos(result.videoId, result.relatedVideos, result.loadToken)
     }
 
-    private suspend fun offlineSubtitlesFor(videoId: String): List<SubtitlesStream> {
+    private suspend fun offlineSubtitlesFor(videoId: String): List<ResolvedCaption> {
         if (LocalMediaIds.isLocal(videoId)) return emptyList()
-        val stored = offlineSubtitleStore.load(videoId).toSubtitlesStreams()
+        val stored = offlineSubtitleStore.load(videoId)
         if (stored.isEmpty() && !offlineSubtitleStore.isResolved(videoId) && NetworkState.isOnline(context)) {
             scope.launch(networkDispatcher) {
                 offlineSubtitleStore.saveForVideo(videoId)

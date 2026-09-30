@@ -154,7 +154,7 @@ class PlaybackPreparerTest {
                     filePath = "/downloads/vid.mp4",
                     savedSegments = null,
                     preservePosition = 30_000L,
-                    subtitles = match { subtitles -> subtitles.map { it.getContent() } == listOf("file:///captions/en.vtt") },
+                    subtitles = match { subtitles -> subtitles.map { it.url } == listOf("file:///captions/en.vtt") },
                 )
                 playerManager.play()
             }

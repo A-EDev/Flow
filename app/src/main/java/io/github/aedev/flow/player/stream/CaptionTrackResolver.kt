@@ -2,7 +2,6 @@ package io.github.aedev.flow.player.stream
 
 import android.util.Log
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
-import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import java.util.Locale
 
 object CaptionTrackResolver {
@@ -97,8 +96,6 @@ object CaptionTrackResolver {
         )
     }
 
-    fun isTranslated(stream: SubtitlesStream): Boolean = stream.getContent().contains("&$TRANSLATED_PARAM=")
-
     private fun timedTextUrl(
         baseUrl: String,
         format: CaptionFormat,
@@ -113,7 +110,7 @@ object CaptionTrackResolver {
                 .filter { it.isNotEmpty() && !it.isParam("fmt") && !it.isParam(TRANSLATED_PARAM) }
                 .toMutableList()
 
-        retained.add("fmt=${format.fmtQueryValue}")
+        retained.add("fmt=${format.fmtQueryValue ?: CaptionFormat.SRV3.fmtQueryValue}")
 
         return "$path?${retained.joinToString("&")}"
     }
