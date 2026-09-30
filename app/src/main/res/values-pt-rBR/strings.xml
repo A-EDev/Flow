@@ -1702,7 +1702,7 @@
     <string name="export_data_section_header">Escolher tipo de exportação</string>
     <string name="export_data_section_subtitle">Selecione o que deseja exportar e salvar para o dispositivo</string>
     <string name="export_newpipe_subs_title">Exportar inscrições (formato NewPipe)</string>
-    <string name="export_newpipe_subs_desc">Exporte suas inscrições como um arquivo JSON compatível com NewPipe.</string>
+    <string name="export_newpipe_subs_desc">Um arquivo JSON do NewPipe. No NewPipe selecione importar inscrições.</string>
     <string name="export_newpipe_subs_success">Inscrições do NewPipe exportadas com sucesso</string>
     <string name="export_newpipe_subs_failed">Falha ao exportar inscrições do NewPipe</string>
     <string name="export_app_data_title">Cópia de Dados do Aplicativo</string>
@@ -1767,7 +1767,7 @@
     <string name="player_settings_overlay_speed_indicator">Indicador de velocidade de reprodução</string>
     <string name="player_settings_overlay_speed_indicator_subtitle">Mostrar a velocidade atual dentro do reprodutor</string>
     <string name="player_settings_overlay_comments">Botão de Comentários</string>
-    <string name="player_settings_overlay_comments_subtitle">Mostrar o botão de comentários em tela cheia para abrir comentários em um painel lateral</string>
+    <string name="player_settings_overlay_comments_subtitle">Abrir comentários em um painel lateral quando em tela cheia</string>
     <string name="player_action_background">Segundo Plano</string>
     <string name="player_action_copy_link_at_time">Copiar tempo</string>
     <string name="link_with_timestamp_copied">Link com tempo copiado</string>
@@ -1975,13 +1975,13 @@
     <string name="discord_presence_disconnect">Desconectar e desvincular</string>
     <string name="discord_presence_unlink_action">Desvincular</string>
     <string name="discord_presence_retry">Tentar conexão novamente</string>
-    <string name="discord_presence_description">Mostre o que você está fazendo no Flow como sua Rica Presença do Discord.</string>
+    <string name="discord_presence_description">Mostre o que você está fazendo no status do Discord.</string>
     <string name="discord_presence_connection_section">Conexão</string>
     <string name="discord_presence_account">Conta do Discord</string>
     <string name="discord_presence_privacy_section">Privacidade e risco de conta</string>
     <string name="discord_presence_privacy_title">Privacidade</string>
-    <string name="discord_presence_privacy_body">Quando ativado, o Flow compartilha o vídeo, Short, transmissão ao vivo ou título da música, criador ou artista, capa do álbum que estiver tocando e tempo de reprodução com o Discord. Essa configuração fica desativada por padrão. Seu token de sessão Discord é criptografado usando o Android Keystore e nunca adicionado aos registros do aplicativo.</string>
-    <string name="discord_presence_gateway_warning">O Flow usa uma conexão self-bot não oficial com o token da sua conta do Discord, não com o OAuth. Isso viola os Termos de Serviço do Discord e pode levar à suspensão ou rescisão da conta. Clientes não suportados também podem acionar alertas de vazamento de token, redefinição de senha, CAPTCHAs ou bloqueios de verificação de telefone.</string>
+    <string name="discord_presence_privacy_body">Flow compartilha o título, criador, capa do álbum e o tempo de reprodução do que estiver tocando. Essa configuração fica desativada por padrão. Seu token de sessão Discord é criptografado e nunca é registrado.</string>
+    <string name="discord_presence_gateway_warning">Isso entra com seu token Discord em vez de um login oficial. Isso quebra os Termos de Serviço do Discord e pode limitar ou banir sua conta.</string>
     <string name="discord_presence_risk_dialog_title">Aceitar conta do Discord em risco?</string>
     <string name="discord_presence_risk_dialog_body">Conectando através do Discord e fornece ao Flow seu token de conta do Discord. O Flow armazena-o com criptografia do Android Keystore e envia apenas para o Discord, mas esse método de self-bot não oficial viola os Termos de Serviço do Discord. O Discord pode suspender ou encerrar sua conta, exigir uma redefinição de senha, mostrar CAPTCHAs ou bloquear a conta exigindo verificação por telefone.</string>
     <string name="discord_presence_risk_accept">Eu entendo, conectar</string>
@@ -2868,7 +2868,7 @@
     <string name="content_settings_library_previews_subtitle">Mostrar uma linha de itens em cada seção da Biblioteca.</string>
     <string name="diagnostics_reset_session">Reiniciar sessão com YouTube</string>
     <string name="diagnostics_reset_session_confirm_title">Reiniciar sessão com YouTube?</string>
-    <string name="diagnostics_reset_session_confirm_body">O Flow descartará a identidade de navegação que usa para verificar solicitações de reprodução e criarará uma nova. Use isso se os vídeos travarem depois de cerca de um minuto ou se recusam a tocar.\n\nUma nova identidade não é confiável no início, então o próximo minuto ou dois pode ser pior antes de se estabelecer. Nada do que você salvou é afetado.</string>
+    <string name="diagnostics_reset_session_confirm_body">O Flow criarará uma nova identidade de reprodução. Use isso se os vídeos travarem depois de cerca de um minuto ou se recusam a tocar.\n\nA reprodução pode ficar ruim no próximo minuto ou dois. Nada do que você salvou é afetado.</string>
     <string name="diagnostics_reset_session_done">Sessão com YouTube reiniciada. Reabra o vídeo para tentar novamente.</string>
     <string name="reset">Reiniciar</string>
     <string name="subtitle_translation_unavailable">Tradução indisponível — mostrando %1$s</string>
@@ -3227,4 +3227,15 @@
     <string name="music_search_section_episodes">Episódios</string>
     <string name="download_quality_hdr">HDR</string>
     <string name="download_storage_access_prompt">Permitir acesso ao armazenamento para salvar downloads em pastas públicas (opcional)</string>
+    <string name="widget_choose_playlist">Escolha uma playlist</string>
+    <plurals name="export_newpipe_subs_skipped">
+        <item quantity="one">Exportado, mas %1$d canal sem um ID de canal ficou de fora</item>
+        <item quantity="many">Exportado, mas %1$d de canais sem Um ID de canal ficaram de fora</item>
+        <item quantity="other">Exportado, mas %1$d canais sem um ID de canal ficaram de fora</item>
+    </plurals>
+    <string name="backup_busy">Outra importação ou exportação ainda está em funcionamento</string>
+    <string name="error_bot_wall">YouTube está bloqueando está rede</string>
+    <string name="error_bot_wall_hint">Tente outra rede ou desligue sua VPN.</string>
+    <string name="error_login_required">Login requisitado</string>
+    <string name="error_login_required_hint">YouTube apenas reproduz este vídeo para contas logadas.</string>
 </resources>
