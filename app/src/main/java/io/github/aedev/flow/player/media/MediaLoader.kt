@@ -62,7 +62,9 @@ class MediaLoader(
             MimeTypes.registerCustomMimeType(Srv3SubtitleParser.MIME_TYPE, "", C.TRACK_TYPE_TEXT)
         }
 
-        internal fun subtitleTrackId(index: Int): String = "flow-subtitle-$index"
+        internal const val SUBTITLE_TRACK_ID_PREFIX = "flow-subtitle-"
+
+        internal fun subtitleTrackId(index: Int): String = "$SUBTITLE_TRACK_ID_PREFIX$index"
     }
 
     private var activeSabrOrchestrator: SabrOrchestrator? = null

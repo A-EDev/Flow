@@ -111,7 +111,7 @@ internal fun VideoStageControls(
             chapters = playerUiState.chapters,
             storyboard = playerUiState.storyboard,
             heatmap = playerUiState.heatmap,
-            isSubtitlesEnabled = screenState.subtitlesEnabled,
+            isSubtitlesEnabled = playerState.selectedSubtitleUrl != null,
             autoplayEnabled = playerUiState.autoplayEnabled,
             isLooping = playerState.isLooping,
             hasPrevious = playerState.hasPrevious || canGoPrevious,
@@ -169,12 +169,11 @@ internal fun VideoStageControls(
             onQueueClick = { screenState.open(PlayerSheet.Queue) },
             onDescriptionClick = { screenState.open(PlayerSheet.Description) },
             onSubtitleClick = {
-                if (screenState.subtitlesEnabled) {
-                    SubtitleSelection.disable(screenState)
+                if (playerState.selectedSubtitleUrl != null) {
+                    SubtitleSelection.disable()
                 } else {
                     val enabled =
                         SubtitleSelection.enable(
-                            screenState = screenState,
                             subtitles = playerState.availableSubtitles,
                             languageTag = prefs.preferredSubtitleLanguage,
                             rememberLanguage = rememberSubtitleLanguage,

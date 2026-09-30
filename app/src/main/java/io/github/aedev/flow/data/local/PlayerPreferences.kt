@@ -71,7 +71,6 @@ class PlayerPreferences(
         val SHOW_CONTROLS_WHILE_LOADING = booleanPreferencesKey("show_controls_while_loading")
         val VIDEO_LOOP_ENABLED = booleanPreferencesKey("video_loop_enabled")
         val VIDEO_AMBIENT_MODE_ENABLED = booleanPreferencesKey("video_ambient_mode_enabled")
-        val SUBTITLES_ENABLED = booleanPreferencesKey("subtitles_enabled")
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
         val SUBTITLE_FONT_SIZE = floatPreferencesKey("subtitle_font_size")
         val SUBTITLE_TEXT_COLOR = intPreferencesKey("subtitle_text_color")
@@ -1702,18 +1701,6 @@ class PlayerPreferences(
     }
 
     // Subtitles
-    val subtitlesEnabled: Flow<Boolean> =
-        context.playerPreferencesDataStore.data
-            .map { preferences ->
-                preferences[Keys.SUBTITLES_ENABLED] ?: false
-            }
-
-    suspend fun setSubtitlesEnabled(enabled: Boolean) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.SUBTITLES_ENABLED] = enabled
-        }
-    }
-
     val subtitleStyle: Flow<SubtitleStyle> =
         context.playerPreferencesDataStore.data
             .map { preferences ->

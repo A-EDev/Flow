@@ -52,7 +52,7 @@ internal fun PlayerSettingsSheetHost(
     SettingsMenuDialog(
         playerState = playerState,
         autoplayEnabled = uiState.autoplayEnabled,
-        subtitlesEnabled = screenState.subtitlesEnabled,
+        subtitlesEnabled = playerState.selectedSubtitleUrl != null,
         initialPage = screenState.settingsPage,
         onDismiss = onDismiss,
         onQualitySelected = { option ->
@@ -64,10 +64,9 @@ internal fun PlayerSettingsSheetHost(
                 .subtitleFollowingAudio(
                     subtitles = playerState.availableSubtitles,
                     audioLanguage = playerState.availableAudioTracks.getOrNull(index)?.language,
-                    selectedUrl = screenState.selectedSubtitleUrl,
+                    selectedUrl = playerState.selectedSubtitleUrl,
                 )?.let { subtitleIndex ->
                     SubtitleSelection.applyAt(
-                        screenState = screenState,
                         subtitles = playerState.availableSubtitles,
                         index = subtitleIndex,
                         rememberLanguage = rememberSubtitleLanguage,
@@ -81,16 +80,15 @@ internal fun PlayerSettingsSheetHost(
                 scope.launch { playerPreferences.setPlaybackSpeed(speed) }
             }
         },
-        selectedSubtitleUrl = screenState.selectedSubtitleUrl,
+        selectedSubtitleUrl = playerState.selectedSubtitleUrl,
         onSubtitleSelected = { index ->
             SubtitleSelection.applyAt(
-                screenState = screenState,
                 subtitles = playerState.availableSubtitles,
                 index = index,
                 rememberLanguage = rememberSubtitleLanguage,
             )
         },
-        onDisableSubtitles = { SubtitleSelection.disable(screenState) },
+        onDisableSubtitles = { SubtitleSelection.disable() },
         onAutoplayToggle = { viewModel.toggleAutoplay(it) },
         onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
         onStableVolumeToggle = { viewModel.toggleStableVolume(it) },

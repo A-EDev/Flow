@@ -42,7 +42,6 @@ internal class VideoPlayerPreferencesState(
     val lockModeEnabled: Boolean,
     val commentsEnabled: Boolean,
     val preferredSubtitleLanguage: String,
-    val autoEnableSubtitles: Boolean,
     val commentsPreviewEnabled: Boolean,
     val showRelatedVideos: Boolean,
     val relatedCardStyle: PlayerRelatedCardStyle,
@@ -76,7 +75,6 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
     val commentsEnabled by playerPreferences.commentsEnabled.collectAsState(initial = true)
     val preferredSubtitleLanguage by playerPreferences.preferredSubtitleLanguage
         .collectAsState(initial = CaptionTrackResolver.NO_PREFERRED_LANGUAGE)
-    val autoEnableSubtitles by playerPreferences.autoEnableSubtitles.collectAsState(initial = false)
     val commentsPreviewEnabled by playerPreferences.commentsPreviewEnabled.collectAsState(initial = true)
     val showRelatedVideos by playerPreferences.showRelatedVideos.collectAsState(initial = true)
     val relatedCardStyle by playerPreferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
@@ -106,7 +104,6 @@ internal fun rememberVideoPlayerPreferences(context: Context): VideoPlayerPrefer
         lockModeEnabled = lockModeEnabled,
         commentsEnabled = commentsEnabled,
         preferredSubtitleLanguage = preferredSubtitleLanguage,
-        autoEnableSubtitles = autoEnableSubtitles,
         commentsPreviewEnabled = commentsPreviewEnabled,
         showRelatedVideos = showRelatedVideos,
         relatedCardStyle = relatedCardStyle,

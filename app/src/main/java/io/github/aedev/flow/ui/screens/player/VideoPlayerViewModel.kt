@@ -681,8 +681,6 @@ class VideoPlayerViewModel
             videoId: String,
         ) = engagementState.observe(channelId, videoId)
 
-        fun toggleSubtitles(enabled: Boolean) = settings.setSubtitlesEnabled(enabled)
-
         fun toggleAutoplay(enabled: Boolean) = settings.toggleAutoplay(enabled)
 
         fun toggleLoop(enabled: Boolean) = settings.toggleLoop(enabled)
