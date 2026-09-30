@@ -15,8 +15,6 @@ private const val BEST_SUBS_LIMIT = 15
 private const val BEST_DISCOVERY_LIMIT = 15
 private const val BEST_VIRAL_LIMIT = 6
 private const val BEST_RELATED_LIMIT = 12
-private const val STORED_SUBS_WINDOW_MS = 14L * 24L * 60L * 60L * 1000L
-private const val STORED_SUBS_MAX = 60
 
 internal fun List<Video>.enrichAvatars(subAvatarMap: Map<String, String>): List<Video> =
     if (subAvatarMap.isEmpty()) {
@@ -80,17 +78,8 @@ internal suspend fun buildHomeFeedLanes(
 ): HomeFeedLanes {
     // The fresh-subs lane and the subs backlog bypass rank(), so hidden videos, channels and
     // topics are dropped here or they would resurface through them.
-    // The subscription store holds every followed channel's recent uploads. The ones whose length is
-    // known join the pool, so the lane still has subscriptions when the live fetch misses its deadline.
-    val storedSubs =
-        rssFeed
-            .asSequence()
-            .filter { !it.isShort && !it.isUpcoming && it.duration > 0 && (now - it.timestamp) in 0..STORED_SUBS_WINDOW_MS }
-            .sortedByDescending { it.timestamp }
-            .take(STORED_SUBS_MAX)
-            .toList()
     val subsPool =
-        (rawSubs + storedSubs)
+        rawSubs
             .distinctBy { it.id }
             .filterValid()
             .filterWatched(watched)

@@ -5,6 +5,56 @@ import io.github.aedev.flow.data.model.Video
 internal const val FRESH_SUB_WINDOW_MS = 72L * 60L * 60L * 1000L
 internal const val HOME_MAX_SUGGESTION_AGE_MS = 365L * 24L * 60L * 60L * 1000L
 
+private const val STORED_SUBS_WINDOW_MS = 14L * 24L * 60L * 60L * 1000L
+private const val STORED_SUBS_MAX = 60
+private const val STORED_REELS_WINDOW_MS = 7L * 24L * 60L * 60L * 1000L
+
+/**
+ * The subscription store's uploads Home can show as cards: every followed channel is in it, but a row
+ * RSS wrote has no length until a channel tab or the player fills one in, and without it a Short
+ * cannot be told from a video.
+ */
+internal fun List<Video>.storedSubscriptionVideos(now: Long): List<Video> =
+    asSequence()
+        .filter { !it.isShort && !it.isUpcoming && (it.duration > 0 || it.isLive) && (now - it.timestamp) in 0..STORED_SUBS_WINDOW_MS }
+        .sortedByDescending { it.timestamp }
+        .take(STORED_SUBS_MAX)
+        .toList()
+
+internal fun List<Video>.storedSubscriptionReels(now: Long): List<Video> =
+    filter { it.isShort && (now - it.timestamp) in 0..STORED_REELS_WINDOW_MS }
+
+/** Followed channels with a fresh upload the store still has no length for, newest upload first. */
+internal fun List<Video>.channelsMissingLengths(now: Long): Set<String> =
+    filter { !it.isShort && !it.isUpcoming && !it.isLive && it.duration <= 0 && (now - it.timestamp) in 0..FRESH_SUB_WINDOW_MS }
+        .sortedByDescending { it.timestamp }
+        .mapTo(LinkedHashSet()) { it.channelId }
+
+/**
+ * Adds videos that arrived after first paint without moving anything the viewer has seen: they go
+ * below [lastVisibleIndex], one after every [spacing] cards already there.
+ */
+internal fun insertBelowViewport(
+    feed: List<Video>,
+    late: List<Video>,
+    lastVisibleIndex: Int,
+    spacing: Int = 2,
+): List<Video> {
+    val onScreen = feed.mapTo(HashSet()) { it.id }
+    val arriving = late.filter { it.id !in onScreen }.distinctBy { it.id }
+    if (arriving.isEmpty()) return feed
+    val split = (lastVisibleIndex + 1).coerceIn(0, feed.size)
+    val pending = ArrayDeque(arriving)
+    return buildList(feed.size + arriving.size) {
+        addAll(feed.take(split))
+        feed.drop(split).forEachIndexed { index, video ->
+            add(video)
+            if ((index + 1) % spacing == 0) pending.removeFirstOrNull()?.let(::add)
+        }
+        addAll(pending)
+    }
+}
+
 internal fun dynamicFreshSubSlots(subCount: Int): Int =
     when {
         subCount >= 120 -> 5

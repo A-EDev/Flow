@@ -10,15 +10,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The live half of Home's subscription lane: the newest uploads of a rotating window of the channels
+ * The background top-up of Home's subscription lane: the newest uploads of a window of the channels
  * the viewer follows, read from each channel's Videos tab (and Shorts tab when the Home shelf wants
- * reels). All channels share one deadline and the ones that answered in time are kept, so a slow
- * network thins the lane instead of emptying it.
+ * reels). Channels whose stored uploads still lack a length go first, then the rotation. All channels
+ * share one deadline and the ones that answered in time are kept.
  */
 @Singleton
 class HomeSubscriptionUploads
@@ -27,16 +28,32 @@ class HomeSubscriptionUploads
         private val uploads: ChannelUploadsClient,
         private val playerPreferences: PlayerPreferences,
     ) {
+        private val priorityAskedAt = ConcurrentHashMap<String, Long>()
+
         suspend fun fetch(
             subscriptions: List<FeedItemOwner>,
             includeShorts: Boolean,
+            priorityChannelIds: Set<String> = emptySet(),
             deadlineMillis: Long = DEADLINE_MS,
+            now: Long = System.currentTimeMillis(),
         ): List<Video> {
             val channels = subscriptions.filter { it.id.startsWith("UC") }.distinctBy { it.id }.sortedBy { it.id }
             if (channels.isEmpty()) return emptyList()
+            val size = homeSubsWindowSize(channels.size)
+            // A priority channel whose missing length its Videos tab could not fill (an RSS reel, say)
+            // is not asked again on every refresh.
+            val priority =
+                channels
+                    .filter { owner ->
+                        val askedAt = priorityAskedAt[owner.id]
+                        owner.id in priorityChannelIds && (askedAt == null || now - askedAt > PRIORITY_RETRY_MS)
+                    }.take(size)
+            priority.forEach { priorityAskedAt[it.id] = now }
             val cursor = playerPreferences.homeSubsRotationCursor.first()
-            val window = rotatingWindow(channels, cursor, homeSubsWindowSize(channels.size))
-            playerPreferences.setHomeSubsRotationCursor(nextCursor(cursor, window.size, channels.size))
+            val rotationPool = channels - priority.toSet()
+            val rotation = rotatingWindow(rotationPool, cursor, size - priority.size)
+            playerPreferences.setHomeSubsRotationCursor(nextCursor(cursor, rotation.size, rotationPool.size))
+            val window = priority + rotation
 
             val collected = ConcurrentLinkedQueue<Video>()
             val gate = Semaphore(CONCURRENCY)
@@ -58,13 +75,17 @@ class HomeSubscriptionUploads
                     .filter { it.membersOnlyText == null }
                     .distinctBy { it.id }
                     .sortedByDescending { it.timestamp }
-            Log.d(TAG, "Home subs: ${window.size} of ${channels.size} channels asked, ${videos.size} uploads")
+            Log.d(
+                TAG,
+                "Home subs: ${window.size} of ${channels.size} channels asked (${priority.size} missing lengths), ${videos.size} uploads",
+            )
             return videos
         }
 
         private companion object {
             const val TAG = "HomeSubscriptionUploads"
-            const val DEADLINE_MS = 7_000L
+            const val DEADLINE_MS = 20_000L
+            const val PRIORITY_RETRY_MS = 30L * 60L * 1000L
             const val CONCURRENCY = 6
             const val VIDEOS_PER_CHANNEL = 5
             const val SHORTS_PER_CHANNEL = 3

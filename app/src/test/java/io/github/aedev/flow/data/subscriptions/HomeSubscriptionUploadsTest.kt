@@ -134,4 +134,23 @@ class HomeSubscriptionUploadsTest {
         assertThat(rotatingWindow(channels, start = 25, count = 7)).containsExactly("c25", "c26", "c27", "c28", "c29", "c0", "c1").inOrder()
         assertThat(nextCursor(cursor = 25, windowSize = 7, channelCount = 30)).isEqualTo(2)
     }
+
+    @Test
+    fun `channels missing a length are asked first and not again within half an hour`() =
+        runTest {
+            val asked = mutableListOf<String>()
+            val fetcher =
+                uploads { channelId, kind ->
+                    asked += channelId
+                    page(kind, video("$channelId-1", channelId))
+                }
+            val subs = (0 until 30).map { FeedItemOwner(id = "UC%02d".format(it)) }
+
+            fetcher.fetch(subs, includeShorts = false, priorityChannelIds = setOf("UC29"), now = 0L)
+            assertThat(asked.first()).isEqualTo("UC29")
+
+            asked.clear()
+            fetcher.fetch(subs, includeShorts = false, priorityChannelIds = setOf("UC29"), now = 60_000L)
+            assertThat(asked).doesNotContain("UC29")
+        }
 }

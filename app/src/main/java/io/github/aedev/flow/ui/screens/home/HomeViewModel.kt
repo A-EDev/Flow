@@ -52,7 +52,6 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 private data class Wave1FeedResults(
-    val subs: List<Video>,
     val discovery: List<Pair<String, List<Video>>>,
     val viral: List<Video>,
     val related: RelatedGraphFetchResult,
@@ -91,6 +90,10 @@ class HomeViewModel
             // Never-dry load-more: fallback related pass seeded from feed + saved interests.
             private const val LOAD_MORE_FALLBACK_SEEDS = 4
             private const val FEED_SEED_POOL = 30
+            private const val LATE_SUBS_MAX = 8
+
+            // Before the grid reports its viewport the first screen is still in view; never shift it.
+            private const val LATE_SUBS_MIN_INDEX = 5
         }
 
         private val relatedPickIds = ConcurrentHashMap.newKeySet<String>()
@@ -124,6 +127,10 @@ class HomeViewModel
         private val discoveryQueries = mutableListOf<String>()
         private var wave2Job: Job? = null
         private var feedJob: Job? = null
+        private var subsTopUpJob: Job? = null
+
+        @Volatile
+        private var lastVisibleVideoIndex = -1
         private var savedInterestJob: Job? = null
 
         private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
@@ -270,6 +277,7 @@ class HomeViewModel
         }
 
         fun onHomeViewportChanged(lastVisibleVideoIndex: Int) {
+            this.lastVisibleVideoIndex = lastVisibleVideoIndex
             val state = _uiState.value
             if (!state.isReadyForPrefetch()) return
             startHomePrefetch(
@@ -430,6 +438,7 @@ class HomeViewModel
 
             wave2Job?.cancel()
             feedJob?.cancel()
+            subsTopUpJob?.cancel()
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             feedJob =
@@ -445,24 +454,13 @@ class HomeViewModel
                         val region = playerPreferences.trendingRegion.first()
                         val fetchStart = System.currentTimeMillis()
 
-                        // ── Wave 1: first 3 queries + subs + trending ──
+                        // ── Wave 1: first 3 queries + related lanes; subscriptions come from the store ──
                         val wave1QueryCount = discoveryQueries.size.coerceAtMost(3)
                         val wave1Queries = discoveryQueries.take(wave1QueryCount)
                         currentQueryIndex = wave1QueryCount
 
                         val results =
                             supervisorScope {
-                                val deferredSubs =
-                                    async {
-                                        if (userSubs.isEmpty()) return@async emptyList()
-                                        runCatching {
-                                            homeSubscriptionUploads.fetch(
-                                                subscriptions = subscriptionOwners(userSubs),
-                                                includeShorts = playerPreferences.effectiveHomeShortsShelfEnabled.first(),
-                                            )
-                                        }.getOrElse { emptyList() }
-                                    }
-
                                 val deferredDiscovery =
                                     async {
                                         wave1Queries
@@ -486,23 +484,17 @@ class HomeViewModel
                                     }
 
                                 Wave1FeedResults(
-                                    subs = deferredSubs.await(),
                                     discovery = deferredDiscovery.await(),
                                     viral = emptyList(),
                                     related = deferredRelated.await(),
                                 )
                             }
 
-                        val rawSubs = results.subs
                         val discoveryPairs = results.discovery
                         val rawDiscovery = discoveryPairs.flatMap { it.second }
                         val rawViral = results.viral
                         val relatedFetch = results.related
                         val rawRelated = relatedFetch.candidates
-
-                        // Passive channel profiling: the upload titles we just fetched
-                        // teach the engine what each subscribed channel is about.
-                        runCatching { FlowNeuroEngine.onChannelUploadsObserved(rawSubs) }
 
                         // Stale-query feedback: queries whose results are mostly
                         // already-shown get skipped by the next generation cycle.
@@ -525,8 +517,16 @@ class HomeViewModel
                         val taste = feedTasteProfile(brain, FlowNeuroEngine.getPersona(brain))
 
                         val exclusions = feedExclusions()
+                        // Subscriptions come from the store, which is local: the network top-up runs
+                        // after first paint and never holds the feed back.
+                        val storedFeed =
+                            if (userSubs.isEmpty()) {
+                                emptyList()
+                            } else {
+                                runCatching { subscriptionFeedRepository.observeFeed().first() }.getOrDefault(emptyList())
+                            }
                         val feedShorts =
-                            (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
+                            (storedFeed.storedSubscriptionReels(now) + rawDiscovery.extractShorts() + rawViral.extractShorts())
                                 .distinctBy { it.id }
                                 .filterWatched(watchedShortIds.value)
                                 .filterRecentHomeSuggestion(now)
@@ -543,13 +543,11 @@ class HomeViewModel
                         val watched = watchedVideoIds.value
                         val lanes =
                             buildHomeFeedLanes(
-                                rawSubs = rawSubs,
+                                rawSubs = storedFeed.storedSubscriptionVideos(now),
                                 rawDiscovery = rawDiscovery,
                                 rawViral = rawViral,
                                 rawRelated = rawRelated,
-                                rssFeed =
-                                    runCatching { subscriptionFeedRepository.observeFeed().first() }
-                                        .getOrDefault(emptyList()),
+                                rssFeed = storedFeed,
                                 watched = watched,
                                 exclusions = exclusions,
                                 isRecentlyShown = { id -> NeuroScoring.isRecentlySeen(brain.feedHistory[id], now) },
@@ -641,6 +639,7 @@ class HomeViewModel
                         enrichFeedWithSavedInterest(userSubs, taste)
 
                         startWave2Discovery(finalMix, userSubs, taste)
+                        startSubscriptionTopUp(userSubs, storedFeed)
                     } catch (cancellation: CancellationException) {
                         throw cancellation
                     } catch (e: Exception) {
@@ -1142,6 +1141,72 @@ class HomeViewModel
             HomeFeedCache.clear()
             _uiState.update { it.copy(isRefreshing = true) }
             loadFlowFeed(forceRefresh = true)
+        }
+
+        /**
+         * Tops the subscription store up from channel tabs after first paint, then adds what it found
+         * below the cards on screen. One at a time; a reload cancels it, so a changed setting cannot be
+         * undone by a late merge.
+         */
+        private fun startSubscriptionTopUp(
+            userSubs: Set<String>,
+            storedFeed: List<Video>,
+        ) {
+            if (userSubs.isEmpty() || subsTopUpJob?.isActive == true) return
+            subsTopUpJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    val uploads =
+                        try {
+                            homeSubscriptionUploads.fetch(
+                                subscriptions = subscriptionOwners(userSubs),
+                                includeShorts = playerPreferences.effectiveHomeShortsShelfEnabled.first(),
+                                priorityChannelIds = storedFeed.channelsMissingLengths(System.currentTimeMillis()),
+                            )
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (error: Exception) {
+                            Log.d(TAG, "Subscription top-up failed: ${error.message}")
+                            emptyList()
+                        }
+                    if (uploads.isEmpty()) return@launch
+                    // Passive channel profiling: upload titles teach the engine what each channel is about.
+                    runCatching { FlowNeuroEngine.onChannelUploadsObserved(uploads) }
+                    subscriptionFeedRepository.mergeChannelTabUploads(uploads)
+                    mergeLateSubscriptions(uploads, userSubs)
+                }
+        }
+
+        private suspend fun mergeLateSubscriptions(
+            uploads: List<Video>,
+            userSubs: Set<String>,
+        ) {
+            val exclusions = feedExclusions()
+            val (reels, videos) = uploads.filterNot(exclusions::hidesFromRecommendations).partition { it.isShort }
+            val onScreen = _uiState.value.videos.mapTo(HashSet()) { it.id }
+            val late =
+                FlowNeuroEngine
+                    .rank(videos.filterValid().filterWatched(watchedVideoIds.value).filterNot { it.id in onScreen }, userSubs)
+                    .distinctBy { it.channelId }
+                    .take(LATE_SUBS_MAX)
+            var merged: List<Video>? = null
+            _uiState.update { state ->
+                if (state.isLoading || state.videos.isEmpty()) return@update state
+                val below = lastVisibleVideoIndex.coerceAtLeast(LATE_SUBS_MIN_INDEX)
+                val updated = insertBelowViewport(state.videos, late.filterWatched(watchedVideoIds.value), below)
+                if (updated.size == state.videos.size) return@update state
+                merged = updated
+                HomeFeedCache.update(updated, state.shorts)
+                state.copy(videos = updated)
+            }
+            merged?.let {
+                persistentHomeFeedCache.saveLastFeed(it)
+                Log.d(TAG, "Subscription top-up added ${it.size - onScreen.size} uploads below the viewport")
+            }
+            val lateReels = reels.filterWatched(watchedShortIds.value)
+            if (lateReels.isNotEmpty() && playerPreferences.effectiveHomeShortsShelfEnabled.first()) {
+                val rankedReels = FlowNeuroEngine.rank(lateReels, userSubs)
+                _uiState.update { state -> state.copy(shorts = (state.shorts + rankedReels).distinctBy { it.id }) }
+            }
         }
 
         private suspend fun subscriptionOwners(channelIds: Set<String>): List<FeedItemOwner> =

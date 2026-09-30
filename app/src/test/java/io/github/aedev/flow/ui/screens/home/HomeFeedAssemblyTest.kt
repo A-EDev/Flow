@@ -149,18 +149,6 @@ class HomeFeedAssemblyTest {
         }
 
     @Test
-    fun `stored uploads with a known length keep the subs lane alive when the live fetch is empty`() =
-        runTest {
-            val stored = video("stored", channelId = "UCs", ageMs = 5 * 24 * hour, uploadDate = "5 days ago")
-            val noLength = video("rss-only", channelId = "UCr", ageMs = 5 * 24 * hour, duration = 0)
-            val tooOld = video("old", channelId = "UCo", ageMs = 30 * 24 * hour)
-
-            val result = lanes(subs = emptyList(), rss = listOf(stored, noLength, tooOld))
-
-            assertThat(result.bestSubs.map { it.id }).containsExactly("stored")
-        }
-
-    @Test
     fun `a blocked topic is dropped from the subscription lanes`() =
         runTest {
             val result =
