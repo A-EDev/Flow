@@ -13,6 +13,9 @@ fun String.foldForSearch(): String =
 
 private val SearchWords = Regex("""\s+""")
 
+/** The folded words of a query, for matching texts that were folded once ahead of time. */
+fun String.searchWords(): List<String> = foldForSearch().split(SearchWords).filter(String::isNotEmpty)
+
 /**
  * The items whose [text] holds every word of [query], in their order, ignoring case and accents;
  * a blank query keeps them all. "cafe tram" finds "Café, the 28 tram".
@@ -21,7 +24,7 @@ fun <T> List<T>.filterBySearch(
     query: String,
     text: (T) -> String,
 ): List<T> {
-    val words = query.foldForSearch().split(SearchWords).filter(String::isNotEmpty)
+    val words = query.searchWords()
     if (words.isEmpty()) return this
     return filter { item ->
         val folded = text(item).foldForSearch()

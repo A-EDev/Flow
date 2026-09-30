@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.localmedia
 
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.model.MusicTrack
+import io.github.aedev.flow.utils.foldForSearch
 
 /** A video or song file on the device, as MediaStore describes it. */
 data class LocalMediaItem(
@@ -9,6 +10,8 @@ data class LocalMediaItem(
     val isVideo: Boolean,
     val contentUri: String,
     val title: String,
+    /** The file's name with its extension, as MediaStore stores it. */
+    val fileName: String = "",
     val durationMs: Long,
     val sizeBytes: Long,
     val dateAddedMs: Long,
@@ -26,6 +29,9 @@ data class LocalMediaItem(
     val mediaId: String get() = LocalMediaIds.of(id)
 
     val isPortrait: Boolean get() = height > width && width > 0
+
+    /** Everything a search looks through, folded once per read rather than on every keystroke. */
+    val searchText: String by lazy { listOf(title, fileName, folderName, artist, album).joinToString("\n").foldForSearch() }
 }
 
 /** Everything the device holds, or [failed] when MediaStore could not be read. */

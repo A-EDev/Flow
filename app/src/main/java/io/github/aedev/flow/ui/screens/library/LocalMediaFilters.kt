@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.library
 import androidx.annotation.StringRes
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.localmedia.LocalMediaItem
+import io.github.aedev.flow.utils.searchWords
 
 private const val MINUTE_MS = 60_000L
 private const val SHORT_MAX_MS = 4 * MINUTE_MS
@@ -98,12 +99,10 @@ fun List<LocalMediaItem>.applyLocalFilters(
     playback: LocalPlayback,
     nowMs: Long,
 ): List<LocalMediaItem> {
-    val needle = filters.query.trim()
+    val words = filters.query.searchWords()
     return asSequence()
-        .filter { item ->
-            needle.isEmpty() ||
-                listOf(item.title, item.folderName, item.artist, item.album).any { it.contains(needle, ignoreCase = true) }
-        }.filter { filters.length.matches(it.durationMs) }
+        .filter { item -> words.all { it in item.searchText } }
+        .filter { filters.length.matches(it.durationMs) }
         .filter { !it.isVideo || filters.quality.matches(it) }
         .filter { !filters.portraitOnly || it.isPortrait }
         .filter { item ->
