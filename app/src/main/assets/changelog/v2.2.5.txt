@@ -117,6 +117,7 @@ IMPROVEMENTS
 - A burst of Shorts or a couple of new videos no longer erases interests you have followed for months, and the time of day only shapes the feed once Flow has seen enough of your viewing at that hour (#907)
 - Thumbs-down and Not interested now stick: a rejected topic is remembered for months, fading slowly, and is recognised under new titles, a disliked video never seeds related videos, and rejecting things no longer makes the feed more random (#907)
 - Styled titles such as 𝙋𝙃𝙊𝙉𝙆 or ｐｈｏｎｋ read as the word they spell, short topics such as AI, F1 and 3D count, and Chinese, Japanese and Thai titles are split into real words (#907)
+- Profiles the old learning had worn down to a few stray words are rebuilt from what your channels teach when you update, and topics you blocked are cleared out of them (#907)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -182,6 +183,7 @@ FIXES AND STABILITY
 - Fix automatic captions not turning on for the next video in a queue or autoplay, and the Subtitles switch in TV settings doing nothing (#1182)
 - Fix the subtitle position setting being ignored on downloaded videos, whose captions sat on the bottom edge (#1182)
 - Fix songs that buffer about 30 seconds in and only resume after pausing: music now finds its streams the way videos do, so a source YouTube has stopped serving is skipped for every song instead of being tried again on each one (#1180)
+- Fix the feed shrinking after a few refreshes in a row, when discovery dropped to the two searches it had not used recently instead of keeping the rest behind them
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
