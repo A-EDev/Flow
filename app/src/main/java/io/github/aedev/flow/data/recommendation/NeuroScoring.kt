@@ -197,6 +197,9 @@ internal object NeuroScoring {
     private const val REJECTION_MATCH_TOPICS = 6
     private const val REJECTION_WORD_PREFIX = "~"
 
+    /** A "~" pattern counts once a second rejection repeats it. */
+    private const val REJECTION_REPEATED = 1.5
+
     private val REJECTION_BROAD_TOPICS =
         hashSetOf(
             "music",
@@ -867,9 +870,11 @@ internal object NeuroScoring {
     // ── Rejection Pattern Memory Functions ──
 
     /**
-     * What a rejection is remembered by: the two strongest specific topics, the pair of the two
-     * strongest topics, and the words of those topics. A word key only counts once a second
-     * rejection repeats it, so one "phonk driving" rejection never penalizes "driving" (#907).
+     * What a rejection is remembered by. Only the pair of the two strongest topics counts at once:
+     * one rejected video says little about any single topic, and IDF weighting makes a title's rare
+     * words ("late", "drives") its strongest. The two strongest specific topics and the words of the
+     * top four are remembered as "~" patterns, which count once a second rejection repeats them, so
+     * the topic rejected videos share ("phonk") is what builds up (#907).
      */
     fun extractRejectionKeys(videoVector: ContentVector): List<String> {
         val topTopics =
@@ -881,15 +886,14 @@ internal object NeuroScoring {
                 .distinct()
         if (topTopics.isEmpty()) return emptyList()
 
-        val specific = topTopics.filter { it !in REJECTION_BROAD_TOPICS }.take(REJECTION_RECORD_KEYS)
-        val keys = specific.toMutableList()
+        val keys = mutableListOf<String>()
         if (topTopics.size >= 2) keys += makeAffinityKey(topTopics[0], topTopics[1])
-        specific
-            .filter { ' ' in it }
-            .flatMap { it.split(' ') }
-            .filter { NeuroText.isTopicSized(it) && it !in REJECTION_BROAD_TOPICS && it !in specific }
-            .distinct()
-            .mapTo(keys) { REJECTION_WORD_PREFIX + it }
+        val specific = topTopics.filter { it !in REJECTION_BROAD_TOPICS }.take(REJECTION_RECORD_KEYS)
+        val words =
+            topTopics
+                .flatMap { it.split(' ') }
+                .filter { NeuroText.isTopicSized(it) && it !in REJECTION_BROAD_TOPICS }
+        (specific + words).distinct().mapTo(keys) { REJECTION_WORD_PREFIX + it }
         return keys
     }
 
@@ -942,7 +946,8 @@ internal object NeuroScoring {
         rejectionPatterns.forEach { (key, signal) ->
             if (matchesRejection(key, terms)) {
                 val effective = effectiveRejections(signal, now)
-                strongest = maxOf(strongest, if (key.startsWith(REJECTION_WORD_PREFIX)) effective - 1.0 else effective)
+                val counts = !key.startsWith(REJECTION_WORD_PREFIX) || effective >= REJECTION_REPEATED
+                if (counts) strongest = maxOf(strongest, effective)
             }
         }
         return strongest
@@ -987,7 +992,8 @@ internal object NeuroScoring {
         now: Long,
     ): Map<String, RejectionSignal> {
         val updated = rejectionPatterns.toMutableMap()
-        extractRejectionKeys(videoVector).forEach { key ->
+        val keys = extractRejectionKeys(videoVector)
+        keys.distinct().forEach { key ->
             val left = updated[key]?.let { effectiveRejections(it, now) } ?: 0.0
             updated[key] = RejectionSignal(count = (left + 1).roundToInt().coerceAtLeast(1), lastRejectedAt = now)
         }
