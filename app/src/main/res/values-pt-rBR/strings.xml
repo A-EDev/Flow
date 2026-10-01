@@ -3238,4 +3238,5 @@
     <string name="error_bot_wall_hint">Tente outra rede ou desligue sua VPN.</string>
     <string name="error_login_required">Login requisitado</string>
     <string name="error_login_required_hint">YouTube apenas reproduz este vídeo para contas logadas.</string>
+    <string name="pause_watch_history_title">Pausar histórico de visualização</string>
 </resources>
