@@ -16,7 +16,9 @@ import io.github.aedev.flow.data.local.HomeFeedColumns
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SearchHistoryItem
 import io.github.aedev.flow.data.local.SearchHistoryRepository
+import io.github.aedev.flow.data.local.SearchHistoryScope
 import io.github.aedev.flow.innertube.pages.search.SearchSuggestion
+import io.github.aedev.flow.ui.components.search.matchingTyped
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -59,17 +61,8 @@ class SearchScreenState(
     val query: String
         get() = textFieldState.text.toString()
 
-    /** History rows that match what has been typed, prefix matches first, as YouTube orders them. */
     val matchingHistory: List<SearchHistoryItem>
-        get() {
-            val all = allHistoryState.value
-            val typed = query.trim()
-            if (typed.isEmpty()) return all.take(HISTORY_LIMIT)
-            val lowered = typed.lowercase()
-            val matches = all.filter { it.query.contains(typed, ignoreCase = true) }
-            val (prefix, rest) = matches.partition { it.query.lowercase().startsWith(lowered) }
-            return (prefix + rest).take(HISTORY_LIMIT)
-        }
+        get() = allHistoryState.value.matchingTyped(query)
 
     fun onSubmit(text: String) {
         scope.launch { history.saveSearchQuery(text) }
@@ -97,7 +90,7 @@ class SearchScreenState(
     }
 
     fun clearHistory() {
-        scope.launch { history.clearSearchHistory() }
+        scope.launch { history.clearSearchHistory(SearchHistoryScope.VIDEO) }
         onHistoryCleared()
     }
 
@@ -115,7 +108,6 @@ class SearchScreenState(
     }
 
     private companion object {
-        const val HISTORY_LIMIT = 8
         const val MIN_SUGGESTION_LENGTH = 2
     }
 }

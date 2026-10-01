@@ -75,6 +75,7 @@ data class BackupData(
     val timestamp: Long = System.currentTimeMillis(),
     val viewHistory: List<VideoHistoryEntry>? = emptyList(),
     val searchHistory: List<SearchHistoryItem>? = emptyList(),
+    val musicSearchHistory: List<SearchHistoryItem>? = emptyList(),
     val subscriptions: List<ChannelSubscription>? = emptyList(),
     val playlists: List<PlaylistEntity>? = emptyList(),
     val playlistVideos: List<PlaylistVideoCrossRef>? = emptyList(),
@@ -271,6 +272,7 @@ class BackupRepository(
         BackupData(
             viewHistory = viewHistory.getAllHistory().first(),
             searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
+            musicSearchHistory = searchHistoryRepo.getSearchHistoryFlow(SearchHistoryScope.MUSIC).first(),
             subscriptions = subscriptionRepo.getAllSubscriptions().first(),
             playlists = database.playlistDao().getAllPlaylists().first(),
             playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
@@ -2151,6 +2153,7 @@ class BackupRepository(
         }
         backupData.likedVideos?.forEach { info -> likedVideosRepo.likeVideo(info) }
         backupData.searchHistory?.let { searchHistoryRepo.replaceSearchHistory(it) }
+        backupData.musicSearchHistory?.let { searchHistoryRepo.replaceSearchHistory(it, SearchHistoryScope.MUSIC) }
         backupData.subscriptions?.let { subs ->
             subscriptionRepo.subscribeAll(subs)
             val channelNames = subs.map { it.channelName }.filter { it.isNotEmpty() }

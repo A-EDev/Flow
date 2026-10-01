@@ -602,6 +602,11 @@ fun NavGraphBuilder.flowAppGraph(
             onPlaylistClick = { playlistId ->
                 mediaNavigator.openMusicPlaylist(playlistId)
             },
+            onMoodClick = { item ->
+                val encodedParams = android.net.Uri.encode(item.endpoint.params ?: "")
+                navController.navigate("youtube_browse/${item.endpoint.browseId}?params=$encodedParams")
+            },
+            onMoodsSeeAll = { navController.navigate("moodsAndGenres") },
         )
     }
 
