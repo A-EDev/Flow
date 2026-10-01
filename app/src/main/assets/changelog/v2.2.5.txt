@@ -113,6 +113,10 @@ IMPROVEMENTS
 - Downloads keep running after Flow is closed and resume where they stopped, and a downloaded song plays from its file wherever it is queued
 - Home shows your subscriptions right away from what Flow already saved, and adds new uploads below what you are looking at
 - Not interested hides that video for good, resetting your profile keeps everything you hid, and the feed stays closer to what you actually watch (#1086, #1031, #907)
+- Recommendations learn phrases instead of single words: creator tags like "guitar playalong" stay whole, description hashtags count, and word pairs you keep watching together become phrases, so the feed searches for what you watch rather than one generic word (#907)
+- A burst of Shorts or a couple of new videos no longer erases interests you have followed for months, and the time of day only shapes the feed once Flow has seen enough of your viewing at that hour (#907)
+- Thumbs-down and Not interested now stick: a rejected topic is remembered for months, fading slowly, and is recognised under new titles, a disliked video never seeds related videos, and rejecting things no longer makes the feed more random (#907)
+- Styled titles such as 𝙋𝙃𝙊𝙉𝙆 or ｐｈｏｎｋ read as the word they spell, short topics such as AI, F1 and 3D count, and Chinese, Japanese and Thai titles are split into real words (#907)
 
 PERFORMANCE
 - Opening an artist, album or Daily Mix page no longer reloads the entire music home feed behind the scenes — one shared engine serves every music page, cutting Daily Mix opens from up to 30 seconds to about a second and ending a major source of battery drain and heat
@@ -123,6 +127,7 @@ PERFORMANCE
 - Loading placeholders now take the exact shape of the cards they stand in for, so the feed no longer jumps when it arrives, and they no longer redraw the whole layout on every frame
 - A YouTube playlist is fetched once instead of twice in full on every open, Local media no longer rescans the device on every visit, and download progress updates once a second instead of four times
 - The expanded music player is no longer rebuilt on every song change, and lyrics stop updating while the music is paused
+- Feed ranking builds its lookups once per pass instead of once per video, impressions are recorded off the main thread, and scroll and rotation bookkeeping is saved to disk less often
 
 FIXES AND STABILITY
 - Fix a memory leak where closing and reopening the video player left the previous player's settings listeners running (#1148)
@@ -181,5 +186,6 @@ FIXES AND STABILITY
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
 - Add offline brain diagnostics that inspect a real exported profile through the production clustering and discovery code
+- Add learning benchmarks that drive the real recommendation engine through a Shorts binge, rejections and phrase learning, with regression floors
 - Search, channel and player parsing are now covered by tests against real captured API responses
 - Limit concurrent Kotlin compilations so CI stops running out of memory
