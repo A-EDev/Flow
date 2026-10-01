@@ -22,6 +22,7 @@ import io.github.aedev.flow.ui.screens.home.filterValid
 import io.github.aedev.flow.ui.screens.home.filterWatched
 import io.github.aedev.flow.ui.screens.home.toResumeVideo
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -324,7 +325,8 @@ class HomeChipFeeds
             val exclusions = context.exclusions()
             return watchAgain(history, rewatches, taste, disliked, now)
                 .asSequence()
-                .map { it.toResumeVideo() }
+                // History has no upload date; a zero time keeps the card from claiming "now".
+                .map { it.toResumeVideo().copy(timestamp = 0L).withThumbnail() }
                 .filterNot(exclusions::hidesFromRecommendations)
                 .take(limit)
                 .toList()
@@ -356,20 +358,14 @@ class HomeChipFeeds
             val likedIds = likes.mapTo(HashSet()) { it.videoId }
             val candidates =
                 videos.map { (video, at) ->
-                    val longTerm = video.id in likedIds || now - at > RECENT_SEED_MS
+                    val liked = video.id in likedIds
                     MixSeedCandidate(
-                        video,
-                        clusters[video.id] ?: video.channelId,
-                        strength =
-                            if (video.id in
-                                likedIds
-                            ) {
-                                2.0
-                            } else {
-                                1.0
-                            },
+                        // The mix card loads one image, with no fallback: hqdefault exists for every video.
+                        video = video.copy(thumbnailUrl = ThumbnailUrlResolver.buildFallbackYoutubeThumbnail(video.id)),
+                        cluster = clusters[video.id] ?: video.channelId,
+                        strength = if (liked) LIKED_SEED_STRENGTH else 1.0,
                         at = at,
-                        longTerm = longTerm,
+                        longTerm = liked || now - at > RECENT_SEED_MS,
                     )
                 }
             val brain = FlowNeuroEngine.getBrainSnapshot()
@@ -400,8 +396,13 @@ class HomeChipFeeds
             }
         }
 
+        /** Some stored records lack a thumbnail; every YouTube video has one at a known address. */
+        private fun Video.withThumbnail(): Video =
+            if (thumbnailUrl.isNotBlank()) this else copy(thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id))
+
         private companion object {
             const val TAG = "HomeChipFeeds"
+            const val LIKED_SEED_STRENGTH = 2.0
             const val SELECTED_KEY = "home_selected_chip"
             const val RECENT_SEED_MS = 14L * 24L * 60L * 60L * 1000L
         }
