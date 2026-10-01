@@ -70,6 +70,8 @@ NEW FEATURES
 - Subtitle timing: move captions earlier or later from the subtitle menu when a file does not match the video. A device video or download remembers its timing
 - Subtitle Style adds custom colors, a caption window color and opacity, and an edge style such as outline or drop shadow (#1182)
 - Subtitles have their own positions in landscape and vertical fullscreen, with a wider range, and sit on the picture rather than the edge of the screen, so vertical fullscreen lines them up with the video (#1098)
+- Home remembers channels you keep watching without subscribing and brings in their new uploads now and then, marked "From a channel you watch". Your taste lists them, with Remove and Clear channel memory (#907)
+- Chips above the Home feed: your top interests, New to you, Recently uploaded, Mixes, Live and Watched. Each one loads only when you open it, and the row slides away as you scroll down and comes back as you scroll up
 
 IMPROVEMENTS
 - Playlist rows give titles more room: the number column is gone, and a row shows when a video was added only while the playlist is sorted by date added, otherwise its views and publish date (#1052)
@@ -183,6 +185,8 @@ FIXES AND STABILITY
 - Fix automatic captions not turning on for the next video in a queue or autoplay, and the Subtitles switch in TV settings doing nothing (#1182)
 - Fix the subtitle position setting being ignored on downloaded videos, whose captions sat on the bottom edge (#1182)
 - Fix songs that buffer about 30 seconds in and only resume after pausing: music now finds its streams the way videos do, so a source YouTube has stopped serving is skipped for every song instead of being tried again on each one (#1180)
+- Fix device sync resetting part of the video profile, such as seed cooldowns, interest rotation and tag links, on every sync
+- Fix related videos treating any video watched past a third as a strong watch, whatever its length
 - Fix the feed shrinking after a few refreshes in a row, when discovery dropped to the two searches it had not used recently instead of keeping the rest behind them
 
 BUILD AND CI
