@@ -26,7 +26,8 @@ internal fun graphSeedInputsFromHistory(
                 source = GraphSeedSource.WATCH_HISTORY,
                 engagementWeight = (it.progressPercentage / 100.0).coerceIn(0.0, 1.0),
                 timestamp = it.timestamp,
-                durationSec = it.duration.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                // History stores milliseconds; the seed rule's "3 minutes" is in seconds.
+                durationSec = (it.duration / 1000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                 percentWatched = it.progressPercentage.toDouble(),
                 isShort = it.isShort,
             )

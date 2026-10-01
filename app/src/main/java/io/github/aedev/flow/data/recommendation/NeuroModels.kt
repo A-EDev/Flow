@@ -127,6 +127,8 @@ data class UserBrain(
     val tagAffinities: Map<String, Double> = emptyMap(),
     /** Reels used as related-chain seeds recently (videoId → lastUsedAt), for rotation. */
     val recentShortsSeeds: Map<String, Long> = emptyMap(),
+    /** Fetch state and verdicts for channels watched without subscribing; see [ChannelMemory]. */
+    val channelMemory: ChannelMemoryState = ChannelMemoryState(),
     val schemaVersion: Int = 17,
 )
 

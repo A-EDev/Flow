@@ -129,6 +129,14 @@ internal object GraphSeedSelector {
         if (channelId.isNotBlank() && channelId in excludedChannelIds) return false
         if (source != GraphSeedSource.WATCH_HISTORY) return true
 
+        return isRealWatch(durationSec.toLong(), percentWatched)
+    }
+
+    /** A watch that proves interest: most of the video, or a good part of a long one. */
+    fun isRealWatch(
+        durationSec: Long,
+        percentWatched: Double,
+    ): Boolean {
         val watchedSeconds = durationSec * (percentWatched / 100.0)
         return percentWatched >= 70.0 ||
             (percentWatched >= 35.0 && watchedSeconds >= MIN_LONG_WATCH_SECONDS)

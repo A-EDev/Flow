@@ -111,6 +111,28 @@ internal class NeuroStorage(
         val clusterRotation: Map<String, Long> = emptyMap(),
         val tagAffinities: Map<String, Double> = emptyMap(),
         val timeBucketCounts: Map<String, Int> = emptyMap(),
+        val channelMemory: Map<String, SerializableChannelMemoryEntry> = emptyMap(),
+        val channelMemoryClearedAt: Long = 0L,
+    )
+
+    @Serializable
+    data class SerializableRememberedUpload(
+        val videoId: String = "",
+        val title: String = "",
+        val thumbnailUrl: String = "",
+        val durationSec: Int = 0,
+        val publishedAt: Long = 0L,
+        val uploadDate: String = "",
+        val viewCount: Long = 0L,
+    )
+
+    @Serializable
+    data class SerializableChannelMemoryEntry(
+        val name: String = "",
+        val lastFetchedAt: Long = 0L,
+        val uploads: List<SerializableRememberedUpload> = emptyList(),
+        val rejectedAt: Long = 0L,
+        val forgottenAt: Long = 0L,
     )
 
     // ── DataStore setup ──
@@ -225,6 +247,28 @@ internal class NeuroStorage(
             clusterRotation = clusterRotation,
             tagAffinities = tagAffinities,
             timeBucketCounts = timeBucketCounts.mapKeys { it.key.name },
+            channelMemory = channelMemory.entries.mapValues { (_, entry) -> entry.toSerializable() },
+            channelMemoryClearedAt = channelMemory.clearedAt,
+        )
+
+    private fun ChannelMemoryEntry.toSerializable() =
+        SerializableChannelMemoryEntry(
+            name = name,
+            lastFetchedAt = lastFetchedAt,
+            uploads =
+                uploads.map {
+                    SerializableRememberedUpload(
+                        it.videoId,
+                        it.title,
+                        it.thumbnailUrl,
+                        it.durationSec,
+                        it.publishedAt,
+                        it.uploadDate,
+                        it.viewCount,
+                    )
+                },
+            rejectedAt = rejectedAt,
+            forgottenAt = forgottenAt,
         )
 
     // ── Persistence operations ──
@@ -664,6 +708,31 @@ internal fun NeuroStorage.SerializableBrain.toUserBrain(): UserBrain {
                 .mapNotNull { (name, count) ->
                     TimeBucket.entries.firstOrNull { it.name == name }?.let { it to count }
                 }.toMap(),
+        channelMemory =
+            ChannelMemoryState(
+                entries =
+                    channelMemory.mapValues { (_, entry) ->
+                        ChannelMemoryEntry(
+                            name = entry.name,
+                            lastFetchedAt = entry.lastFetchedAt,
+                            uploads =
+                                entry.uploads.map {
+                                    RememberedUpload(
+                                        it.videoId,
+                                        it.title,
+                                        it.thumbnailUrl,
+                                        it.durationSec,
+                                        it.publishedAt,
+                                        it.uploadDate,
+                                        it.viewCount,
+                                    )
+                                },
+                            rejectedAt = entry.rejectedAt,
+                            forgottenAt = entry.forgottenAt,
+                        )
+                    },
+                clearedAt = channelMemoryClearedAt,
+            ),
         schemaVersion = schemaVersion,
     )
 }

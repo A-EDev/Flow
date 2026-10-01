@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.settings.taste
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ClearAll
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.MoreVert
@@ -33,6 +34,8 @@ internal class TasteActions(
     val onTopicPreferred: (String, Boolean) -> Unit,
     val onBlockTopic: (String) -> Unit,
     val onBlockChannel: (String) -> Unit,
+    val onForgetChannel: (String) -> Unit,
+    val onClearChannelMemory: () -> Unit,
     val onOpenHidden: () -> Unit,
     val onOpenRecap: () -> Unit,
     val onExportVideo: () -> Unit,
@@ -53,6 +56,7 @@ internal fun SettingsListScope.tasteContent(
     if (state.profile != null && state.now != null) traits(state.profile, state.now)
     interests(state.topics, actions)
     channels(state.channels, actions)
+    remembered(state.remembered, actions)
     state.music?.let(::music)
     group(key = "taste.more") {
         nav(TasteIndex.recap, onClick = actions.onOpenRecap, icon = Icons.Outlined.Insights)
@@ -165,6 +169,30 @@ private fun SettingsListScope.channels(
                 )
             }
         }
+    }
+}
+
+private fun SettingsListScope.remembered(
+    channels: List<NamedItem>,
+    actions: TasteActions,
+) {
+    if (channels.isEmpty()) {
+        header(TasteIndex.remembered.key, R.string.taste_remembered_header)
+        item("taste.remembered.empty") { TasteNote(stringResource(R.string.taste_remembered_empty)) }
+        return
+    }
+    group(key = TasteIndex.remembered.key, header = R.string.taste_remembered_header, footer = R.string.taste_remembered_footer) {
+        channels.forEach { channel ->
+            row("taste.remembered.${channel.id}") { shape ->
+                TasteActionRow(
+                    name = channel.name,
+                    shape = shape,
+                    actionLabel = stringResource(R.string.taste_remembered_remove),
+                    actionDescription = stringResource(R.string.taste_remembered_remove_item, channel.name),
+                ) { actions.onForgetChannel(channel.id) }
+            }
+        }
+        nav(TasteIndex.clearRemembered, onClick = actions.onClearChannelMemory, showChevron = false, icon = Icons.Outlined.ClearAll)
     }
 }
 

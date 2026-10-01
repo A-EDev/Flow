@@ -63,26 +63,35 @@ private fun SettingsListScope.hiddenGroup(
 ) {
     group(key = key, header = header) {
         items.forEach { item ->
-            row("$key.${item.id}") { shape -> HiddenRow(item.name, shape) { onUnblock(item.id) } }
+            row("$key.${item.id}") { shape ->
+                TasteActionRow(
+                    name = item.name,
+                    shape = shape,
+                    actionLabel = stringResource(R.string.taste_unblock),
+                    actionDescription = stringResource(R.string.taste_unblock_item, item.name),
+                ) { onUnblock(item.id) }
+            }
         }
     }
 }
 
+/** One named item with a single text action, such as unblocking or removing it. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun HiddenRow(
+internal fun TasteActionRow(
     name: String,
     shape: Shape,
-    onUnblock: () -> Unit,
+    actionLabel: String,
+    actionDescription: String,
+    onAction: () -> Unit,
 ) {
-    val description = stringResource(R.string.taste_unblock_item, name)
     SegmentedListItem(
         verticalAlignment = Alignment.CenterVertically,
         shapes = ListItemDefaults.shapes(shape = shape),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         trailingContent = {
-            TextButton(onClick = onUnblock, modifier = Modifier.semantics { contentDescription = description }) {
-                Text(stringResource(R.string.taste_unblock))
+            TextButton(onClick = onAction, modifier = Modifier.semantics { contentDescription = actionDescription }) {
+                Text(actionLabel)
             }
         },
     ) {

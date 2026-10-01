@@ -143,6 +143,11 @@ class FlowNeuroEngine internal constructor(
 
         suspend fun getBrainSnapshot(): UserBrain = requireInstance().getBrainSnapshot()
 
+        suspend fun updateChannelMemory(
+            bookkeeping: Boolean,
+            transform: (ChannelMemoryState) -> ChannelMemoryState,
+        ) = requireInstance().updateChannelMemory(bookkeeping, transform)
+
         fun getPersona(brain: UserBrain): FlowPersona = requireInstance().getPersona(brain)
 
         suspend fun markNotInterested(video: Video) = requireInstance().markNotInterested(video)
@@ -461,6 +466,20 @@ class FlowNeuroEngine internal constructor(
     }
 
     suspend fun getBrainSnapshot(): UserBrain = withBrainLock { currentUserBrain }
+
+    /**
+     * Updates the channel memory. Fetched uploads are [bookkeeping]; a viewer's "remove" or "clear"
+     * saves as promptly as learning does.
+     */
+    suspend fun updateChannelMemory(
+        bookkeeping: Boolean,
+        transform: (ChannelMemoryState) -> ChannelMemoryState,
+    ) {
+        withBrainLock {
+            currentUserBrain = currentUserBrain.copy(channelMemory = transform(currentUserBrain.channelMemory))
+            scheduleDebouncedSave(bookkeeping = bookkeeping)
+        }
+    }
 
     /** Forgets what was learned; what the viewer chose to hide stays hidden. */
     suspend fun resetBrain() {
@@ -1203,6 +1222,7 @@ class FlowNeuroEngine internal constructor(
                     totalInteractions = currentUserBrain.totalInteractions + 1,
                     suppressedVideoIds = newSuppressedVideos,
                     suppressedChannels = newSuppressedChannels,
+                    channelMemory = ChannelMemory.recordRejection(currentUserBrain.channelMemory, video.channelId, video.channelName, now),
                     rejectionPatterns = updatedPatterns,
                     topicEvidence = bumpNegativeEvidence(currentUserBrain.topicEvidence, videoVector),
                 )
@@ -2373,6 +2393,17 @@ class FlowNeuroEngine internal constructor(
                     topicEvidence = newTopicEvidence,
                     tagAffinities = newTagAffinities,
                     rejectionPatterns = newRejectionPatterns,
+                    channelMemory =
+                        if (interactionType == InteractionType.DISLIKED) {
+                            ChannelMemory.recordRejection(
+                                currentUserBrain.channelMemory,
+                                video.channelId,
+                                video.channelName,
+                                System.currentTimeMillis(),
+                            )
+                        } else {
+                            currentUserBrain.channelMemory
+                        },
                 )
 
             scheduleDebouncedSave()

@@ -17,6 +17,7 @@ import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toVideo
+import io.github.aedev.flow.data.recommendation.ChannelMemoryRepository
 import io.github.aedev.flow.data.recommendation.FeedExclusions
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.GraphSeedInput
@@ -53,7 +54,6 @@ import javax.inject.Inject
 
 private data class Wave1FeedResults(
     val discovery: List<Pair<String, List<Video>>>,
-    val viral: List<Video>,
     val related: RelatedGraphFetchResult,
 )
 
@@ -71,6 +71,7 @@ class HomeViewModel
         private val homeSubscriptionUploads: HomeSubscriptionUploads,
         private val persistentHomeFeedCache: HomeFeedCacheRepository,
         private val viewHistory: ViewHistory,
+        private val channelMemory: ChannelMemoryRepository,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
         fun shortsShelfSource(
@@ -129,6 +130,10 @@ class HomeViewModel
         private var wave2Job: Job? = null
         private var feedJob: Job? = null
         private var subsTopUpJob: Job? = null
+        private var channelMemoryJob: Job? = null
+
+        // The memory lane's share of the first page; late uploads and load-more pages stay within it.
+        private var channelMemoryQuota = 0
 
         @Volatile
         private var lastVisibleVideoIndex = -1
@@ -440,6 +445,7 @@ class HomeViewModel
             wave2Job?.cancel()
             feedJob?.cancel()
             subsTopUpJob?.cancel()
+            channelMemoryJob?.cancel()
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             feedJob =
@@ -486,14 +492,12 @@ class HomeViewModel
 
                                 Wave1FeedResults(
                                     discovery = deferredDiscovery.await(),
-                                    viral = emptyList(),
                                     related = deferredRelated.await(),
                                 )
                             }
 
                         val discoveryPairs = results.discovery
                         val rawDiscovery = discoveryPairs.flatMap { it.second }
-                        val rawViral = results.viral
                         val relatedFetch = results.related
                         val rawRelated = relatedFetch.candidates
 
@@ -527,7 +531,7 @@ class HomeViewModel
                                 runCatching { subscriptionFeedRepository.observeFeed().first() }.getOrDefault(emptyList())
                             }
                         val feedShorts =
-                            (storedFeed.storedSubscriptionReels(now) + rawDiscovery.extractShorts() + rawViral.extractShorts())
+                            (storedFeed.storedSubscriptionReels(now) + rawDiscovery.extractShorts())
                                 .distinctBy { it.id }
                                 .filterWatched(watchedShortIds.value)
                                 .filterRecentHomeSuggestion(now)
@@ -542,11 +546,13 @@ class HomeViewModel
                         }
 
                         val watched = watchedVideoIds.value
+                        // Cached uploads only: the network refresh runs after first paint.
+                        val rawMemory = runCatching { channelMemory.storedUploads(now) }.getOrDefault(emptyList())
                         val lanes =
                             buildHomeFeedLanes(
                                 rawSubs = storedFeed.storedSubscriptionVideos(now),
                                 rawDiscovery = rawDiscovery,
-                                rawViral = rawViral,
+                                rawMemory = rawMemory,
                                 rawRelated = rawRelated,
                                 rssFeed = storedFeed,
                                 watched = watched,
@@ -562,7 +568,7 @@ class HomeViewModel
                         Log.d(
                             TAG,
                             "Flow candidates: subs=${lanes.subsPoolSize}, discovery=${lanes.discoveryPoolSize}, " +
-                                "viral=${lanes.viralPoolSize}, related=${rawRelated.size}, subCount=${userSubs.size}",
+                                "memory=${lanes.memoryPoolSize}, related=${rawRelated.size}, subCount=${userSubs.size}",
                         )
 
                         val mix =
@@ -574,6 +580,11 @@ class HomeViewModel
                             )
                         val finalMix = mix.videos
                         subsBacklog = mix.subsBacklog
+                        channelMemoryQuota = mix.quotas[FeedSource.CHANNEL_MEMORY] ?: 0
+                        val memoryIds =
+                            mix.sourceMix.items
+                                .filter { it.source == FeedSource.CHANNEL_MEMORY }
+                                .mapTo(HashSet()) { it.video.id }
                         relatedPickIds.clear()
                         mix.sourceMix.items
                             .filter { it.source == FeedSource.RELATED }
@@ -615,13 +626,13 @@ class HomeViewModel
                         val reserveCandidates =
                             cacheRelatedCandidates(lanes.bestRelated, lanes.relatedMetadata, renderedIds) +
                                 cacheCandidates(FeedSource.DISCOVERY, lanes.bestDiscovery, renderedIds) +
-                                cacheCandidates(FeedSource.SUBS, lanes.bestSubs, renderedIds) +
-                                cacheCandidates(FeedSource.VIRAL, lanes.bestViral, renderedIds)
+                                cacheCandidates(FeedSource.SUBS, lanes.bestSubs, renderedIds)
                         var visibleFeed = emptyList<Video>()
                         _uiState.update { state ->
                             visibleFeed = spacedMix.filterWatched(watchedVideoIds.value)
                             state.copy(
                                 videos = visibleFeed,
+                                channelMemoryVideoIds = memoryIds,
                                 isLoading = false,
                                 isRefreshing = false,
                                 hasMorePages = true,
@@ -641,6 +652,7 @@ class HomeViewModel
 
                         startWave2Discovery(finalMix, userSubs, taste)
                         startSubscriptionTopUp(userSubs, storedFeed)
+                        startChannelMemoryRefresh(userSubs)
                     } catch (cancellation: CancellationException) {
                         throw cancellation
                     } catch (e: Exception) {
@@ -870,6 +882,8 @@ class HomeViewModel
                 val page = mutableListOf<Video>()
                 val channelCounts = HashMap<String, Int>()
                 val pageIds = HashSet<String>(currentIds)
+
+                fillPageFromChannelMemory(page, channelCounts, pageIds, userSubs, now)
 
                 val reserveAdded = fillPageFromReserve(page, channelCounts, pageIds, now)
                 if (page.size >= MIN_PAGE_SIZE) {
@@ -1211,6 +1225,89 @@ class HomeViewModel
             merged?.let {
                 persistentHomeFeedCache.saveLastFeed(it)
                 Log.d(TAG, "Subscription top-up added $added uploads below the viewport")
+            }
+        }
+
+        /**
+         * Refreshes channel memory after first paint and slips new uploads in below the viewport,
+         * within the lane's quota and one per channel.
+         */
+        private fun startChannelMemoryRefresh(userSubs: Set<String>) {
+            if (channelMemoryJob?.isActive == true) return
+            channelMemoryJob =
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    val fresh =
+                        try {
+                            channelMemory.refresh()
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (error: Exception) {
+                            Log.d(TAG, "Channel memory refresh failed: ${error.message}")
+                            emptyList()
+                        }
+                    if (fresh.isEmpty()) return@launch
+                    val now = System.currentTimeMillis()
+                    val brain = FlowNeuroEngine.getBrainSnapshot()
+                    val exclusions = feedExclusions()
+                    val ranked =
+                        FlowNeuroEngine.rank(
+                            fresh
+                                .filterValid()
+                                .filterWatched(watchedVideoIds.value)
+                                .filterNot {
+                                    exclusions.hidesFromRecommendations(it) ||
+                                        NeuroScoring.isRecentlySeen(brain.feedHistory[it.id], now)
+                                },
+                            userSubs,
+                        )
+                    var added = 0
+                    _uiState.update { state ->
+                        if (state.isLoading || state.videos.isEmpty()) return@update state
+                        val memoryOnScreen = state.videos.filter { it.id in state.channelMemoryVideoIds }
+                        val late =
+                            channelMemoryPicks(
+                                ranked = ranked,
+                                onScreenIds = state.videos.mapTo(HashSet()) { it.id },
+                                onScreenMemoryChannels = memoryOnScreen.mapTo(HashSet()) { it.channelId },
+                                room = channelMemoryQuota - memoryOnScreen.size,
+                            )
+                        val below = lastVisibleVideoIndex.coerceAtLeast(LATE_SUBS_MIN_INDEX)
+                        val updated = insertBelowViewport(state.videos, late, below)
+                        added = updated.size - state.videos.size
+                        if (added == 0) return@update state
+                        HomeFeedCache.update(updated, state.shorts)
+                        state.copy(videos = updated, channelMemoryVideoIds = state.channelMemoryVideoIds + late.map { it.id })
+                    }
+                    if (added > 0) Log.d(TAG, "Channel memory added $added uploads below the viewport")
+                }
+        }
+
+        /** One upload from a remembered channel per load-more page, so the lane outlives the first screen. */
+        private suspend fun fillPageFromChannelMemory(
+            page: MutableList<Video>,
+            channelCounts: MutableMap<String, Int>,
+            pageIds: MutableSet<String>,
+            userSubs: Set<String>,
+            now: Long,
+        ) {
+            val brain = FlowNeuroEngine.getBrainSnapshot()
+            val exclusions = feedExclusions()
+            val candidates =
+                runCatching { channelMemory.storedUploads(now) }
+                    .getOrDefault(emptyList())
+                    .filterValid()
+                    .filterWatched(watchedVideoIds.value)
+                    .filterNot { exclusions.hidesFromRecommendations(it) || NeuroScoring.isRecentlySeen(brain.feedHistory[it.id], now) }
+            if (candidates.isEmpty()) return
+            val pick =
+                channelMemoryPicks(
+                    ranked = FlowNeuroEngine.rank(candidates, userSubs),
+                    onScreenIds = pageIds,
+                    onScreenMemoryChannels = page.mapTo(HashSet()) { it.channelId },
+                    room = 1,
+                ).firstOrNull() ?: return
+            if (addUniqueVideo(pick, page, channelCounts, pageIds, maxPerChannel = 1)) {
+                _uiState.update { it.copy(channelMemoryVideoIds = it.channelMemoryVideoIds + pick.id) }
             }
         }
 

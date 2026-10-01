@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.aedev.flow.data.backup.BackupCoordinator
 import io.github.aedev.flow.data.local.dao.WatchHistoryDao
+import io.github.aedev.flow.data.recommendation.ChannelMemoryRepository
 import io.github.aedev.flow.data.recommendation.ContentVector
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.FlowPersona
@@ -85,6 +86,8 @@ data class TasteState(
     val channels: List<TasteChannel> = emptyList(),
     val music: MusicTaste? = null,
     val hidden: HiddenContent = HiddenContent(),
+    /** Channels watched without subscribing whose uploads Home brings in, best first. */
+    val remembered: List<NamedItem> = emptyList(),
     val engine: EngineDetails? = null,
 )
 
@@ -101,6 +104,7 @@ class TasteViewModel
         private val videoStats: VideoStatsRecorder,
         private val watchHistoryDao: WatchHistoryDao,
         private val backup: BackupCoordinator,
+        private val channelMemory: ChannelMemoryRepository,
     ) : SettingsViewModel() {
         private val _state = MutableStateFlow(TasteState())
         val state: StateFlow<TasteState> = _state.asStateFlow()
@@ -132,6 +136,10 @@ class TasteViewModel
         fun unblockChannel(channelId: String) = act { FlowNeuroEngine.unblockChannel(context, channelId) }
 
         fun unblockArtist(artistKey: String) = act { musicBrain.unblockArtist(artistKey) }
+
+        fun forgetChannel(channelId: String) = act { channelMemory.forget(channelId) }
+
+        fun clearChannelMemory() = act { channelMemory.clear() }
 
         fun resetVideoProfile() = act { FlowNeuroEngine.resetBrain(context) }
 
@@ -192,6 +200,10 @@ class TasteViewModel
                         )
                     },
                 hidden = hidden(brain, names),
+                remembered =
+                    runCatching { channelMemory.remembered() }
+                        .getOrDefault(emptyList())
+                        .map { NamedItem(it.channelId, it.name.ifBlank { names[it.channelId] ?: it.channelId }) },
                 engine = EngineDetails.of(brain),
             )
         }

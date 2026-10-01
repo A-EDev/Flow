@@ -33,6 +33,7 @@ object VideoCardDefaults {
  * [showChannel] hides the avatar and channel name where the screen already names the channel.
  * [useInternalPadding] insets a stacked card; container-padded grids pass false. [thumbnailWidth]
  * sizes a row's thumbnail, so a row the grid could not fill still lines up with the cards above it.
+ * [reason] is a short line under the details saying why the feed shows this video; null shows none.
  */
 @Composable
 fun MediaVideoCard(
@@ -43,6 +44,7 @@ fun MediaVideoCard(
     showChannel: Boolean = true,
     useInternalPadding: Boolean = true,
     thumbnailWidth: Dp = VideoCardDefaults.RowThumbnailWidth,
+    reason: String? = null,
 ) {
     when (layout) {
         VideoCardLayout.Stacked -> {
@@ -51,6 +53,7 @@ fun MediaVideoCard(
                 onClick = onClick,
                 showChannel = showChannel,
                 useInternalPadding = useInternalPadding,
+                reason = reason,
                 modifier = modifier,
             )
         }
@@ -61,6 +64,7 @@ fun MediaVideoCard(
                 onClick = onClick,
                 showChannel = showChannel,
                 thumbnailWidth = thumbnailWidth,
+                reason = reason,
                 modifier = modifier,
             )
         }

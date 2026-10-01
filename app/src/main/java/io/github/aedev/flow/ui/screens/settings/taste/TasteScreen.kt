@@ -90,6 +90,8 @@ internal fun TasteScreen(
                 onTopicPreferred = viewModel::setTopicPreferred,
                 onBlockTopic = viewModel::blockTopic,
                 onBlockChannel = viewModel::blockChannel,
+                onForgetChannel = viewModel::forgetChannel,
+                onClearChannelMemory = viewModel::clearChannelMemory,
                 onOpenHidden = { onNavigate(SettingsTarget(SettingsDestination.HIDDEN_CONTENT)) },
                 onOpenRecap = onOpenRecap,
                 onExportVideo = { exportVideo.launch("flow_video_profile_${LocalDate.now()}.json") },

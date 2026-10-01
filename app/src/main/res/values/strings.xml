@@ -3927,4 +3927,11 @@
     <string name="songs_download_nothing_new">Everything here is already downloaded or unavailable</string>
     <string name="save_as_playlist">Save as playlist</string>
     <string name="daily_mix_saved_as_playlist">Saved %1$s to your playlists</string>
+    <string name="home_reason_channel_memory">From a channel you watch</string>
+    <string name="taste_remembered_header">Channels you keep watching</string>
+    <string name="taste_remembered_footer">New uploads from these channels show up on Home now and then. Subscribing to a channel or removing it takes it off this list.</string>
+    <string name="taste_remembered_empty">Watch a channel a few times without subscribing and it shows up here.</string>
+    <string name="taste_remembered_remove">Remove</string>
+    <string name="taste_remembered_remove_item">Remove %1$s</string>
+    <string name="taste_remembered_clear">Clear channel memory</string>
 </resources>

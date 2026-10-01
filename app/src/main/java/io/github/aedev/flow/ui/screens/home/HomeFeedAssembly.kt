@@ -13,7 +13,7 @@ private const val SHOWN_FRESH_AFTER_SUBS = 3
 
 private const val BEST_SUBS_LIMIT = 15
 private const val BEST_DISCOVERY_LIMIT = 15
-private const val BEST_VIRAL_LIMIT = 6
+private const val BEST_MEMORY_LIMIT = 6
 private const val BEST_RELATED_LIMIT = 12
 
 internal fun List<Video>.enrichAvatars(subAvatarMap: Map<String, String>): List<Video> =
@@ -41,30 +41,30 @@ internal data class HomeFeedLanes(
     val shownFresh: List<Video>,
     val bestSubs: List<Video>,
     val bestDiscovery: List<Video>,
-    val bestViral: List<Video>,
+    val bestMemory: List<Video>,
     val bestRelated: List<Video>,
     val relatedCandidates: List<GraphCandidate>,
     val relatedMetadata: Map<String, GraphCandidate>,
     val subsByRecency: List<Video>,
     val subsPoolSize: Int,
     val discoveryPoolSize: Int,
-    val viralPoolSize: Int,
+    val memoryPoolSize: Int,
 ) {
     val freshCandidates: Sequence<Video>
         get() =
             pinnedFresh.asSequence() + overflowFresh.asSequence() + bestSubs.asSequence() + shownFresh.asSequence() +
-                bestRelated.asSequence() + bestDiscovery.asSequence() + bestViral.asSequence()
+                bestRelated.asSequence() + bestDiscovery.asSequence() + bestMemory.asSequence()
 }
 
 /**
- * Turns the four raw fetch results into the ranked lanes the blend draws from.
+ * Turns the raw fetch results into the ranked lanes the blend draws from.
  *
  * [rank] is the engine call, passed in so the whole pipeline can be exercised without one.
  */
 internal suspend fun buildHomeFeedLanes(
     rawSubs: List<Video>,
     rawDiscovery: List<Video>,
-    rawViral: List<Video>,
+    rawMemory: List<Video>,
     rawRelated: List<GraphCandidate>,
     rssFeed: List<Video>,
     watched: Set<String>,
@@ -91,8 +91,8 @@ internal suspend fun buildHomeFeedLanes(
             .filterWatched(watched)
             .filterRecentHomeSuggestion(now)
             .filterNot(exclusions::hidesFromRecommendations)
-    val viralPool =
-        rawViral
+    val memoryPool =
+        rawMemory
             .filterValid()
             .filterWatched(watched)
             .filterRecentHomeSuggestion(now)
@@ -150,7 +150,11 @@ internal suspend fun buildHomeFeedLanes(
         shownFresh = shownFresh,
         bestSubs = bestSubs,
         bestDiscovery = demoteByFit(rank(discoveryPool), taste).take(BEST_DISCOVERY_LIMIT),
-        bestViral = demoteByFit(rank(viralPool), taste).take(BEST_VIRAL_LIMIT),
+        // One upload per remembered channel: the lane spreads across channels, never floods with one.
+        bestMemory =
+            demoteByFit(rank(memoryPool), taste)
+                .distinctBy { it.channelId }
+                .take(BEST_MEMORY_LIMIT),
         bestRelated =
             demoteByFit(
                 applyGraphBoost(rank(relatedPool), relatedMetadata),
@@ -161,7 +165,7 @@ internal suspend fun buildHomeFeedLanes(
         subsByRecency = subsByRecency,
         subsPoolSize = subsPool.size,
         discoveryPoolSize = discoveryPool.size,
-        viralPoolSize = viralPool.size,
+        memoryPoolSize = memoryPool.size,
     )
 }
 
@@ -214,12 +218,13 @@ internal fun assembleHomeFeed(
                         lanes.bestSubs.drop(SHOWN_FRESH_AFTER_SUBS),
                     FeedSource.RELATED to lanes.bestRelated,
                     FeedSource.DISCOVERY to lanes.bestDiscovery,
-                    FeedSource.VIRAL to lanes.bestViral,
+                    FeedSource.CHANNEL_MEMORY to lanes.bestMemory,
                 ),
             quotas = quotas,
             targetSize = remaining,
             channelCounts = usedChannelCounts,
             usedVideoIds = usedVideoIds,
+            singleChannels = lanes.bestMemory.mapTo(HashSet()) { it.channelId },
         )
     finalMix += sourceMix.videos
 

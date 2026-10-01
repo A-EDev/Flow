@@ -275,7 +275,6 @@ class HomeFeedCacheRepository(
         const val SOURCE_SUBS = "SUBS"
         const val SOURCE_RELATED = "RELATED"
         const val SOURCE_DISCOVERY = "DISCOVERY"
-        const val SOURCE_VIRAL = "VIRAL"
         const val SOURCE_LAST_FEED = "LAST_FEED"
 
         private const val BUCKET_LAST_FEED = "LAST_FEED"
