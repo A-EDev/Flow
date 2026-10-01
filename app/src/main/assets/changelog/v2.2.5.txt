@@ -188,6 +188,7 @@ FIXES AND STABILITY
 - Fix device sync resetting part of the video profile, such as seed cooldowns, interest rotation and tag links, on every sync
 - Fix related videos treating any video watched past a third as a strong watch, whatever its length
 - Fix the feed shrinking after a few refreshes in a row, when discovery dropped to the two searches it had not used recently instead of keeping the rest behind them
+- Fix subscriptions whose avatar was saved as a link to the channel page: they showed a blank avatar on every card, and are now repaired on launch
 
 BUILD AND CI
 - Add offline recommendation and music benchmarks with regression floors, so feed diversity and repetition are verified by tests instead of claims
