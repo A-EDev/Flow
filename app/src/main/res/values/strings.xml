@@ -3961,4 +3961,5 @@
     <string name="settings_music_normal_speed_summary">Music videos start at 1x</string>
     <string name="settings_speed_per_channel_title">Remember speed per channel</string>
     <string name="settings_speed_per_channel_summary">Each channel starts at the speed you last chose</string>
+    <string name="music_collection_suggestions">Suggestions</string>
 </resources>

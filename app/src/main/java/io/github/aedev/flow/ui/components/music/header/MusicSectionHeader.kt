@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -51,6 +52,10 @@ sealed interface MusicSectionAction {
     ) : MusicSectionAction
 
     data class Navigate(
+        override val onClick: () -> Unit,
+    ) : MusicSectionAction
+
+    data class Refresh(
         override val onClick: () -> Unit,
     ) : MusicSectionAction
 }
@@ -125,6 +130,19 @@ fun MusicSectionHeader(
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                             contentDescription = stringResource(R.string.action_view_all),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                is MusicSectionAction.Refresh -> {
+                    IconButton(
+                        onClick = action.onClick,
+                        shapes = IconButtonDefaults.shapes(),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = stringResource(R.string.action_refresh),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }

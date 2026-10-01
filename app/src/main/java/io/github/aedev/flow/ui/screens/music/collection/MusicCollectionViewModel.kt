@@ -111,6 +111,18 @@ class MusicCollectionViewModel
 
         internal val downloads = MusicCollectionDownloads(viewModelScope, collectionId, queuer, collections, _messages::send)
 
+        internal val suggestions = MusicCollectionSuggestions(viewModelScope)
+
+        fun requestSuggestions() = suggestions.requestOnce(trackIds())
+
+        fun refreshSuggestions() = suggestions.refresh(trackIds())
+
+        private fun trackIds(): List<String> =
+            _state.value.details
+                ?.tracks
+                ?.map { it.videoId }
+                .orEmpty()
+
         init {
             load()
         }
@@ -309,6 +321,7 @@ class MusicCollectionViewModel
             if (!_state.value.isOwn) return
             viewModelScope.launch(PerformanceDispatcher.diskIO) {
                 val added = runCatching { playlists.addVideoToPlaylist(collectionId, track.toStoredVideo()) }.isSuccess
+                if (added) suggestions.drop(track.videoId)
                 _messages.send(
                     CollectionMessage(stringRes = if (added) R.string.toast_added_to_playlist else R.string.toast_failed_to_add_track),
                 )
@@ -529,6 +542,8 @@ data class MusicCollectionUiState(
             kind == MusicCollectionKind.DAILY_MIX
 
     val canExport: Boolean get() = kind == MusicCollectionKind.OWN || kind == MusicCollectionKind.SAVED || kind == MusicCollectionKind.LIKED
+
+    val showsSuggestions: Boolean get() = kind != null && kind != MusicCollectionKind.ALBUM && kind != MusicCollectionKind.DAILY_MIX
 }
 
 internal fun remoteKind(id: String): MusicCollectionKind =

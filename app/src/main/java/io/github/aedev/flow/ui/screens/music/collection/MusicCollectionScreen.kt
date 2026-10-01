@@ -118,6 +118,7 @@ private fun CollectionContent(
     val downloadProgress by viewModel.downloads.progress.collectAsStateWithLifecycle()
     val downloadedCollection by viewModel.downloads.downloaded.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    val suggestionState by viewModel.suggestions.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val quickActions = sharedQuickActionsViewModel()
     val scope = rememberCoroutineScope()
@@ -304,6 +305,15 @@ private fun CollectionContent(
                         onCollectionClick = { callbacks.onCollectionClick(it.id) },
                         onCollectionMenu = { musicMenus.openCollection(it.toCollectionActionItem(isAlbum = true)) },
                         header = header,
+                        suggestions =
+                            CollectionSuggestions(
+                                state = suggestionState,
+                                onRefresh = viewModel::refreshSuggestions,
+                                onPlay = { callbacks.onTrackClick(it, suggestionState.tracks, details.title) },
+                                onMenu = musicMenus::openSong,
+                                onAdd = if (state.isOwn) viewModel::addTrack else null,
+                            ).takeIf { state.showsSuggestions && !isSearching && selected == null },
+                        onReachedEnd = { if (state.showsSuggestions && !isSearching) viewModel.requestSuggestions() },
                     )
                 }
                 FlowSidePanes(
