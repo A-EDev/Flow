@@ -455,11 +455,11 @@
     <string name="theme_name_cyberpunk">Cyberpunk</string>
     <string name="theme_desc_cyberpunk">Futuro a neon</string>
     <string name="theme_name_royal_gold">Oro Reale</string>
-    <string name="theme_desc_royal_gold">Ricco e prestigioso</string>
+    <string name="theme_desc_royal_gold">Oro ricco e prestigioso su sfondi scuri.</string>
     <string name="theme_name_nordic">Nordico</string>
-    <string name="theme_desc_nordic">Calma scandinava</string>
+    <string name="theme_desc_nordic">Una palette nei toni del blu artico e nordico.</string>
     <string name="theme_name_espresso">Espresso</string>
-    <string name="theme_desc_espresso">Caldo e ricco</string>
+    <string name="theme_desc_espresso">Tonalità di marrone caffè calde e intense.</string>
     <string name="theme_name_gunmetal">Canna di Fucile</string>
     <string name="theme_desc_gunmetal">Lato industriale</string>
     <string name="content_settings_title">Impostazioni dei contenuti</string>
