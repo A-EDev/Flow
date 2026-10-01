@@ -87,6 +87,7 @@ class MusicPlayerViewModel
                 likedVideosRepository,
                 downloadManager,
                 musicBrain,
+                playerPreferences,
             )
 
         init {

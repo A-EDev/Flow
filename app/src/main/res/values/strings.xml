@@ -1337,10 +1337,13 @@
     <string name="buffer_label_rebuffer">Resume after Rebuffer: %1$ds</string>
     <!-- Cache Size Settings -->
     <string name="cache_size_header">Media Cache Size</string>
-    <string name="cache_size_desc">Disk space for cached video and audio. Applies after a restart.</string>
+    <string name="cache_size_desc">Cached songs also play offline. Applies after a restart.</string>
     <string name="cache_size_100mb">100 MB</string>
     <string name="cache_size_200mb">200 MB</string>
     <string name="cache_size_500mb">500 MB (Default)</string>
+    <string name="cache_size_1gb">1 GB</string>
+    <string name="cache_size_2gb">2 GB</string>
+    <string name="cache_size_5gb">5 GB</string>
     <string name="cache_size_unlimited">Unlimited</string>
     <string name="btn_back">Back</string>
     <string name="back">Back</string>
@@ -3971,4 +3974,6 @@
     <string name="favourite_artists_none">No artists found</string>
     <string name="favourite_artists_add">Add %1$s</string>
     <string name="favourite_artists_remove">Remove %1$s</string>
+    <string name="settings_auto_download_likes_title">Download liked songs</string>
+    <string name="settings_auto_download_likes_summary">Songs you like are saved for offline</string>
 </resources>

@@ -296,6 +296,7 @@ class PlayerPreferences(
         // Remember playback speed
         val REMEMBER_PLAYBACK_SPEED = booleanPreferencesKey("remember_playback_speed")
         val MUSIC_AT_NORMAL_SPEED = booleanPreferencesKey("music_at_normal_speed")
+        val AUTO_DOWNLOAD_LIKED_MUSIC = booleanPreferencesKey("auto_download_liked_music")
         val SPEED_PER_CHANNEL = booleanPreferencesKey("speed_per_channel")
         val CHANNEL_PLAYBACK_SPEEDS = stringSetPreferencesKey("channel_playback_speeds")
 
@@ -1887,6 +1888,17 @@ class PlayerPreferences(
     suspend fun setRememberPlaybackSpeed(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.REMEMBER_PLAYBACK_SPEED] = enabled
+        }
+    }
+
+    val autoDownloadLikedMusic: Flow<Boolean> =
+        context.playerPreferencesDataStore.data
+            .map { preferences -> preferences[Keys.AUTO_DOWNLOAD_LIKED_MUSIC] ?: false }
+            .distinctUntilChanged()
+
+    suspend fun setAutoDownloadLikedMusic(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.AUTO_DOWNLOAD_LIKED_MUSIC] = enabled
         }
     }
 

@@ -77,7 +77,7 @@ private enum class DownloadPicker { QUALITY, CODEC, MUSIC_QUALITY, CACHE }
 
 private const val MAX_THREADS = 8
 private val UsageSpacing = 8.dp
-private val CacheSizes = listOf(100, 200, 500, 0)
+private val CacheSizes = listOf(100, 200, 500, 1024, 2048, 5120, 0)
 
 /** Where downloads are saved, how they are made, and the storage access that lists them. */
 @Composable
@@ -178,6 +178,7 @@ internal fun DownloadSettingsScreen(
                 stringResource(musicQualityLabel(musicQuality))
             }
             toggleGroup(DownloadsIndex.menuStyle, menuStyles, menuStyle, viewModel::setMenuStyle)
+            switch(DownloadsIndex.autoDownloadLikes, viewModel.autoDownloadLikes, viewModel::setAutoDownloadLikes)
             switch(DownloadsIndex.wifiOnly, viewModel.wifiOnly, viewModel::setWifiOnly)
             switch(DownloadsIndex.subtitleFile, viewModel.subtitleFile, viewModel::setSubtitleFile)
         }
@@ -354,6 +355,9 @@ private fun cacheSizeLabel(megabytes: Int): Int =
     when (megabytes) {
         100 -> R.string.cache_size_100mb
         200 -> R.string.cache_size_200mb
+        1024 -> R.string.cache_size_1gb
+        2048 -> R.string.cache_size_2gb
+        5120 -> R.string.cache_size_5gb
         0 -> R.string.cache_size_unlimited
         else -> R.string.cache_size_500mb
     }
