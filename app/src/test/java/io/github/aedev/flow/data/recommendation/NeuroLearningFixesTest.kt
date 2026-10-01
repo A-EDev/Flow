@@ -225,4 +225,18 @@ class NeuroLearningFixesTest {
         assertThat(page2.any { it.contains(' ') }).isTrue()
         assertThat(page3).isNotEqualTo(page2)
     }
+
+    @Test
+    fun `refresh queries narrow one-word anchors with a phrase from their own cluster`() {
+        val universe = NeuroBenchmark.multiInterestUniverse()
+        val brain = NeuroBenchmark.brainFor(universe)
+        val surface =
+            NeuroDiscovery(NeuroTopicCatalog.TOPIC_CATEGORIES, tokenizer)
+                .generateQueries(brain, NeuroEval.FIXED_NOW, depth = 0) { FlowPersona.EXPLORER }
+                .filter { it.strategy == QueryStrategy.DEEP_DIVE }
+                .map { it.query }
+
+        // #907: a bare "guitar" search returns generic popular videos that read as trending.
+        assertThat(surface.count { ' ' in it }).isAtLeast(surface.size - 1)
+    }
 }
