@@ -2781,9 +2781,5 @@ object YouTube {
             innerTube.reelItemWatch(client = WEB, videoId = videoId).body<JsonObject>().toReelOverlay()
         }
 
-    fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> =
-        io.github.aedev.flow.innertube.pages.NewPipeExtractor
-            .newPipePlayer(videoId)
-
     private val VISITOR_DATA_REGEX = Regex("^Cg[t|s]")
 }

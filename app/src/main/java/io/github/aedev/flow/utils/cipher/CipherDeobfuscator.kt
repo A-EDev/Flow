@@ -50,8 +50,6 @@ object CipherDeobfuscator {
     var unparseablePlayerHash: String? = null
         private set
 
-    fun getSignatureTimestamp(): Int? = cachedSignatureTimestamp
-
     /**
      * The signature timestamp the WEB/MWEB `/player` request has to send. Cached after the first
      * read; the player script itself is cached by [PlayerJsFetcher].
@@ -77,59 +75,6 @@ object CipherDeobfuscator {
     fun invalidateSignatureTimestamp() {
         Log.d(TAG, "Invalidating signature timestamp")
         cachedSignatureTimestamp = null
-    }
-
-    /**
-     * Deobfuscate a signatureCipher stream URL.
-     * Returns the full URL with deobfuscated signature, or null if failed.
-     */
-    suspend fun deobfuscateStreamUrl(
-        signatureCipher: String,
-        videoId: String,
-    ): String? {
-        Log.d(TAG, "deobfuscateStreamUrl: videoId=$videoId, cipher length=${signatureCipher.length}")
-        return try {
-            deobfuscateInternal(signatureCipher, videoId, isRetry = false)
-        } catch (e: Exception) {
-            Log.e(TAG, "Cipher deobfuscation failed, retrying with fresh JS: ${e.message}", e)
-            try {
-                PlayerJsFetcher.invalidateCache()
-                closeWebView()
-                deobfuscateInternal(signatureCipher, videoId, isRetry = true)
-            } catch (retryE: Exception) {
-                Log.e(TAG, "Cipher deobfuscation retry also failed: ${retryE.message}", retryE)
-                null
-            }
-        }
-    }
-
-    private suspend fun deobfuscateInternal(
-        signatureCipher: String,
-        videoId: String,
-        isRetry: Boolean,
-    ): String? {
-        val params = parseQueryParams(signatureCipher)
-        val obfuscatedSig = params["s"]
-        val sigParam = params["sp"] ?: "signature"
-        val baseUrl = params["url"]
-
-        if (obfuscatedSig == null || baseUrl == null) {
-            Log.e(TAG, "Could not parse signatureCipher params: s=${obfuscatedSig != null}, url=${baseUrl != null}")
-            return null
-        }
-
-        val webView =
-            getOrCreateWebView(forceRefresh = isRetry) ?: run {
-                Log.e(TAG, "Failed to get/create CipherWebView")
-                return null
-            }
-
-        val deobfuscatedSig = webView.deobfuscateSignature(obfuscatedSig)
-        val separator = if ("?" in baseUrl) "&" else "?"
-        val finalUrl = "$baseUrl${separator}$sigParam=${Uri.encode(deobfuscatedSig)}"
-
-        Log.d(TAG, "Cipher deobfuscation success: videoId=$videoId, url length=${finalUrl.length}")
-        return finalUrl
     }
 
     /**
@@ -264,16 +209,5 @@ object CipherDeobfuscator {
         cipherWebView = null
         currentPlayerHash = null
         Log.d(TAG, "CipherWebView closed")
-    }
-
-    private fun parseQueryParams(query: String): Map<String, String> {
-        val result = mutableMapOf<String, String>()
-        for (pair in query.split("&")) {
-            val idx = pair.indexOf('=')
-            if (idx > 0) {
-                result[Uri.decode(pair.substring(0, idx))] = Uri.decode(pair.substring(idx + 1))
-            }
-        }
-        return result
     }
 }

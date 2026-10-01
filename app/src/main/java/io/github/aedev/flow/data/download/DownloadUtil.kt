@@ -17,6 +17,9 @@ import io.github.aedev.flow.data.video.storage.DownloadFiles
 import io.github.aedev.flow.di.DownloadCache
 import io.github.aedev.flow.di.PlayerCache
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.player.datasource.GoogleVideoRequestPolicy
+import io.github.aedev.flow.player.error.StreamDenialClassifier
+import io.github.aedev.flow.player.stream.ClientGateTracker
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -105,7 +108,7 @@ class DownloadUtil
                         Log.w(TAG, "[Player] playerCache check error for $mediaId", e)
                     }
 
-                    songUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
+                    songUrlCache[mediaId]?.takeIf(::isReusable)?.let { (url, ua, _) ->
                         Log.d(TAG, "[Player] Using cached URL for $mediaId")
                         return@Factory buildPlaybackDataSpec(dataSpec, url, ua)
                     }
@@ -138,6 +141,10 @@ class DownloadUtil
             return if (DownloadFiles.isDocument(path)) path.toUri() else Uri.fromFile(File(path))
         }
 
+        // A url resolved before its client was demoted would stall the same way ~30 s in.
+        private fun isReusable(entry: Triple<String, String, Long>): Boolean =
+            entry.third > System.currentTimeMillis() && !ClientGateTracker.isGated(StreamDenialClassifier.clientOf(entry.first))
+
         private fun buildPlaybackDataSpec(
             dataSpec: DataSpec,
             streamUrl: String,
@@ -150,11 +157,13 @@ class DownloadUtil
                     else -> CHUNK_LENGTH
                 }
 
+            val client = StreamDenialClassifier.clientOf(streamUrl)
             return dataSpec
                 .buildUpon()
                 .setUri(removeRangeParameter(streamUrl).toUri())
-                .setHttpRequestHeaders(mapOf("User-Agent" to userAgent))
-                .setLength(requestLength)
+                .setHttpRequestHeaders(
+                    GoogleVideoRequestPolicy.headers(client) + ("User-Agent" to GoogleVideoRequestPolicy.userAgent(client, userAgent)),
+                ).setLength(requestLength)
                 .build()
         }
 

@@ -1,5 +1,7 @@
 package io.github.aedev.flow.player.stream
 
+import io.github.aedev.flow.player.error.StreamDenialClassifier
+import io.github.aedev.flow.player.error.StreamDenialKind
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
@@ -38,6 +40,18 @@ open class ClientGateRegistry(
         refusalStrikes.remove(key)
         gatedUntilMs[key] = clockMs() + ttlMs
         return true
+    }
+
+    /** Records what a refused googlevideo [url] says about the client that minted it. */
+    fun reportDenied(url: String?): StreamDenialKind {
+        val kind = StreamDenialClassifier.classify(url, nowSeconds = clockMs() / 1000)
+        val client = StreamDenialClassifier.clientOf(url)
+        when (kind) {
+            StreamDenialKind.ATTESTATION_GATED -> reportGated(client)
+            StreamDenialKind.TOKEN_REJECTED -> reportRefused(client)
+            StreamDenialKind.URL_EXPIRED, StreamDenialKind.UNKNOWN -> Unit
+        }
+        return kind
     }
 
     fun isGated(clientName: String?): Boolean {
