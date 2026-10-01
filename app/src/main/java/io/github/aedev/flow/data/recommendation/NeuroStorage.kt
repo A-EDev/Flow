@@ -113,6 +113,8 @@ internal class NeuroStorage(
         val timeBucketCounts: Map<String, Int> = emptyMap(),
         val channelMemory: Map<String, SerializableChannelMemoryEntry> = emptyMap(),
         val channelMemoryClearedAt: Long = 0L,
+        val interestChipMasses: Map<String, Double> = emptyMap(),
+        val interestChipsComputedAt: Long = 0L,
     )
 
     @Serializable
@@ -249,6 +251,8 @@ internal class NeuroStorage(
             timeBucketCounts = timeBucketCounts.mapKeys { it.key.name },
             channelMemory = channelMemory.entries.mapValues { (_, entry) -> entry.toSerializable() },
             channelMemoryClearedAt = channelMemory.clearedAt,
+            interestChipMasses = interestChips.masses,
+            interestChipsComputedAt = interestChips.computedAt,
         )
 
     private fun ChannelMemoryEntry.toSerializable() =
@@ -733,6 +737,7 @@ internal fun NeuroStorage.SerializableBrain.toUserBrain(): UserBrain {
                     },
                 clearedAt = channelMemoryClearedAt,
             ),
+        interestChips = InterestChipSet(interestChipMasses, interestChipsComputedAt),
         schemaVersion = schemaVersion,
     )
 }

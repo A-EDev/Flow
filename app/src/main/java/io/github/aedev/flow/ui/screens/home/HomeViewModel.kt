@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.home
 
 import android.content.Context
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,9 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsFeedRepository
 import io.github.aedev.flow.data.subscriptions.HomeSubscriptionUploads
 import io.github.aedev.flow.innertube.pages.renderer.FeedItemOwner
+import io.github.aedev.flow.ui.screens.home.chips.ChipFeedContext
+import io.github.aedev.flow.ui.screens.home.chips.HomeChipFeeds
+import io.github.aedev.flow.ui.screens.home.chips.HomeChipsState
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -72,6 +76,8 @@ class HomeViewModel
         private val persistentHomeFeedCache: HomeFeedCacheRepository,
         private val viewHistory: ViewHistory,
         private val channelMemory: ChannelMemoryRepository,
+        private val chipFeeds: HomeChipFeeds,
+        savedStateHandle: SavedStateHandle,
         @ApplicationContext private val appContext: Context,
     ) : ViewModel() {
         fun shortsShelfSource(
@@ -142,7 +148,19 @@ class HomeViewModel
         private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
         private val watchedShortIds = MutableStateFlow<Set<String>>(emptySet())
 
+        /** The chips above the feed and what the selected one shows. */
+        internal val chips: StateFlow<HomeChipsState> = chipFeeds.state
+
+        fun selectChip(key: String) = chipFeeds.select(key)
+
+        fun refreshSelectedChip() = chipFeeds.refreshSelected()
+
         init {
+            chipFeeds.attach(
+                scope = viewModelScope,
+                savedState = savedStateHandle,
+                context = ChipFeedContext(::cacheFilters, ::feedExclusions) { watchedVideoIds.value },
+            )
             if (HomeFeedCache.isFresh()) {
                 _uiState.update {
                     it.copy(
@@ -653,6 +671,7 @@ class HomeViewModel
                         startWave2Discovery(finalMix, userSubs, taste)
                         startSubscriptionTopUp(userSubs, storedFeed)
                         startChannelMemoryRefresh(userSubs)
+                        chipFeeds.refreshChips()
                     } catch (cancellation: CancellationException) {
                         throw cancellation
                     } catch (e: Exception) {

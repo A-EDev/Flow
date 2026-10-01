@@ -947,6 +947,26 @@ internal class NeuroDiscovery(
     ) {
         // Always reserve at least one exploration slot — no decay-to-zero bubble.
         val explorationBudget = if (brain.totalInteractions > 80) 1 else 2
+        explorationTopics(brain).shuffled().take(explorationBudget).forEach { topic ->
+            queries.add(
+                DiscoveryQuery(
+                    buildNaturalQuery(topic, brain),
+                    QueryStrategy.ADJACENT_EXPLORATION,
+                    0.35,
+                    "Adjacent: $topic",
+                ),
+            )
+        }
+    }
+
+    /** Searches for the topics next to the viewer's interests that the vector barely knows yet. */
+    fun explorationQueries(
+        brain: UserBrain,
+        limit: Int,
+    ): List<String> = explorationTopics(brain).take(limit).map { buildNaturalQuery(it, brain) }
+
+    /** The strongest adjacent topics, best first: co-watched with real interests, or taught by liked channels. */
+    private fun explorationTopics(brain: UserBrain): List<String> {
         val blocked = brain.blockedTopics
 
         fun globalScore(base: String): Double {
@@ -1000,19 +1020,7 @@ internal class NeuroDiscovery(
                         tokenizer.normalizeLemma(topic) !in blockedPhraseWords
                 }.sortedByDescending { it.value }
                 .take(6)
-                .shuffled()
-                .take(explorationBudget)
-
-        picks.forEach { (topic, _) ->
-            queries.add(
-                DiscoveryQuery(
-                    buildNaturalQuery(topic, brain),
-                    QueryStrategy.ADJACENT_EXPLORATION,
-                    0.35,
-                    "Adjacent: $topic",
-                ),
-            )
-        }
+        return picks.map { it.key }
     }
 
     // ═══════════════════════════════════════════════

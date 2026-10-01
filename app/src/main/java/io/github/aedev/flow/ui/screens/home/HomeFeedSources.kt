@@ -132,6 +132,12 @@ class HomeFeedSources
             seedIds.forEach { savedSeedCooldown[it] = now }
         }
 
+        /** One seed's related list, through the same memory and Room caches the feed uses. */
+        internal suspend fun relatedVideos(
+            seedId: String,
+            filters: suspend () -> HomeFeedCacheFilters,
+        ): List<Video> = fetchRelatedVideos(seedId, filters)
+
         private suspend fun fetchRelatedVideos(
             seedId: String,
             filters: suspend () -> HomeFeedCacheFilters,

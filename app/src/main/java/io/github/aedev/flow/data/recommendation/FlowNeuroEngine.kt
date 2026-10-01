@@ -148,6 +148,18 @@ class FlowNeuroEngine internal constructor(
             transform: (ChannelMemoryState) -> ChannelMemoryState,
         ) = requireInstance().updateChannelMemory(bookkeeping, transform)
 
+        suspend fun interestChips(now: Long = System.currentTimeMillis()): List<InterestChip> = requireInstance().interestChips(now)
+
+        suspend fun explorationQueries(limit: Int): List<String> = requireInstance().explorationQueries(limit)
+
+        suspend fun rejectedByPattern(videos: List<Video>): Set<String> = requireInstance().rejectedByPattern(videos)
+
+        suspend fun tasteAffinity(videos: List<Video>): Map<String, Double> = requireInstance().tasteAffinity(videos)
+
+        suspend fun noteSessionTopics(topics: List<String>) = requireInstance().noteSessionTopics(topics)
+
+        suspend fun clusterKeys(videos: List<Video>): Map<String, String> = requireInstance().clusterKeys(videos)
+
         fun getPersona(brain: UserBrain): FlowPersona = requireInstance().getPersona(brain)
 
         suspend fun markNotInterested(video: Video) = requireInstance().markNotInterested(video)
@@ -466,6 +478,91 @@ class FlowNeuroEngine internal constructor(
     }
 
     suspend fun getBrainSnapshot(): UserBrain = withBrainLock { currentUserBrain }
+
+    private fun clustersOf(brain: UserBrain): List<NeuroClusters.TopicCluster> =
+        NeuroClusters.buildClusters(
+            topicScores = brain.globalVector.topics,
+            affinities = brain.topicAffinities,
+            channelTopicProfiles = brain.channelTopicProfiles,
+            categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
+            normalizeLemma = tokenizer::normalizeLemma,
+            tagAffinities = brain.tagAffinities,
+        )
+
+    /** Home's interest chips, kept stable across loads by [InterestChips.stable]. */
+    suspend fun interestChips(now: Long): List<InterestChip> =
+        withContext(Dispatchers.Default) {
+            val brain = getBrainSnapshot()
+            val clusters = clustersOf(brain)
+            val hasEvidence = { cluster: NeuroClusters.TopicCluster ->
+                cluster.topics.size >= 2 ||
+                    brain.topicEvidence[cluster.representative]?.let {
+                        it.watchSignals >= 2 || it.explicitSignals > 0 ||
+                            it.positiveScore >= 1.2
+                    } ==
+                    true
+            }
+            val set = InterestChips.stable(brain.interestChips, clusters, hasEvidence, now)
+            if (set != brain.interestChips) {
+                withBrainLock {
+                    currentUserBrain = currentUserBrain.copy(interestChips = set)
+                    scheduleDebouncedSave(bookkeeping = true)
+                }
+            }
+            InterestChips.chips(set, clusters)
+        }
+
+    suspend fun explorationQueries(limit: Int): List<String> =
+        withContext(Dispatchers.Default) { discovery.explorationQueries(getBrainSnapshot(), limit) }
+
+    /** Ids of [videos] that match something the viewer has rejected repeatedly. */
+    suspend fun rejectedByPattern(videos: List<Video>): Set<String> =
+        withContext(Dispatchers.Default) {
+            val brain = getBrainSnapshot()
+            if (brain.rejectionPatterns.isEmpty()) return@withContext emptySet()
+            val idf = takeIdfSnapshotSafe()
+            val now = System.currentTimeMillis()
+            videos
+                .filter { NeuroScoring.calculateRejectionPatternPenalty(getOrExtractFeatures(it, idf), brain.rejectionPatterns, now) < 1.0 }
+                .mapTo(HashSet()) { it.id }
+        }
+
+    /** How close each video is to the viewer's long-term taste, 0..1, without the feed's penalties. */
+    suspend fun tasteAffinity(videos: List<Video>): Map<String, Double> =
+        withContext(Dispatchers.Default) {
+            val global = NeuroVectorMath.PreparedVector(getBrainSnapshot().globalVector)
+            val idf = takeIdfSnapshotSafe()
+            videos.associate { it.id to NeuroVectorMath.calculateCosineSimilarity(global, getOrExtractFeatures(it, idf)) }
+        }
+
+    /** The interest cluster each video belongs to, by its strongest topic; unknown topics are their own key. */
+    suspend fun clusterKeys(videos: List<Video>): Map<String, String> =
+        withContext(Dispatchers.Default) {
+            val brain = getBrainSnapshot()
+            val communityOf =
+                clustersOf(brain)
+                    .flatMap { cluster -> cluster.topics.map { it to cluster.representative } }
+                    .toMap()
+            val idf = takeIdfSnapshotSafe()
+            videos.associate { video ->
+                val primary =
+                    getOrExtractFeatures(video, idf)
+                        .topics
+                        .maxByOrNull { it.value }
+                        ?.key
+                        ?.let(NeuroScoring::stripDomainTag)
+                        .orEmpty()
+                video.id to (communityOf[primary] ?: primary.ifEmpty { video.channelId })
+            }
+        }
+
+    /** A short-lived nudge, such as opening an interest chip: session topics only, never long-term taste. */
+    suspend fun noteSessionTopics(topics: List<String>) {
+        withBrainLock {
+            sessionTopicHistory += topics
+            while (sessionTopicHistory.size > SESSION_TOPIC_HISTORY_MAX) sessionTopicHistory.removeAt(0)
+        }
+    }
 
     /**
      * Updates the channel memory. Fetched uploads are [bookkeeping]; a viewer's "remove" or "clear"
@@ -1385,15 +1482,7 @@ class FlowNeuroEngine internal constructor(
             // Map seed topic keys to interest communities so the spread-first pick
             // allocates one related seed per MAJOR interest (mma, android, anime…)
             // before any interest gets a second one.
-            val clusters =
-                NeuroClusters.buildClusters(
-                    topicScores = brainSnapshot.globalVector.topics,
-                    affinities = brainSnapshot.topicAffinities,
-                    channelTopicProfiles = brainSnapshot.channelTopicProfiles,
-                    categories = NeuroTopicCatalog.TOPIC_CATEGORIES,
-                    normalizeLemma = tokenizer::normalizeLemma,
-                    tagAffinities = brainSnapshot.tagAffinities,
-                )
+            val clusters = clustersOf(brainSnapshot)
             val topicToCommunity = clusters.flatMap { cluster -> cluster.topics.map { it to cluster.representative } }.toMap()
             val communityOf = { key: String -> topicToCommunity[NeuroScoring.stripDomainTag(key)] ?: key }
 

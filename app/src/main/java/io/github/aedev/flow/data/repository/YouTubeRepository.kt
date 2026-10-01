@@ -275,10 +275,11 @@ class YouTubeRepository
         suspend fun searchVideos(
             query: String,
             continuation: String? = null,
+            params: String? = null,
         ): Pair<List<Video>, String?> =
             withContext(Dispatchers.IO) {
                 YouTube
-                    .videoSearch(query, continuation = continuation)
+                    .videoSearch(query, params = params, continuation = continuation)
                     .map { page ->
                         page.resultVideos().map { it.copy(isMusic = looksLikeMusicVideo(it.title, it.channelName)) } to page.continuation
                     }.getOrElse { error ->

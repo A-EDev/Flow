@@ -3934,4 +3934,15 @@
     <string name="taste_remembered_remove">Remove</string>
     <string name="taste_remembered_remove_item">Remove %1$s</string>
     <string name="taste_remembered_clear">Clear channel memory</string>
+    <string name="home_chip_all">All</string>
+    <string name="home_chip_new_to_you">New to you</string>
+    <string name="home_chip_recently_uploaded">Recently uploaded</string>
+    <string name="home_chip_mixes">Mixes</string>
+    <string name="home_chip_live">Live</string>
+    <string name="home_chip_watched">Watched</string>
+    <string name="home_chip_description">Show %1$s on Home</string>
+    <string name="home_chip_empty_title">Nothing here right now</string>
+    <string name="home_chip_empty_body">Pull down to look again later.</string>
+    <string name="home_chip_failed">Couldn\'t load this right now.</string>
+    <string name="home_mix_title">Mix - %1$s</string>
 </resources>

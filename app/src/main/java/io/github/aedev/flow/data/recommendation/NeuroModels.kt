@@ -129,6 +129,8 @@ data class UserBrain(
     val recentShortsSeeds: Map<String, Long> = emptyMap(),
     /** Fetch state and verdicts for channels watched without subscribing; see [ChannelMemory]. */
     val channelMemory: ChannelMemoryState = ChannelMemoryState(),
+    /** The interest chips Home showed last; see [InterestChips]. */
+    val interestChips: InterestChipSet = InterestChipSet(),
     val schemaVersion: Int = 17,
 )
 
