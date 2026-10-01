@@ -31,12 +31,16 @@ internal interface LocalMediaSource {
 
     /** Emits whenever a file was added, changed or removed, for as long as it is collected. */
     fun changes(): Flow<Unit>
+
+    /** [read] finished with the slower work that can follow the first look; may throw. */
+    suspend fun complete(read: LocalLibrary): LocalLibrary = read
 }
 
 /**
  * Keeps the last read of [source] and reads again on open, on reported changes and on [refresh].
  * Every read runs under one lock and publishes into one state, so a refresh always ends, and clears
- * [refreshing], whether or not a screen is collecting when it finishes.
+ * [refreshing], whether or not a screen is collecting when it finishes. Each good read is published
+ * at once and again when [LocalMediaSource.complete] finishes with it, unless a newer read came first.
  */
 @OptIn(FlowPreview::class)
 internal class LocalLibraryLoader(
@@ -50,6 +54,7 @@ internal class LocalLibraryLoader(
     private var lastGood: LocalLibrary? = null
     private var lastGoodGeneration: Long? = null
     private var refreshJob: Job? = null
+    private var completion: Job? = null
 
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
@@ -95,7 +100,29 @@ internal class LocalLibraryLoader(
             if (!loaded.failed) {
                 lastGood = loaded
                 lastGoodGeneration = generation
+                complete(loaded)
             }
             latest.value = loaded
         }
+
+    private fun complete(read: LocalLibrary) {
+        completion?.cancel()
+        completion =
+            scope.launch {
+                val completed =
+                    try {
+                        source.complete(read)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Completing the media library failed", e)
+                        return@launch
+                    }
+                lock.withLock {
+                    if (lastGood !== read) return@withLock
+                    lastGood = completed
+                    if (latest.value === read) latest.value = completed
+                }
+            }
+    }
 }

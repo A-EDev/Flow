@@ -15,6 +15,8 @@ data class LocalMediaItem(
     val durationMs: Long,
     val sizeBytes: Long,
     val dateAddedMs: Long,
+    /** When the file was last written, from MediaStore. */
+    val modifiedMs: Long = 0L,
     val width: Int = 0,
     val height: Int = 0,
     val mimeType: String = "",

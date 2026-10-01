@@ -29,6 +29,7 @@ internal class LocalMediaStore(
                 add(MediaStore.Video.Media.DURATION)
                 add(MediaStore.Video.Media.SIZE)
                 add(MediaStore.Video.Media.DATE_ADDED)
+                add(MediaStore.Video.Media.DATE_MODIFIED)
                 add(MediaStore.Video.Media.WIDTH)
                 add(MediaStore.Video.Media.HEIGHT)
                 add(MediaStore.Video.Media.MIME_TYPE)
@@ -57,6 +58,7 @@ internal class LocalMediaStore(
                 durationMs = cursor.long(MediaStore.Video.Media.DURATION),
                 sizeBytes = size,
                 dateAddedMs = cursor.long(MediaStore.Video.Media.DATE_ADDED) * MILLIS_PER_SECOND,
+                modifiedMs = cursor.long(MediaStore.Video.Media.DATE_MODIFIED) * MILLIS_PER_SECOND,
                 width = if (rotated) height else width,
                 height = if (rotated) width else height,
                 mimeType = cursor.string(MediaStore.Video.Media.MIME_TYPE).orEmpty(),
@@ -81,6 +83,7 @@ internal class LocalMediaStore(
                 add(MediaStore.Audio.Media.DURATION)
                 add(MediaStore.Audio.Media.SIZE)
                 add(MediaStore.Audio.Media.DATE_ADDED)
+                add(MediaStore.Audio.Media.DATE_MODIFIED)
                 add(MediaStore.Audio.Media.MIME_TYPE)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     add(MediaStore.Audio.Media.BUCKET_ID)
@@ -113,6 +116,7 @@ internal class LocalMediaStore(
                 durationMs = cursor.long(MediaStore.Audio.Media.DURATION),
                 sizeBytes = size,
                 dateAddedMs = cursor.long(MediaStore.Audio.Media.DATE_ADDED) * MILLIS_PER_SECOND,
+                modifiedMs = cursor.long(MediaStore.Audio.Media.DATE_MODIFIED) * MILLIS_PER_SECOND,
                 mimeType = cursor.string(MediaStore.Audio.Media.MIME_TYPE).orEmpty(),
                 folderId = cursor.stringOrNull(MediaStore.Audio.Media.BUCKET_ID).orEmpty(),
                 folderName = cursor.stringOrNull(MediaStore.Audio.Media.BUCKET_DISPLAY_NAME).orEmpty(),
