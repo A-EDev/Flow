@@ -26,6 +26,18 @@ class NeuroTextTest {
     }
 
     @Test
+    fun `thai sara am survives folding`() {
+        assertThat(NeuroText.fold("สำหรับ")).isEqualTo("สำหรับ")
+    }
+
+    @Test
+    fun `trailing vowel and tone marks stay on their word`() {
+        assertThat(tokenizer.tokenize("गाना")).containsExactly("गाना")
+        assertThat(NeuroText.isWordChar('\u0E4C')).isTrue()
+        assertThat(NeuroText.isWordChar('!')).isFalse()
+    }
+
+    @Test
     fun `styled titles tokenize to their topics`() {
         assertThat(tokenizer.tokenize("𝙋𝙃𝙊𝙉𝙆 𝙈𝙄𝙓 aggressive")).containsAtLeast("phonk", "mix")
         assertThat(tokenizer.tokenize("ᴘʜᴏɴᴋ gym motivation")).contains("phonk")

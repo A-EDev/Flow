@@ -66,7 +66,12 @@ internal object NeuroText {
     /** Lowercase plain letters: "𝙋𝙃𝙊𝙉𝙆", "ｐｈｏｎｋ", "ⓟⓗⓞⓝⓚ" and "ᴘʜᴏɴᴋ" all read "phonk". */
     fun fold(text: String): String {
         if (text.all { it.code < 0x80 }) return text.lowercase()
-        val normalized = Normalizer.normalize(text, Normalizer.Form.NFKC)
+        // NFKC splits Thai and Lao SARA AM into two characters no dictionary or title uses; put it back.
+        val normalized =
+            Normalizer
+                .normalize(text, Normalizer.Form.NFKC)
+                .replace("\u0E4D\u0E32", "\u0E33")
+                .replace("\u0ECD\u0EB2", "\u0EB3")
         val plain = if (normalized.any { it in SmallCaps }) normalized.map { SmallCaps[it] ?: it }.joinToString("") else normalized
         return plain.lowercase()
     }
@@ -79,6 +84,14 @@ internal object NeuroText {
         folded.split(Whitespace).flatMap { chunk ->
             if (chunk.any(::isUnspaced)) segment(chunk) else listOf(chunk)
         }
+
+    /** A letter, digit or combining mark: the marks spell vowels and tones in Thai and Devanagari words. */
+    fun isWordChar(c: Char): Boolean =
+        c.isLetterOrDigit() ||
+            when (Character.getType(c).toByte()) {
+                Character.NON_SPACING_MARK, Character.COMBINING_SPACING_MARK, Character.ENCLOSING_MARK -> true
+                else -> false
+            }
 
     /** Long enough to be a topic: three letters, a known short name, or two characters of an unspaced script. */
     fun isTopicSized(word: String): Boolean =

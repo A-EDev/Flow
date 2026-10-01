@@ -720,7 +720,7 @@ internal class NeuroTokenizer {
     fun tokenize(text: String): List<String> =
         NeuroText
             .words(NeuroText.fold(text))
-            .map { word -> word.trim { !it.isLetterOrDigit() } }
+            .map { word -> word.trim { !NeuroText.isWordChar(it) } }
             .filter(NeuroText::isTopicSized)
             .map { normalizeLemma(it) }
             .filter { !stopWords.contains(it) && !YEAR_TAG_REGEX.matches(it) }

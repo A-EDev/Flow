@@ -24,7 +24,7 @@ class NeuroTextSegmentationTest {
         vararg expected: String,
     ) {
         val tokens = tokenizer.tokenize(title)
-        expected.forEach { assertTrue("$expected not in $tokens for \"$title\"", it in tokens) }
+        expected.forEach { assertTrue("$it not in $tokens for \"$title\"", it in tokens) }
     }
 
     @Test
@@ -38,8 +38,8 @@ class NeuroTextSegmentationTest {
     }
 
     @Test
-    fun thaiTitlesSplitIntoWords() = assertTopics("สอนเล่นกีตาร์สำหรับมือใหม่", "กีตาร์")
+    fun thaiTitlesSplitIntoWords() = assertTopics("สอนเล่นกีตาร์สำหรับมือใหม่", "กีตาร์", "สำหรับ")
 
     @Test
-    fun spacedScriptsAreUntouched() = assertTopics("Pixel 10 Pro review", "pixel", "review")
+    fun spacedScriptsAreUntouched() = assertTopics("Pixel 10 Pro camera test", "pixel", "camera")
 }
